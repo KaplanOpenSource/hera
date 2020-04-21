@@ -41,7 +41,7 @@ def getTurbulenceCalculatorFromDB(projectName, samplingWindow, start, end, usePa
                   }
     identifier.update(kwargs)
 
-    projectData = datalayer.Projects(projectName=projectName).getMetadata()[['height', 'instrument', 'station']].drop_duplicates()
+    projectData = datalayer.Project(projectName=projectName).getMetadata()[['height', 'instrument', 'station']].drop_duplicates()
 
     if identifier['station'] is not None:
         stationData = projectData['stations'].query("station=='%s'" % identifier['station']).iloc[0]
@@ -61,7 +61,7 @@ def getTurbulenceCalculatorFromData(data, samplingWindow, isMissingData=False):
 
     :return: A turbulence calculator of the loaded raw data.
     """
-    identifier = {'samplingWindow': samplingWindow,
+    identifier = {'samplingWindow': samplingWindow
                   }
 
     return TurbulenceCalculator(rawData=data, metadata={}, identifier=identifier, isMissingData=isMissingData)

@@ -19,7 +19,7 @@
 
 project = 'pyhera'
 copyright = '2019, Eden'
-author = 'Eden'
+author = 'Eden Nitsan, Yehuda Arav, Ofir Blumer, David Giguzin'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
@@ -30,7 +30,14 @@ release = '0.0.1'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc','nbsphinx','numpydoc']
+extensions = ['sphinx.ext.autodoc',
+	      'sphinx_gallery.gen_gallery',
+	      'nbsphinx',
+	      'numpydoc'
+	     ]
+sphinx_gallery_conf = {'examples_dirs': '../../examples',   # path to your example scripts
+		       'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+		      }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

@@ -6,3 +6,4 @@ meteorological
 
     meteorological/architecture
     meteorological/examples
+    meteorological/how_to

@@ -1,6 +1,10 @@
 import argparse
 import json
-from pyhera.hera.datalayer import Measurements, Simulations, Analysis, Projects
+from hera import datalayer
+
+Measurements = datalayer.Measurements
+Simulations = datalayer.Simulations
+Analysis = datalayer.Analysis
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dump', dest='dump', action='store_true', help='')
@@ -22,8 +26,8 @@ if args.dump:
                 parser.error("Must use --projectName with --dump")
             elif args.type is None:
                 parser.error("Must use --type when using --projectName with --dump")
-            elif args.type not in ['Measurements', 'Simulations', 'Analysis', 'Projects']:
-                parser.error("--type must get one of the following values: 'Measurements', 'Simulations', 'Analysis', 'Projects'")
+            elif args.type not in ['Measurements', 'Simulations', 'Analysis']:
+                parser.error("--type must get one of the following values: 'Measurements', 'Simulations', 'Analysis'")
             else:
                 with open(args.outputFile, 'w') as myFile:
                     json.dump(globals()[args.type].getDocumentsAsDict(args.projectName), myFile, indent=4, sort_keys=True)

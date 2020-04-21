@@ -50,34 +50,63 @@ def getMongoConfigFromJson(user=None):
     ## build the connection to the db.
 
 
-def connectToDatabase(mongoConfig):
+def connectToDatabase(mongoConfig,alias=None):
     """
     Creates a connection to the database according to the mongoConfig.
 
-    :param mongoConfig:
+    :param mongoConfig: dict
+                defines the connection to the DB:
+
+                - dbName : the name of the database.
+                - dbIP   : the IP of the database
+                - username: the unsername to log in with.
+                - password : the user password.
+
+    :param alias: str
+            An alternative alias. Used mainly for parallel applications.
+
     :return:
+        mongodb connection.
     """
-    connect(alias='%s-alias' % mongoConfig['dbName'],
+    alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
+
+    con = connect(alias=alias,
             host=mongoConfig['dbIP'],
             db=mongoConfig['dbName'],
             username=mongoConfig['username'],
             password=mongoConfig['password'],
             authentication_source='admin'
             )
+    return con
 
 
-def createDBConnection(user, mongoConfig):
+def createDBConnection(user, mongoConfig,alias=None):
     """
     Creates a connection to the database.
     Creates mongoengine objects and saving them to a global dictionary dbObjects.
 
+    saves DB objects for the user in a DBdict:
+
+        - connection: the connection to the db. has the alias [dbname]-alias
+                      or the given alias name.
+
+        - Metadata: the meta data object that holds all the documets.
+        - Measurements:  documents of the measurements.
+        - Analysis:      documents of the analysis.
+        - Simulations:   documents of the simulations.
+
     :param user:
-    :param mongoConfig
+            The username to register the connection under.
+    :param mongoConfig; dict
+            defines the connection to the DB.
+            see connectToDatabase for details.
     :return:
+        dict.
+        return the DBdict.
     """
     dbDict = {}
 
-    connectToDatabase(mongoConfig=mongoConfig)
+    con = connectToDatabase(mongoConfig=mongoConfig,alias=alias)
 
     dbName = mongoConfig['dbName']
 
@@ -88,6 +117,8 @@ def createDBConnection(user, mongoConfig):
                                                                                 }
                                                                        }
                         )
+
+    dbDict['connection'] = con
     dbDict['Metadata'] = new_Metadata
 
     new_Measurements = type('Measurements', (new_Metadata,), {})
@@ -101,7 +132,7 @@ def createDBConnection(user, mongoConfig):
 
     dbObjects[user] = dbDict
 
-    return user, dbDict
+    return dbDict
 
 
 # ---------------------default connections--------------------------

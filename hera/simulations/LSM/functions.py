@@ -73,7 +73,7 @@ def getSimulationByID(id):
 
 def listSimulations(projectName, wideFormat=False, **query):
     """
-    list the Simulation parameters that fulfil the query
+        List the Simulation parameters that fulfil the query
     :param query:
     :return:
     """

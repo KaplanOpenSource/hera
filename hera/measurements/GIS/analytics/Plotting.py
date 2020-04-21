@@ -1,7 +1,7 @@
 from ..datalayer.datalayer import GIS_datalayer
-from hera import datalayer
+from .... import datalayer
 import matplotlib.pyplot as plt
-import cv2 as cv
+import matplotlib.image as mpimg
 
 
 class Plotting():
@@ -29,7 +29,7 @@ class Plotting():
 
         path = doc.resource
         extents = [doc.desc['left'], doc.desc['right'], doc.desc['bottom'], doc.desc['top']]
-        image = cv.imread(path)
+        image = mpimg.imread(path)
 
         ax = plt.imshow(image, extent=extents)
 
