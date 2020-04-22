@@ -179,8 +179,6 @@ def help_handler(arguments):
                    ]
             print("\n".join(msg))
 
->>>>>>> 54b9d7a2b315175a830a326228a6c964e7f00e32:hera/bin/hera-datalayer.py
-
 
 def list_handler(arguments):
     fullQuery={}
