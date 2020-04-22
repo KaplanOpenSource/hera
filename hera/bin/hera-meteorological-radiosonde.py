@@ -15,7 +15,7 @@ def load_handler(arguments):
 
     loadDataInput = dict(projectName=arguments[0],
                          locationName=arguments[1],
-                         date=pandas.Timestamp(arguments[2]),
+                         date=arguments[2],
                          filePath=arguments[3]
                          )
 
