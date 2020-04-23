@@ -9,14 +9,34 @@ def getTurbulenceCalculatorFromDB(projectName, samplingWindow, start, end, usePa
     This method loads the raw data that corresponds to the requirements (projectName, station, instrument.. ) and
     creates a turbulence calculator with the desirable sampling window.
 
-    :param projectName:     The name of the project.
-    :param samplingWindow:  The desirable sampling window (as string).
-    :param start:           Datetime of the begin.
-    :param end:             Datetime of the end.
-    :param usePandas:       A flag of whether or not to use pandas.
-    :param isMissingData    A flag if there is a missing data to compute accordingly.
 
-    :return: A turbulence calculator of the loaded raw data.
+    Parameters
+    ----------
+    projectName : str
+        The name of the project.
+
+    samplingWindow : str
+        The desirable sampling window.
+
+    start : str/pandas.Timestamp
+        Datetime of the begin.
+
+    end : str/pandas.Timestamp
+        Datetime of the end.
+
+    usePandas : bool, positional, default False
+        A flag of whether or not to use pandas.
+
+    isMissingData : bool, positional, default False
+        A flag if there is a missing data to compute accordingly.
+
+    kwargs :
+        Other query arguments.
+
+    Returns
+    -------
+    TurbulenceCalculator
+        A turbulence calculator of the loaded raw data.
     """
 
     if type(start) is str:
@@ -53,13 +73,24 @@ def getTurbulenceCalculatorFromDB(projectName, samplingWindow, start, end, usePa
 
 def getTurbulenceCalculatorFromData(data, samplingWindow, isMissingData=False):
     """
-    This method gets turbulence calculator
+    This method returns turbulence calculator from a given data and sampling window.
 
-    :param data:           The raw data for the calculations.
-    :param samplingWindow: The sampling window.
-    :param isMissingData:  A flag if there is a missing data to compute accordingly.
+    Parameters
+    ----------
 
-    :return: A turbulence calculator of the loaded raw data.
+    data : pandas.DataFrame/dask.dataframe
+        The raw data for the calculations.
+
+    samplingWindow : str
+        The desirable sampling window.
+
+    isMissingData : bool, optional, default False
+        A flag if there is a missing data to compute accordingly.
+
+    Returns
+    -------
+    TurbulenceCalculator
+        A turbulence calculator of the given data.
     """
     identifier = {'samplingWindow': samplingWindow
                   }
