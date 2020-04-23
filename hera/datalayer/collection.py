@@ -16,17 +16,28 @@ class AbstractCollection(object):
         self._type = ctype
         self._metadataCol = getDBObject('Metadata', user) if self.type is None else getDBObject(ctype, user)
 
-    def getDocumentsAsDict(self, projectName, with_id=False, **kwargs):
+    def getDocumentsAsDict(self, projectName, with_id=False, **query):
         """
         Returns a dict with a 'documents' key and list of documents in a dict formats as value.
         The list of the documents are the result of your query.
 
-        :param projectName: The projectName.
-        :param with_id: rather or not should the id key be in the documents.
-        :param kwargs: query arguments.
-        :return: dict with 'documents' key and list of dicts in its value.
+        Parameters
+        ----------
+        projectName : str
+            The projectName.
+
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
+
+        query :
+            query arguments.
+
+        Returns
+        -------
+        dict
+            A dict with 'documents' key and the value is a list of dicts that represent the documents that fulfills the query.
         """
-        dictList = [doc.asDict(with_id=with_id) for doc in self.getDocuments(projectName=projectName, **kwargs)]
+        dictList = [doc.asDict(with_id=with_id) for doc in self.getDocuments(projectName=projectName, **query)]
         return dict(documents=dictList)
 
     def getDocuments(self, projectName, resource=None, dataFormat=None, type=None, **desc):
@@ -34,12 +45,25 @@ class AbstractCollection(object):
         Get the documents that satisfy the given query.
         If projectName is None search over all projects.
 
-        :param projectName: The project name.
-        :param resource: The data resource.
-        :param dataFormat: The data format.
-        :param type: The type which the data belongs to.
-        :param desc: Other metadata arguments.
-        :return:
+        Parameters
+        ----------
+        projectName : str
+            The project name.
+
+        resource :
+            The data resource.
+
+        dataFormat : str
+            The data format.
+        type : str
+            The type which the data belongs to.
+        desc :
+            Other metadata arguments.
+
+        Returns
+        -------
+        list
+            List of documents that fulfill the query.
         """
         query = {}
         if resource is not None:
@@ -64,8 +88,15 @@ class AbstractCollection(object):
         """
         Returns a document by its ID.
 
-        :param id: The document ID.
-        :return: document
+        Parameters
+        ----------
+        id : str
+            The document ID.
+
+        Returns
+        -------
+        document
+            The document with the relevant ID.
         """
         return self._metadataCol.objects.get(id=id)
 
@@ -73,22 +104,27 @@ class AbstractCollection(object):
         """
             Adds a document to the database.
 
+        Parameters
+        ----------
+        projectName : str
+            The project to add the document
 
-        :param projectName: str
-                The project to add the document
-        :param resource:
-                The data of the document.
-        :param dataFormat: str
-                The type of the dataformat.
-                See datahandler for the available types.
+        resource :
+            The data of the document.
 
-        :param desc: dict
-                Holds any additional fields that describe the
-        :param type:
+        dataFormat : str
+            The type of the dataformat.
+            See datahandler for the available types.
 
-        :param kwargs:
-        :return:
-            mongoDB.documents.
+        desc : dict
+            Holds any additional fields that describe the
+
+        type : str
+            The type of the data
+
+        Returns
+        -------
+        mongoengine document
         """
         try:
             obj = self._metadataCol(projectName=projectName,resource=resource,dataFormat=dataFormat,type=type,desc=desc).save()
@@ -100,23 +136,37 @@ class AbstractCollection(object):
     def addDocumentFromJSON(self, json_data):
         self._metadataCol.from_json(json_data).save()
 
-    def deleteDocuments(self, projectName, **kwargs):
+    def deleteDocuments(self, projectName, **query):
         """
         Deletes documents that satisfy the given query.
 
-        :param projectName: The project name.
-        :param kwargs: Other query arguments.
-        :return:
+        Parameters
+        ----------
+        projectName : str
+            The project name.
+
+        query :
+            Other query arguments.
+
+        Returns
+        -------
+
         """
-        for doc in self.getDocuments(projectName=projectName, **kwargs):
+        for doc in self.getDocuments(projectName=projectName, **query):
             doc.delete()
 
     def deleteDocumentByID(self, id):
         """
         Deletes a documents by its ID.
 
-        :param id: The document ID.
-        :return:
+        Parameters
+        ----------
+        id : str
+            The document ID.
+
+        Returns
+        -------
+
         """
         self.getDocumentByID(id=id).delete()
 

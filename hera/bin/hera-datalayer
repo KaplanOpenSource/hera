@@ -1,0 +1,277 @@
+#! /usr/bin/env python
+import argparse
+import textwrap
+import json
+from hera import datalayer
+
+class ArgumentParser(argparse.ArgumentParser):
+    def print_help(self):
+        wrapper = textwrap.TextWrapper(width=80)
+        print("help")
+
+parser = ArgumentParser() #argparse.ArgumentParser()
+parser.add_argument('command', nargs=1, type=str)
+parser.add_argument('args', nargs='*', type=str)
+
+args = parser.parse_args()
+
+# commands = ["list","load","delete","copyTo","copyFrom"]
+
+
+def _parseConnectionString(constr):
+    """
+        Parses a mongodb connection string and returns a dict
+
+        The structure of the connection string is:
+
+        username:password@IP/dbname
+
+    :param constr: str. The connection string.
+    :return:
+    dict
+    """
+    return dict(username=constr.split(':')[0],
+                       password=constr.split(':')[1].split('@')[0],
+                       dbIP=constr.split(':')[1].split('@')[1].split('/')[0],
+                       dbName=constr.split(':')[1].split('@')[1].split('/')[1]
+                       )
+###
+##
+#
+def help_list_handler():
+    #wrapper = textwrap.TextWrapper(width=80)
+    help = ["\033[1mNAME\033[0m",
+            "\tlist - List documents\n",
+            "\033[1mSYNOPSYS\033[0m",
+            "\t\033[4mhera-datalayer\033[0m \033[4mlist\033[0m [<query>]\n",
+            "\033[1mDESCRIPTION\033[0m",
+            "\tPrint all the documents that fulfill the given query.",
+            "\tThe query is given in the [<query>] arguments.\n",
+            "\033[1mQUERY\033[0m",
+            "\tThe query is a set of conditions used to search documents over the database.\n",
+            "\tA query argument should be in the following format:",
+            '''\t    variable="'value'"\n''',
+            "\033[1mEXAMPLE\033[0m",
+            '''\t\033[1mhera-datalayer list projectName="'example'"\033[0m''',
+            "\t    This example should print all the documents of a project called 'example'"
+            ]
+    print('\n'.join(help))
+    # print("list the documents in the project")
+    # print("\thera-datalyer list projectName [mongodb query]")
+
+def help_load_handler():
+    help = ["\033[1mNAME\033[0m",
+            "\tload - Load documents to the database\n",
+            "\033[1mSYNOPSYS\033[0m",
+            "\t\033[4mhera-datalayer\033[0m \033[4mload\033[0m <file>\n",
+            "\033[1mDESCRIPTION\033[0m",
+            "\tLoad to the database all the documents found in the given file.",
+            "\tThe file should be a JSON file in the following format:\n",
+            '''\t    {
+                "Measurements":[list of measurements documents],
+                "Simulations":[list of simulations documents],
+                "Analysis":[list of analysis documents]
+            }\n''',
+            "\033[1mEXAMPLE\033[0m",
+            "\t\033[1mhera-datalayer load docsToLoad.json\033[0m",
+            "\t    This example should load to the database the documents found in the file called 'docsToLoad.json'"
+            ]
+    print('\n'.join(help))
+
+def help_delete_handler():
+    help = ["\033[1mNAME\033[0m",
+            "\tdelete - Delete documents from the database\n",
+            "\033[1mSYNOPSYS\033[0m",
+            "\t\033[4mhera-datalayer\033[0m \033[4mdelete\033[0m [<query>]/<file>\n",
+            "\033[1mDESCRIPTION\033[0m",
+            "\tDelete from the database all the documents that fulfill the given query.\n",
+            "\tThe delete process is made by 2 parts:",
+            "\t    \033[4m1\033[0m. Query the documents that you want to delete and they will be saved into a JSON file called docsToDelete.json",
+            "\t    \033[4m2\033[0m. Delete The documents in the file docsToDelete.json\n",
+            "\033[1mEXAMPLE\033[0m",
+            '''\t\033[4m1\033[0m. \033[1mhera-datalayer delete projectName="'example'"\033[0m''',
+            "\t    This example should save all the documents of a project called 'example' into a JSON file called 'docsToDelete.json'\n",
+            "\t\033[4m2\033[0m. \033[1mhera-datalayer delete docsToDelete.json\033[0m",
+            "\t    This example should delete the documents found in a JSON file called 'docsToDelete.json'"
+            ]
+    print('\n'.join(help))
+
+def help_copyTo_handler():
+    help = ["\033[1mNAME\033[0m",
+            "\tcopyTo - Copy documents from the current user database to the destination database\n",
+            "\033[1mSYNOPSYS\033[0m",
+            "\t\033[4mhera-datalayer\033[0m \033[4mcopyTo\033[0m <connection string> [<query>]\n",
+            "\033[1mDESCRIPTION\033[0m",
+            "\tLoad all the documents that fulfill the given query from the current user database to the destination database.",
+            "\tThe information to connect to the destination database is given in the <connection string> argument.\n"
+            "\tThe query is given in the [<query>] arguments.\n",
+            "\033[1mCONNECTION STRING\033[0m",
+            "\tThe connection string is used to connect to the destination database and should be in the following format:",
+            "\t   username:password@dbIP/dbName\n",
+            "\tusername - The username of a user with permissions to the destination database",
+            "\tpassword - The password of a user with permissions to the destination database",
+            "\tdbIP - The IP of the server that contains the destination database",
+            "\tdbName - The name of the destination database\n",
+            "\033[1mQUERY\033[0m",
+            "\tThe query is a set of conditions used to search documents over the database.\n",
+            "\tA query argument should be in the following format:",
+            '''\t    variable="'value'"\n''',
+            "\033[1mEXAMPLE\033[0m",
+            '''\t\033[1mhera-datalayer copyTo user:pass@1.1.1.1/name projectName="'example'"\033[0m''',
+            "\t    This example should copy all the documents of a project called 'example' from the current user database to the destination database.",
+            "\t    The destination database in this example is called 'name' and contained in a server with IP 1.1.1.1",
+            "\t    A user with username='user' and password='pass' has permissions to the destination database"
+            ]
+    print('\n'.join(help))
+
+def help_copyFrom_handler():
+    help = ["\033[1mNAME\033[0m",
+            "\tcopyFrom - Copy documents from the destination database to the current user database\n",
+            "\033[1mSYNOPSYS\033[0m",
+            "\t\033[4mhera-datalayer\033[0m \033[4mcopyTo\033[0m <connection string> [<query>]\n",
+            "\033[1mDESCRIPTION\033[0m",
+            "\tLoad all the documents that fulfill the given query from the destination database to the current user database.",
+            "\tThe information to connect to the destination database is given in the <connection string> argument.\n"
+            "\tThe query is given in the [<query>] arguments.\n",
+            "\033[1mCONNECTION STRING\033[0m",
+            "\tThe connection string is used to connect to the destination database and should be in the following format:",
+            "\t   username:password@dbIP/dbName\n",
+            "\tusername - The username of a user with permissions to the destination database",
+            "\tpassword - The password of a user with permissions to the destination database",
+            "\tdbIP - The IP of the server that contains the destination database",
+            "\tdbName - The name of the destination database\n",
+            "\033[1mQUERY\033[0m",
+            "\tThe query is a set of conditions used to search documents over the database.\n",
+            "\tA query argument should be in the following format:",
+            '''\t    variable="'value'"\n''',
+            "\033[1mEXAMPLE\033[0m",
+            '''\t\033[1mhera-datalayer copyFrom user:pass@1.1.1.1/name projectName="'example'"\033[0m''',
+            "\t    This example should copy all the documents of a project called 'example' from the destination database to the current user database.",
+            "\t    The destination database in this example is called 'name' and contained in a server with IP 1.1.1.1",
+            "\t    A user with username='user' and password='pass' has permissions to the destination database"
+            ]
+    print('\n'.join(help))
+
+def help_handler(arguments):
+    if not arguments:
+        help = ["usage: hera-datalayer <command> [<args>]\n",
+                "These are the available commands:\n",
+                "    list\tList documents",
+                "    load\tLoad documents to the database",
+                "    delete\tDelete documents from the database",
+                "    copyTo\tCopy documents from the current user database to a destination database",
+                "    copyFrom\tCopy documents from a destination database to the current user database\n",
+                "For more information about each command:",
+                "   hera-datalayer help <command>"
+                ]
+        print("\n".join(help))
+    else:
+        try:
+            globals()['help_%s_handler' % arguments[0]]()
+        except KeyError:
+            msg = ["'%s' is not an available command\n" % arguments[0],
+                   "These are the available commands:\n",
+                   "    list",
+                   "    load",
+                   "    delete",
+                   "    copyTo",
+                   "    copyFrom"
+                   ]
+            print("\n".join(msg))
+
+
+def list_handler(arguments):
+    fullQuery={}
+    startIndex = 0
+    if "=" not in arguments[0]:
+        fullQuery['projectName']=arguments[0]
+        startIndex = 1
+    for queryElement in arguments[startIndex:]:
+        fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+    for doc in datalayer.All.getDocuments(**fullQuery):
+        print(doc.asDict())
+
+def count_handler(arguments):
+    fullQuery={}
+    startIndex = 0
+    if "=" not in arguments[0]:
+        fullQuery['projectName']=arguments[0]
+        startIndex = 1
+    for queryElement in arguments[startIndex:]:
+        fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+
+    print("The total number of documents is %s" % len(datalayer.All.getDocuments(**fullQuery)))
+    print("\t Measurement documents: %s " % len(datalayer.Measurements.getDocuments(**fullQuery)) )
+    print("\t Simulation documents: %s " % len(datalayer.Simulations.getDocuments(**fullQuery)))
+    print("\t Analysis documents: %s " % len(datalayer.Analysis.getDocuments(**fullQuery)))
+
+def load_handler(arguments):
+    with open(arguments[0], 'r') as myFile:
+        docsDict = json.load(myFile)
+    for cls in docsDict:
+        for doc in docsDict[cls]:
+            getattr(datalayer, cls).addDocument(**doc)
+
+
+def delete_handler(arguments):
+    try:
+        with open(arguments[0], 'r') as myFile:
+            docDict = json.load(myFile)
+        for cls in docDict:
+            for doc in docDict[cls]:
+                for key in doc['_id']:
+                    id = doc['_id'][key]
+                getattr(datalayer, cls).deleteDocumentByID(id=id)
+    except FileNotFoundError:
+        fullQuery = {}
+        startIndex = 0
+        if "=" not in arguments[0]:
+            fullQuery['projectName'] = arguments[0]
+            startIndex = 1
+        for queryElement in arguments[startIndex:]:
+            fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+
+        docsToDelete = {}
+        with open('docsToDelete.json', 'w') as myFile:
+            docsToDelete['Measurements'] = datalayer.Measurements.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
+            docsToDelete['Simulations'] = datalayer.Simulations.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
+            docsToDelete['Analysis'] = datalayer.Analysis.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
+            json.dump(docsToDelete, myFile, indent=4, sort_keys=True)
+
+
+def copyTo_handler(arguments):
+    info = arguments[0]
+    mongoConfig = _parseConnectionString(info)
+
+    datalayer.createDBConnection('other', mongoConfig=mongoConfig)
+
+    fullQuery = {}
+    for queryElement in arguments[1:]:
+        fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+
+    docList = datalayer.All.getDocuments(**fullQuery)
+    for doc in docList:
+        docDict = doc.asDict()
+        cls = docDict.pop('_cls').split('.')[1]
+        getattr(datalayer, '%s_Collection' % cls)(user='other').addDocument(**docDict)
+
+
+def copyFrom_handler(arguments):
+    info = arguments[0]
+    mongoConfig = _parseConnectionString(info)
+
+    datalayer.createDBConnection('other', mongoConfig=mongoConfig)
+
+    fullQuery = {}
+    for queryElement in arguments[1:]:
+        fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+
+    docList = datalayer.AbstractCollection(user='other').getDocuments(**fullQuery)
+    for doc in docList:
+        docDict = doc.asDict
+        cls = docDict.pop('_cls').split('.')[1]
+        getattr(datalayer, cls).addDocument(**docDict)
+
+
+globals()['%s_handler' % args.command[0]](args.args)
+

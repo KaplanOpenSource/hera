@@ -20,21 +20,6 @@ def getProjectList(user=None):
 
 
 
-
-def getDocumentsAsDict(self, obj, with_id=False, **kwargs):
-    return obj.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
-
-
-def getDocuments(self, obj, resource=None, dataFormat=None, type=None, **desc):
-    return obj.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
-
-def addDocument(self, obj, resource="", dataFormat="string", type="", desc={}):
-    return obj.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
-
-def deleteDocuments(self, obj,  **kwargs):
-    return obj.deleteDocuments(projectName=self._projectName, **kwargs)
-
-
 class Project(object):
     """
         Provides a simple interface to the data of a specific project.
@@ -113,21 +98,6 @@ class Project(object):
         self._analysis      = Analysis_Collection(user=user)
         self._simulations   = Simulations_Collection(user=user)
 
-        # registering the all the functions for measurements, simulations and analysis.
-        #
-        funcListName = ["get{func}DocumentsAsDict","get{func}Documents","add{func}Document","delete{func}Documents"]
-        funcList = [getDocumentsAsDict,getDocuments,addDocument,deleteDocuments]
-        func_class = ["measurements","simulations","analysis"]
-
-        for fclass,(func,funcName) in product(func_class,zip(funcList,funcListName)):
-            func_class_obj = getattr(self,fclass)
-            partial_func = partial(func,self,func_class_obj)
-
-            setattr(self,funcName.format(func=fclass.title()),partial_func)
-
-
-
-
     def getMetadata(self):
         """
         Returns a pandas dataframe which contains all the description of all ot the documents in the current project.
@@ -136,3 +106,43 @@ class Project(object):
         """
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
+
+    def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
+        return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
+
+    def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+        return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
+
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        return self.measurements.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
+
+    def deleteMeasurementsDocuments(self, **kwargs):
+        return self.measurements.deleteDocuments(projectName=self._projectName, **kwargs)
+
+    def getSimulationsDocumentsAsDict(self, with_id=False, **kwargs):
+        return self.simulations.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
+
+    def getSimulationsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
+                                **desc)
+
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        return self.simulations.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
+                               desc=desc)
+
+    def deleteSimulationsDocuments(self, **kwargs):
+        return self.simulations.deleteDocuments(projectName=self._projectName, **kwargs)
+
+    def getAnalysisDocumentsAsDict(self,  with_id=False, **kwargs):
+        return self.analysis.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
+
+    def getAnalysisDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        return self.analysis.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
+                                **desc)
+
+    def addAnalysisDocument(self, resource="", dataFormat="string", type="", desc={}):
+        return self.analysis.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
+                               desc=desc)
+
+    def deleteAnalysisDocuments(self, **kwargs):
+        return self.analysis.deleteDocuments(projectName=self._projectName, **kwargs)

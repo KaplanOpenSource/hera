@@ -3,32 +3,91 @@ from shapely.geometry import MultiLineString, LineString
 from scipy.interpolate import griddata
 from numpy import array, cross, sqrt
 import numpy
-import matplotlib.pyplot as plt
-from itertools import product
-import argparse
+import pandas
+from ..datalayer.datalayer import GIS_datalayer
+from ..analytics.dataManipulations import dataManipulations
+from .... import datalayer
 
-#import FreeCAD
+# import FreeCAD
 
-class Topography(object):
-    """
-        Shape file utils for openfoam.
+class convert():
 
-    """
+    _projectName = None
+    _FilesDirectory = None
+    _Measurments = None
+    _GISdatalayer = None
+    _manipulator = None
 
-    _dxdy = None
+    def __init__(self, projectName, FilesDirectory):
 
-    @property
-    def dxdy(self):
-        return self._dxdy
+        self._FilesDirectory = FilesDirectory
+        self._projectName = projectName
+        self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory)
+        self._Measurments = datalayer.Measurements
+        self._manipulator = dataManipulations()
 
-    @dxdy.setter
-    def dxdy(self, value):
-        if value is not None:
-            self._dxdy = value
+    def addSTLtoDB(self, path, NewFileName, **kwargs):
+        """
+        Adds a path to the dataframe under the type 'stlType'.
 
-    def __init__(self, dxdy=None):
-        self._dxdy = 10 if dxdy is None else dxdy  # m
-        self._skipinterior = 100 #100 # m, the meters to remove from the interpolation to make sure all exists.
+        Parameters:
+
+            path: The path (string)
+            NewFileName: A name for the file (string)
+            kwargs: Additional parameters for the document.
+
+        Returns: A list that contains the stl string and a dict that holds information about it.
+        -------
+
+        """
+
+        self._Measurments.addDocument(projectName=self._projectName,
+                                      desc=dict(name = NewFileName, **kwargs),
+                                      type="stlFile",
+                                      resource=path,
+                                      dataFormat="string")
+
+    def toSTL(self, data, NewFileName, dxdy=None, save=True, addtoDB=True, flat=None, path=None, **kwargs):
+
+        """
+        Converts a geopandas dataframe data to an stl file.
+
+        Parameters:
+
+            data: The data that should be converted to stl. May be a dataframe or a name of a saved polygon in the database.
+            NewFileName: A name for the new stl file, also used in the stl string. (string)
+            dxdy: the dimention of each cell in the mesh in meters, the default is 50.
+            save: Default is True. If True, the new stl string is saved as a file and the path to the file is added to the database.
+            flat: Default is None. Else, it assumes that the area is flat and the value of flat is the height of the mesh cells.
+            path: Default is None. Then, the path in which the data is saved is the given self.FilesDirectory. Else, the path is path. (string)
+            kwargs: Any additional metadata to be added to the new document in the database.
+
+        Returns
+        -------
+
+        """
+
+        if type(data) == str:
+            polygon = self._GISdatalayer.getGeometry(data)
+            dataframe = self._GISdatalayer.getGISDocuments(Geometry=data, GeometryMode="contains")[0].getData()
+            geodata = self._manipulator.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
+        elif type(data) == geopandas.geodataframe.GeoDataFrame:
+            geodata = data
+        else:
+            raise KeyError("data should be geopandas dataframe or a polygon.")
+
+        stlstr, newdata = self.Convert_geopandas_to_stl(gpandas=geodata, flat=flat, NewFileName=NewFileName, dxdy=dxdy)
+
+        if save:
+            p = self._FilesDirectory if path is None else path
+            new_file_path = p + "/" + NewFileName + ".stl"
+            new_file = open(new_file_path, "w")
+            new_file.write(stlstr)
+
+            if addtoDB:
+                self.addSTLtoDB(p, NewFileName, **kwargs)
+
+        return stlstr, newdata
 
     def _make_facet_str(self, n, v1, v2, v3):
         facet_str = 'facet normal ' + ' '.join(map(str, n)) + '\n'
@@ -40,7 +99,7 @@ class Topography(object):
         facet_str += 'endfacet\n'
         return facet_str
 
-    def _makestl(self, X, Y, elev, solidname):
+    def _makestl(self, X, Y, elev, NewFileName):
         """
             Takes a mesh of x,y and elev and convert it to stl file.
 
@@ -49,8 +108,8 @@ class Topography(object):
             elev - matrix of elevation.
 
         """
-        base_elev = 0
-        stl_str = 'solid ' + solidname + '\n'
+        base_elev = elev.min() - 10
+        stl_str = 'solid ' + NewFileName + '\n'
         for i in range(elev.shape[0] - 1):
             for j in range(elev.shape[1] - 1):
 
@@ -122,21 +181,18 @@ class Topography(object):
                         n = n / sqrt(sum(n ** 2))
                         stl_str += self._make_facet_str(n, vlist[k], vblist[k], vblist[l])
 
-        stl_str += 'endsolid ' + solidname + '\n'
+        stl_str += 'endsolid ' + NewFileName + '\n'
         return stl_str
 
-    def Convert_shp_to_stl(self, shpfile, solidname, flat=None):
+    def Convert_geopandas_to_stl(self, gpandas, NewFileName, dxdy=50, flat=None):
         """
             Gets a shape file of topography.
             each contour line has property 'height'.
             Converts it to equigrid xy mesh and then build the STL.
         """
 
-        # 1. read the shp file.
-        gpandas = geopandas.read_file(shpfile)
-
-        # 2. Convert contour map to regular height map.
-        # 2.1 get boundaries
+        # 1. Convert contour map to regular height map.
+        # 1.1 get boundaries
         xmin = gpandas['geometry'].bounds['minx'].min()
         xmax = gpandas['geometry'].bounds['maxx'].max()
 
@@ -144,11 +200,10 @@ class Topography(object):
         ymax = gpandas['geometry'].bounds['maxy'].max()
 
         print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
-        # 2.2 build the mesh.
-        inter = self._skipinterior
-        grid_x, grid_y = numpy.mgrid[(xmin + inter):(xmax - inter):self.dxdy, (ymin + inter):(ymax - inter):self.dxdy]
+        # 1.2 build the mesh.
+        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
 
-        # 3. Get the points from the geom
+        # 2. Get the points from the geom
         Height = []
         XY = []
 
@@ -166,46 +221,14 @@ class Topography(object):
                     Height += lineheight
         if flat is not None:
             for i in range(len(Height)):
-                Height[i]=flat
-            
+                Height[i] = flat
+
         grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+        numpy.nan_to_num(grid_z2, nan=min(Height), copy=False)
 
-        if numpy.isnan(grid_z2).any():
-            print("Found some NaN in cubic iterpolation. consider increasing the boundaries of the interior")
+        stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 
-        stlstr = self._makestl(grid_x, grid_y, grid_z2, solidname)
+        data = pandas.DataFrame({"XY": XY, "Height": Height, "gridxMin":grid_x.min(), "gridxMax":grid_x.max(),
+                                 "gridy":grid_y.min(), "gridyMax":grid_y.max(), "gridz":grid_z2.min(), "gridzMax":grid_z2.max(),})
 
-        data = {"grid_x": grid_x, "grid_y": grid_y, "grid_z": grid_z2, "XY": XY, "Height": Height, "geo": gpandas}
-        print("X min: %s , X max: %s " % (numpy.min(grid_x), numpy.min(grid_x)))
-        print("Y min: %s , Y max: %s " % (numpy.min(grid_y), numpy.min(grid_y)))
         return stlstr, data
-
-
-class Buildings(object):
-    pass
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Write stlfile')
-    parser.add_argument('--shpfile', help='The shp file name')
-    parser.add_argument('--output', help='The stl file name')
-    parser.add_argument('--dxdy', help='The dxdy resolution (meters)', default=50)
-
-    args = parser.parse_args()
-
-    fname = args.shpfile
-    outfilename = args.output
-    dxdy = args.dxdy
-    # "/home/yehudaa/Dropbox/Projects/data/Galim/GALIM-CONTOUR.shp"
-    # fname = "/home/yehudaa/Dropbox/EyalYehuda/Jerusalem/BLDG1.shp"
-    fname = "/home/nirb/test/testme1/testme1-CONTOUR.shp"
-    outfilename = "/home/nirb/test/testme1/testme1-CONTOUR.STL"
-    dxdy = 50
-
-    utls = Topography(dxdy=float(dxdy))
-    print("Converting...")
-    stlstr, data = utls.Convert_shp_to_stl(shpfile=fname, solidname="Topography")
-    f = open(outfilename, 'w')
-    f.write(stlstr)
-    f.close()
-

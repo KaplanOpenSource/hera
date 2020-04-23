@@ -16,16 +16,19 @@ Where operations are:
 - load: Load documents to the database from JSON
 - copyTo: copy data from or to the other databases.
 
-Listing metadata
-################
+Listing metadata documents
+###########################
 
-In order to list metadata documents according to a wanted query you should use the CLI(command line interface) with the following command:
+with the following command lists all the documents according to
 
 .. code-block:: bash
 
-    hera-datalayer list <query 1> <query 2> ... <query N>
+    hera-datalayer list [projectName] <query 1> <query 2> ... <query N>
 
-Each query pharse is a mongoDB query.
+If project name is not present, then assume all the arguments are query.
+
+Each query pharse is a mongoDB query string.
+ That is [field name] = value, or more complicated queries.
 
 Example
 *******
@@ -33,6 +36,21 @@ Example
 For example in order to list all the experimental metadata of station 'Check_Post' in project 'Haifa':
 
 hera-datalayer list projectName="'Haifa'" type="'meteorological'" station="'Check_Post'"
+
+Counting metadata documents
+###########################
+
+In order to count the number metadata documents according to a wanted query you should use the CLI(command line interface) with the following command:
+
+.. code-block:: bash
+
+    hera-datalayer count [projectName] <query 1> <query 2> ... <query N>
+
+If project name is not present, then assume all the arguments are query.
+
+Each query pharse is a mongoDB query string.
+ That is [field name] = value, or more complicated queries.
+
 
 Deleting metadata from the database
 ###################################

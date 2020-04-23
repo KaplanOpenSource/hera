@@ -19,7 +19,7 @@
 
 project = 'pyhera'
 copyright = '2019, Eden'
-author = 'Eden'
+author = 'Eden Nitsan, Yehuda Arav, Ofir Blumer, David Giguzin'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'

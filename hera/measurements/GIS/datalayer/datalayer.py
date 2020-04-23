@@ -17,7 +17,7 @@ class GIS_datalayer():
 
         os.system("mkdir -p %s" % self._FilesDirectory)
 
-    def getExistingData(self, **kwargs):
+    def getExistingDocuments(self, **kwargs):
         """
         Loads data using an existing document in the database.
 
@@ -26,7 +26,7 @@ class GIS_datalayer():
         Returns: The data
         """
 
-        data = self._Measurments.getData(projectName=self._projectName, **kwargs)
+        data = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
 
         return data
 
@@ -207,7 +207,7 @@ class GIS_datalayer():
                                                resource="/mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/RELIEF/CONTOUR.shp",
                                                dataFormat="geopandas")
 
-    def getGISData(self, points=None, CutName=None, mode="Contour", GeometryMode="contains", Geometry=None, **kwargs):
+    def getGISDocuments(self, points=None, CutName=None, mode="Contour", GeometryMode="contains", Geometry=None, **kwargs):
         """
         This function is used to load GIS data.
         One may use it to get all data that corresponds to any parameters listed in a document,
@@ -243,15 +243,15 @@ class GIS_datalayer():
                 else:
                     raise KeyError("GeometryMode incorrectly called. Choose 'contains' or 'intersects'.")
             if 1 == len(containPoints):
-                data = self.getExistingData(points=containPoints[0], **kwargs)
+                data = self.getExistingDocuments(points=containPoints[0], **kwargs)
             else:
                 data = []
                 for p in containPoints:
-                    data.append(self.getExistingData(points=p, **kwargs))
+                    data.append(self.getExistingDocuments(points=p, **kwargs))
 
         else:
             if points==None and CutName==None:
-                check = self.check_data(mode=mode, **kwargs)
+                check = self.check_data(**kwargs)
             elif points==None and CutName!=None:
                 check = self.check_data(CutName=CutName, mode=mode, **kwargs)
             elif CutName==None and points!=None:
@@ -260,13 +260,13 @@ class GIS_datalayer():
                 check = self.check_data(points=points, CutName=CutName, mode=mode, **kwargs)
 
             if check:
-                data = self.getExistingData(mode=mode, **kwargs)
+                data = self.getExistingDocuments(mode=mode, **kwargs)
             else:
                 if points == None or CutName == None:
                     raise KeyError("Could not find data. Please insert points and CutName for making new data.")
                 else:
                     self.makeData(points=points, CutName=CutName, mode=mode, additional_data=kwargs)
-                    data = self.getExistingData(points=points, CutName=CutName, mode=mode)
+                    data = self.getExistingDocuments(points=points, CutName=CutName, mode=mode)
 
         return data
 

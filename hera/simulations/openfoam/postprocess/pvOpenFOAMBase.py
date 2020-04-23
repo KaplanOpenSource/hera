@@ -11,6 +11,7 @@ import numpy
 import xarray
 import os
 import glob
+import dask.dataframe as dd
 
 class paraviewOpenFOAM(object):
     """
@@ -20,8 +21,8 @@ class paraviewOpenFOAM(object):
 
     _componentsNames = None  # names of components for reading.
 
-    _netcdf_dir     = None    # path to save the netcdf.
-    _parquet_dir    = None    # path to save parquet files.
+    _hdfdir        = None    # path to save the hdf.
+    _netcdfdir     = None    # path to save the netcdf.
 
     _reader = None      # the reference to the reader object.
     _readerName = None  # the name of the reader in the vtk pipeline.
@@ -34,7 +35,23 @@ class paraviewOpenFOAM(object):
     def readerName(self):
         return self._readerName
 
-    def __init__(self,casePath, caseType='Decomposed Case', fieldnames=None, servername=None):
+    @property
+    def hdfdir(self):
+        return self._hdfdir
+
+    @hdfdir.setter
+    def hdfdir(self, hdfdir):
+        self._hdfdir = hdfdir
+
+    @property
+    def netcdfdir(self):
+        return self._netcdfdir
+
+    @hdfdir.setter
+    def netcdfdir(self, netcdfdir):
+        self._netcdfdir = netcdfdir
+
+    def __init__(self, casePath, caseType='Decomposed Case', fieldnames=None, servername=None):
         """
             Initializes the paraviewOpenFOAM class.
 
@@ -117,16 +134,15 @@ class paraviewOpenFOAM(object):
         self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
         self._reader.MeshRegions = ['internalMesh']
         if fieldnames is not None:
-            reader.CellArrays = fieldnames
+            self._reader.CellArrays = fieldnames
 
-        reader.UpdatePipeline()
-        return reader
+        self._reader.UpdatePipeline()
 
     def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self._readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
 
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self._readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
 
 
     def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, xarray=False):
@@ -166,7 +182,7 @@ class paraviewOpenFOAM(object):
 
             for datasourcename in datasourcenamelist:
                 datasource = pvsimple.FindSource(datasourcename)
-                ret[datasourcename] = self._readTimeStep(reader,datasource,timeslice,fieldnames,xarray)
+                ret[datasourcename] = self._readTimeStep(datasource,timeslice,fieldnames,xarray)
             yield ret
 
     def _readTimeStep(self, datasource, timeslice, fieldnames=None, xarray=False):
@@ -214,6 +230,7 @@ class paraviewOpenFOAM(object):
 
 
         curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if xarray else curstep
+
         return curstep
 
     def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
@@ -255,11 +272,12 @@ class paraviewOpenFOAM(object):
     def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
 
         def writeList(theList, batchID):
-            data = pandas.concat(theList, ignore_index=True,sort=True)
-            curfilename = "%s_%s.hdf" % (outfile, batchID)
-            print("\tWriting filter %s in file %s" % (filtername, curfilename))
-            data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
-            batchID += 1
+            filterList = [x for x in L[0].keys()]
+            for filtername in filterList:
+                data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
+                curfilename = "%s_%s.hdf" % (outfile, batchID)
+                print("\tWriting filter %s in file %s" % (filtername, curfilename))
+                data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
 
         outfile = readername if outfile is None else outfile
         if not os.path.isdir(self.hdfdir):
@@ -267,45 +285,16 @@ class paraviewOpenFOAM(object):
 
         batchID = 0
         L = []
-        for pnds in self.to_pandas(readername, datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
-
+        for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,
+                                   fieldnames=fieldnames):
             L.append(pnds)
 
             if len(L) == batch:
-                filterList = [x for x in L[0].keys()]
-                for filtername in filterList:
-                    writeList([item[filtername] for item in L], batchID)
+                writeList(L, batchID)
                 L=[]
-
-        writeList(L, batchID)
-
-    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
-
-        def writeList(theList, batchID):
-            data = pandas.concat(theList, ignore_index=True,sort=True)
-            curfilename = "%s_%s.hdf" % (outfile, batchID)
-            print("\tWriting filter %s in file %s" % (filtername, curfilename))
-            data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
-            batchID += 1
-
-        outfile = readername if outfile is None else outfile
-        if not os.path.isdir(self.hdfdir):
-            os.makedirs(self.hdfdir)
-
-        batchID = 0
-        L = []
-        for pnds in self.to_pandas(readername, datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
-
-            L.append(pnds)
-
-            if len(L) == batch:
-                filterList = [x for x in L[0].keys()]
-                for filtername in filterList:
-                    writeList([item[filtername] for item in L], batchID)
-                L=[]
-
-        writeList(L, batchID)
-
+                batchID += 1
+        if len(L) > 0:
+            writeList(L, batchID)
 
     def open_dataset(self, outfile=None, timechunk=10):
         """
@@ -328,44 +317,4 @@ class paraviewOpenFOAM(object):
 
 
 if __name__ == "__main__":
-    bse = pvOFBase(casePath="A.foam")
-
-    #print("Creating Reader")
-    r#eader = bse.ReadCase("A", "A.foam",'Reconstructed Case') # CaseType='Decomposed Case')  # 'Reconstructed Case')
-    cellCenters1 = pvsimple.CellCenters(Input=reader,guiName="cellcenter")
-    #	print(reader.TimestepValues)
-    #	reader = bse.ReadLagrangianVTK("W300StrongDispersion",["O2300_150_1-5_D101-5_P15000_Continuous_7260.vtk"])
-    #	import pdb
-    #	pdb.set_trace()
-    #	print(reader.
-    #	bse.write_hdf("W300StrongDispersion",reader)
-
-    # clip = pvsimple.Clip(Input=reader)
-    # clip.ClipType='Box'
-    # clip.Crinkleclip=True
-    # clip.ClipType.Bounds = [1000,3000,0,300,0,300]
-    # clip.InsideOut = True
-    # clip.UpdatePipeline()
-
-    bse.write_netcdf("A","cellcenter")
-
-    # bse = pvOFBase()
-    # reader = bse.ReadCase("Straight100m", "Straight100m.openfoam")
-    #print("...Done")
-    #clip = pvsimple.Clip(Input=reader,guiName="clip")
-    #clip.ClipType='Box'
-    #clip.Crinkleclip=True
-
-    #clip.ClipType.Bounds = [-0.10000000149011612, 5.099999904632568, -0.10000000149011612, 4.099999904632568,-0.10000000149011612, 2.5999999046325684]
-    #clip.ClipType.Position = [2.4557588668766424, 1.6246336788311293, -0.020431968730497685]
-    #clip.ClipType.Scale    = [0.14685547909596913, 0.18196658248910527, 0.8352306395969601]
-
-    #clip.InsideOut = True
-    #clip.UpdatePipeline()
-
-    #cellcntr = pvsimple.CellCenters(reader)
-    #cellcntr.UpdatePipeline()
-
-    #for x in bse.to_pandas("A", "clip"):
-    #    print("x")
-    # data = bse.open_dataset(timechunk=10)
+    builder = paraviewOpenFOAM("/home/ofir/Projects/openFoamUsage/askervein", caseType="Reconstructed Case")
