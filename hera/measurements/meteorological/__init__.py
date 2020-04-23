@@ -11,3 +11,11 @@ dailyplots = DailyPlots()
 from .imsdata import SeasonalPlots
 seasonplots=SeasonalPlots()
 
+from .imsdata import DataLoader
+IMS_dataloader=DataLoader()
+
+from .imsdata import Analysis
+analysis=Analysis()
+
+
+
