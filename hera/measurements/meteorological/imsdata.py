@@ -9,7 +9,6 @@ import seaborn
 from itertools import product
 seaborn.set()
 
-
 from ... import datalayer
 from ... utils import andClause
 from ... analytics import statistics
@@ -17,19 +16,70 @@ from ... analytics import statistics
 from hera.measurements.meteorological.analytics.statistics import calcHourlyDist
 from hera.measurements import meteorological
 
-class DataLoader(object):
 
-    ## to do: add None for all properties from init
+class Analysis(object):
+
+    seasonsdict = None
+
+    WINTER="Winter"
+    SPRING='Spring'
+    SUMMER='Summer'
+    AUTUMN='Autumn'
+
+    def __init__(self):
+
+
+        self.seasonsdict=dict(Winter=dict(monthes=[12,1,2]),
+                              Spring=dict(monthes=[3,4,5]),
+                              Summer=dict(monthes=[6,7,8]),
+                              Autumn=dict(monthes=[9,10,11])
+                              )
+
+
+    def addDatesColumns(self,data,dataType='dask',datecolumn=None,monthcolumn=None):
+
+        curdata = data
+
+        if datecolumn is None:
+            curdata = curdata.assign(curdate=curdata.index)
+            datecolumn='curdate'
+
+        curdata = curdata.assign(yearonly=curdata[datecolumn].dt.year)
+
+        if monthcolumn==None:
+            curdata = curdata.assign(monthonly=curdata[datecolumn].dt.month)
+            monthcolumn = 'monthonly'
+
+        curdata = curdata.assign(dayonly=curdata[datecolumn].dt.day)
+
+
+        tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12], labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']).replace('Winter1', 'Winter')
+
+        if dataType=='dask':
+            curdata = curdata.map_partitions(lambda df: df.assign(season=tm(df,monthcolumn)))
+
+        else:
+            curdata=curdata.assign(season=tm(curdata, monthcolumn))
+
+        return curdata
+
+class DataLoader(object):
     """
 
     This class handles loading IMS data into the database
 
     """
-    def __init__(self, np_size=None):
-        """
 
-        :param np_size:
-        """
+
+    _np_size=None
+    _HebRenameDict=None
+    _hebStnRenameDict=None
+    _removelist=None
+
+    PUBLIC_PROJECT = "IMS_Data"
+
+    def __init__(self, np_size=None):
+
 
         """
             Initializes the object.
@@ -142,8 +192,6 @@ class DataLoader(object):
 
 
 
-
-
     def loadDirectory(self,path, metadata=None,metadatafile=None,ParquetOutDir=None,**desc):
         """
         This function loads data from directory to the database
@@ -213,6 +261,12 @@ class DataLoader(object):
         - Adds it to the old data (if exists) by station name
         - Saves parquet files to the request location
         - Add a description to the metadata
+
+        dl.LoadData('/raid/users/davidg/Project/2020/IMS_RAW/json/multiStations',
+                    '/raid/users/davidg/Project/2020/IMS_RAW/parquet/',
+                    'IMS_Data',
+                    metadatafile='/raid/users/davidg/Project/2020/IMS_RAW/meta.txt')
+
 
         :param newdata_path: the path to the new data. in future might also be a web address.
         :param outputpath: Destination folder path for saving files
@@ -382,8 +436,6 @@ class DataLoader(object):
         vals.update(metadata)
         return vals
 
-
-
     def _getFromWeb(self):
         """
         This function (to be implemented) load data from web and converts it to pandas
@@ -430,10 +482,18 @@ class SeasonalPlots(plots):
 
     def __init__(self):
 
-        self.seasonsdict=dict(Winter=dict(monthes=[12,1,2],strmonthes='[DJF]'),
-                              Spring=dict(monthes=[3,4,5],strmonthes='[MAM]'),
-                              Summer=dict(monthes=[6,7,8],strmonthes='[JJA]'),
-                              Autumn=dict(monthes=[9,10,11],strmonthes='[SOM]')
+        self.seasonsdict=dict(Winter=dict(monthes=[12,1,2],
+                                          strmonthes='[DJF]'
+                                          ),
+                              Spring=dict(monthes=[3,4,5],
+                                          strmonthes='[MAM]'
+                                          ),
+                              Summer=dict(monthes=[6,7,8],
+                                          strmonthes='[JJA]'
+                                          ),
+                              Autumn=dict(monthes=[9,10,11],
+                                          strmonthes='[SOM]'
+                                          )
                               )
 
     def plotProbContourf_bySeason(self, data, plotField, levels = None, scatter = True, withLabels = True, colorbar=True,
@@ -499,8 +559,6 @@ class SeasonalPlots(plots):
 
         return ax
 
-
-
 class DailyPlots(object):
 
 
@@ -518,18 +576,18 @@ class DailyPlots(object):
                              set_xlabel= 'Time [Hours]'
                              )
 
-        self.plotfieldaxfuncdict=dict(WD=dict(set_ylim=[0, 360],
-                                              set_yticks=[x for x in range(0, 361, 30)],
+        self.plotfieldaxfuncdict=dict(WD=dict(#set_ylim=[0, 360],
+                                              #set_yticks=[x for x in range(0, 361, 30)],
                                               set_ylabel= 'Wind Direction [° from N]'
                                               ),
-                                      WS=dict(set_ylim=[0,20],
+                                      WS=dict(#set_ylim=[0,20],
                                           set_ylabel='Wind Speed [m/s]',
-                                          set_yticks= [x for x in range(0, 21, 4)],
-                                          set_yticklabels= [str(x) if x % 2 == 0 else "" for x in range(0, 21,4)]
+                                          #set_yticks= [x for x in range(0, 21, 4)],
+                                          #set_yticklabels= [str(x) if x % 2 == 0 else "" for x in range(0, 21,4)]
                                           ),
-                                      RH=dict(set_ylim=[0,100],
-                                          set_yticks= [x for x in range(0, 101,5)],
-                                          set_yticklabels= [str(x) if x % 10 == 0 else "" for x in range(0, 101,5)],
+                                      RH=dict(#set_ylim=[0,100],
+                                          #set_yticks= [x for x in range(0, 101,5)],
+                                          #set_yticklabels= [str(x) if x % 10 == 0 else "" for x in range(0, 101,5)],
                                           set_ylabel= 'Relative Humidity [%]')
                                       )
 
@@ -541,6 +599,16 @@ class DailyPlots(object):
                               edgecolors='k',
                               alpha=0.55,
                               legend=False
+                              )
+
+        self.linedict=dict(zorder=4,
+                            color='magenta',
+                            linestyle='-',
+                            linewidth=3
+                              # size=0.5,
+                              # edgecolors='k',
+                              # alpha=0.55,
+                              # legend=False
                               )
 
         self.labelsdict=dict(levels= numpy.round(numpy.linspace(self.contourvalsdict['under_value'],
@@ -645,6 +713,7 @@ class DailyPlots(object):
         if ax is None:
             fig, ax = plt.subplots()
         else:
+
             plt.sca(ax)
 
         scatter_props = dict(self.scatterdict)
@@ -656,12 +725,45 @@ class DailyPlots(object):
         curdata = curdata.assign(curdate=curdata.index)
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
+
+        ax= seaborn.scatterplot(curdata['houronly'], curdata[plotField], ax=ax, **scatter_props)
+
         ax_func_props = dict(self.plotfieldaxfuncdict.get(plotField, dict()))
         ax_func_props.update(self.axfuncdict)
         ax_func_props.update(ax_functions_properties)
 
+        for func in ax_func_props:
+            getattr(ax, func)(ax_func_props[func])
 
-        ax= seaborn.scatterplot(curdata['houronly'], curdata[plotField], ax=ax, **scatter_props)
+        return ax
+
+    def datelineplot(self,data,plotField,date,legend=True,ax=None,scatter_properties=dict(),ax_functions_properties=dict()):
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            plt.sca(ax)
+
+        line_props = dict(self.linedict)
+        line_props.update(scatter_properties)
+
+        curdata = data.dropna(subset=[plotField])
+        curdata = curdata.query("%s > -9990" % plotField)
+        curdata = curdata.assign(curdate=curdata.index)
+        curdata = curdata.assign(dateonly=curdata.curdate.dt.date.astype(str))
+        curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
+
+        qstring = "dateonly == '%s'" % date
+        dailydata = curdata.query(qstring).compute()
+
+        # ax= seaborn.lineplot(dailydata['houronly'], dailydata[plotField], ax=ax, **line_props)
+        plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
+        if legend==True:
+            ax.legend()
+
+        ax_func_props = dict(self.plotfieldaxfuncdict.get(plotField, dict()))
+        ax_func_props.update(self.axfuncdict)
+        ax_func_props.update(ax_functions_properties)
 
         for func in ax_func_props:
             getattr(ax, func)(ax_func_props[func])
