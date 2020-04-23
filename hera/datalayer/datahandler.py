@@ -29,11 +29,16 @@ class DataHandler_string(object):
     @staticmethod
     def getData(resource):
         """
-            The data in the record is a string.
+        The data in the record is a string.
 
-        :param resource: the resource of the record
-        :return:
-            string
+        Parameters
+        ----------
+        resource : str
+            String
+
+        Returns
+        -------
+        str
         """
         return resource
 
@@ -46,12 +51,16 @@ class DataHandler_time(object):
     @staticmethod
     def getData(resource):
         """
-            The data in the record is a timestamp.
+        The data in the record is a timestamp.
 
+        Parameters
+        ----------
+        resource : timestamp
+            Time
 
-        :param resource: boolean the resource of the record
-        :return:
-            pandas.Timestamp
+        Returns
+        -------
+        pandas.Timestamp
         """
         return pandas.Timestamp(resource)
 
@@ -72,10 +81,17 @@ class DataHandler_HDF(object):
         """
         Loads a key from a HDF file or files.
 
-        :param resource: A dictionary with path to the HDF file in the 'path' key, and HDF key in the 'key' key.
-        :param usePandas: if False use dask if False use pandas.
-        :return:
-                dask.DataFrame or pandas.DataFrame (if usePandas is true).
+        Parameters
+        ----------
+        resource : dict
+            A dictionary with path to the HDF file in the 'path' key, and HDF key in the 'key' key.
+
+        usePandas : bool, optional, default True
+            if False use dask if True use pandas.
+
+        Returns
+        -------
+        dask.DataFrame or pandas.DataFrame
         """
         df = dask.dataframe.read_hdf(resource['path'], resource['key'], sorted_index=True)
 
@@ -92,8 +108,14 @@ class DataHandler_netcdf_xarray(object):
         """
         Loads netcdf file into xarray.
 
-        :param resource: Path to the netcdf file.
-        :return: xarray
+        Parameters
+        ----------
+        resource : str
+            Path to the netcdf file.
+
+        Returns
+        -------
+        xarray
         """
         df = xarray.open_mfdataset(resource, combine='by_coords')
 
@@ -105,10 +127,16 @@ class DataHandler_JSON_dict(object):
     @staticmethod
     def getData(resource):
         """
+        Loads JSON to dict
 
+        Parameters
+        ----------
+        resource : str
+            The data in a JSON format.
 
-        :param resource: json string or json file
-        :return:
+        Returns
+        -------
+        dict
         """
         try:
             df = json.loads(resource)
@@ -123,6 +151,21 @@ class DataHandler_JSON_pandas(object):
 
     @staticmethod
     def getData(resource, usePandas=True):
+        """
+        Loads JSON to pandas/dask
+
+        Parameters
+        ----------
+        resource : str
+            The data in a JSON Format
+
+        usePandas : bool, optional, default True
+            if False use dask if True use pandas.
+
+        Returns
+        -------
+        pandas.DataFrame or dask.DataFrame
+        """
         if usePandas:
             df = pandas.read_json(resource)
         else:
@@ -144,12 +187,19 @@ class DataHandler_parquet(object):
     @staticmethod
     def getData(resource, usePandas=False):
         """
-            Loads a parquet file using the resource.
+        Loads a parquet file to dask/pandas.
 
-        :param resource: The directory of the parquet file.
-        :param usePandas: if True, compute the dask.
-        :return:
-                dask.Dataframe or pandas.DataFrame (if usePandas is true).
+        Parameters
+        ----------
+        resource : str
+            The directory of the parquet file.
+
+        usePandas : bool, optional, default False
+            if False use dask if True use pandas.
+
+        Returns
+        -------
+        dask.Dataframe or pandas.DataFrame
         """
         df = dask.dataframe.read_parquet(resource)
 
@@ -166,9 +216,14 @@ class DataHandler_image(object):
         """
         Loads an image using the resource.
 
-        :param resource: The path of the image.
-        :return:
-            img
+        Parameters
+        ----------
+        resource : str
+            The path of the image.
+
+        Returns
+        -------
+        img
         """
         img = mpimg.imread(resource)
 

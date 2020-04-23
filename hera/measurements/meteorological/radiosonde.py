@@ -19,14 +19,31 @@ class DataLayer(object):
         """
         Loads a radiosonde data to the database as JSON_pandas from a csv file.
 
-        :param projectName: The project name
-        :param locationName: The measurement location
-        :param date: The measurement date
-        :param filePath: csv data file path
-        :param kwargs: Other description arguments
-        :return:
+        Parameters
+        ----------
+        projectName : str
+            The project name
+
+        locationName : str
+            The measurement location
+
+        date : pandas.Timestamp / str
+            The measurement date
+
+        filePath : str
+            csv data file path
+
+        kwargs :
+            Other description arguments
+
+        Returns
+        -------
+
         """
         data = pandas.read_csv(filePath)
+
+        if type(date) is str:
+            date = pandas.Timestamp(date)
 
         desc = dict(locationName=locationName,
                     date=date,
@@ -44,19 +61,28 @@ class DataLayer(object):
                    )
         Measurements.addDocument(**doc)
 
-    def getData(self, projectName, **kwargs):
+    def getData(self, projectName, **query):
         """
-        Returns metadata documents list according to the input requirements.
+        Returns list of metadata documents according to the input requirements.
 
-        :param projectName:
-        :param kwargs:
-        :return:
+        Parameters
+        ----------
+        projectName : str
+            The project name
+
+        query :
+            Other query arguments
+
+        Returns
+        -------
+        list
+            List of the documents that fulfill the query
         """
         docList = Measurements.getDocuments(projectName=projectName,
                                             dataFormat='JSON_pandas',
                                             type='meteorological',
                                             DataSource='radiosonde',
-                                            **kwargs
+                                            **query
                                             )
         return docList
 
