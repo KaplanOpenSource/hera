@@ -190,70 +190,6 @@ class DataLoader(object):
         return comments
 
 
-
-
-    def loadDirectory(self,path, metadata=None,metadatafile=None,ParquetOutDir=None,**desc):
-        """
-        This function loads data from directory to the database
-
-        :param path: the path to the 'raw' files
-        :param metadata: metadata dict from user
-        :param metadatafile: path to metadata file which will be processed
-        :param ParquetOutDir: the directory in which the parquet files will be saved
-        :param desc:
-        :return:
-        """
-
-
-        fileformat='json'
-        all_files = glob.glob(os.path.join(path,"*"+fileformat))
-
-        L = []
-
-        for filename in all_files:
-            df = pandas.read_json(filename)
-            L.append(df)
-
-        tmppandas = pandas.concat(L, axis=0, ignore_index=True)
-
-        ##################################################
-        ##'temp solution: removing stations with issues'##
-        ##################################################
-
-        removelist=['BET DAGAN RAD','SEDE BOQER UNI','BEER SHEVA UNI']
-        stations = [x for x in tmppandas['stn_name'].unique() if x not in removelist]
-        tmppandas_q = tmppandas.query('stn_name in @stations')
-
-
-        npartitions= len(tmppandas) // self._np_size + 1
-        loaded_dask = dd.from_pandas(tmppandas_q, npartitions=npartitions)
-        return loaded_dask
-
-        vals = dict()
-        if metadatafile:
-
-
-            F=['HebName','ITM_E','ITM_N','LAT_deg','LON_deg','MASL','Station_Open_date','Rain','Temperature','Wind',\
-               'Humidity','Pressure','Radiation','Screen_Model','InstLoc_AnemometeLoc','Anemometer_h','comments']
-
-            MD = pandas.read_csv(metadatafile,delimiter="\t",names=["Serial_Num","ENVISTA_ID","Stn_name_Heb",\
-                                                                  "Stn_name_Eng","ITM_E","ITM_N","Lon_deg",\
-                                                                  "Lat_deg","MASL","Open_Date","vars","Screen_Model",\
-                                                                  "Instruments_loc_and_Anemometer_loc","Anemometer_height_m","comments"])
-
-            for stnname,data in tmppandas_q.groupby("stn_name"):
-                stnname = "".join(filter(lambda x: not x.isdigit(), stnname)).strip()
-                Station=MD.query("Stn_name_Eng==@stnname")
-
-
-                for x in F:
-                    updator = getattr(self, "_process_%s" % x)
-                    vals[x]=updator(Station)
-
-
-
-        return vals
-
     def LoadData(self, newdata_path, outputpath, Projectname, metadatafile=None, type='meteorological', DataSource='IMS', station_column='stn_name', time_coloumn='time_obs', **metadata):
         """
         This function:
@@ -497,9 +433,9 @@ class SeasonalPlots(plots):
                               )
 
     def plotProbContourf_bySeason(self, data, plotField, levels = None, scatter = True, withLabels = True, colorbar=True,
-                                  ax=None,scatter_properties = dict(),contour_values = dict(),contour_properties = dict(),
-                                  contourf_properties = dict(), labels_properties = dict(), ax_properties = dict(),
-                                  normalization = 'max_normalized', figsize=[15, 10]):
+                                  Cmapname='jet',ax=None,scatter_properties = dict(),contour_values = dict(),
+                                  contour_properties = dict(),contourf_properties = dict(), labels_properties = dict(),
+                                  ax_functions_properties = dict(),normalization = 'max_normalized', figsize=[15, 10]):
 
 
         """
@@ -520,7 +456,7 @@ class SeasonalPlots(plots):
         contour_properties: dict, optional
         contourf_properties:dict, optional
         labels_properties:dict, optional
-        ax_properties:dict, optional
+        ax_functions_properties:dict, optional
         normalization:string, default 'max_normalized'
         figsize: list, default is [15,10]
 
@@ -545,11 +481,11 @@ class SeasonalPlots(plots):
             seasondata=curdata.query(qstring)
 
             CS,CSF,ax_i=meteorological.dailyplots.plotProbContourf(seasondata, plotField, ax=ax[axPosition[0], axPosition[1]],
-                                                                   colorbar=False, levels = levels, scatter = scatter, withLabels = withLabels,
+                                                                   colorbar=False,Cmapname=Cmapname, levels = levels, scatter = scatter, withLabels = withLabels,
                                                                    scatter_properties = scatter_properties, contour_values = contour_values,
                                                                    contour_properties = contour_properties, contourf_properties = contourf_properties,
                                                                    labels_properties = labels_properties,
-                                                                   ax_functions_properties= ax_properties, normalization = normalization)
+                                                                   ax_functions_properties= ax_functions_properties, normalization = normalization)
 
             ax_i.set_title('%s %s' %(season,self.seasonsdict.get(season)['strmonthes']))
 
@@ -635,7 +571,7 @@ class DailyPlots(object):
                     linewidths=0.5,
                     colors='k')
 
-    def _getContourfDict(self, params):
+    def _getContourfDict(self, params,Cmapname='jet'):
 
         """
         Make a dictionary with the properties for contourf plot
@@ -645,14 +581,14 @@ class DailyPlots(object):
         """
 
         return  dict(zorder=2,
-                     cmap=self._getcmap('jet',under=True,undercolor='0.9',over=False,overcolor=None,alpha=0.05),
+                     cmap=self._getcmap(name=Cmapname,under=True,undercolor='0.9',over=False,overcolor=None,alpha=0.05),
                      levels=numpy.round(numpy.linspace(params['under_value'],
                                                        params['max_value'],
                                                        params['contourfnum']), 2),
                      extend='min'
                      )
 
-    def _getcmap(self,name,under=False,undercolor='0.9',over=False,overcolor='0.9',alpha=0.05):
+    def _getcmap(self,under=False,undercolor='0.9',over=False,overcolor='0.9',alpha=0.05,name='jet'):
 
         """
         Creates a colormap object with under/over range properties
@@ -737,7 +673,7 @@ class DailyPlots(object):
 
         return ax
 
-    def datelineplot(self,data,plotField,date,legend=True,ax=None,scatter_properties=dict(),ax_functions_properties=dict()):
+    def datelineplot(self,data,plotField,date,legend=True,ax=None,line_properties=dict(),ax_functions_properties=dict()):
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -745,7 +681,7 @@ class DailyPlots(object):
             plt.sca(ax)
 
         line_props = dict(self.linedict)
-        line_props.update(scatter_properties)
+        line_props.update(line_properties)
 
         curdata = data.dropna(subset=[plotField])
         curdata = curdata.query("%s > -9990" % plotField)
@@ -771,7 +707,7 @@ class DailyPlots(object):
         return ax
 
 
-    def plotProbContourf(self, data, plotField, levels=None, scatter=True, withLabels=True, colorbar=True, ax=None, scatter_properties=dict(),
+    def plotProbContourf(self, data, plotField, levels=None, scatter=True, withLabels=True, colorbar=True,Cmapname='jet', ax=None, scatter_properties=dict(),
                          contour_values=dict(), contour_properties=dict(), contourf_properties=dict(), labels_properties=dict(),
                          ax_functions_properties=dict(), normalization='max_normalized'):
 
@@ -794,6 +730,8 @@ class DailyPlots(object):
             Whether or not to add a labels to the contour lines
         colorbar : boolean. default is True
             Whether or not to add a colorbar
+        Cmapname : string, default 'jet'
+            The name of requested colormap
         ax : Axes object, optional
             Axes object to plot in
         scatter_properties : dict, optional
@@ -831,7 +769,7 @@ class DailyPlots(object):
         conrourvals_props.update(contour_values)
 
         contour_props = self._getCountourDict(conrourvals_props)
-        contourf_props = self._getContourfDict(conrourvals_props)
+        contourf_props = self._getContourfDict(conrourvals_props,Cmapname)
 
 
         if normalization=='y_normalized':

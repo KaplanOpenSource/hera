@@ -6,16 +6,16 @@ from .imsdata import getDocFromDB   as IMS_getDocFromDB
 from .analytics.statistics import calcHourlyDist
 
 from .imsdata import DailyPlots
-dailyplots = DailyPlots()
+IMS_dailyplots = DailyPlots()
 
 from .imsdata import SeasonalPlots
-seasonplots=SeasonalPlots()
+IMS_seasonplots=SeasonalPlots()
 
 from .imsdata import DataLoader
 IMS_dataloader=DataLoader()
 
 from .imsdata import Analysis
-analysis=Analysis()
+IMS_analysis=Analysis()
 
 
 
