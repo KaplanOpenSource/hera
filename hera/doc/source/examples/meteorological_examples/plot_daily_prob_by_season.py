@@ -14,8 +14,9 @@ seaborn.set()
 projectName='IMS_Data'
 stationName= 'AVNE ETAN'
 station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
-data=station[0].getData()
-print(data)
+if len(station) > 0:
+    data=station[0].getData()
+    print(data)
 
 ###############################################################################
 # for documentation, we will read an example data from directory:
