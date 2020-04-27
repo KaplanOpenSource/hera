@@ -1,10 +1,11 @@
 """
-=====================
+==========================
 plot contourf by seasons
-=====================
+==========================
 """
 from hera import meteo
 import seaborn
+import os
 seaborn.set()
 
 ###############################################################################
@@ -12,10 +13,15 @@ seaborn.set()
 
 projectName='IMS_Data'
 stationName= 'AVNE ETAN'
-station=meteo.IMS_getDocFromDB(projectName=projectName, StationName=stationName)
+station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
 data=station[0].getData()
 print(data)
 
+###############################################################################
+# for documentation, we will read an example data from directory:
+
+station=meteo.IMS_datalayer.getDocFromFile(path=os.path.join("documentationData","AVNE_ETAN"))
+data=station[0].getData()
 ###############################################################################
 # Then, select a column from the data to plot
 #
@@ -23,14 +29,13 @@ print(data)
 
 
 print(data.columns)
-print( 'The selected column stands for %s' %station[0].desc['TD'])
+#print( 'The selected column stands for %s' %station[0].desc['TD'])
 
 ###############################################################################
 #  Now we can plot:
 
-plotfield='TD'
-
-meteo.seasonplots.plotProbContourf_bySeason(data,plotfield)
+plotField='TD'
+meteo.IMS_seasonplots.plotProbContourf_bySeason(data,plotField)
 
 ###############################################################################
 # The user can override the default ax settings, colors, labeles and more.
@@ -45,5 +50,5 @@ ax_functions_properties=dict(set_ylim=[0,45],
 withLabels=False
 Cmapname='coolwarm'
 
-meteo.seasonplots.plotProbContourf_bySeason(data,plotfield,ax_functions_properties=ax_functions_properties,withLabels=withLabels,Cmapname=Cmapname)
+meteo.IMS_seasonplots.plotProbContourf_bySeason(data,plotField,ax_functions_properties=ax_functions_properties,withLabels=withLabels,Cmapname=Cmapname)
 

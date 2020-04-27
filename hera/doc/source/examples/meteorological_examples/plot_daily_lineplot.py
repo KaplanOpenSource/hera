@@ -12,7 +12,7 @@ seaborn.set()
 
 projectName='IMS_Data'
 stationName= 'AVNE ETAN'
-station=meteo.IMS_getDocFromDB(projectName=projectName, StationName=stationName)
+station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
 data=station[0].getData()
 
 ###############################################################################
@@ -26,10 +26,10 @@ print( 'The selected column stands for %s' %station[0].desc['RH'])
 ###############################################################################
 #  Now we can plot:
 
-plotfield='RH'
+plotField='RH'
 datetetoplot='2015-02-26'
 
-meteo.dailyplots.datelineplot(data,plotField=plotfield,date=datetetoplot)
+meteo.IMS_dailyplots.dateLinePlot(data,plotField=plotField,date=datetetoplot)
 
 ###############################################################################
 # The user can override the default ax settings, colors, labeles and more.
@@ -42,4 +42,4 @@ ax_functions_properties=dict(set_ylim=[0,100],
                   )
 line_properties=dict(color='k')
 
-meteo.dailyplots.datelineplot(data,plotField=plotfield,date=datetetoplot,ax_functions_properties=ax_functions_properties,line_properties=line_properties)
+meteo.IMS_dailyplots.dateLinePlot(data,plotField=plotField,date=datetetoplot,ax_functions_properties=ax_functions_properties,line_properties=line_properties)

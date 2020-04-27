@@ -10,7 +10,7 @@ from hera import meteo
 
 projectName='IMS_Data'
 stationName= 'AVNE ETAN'
-station=meteo.IMS_getDocFromDB(projectName=projectName, StationName=stationName)
+station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
 data=station[0].getData()
 print(data)
 
@@ -26,8 +26,7 @@ print( 'The selected column stands for %s' %station[0].desc['WD'])
 #  Now we can plot:
 
 plotfield='WD'
-
-meteo.dailyplots.plotProbContourf(data,plotfield)
+meteo.IMS_dailyplots.plotProbContourf(data,plotfield)
 
 ###############################################################################
 # The user can override the default ax settings, colors, labeles and more.
@@ -38,5 +37,5 @@ meteo.dailyplots.plotProbContourf(data,plotfield)
 ax_functions_properties=dict(set_ylim=[0,360],
                              set_yticks=[x for x in range(0, 361, 30)]
                             )
-meteo.dailyplots.plotProbContourf(data,plotfield,ax_functions_properties=ax_functions_properties)
+meteo.IMS_dailyplots.plotProbContourf(data,plotfield,ax_functions_properties=ax_functions_properties)
 

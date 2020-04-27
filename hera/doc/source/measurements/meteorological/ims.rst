@@ -10,6 +10,6 @@ provide some analysis tools and helps to ease meteorological data plots
 .. toctree::
     :maxdepth: 2
 
-    IMS_Data/DataLoader
+    IMS_Data/DataLayer
     IMS_Data/Analysis
     IMS_Data/plots

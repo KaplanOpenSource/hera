@@ -3,7 +3,6 @@ import glob
 import numpy
 import dask.dataframe as dd
 import os
-import shutil
 import matplotlib.pyplot as plt
 import seaborn
 from itertools import product
@@ -28,13 +27,11 @@ class Analysis(object):
 
     def __init__(self):
 
-
         self.seasonsdict=dict(Winter=dict(monthes=[12,1,2]),
                               Spring=dict(monthes=[3,4,5]),
                               Summer=dict(monthes=[6,7,8]),
                               Autumn=dict(monthes=[9,10,11])
                               )
-
 
     def addDatesColumns(self,data,dataType='dask',datecolumn=None,monthcolumn=None):
 
@@ -52,7 +49,6 @@ class Analysis(object):
 
         curdata = curdata.assign(dayonly=curdata[datecolumn].dt.day)
 
-
         tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12], labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']).replace('Winter1', 'Winter')
 
         if dataType=='dask':
@@ -63,10 +59,10 @@ class Analysis(object):
 
         return curdata
 
-class DataLoader(object):
+class DataLayer(object):
     """
 
-    This class handles loading IMS data into the database
+    This class handles loading and reading IMS data
 
     """
 
@@ -190,51 +186,112 @@ class DataLoader(object):
         return comments
 
 
-    def LoadData(self, newdata_path, outputpath, Projectname, metadatafile=None, type='meteorological', DataSource='IMS', station_column='stn_name', time_coloumn='time_obs', **metadata):
+    def getDocFromFile(self,path, time_coloumn='time_obs', **kwargs):
+
         """
-        This function:
-        - Loads the new data to dask
-        - Adds it to the old data (if exists) by station name
-        - Saves parquet files to the request location
-        - Add a description to the metadata
+        Reads the data from file
 
-        dl.LoadData('/raid/users/davidg/Project/2020/IMS_RAW/json/multiStations',
-                    '/raid/users/davidg/Project/2020/IMS_RAW/parquet/',
-                    'IMS_Data',
-                    metadatafile='/raid/users/davidg/Project/2020/IMS_RAW/meta.txt')
+        parameters
+        ----------
 
+        path :
+        time_coloumn :
+        kwargs :
 
-        :param newdata_path: the path to the new data. in future might also be a web address.
-        :param outputpath: Destination folder path for saving files
-        :param Projectname: The project to which the data is associated. Will be saved in Matadata
-        :param metadatafile: The path to a metadata file, if exist
-        :param type: the data type. set by default to 'meteorological'
-        :param DataSource: The source of the data. Will be saved to metadata. set by default to 'IMS'
-        :param station_column: The name of the 'Station Name' column, for the groupby method. set by default to 'stn_name'
-        :param time_column: The name of the Time column for indexing. set by default to 'time_obs'
-        :param metadata: These parameters will be added to the metadata desc.
-        :return:
+        returns
+        -------
+        nonDBMetadata :
+
+        """
+
+        dl = DataLayer()
+
+        loaded_dask, _ = self.getFromDir(path, time_coloumn)
+        return [datalayer.document.metadataDocument.nonDBMetadata(loaded_dask, **kwargs)]
+
+    def getDocFromDB(self, projectName, type='meteorological', DataSource='IMS', StationName=None, **kwargs):
+
+        """
+        Reads the data from the database
+
+        parameters
+        ----------
+        projectName :
+        type :
+        DataSource :
+        StationName :
+        kwargs :
+
+        returns
+        -------
+        docList :
+
+        """
+
+        desc = dict()
+        desc.update(kwargs)
+        if StationName is not None:
+            desc.update(StationName=StationName)
+
+        docList = datalayer.Measurements.getDocuments(projectName=projectName,
+                                                      DataSource=DataSource,
+                                                      type=type,
+                                                      **desc
+                                                      )
+        return docList
+
+    def LoadData(self, newdata_path, outputpath, Projectname, metadatafile=None, type='meteorological', DataSource='IMS', station_column='stn_name', time_coloumn='time_obs', **metadata):
+
+        """
+            This function load data from directory to database:
+                - Loads the new data to dask format
+                - Adds the new data to the old data (if exists) by station name
+                - Saves parquet files to the request location
+                - Add a description to the metadata
+
+        Parameters
+        ----------
+
+         newdata_path : string
+            the path to the new data. in future might also be a web address.
+        outputpath : string
+         Destination folder path for saving files
+        Projectname : string
+            The project to which the data is associated. Will be saved in Matadata
+        metadatafile : string
+            The path to a metadata file, if exist
+        type : string
+            the data type to save in database. default 'meteorological'
+        DataSource : string
+         The source of the data. Will be saved into the metadata. default 'IMS'
+        station_column : string
+         The name of the 'Station Name' column, for the groupby method.  default 'stn_name'
+        time_column : string
+         The name of the Time column for indexing. default 'time_obs'
+        metadata : dict, optional
+         These parameters will be added into the metadata desc.
+
         """
 
         metadata.update(dict(DataSource=DataSource))
-        # 1- load the data
+
+        # 1- load the data #
 
         loaded_dask,stations=self.getFromDir(newdata_path, time_coloumn)
 
-
         groupby_data=loaded_dask.groupby(station_column)
+
         for stnname in stations:
             stn_dask=groupby_data.get_group(stnname)
 
             filtered_stnname = "".join(filter(lambda x: not x.isdigit(), stnname)).strip()
             print('updating %s data' %filtered_stnname)
 
-
             dir_path = os.path.join(outputpath, filtered_stnname).replace(' ','_')
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
 
-            # 2- check if station exist in DataBase
+            # 2- check if station exist in DataBase #
 
             docList = datalayer.Measurements.getDocuments(Projectname,
                                                           type=type,
@@ -254,13 +311,6 @@ class DataLoader(object):
                                  .reset_index().set_index(time_coloumn)\
                                  .drop_duplicates()\
                                  .repartition(partition_size=self._np_size)
-
-                    # shutil.rmtree(dir_path)
-
-                    # fileformat = 'parquet'
-                    # parquet_files = glob.glob(os.path.join(dir_path, "*" + fileformat))
-                    # for file in parquet_files:
-                        # os.remove(file)
 
                     if not os.path.exists(dir_path):
                         os.makedirs(dir_path)
@@ -284,20 +334,24 @@ class DataLoader(object):
                                                   )
 
     def getFromDir(self,path,time_coloumn):
+
+
         """
         This function converts json/csv data into dask
-        :param path:
-        :param time_coloumn:
-        :return:
+
+        Parameters
+        ----------
+
+        path :
+        time_coloumn :
+
+        returns
+        -------
+        loaded_dask :
+        stations :
         """
 
-        """
 
-        this function converts json/csv data into dask
-
-        :param path: the path to data (json/csv)
-        :return: tmpdata: dask pandas
-        """
         fileformat='json'
         all_files = glob.glob(os.path.join(path,"*"+fileformat))
 
@@ -379,140 +433,23 @@ class DataLoader(object):
         """
         pass
 
-
-def getDocFromFile(path,time_coloumn='time_obs',**kwargs):
-
-    """
-    Reads the data from file
-    :return:
-    """
-    dl = DataLoader()
-    loaded_dask, _ = dl.getFromDir(path, time_coloumn)
-    return datalayer.document.metadataDocument.nonDBMetadata(loaded_dask,**kwargs)
-
-
-def getDocFromDB(projectName,type='meteorological',DataSource='IMS',StationName=None,**kwargs):
-    """
-    Reads the data from the database
-    :return:
-    """
-
-    desc=dict()
-    desc.update(kwargs)
-    if StationName is not None:
-        desc.update(StationName=StationName)
-
-    docList = datalayer.Measurements.getDocuments(projectName=projectName,
-                                                  DataSource=DataSource,
-                                                  type=type,
-                                                  **desc
-                                                 )
-    return docList
-
-
 class plots(object):
 
-    pass
-
-class SeasonalPlots(plots):
-
-    def __init__(self):
-
-        self.seasonsdict=dict(Winter=dict(monthes=[12,1,2],
-                                          strmonthes='[DJF]'
-                                          ),
-                              Spring=dict(monthes=[3,4,5],
-                                          strmonthes='[MAM]'
-                                          ),
-                              Summer=dict(monthes=[6,7,8],
-                                          strmonthes='[JJA]'
-                                          ),
-                              Autumn=dict(monthes=[9,10,11],
-                                          strmonthes='[SOM]'
-                                          )
-                              )
-
-    def plotProbContourf_bySeason(self, data, plotField, levels = None, scatter = True, withLabels = True, colorbar=True,
-                                  Cmapname='jet',ax=None,scatter_properties = dict(),contour_values = dict(),
-                                  contour_properties = dict(),contourf_properties = dict(), labels_properties = dict(),
-                                  ax_functions_properties = dict(),normalization = 'max_normalized', figsize=[15, 10]):
-
-
-        """
-        applying plotProbContourf by season. see plotProbContourf for full documentation
-
-        Parameters
-        ----------
-
-        data : dask or pandas dataframe
-        plotField : the data column name to plot
-        levels : list, optional.
-        scatter : boolean. default is True
-        withLabels : boolean. default is True
-        colorbar : boolean. default is True
-        ax : optional
-        scatter_properties: dict, optional
-        contour_values: dict, optional
-        contour_properties: dict, optional
-        contourf_properties:dict, optional
-        labels_properties:dict, optional
-        ax_functions_properties:dict, optional
-        normalization:string, default 'max_normalized'
-        figsize: list, default is [15,10]
-
-        returns
-        -------
-        ax :
-        """
-
-        if ax is None:
-            fig, ax = plt.subplots(2,2,figsize=figsize)
-        else:
-            plt.sca(ax)
-
-        curdata=data
-        curdata = curdata.assign(curdate=curdata.index)
-        curdata = curdata.assign(monthonly=curdata.curdate.dt.month)
-
-        axPositionList = [x for x in product(range(ax.shape[0]), range(ax.shape[1]))]
-
-        for axPosition, season in zip(axPositionList, self.seasonsdict):
-            qstring = 'monthonly in %s' % self.seasonsdict.get(season)['monthes']
-            seasondata=curdata.query(qstring)
-
-            CS,CSF,ax_i=meteorological.dailyplots.plotProbContourf(seasondata, plotField, ax=ax[axPosition[0], axPosition[1]],
-                                                                   colorbar=False,Cmapname=Cmapname, levels = levels, scatter = scatter, withLabels = withLabels,
-                                                                   scatter_properties = scatter_properties, contour_values = contour_values,
-                                                                   contour_properties = contour_properties, contourf_properties = contourf_properties,
-                                                                   labels_properties = labels_properties,
-                                                                   ax_functions_properties= ax_functions_properties, normalization = normalization)
-
-            ax_i.set_title('%s %s' %(season,self.seasonsdict.get(season)['strmonthes']))
-
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
-        if colorbar==True:
-            plt.colorbar(ax=ax,ticks=CSF.levels)
-
-        return ax
-
-class DailyPlots(object):
-
+    _contourvalsdict = None
+    _plotfieldaxfuncdict =None
+    _axfuncdict =None
+    _labelsdict=None
+    _scatterdict=None
 
     def __init__(self):
 
-        self.contourvalsdict=dict(under_value=0.1,
-                                  contourskip=2,
-                                  contourfnum=10,
-                                  max_value=1.0
-                                  )
+        self._contourvalsdict=dict(under_value=0.1,
+                                   contourskip=2,
+                                   contourfnum=10,
+                                   max_value=1.0
+                                   )
 
-        self.axfuncdict=dict(set_xlim= [0, 24],
-                             set_xticks=[x for x in range(0,25)],
-                             set_xticklabels= [str(x) if x % 2 == 0 else "" for x in range(0, 25)],
-                             set_xlabel= 'Time [Hours]'
-                             )
-
-        self.plotfieldaxfuncdict=dict(WD=dict(#set_ylim=[0, 360],
+        self._plotfieldaxfuncdict=dict(WD=dict(#set_ylim=[0, 360],
                                               #set_yticks=[x for x in range(0, 361, 30)],
                                               set_ylabel= 'Wind Direction [° from N]'
                                               ),
@@ -527,34 +464,28 @@ class DailyPlots(object):
                                           set_ylabel= 'Relative Humidity [%]')
                                       )
 
-
-        self.scatterdict=dict(zorder=1,
-                              color='k',
-                              marker='.',
-                              size=0.5,
-                              edgecolors='k',
-                              alpha=0.55,
-                              legend=False
+        self._axfuncdict=dict(set_xlim= [0, 24],
+                              set_xticks=[x for x in range(0,25)],
+                              set_xticklabels= [str(x) if x % 2 == 0 else "" for x in range(0, 25)],
+                              set_xlabel= 'Time [Hours]'
                               )
 
-        self.linedict=dict(zorder=4,
-                            color='magenta',
-                            linestyle='-',
-                            linewidth=3
-                              # size=0.5,
-                              # edgecolors='k',
-                              # alpha=0.55,
-                              # legend=False
+        self._labelsdict=dict(levels=numpy.round(numpy.linspace(self._contourvalsdict['under_value'],
+                                                                self._contourvalsdict['max_value'],
+                                                                self._contourvalsdict['contourfnum']), 2)[::self._contourvalsdict['contourskip']],
+                              inline=True,
+                              fontsize=8,
+                              fmt='%1.2f'
                               )
 
-        self.labelsdict=dict(levels= numpy.round(numpy.linspace(self.contourvalsdict['under_value'],
-                                                                self.contourvalsdict['max_value'],
-                                                                self.contourvalsdict['contourfnum']), 2)[::self.contourvalsdict['contourskip']],
-                             inline=True,
-                             fontsize=8,
-                             fmt='%1.2f'
-                             )
-
+        self._scatterdict=dict(zorder=1,
+                               color='k',
+                               marker='.',
+                               size=0.5,
+                               edgecolors='k',
+                               alpha=0.55,
+                               legend=False
+                               )
 
     def _getCountourDict(self, params):
 
@@ -567,7 +498,7 @@ class DailyPlots(object):
         return dict(zorder=3,
                     levels=numpy.round(numpy.linspace(params['under_value'],
                                                       params['max_value'],
-                                                      params['contourfnum']), 2)[::self.contourvalsdict['contourskip']],
+                                                      params['contourfnum']), 2)[::self._contourvalsdict['contourskip']],
                     linewidths=0.5,
                     colors='k')
 
@@ -596,22 +527,22 @@ class DailyPlots(object):
         Parameters
         ----------
 
-        name: string.
+        name : string.
         The name of requested colormap (for ex: 'jet')
-        under: boolean, default False.
+        under : boolean, default False.
          Whether or not to set a low out-of-range color
-        undercolor: String.
+        undercolor : String.
          The requested under color name
-        over: boolean, default False.
+        over : boolean, default False.
          Whether or not to set a high out-of-range color
-        overcolor: String.
+        overcolor : String.
          The requested over color name
-        alpha: float, default 0.05.
+        alpha : float, default 0.05.
          Out-of-range color transparency
 
         Returns
         -------
-        cmap: colormap object
+        cmap : colormap object
         """
 
         cmap=plt.get_cmap(name)
@@ -622,12 +553,116 @@ class DailyPlots(object):
 
         return cmap
 
+class SeasonalPlots(plots):
+
+    _seasonsdict=None
+
+    def __init__(self):
+
+        super().__init__()
+
+        self._seasonsdict=dict(Winter=dict(monthes=[12, 1, 2],
+                                           strmonthes='[DJF]'
+                                           ),
+                               Spring=dict(monthes=[3,4,5],
+                                          strmonthes='[MAM]'
+                                          ),
+                               Summer=dict(monthes=[6,7,8],
+                                          strmonthes='[JJA]'
+                                          ),
+                               Autumn=dict(monthes=[9,10,11],
+                                          strmonthes='[SOM]'
+                                          )
+                               )
+
+    def plotProbContourf_bySeason(self, data, plotField, levels = None, scatter = True, withLabels = True, colorbar=True,
+                                  Cmapname='jet',ax=None,scatter_properties = dict(),contour_values = dict(),
+                                  contour_properties = dict(),contourf_properties = dict(), labels_properties = dict(),
+                                  ax_functions_properties = dict(),normalization = 'max_normalized', figsize=[15, 10]):
+
+        """
+        applying plotProbContourf by season. see plotProbContourf for full documentation
+
+        Parameters
+        ----------
+
+        data : dask or pandas dataframe
+        plotField :
+         The data column name to plot
+        levels : list, optional.
+        scatter : boolean. default is True
+        withLabels : boolean. default is True
+        colorbar : boolean. default is True
+        ax : optional
+        scatter_properties : dict, optional
+        contour_values : dict, optional
+        contour_properties : dict, optional
+        contourf_properties : dict, optional
+        labels_properties : dict, optional
+        ax_functions_properties : dict, optional
+            A dict with axes functions to add/replace the default functions applied on the ax
+        normalization:string, default 'max_normalized'
+        figsize : list, default is [15,10]
+
+        returns
+        -------
+        ax :
+        """
+
+        if ax is None:
+            fig, ax = plt.subplots(2,2,figsize=figsize)
+        else:
+            plt.sca(ax)
+
+        curdata=data
+        curdata = curdata.assign(curdate=curdata.index)
+        curdata = curdata.assign(monthonly=curdata.curdate.dt.month)
+
+        axPositionList = [x for x in product(range(ax.shape[0]), range(ax.shape[1]))]
+
+        for axPosition, season in zip(axPositionList, self._seasonsdict):
+            qstring = 'monthonly in %s' % self._seasonsdict.get(season)['monthes']
+            seasondata=curdata.query(qstring)
+
+            CS,CFS,ax_i=meteorological.DailyPlots.plotProbContourf(self,seasondata, plotField, ax=ax[axPosition[0], axPosition[1]],
+                                                                   colorbar=False,Cmapname=Cmapname, levels = levels, scatter = scatter, withLabels = withLabels,
+                                                                   scatter_properties = scatter_properties, contour_values = contour_values,
+                                                                   contour_properties = contour_properties, contourf_properties = contourf_properties,
+                                                                   labels_properties = labels_properties,
+                                                                   ax_functions_properties= ax_functions_properties, normalization = normalization)
+
+            ax_i.set_title('%s %s' % (season,self._seasonsdict.get(season)['strmonthes']))
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        if colorbar==True:
+            plt.colorbar(ax=ax,ticks=CFS.levels)
+
+        return ax
+
+class DailyPlots(plots):
+
+    _linedict=None
+
+    def __init__(self):
+
+        super().__init__()
+
+        self._linedict=dict(zorder=4,
+                            color='magenta',
+                            linestyle='-',
+                            linewidth=3
+                            # size=0.5,
+                            # edgecolors='k',
+                            # alpha=0.55,
+                            # legend=False
+                            )
 
     def plotScatter(self,data,plotField,ax=None,scatter_properties=dict(),ax_functions_properties=dict()):
 
 
         """
-        Make a scatter plot for selected plotField vs. daily time (in 24 hours)
+
+        Make a scatter plot for selected plotField vs daily time (in 24 hours)
 
         Parameters
         ----------
@@ -652,7 +687,7 @@ class DailyPlots(object):
 
             plt.sca(ax)
 
-        scatter_props = dict(self.scatterdict)
+        scatter_props = dict(self._scatterdict)
         scatter_props.update(scatter_properties)
 
         curdata = data.dropna(subset=[plotField])
@@ -664,8 +699,8 @@ class DailyPlots(object):
 
         ax= seaborn.scatterplot(curdata['houronly'], curdata[plotField], ax=ax, **scatter_props)
 
-        ax_func_props = dict(self.plotfieldaxfuncdict.get(plotField, dict()))
-        ax_func_props.update(self.axfuncdict)
+        ax_func_props = dict(self._plotfieldaxfuncdict.get(plotField, dict()))
+        ax_func_props.update(self._axfuncdict)
         ax_func_props.update(ax_functions_properties)
 
         for func in ax_func_props:
@@ -673,14 +708,42 @@ class DailyPlots(object):
 
         return ax
 
-    def datelineplot(self,data,plotField,date,legend=True,ax=None,line_properties=dict(),ax_functions_properties=dict()):
+    def dateLinePlot(self,data,plotField,date,legend=True,ax=None,line_properties=dict(),ax_functions_properties=dict()):
+
+        """
+        Make a line plot for selected plotField vs daily time (in 24 hours)
+
+        Parameters
+        ----------
+        data : dask or pandas dataframe.
+            The data to plot
+        plotField : string
+            The data column name to plot
+        date : string
+            The date to plot (in format of 'YYYY-MM-DD').
+        legend : boolean
+            default True
+        ax : Axes object, optional
+            Axes object to plot in
+        line_properties : dict' optional
+
+        ax_functions_properties : dict, optional
+            A dict with axes functions to add/replace the default functions applied on the ax
+
+        returns
+        -------
+
+        ax
+
+        """
+
 
         if ax is None:
             fig, ax = plt.subplots()
         else:
             plt.sca(ax)
 
-        line_props = dict(self.linedict)
+        line_props = dict(self._linedict)
         line_props.update(line_properties)
 
         curdata = data.dropna(subset=[plotField])
@@ -697,8 +760,8 @@ class DailyPlots(object):
         if legend==True:
             ax.legend()
 
-        ax_func_props = dict(self.plotfieldaxfuncdict.get(plotField, dict()))
-        ax_func_props.update(self.axfuncdict)
+        ax_func_props = dict(self._plotfieldaxfuncdict.get(plotField, dict()))
+        ax_func_props.update(self._axfuncdict)
         ax_func_props.update(ax_functions_properties)
 
         for func in ax_func_props:
@@ -711,14 +774,13 @@ class DailyPlots(object):
                          contour_values=dict(), contour_properties=dict(), contourf_properties=dict(), labels_properties=dict(),
                          ax_functions_properties=dict(), normalization='max_normalized'):
 
-
         """
-        Make a probability contour plot for unique values in 24 hours
+        Make a probability contour plot for selected plotField vs daily time (in 24 hours)
 
         Parameters
         ----------
 
-        data: dask or pandas dataframe.
+        data : dask or pandas dataframe.
             The data to plot
         plotField : string.
             The data column name to plot
@@ -754,7 +816,7 @@ class DailyPlots(object):
         ------
 
         CS : contour set
-        CSF : contourf set
+        CFS : contourf set
         ax : The axes object
         """
 
@@ -765,7 +827,7 @@ class DailyPlots(object):
 
         # Read and update contour and contourf properties #
 
-        conrourvals_props=dict(self.contourvalsdict)
+        conrourvals_props=dict(self._contourvalsdict)
         conrourvals_props.update(contour_values)
 
         contour_props = self._getCountourDict(conrourvals_props)
@@ -777,19 +839,17 @@ class DailyPlots(object):
                                                              numpy.ceil(M_hist.max() * 100) / 100,
                                                              conrourvals_props['contourfnum'])[::conrourvals_props['contourskip']]))
 
-
             contourf_props.update(dict(levels=numpy.round(numpy.linspace(conrourvals_props['under_value'],
                                                                          numpy.ceil(M_hist.max() * 100) / 100,
                                                                          conrourvals_props['contourfnum']), 2)))
-
 
         contour_props.update(contour_properties)
         contourf_props.update(contourf_properties)
 
         # Read and update axes properties #
 
-        ax_func_props = dict(self.plotfieldaxfuncdict.get(plotField, dict()))
-        ax_func_props.update(self.axfuncdict)
+        ax_func_props = dict(self._plotfieldaxfuncdict.get(plotField, dict()))
+        ax_func_props.update(self._axfuncdict)
         ax_func_props.update(ax_functions_properties)
 
 
@@ -798,7 +858,7 @@ class DailyPlots(object):
 
         # Read and update levels and labels properties #
 
-        labels_props = dict(self.labelsdict)
+        labels_props = dict(self._labelsdict)
         if normalization == 'y_normalized':
             labels_props.update(dict(levels= numpy.linspace(conrourvals_props['under_value'],
                                                             numpy.ceil(M_hist.max() * 100) / 100,
@@ -817,8 +877,8 @@ class DailyPlots(object):
             plt.sca(ax)
 
         if scatter==True:
-
-            ax = self.plotScatter(data,plotField,ax=ax,scatter_properties=scatter_properties)
+            ax = meteorological.DailyPlots.plotScatter(self,data,plotField,ax=ax,scatter_properties=scatter_properties)
+            # ax = self.plotScatter(data,plotField,ax=ax,scatter_properties=scatter_properties)
 
         CS = plt.contour(x_hist, y_hist, M_hist,levels=countour_levels,**contour_props)
 
@@ -829,8 +889,7 @@ class DailyPlots(object):
 
             ax.clabel(CS, labels_list,**labels_props)
 
-        CSF= plt.contourf(x_hist, y_hist, M_hist,levels=countourf_levels ,**contourf_props)
-
+        CFS= plt.contourf(x_hist, y_hist, M_hist,levels=countourf_levels ,**contourf_props)
 
         # Apply ax functions from ax_func_props
 
@@ -840,10 +899,6 @@ class DailyPlots(object):
         if colorbar==True:
             plt.colorbar(ax=ax, ticks=countourf_levels)
 
-
-        return CS,CSF,ax
-
-
-
+        return CS,CFS,ax
 
 
