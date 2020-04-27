@@ -168,7 +168,9 @@ class AbstractCollection(object):
         -------
 
         """
-        self.getDocumentByID(id=id).delete()
+        doc = self.getDocumentByID(id=id)
+        doc.delete()
+        return doc
 
     def getData(self, projectName, usePandas=None, **kwargs):
         """

@@ -221,7 +221,8 @@ def delete_handler(arguments):
             for doc in docDict[cls]:
                 for key in doc['_id']:
                     id = doc['_id'][key]
-                getattr(datalayer, cls).deleteDocumentByID(id=id)
+                doc = getattr(datalayer, cls).deleteDocumentByID(id=id)
+
     except FileNotFoundError:
         fullQuery = {}
         startIndex = 0
