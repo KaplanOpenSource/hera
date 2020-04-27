@@ -4,21 +4,28 @@ plot contourf by seasons
 ==========================
 """
 from hera import meteo
-import seaborn
-import os
-seaborn.set()
+
+import seaborn # import for documentation purose 
+import os # import for documentation purose 
+seaborn.set() # for documentation purose 
 
 ###############################################################################
 # First, we read data from the data base:
+#
+# [For documentation purposes, we will read a sample data (using getDocFromFile function) and create a document-like object].
 
 projectName='IMS_Data'
 stationName= 'AVNE ETAN'
 station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
-data=station[0].getData()
-print(data)
+if len(station) > 0:
+    data=station[0].getData()
+    print(data)
+else:
+    print('%s doclist is empty' % station)
+
 
 ###############################################################################
-# for documentation, we will read an example data from directory:
+# Reading sample data from directory:
 
 station=meteo.IMS_datalayer.getDocFromFile(path=os.path.join("documentationData","AVNE_ETAN"))
 data=station[0].getData()
@@ -29,7 +36,7 @@ data=station[0].getData()
 
 
 print(data.columns)
-#print( 'The selected column stands for %s' %station[0].desc['TD'])
+
 
 ###############################################################################
 #  Now we can plot:
