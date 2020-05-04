@@ -9,6 +9,7 @@ import matplotlib.image as mpimg
 class datatypes:
     STRING = "string"
     TIME   = "time"
+    CSV_PANDAS = "csv_pandas"
     HDF    = "hdf"
     NETCDF_XARRAY = "netcdf_xarray"
     JSON_DICT = "JSON_dict"
@@ -63,6 +64,33 @@ class DataHandler_time(object):
         pandas.Timestamp
         """
         return pandas.Timestamp(resource)
+
+
+class DataHandler_csv_pandas(object):
+    """
+        Loads a csv file into pandas dataframe.
+
+        Returns pandas dataframe.
+    """
+
+    @staticmethod
+    def getData(resource):
+        """
+        Loads a csv file into pandas dataframe.
+
+        Parameters
+        ----------
+        resource : str
+            Path to a csv file
+
+        Returns
+        -------
+        panda.dataframe
+        """
+
+        df = pandas.read_csv(resource)
+
+        return df
 
 
 class DataHandler_HDF(object):
