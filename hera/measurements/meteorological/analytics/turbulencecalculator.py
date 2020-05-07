@@ -217,10 +217,11 @@ class TurbulenceCalculator(AbstractCalculator):
         if 'wind_dir_std' not in self._RawData.columns:
             self.fluctuations()
 
-            std = self._RawData
+            std = numpy.square(self._RawData[['wind_dir_p']])
             std = std if self.SamplingWindow is None else std.resample(self.SamplingWindow)
+            std = numpy.sqrt(std.mean())
 
-            self._TemporaryData['wind_dir_std'] = numpy.sqrt(std['wind_dir_p'].mean())
+            self._TemporaryData['wind_dir_std'] = std
             self._CalculatedParams.append(['wind_dir_std',{}])
 
         return self
