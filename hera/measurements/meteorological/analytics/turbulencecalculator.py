@@ -251,7 +251,7 @@ class TurbulenceCalculator(AbstractCalculator):
         if 'sigmaHOverWindSpeed' not in self._TemporaryData.columns:
             self.sigmaH()
             self.wind_speed()
-            sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['wind_speed']
+            sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['wind_speed_bar']
             self._TemporaryData['sigmaHOverWindSpeed'] = sigmaHOverWindSpeed
             self._CalculatedParams.append(['sigmaHOverWindSpeed',{}])
 
@@ -277,7 +277,7 @@ class TurbulenceCalculator(AbstractCalculator):
         if 'sigmaWOverWindSpeed' not in self._TemporaryData.columns:
             self.sigma()
             self.wind_speed()
-            sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['wind_speed']
+            sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['wind_speed_bar']
             self._TemporaryData['sigmaWOverWindSpeed'] = sigmaWOverWindSpeed
             self._CalculatedParams.append(['sigmaWOverWindSpeed',{}])
 
@@ -329,7 +329,7 @@ class TurbulenceCalculator(AbstractCalculator):
         if 'uStarOverWindSpeed' not in self._TemporaryData.columns:
             self.Ustar()
             self.wind_speed()
-            uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['wind_speed']
+            uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['wind_speed_bar']
             self._TemporaryData['uStarOverWindSpeed'] = uStarOverWindPeed
             self._CalculatedParams.append(['uStarOverWindSpeed',{}])
 
