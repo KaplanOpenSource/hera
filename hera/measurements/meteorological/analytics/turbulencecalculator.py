@@ -85,6 +85,7 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'sigmaU' not in self._TemporaryData.columns:
+            self.fluctuations()
             sigmaU = self._RawData['u'].resample(self.SamplingWindow).std()
             self._TemporaryData['sigmaU'] = sigmaU
             self._CalculatedParams.append(['sigmaU',{}])
