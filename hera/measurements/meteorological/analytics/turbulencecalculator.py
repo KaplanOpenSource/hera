@@ -41,7 +41,12 @@ class TurbulenceCalculator(AbstractCalculator):
                 self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
             else:
                 self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
-            avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
+
+            avg['wind_dir_bar'] = numpy.rad2deg(numpy.arctan2(avg['v_bar'], avg['u_bar']))
+            if self._DataType=='pandas':
+                avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+            else:
+                avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
@@ -189,7 +194,7 @@ class TurbulenceCalculator(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'wind_speed' not in self._RawData.columns:
+        if 'wind_speed_bar' not in self._TemporaryData.columns:
             self.fluctuations()
             wind_speed_bar = numpy.hypot(self._TemporaryData['u_bar'], self._TemporaryData['v_bar'])
             self._TemporaryData['wind_speed_bar'] = wind_speed_bar
@@ -214,10 +219,10 @@ class TurbulenceCalculator(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'wind_dir_std' not in self._RawData.columns:
+        if 'wind_dir_std' not in self._TemporaryData.columns:
             self.fluctuations()
 
-            std = numpy.square(self._RawData[['wind_dir_p']])
+            std = self._RawData[['wind_dir_p']]**2
             std = std if self.SamplingWindow is None else std.resample(self.SamplingWindow)
             std = numpy.sqrt(std.mean())
 
