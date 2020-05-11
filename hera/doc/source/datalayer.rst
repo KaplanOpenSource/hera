@@ -33,20 +33,20 @@ first, import the requested module:
 
 Each data is classified into one of the following categories.
 
-- Measurements - Any acquisition of data from the 'real world'. Satellites, meteorological measurments and dispersion measurements and ect.
-- Simulations  - Any output of a model. (OpenFOAM, WRF, LSM and ect).
+- Measurements - Any acquisition of data from the 'real world'. Satellites, meteorological measurments and dispersion measurements and etc.
+- Simulations  - Any output of a model. (OpenFOAM, WRF, LSM and etc).
 - Analysis     - Any data that is created during work and analyis and needed to be cached to accelerate the computations.
 
 Since each category can hold different types of data, each data document
 holds its type in  a 'type' property
 when saving a new document in the database, you must provide 'projectName', 'desc', 'dataFormat' and 'resource'
 
-for example, a Measurements data from type Meteorology and parquet data format should be added like this:
+for example, a Measurements data from type Meteorology and parquet data files format should be added to database like this:
 
 .. code-block:: python
 
-    datalayer.Measurements.addDocument(projectName='myProject',
-                                       resource='path-to-parquet-files',
+    datalayer.Measurements.addDocument(projectName='myProjectName',
+                                       resource='path-to-parquet-files-on-disk',
                                        dataFormat='parquet',
                                        type='Meteorology'
                                        desc={'property1': 'value1',
@@ -58,14 +58,14 @@ Retrieving data
 ***************
 
 When reading from the database, you have to provide the 'projectName' and create a query using the function 'getDocuments'.
-First, you get all of the documents in the project that property1 equals 'value1'
+For example, For the following query you will get all of the documents in the project 'projectName' that 'property1' equals 'value1'
 
 .. code-block:: python
 
     docList = datalayer.Measurements.getDocuments(projectName='projectName',property1='value1')
 
 Now, you can use the function getData() to retrieve data presented by the document.
-For example, we took the first document from our docList and got its data.
+For example, we will read the first document from the docList and get its data.
 
 .. code-block:: python
 
@@ -73,7 +73,7 @@ For example, we took the first document from our docList and got its data.
     data = doc.getData()
 
 
-The getData method loads the data from the database accoding to the dataFormat.
+The getData method loads the data from the database according to the 'dataFormat'.
 
 Usage
 -----
