@@ -64,7 +64,7 @@ def getTurbulenceCalculatorFromDB(projectName, samplingWindow, start, end, usePa
     projectData = datalayer.Project(projectName=projectName).getMetadata()[['height', 'instrument', 'station']].drop_duplicates()
 
     if identifier['station'] is not None:
-        stationData = projectData['stations'].query("station=='%s'" % identifier['station']).iloc[0]
+        stationData = projectData.query("station=='%s'" % identifier['station']).iloc[0]
         identifier['buildingHeight'] = stationData.get('buildingHeight', None)
         identifier['averagedHeight'] = stationData.get('averagedHeight', None)
 

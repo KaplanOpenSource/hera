@@ -1,4 +1,4 @@
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 from .measurements import meteorological as meteo
 from .simulations import LSM
@@ -7,6 +7,10 @@ from .measurements import GIS
 
 
 """
+ 0.2.1
+ -----
+ More turbulence calculator fix
+
  0.2.0
  -----
  Turbulence calculator fix
