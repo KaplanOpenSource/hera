@@ -2,9 +2,14 @@ import pandas
 import dask.dataframe
 import xarray
 import json
-from json import JSONDecodeError
 import geopandas
 import matplotlib.image as mpimg
+import sys
+version = sys.version_info[0]
+if version == 3:
+    from json import JSONDecodeError
+elif version == 2:
+    from simplejson import JSONDecodeError
 
 class datatypes:
     STRING = "string"
