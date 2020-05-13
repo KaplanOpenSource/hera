@@ -1,42 +1,43 @@
 import numpy
 
-def addBase(data, base_data, xdir=True, ydir=True):
-    """
-    Adding the base height for points on a slice.
+class dataManipulations():
 
-    Parameters
-    ----------
-    data: the data of the inletMesh patch of the slice
-    base_data: the data of the terrain patch of the slice
+    def arrangeSlice(self, data, xdir=True, ydir=True):
+        """
+        Arranging data of a slice: adding distance downwind, velocity and height over terrain.
+        Params:
+        data: The data of the slice (pandas DataFrame)
+        xdir: If true, the x component of the velocity is positive.
+        ydir: If true, the y component of the velocity is positive.
+        Returns:
+            The arranged data
+        """
 
-    Returns the data with the base
-    -------
+        data["terrain"] = [numpy.nan for x in range(len(data))]
+        base_data = data.query("U_x==0").reset_index()
 
-    """
-
-    data["base"] = [numpy.nan for x in range(len(data))]
-
-    for i in range(len(base_data)):
-        base = base_data.loc[i]["z"]
-        x = base_data.loc[i]["x"]
-        y = base_data.loc[i]["y"]
-        if data.loc[data["x"] == x].loc[data["y"] == y].empty:
-            pass
+        for i in range(len(base_data)):
+            base = base_data.loc[i]["z"]
+            x = base_data.loc[i]["x"]
+            y = base_data.loc[i]["y"]
+            if data.loc[data["x"] == x].loc[data["y"] == y].empty:
+                pass
+            else:
+                index = list(data.loc[data["x"] == x].loc[data["y"] == y].index)[0]
+                data.at[index, "terrain"] = base
+        if xdir:
+            x2 = data["x"] - data['x'].min()
         else:
-            index = list(data.loc[data["x"] == x].loc[data["y"] == y].index)[0]
-            data.at[index, "base"] = base
-    if xdir:
-        data["x2"] = data["x"] - data['x'].min()
-    else:
-        data["x2"] = data["x"].max() - data['x']
+            x2 = data["x"].max() - data['x']
 
-    if ydir:
-        data["y2"] = data["y"] - data['y'].min()
-    else:
-        data["y2"] = data["y"].max() - data['y']
+        if ydir:
+            y2 = data["y"] - data['y'].min()
+        else:
+            y2 = data["y"].max() - data['y']
 
-    data["distance"] = numpy.sqrt(data["x2"] * data["x2"] + data["y2"] * data["y2"])
-    data = data.set_index("distance").interpolate(method='index').reset_index().dropna()
-    data["height"] = data["z"] - data["base"]
-    data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
-    return data
+        #data["distance"] = numpy.sqrt(data["x2"] * data["x2"] + data["y2"] * data["y2"])
+        data["distance"] = numpy.sqrt(x2 * x2 + y2 * y2)
+        data = data.sort_values(by="distance").set_index("distance").interpolate(method='index').reset_index().dropna()
+        data["heightOverTerrain"] = data["z"] - data["terrain"]
+        data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
+        return data

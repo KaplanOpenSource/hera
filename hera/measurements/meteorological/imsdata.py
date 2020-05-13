@@ -15,7 +15,7 @@ from ... utils import andClause
 from ... analytics import statistics
 
 from hera.measurements.meteorological.analytics.statistics import calcHourlyDist
-
+from hera.measurements import meteorological
 
 
 class Analysis(object):

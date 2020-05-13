@@ -1,7 +1,6 @@
 import argparse
 import json
-from hera import datalayer
-import dask.dataframe as dd
+
 import pandas
 import os
 import shutil
@@ -9,6 +8,9 @@ import sys
 version = sys.version_info[0]
 if version == 2:
     from hera import openfoam
+else:
+    from hera import datalayer
+    import dask.dataframe as dd
 
 parser = argparse.ArgumentParser()
 parser.add_argument('command', nargs=1, type=str)
@@ -44,7 +46,7 @@ def load_handler(arguments):
     if not os.path.isdir("%s/%s/parquet" % (path, name)):
         os.makedirs("%s/%s/parquet" % (path, name))
 
-
+    print(fixed_keys)
     jsondata = pandas.read_json("%s/%s/meta.json" % (path, name))
     metadata = jsondata["metadata"].dropna().to_dict() # Reading the metadata
 

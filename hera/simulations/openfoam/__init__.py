@@ -6,3 +6,4 @@ if version==2:
 else:
     from .process.process import process
     from .analysis.Plotting import Plotting
+    from .postprocess.dataManipulations import dataManipulations
