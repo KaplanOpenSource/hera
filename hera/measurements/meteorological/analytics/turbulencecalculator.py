@@ -34,15 +34,10 @@ class TurbulenceCalculator(AbstractCalculator):
             avg = avg if self.SamplingWindow is None else avg.resample(self.SamplingWindow)
             avg = avg.mean().rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
 
-            self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
-            self._RawData['wind_dir'] = (2*numpy.pi+self._RawData['wind_dir'])%(2*numpy.pi)
-            self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
-            if self._DataType=='pandas':
-                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
-            else:
-                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
+            avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
+            avg['wind_dir_bar'] = (2*numpy.pi+avg['wind_dir_bar'])%(2*numpy.pi)
+            avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
 
-            avg['wind_dir_bar'] = numpy.rad2deg(numpy.arctan2(avg['v_bar'], avg['u_bar']))
             if self._DataType=='pandas':
                 avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
             else:
@@ -58,6 +53,16 @@ class TurbulenceCalculator(AbstractCalculator):
             else:
                 self._RawData = self._RawData.merge(avg, how='left', left_index=True, right_index=True)
                 self._RawData = self._RawData.ffill()
+
+            self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
+            self._RawData['wind_dir'] = (2 * numpy.pi + self._RawData['wind_dir']) % (2 * numpy.pi)
+            self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
+            if self._DataType == 'pandas':
+                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(
+                    lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+            else:
+                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(
+                    lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
 
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
             self._RawData['vp'] = self._RawData['v'] - self._RawData['v_bar']
