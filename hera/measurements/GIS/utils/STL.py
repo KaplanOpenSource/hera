@@ -26,7 +26,7 @@ class convert():
         self._Measurments = datalayer.Measurements
         self._manipulator = dataManipulations()
 
-    def addSTLtoDB(self, path, NewFileName, **kwargs):
+    def addSTLtoDB(self, path, NewFileName, points, xMin, xMax, yMin, yMax, zMin, zMax, dxdy, **kwargs):
         """
         Adds a path to the dataframe under the type 'stlType'.
 
@@ -41,13 +41,14 @@ class convert():
 
         """
 
+
         self._Measurments.addDocument(projectName=self._projectName,
-                                      desc=dict(name = NewFileName, **kwargs),
+                                      desc=dict(name = NewFileName, bounds = points, xMin=xMin, xMax=xMax, yMin=yMin, yMax=yMax, zMin=zMin, zMax=zMax, **kwargs),
                                       type="stlFile",
                                       resource=path,
                                       dataFormat="string")
 
-    def toSTL(self, data, NewFileName, dxdy=None, save=True, addtoDB=True, flat=None, path=None, **kwargs):
+    def toSTL(self, data, NewFileName, dxdy=50, save=True, addtoDB=True, flat=None, path=None, **kwargs):
 
         """
         Converts a geopandas dataframe data to an stl file.
@@ -75,17 +76,30 @@ class convert():
             geodata = data
         else:
             raise KeyError("data should be geopandas dataframe or a polygon.")
+        xmin = geodata['geometry'].bounds['minx'].min()
+        xmax = geodata['geometry'].bounds['maxx'].max()
 
-        stlstr, newdata = self.Convert_geopandas_to_stl(gpandas=geodata, flat=flat, NewFileName=NewFileName, dxdy=dxdy)
+        ymin = geodata['geometry'].bounds['miny'].min()
+        ymax = geodata['geometry'].bounds['maxy'].max()
+        points = [xmin, ymin, xmax, ymax]
+        if len(datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)) >0:
+            stlstr = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].getData()
+            newdict = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].asDict()
+            newdata = pandas.DataFrame(dict(gridxMin=[newdict["desc"]["xMin"]], gridxMax=[newdict["desc"]["xMax"]],
+                                            gridyMin=[newdict["desc"]["yMin"]], gridyMax=[newdict["desc"]["yMax"]],
+                                            gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
+        else:
+            stlstr, newdata = self.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName, dxdy=dxdy)
 
         if save:
             p = self._FilesDirectory if path is None else path
             new_file_path = p + "/" + NewFileName + ".stl"
             new_file = open(new_file_path, "w")
             new_file.write(stlstr)
-
+            newdata = newdata.reset_index()
             if addtoDB:
-                self.addSTLtoDB(p, NewFileName, **kwargs)
+                self.addSTLtoDB(p, NewFileName, points=points, xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0],
+                                yMin=newdata["gridyMin"][0], yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], dxdy=dxdy, **kwargs)
 
         return stlstr, newdata
 
@@ -110,7 +124,9 @@ class convert():
         """
         base_elev = elev.min() - 10
         stl_str = 'solid ' + NewFileName + '\n'
+        print(elev.shape[0] - 1)
         for i in range(elev.shape[0] - 1):
+            print(i)
             for j in range(elev.shape[1] - 1):
 
                 x = X[i, j];
@@ -184,7 +200,7 @@ class convert():
         stl_str += 'endsolid ' + NewFileName + '\n'
         return stl_str
 
-    def Convert_geopandas_to_stl(self, gpandas, NewFileName, dxdy=50, flat=None):
+    def Convert_geopandas_to_stl(self, gpandas, points, NewFileName, dxdy=50, flat=None):
         """
             Gets a shape file of topography.
             each contour line has property 'height'.
@@ -193,20 +209,18 @@ class convert():
 
         # 1. Convert contour map to regular height map.
         # 1.1 get boundaries
-        xmin = gpandas['geometry'].bounds['minx'].min()
-        xmax = gpandas['geometry'].bounds['maxx'].max()
+        xmin = points[0]
+        xmax = points[2]
 
-        ymin = gpandas['geometry'].bounds['miny'].min()
-        ymax = gpandas['geometry'].bounds['maxy'].max()
+        ymin = points[1]
+        ymax = points[3]
 
         print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
         # 1.2 build the mesh.
         grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
-
         # 2. Get the points from the geom
         Height = []
         XY = []
-
         for i, line in enumerate(gpandas.iterrows()):
             if isinstance(line[1]['geometry'], LineString):
                 linecoords = [x for x in line[1]['geometry'].coords]
@@ -222,13 +236,12 @@ class convert():
         if flat is not None:
             for i in range(len(Height)):
                 Height[i] = flat
-
         grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
         numpy.nan_to_num(grid_z2, nan=min(Height), copy=False)
 
         stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 
         data = pandas.DataFrame({"XY": XY, "Height": Height, "gridxMin":grid_x.min(), "gridxMax":grid_x.max(),
-                                 "gridy":grid_y.min(), "gridyMax":grid_y.max(), "gridz":grid_z2.min(), "gridzMax":grid_z2.max(),})
+                                 "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2.min(), "gridzMax":grid_z2.max(),})
 
         return stlstr, data
