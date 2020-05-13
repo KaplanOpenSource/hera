@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas
+import dask
 import glob
 import numpy
 import dask.dataframe as dd
@@ -36,6 +37,18 @@ class Analysis(object):
                               )
 
     def addDatesColumns(self,data,dataType='dask',datecolumn=None,monthcolumn=None):
+        """
+        parameters
+        -----------
+        data:
+        dataType:
+        datecolumn:
+        monthcolumn:
+
+        returns
+        --------
+        curdata:
+        """
 
         curdata = data
 
@@ -50,6 +63,10 @@ class Analysis(object):
             monthcolumn = 'monthonly'
 
         curdata = curdata.assign(dayonly=curdata[datecolumn].dt.day)
+
+        curdata = curdata.assign(timeonly=curdata[datecolumn].dt.time)
+
+
 
         tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12], labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']).replace('Winter1', 'Winter')
 
@@ -67,7 +84,6 @@ class DataLayer(object):
     This class handles loading and reading IMS data
 
     """
-
 
     _np_size=None
     _HebRenameDict=None
@@ -89,6 +105,7 @@ class DataLayer(object):
                           if None, take 1000000.
         """
         self._np_size=np_size if np_size is not None else "100Mb"
+
         self._HebRenameDict={"שם תחנה":'Station_name',
                              "תאריך":"Date",
                              "שעה- LST":"Time_(LST)",
@@ -116,8 +133,6 @@ class DataLayer(object):
 
                                }
         self._removelist = ['BET DAGAN RAD', 'SEDE BOQER UNI', 'BEER SHEVA UNI']
-
-
 
     def _process_HebName(self, Station):
         HebName = Station.Stn_name_Heb.item()
@@ -187,197 +202,6 @@ class DataLayer(object):
         comments=Station.comments.item()
         return comments
 
-
-    def getDocFromFile(self,path, time_coloumn='time_obs', **kwargs):
-
-        """
-        Reads the data from file
-
-        parameters
-        ----------
-
-        path :
-        time_coloumn :
-        kwargs :
-
-        returns
-        -------
-        nonDBMetadata :
-
-        """
-
-        dl = DataLayer()
-
-        loaded_dask, _ = self.getFromDir(path, time_coloumn)
-        return [datalayer.document.metadataDocument.nonDBMetadata(loaded_dask, **kwargs)]
-
-    def getDocFromDB(self, projectName, type='meteorological', DataSource='IMS', StationName=None, **kwargs):
-
-        """
-        Reads the data from the database
-
-        parameters
-        ----------
-        projectName :
-        type :
-        DataSource :
-        StationName :
-        kwargs :
-
-        returns
-        -------
-        docList :
-
-        """
-
-        desc = dict()
-        desc.update(kwargs)
-        if StationName is not None:
-            desc.update(StationName=StationName)
-
-        docList = datalayer.Measurements.getDocuments(projectName=projectName,
-                                                      DataSource=DataSource,
-                                                      type=type,
-                                                      **desc
-                                                      )
-        return docList
-
-    def LoadData(self, newdata_path, outputpath, Projectname, metadatafile=None, type='meteorological', DataSource='IMS', station_column='stn_name', time_coloumn='time_obs', **metadata):
-
-        """
-            This function load data from directory to database:
-                - Loads the new data to dask format
-                - Adds the new data to the old data (if exists) by station name
-                - Saves parquet files to the request location
-                - Add a description to the metadata
-
-        Parameters
-        ----------
-
-         newdata_path : string
-            the path to the new data. in future might also be a web address.
-        outputpath : string
-         Destination folder path for saving files
-        Projectname : string
-            The project to which the data is associated. Will be saved in Matadata
-        metadatafile : string
-            The path to a metadata file, if exist
-        type : string
-            the data type to save in database. default 'meteorological'
-        DataSource : string
-         The source of the data. Will be saved into the metadata. default 'IMS'
-        station_column : string
-         The name of the 'Station Name' column, for the groupby method.  default 'stn_name'
-        time_column : string
-         The name of the Time column for indexing. default 'time_obs'
-        metadata : dict, optional
-         These parameters will be added into the metadata desc.
-
-        """
-
-        metadata.update(dict(DataSource=DataSource))
-
-        # 1- load the data #
-
-        loaded_dask,stations=self.getFromDir(newdata_path, time_coloumn)
-
-        groupby_data=loaded_dask.groupby(station_column)
-
-        for stnname in stations:
-            stn_dask=groupby_data.get_group(stnname)
-
-            filtered_stnname = "".join(filter(lambda x: not x.isdigit(), stnname)).strip()
-            print('updating %s data' %filtered_stnname)
-
-            dir_path = os.path.join(outputpath, filtered_stnname).replace(' ','_')
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
-
-            # 2- check if station exist in DataBase #
-
-            docList = datalayer.Measurements.getDocuments(Projectname,
-                                                          type=type,
-                                                          DataSource=DataSource,
-                                                          StationName=filtered_stnname)
-
-
-            if docList:
-                if len(docList)>1:
-                    raise ValueError("the list should be at max length of 1. Check your query.")
-                else:
-
-                    # get current data from database
-                    stn_db=docList[0].getData()
-                    Data=[stn_db,stn_dask]
-                    new_Data=dd.concat(Data,interleave_partitions=True)\
-                                 .reset_index().set_index(time_coloumn)\
-                                 .drop_duplicates()\
-                                 .repartition(partition_size=self._np_size)
-
-                    if not os.path.exists(dir_path):
-                        os.makedirs(dir_path)
-
-                    new_Data.to_parquet(dir_path, engine='pyarrow')
-
-            else:
-
-                # create meta data
-                desc=self._CreateMD(metadatafile, filtered_stnname, **metadata)
-
-                new_Data=stn_dask.repartition(partition_size=self._np_size)
-                new_Data.to_parquet(dir_path, engine='pyarrow')
-
-
-                datalayer.Measurements.addDocument(projectName=Projectname,
-                                                  resource=dir_path,
-                                                  dataFormat='parquet',
-                                                  type=type,
-                                                 desc=desc
-                                                  )
-
-    def getFromDir(self,path,time_coloumn):
-
-
-        """
-        This function converts json/csv data into dask
-
-        Parameters
-        ----------
-
-        path :
-        time_coloumn :
-
-        returns
-        -------
-        loaded_dask :
-        stations :
-        """
-
-
-        fileformat='json'
-        all_files = glob.glob(os.path.join(path,"*"+fileformat))
-
-        L = []
-
-        for filename in all_files:
-            df = pandas.read_json(filename)
-            L.append(df)
-
-        tmppandas = pandas.concat(L, axis=0, ignore_index=True)
-        tmppandas[time_coloumn] = pandas.to_datetime(tmppandas[time_coloumn])
-        tmppandas=tmppandas.set_index(time_coloumn)
-
-        ##################################################
-        ##'temp solution: removing stations with issues'##
-        ##################################################
-
-        stations = [x for x in tmppandas['stn_name'].unique() if x not in self._removelist]
-        tmppandas_q = tmppandas.query('stn_name in @stations')
-
-
-        loaded_dask = dd.from_pandas(tmppandas_q,npartitions=1)
-        return loaded_dask,stations
-
     def _CreateMD(self,metadatafile,stnname,**metadata):
 
         colums_dict=dict(BP='Barometric pressure[hPa]',
@@ -435,7 +259,204 @@ class DataLayer(object):
         """
         pass
 
-class plots(object):
+    def _getFromDir(self, path, time_coloumn):
+
+
+        """
+        This function converts json/csv data into dask
+
+        Parameters
+        ----------
+
+        path :
+        time_coloumn :
+
+        returns
+        -------
+        loaded_dask :
+        stations :
+        """
+
+
+        fileformat='json'
+        all_files = glob.glob(os.path.join(path,"*"+fileformat))
+
+        L = []
+
+        for filename in all_files:
+            df = pandas.read_json(filename)
+            L.append(df)
+
+        tmppandas = pandas.concat(L, axis=0, ignore_index=True)
+        tmppandas[time_coloumn] = pandas.to_datetime(tmppandas[time_coloumn])
+        tmppandas=tmppandas.set_index(time_coloumn)
+
+        ##################################################
+        ##'temp solution: removing stations with issues'##
+        ##################################################
+
+        stations = [x for x in tmppandas['stn_name'].unique() if x not in self._removelist]
+        tmppandas_q = tmppandas.query('stn_name in @stations')
+
+
+        loaded_dask = dd.from_pandas(tmppandas_q,npartitions=1)
+        return loaded_dask,stations
+
+    def getDocFromFile(self,path, time_coloumn='time_obs', **kwargs):
+
+        """
+        Reads data from file and returns a 'metadata like' object
+
+        parameters
+        ----------
+
+        path : The path to the data file
+        time_coloumn : The name of the Time column for indexing. default ‘time_obs’
+        kwargs :
+
+        returns
+        -------
+        nonDBMetadata : list
+
+        """
+
+        # dl = DataLayer()
+
+        loaded_dask, _ = self._getFromDir(path, time_coloumn)
+        return [datalayer.document.metadataDocument.nonDBMetadata(loaded_dask, **kwargs)]
+
+    def getDocFromDB(self, projectName, type='meteorological', DataSource='IMS', StationName=None, **kwargs):
+
+        """
+        This function returns a list of 'doc' objects from the database that matches the requested query
+
+        parameters
+        ----------
+        projectName : String
+            The project to which the data is associated
+        type : String
+            The data type to save in database. default'meteorological'
+        DataSource : String
+            The source of the data, default 'IMS'
+        StationName : String
+            The name of the requested station. default None
+        kwargs : dict
+            Other properties for query
+
+        returns
+        -------
+        docList : List
+
+
+
+        """
+
+        desc = dict()
+        desc.update(kwargs)
+        if StationName is not None:
+            desc.update(StationName=StationName)
+
+        docList = datalayer.Measurements.getDocuments(projectName=projectName,
+                                                      DataSource=DataSource,
+                                                      type=type,
+                                                      **desc
+                                                      )
+        return docList
+
+    def LoadData(self, newdata_path, outputpath, Projectname, metadatafile=None, type='meteorological', DataSource='IMS', station_column='stn_name', time_coloumn='time_obs', **metadata):
+
+        """
+            This function load data from directory to database:
+
+
+        Parameters
+        ----------
+
+         newdata_path : string
+            the path to the new data. in future might also be a web address.
+        outputpath : string
+         Destination folder path for saving files
+        Projectname : string
+            The project to which the data is associated. Will be saved in Matadata
+        metadatafile : string
+            The path to a metadata file, if exist
+        type : string
+            the data type to save in database. default 'meteorological'
+        DataSource : string
+         The source of the data. Will be saved into the metadata. default 'IMS'
+        station_column : string
+         The name of the 'Station Name' column, for the groupby method.  default 'stn_name'
+        time_column : string
+         The name of the Time column for indexing. default 'time_obs'
+        metadata : dict, optional
+         These parameters will be added into the metadata desc.
+
+        """
+
+        metadata.update(dict(DataSource=DataSource))
+
+        # 1- load the data #
+
+        loaded_dask,stations=self._getFromDir(newdata_path, time_coloumn)
+
+        groupby_data=loaded_dask.groupby(station_column)
+
+        for stnname in stations:
+            stn_dask=groupby_data.get_group(stnname)
+
+            filtered_stnname = "".join(filter(lambda x: not x.isdigit(), stnname)).strip()
+            print('updating %s data' %filtered_stnname)
+
+            dir_path = os.path.join(outputpath, filtered_stnname).replace(' ','_')
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+
+            # 2- check if station exist in DataBase #
+
+            docList = datalayer.Measurements.getDocuments(Projectname,
+                                                          type=type,
+                                                          DataSource=DataSource,
+                                                          StationName=filtered_stnname)
+
+
+            if docList:
+                if len(docList)>1:
+                    raise ValueError("the list should be at max length of 1. Check your query.")
+                else:
+
+                    # 3- get current data from database
+                    stn_db=docList[0].getData()
+                    Data=[stn_db,stn_dask]
+                    new_Data=dd.concat(Data,interleave_partitions=True)\
+                                 .reset_index().set_index(time_coloumn)\
+                                 .drop_duplicates()\
+                                 .repartition(partition_size=self._np_size)
+
+                    if not os.path.exists(dir_path):
+                        os.makedirs(dir_path)
+
+                    new_Data.to_parquet(dir_path, engine='pyarrow')
+
+            else:
+
+                # 4- create meta data
+                desc=self._CreateMD(metadatafile, filtered_stnname, **metadata)
+
+                new_Data=stn_dask.repartition(partition_size=self._np_size)
+                new_Data.to_parquet(dir_path, engine='pyarrow')
+
+
+                datalayer.Measurements.addDocument(projectName=Projectname,
+                                                  resource=dir_path,
+                                                  dataFormat='parquet',
+                                                  type=type,
+                                                 desc=desc
+                                                  )
+
+class Plots(object):
+    """
+    This class
+    """
 
     _contourvalsdict = None
     _plotfieldaxfuncdict =None
@@ -555,7 +576,7 @@ class plots(object):
 
         return cmap
 
-class SeasonalPlots(plots):
+class SeasonalPlots(Plots):
 
     _seasonsdict=None
 
@@ -608,7 +629,9 @@ class SeasonalPlots(plots):
 
         returns
         -------
+
         ax :
+
         """
 
         if ax is None:
@@ -641,7 +664,7 @@ class SeasonalPlots(plots):
 
         return ax
 
-class DailyPlots(plots):
+class DailyPlots(Plots):
 
     _linedict=None
 
@@ -660,7 +683,6 @@ class DailyPlots(plots):
                             )
 
     def plotScatter(self,data,plotField,ax=None,scatter_properties=dict(),ax_functions_properties=dict()):
-
 
         """
 
@@ -735,7 +757,7 @@ class DailyPlots(plots):
         returns
         -------
 
-        ax
+        ax :
 
         """
 
@@ -755,7 +777,10 @@ class DailyPlots(plots):
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
         qstring = "dateonly == '%s'" % date
-        dailydata = curdata.query(qstring).compute()
+        if isinstance(curdata, dask.dataframe.core.DataFrame):
+            dailydata = curdata.query(qstring).compute()
+        else:
+            dailydata = curdata.query(qstring)
 
         # ax= seaborn.lineplot(dailydata['houronly'], dailydata[plotField], ax=ax, **line_props)
         plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
@@ -770,7 +795,6 @@ class DailyPlots(plots):
             getattr(ax, func)(ax_func_props[func])
 
         return ax
-
 
     def plotProbContourf(self, data, plotField, levels=None, scatter=True, withLabels=True, colorbar=True,Cmapname='jet', ax=None, scatter_properties=dict(),
                          contour_values=dict(), contour_properties=dict(), contourf_properties=dict(), labels_properties=dict(),

@@ -1,8 +1,8 @@
 Instructions for developers
-============
+===========================
 
 Synchronize intermediate version
-------
+--------------------------------
 
 In order to synchronize the code with another user
 just type::

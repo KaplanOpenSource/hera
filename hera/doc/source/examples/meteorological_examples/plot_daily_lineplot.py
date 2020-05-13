@@ -1,7 +1,7 @@
 """
-=====================
+==========================
 plot single daily lineplot
-=====================
+==========================
 """
 from hera import meteo
 import seaborn # import for documentation purose 

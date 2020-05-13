@@ -1,5 +1,5 @@
 meteorological examples
-=====
+=======================
 
 .. toctree::
     :maxdepth: 2
