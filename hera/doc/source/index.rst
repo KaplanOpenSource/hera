@@ -29,8 +29,9 @@ In order to organize the data, the library is comprised of 4 parts.
                  - GIS: Manages GIS data. Allows to slice and store regions
                         as well as raster data.
 
-                 - Meteorological: Manages meteorological data. Provide tools to analyze raw sonic
-                                   data or mean data from IMS.
+                 - Meteorological: Manages meteorological data, provide tools to analyze:
+                     - Raw sonic data
+                     - Data or mean data from IMS.
 
 - Simulations : Data that originates from simulations.
                 Contains several specializations:

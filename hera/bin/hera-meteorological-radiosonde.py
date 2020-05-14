@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 import argparse
 import pandas
 from hera.measurements.meteorological.radiosonde import DataLayer

@@ -2,7 +2,8 @@
 from . import getDBObject
 from mongoengine import ValidationError, MultipleObjectsReturned, DoesNotExist
 import warnings
-
+import sys
+version = sys.version_info[0]
 
 class AbstractCollection(object):
     _metadataCol = None
@@ -195,7 +196,10 @@ class AbstractCollection(object):
 class Measurements_Collection(AbstractCollection):
 
     def __init__(self, user=None):
-        super().__init__(ctype='Measurements', user=user)
+        if version == 2:
+            super(Measurements_Collection, self).__init__(ctype='Measurements', user=user)
+        elif version == 3:
+            super().__init__(ctype='Measurements', user=user)
     #
     # def meta(self):
     #     return self._metadataCol
@@ -204,10 +208,15 @@ class Measurements_Collection(AbstractCollection):
 class Simulations_Collection(AbstractCollection):
 
     def __init__(self, user=None):
-        super().__init__(ctype='Simulations', user=user)
-
+        if version == 2:
+            super(Simulations_Collection, self).__init__(ctype='Simulations', user=user)
+        elif version == 3:
+            super().__init__(ctype='Simulations', user=user)
 
 class Analysis_Collection(AbstractCollection):
 
     def __init__(self, user=None):
-        super().__init__(ctype='Analysis', user=user)
+        if version == 2:
+            super(Analysis_Collection, self).__init__(ctype='Analysis', user=user)
+        elif version == 3:
+            super().__init__(ctype='Analysis', user=user)

@@ -1,17 +1,19 @@
+
+from itertools import product
+import pandas
+import numpy
+
+import os
+import glob
+import vtk.numpy_interface.dataset_adapter as dsa
+#import xarray
+
 #### import the simple module from the paraview
 import paraview.simple as pvsimple
 from paraview import servermanager
 
 #### disable automatic camera reset on 'Show'
 pvsimple._DisableFirstRenderCameraReset()
-import vtk.numpy_interface.dataset_adapter as dsa
-from itertools import product
-import pandas
-import numpy
-import xarray
-import os
-import glob
-import dask.dataframe as dd
 
 class paraviewOpenFOAM(object):
     """
@@ -233,41 +235,41 @@ class paraviewOpenFOAM(object):
 
         return curstep
 
-    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
-
-        def writeList(theList,batchID):
-
-            data = xarray.concat(theList, dim="time")
-            curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, batchID))
-            print("Writing %s " % curfilename)
-            data.to_netcdf(curfilename)
-            batchID += 1
-
-        self._outfile = readername if outfile is None else outfile
-
-        if not os.path.isdir(self.netcdfdir):
-            os.makedirs(self.netcdfdir)
-
-        batchID = 0
-        L = []
-        for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
-
-            L.append(xray)
-            if len(L) == batch:
-                if isinstance(L[0],dict):
-                    filterList = [k for k in L[0].keys()]
-                    for filtername in filterList:
-                        writeList([item[filtername] for item in L],batchID)
-                else:
-                    writeList(L)
-                L = []
-
-        if isinstance(L[0],dict):
-            filterList = [k for k in L[0].keys()]
-            for filtername in filterList:
-                writeList([item[filtername] for item in L],batchID)
-        else:
-            writeList(L)
+    # def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
+    #
+    #     def writeList(theList,batchID):
+    #
+    #         data = xarray.concat(theList, dim="time")
+    #         curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, batchID))
+    #         print("Writing %s " % curfilename)
+    #         data.to_netcdf(curfilename)
+    #         batchID += 1
+    #
+    #     self._outfile = readername if outfile is None else outfile
+    #
+    #     if not os.path.isdir(self.netcdfdir):
+    #         os.makedirs(self.netcdfdir)
+    #
+    #     batchID = 0
+    #     L = []
+    #     for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
+    #
+    #         L.append(xray)
+    #         if len(L) == batch:
+    #             if isinstance(L[0],dict):
+    #                 filterList = [k for k in L[0].keys()]
+    #                 for filtername in filterList:
+    #                     writeList([item[filtername] for item in L],batchID)
+    #             else:
+    #                 writeList(L)
+    #             L = []
+    #
+    #     if isinstance(L[0],dict):
+    #         filterList = [k for k in L[0].keys()]
+    #         for filtername in filterList:
+    #             writeList([item[filtername] for item in L],batchID)
+    #     else:
+    #         writeList(L)
 
     def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
 
@@ -296,22 +298,22 @@ class paraviewOpenFOAM(object):
         if len(L) > 0:
             writeList(L, batchID)
 
-    def open_dataset(self, outfile=None, timechunk=10):
-        """
-            Maybe this should be a data hander that is specifc to openfoam xarray (because
-            it uses the name convension)
-
-        :param outfile:
-        :param timechunk:
-        :return:
-        """
-
-        filenames = [filename for filename in glob.glob(os.path.join(self.netcdfdir, "%s*.nc" % outfile))]
-        filenames = sorted(filenames, key=lambda x: float(x.split(".")[0].split("_")[-1]))
-
-        dataset = xarray.open_mfdataset(filenames, chunks={'time': timechunk})
-
-        return dataset
+    # def open_dataset(self, outfile=None, timechunk=10):
+    #     """
+    #         Maybe this should be a data hander that is specifc to openfoam xarray (because
+    #         it uses the name convension)
+    #
+    #     :param outfile:
+    #     :param timechunk:
+    #     :return:
+    #     """
+    #
+    #     filenames = [filename for filename in glob.glob(os.path.join(self.netcdfdir, "%s*.nc" % outfile))]
+    #     filenames = sorted(filenames, key=lambda x: float(x.split(".")[0].split("_")[-1]))
+    #
+    #     dataset = xarray.open_mfdataset(filenames, chunks={'time': timechunk})
+    #
+    #     return dataset
 
 
 

@@ -2,13 +2,19 @@ import pandas
 import dask.dataframe
 import xarray
 import json
-from json import JSONDecodeError
 import geopandas
 import matplotlib.image as mpimg
+import sys
+version = sys.version_info[0]
+if version == 3:
+    from json import JSONDecodeError
+elif version == 2:
+    from simplejson import JSONDecodeError
 
 class datatypes:
     STRING = "string"
     TIME   = "time"
+    CSV_PANDAS = "csv_pandas"
     HDF    = "hdf"
     NETCDF_XARRAY = "netcdf_xarray"
     JSON_DICT = "JSON_dict"
@@ -63,6 +69,33 @@ class DataHandler_time(object):
         pandas.Timestamp
         """
         return pandas.Timestamp(resource)
+
+
+class DataHandler_csv_pandas(object):
+    """
+        Loads a csv file into pandas dataframe.
+
+        Returns pandas dataframe.
+    """
+
+    @staticmethod
+    def getData(resource):
+        """
+        Loads a csv file into pandas dataframe.
+
+        Parameters
+        ----------
+        resource : str
+            Path to a csv file
+
+        Returns
+        -------
+        panda.dataframe
+        """
+
+        df = pandas.read_csv(resource)
+
+        return df
 
 
 class DataHandler_HDF(object):
