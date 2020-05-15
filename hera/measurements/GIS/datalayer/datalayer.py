@@ -57,7 +57,7 @@ class GIS_datalayer():
 
             FileName = "%s//%s%s-%s.shp" % (self._FilesDirectory, self._projectName, CutName, mode)
 
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s /mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/%s" % (*points, FileName, fullfilesdirect[mode]))
+            os.system("ogr2ogr -clipsrc %s %s %s %s %s /mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/%s" % (points[0],points[1],points[2],points[3], FileName, fullfilesdirect[mode]))
             datalayer.Measurements.addDocument(projectName=self._projectName, desc=dict(**additional_data), type="GIS",
                                                resource = FileName, dataFormat = "geopandas")
         else:
