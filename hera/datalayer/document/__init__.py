@@ -92,7 +92,7 @@ def createDBConnection(user, mongoConfig,alias=None):
 
         - Metadata: the meta data object that holds all the documets.
         - Measurements:  documents of the measurements.
-        - Analysis:      documents of the analysis.
+        - Cache:      documents of the cache.
         - Simulations:   documents of the simulations.
 
     :param user:
@@ -124,8 +124,8 @@ def createDBConnection(user, mongoConfig,alias=None):
     new_Measurements = type('Measurements', (new_Metadata,), {})
     dbDict['Measurements'] = new_Measurements
 
-    new_Analysis = type('Analysis', (new_Metadata,), {})
-    dbDict['Analysis'] = new_Analysis
+    new_Cache = type('Cache', (new_Metadata,), {})
+    dbDict['Cache'] = new_Cache
 
     new_Simulations = type('Simulations', (new_Metadata,), {})
     dbDict['Simulations'] = new_Simulations
