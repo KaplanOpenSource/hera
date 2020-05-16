@@ -47,6 +47,15 @@ For example to create a new class that derives form myFather:
 
 .. code-block:: python
 
-    newClass = type('mynewclass', (myFather,), {})
+    newClass = type('mynewclass', (Son,Father,), {})
 
     newClassInstance = newClass()
+
+is Equivalent to
+
+.. code-block:: python
+
+    class mynewclass(Son,Father):
+        ...
+
+
