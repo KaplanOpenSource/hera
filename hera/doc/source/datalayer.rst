@@ -4,7 +4,7 @@ datalayer
 The data the that is produced in by the measurements or the simulation might be large
 and therefore we usually store the data on the disk
 and keep only the metadata in the database. Each record in the database (called a 'document') represents
-a single piece of data (pandas, dask, xarray or any other data) associated with a project.
+a single piece of data (pandas, dask, xarray or any other data) associated with a **project**.
 
 The meta data includes the fields:
 
@@ -19,7 +19,6 @@ The meta data includes the fields:
 
 Each user has its own database that stores documents, but it is also possible to access
 a different databases.
-
 
 The datalayer also includes a command line interface to load, remove and move data around.
 
@@ -56,6 +55,15 @@ to access other databases.
 
 This tutorial demonstrate how to store and retrieve data from the database
 with the default connection (the username of the linux system).
+
+Listing all projects
+----------------
+
+List all the project by calling the geProjectList function.
+
+.. code-block:: python
+
+    projectList = hera.datalayer.getProjectList()
 
 Adding Data
 -----------
@@ -116,6 +124,14 @@ For example, we will read the first document from the docList and get its data.
 
 The getData method loads the data from the database according to the 'dataFormat'.
 
+It is possible to query all the documents.
+
+.. code-block:: python
+
+    docList = datalayer.All.getDocuments(projectName='projectName',property1='value1')
+
+Lists all the documents in the project, regrdless of their type.
+
 Updating data
 ------------
 
@@ -140,6 +156,9 @@ Similalry, it is possible to remove a property from the record
 
 Delete data
 ------------
+
+In order to delete a document we can use the delete function of the document.
+
 .. code-block:: python
 
     doc = docList[0]
@@ -194,3 +213,4 @@ Usage
     datalayer/usage
     datalayer/datahandlers
     datalayer/api
+    datalayer/architecture
