@@ -77,21 +77,28 @@ class Plotting():
 
         return dists
 
-    def UinLocations(self, points, ax=None):
+    def UinLocations(self, points, colors=["blue", "red"], labels=["Distance Downwind (m)", "Velocity (m/s)", "Height (m)"],ax=None):
 
         if ax is None:
             fig, ax = plt.subplots()
         else:
             plt.sca(ax)
         data = self._data.sort_values(by=["distance", "heightOverTerrain"])
-        ax.plot(data.distance, data.terrain, zorder=10)
+        ax.plot(data.distance, data.terrain, zorder=10, color=colors[0])
         ax.set_ylim(data.z.min(), data.z.max())
+        xticks = [i for i in range(int(data.Velocity.max()+2))]
+        ax.set_ylabel(labels[2])
+        ax.set_xlabel(labels[0])
         for point in points:
-            axins = ax.inset_axes([point, data.loc[data.distance==point].terrain.mean(), 1000,
+            axins = ax.inset_axes([point, data.loc[data.distance==point].terrain.mean(), data.distance.max()/10,
                                    data.z.max()-data.loc[data.distance==point].terrain.mean()], transform=ax.transData)
             axins.plot(data.query("distance>@point-0.5 and distance<@point+0.5").Velocity,
-                    data.query("distance>@point-0.5 and distance<@point+0.5").heightOverTerrain, color="red", zorder=0)
-            axins.set_ylim(0, data.query("distance>@point-0.5 and distance<@point+0.5").z.max())
+                    data.query("distance>@point-0.5 and distance<@point+0.5").z, color=colors[1], zorder=0)
+            axins.set_ylim(data.loc[data.distance==point].terrain.mean(), data.query("distance>@point-0.5 and distance<@point+0.5").z.max())
             axins.get_yaxis().set_visible(False)
             axins.xaxis.set_ticks_position("top")
+            axins.xaxis.set_label_position("top")
             axins.set_xlim(0, data.Velocity.max()+0.5)
+            axins.set_xticks(xticks)
+            axins.set_xlabel(labels[1])
+            ax.scatter(point, data.loc[data.distance==point].terrain.mean(), color=colors[1], zorder=15)

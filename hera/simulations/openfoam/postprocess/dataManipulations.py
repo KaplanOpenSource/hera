@@ -41,3 +41,13 @@ class dataManipulations():
         data["heightOverTerrain"] = data["z"] - data["terrain"]
         data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
         return data
+
+    def findDetaiedLocations(self, data):
+
+        optional = []
+        for d in data.distance.drop_duplicates():
+           if len(data.query("distance==@d and heightOverTerrain<10")) > 3 and len(
+                   data.query("distance>@d-0.5 and distance<@d+0.5 and heightOverTerrain>10")) > 10:
+               optional.append(d)
+        optional.sort()
+        return optional

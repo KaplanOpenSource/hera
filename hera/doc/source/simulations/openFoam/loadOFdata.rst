@@ -51,7 +51,7 @@ The execution is done using the command line interface:
 
 .. code-block:: python
 
-    hera-loadOF executePipeline [JSONpath] [name] [casePath] [caseType] [sourcename]
+    hera-OpenFOAM executePipeline [JSONpath] [name] [casePath] [caseType] [sourcename]
 
 JSONpath is the path of the json file,
 name is a name used for the new files, casePath is the directory of the openFOAM project.
@@ -65,7 +65,7 @@ For example,
 
 .. code-block:: python
 
-    hera-loadOF executePipeline "/home/ofir/Projects/openFoamUsage/askervein/test.json" "test" "/home/ofir/Projects/openFoamUsage/askervein" "Reconstructed Case"
+    hera-OpenFOAM executePipeline "/home/ofir/Projects/openFoamUsage/askervein/test.json" "test" "/home/ofir/Projects/openFoamUsage/askervein" "Reconstructed Case"
 
 
 Loading the data to the database
@@ -75,7 +75,7 @@ The loading is done using a command line interface:
 
 .. code-block:: python
 
-    hera-loadOF [path] [name] [projectName] --keepHDF
+    hera-OpenFOAM [path] [name] [projectName] --keepHDF
 
 The path is the full directory of the directory
 specified as the metadata "datadir" in the json file.
@@ -85,7 +85,7 @@ for example,
 
 .. code-block:: python
 
-    hera-loadOF load "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
+    hera-OpenFOAM load "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
 
 This command saves the results of each filter in a parquet file.
 A document that links to the parquet is added to the database.

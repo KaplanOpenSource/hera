@@ -185,6 +185,34 @@ class VTKpipeline(object):
 
         self._buildFilterLayer(filter, structureJson["pipeline"].get("downstream", None), filterWrite)
 
+    def get_slice_height(filename, itteration, axis_index, axis_value, offset=0.0,
+                         clipxmin=0.0, clipxmax=0.0, clipymin=0.0, clipymax=0.0, clipzmin=0.0, clipzmax=0.0,
+                         reader=None):
+        if reader is None:
+            reader = bse.ReadCase('case name', filename, CaseType='Reconstructed Case')  # 'Reconstructed Case')
+            print('Initial timelist print:', reader.TimestepValues)
+
+        contour1 = pvsimple.Contour(reader)
+        contour1.ContourBy = ['POINTS', 'HeightFromTopo']
+        try:
+            realoffset = offset + axis_value
+            print('realoffset easy')
+        except:
+            print('realoffset except', len(offset))
+            realoffset = []
+            for i in range(len(offset)):
+                realoffset.append(offset[i] + axis_value)
+
+        contour1.Isosurfaces = realoffset
+        contour1.PointMergeMethod = 'Uniform Binning'
+        # // "downstream": {
+        #                  // "pipeline": {
+        #                                 // "type": "Contour",
+        # // "guiname": "Contour1",
+        # // "write": "hdf",
+        # // "params": [["ContourBy", ["POINTS", "HeightFromTopo"]], ["Isosurfaces", 30],
+        #               ["PointMergeMethod", "Uniform Binning"]]
+        #              //}
 
 # if __name__ == "__main__":
     # bse = pvOFBase()
