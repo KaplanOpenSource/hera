@@ -1,8 +1,9 @@
 import numpy
+import pandas
 
 class dataManipulations():
 
-    def arrangeSlice(self, data, xdir=True, ydir=True):
+    def arrangeSlice(self, data, heightdata=None, height=None, xdir=True, ydir=True):
         """
         Arranging data of a slice: adding distance downwind, velocity and height over terrain.
         Params:
@@ -12,6 +13,10 @@ class dataManipulations():
         Returns:
             The arranged data
         """
+
+        if heightdata is not None:
+            heightdata = heightdata.rename(columns={"z":"hight%s" % height})
+            data = pandas.concat([data, heightdata]).reset_index()
 
         data["terrain"] = [numpy.nan for x in range(len(data))]
         base_data = data.query("U_x==0").reset_index()

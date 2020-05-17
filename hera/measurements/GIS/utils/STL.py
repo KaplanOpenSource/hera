@@ -237,7 +237,8 @@ class convert():
             for i in range(len(Height)):
                 Height[i] = flat
         grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
-        numpy.nan_to_num(grid_z2, nan=min(Height), copy=False)
+        #numpy.nan_to_num(grid_z2, nan=min(Height), copy=False)
+        numpy.nan_to_num(grid_z2, copy=False)
 
         stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 

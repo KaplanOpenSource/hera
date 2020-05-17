@@ -91,7 +91,8 @@ class VTKpipeline(object):
             self._pvOFBase.netcdfdir = os.path.join(outputdir, name, "netcdf")
             self._mainpath = os.path.join(outputdir, name)
         else:
-            self._mainpath = ""
+            self._pvOFBase.hdfdir = os.path.join(name, "hdf")
+            self._mainpath = os.path.join(name)
 
     def execute(self, source, writeMetadata=True):
         """
@@ -139,7 +140,7 @@ class VTKpipeline(object):
                    fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None), outfile=self.name)
 
         if writeMetadata:
-            with open('%s/meta.json' % (self._mainpath), 'w') as outfile:
+            with open('%s/meta.json' % self._mainpath, 'w') as outfile:
                 json.dump(self._VTKpipelineJSON, outfile)
 
     def _buildFilterLayer(self, father, structureJson, filterWrite):

@@ -281,6 +281,7 @@ class paraviewOpenFOAM(object):
                 data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
                 curfilename = "%s_%s.hdf" % (outfile, batchID)
                 print("\tWriting filter %s in file %s" % (filtername, curfilename))
+                print("dir", os.path.join(self.hdfdir, curfilename))
                 data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
 
         outfile = readername if outfile is None else outfile

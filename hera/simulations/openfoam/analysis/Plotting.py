@@ -32,7 +32,7 @@ class Plotting():
             plt.sca(ax)
 
         data = self._data.sort_values(by="distance")
-        labels = labels if labels is not None else ["Distance Downwind", variable, "Terrain"]
+        labels = labels if labels is not None else ["Distance Downwind (m)", variable, "Terrain (m)"]
 
         ax.plot(data.distance, data[variable], color=colors[0])
         ax.tick_params(axis='y', labelcolor=colors[0])
@@ -92,8 +92,8 @@ class Plotting():
         for point in points:
             axins = ax.inset_axes([point, data.loc[data.distance==point].terrain.mean(), data.distance.max()/10,
                                    data.z.max()-data.loc[data.distance==point].terrain.mean()], transform=ax.transData)
-            axins.plot(data.query("distance>@point-0.5 and distance<@point+0.5").Velocity,
-                    data.query("distance>@point-0.5 and distance<@point+0.5").z, color=colors[1], zorder=0)
+            axins.plot(data.query("distance>@point-0.5 and distance<@point+0.5").sort_values(by=["distance", "heightOverTerrain"]).Velocity,
+                    data.query("distance>@point-0.5 and distance<@point+0.5").sort_values(by=["distance", "heightOverTerrain"]).z, color=colors[1], zorder=0)
             axins.set_ylim(data.loc[data.distance==point].terrain.mean(), data.query("distance>@point-0.5 and distance<@point+0.5").z.max())
             axins.get_yaxis().set_visible(False)
             axins.xaxis.set_ticks_position("top")
