@@ -8,6 +8,6 @@ from .datahandler import datatypes
 
 Measurements = Measurements_Collection()
 Simulations = Simulations_Collection()
-Analysis = Cache_Collection()
+Cache = Cache_Collection()
 
 All = AbstractCollection()
