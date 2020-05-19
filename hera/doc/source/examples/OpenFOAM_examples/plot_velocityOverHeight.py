@@ -10,10 +10,10 @@ Plot the velocity over height.
 #
 # In order to do so, first of all the data should be arranged.
 # We load data of a slice of the domain from the database (look for example in simulation OpenFOAM to see how do add the data to the database).
-# The type of such data is OFsimulation. In the presented project, the desired data is the first data of that kind in the database.
+# The type of such data is OFsimulation. In the presented project, the desired data is the second data of that kind in the database.
 
 from hera import datalayer
-data = datalayer.Measurements.getDocuments(projectName="Examples", type="OFsimulation")[0].getData().compute()
+data = datalayer.Measurements.getDocuments(projectName="Example", type="OFsimulation")[1].getData().compute()
 
 #######################
 # Now, we use a function of hera openfoam in order to arrange the data.
@@ -39,5 +39,5 @@ optionalLocations = op.findDetaiedLocations(data)
 # The plot is plotted using the plotting model.
 # The colors and labels can be changed from the default values by addressing parameters called "colors" and "labels".
 
-plotting = openfoam.Plotting(data)
-plotting.UinLocations([optionalLocations[10], optionalLocations[28], optionalLocations[40]])
+plotting = openfoam.Plotting()
+plotting.UinLocations(data=data, points=[optionalLocations[9], optionalLocations[56], optionalLocations[80]])

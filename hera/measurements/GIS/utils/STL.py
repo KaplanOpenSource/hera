@@ -4,6 +4,7 @@ from scipy.interpolate import griddata
 from numpy import array, cross, sqrt
 import numpy
 import pandas
+import math
 from ..datalayer.datalayer import GIS_datalayer
 from ..analytics.dataManipulations import dataManipulations
 from .... import datalayer
@@ -237,8 +238,7 @@ class convert():
             for i in range(len(Height)):
                 Height[i] = flat
         grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
-        #numpy.nan_to_num(grid_z2, nan=min(Height), copy=False)
-        numpy.nan_to_num(grid_z2, copy=False)
+        grid_z2 = self.organizeGrid(grid_z2)
 
         stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 
@@ -246,3 +246,22 @@ class convert():
                                  "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2.min(), "gridzMax":grid_z2.max(),})
 
         return stlstr, data
+
+    def organizeGrid(self, grid):
+
+        for row in grid:
+            for i in range(len(row)):
+                if math.isnan(row[i]):
+                    pass
+                else:
+                    break
+            for n in range(i):
+                row[n] = row[i]
+            for i in reversed(range(len(row))):
+                if math.isnan(row[i]):
+                    pass
+                else:
+                    break
+            for n in range(len(row)-i):
+                row[-n-1] = row[i]
+        return grid
