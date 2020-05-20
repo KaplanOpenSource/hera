@@ -18,14 +18,17 @@ class MetadataFrame(object):
 
     def getData(self, **kwargs):
         """
-            Returns the data of the document. 
-            
-            the kwargs passed to the datahandler. 
-            See the datahandler class for your specific datatype.  
+        Returns the data of the document.
 
-        :param kwargs: dict
+        the kwargs passed to the datahandler.
+        See the datahandler class for your specific datatype.
+
+        Parameters
+        ----------
+        kwargs : dict
         
-        :return:
+        Returns
+        -------
             object according to the datahandler. 
         """
         return getHandler(self.dataFormat).getData(self.resource, **kwargs)

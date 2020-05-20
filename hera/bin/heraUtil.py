@@ -4,7 +4,7 @@ from hera import datalayer
 
 Measurements = datalayer.Measurements
 Simulations = datalayer.Simulations
-Analysis = datalayer.Analysis
+Analysis = datalayer.Cache
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dump', dest='dump', action='store_true', help='')

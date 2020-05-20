@@ -6,9 +6,10 @@ The next notebook shows how to load openFoam simulation results to the database.
 The process is devided to two parts: the first executes operations on the raw data and saves it to the disk,
 and the second loads the data to the database.
 The first part is conducted in a python-2 environment, and the second one in python-3.
+Both operations use a command line interface.
 
-Executing operations on the data
---------------------------------
+Building a JSON pipeline file
+-----------------------------
 
 In order to execute operations on the data and saving it to the disk, one has to built a json file that
 specifies the operation.
@@ -39,29 +40,32 @@ The file needs to have the next structure:
     }
 
 
-The json file consists a part called metadata, and a part called pipeline. The metadata may consist the parameters shown above, that affect the operation: they controll which fields, timesteps and mesh regions would be used. These parameters are not mandatory. It may also consist additional parameters that would be used as descriptors in the hera database.
+The json file consists a part called metadata, and a part called pipeline.
+The metadata may consist the parameters shown above, that affect the operation:
+they controll which fields, timesteps and mesh regions would be used. These parameters are not mandatory. It may also consist additional parameters that would be used as descriptors in the hera database.
 
-The operation uses the vtkPipeline module:
+Executing operations on the data
+--------------------------------
 
-.. code-block:: python
-
-    import...
-    import json
-    with open('test.json') as json_file:
-         data = json.load(json_file)
-
-    name = "test" # A name used for the files.
-    casePath = "/home/ofir/Projects/openFoamUsage/askervein" # The path of the simulation.
-    caseType = "Reconstructed Case"
-    servername = None
-
-    vtkpipe = VTKpipeline(name=name, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=servername)
-
-The operation is execuded using this line:
+The execution is done using the command line interface:
 
 .. code-block:: python
 
-    vtkpipe.execute("mainReader")
+    hera-loadOF executePipeline [JSONpath] [name] [casePath] [caseType] [sourcename]
+
+JSONpath is the path of the json file,
+name is a name used for the new files, casePath is the directory of the openFOAM project.
+caseType and sourcename are optional.
+caseType is either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
+for single processor cases, the default is 'Decomposed Case'.
+sourcename is a connection string to the paraview server.
+The default is None, which work locally.
+
+For example,
+
+.. code-block:: python
+
+    hera-loadOF executePipeline "/home/ofir/Projects/openFoamUsage/askervein/test.json" "test" "/home/ofir/Projects/openFoamUsage/askervein" "Reconstructed Case"
 
 
 Loading the data to the database
@@ -75,13 +79,13 @@ The loading is done using a command line interface:
 
 The path is the full directory of the directory
 specified as the metadata "datadir" in the json file.
-The name is the name used for the VTKpipeline method.
+The name is the name used for the executePipeline.
 The projectName is used as the project name in the database.
 for example,
 
 .. code-block:: python
 
-    hera-loadOF "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
+    hera-loadOF load "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
 
 This command saves the results of each filter in a parquet file.
 A document that links to the parquet is added to the database.
@@ -96,4 +100,4 @@ If one wishes to keep the hdf files, it can be done by adding "--keepHDF" at the
 
 .. code-block:: python
 
-    hera-loadOF "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example" --keepHDF
+    hera-loadOF load "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example" --keepHDF

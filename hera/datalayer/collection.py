@@ -1,8 +1,8 @@
-# from .document.metadataDocument import Metadata,Measurements,Simulations,Analysis,Projects
 from . import getDBObject
 from mongoengine import ValidationError, MultipleObjectsReturned, DoesNotExist
 import warnings
-
+import sys
+version = sys.version_info[0]
 
 class AbstractCollection(object):
     _metadataCol = None
@@ -168,7 +168,9 @@ class AbstractCollection(object):
         -------
 
         """
-        self.getDocumentByID(id=id).delete()
+        doc = self.getDocumentByID(id=id)
+        doc.delete()
+        return doc
 
     def getData(self, projectName, usePandas=None, **kwargs):
         """
@@ -193,7 +195,10 @@ class AbstractCollection(object):
 class Measurements_Collection(AbstractCollection):
 
     def __init__(self, user=None):
-        super().__init__(ctype='Measurements', user=user)
+        if version == 2:
+            super(Measurements_Collection, self).__init__(ctype='Measurements', user=user)
+        elif version == 3:
+            super().__init__(ctype='Measurements', user=user)
     #
     # def meta(self):
     #     return self._metadataCol
@@ -202,10 +207,15 @@ class Measurements_Collection(AbstractCollection):
 class Simulations_Collection(AbstractCollection):
 
     def __init__(self, user=None):
-        super().__init__(ctype='Simulations', user=user)
+        if version == 2:
+            super(Simulations_Collection, self).__init__(ctype='Simulations', user=user)
+        elif version == 3:
+            super().__init__(ctype='Simulations', user=user)
 
-
-class Analysis_Collection(AbstractCollection):
+class Cache_Collection(AbstractCollection):
 
     def __init__(self, user=None):
-        super().__init__(ctype='Analysis', user=user)
+        if version == 2:
+            super(Cache_Collection, self).__init__(ctype='Cache', user=user)
+        elif version == 3:
+            super().__init__(ctype='Cache', user=user)

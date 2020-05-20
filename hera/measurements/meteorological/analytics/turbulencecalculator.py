@@ -1,6 +1,6 @@
 import numpy
 import pandas
-from scipy.stats import circmean, circstd
+import dask.dataframe
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
 
@@ -31,24 +31,58 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'up' not in self._RawData.columns:
             avg = self._RawData
-            avg = avg if self.SamplingWindow is None else avg.resample(self.SamplingWindow)
-            avg = avg.mean().rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
+            if self.SamplingWindow is None:
+                avg = avg.mean()
+                if self._DataType == 'pandas':
+                    avg = pandas.DataFrame(avg).T
+                    avg.index = [self._RawData.index[0]]
+                else:
+                    self._RawData = self._RawData.repartition(npartitions=1)
+                    avg = pandas.DataFrame(avg.compute()).T
+                    avg.index = self._RawData.head(1).index
+                    npartitions = 1
+                    # self._RawData.npartitions
+                    avg = dask.dataframe.from_pandas(avg, npartitions=npartitions)
+            else:
+                avg = avg.resample(self.SamplingWindow).mean()
+
+            avg = avg.rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
+
+            avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
+            avg['wind_dir_bar'] = (2*numpy.pi+avg['wind_dir_bar'])%(2*numpy.pi)
+            avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
+
+            if self._DataType=='pandas':
+                avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+            else:
+                avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
 
             self._TemporaryData = avg
-            self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}]]
+            self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
             if self._isMissingData:
                 self._RawData = self._RawData.merge(avg, how='outer', left_index=True, right_index=True)
                 self._RawData = self._RawData.dropna(how='all')
-                self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar']] = self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar']].ffill()
+                self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar', 'wind_dir_bar']] = self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar', 'wind_dir_bar']].ffill()
                 self._RawData = self._RawData.dropna(how='any')
             else:
                 self._RawData = self._RawData.merge(avg, how='left', left_index=True, right_index=True)
                 self._RawData = self._RawData.ffill()
 
+            self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
+            self._RawData['wind_dir'] = (2 * numpy.pi + self._RawData['wind_dir']) % (2 * numpy.pi)
+            self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
+            if self._DataType == 'pandas':
+                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(
+                    lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+            else:
+                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(
+                    lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
+
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
             self._RawData['vp'] = self._RawData['v'] - self._RawData['v_bar']
             self._RawData['wp'] = self._RawData['w'] - self._RawData['w_bar']
             self._RawData['Tp'] = self._RawData['T'] - self._RawData['T_bar']
+            self._RawData['wind_dir_p'] = (180-(180-(self._RawData['wind_dir'] - self._RawData['wind_dir_bar']).abs()).abs()).abs()
 
         return self
 
@@ -70,15 +104,23 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'sigmaU' not in self._TemporaryData.columns:
-            sigmaU = self._RawData['u'].resample(self.SamplingWindow).std()
+            self.fluctuations()
+
+            if self.SamplingWindow is None:
+                sigmaU = self._RawData['u'].std()
+                sigmaV = self._RawData['v'].std()
+                sigmaW = self._RawData['w'].std()
+            else:
+                sigmaU = self._RawData['u'].resample(self.SamplingWindow).std()
+                sigmaV = self._RawData['v'].resample(self.SamplingWindow).std()
+                sigmaW = self._RawData['w'].resample(self.SamplingWindow).std()
+
             self._TemporaryData['sigmaU'] = sigmaU
             self._CalculatedParams.append(['sigmaU',{}])
 
-            sigmaV = self._RawData['v'].resample(self.SamplingWindow).std()
             self._TemporaryData['sigmaV'] = sigmaV
             self._CalculatedParams.append(['sigmaV',{}])
 
-            sigmaW = self._RawData['w'].resample(self.SamplingWindow).std()
             self._TemporaryData['sigmaW'] = sigmaW
             self._CalculatedParams.append(['sigmaW',{}])
 
@@ -103,7 +145,6 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'sigmaH' not in self._TemporaryData.columns:
             self.sigma()
-            self.Ustar()
             sigmaH = 0.5*numpy.hypot(self._TemporaryData['sigmaU'], self._TemporaryData['sigmaW'])
             self._TemporaryData['sigmaH'] = sigmaH
             self._CalculatedParams.append(['sigmaH',{}])
@@ -128,8 +169,8 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'sigmaHOverUstar' not in self._TemporaryData.columns:
-            self.fluctuations()
             self.sigmaH()
+            self.Ustar()
             sigmaHOverUstar = self._TemporaryData['sigmaH']/self._TemporaryData['Ustar']
             self._TemporaryData['sigmaHOverUstar'] = sigmaHOverUstar
             self._CalculatedParams.append(['sigmaHOverUstar',{}])
@@ -155,8 +196,8 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'sigmaWOverUstar' not in self._TemporaryData.columns:
-            self.fluctuations()
             self.sigma()
+            self.Ustar()
             sigmaWOverUstar = self._TemporaryData['sigmaW']/self._TemporaryData['Ustar']
             self._TemporaryData['sigmaWOverUstar'] = sigmaWOverUstar
             self._CalculatedParams.append(['sigmaWOverUstar',{}])
@@ -180,25 +221,15 @@ class TurbulenceCalculator(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'wind_speed' not in self._RawData.columns:
+        if 'wind_speed_bar' not in self._TemporaryData.columns:
             self.fluctuations()
-
-            self._RawData = self._RawData.assign(wind_speed=lambda x: numpy.hypot(x['u'], x['v']))
-
-            resampled = self._RawData['wind_speed']
-            resampled = resampled if self.SamplingWindow is None else resampled.resample(self.SamplingWindow)
-
-            avg = resampled.mean()
-            self._TemporaryData['wind_speed'] = avg
-            self._CalculatedParams.append(['wind_speed',{}])
-
-            std = resampled.std()#.rename(columns={'wind_speed':'wind_speed_std'})
-            self._TemporaryData['wind_speed_std']=std
-            self._CalculatedParams.append(['wind_speed_std',{}])
+            wind_speed_bar = numpy.hypot(self._TemporaryData['u_bar'], self._TemporaryData['v_bar'])
+            self._TemporaryData['wind_speed_bar'] = wind_speed_bar
+            self._CalculatedParams.append(['wind_speed_bar',{}])
 
         return self
 
-    def wind_dir(self, inMemory=None):
+    def wind_dir_std(self, inMemory=None):
         """
         Calculates the mean and the std of the wind direction in mathematical and meteorological form.
 
@@ -215,41 +246,15 @@ class TurbulenceCalculator(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'wind_dir_mathematical' not in self._RawData.columns:
+        if 'wind_dir_std' not in self._TemporaryData.columns:
             self.fluctuations()
 
-            self._RawData = self._RawData.assign(wind_dir_mathematical=lambda x: numpy.arctan2(x['v'], x['u']))
-            resampled = self._RawData['wind_dir_mathematical']
-            resampled = resampled if self.SamplingWindow is None else resampled.resample(self.SamplingWindow)
+            std = numpy.square(self._RawData['wind_dir_p'])
+            std = std if self.SamplingWindow is None else std.resample(self.SamplingWindow)
+            std = numpy.sqrt(std.mean())
 
-            if self._DataType=='pandas':
-                avg = resampled.apply(lambda x: circmean(x, high=numpy.pi, low=-numpy.pi))
-            else:
-                avg = resampled.agg(lambda x: circmean(x, high=numpy.pi, low=-numpy.pi))
-
-            self._TemporaryData['wind_dir_mathematical'] = avg
-            self._CalculatedParams.append(['wind_dir_mathematical',{}])
-
-            if self._DataType == 'pandas':
-                avg = numpy.rad2deg(avg + numpy.pi)
-                self._TemporaryData['wind_dir_meteorological'] = [int(270 - x) if 270 - x >= 0 else int(630 - x) for x in avg.values]
-            else:
-                self._TemporaryData['wind_dir_meteorological'] = self._TemporaryData['wind_dir_mathematical'].apply(
-                    lambda x: numpy.rad2deg(x + numpy.pi), meta=('wind_dir_mathematical', 'float64'))
-                self._TemporaryData['wind_dir_meteorological'] = self._TemporaryData['wind_dir_meteorological'].apply(
-                    lambda x: int(270 - x) if 270 - x >= 0 else int(630 - x), meta=('wind_dir_meteorological', 'int64'))
-
-            self._CalculatedParams.append(['wind_dir_meteorological',{}])
-
-            if self._DataType == 'pandas':
-                std = resampled.apply(lambda x: circstd(x, high=numpy.pi, low=-numpy.pi))
-            else:
-                std = resampled.agg(lambda x: circstd(x, high=numpy.pi, low=-numpy.pi))
-            self._TemporaryData['wind_dir_mathematical_std'] = std
-            self._CalculatedParams.append(['wind_dir_mathematical_std',{}])
-            std = numpy.rad2deg(std) #numpy.rad2deg(std+numpy.pi)
-            self._TemporaryData['wind_dir_meteorological_std'] = std #[int(270-x) if 270-x>=0 else int(630-x) for x in std.values]
-            self._CalculatedParams.append(['wind_dir_meteorological_std',{}])
+            self._TemporaryData['wind_dir_std'] = std
+            self._CalculatedParams.append(['wind_dir_std',{}])
 
         return self
 
@@ -271,9 +276,9 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'sigmaHOverWindSpeed' not in self._TemporaryData.columns:
-            self.fluctuations()
             self.sigmaH()
-            sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['wind_speed']
+            self.wind_speed()
+            sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['wind_speed_bar']
             self._TemporaryData['sigmaHOverWindSpeed'] = sigmaHOverWindSpeed
             self._CalculatedParams.append(['sigmaHOverWindSpeed',{}])
 
@@ -297,9 +302,9 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'sigmaWOverWindSpeed' not in self._TemporaryData.columns:
-            self.fluctuations()
             self.sigma()
-            sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['wind_speed']
+            self.wind_speed()
+            sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['wind_speed_bar']
             self._TemporaryData['sigmaWOverWindSpeed'] = sigmaWOverWindSpeed
             self._CalculatedParams.append(['sigmaWOverWindSpeed',{}])
 
@@ -349,8 +354,9 @@ class TurbulenceCalculator(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'uStarOverWindSpeed' not in self._TemporaryData.columns:
-            self.Ustar().wind_speed()
-            uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['wind_speed']
+            self.Ustar()
+            self.wind_speed()
+            uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['wind_speed_bar']
             self._TemporaryData['uStarOverWindSpeed'] = uStarOverWindPeed
             self._CalculatedParams.append(['uStarOverWindSpeed',{}])
 
@@ -375,7 +381,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'uu' not in self._TemporaryData.columns:
             self.fluctuations()
-            uu = (self._RawData['up'] * self._RawData['up']).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                (self._RawData['up'] * self._RawData['up']).mean()
+            else:
+                uu = (self._RawData['up'] * self._RawData['up']).resample(self.SamplingWindow).mean()
             self._TemporaryData['uu'] = uu
             self._CalculatedParams.append(['uu',{}])
 
@@ -400,7 +409,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'vv' not in self._TemporaryData.columns:
             self.fluctuations()
-            vv = (self._RawData['vp'] * self._RawData['vp']).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                vv = (self._RawData['vp'] * self._RawData['vp']).mean()
+            else:
+                vv = (self._RawData['vp'] * self._RawData['vp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['vv'] = vv
             self._CalculatedParams.append(['vv',{}])
 
@@ -425,7 +437,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'ww' not in self._TemporaryData.columns:
             self.fluctuations()
-            ww = (self._RawData['wp'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                ww = (self._RawData['wp'] * self._RawData['wp']).mean()
+            else:
+                ww = (self._RawData['wp'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['ww'] = ww
             self._CalculatedParams.append(['ww',{}])
 
@@ -450,7 +465,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'wT' not in self._TemporaryData.columns:
             self.fluctuations()
-            wT = (self._RawData['wp'] * self._RawData['Tp']).resample(self.SamplingWindow).mean()
+            if self. SamplingWindow is None:
+                wT = (self._RawData['wp'] * self._RawData['Tp']).mean()
+            else:
+                wT = (self._RawData['wp'] * self._RawData['Tp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['wT'] = wT
             self._CalculatedParams.append(['wT',{}])
 
@@ -475,7 +493,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'uv' not in self._TemporaryData.columns:
             self.fluctuations()
-            uv = (self._RawData['up'] * self._RawData['vp']).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                uv = (self._RawData['up'] * self._RawData['vp']).mean()
+            else:
+                uv = (self._RawData['up'] * self._RawData['vp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['uv'] = uv
             self._CalculatedParams.append(['uv',{}])
 
@@ -500,7 +521,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'uw' not in self._TemporaryData.columns:
             self.fluctuations()
-            uw = (self._RawData['up'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                uw = (self._RawData['up'] * self._RawData['wp']).mean()
+            else:
+                uw = (self._RawData['up'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['uw'] = uw
             self._CalculatedParams.append(['uw',{}])
 
@@ -525,7 +549,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'vw' not in self._TemporaryData.columns:
             self.fluctuations()
-            vw = (self._RawData['vp'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                vw = (self._RawData['vp'] * self._RawData['wp']).mean()
+            else:
+                vw = (self._RawData['vp'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['vw'] = vw
             self._CalculatedParams.append(['vw',{}])
 
@@ -550,7 +577,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'w3' not in self._TemporaryData.columns:
             self.fluctuations()
-            www = (self._RawData['wp'] ** 3).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                www = (self._RawData['wp'] ** 3).mean()
+            else:
+                www = (self._RawData['wp'] ** 3).resample(self.SamplingWindow).mean()
             self._TemporaryData['w3'] = www
             self._CalculatedParams.append(['w3',{}])
 
@@ -575,7 +605,10 @@ class TurbulenceCalculator(AbstractCalculator):
 
         if 'w4' not in self._TemporaryData.columns:
             self.fluctuations()
-            wwww = (self._RawData['wp'] ** 4).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                wwww = (self._RawData['wp'] ** 4).mean()
+            else:
+                wwww = (self._RawData['wp'] ** 4).resample(self.SamplingWindow).mean()
             self._TemporaryData['w4'] = wwww
             self._CalculatedParams.append(['w4',{}])
 
@@ -628,7 +661,10 @@ class TurbulenceCalculator(AbstractCalculator):
             vv = self._RawData['vp'] ** 2
             ww = self._RawData['wp'] ** 2
             wp = self._RawData['wp']
-            wTKE = (0.5 * (uu + vv + ww) * wp).resample(self.SamplingWindow).mean()
+            if self.SamplingWindow is None:
+                wTKE = (0.5 * (uu + vv + ww) * wp).mean()
+            else:
+                wTKE = (0.5 * (uu + vv + ww) * wp).resample(self.SamplingWindow).mean()
             self._TemporaryData['wTKE'] = wTKE
             self._CalculatedParams.append(['wTKE',{}])
 
@@ -900,8 +936,26 @@ class TurbulenceCalculatorSpark(TurbulenceCalculator):
 
         if 'up' not in self._RawData.columns:
             avg = self._RawData
-            avg = avg if self.SamplingWindow is None else avg.resample(self.SamplingWindow)
-            avg = avg.mean().rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
+            if self.SamplingWindow is None:
+                avg = avg.mean()
+                if self._DataType == 'pandas':
+                    avg = pandas.DataFrame(avg).T
+                    avg.index = [self._RawData.index[0]]
+                else:
+                    avg = pandas.DataFrame(avg.compute()).T
+                    avg.index = self._RawData.head(1).index
+                    npartitions = self._RawData.npartitions
+                    avg = dask.dataframe.from_pandas(avg, npartitions=npartitions)
+            else:
+                avg = avg.resample(self.SamplingWindow).mean()
+
+            avg = avg.rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
+
+            avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
+            avg['wind_dir_bar'] = (2 * numpy.pi + avg['wind_dir_bar']) % (2 * numpy.pi)
+            avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
+
+            avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}]]
@@ -914,9 +968,15 @@ class TurbulenceCalculatorSpark(TurbulenceCalculator):
             self._RawData = self._RawData.merge(avg, how='left', left_index=True, right_index=True)
             self._RawData = self._RawData.ffill()
 
+            self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
+            self._RawData['wind_dir'] = (2 * numpy.pi + self._RawData['wind_dir']) % (2 * numpy.pi)
+            self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
+            self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
+
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
             self._RawData['vp'] = self._RawData['v'] - self._RawData['v_bar']
             self._RawData['wp'] = self._RawData['w'] - self._RawData['w_bar']
             self._RawData['Tp'] = self._RawData['T'] - self._RawData['T_bar']
+            self._RawData['wind_dir_p'] = (180 - (180 - (self._RawData['wind_dir'] - self._RawData['wind_dir_bar']).abs()).abs()).abs()
 
         return self

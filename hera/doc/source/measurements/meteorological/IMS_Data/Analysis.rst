@@ -14,7 +14,7 @@ Add date and time columns
 addDatesColumns function adds date and time columns to the dataframe from the date index column. These fields can,
 for example, when you want to extract data by different time slices (by season, year, hour, etc.)
 
-.. code-block:: bash
+.. code-block:: python
 
     data=docList[0].getData()
     data=meteo.IMS_analysis.addDatesColumns(data)

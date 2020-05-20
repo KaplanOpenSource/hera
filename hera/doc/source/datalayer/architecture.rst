@@ -1,38 +1,56 @@
 Datalayer Architecture
 ======================
 
-The datalayer module abstracts the access to the resource of the user.
+The library uses the mongoengine library to access the mongoDB.
+
+The library uses a object relational mapping (ORM) technology. That is,
+One object represents the collection (a table) and each record
+is represented as an object.
+
+All the data is stored in the Metadata collection.
+
+Each record has the following structure:
+
+.. list-table:: Record
+
+    * - Name
+      - Description
+
+    *  - projectName
+       - The project that contains this record
 
 
-Each record represents a certain piece of data and thereofre it holds the metadata that describes it
-and a reference to the data itself.
 
-The metadata is determined by the user that added that data and stored in the __desc__ property
+Main classes
+------------
 
-The data is stores in the __resource__ attribute and its format is stored in the 'dataFormat'
-property. A data can be either a link to a file on the disk, or the data itself.
+The library has 2 main classes. The collection objects (defined in collection.py)
+and the MetadataFrame object defined in document.metadataDocument and represents a single record.
 
-The dataFormat determine how the data is retrived when using the getData function of the record.
+Collection objects
+^^^^^^^^^^^^^^^^^^
 
-When a user adds a data to the database, he describes the metadata and the data itself.
-A data that is stored in the database can be either a file or the data itself.
+The collection objects manage the access to the documents.
+Using these objects it is possible to query and add the documets.
 
+When the collection objects are initialized they are related to a connection.
+The default connection is the name of the user.
+
+- Measurements_Collection
+- Simulations_Collection
+- Cache_Collection
+
+In order to relate to anther user, use
+
+.. code-block:: python
+
+    measurement_newDB = Measurements_Collection(user="public")
 
 
 MongoDB query language
-***********************
+----------------------
 
 
 
-
-
-Reference to code
------------------
-
-.. toctree::
-    :maxdepth: 2
-
-    collection
-    datahandlers
 
 
