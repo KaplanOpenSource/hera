@@ -37,13 +37,13 @@ class GIS_datalayer():
         Parameters:
             points: Holds the ITM coordinates of a rectangle. It is a list, from the structure [minimum x, minimum y, maximum x, maximum y]\n
             CutName: Used as part of a new file's name. (string)\n
-            mode: The data type of the desired data. Recieves "Contour", "Buildings" or "Roads".\n
+            mode: The data type of the desired data. Recieves any mode specified in the GISOrigin document.\n
             additional_data: A dictionary with any additional parameters and their values.
 
         """
 
-        fullfilesdirect = {"Contour": "RELIEF/CONTOUR.shp", "Buildings": "BUILDINGS/BLDG.shp",
-                           "Roads": "TRANSPORTATION/MAIN_ROAD.shp"}
+        fullfilesdirect = datalayer.Measurements.getDocuments(projectName=self._projectName,type="GISOrigin")[0].asDict()["desc"]["modes"]
+        path = datalayer.Measurements.getDocuments(projectName=self._projectName,type="GISOrigin")[0].asDict()["resource"]
 
         if additional_data is not None:
             additional_data["CutName"] = CutName
@@ -57,7 +57,7 @@ class GIS_datalayer():
 
             FileName = "%s//%s%s-%s.shp" % (self._FilesDirectory, self._projectName, CutName, mode)
 
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s /mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/%s" % (points[0],points[1],points[2],points[3], FileName, fullfilesdirect[mode]))
+            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s/%s" % (points[0],points[1],points[2],points[3], FileName,path, fullfilesdirect[mode]))
             datalayer.Measurements.addDocument(projectName=self._projectName, desc=dict(**additional_data), type="GIS",
                                                resource = FileName, dataFormat = "geopandas")
         else:

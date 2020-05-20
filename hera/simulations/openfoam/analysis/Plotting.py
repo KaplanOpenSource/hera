@@ -1,16 +1,17 @@
 from .... import GIS
+import pandas
 import matplotlib.pyplot as plt
+import math
+from ..postprocess.dataManipulations import dataManipulations
 
 class Plotting():
 
-    _data = None
+    _arrange = None
 
-    def __init__(self, data):
+    def __init__(self):
+        self._arrange=dataManipulations("")
 
-        self._data = data
-
-
-    def variableAgainstDistance(self, variable, colors=["red", "blue"], signedColors=["blue", "orange", "green", "red"],
+    def variableAgainstDistance(self, data, variable, height, style="plot", colors=["red", "blue"], signedColors=["blue", "orange", "green", "red"],
                                 signedDists=None, labels=None, topography=True, ax=None):
         """
         Plots the values of a variable and the terrain height in a slice along the distance downwind.
@@ -31,10 +32,24 @@ class Plotting():
         else:
             plt.sca(ax)
 
-        data = self._data.sort_values(by="distance")
-        labels = labels if labels is not None else ["Distance Downwind", variable, "Terrain"]
+        # distances=[]
+        # variables=[]
+        # for dist in data.distance.drop_duplicates():
+        #     if len(data.loc[data.distance == dist].loc[data.heightOverTerrain>height-10]) > 0 and len(data.loc[data.distance == dist].loc[data.heightOverTerrain<height+10]) > 0:
+        #         d = data.loc[data.distance == dist]
+        #         d2 = pandas.DataFrame([dict(distance=dist, heightOverTerrain=height)])
+        #         value = d.append(d2).sort_values(by="heightOverTerrain").set_index("heightOverTerrain").interpolate(method='index').loc[height][variable]
+        #         if math.isnan(value):
+        #             pass
+        #         else:
+        #             variables.append(value)
+        #             distances.append(dist)
+        heightdata = self._arrange.makeSliceHeightData(data=data, height=height, variable=variable)
 
-        ax.plot(data.distance, data[variable], color=colors[0])
+        data = data.sort_values(by="distance")
+        labels = labels if labels is not None else ["Distance Downwind (m)", variable, "Terrain (m)"]
+
+        getattr(ax, style)(heightdata.distance, heightdata[variable], color=colors[0])
         ax.tick_params(axis='y', labelcolor=colors[0])
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1], color=colors[0])
@@ -48,50 +63,49 @@ class Plotting():
                 ax2.plot([signedDists[i],signedDists[i]], [data.z.min(), data.z.max()], color=signedColors[i], linestyle="--")
         return ax
 
-    def variableAgainstHeight(self, variable, nOfPoints=4, labels=None, ax=None):
+    def UinLocations(self, data, points, style="plot", colors=["blue", "red"], labels=["Distance Downwind (m)", "Velocity (m/s)", "Height (m)"],ax=None):
 
         if ax is None:
             fig, ax = plt.subplots()
         else:
             plt.sca(ax)
-
-        labels = labels if labels is not None else ["Height (m)", variable]
-
-        optional = []
-        dists = []
-        for d in self._data.distance.drop_duplicates():
-           # if len(data.query("distance==@d")) > 20:
-           if len(self._data.query("distance==@d and heightOverTerrain<10")) > 3 and len(
-                   self._data.query("distance>@d-0.5 and distance<@d+0.5 and heightOverTerrain>10")) > 10:
-               optional.append(d)
-        delta = int(len(optional)/(nOfPoints+1))
-        optional.sort()
-        data = self._data.sort_values(by="heightOverTerrain")
-        for i in range(nOfPoints):
-            dist = optional[delta*(i+1)]
-            dists.append(dist)
-            ax.plot(data.query("distance>@dist-0.5 and distance<@dist+0.5").heightOverTerrain, data.query("distance>@dist-0.5 and distance<@dist+0.5")[variable], label=int(dist))
-        ax.legend()
-        ax.set_xlabel(labels[0])
-        ax.set_ylabel(labels[1])
-
-        return dists
-
-    def UinLocations(self, points, ax=None):
-
-        if ax is None:
-            fig, ax = plt.subplots()
-        else:
-            plt.sca(ax)
-        data = self._data.sort_values(by=["distance", "heightOverTerrain"])
-        ax.plot(data.distance, data.terrain, zorder=10)
+        data = data.sort_values(by=["distance", "heightOverTerrain"])
+        ax.plot(data.distance, data.terrain, zorder=10, color=colors[0])
         ax.set_ylim(data.z.min(), data.z.max())
+        xticks = [i for i in range(int(data.Velocity.max()+2))]
+        ax.set_ylabel(labels[2])
+        ax.set_xlabel(labels[0])
         for point in points:
-            axins = ax.inset_axes([point, data.loc[data.distance==point].terrain.mean(), 1000,
+            axins = ax.inset_axes([point, data.loc[data.distance==point].terrain.mean(), data.distance.max()/10,
                                    data.z.max()-data.loc[data.distance==point].terrain.mean()], transform=ax.transData)
-            axins.plot(data.query("distance>@point-0.5 and distance<@point+0.5").Velocity,
-                    data.query("distance>@point-0.5 and distance<@point+0.5").heightOverTerrain, color="red", zorder=0)
-            axins.set_ylim(0, data.query("distance>@point-0.5 and distance<@point+0.5").z.max())
+            getattr(axins, style)(data.loc[data.distance==point].sort_values(by=["distance", "heightOverTerrain"]).Velocity,
+                    data.loc[data.distance==point].sort_values(by=["distance", "heightOverTerrain"]).z, color=colors[1], zorder=0)
+            axins.set_ylim(data.loc[data.distance==point].terrain.mean(), data.loc[data.distance==point].z.max())
             axins.get_yaxis().set_visible(False)
             axins.xaxis.set_ticks_position("top")
+            axins.xaxis.set_label_position("top")
             axins.set_xlim(0, data.Velocity.max()+0.5)
+            axins.set_xticks(xticks)
+            axins.set_xlabel(labels[1])
+            ax.scatter(point, data.loc[data.distance==point].terrain.mean(), color=colors[1], zorder=15)
+
+    def velocityInHeight(self, data, height):
+
+        xs = []
+        ys = []
+        vels = []
+
+        for x in data.query("heightOverTerrain>@height-2 and heightOverTerrain<@height+2").x.drop_duplicates():
+            for y in data.query("heightOverTerrain>@height-2 and heightOverTerrain<@height+2").loc[data.x==x].y.drop_duplicates():
+                if len(data.loc[data.x==x].loc[data.y==y].loc[data.heightOverTerrain > height - 2]) > 0 and len(
+                       data.loc[data.x==x].loc[data.y==y].loc[data.heightOverTerrain < height + 2]) > 0:
+                    d = data.loc[data.x==x].loc[data.y==y]
+                    d2 = pandas.DataFrame([dict(x=x, y=y, heightOverTerrain=height)])
+                    value = d.append(d2).sort_values(by="heightOverTerrain").set_index("heightOverTerrain").interpolate(
+                        method='index').loc[height]["Velocity"]
+                    if math.isnan(value):
+                        pass
+                    else:
+                        vels.append(value)
+                        xs.append(x)
+                        ys.append(y)
