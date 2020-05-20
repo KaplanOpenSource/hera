@@ -1,6 +1,6 @@
 """
 ==============================================
-Plot a variable at a fixed height over terrain
+Plot a variable at a fixed height along slice
 ==============================================
 """
 
@@ -21,7 +21,7 @@ data = datalayer.Measurements.getDocuments(projectName="Example", type="OFsimula
 # and the distance downwind from the domain's corner.
 
 from hera import openfoam
-op = openfoam.dataManipulations()
+op = openfoam.dataManipulations(projectName="Example")
 data = op.arrangeSlice(data=data, ydir=False)
 
 #######################
