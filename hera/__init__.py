@@ -1,4 +1,5 @@
-__version__ = '0.2.1'
+__version__ = '0.3.0'
+
 
 
 
@@ -6,6 +7,7 @@ __version__ = '0.2.1'
 
 
 import sys
+## Load modules if it is python 3.
 version = sys.version_info[0]
 if version==3:
     from .simulations import WRF
@@ -16,6 +18,16 @@ if version==3:
 from .simulations import openfoam
 
 """
+
+ 0.3.0
+ -----
+    - Changed the datalayer.analysis to datalayer.cache.
+    - Adding more documentation.
+
+ 0.2.2
+ -----
+ Turbulence calculator working with sampling window None.
+
  0.2.1
  -----
  More turbulence calculator fix
