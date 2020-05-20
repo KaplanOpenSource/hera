@@ -1,4 +1,4 @@
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 
 
@@ -16,6 +16,10 @@ if version==3:
 from .simulations import openfoam
 
 """
+ 0.2.2
+ -----
+ Turbulence calculator working with sampling window None.
+
  0.2.1
  -----
  More turbulence calculator fix

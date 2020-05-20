@@ -229,7 +229,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         return self
 
-    def wind_dir(self, inMemory=None):
+    def wind_dir_std(self, inMemory=None):
         """
         Calculates the mean and the std of the wind direction in mathematical and meteorological form.
 
