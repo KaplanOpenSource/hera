@@ -203,7 +203,7 @@ def count_handler(arguments):
     print("The total number of documents is %s" % len(datalayer.All.getDocuments(**fullQuery)))
     print("\t Measurement documents: %s " % len(datalayer.Measurements.getDocuments(**fullQuery)) )
     print("\t Simulation documents: %s " % len(datalayer.Simulations.getDocuments(**fullQuery)))
-    print("\t Analysis documents: %s " % len(datalayer.Analysis.getDocuments(**fullQuery)))
+    print("\t Cache documents: %s " % len(datalayer.Cache.getDocuments(**fullQuery)))
 
 def load_handler(arguments):
     with open(arguments[0], 'r') as myFile:
@@ -221,7 +221,8 @@ def delete_handler(arguments):
             for doc in docDict[cls]:
                 for key in doc['_id']:
                     id = doc['_id'][key]
-                getattr(datalayer, cls).deleteDocumentByID(id=id)
+                doc = getattr(datalayer, cls).deleteDocumentByID(id=id)
+
     except FileNotFoundError:
         fullQuery = {}
         startIndex = 0
@@ -235,7 +236,7 @@ def delete_handler(arguments):
         with open('docsToDelete.json', 'w') as myFile:
             docsToDelete['Measurements'] = datalayer.Measurements.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
             docsToDelete['Simulations'] = datalayer.Simulations.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
-            docsToDelete['Analysis'] = datalayer.Analysis.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
+            docsToDelete['Analysis'] = datalayer.Cache.getDocumentsAsDict(**fullQuery, with_id=True)['documents']
             json.dump(docsToDelete, myFile, indent=4, sort_keys=True)
 
 

@@ -17,7 +17,7 @@ Collection
     :members:
     :undoc-members:
 
-.. autoclass:: hera.datalayer.collection.Analysis_Collection
+.. autoclass:: hera.datalayer.collection.Cache_Collection
     :members:
     :undoc-members:
 

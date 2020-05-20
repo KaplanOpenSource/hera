@@ -115,8 +115,8 @@ class AbstractCalculator(object):
     def _compute_from_db_and_save(self):
         query = self._query()
         docExist = list(
-            datalayer.Analysis.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
-                                            end__gt=self.Identifier['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
+                                         end__gt=self.Identifier['start'], **query))
 
 
         if docExist:
@@ -130,8 +130,8 @@ class AbstractCalculator(object):
         query = self._query()
 
         docExist = list(
-            datalayer.Analysis.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
-                                            end__gt=self.Identifier['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
+                                         end__gt=self.Identifier['start'], **query))
 
         if docExist:
             df = docExist[-1].getData(usePandas=True)[[x[0] for x in self._CalculatedParams]]
@@ -172,7 +172,7 @@ class AbstractCalculator(object):
             doc['desc']['samplingWindow'] = self.SamplingWindow
             doc['desc']['params'] = params
             doc['resource'] = getSaveData(data=self._InMemoryAvgRef, **self._saveProperties)
-            datalayer.Analysis.addDocument(**doc)
+            datalayer.Cache.addDocument(**doc)
 
 
 def getSaveData(dataFormat, **kwargs):
