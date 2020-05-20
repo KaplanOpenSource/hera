@@ -1,7 +1,6 @@
 import numpy
 import pandas
 import dask.dataframe
-from scipy.stats import circmean, circstd
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
 
@@ -38,9 +37,11 @@ class TurbulenceCalculator(AbstractCalculator):
                     avg = pandas.DataFrame(avg).T
                     avg.index = [self._RawData.index[0]]
                 else:
+                    self._RawData = self._RawData.repartition(npartitions=1)
                     avg = pandas.DataFrame(avg.compute()).T
                     avg.index = self._RawData.head(1).index
-                    npartitions = self._RawData.npartitions
+                    npartitions = 1
+                    # self._RawData.npartitions
                     avg = dask.dataframe.from_pandas(avg, npartitions=npartitions)
             else:
                 avg = avg.resample(self.SamplingWindow).mean()
@@ -248,7 +249,7 @@ class TurbulenceCalculator(AbstractCalculator):
         if 'wind_dir_std' not in self._TemporaryData.columns:
             self.fluctuations()
 
-            std = self._RawData['wind_dir_p']**2
+            std = numpy.square(self._RawData['wind_dir_p'])
             std = std if self.SamplingWindow is None else std.resample(self.SamplingWindow)
             std = numpy.sqrt(std.mean())
 
