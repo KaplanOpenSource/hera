@@ -13,7 +13,6 @@ First, we need to import meteo from 'Hera':
     from hera import meteo
 
 
-
 Line Plot
 =====================
 Make a simple line plot for selected plot field and date.

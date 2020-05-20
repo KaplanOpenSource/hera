@@ -100,7 +100,6 @@ class DataLayer(object):
             sets the map fot the hebrew fields.
 
 
-
         :param np_size: the number of partitions to create.
                           if None, take 1000000.
         """
@@ -714,9 +713,11 @@ class DailyPlots(Plots):
         scatter_props = dict(self._scatterdict)
         scatter_props.update(scatter_properties)
 
-        curdata = data.dropna(subset=[plotField])
+        # curdata = data.dropna(subset=[plotField])
+        curdata = data.copy()
+        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -9000)
 
-        curdata = curdata.query("%s > -9990" % plotField)
+        # curdata = curdata.query("%s > -9990" % plotField)
         curdata = curdata.assign(curdate=curdata.index)
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
@@ -758,6 +759,7 @@ class DailyPlots(Plots):
         -------
 
         ax :
+        line :
 
         """
 
@@ -770,8 +772,11 @@ class DailyPlots(Plots):
         line_props = dict(self._linedict)
         line_props.update(line_properties)
 
-        curdata = data.dropna(subset=[plotField])
-        curdata = curdata.query("%s > -9990" % plotField)
+        curdata = data.copy()
+        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -9000)
+
+        # curdata = data.dropna(subset=[plotField])
+        # curdata = curdata.query("%s > -9990" % plotField)
         curdata = curdata.assign(curdate=curdata.index)
         curdata = curdata.assign(dateonly=curdata.curdate.dt.date.astype(str))
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
@@ -783,7 +788,7 @@ class DailyPlots(Plots):
             dailydata = curdata.query(qstring)
 
         # ax= seaborn.lineplot(dailydata['houronly'], dailydata[plotField], ax=ax, **line_props)
-        plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
+        line = plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
         if legend==True:
             ax.legend()
 
@@ -794,7 +799,7 @@ class DailyPlots(Plots):
         for func in ax_func_props:
             getattr(ax, func)(ax_func_props[func])
 
-        return ax
+        return ax, line
 
     def plotProbContourf(self, data, plotField, levels=None, scatter=True, withLabels=True, colorbar=True,Cmapname='jet', ax=None, scatter_properties=dict(),
                          contour_values=dict(), contour_properties=dict(), contourf_properties=dict(), labels_properties=dict(),
@@ -926,5 +931,3 @@ class DailyPlots(Plots):
             plt.colorbar(ax=ax, ticks=countourf_levels)
 
         return CS,CFS,ax
-
-
