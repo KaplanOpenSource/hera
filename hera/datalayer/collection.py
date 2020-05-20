@@ -1,4 +1,3 @@
-# from .document.metadataDocument import Metadata,Measurements,Simulations,Analysis,Projects
 from . import getDBObject
 from mongoengine import ValidationError, MultipleObjectsReturned, DoesNotExist
 import warnings
@@ -169,7 +168,9 @@ class AbstractCollection(object):
         -------
 
         """
-        self.getDocumentByID(id=id).delete()
+        doc = self.getDocumentByID(id=id)
+        doc.delete()
+        return doc
 
     def getData(self, projectName, usePandas=None, **kwargs):
         """
@@ -211,10 +212,10 @@ class Simulations_Collection(AbstractCollection):
         elif version == 3:
             super().__init__(ctype='Simulations', user=user)
 
-class Analysis_Collection(AbstractCollection):
+class Cache_Collection(AbstractCollection):
 
     def __init__(self, user=None):
         if version == 2:
-            super(Analysis_Collection, self).__init__(ctype='Analysis', user=user)
+            super(Cache_Collection, self).__init__(ctype='Cache', user=user)
         elif version == 3:
-            super().__init__(ctype='Analysis', user=user)
+            super().__init__(ctype='Cache', user=user)
