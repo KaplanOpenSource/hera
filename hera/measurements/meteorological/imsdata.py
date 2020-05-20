@@ -757,6 +757,7 @@ class DailyPlots(Plots):
         -------
 
         ax :
+        line :
 
         """
 
@@ -785,7 +786,7 @@ class DailyPlots(Plots):
             dailydata = curdata.query(qstring)
 
         # ax= seaborn.lineplot(dailydata['houronly'], dailydata[plotField], ax=ax, **line_props)
-        plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
+        line = plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
         if legend==True:
             ax.legend()
 
@@ -796,7 +797,7 @@ class DailyPlots(Plots):
         for func in ax_func_props:
             getattr(ax, func)(ax_func_props[func])
 
-        return ax
+        return ax, line
 
     def plotProbContourf(self, data, plotField, levels=None, scatter=True, withLabels=True, colorbar=True,Cmapname='jet', ax=None, scatter_properties=dict(),
                          contour_values=dict(), contour_properties=dict(), contourf_properties=dict(), labels_properties=dict(),
