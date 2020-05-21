@@ -14,7 +14,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
     def fluctuations(self, inMemory=None):
         """
-        Calculates the mean of u,v,w,T and the fluctuations u',v',w',T'.
+        Calculates the mean of u,v,w,T,wind_dir and the fluctuations u',v',w',T',wind_dir'.
 
         Parameters
         ----------
@@ -40,9 +40,7 @@ class TurbulenceCalculator(AbstractCalculator):
                     self._RawData = self._RawData.repartition(npartitions=1)
                     avg = pandas.DataFrame(avg.compute()).T
                     avg.index = self._RawData.head(1).index
-                    npartitions = 1
-                    # self._RawData.npartitions
-                    avg = dask.dataframe.from_pandas(avg, npartitions=npartitions)
+                    avg = dask.dataframe.from_pandas(avg, npartitions=1)
             else:
                 avg = avg.resample(self.SamplingWindow).mean()
 
@@ -231,7 +229,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
     def wind_dir_std(self, inMemory=None):
         """
-        Calculates the mean and the std of the wind direction in mathematical and meteorological form.
+        Calculates the std of the wind direction.
 
         Parameters
         ----------
@@ -382,7 +380,7 @@ class TurbulenceCalculator(AbstractCalculator):
         if 'uu' not in self._TemporaryData.columns:
             self.fluctuations()
             if self.SamplingWindow is None:
-                (self._RawData['up'] * self._RawData['up']).mean()
+                uu = (self._RawData['up'] * self._RawData['up']).mean()
             else:
                 uu = (self._RawData['up'] * self._RawData['up']).resample(self.SamplingWindow).mean()
             self._TemporaryData['uu'] = uu
