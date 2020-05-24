@@ -31,18 +31,17 @@ The file needs to have the next structure:
                "fields"     : ["U"],
                "MeshRegions": ["internalMesh"]
         },
-        "pipeline" : {
-                         "type" : "Slice",
-                         "guiname" : "Slice1",
-                         "write"   : "hdf",
-                         "params" : [["SliceType.Normal",[1,-0.6,0]], ["SliceType.Origin", [598167.367, 6339602.5, 0]]],
-                         "downstream" : {
-                                         "pipeline" : {
+        "pipelines" : {
+                         "Slice1" : {
+                             "type" : "Slice",
+                             "write"   : "hdf",
+                             "params" : [["SliceType.Normal",[1,-0.6,0]], ["SliceType.Origin", [598167.367, 6339602.5, 0]]],
+                             "downstream" : {
+                                             "Slice2" : {
                                                            "type" : "Slice",
-                                                           "guiname" : "Slice2",
                                                            "write"   : "hdf",
                                                            "params" : [["SliceType.Normal",[1,0.6,0]], ["SliceType.Origin", [598167.367, 6339602.5, 0]]]
-                                                       }
+                                                   }
                          }
                      }
     }
@@ -150,3 +149,4 @@ Usage
     :maxdepth: 1
 
     openFoam/ManagingData
+    openFoam/analysis

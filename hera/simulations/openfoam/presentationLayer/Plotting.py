@@ -1,4 +1,4 @@
-from .... import GIS
+from hera import GIS
 import pandas
 import matplotlib.pyplot as plt
 import math

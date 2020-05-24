@@ -2,10 +2,6 @@ import pandas
 import os
 import json
 from pvOpenFOAMBase import paraviewOpenFOAM
-import paraview.simple as pvsimple
-
-
-
 
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).
