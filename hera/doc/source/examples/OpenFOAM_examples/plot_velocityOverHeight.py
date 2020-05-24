@@ -11,9 +11,17 @@ Plot the velocity over height.
 # In order to do so, first of all the data should be arranged.
 # We load data of a slice of the domain from the database (look for example in simulation OpenFOAM to see how do add the data to the database).
 # The type of such data is OFsimulation. In the presented project, the desired data is the second data of that kind in the database.
+#
+# The data may be loaded from the database, as demonstrated below.
 
 from hera import datalayer
-data = datalayer.Measurements.getDocuments(projectName="Example", type="OFsimulation")[1].getData().compute()
+#data = datalayer.Measurements.getDocuments(projectName="Example", type="OFsimulation", filter="Slice1)[0].getData().compute()
+
+###########################
+# For the documentation, we would load it directly from the resource.
+
+import dask.dataframe
+data = dask.dataframe.read_parquet("documentationData/Slice1.parquet").compute()
 
 #######################
 # Now, we use a function of hera openfoam in order to arrange the data.

@@ -47,19 +47,22 @@ def load_handler(arguments):
         os.makedirs("%s/%s/parquet" % (path, name))
 
     print(fixed_keys)
-    jsondata = pandas.read_json("%s/%s/meta.json" % (path, name))
-    metadata = jsondata["metadata"].dropna().to_dict() # Reading the metadata
+    with open("%s/%s/meta.json" % (path, name)) as json_file:
+        jsondata = json.load(json_file)
+    metadata = jsondata["metadata"] # Reading the metadata
 
     # Making a list of the pipeline filter names
 
-    pipeline = []
+    names = {}
 
-    def makepipeline(pipe):
-        pipeline.append(pipe["guiname"])
-        if "downstream" in pipe.keys():
-            makepipeline(pipe["downstream"]["pipeline"])
+    def makenames(pipeline, former):
+        for pipe in pipeline:
+            names.update({pipe: former+"_"+pipe})
+            print(pipe)
+            if "downstream" in pipeline[pipe].keys():
+                makenames(pipeline[pipe]["downstream"], former=former+pipe)
+    makenames(jsondata["pipelines"],"")
 
-    makepipeline(jsondata["pipeline"])
 
     # Making the parquet files
 
@@ -70,14 +73,9 @@ def load_handler(arguments):
             data = dd.concat([data, new_data],interleave_partitions=True).reset_index().set_index("time").repartition(partition_size="100Mb")
         data.to_parquet("%s/%s/parquet/%s.parquet" % (path, name, key))
 
-        # Finding the history of the filter
-
-        new_pipe = pipeline[:pipeline.index(key) + 1]
-        pipelinestr = "_".join(new_pipe)
-
         # Adding a link to the parquet to the database
 
-        datalayer.Measurements.addDocument(projectName=projectName, desc=dict(filter=key, pipeline=pipelinestr, **metadata), type="OFsimulation",
+        datalayer.Measurements.addDocument(projectName=projectName, desc=dict(filter=key, pipeline=names[key], **metadata), type="OFsimulation",
                                            resource="%s/%s/parquet/%s.parquet" % (path, name, key), dataFormat="parquet")
 
     #   Delete hdf directory
