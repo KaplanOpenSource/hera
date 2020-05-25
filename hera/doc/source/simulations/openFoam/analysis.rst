@@ -46,3 +46,21 @@ like this:
 .. code-block:: python
 
     difference = (data["Velocity"].max()-data["Velocity"].min())/data["Velocity"].min()*100
+
+Get The Difference Of Velocity With Height
+..........................................
+
+It might be usefull to find whether there are coordinates for which the velocity decreases
+with height. The physical behavior we expect is an increase of velocity with height,
+and a decrease may indicate errors.
+There ia a function that returns a dataframe with the difference of the velocity in height.
+
+.. code-block:: python
+
+    data = tests.changeOfVelocityInHeight()
+
+Then, we can check whether there are coordinates for which the velocity decreases:
+
+.. code-block:: python
+
+    decreasingVelocityPoints = data.loc[data.diffs<0]

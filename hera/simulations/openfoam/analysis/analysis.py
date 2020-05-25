@@ -69,11 +69,32 @@ class tests():
 
         return data
 
-    def checkVelocityInHeight(self):
+    def changeOfVelocityInHeight(self):
+        """
+        Returns a dataframe with the difference in velocity between adjacent points along z axis.
+        """
 
         reader = pvsimple.FindSource("mainReader")
         timelist = reader.TimestepValues
         data = self._pvOFBase._readTimeStep(reader, timelist[-1], fieldnames="U", xarray=False)
         data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
-        for x in data["x"]:
-            for
+        data = data.sort_values(by=["x","y","z"])
+        data = data.groupby(['x', "y"]).filter(lambda x: x.z.is_unique)
+        data['diffs'] = data.groupby(['x', "y"])['Velocity'].transform(lambda x: x.diff()).fillna(0)
+
+        return data
+
+    def performAllTests(self):
+        """
+        Performs all the tests on the data and returns a dictionary with the results.
+        """
+        height90data = self.getHeightSlice()
+        changeOfVelocityData = self.changeOfVelocityInHeight()
+        height90percentage = (height90data["Velocity"].max()-height90data["Velocity"].min())/height90data["Velocity"].min()*100
+        ChangeWithHeight = False if len(changeOfVelocityData.loc[changeOfVelocityData.diffs<0])>0 else True
+        results = dict(UalongXYdifference=height90percentage, UalongZconsistent=ChangeWithHeight)
+
+        return results
+
+
+
