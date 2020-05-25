@@ -11,7 +11,7 @@ class dataManipulations():
 
         self._projectName = projectName
 
-    def arrangeSlice(self, data, xdir=True, ydir=True, save=False, path=None, key="Clip", addToDB=True, **kwargs):
+    def arrangeSlice(self, data, xdir=True, ydir=True, save=False, path=None, key="Slice", addToDB=True, hdfName="ArrangedSlice", **kwargs):
         """
         Arranging data of a slice: adding distance downwind, velocity and height over terrain.
         Params:
@@ -21,7 +21,6 @@ class dataManipulations():
         Returns:
             The arranged data
         """
-        path = path if path is not None else os.path.join("ArrangedClip.hdf")
         data["terrain"] = [numpy.nan for x in range(len(data))]
         data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
 
@@ -39,11 +38,6 @@ class dataManipulations():
         base_data = data.query("Velocity==0").reset_index()
         for dist in base_data.distance.drop_duplicates():
             base = base_data.loc[base_data.distance==dist]["z"].max()
-            # x = base_data.loc[i]["x"]
-            # y = base_data.loc[i]["y"]
-            # if data.loc[data["x"] == x].loc[data["y"] == y].empty:
-            #     pass
-            # else:
             index = list(data.loc[data.distance==dist].index)[0]
             data.at[index, "terrain"] = base
 
@@ -51,12 +45,8 @@ class dataManipulations():
         data["heightOverTerrain"] = data["z"] - data["terrain"]
         data = data.query("heightOverTerrain>=0")
 
-        if save:
-            data.to_hdf(path, key=key, format="table")
-            if addToDB:
-                datalayer.Measurements.addDocument(projectName=self._projectName, desc=(dict(filter="OrganizedSlice", **kwargs)),
-                                                   resource=dict(path=path, key=key), type="OFsimulation", dataFormat="HDF")
-
+        self.saveAndAddtoDB(save=save, addToDB=addToDB, data=data, path=path, key=key, projectName=self._projectName,
+                            filter=hdfName, **kwargs)
         return data
 
     def findDetaiedLocations(self, data, n=10):
@@ -68,9 +58,8 @@ class dataManipulations():
         optional.sort()
         return optional
 
-    def arrangeClip(self, data, save=False, path=None, key="Clip", addToDB=True, **kwargs):
+    def arrangeClip(self, data, save=False, path=None, key="Clip", addToDB=True, hdfName="ArrangedClip", **kwargs):
 
-        path = path if path is not None else os.path.join("ArrangedClip.hdf")
         data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
         data["terrain"] = [numpy.nan for x in range(len(data))]
         base_data = data.query("Velocity==0").reset_index()
@@ -85,15 +74,13 @@ class dataManipulations():
 
         data = data.dropna()
         data["heightOverTerrain"] = data["z"] - data["terrain"]
-        if save:
-            data.to_hdf(path, key=key, format="table")
-            if addToDB:
-                datalayer.Measurements.addDocument(projectName=self._projectName, desc=(dict(filter="OrganizedClip", **kwargs)),
-                                                   resource=dict(path=path, key=key), type="OFsimulation", dataFormat="HDF")
+
+        self.saveAndAddtoDB(save=save, addToDB=addToDB, data=data, path=path, key=key, projectName=self._projectName,
+                            filter=hdfName, **kwargs)
 
         return data
 
-    def makeSliceHeightData(self, data, height, variable, limit=100):
+    def makeSliceHeightData(self, data, height, variable, limit=100, save=False, path=None, key="Slice", addToDB=True, hdfName="SliceHeightData", **kwargs):
 
         stop = False
         delta = 1
@@ -135,11 +122,12 @@ class dataManipulations():
             values.append(value)
 
         returndata = pandas.DataFrame({"distance": selecteddist, variable: values}).dropna().sort_values(by="distance")
+        self.saveAndAddtoDB(save=save, addToDB=addToDB, data=returndata, path=path, key=key, projectName=self._projectName,
+                            filter=hdfName, height=height, **kwargs)
         return returndata
 
-    def makeClipHeightData(self, data, height, variable, limit=100, skips=5, save=False, path=None, key="Clip", addToDB=True, **kwargs):
+    def makeClipHeightData(self, data, height, variable, limit=100, skips=5, save=False, path=None, key="Clip", addToDB=True, hdfName="ClipHeightData", **kwargs):
 
-        path = path if path is not None else os.path.join("ArrangedClip.hdf")
         returndata = pandas.DataFrame()
         dx = list(data.x.drop_duplicates().sort_values())
         for i in range(0, len(dx),skips):
@@ -154,9 +142,16 @@ class dataManipulations():
                 newdata = newdata.rename(columns={"distance":"y"})
                 newdata["x"] = x
                 returndata = returndata.append(newdata)
-        if save:
-            returndata.to_hdf(path, key=key, format="table")
-            if addToDB:
-                datalayer.Measurements.addDocument(projectName=self._projectName, desc=(dict(filter="OrganizedClip", height=height, **kwargs)),
-                                                   resource=dict(path=path, key=key), type="OFsimulation", dataFormat="HDF")
+        self.saveAndAddtoDB(save=save, addToDB=addToDB, data=returndata, path=path, key=key, projectName=self._projectName,
+                            filter=hdfName, height=height, **kwargs)
+
         return returndata
+
+    def saveAndAddtoDB(self, save, addToDB, data, path, key, projectName, filter, **kwargs):
+
+        path = path if path is not None else os.path.join("%s.hdf" % filter)
+        if save:
+            data.to_hdf(path, key=key, format="table")
+            if addToDB:
+                datalayer.Measurements.addDocument(projectName=projectName, desc=(dict(filter=filter, **kwargs)),
+                                                   resource=dict(path=path, key=key), type="OFsimulation", dataFormat="HDF")
