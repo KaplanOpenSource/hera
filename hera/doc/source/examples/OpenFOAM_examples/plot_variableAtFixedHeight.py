@@ -16,10 +16,22 @@ Plot a variable at a fixed height over terrain
 from hera import datalayer
 from hera import GIS
 import matplotlib.pyplot as plt
+import pandas # import for documentation purpose
+import geopandas # import for documentation purpose
 
 GISdatalayer = GIS.GIS_datalayer(projectName="Example", FilesDirectory="")
-simulationData = datalayer.Measurements.getDocuments(projectName="Example")[11].getData(usePandas=True)
-GISdata = GISdatalayer.getGISDocuments()[0].getData()
+
+#############################
+# The data may be loaded from the database, as demonstrated below.
+
+#simulationData = datalayer.Measurements.getDocuments(projectName="Example", filter="OrganizedClip", height=20)[0].getData(usePandas=True)
+#GISdata = GISdatalayer.getGISDocuments(CutName = "CarmelSouth")[0].getData()
+
+###########################
+# For the documentation, we would load it directly from the resource.
+
+simulationData = pandas.read_hdf("~/Development/pyhera/hera/doc/source/examples/OpenFOAM_examples/documentationData/height20.hdf")
+GISdata = geopandas.read_file("documentationData/ExampleCarmelSouth-Contour.shp")
 
 #######################
 # We would use matplotlib tricontourf in order to plot the velocity.
