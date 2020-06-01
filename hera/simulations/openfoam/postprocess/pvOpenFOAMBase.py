@@ -48,6 +48,9 @@ class paraviewOpenFOAM(object):
     @property
     def netcdfdir(self):
         return self._netcdfdir
+    @property
+    def possibleRegions(self):
+        return self._possibleRegions
 
     @hdfdir.setter
     def netcdfdir(self, netcdfdir):
@@ -134,6 +137,8 @@ class paraviewOpenFOAM(object):
         """
         self._readerName  = readerName
         self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
+        self.reader.MeshRegions.SelectAll()
+        self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
         if fieldnames is not None:
             self._reader.CellArrays = fieldnames

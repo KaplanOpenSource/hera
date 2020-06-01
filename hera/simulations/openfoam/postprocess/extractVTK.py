@@ -2,10 +2,6 @@ import pandas
 import os
 import json
 from pvOpenFOAMBase import paraviewOpenFOAM
-import paraview.simple as pvsimple
-
-
-
 
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).
@@ -109,7 +105,7 @@ class VTKpipeline(object):
         reader = pvsimple.FindSource(source)
 
         filterWrite = {}
-        self._buildFilterLayer(father=reader, structureJson=self._VTKpipelineJSON, filterWrite=filterWrite)
+        self._buildFilterLayer(father=reader, structureJson=self._VTKpipelineJSON["pipelines"], filterWrite=filterWrite)
 
         # Now execute the pipeline.
         timelist = self._VTKpipelineJSON["metadata"].get("timelist", "None")
@@ -165,26 +161,25 @@ class VTKpipeline(object):
         if structureJson is None:
             return
 
-        paramPairList = structureJson["pipeline"]['params']  # must be a list to enforce order in setting.
-        filtertype = structureJson["pipeline"]['type']
-        filterGuiName = structureJson["pipeline"]["guiname"]
+        for filterGuiName in structureJson:
+            paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
+            filtertype = structureJson[filterGuiName]['type']
+            filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
+            for param, pvalue in paramPairList:
+                pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
+                paramnamelist = param.split(".")
+                paramobj = filter
+                for pname in paramnamelist[:-1]:
+                    paramobj = getattr(paramobj, pname)
+                setattr(paramobj, paramnamelist[-1], pvalue)
+            filter.UpdatePipeline()
+            writeformat = structureJson[filterGuiName].get("write", None)
 
-        filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
-        for param, pvalue in paramPairList:
-            pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
-            paramnamelist = param.split(".")
-            paramobj = filter
-            for pname in paramnamelist[:-1]:
-                paramobj = getattr(paramobj, pname)
-            setattr(paramobj, paramnamelist[-1], pvalue)
-        filter.UpdatePipeline()
-        writeformat = structureJson["pipeline"].get("write", None)
+            if (writeformat is not None) and (str(writeformat) != "None"):
+                filterlist = filterWrite.setdefault(writeformat, [])
+                filterlist.append(filterGuiName)
 
-        if (writeformat is not None) and (str(writeformat) != "None"):
-            filterlist = filterWrite.setdefault(writeformat, [])
-            filterlist.append(filterGuiName)
-
-        self._buildFilterLayer(filter, structureJson["pipeline"].get("downstream", None), filterWrite)
+            self._buildFilterLayer(filter, structureJson[filterGuiName].get("downstream", None), filterWrite)
 
     def get_slice_height(filename, itteration, axis_index, axis_value, offset=0.0,
                          clipxmin=0.0, clipxmax=0.0, clipymin=0.0, clipymax=0.0, clipzmin=0.0, clipzmax=0.0,
