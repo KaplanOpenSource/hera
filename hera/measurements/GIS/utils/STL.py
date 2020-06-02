@@ -15,16 +15,16 @@ class convert():
 
     _projectName = None
     _FilesDirectory = None
-    _Measurments = None
+    _projectMultiDB = None
     _GISdatalayer = None
     _manipulator = None
 
-    def __init__(self, projectName, FilesDirectory):
+    def __init__(self, projectName, FilesDirectory, users=[None], useAll=False):
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory)
-        self._Measurments = datalayer.Measurements
+        self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory, users=users, useAll=useAll)
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users,useAll=useAll)
         self._manipulator = dataManipulations()
 
     def addSTLtoDB(self, path, NewFileName, points, xMin, xMax, yMin, yMax, zMin, zMax, dxdy, **kwargs):
@@ -43,11 +43,11 @@ class convert():
         """
 
 
-        self._Measurments.addDocument(projectName=self._projectName,
-                                      desc=dict(name = NewFileName, bounds = points, xMin=xMin, xMax=xMax, yMin=yMin, yMax=yMax, zMin=zMin, zMax=zMax, **kwargs),
-                                      type="stlFile",
-                                      resource=path,
-                                      dataFormat="string")
+        self._projectMultiDB.addMeasurementsDocument(desc=dict(name = NewFileName, bounds = points, dxdy=dxdy,
+                                                               xMin=xMin, xMax=xMax, yMin=yMin, yMax=yMax, zMin=zMin, zMax=zMax, **kwargs),
+                                                      type="stlFile",
+                                                      resource=path,
+                                                      dataFormat="string")
 
     def toSTL(self, data, NewFileName, dxdy=50, save=True, addtoDB=True, flat=None, path=None, **kwargs):
 
