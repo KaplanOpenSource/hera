@@ -5,15 +5,19 @@ import os
 
 class GIS_datalayer():
 
-    _Measurments = None
+    _projectMultiDB = None
     _projectName = None
     _FilesDirectory = None
 
-    def __init__(self, projectName, FilesDirectory):
+    @property
+    def project(self):
+        return self._projectMultiDB
+
+    def __init__(self, projectName, FilesDirectory, users=[None], useAll=False):
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._Measurments = datalayer.Measurements
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users, useAll=useAll)
 
         os.system("mkdir -p %s" % self._FilesDirectory)
 
@@ -25,8 +29,7 @@ class GIS_datalayer():
 
         Returns: The data
         """
-
-        data = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
+        data = self._projectMultiDB.getMeasurementsDocuments(**kwargs)
 
         return data
 
@@ -37,13 +40,12 @@ class GIS_datalayer():
         Parameters:
             points: Holds the ITM coordinates of a rectangle. It is a list, from the structure [minimum x, minimum y, maximum x, maximum y]\n
             CutName: Used as part of a new file's name. (string)\n
-            mode: The data type of the desired data. Recieves "Contour", "Buildings" or "Roads".\n
+            mode: The data type of the desired data. Recieves any mode specified in the GISOrigin document.\n
             additional_data: A dictionary with any additional parameters and their values.
 
         """
-
-        fullfilesdirect = {"Contour": "RELIEF/CONTOUR.shp", "Buildings": "BUILDINGS/BLDG.shp",
-                           "Roads": "TRANSPORTATION/MAIN_ROAD.shp"}
+        fullfilesdirect = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["desc"]["modes"]
+        path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
 
         if additional_data is not None:
             additional_data["CutName"] = CutName
@@ -52,18 +54,19 @@ class GIS_datalayer():
         else:
             additional_data = {"CutName": CutName, "points": points, "mode": mode}
 
-        documents = self._Measurments.getDocuments(projectName=self._projectName, points=points, mode=mode)
+        documents = self._projectMultiDB.getMeasurementsDocumentsAsDict(points=points, mode=mode)
         if len(documents) == 0:
 
             FileName = "%s//%s%s-%s.shp" % (self._FilesDirectory, self._projectName, CutName, mode)
 
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s /mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/%s" % (points[0],points[1],points[2],points[3], FileName, fullfilesdirect[mode]))
-            datalayer.Measurements.addDocument(projectName=self._projectName, desc=dict(**additional_data), type="GIS",
+            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s/%s" % (points[0],points[1],points[2],points[3], FileName,path, fullfilesdirect[mode]))
+            self._projectMultiDB.addMeasurementsDocument(desc=additional_data, type="GIS",
                                                resource = FileName, dataFormat = "geopandas")
         else:
-            resource = documents[0].asDict()["resource"]
-            datalayer.Measurements.addDocument(projectName=self._projectName, desc=dict(**additional_data), type="GIS",
+            resource = documents["documents"][0]["resource"]
+            self._projectMultiDB.addMeasurementsDocument(desc=dict(**additional_data), type="GIS",
                                                resource = resource, dataFormat = "geopandas")
+
 
     def check_data(self, **kwargs):
         """
@@ -75,7 +78,7 @@ class GIS_datalayer():
 
         """
 
-        check = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
+        check = self._projectMultiDB.getMeasurementsDocuments(**kwargs)
 
         if 0 == len(check):
             result = False
@@ -95,13 +98,12 @@ class GIS_datalayer():
 
         """
 
-        documents = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
+        documents = self._projectMultiDB.getMeasurementsDocumentsAsDict(**kwargs)["documents"]
         points = []
         for document in documents:
-            data = document.asDict()
-            if "points" in data["desc"].keys():
-                if data["desc"]["points"] not in points:
-                    points.append(data["desc"]["points"])
+            if "points" in document["desc"].keys():
+                if document["desc"]["points"] not in points:
+                    points.append(document["desc"]["points"])
         return points
 
     def getFilesPolygonList(self, **kwargs):
@@ -145,10 +147,9 @@ class GIS_datalayer():
         Returns: The geometry ([[ccoordinates], geometry_type])
 
         """
-
-        document = self._Measurments.getDocuments(projectName=self._projectName, name=name)
-        geo = document[0].asDict()["desc"]["geometry"]
-        geometry_type = document[0].asDict()["desc"]["geometry_type"]
+        document = self._projectMultiDB.getMeasurementsDocumentsAsDict(name=name)["documents"]
+        geo = document[0]["desc"]["geometry"]
+        geometry_type = document[0]["desc"]["geometry_type"]
 
         return geo, geometry_type
 
@@ -201,8 +202,7 @@ class GIS_datalayer():
                     geopoints = [Geometry]
             else:
                 raise KeyError(KeyErrorText)
-            datalayer.Measurements.addDocument(projectName=self._projectName,
-                                               desc=dict(geometry=geopoints, geometry_type=geometry_type, name=name),
+            self._projectMultiDB.addMeasurementsDocument(desc=dict(geometry=geopoints, geometry_type=geometry_type, name=name),
                                                type="GeometryShape",
                                                resource="/mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/RELIEF/CONTOUR.shp",
                                                dataFormat="geopandas")
@@ -280,8 +280,7 @@ class GIS_datalayer():
         :param extents: The extents of the image [left, right, bottom, top]
         :return:
         """
-        doc = dict(projectName=self._projectName,
-                   resource=path,
+        doc = dict(resource=path,
                    dataFormat='image',
                    type='GIS',
                    desc=dict(locationName=locationName,
@@ -291,5 +290,5 @@ class GIS_datalayer():
                              top=extents[3]
                              )
                    )
-        self._Measurments.addDocument(**doc)
+        self._projectMultiDB.addMeasurementsDocument(**doc)
 
