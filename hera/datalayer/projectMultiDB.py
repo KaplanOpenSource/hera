@@ -110,7 +110,7 @@ class ProjectMultiDB(object):
     def projectName(self, newProjectName):
         self._projectName = newProjectName
 
-    def __init__(self, projectName,users=None, useAll=False):
+    def __init__(self, projectName,users=[None], useAll=False):
         """
             Initialize the project.
 
@@ -161,19 +161,19 @@ class ProjectMultiDB(object):
                     break
         return returnData
 
-    def addSomeTypeDocuments(self, searchType, resource, dataFormat, type, users=None, **desc):
+    def addSomeTypeDocuments(self, searchtype, resource, dataFormat, type, users=None, **desc):
         if users is None:
-            searchType[0].addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
+            searchtype[0].addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
         else:
             for user in users:
-                searchType[self._users.index(user)].addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
+                searchtype[self._users.index(user)].addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
-    def deleteSomeTypeDocuments(self, searchType, users=None, **kwargs):
+    def deleteSomeTypeDocuments(self, searchtype, users=None, **kwargs):
         if users is None:
-            searchType[0].deleteDocuments(projectName=self._projectName, **kwargs)
+            searchtype[0].deleteDocuments(projectName=self._projectName, **kwargs)
         else:
             for user in users:
-                searchType[self._users.index(user)].deleteDocuments(projectName=self._projectName, **kwargs)
+                searchtype[self._users.index(user)].deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
         return self.getSomeTypeDocumentsAsDict(searchtype=self._measurements, with_id=with_id, **kwargs)
@@ -197,7 +197,7 @@ class ProjectMultiDB(object):
         return self.addSomeTypeDocuments(searchtype=self._simulations, resource=resource, dataFormat=dataFormat, type=type, desc=desc, users=users)
 
     def deleteSimulationsDocuments(self, users=None, **kwargs):
-        return self.deleteSomeTypeDocuments(searchType=self._simulations,  users=users, **kwargs)
+        return self.deleteSomeTypeDocuments(searchtype=self._simulations,  users=users, **kwargs)
 
     def getCacheDocumentsAsDict(self,  with_id=False, **kwargs):
         return self.getSomeTypeDocumentsAsDict(searchtype=self._cache, with_id=with_id, **kwargs)
@@ -209,4 +209,4 @@ class ProjectMultiDB(object):
         return self.addSomeTypeDocuments(searchtype=self._cache, resource=resource, dataFormat=dataFormat, type=type, desc=desc, users=users)
 
     def deleteCacheDocuments(self, users=None, **kwargs):
-        return self.deleteSomeTypeDocuments(searchType=self._cache,  users=users, **kwargs)
+        return self.deleteSomeTypeDocuments(searchtype=self._cache,  users=users, **kwargs)
