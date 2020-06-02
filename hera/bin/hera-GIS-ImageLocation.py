@@ -10,16 +10,13 @@ args = parser.parse_args()
 
 
 def load_handler(arguments):
-    extents = eval("%s" % arguments[1])
+    extent = eval("%s" % arguments[1])
     doc = dict(projectName=arguments[0],
                resource=arguments[3],
                dataFormat='image',
                type='GIS',
                desc=dict(locationName=arguments[2],
-                         left=extents[0],
-                         right=extents[1],
-                         bottom=extents[2],
-                         top=extents[3]
+                         extent=extent
                          )
                )
     datalayer.Measurements.addDocument(**doc)
