@@ -1,8 +1,16 @@
 import numpy
-import wrf
+try:
+    import wrf
+except ImportError:
+    print("You must install python-wrf to use this package ")
+
 import pandas
 import geopandas
-from netCDF4 import Dataset
+try:
+    from netCDF4 import Dataset
+except ImportError:
+    print("You must install python-wrf to use this package ")
+
 import xarray
 
 class wrfDatalayer():
