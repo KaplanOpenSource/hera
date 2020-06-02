@@ -139,7 +139,7 @@ class wrfDatalayer():
                 d = pandas.concat([d, new_d])
 
         gdf = geopandas.GeoDataFrame(d, geometry=geopandas.points_from_xy(d.LONG, d.LAT))
-        gdf.crs = 4326
+        gdf.crs = {'init' :'epsg:4326'}
         gdf = gdf.to_crs(epsg=2039)
         gdf["LAT"] = gdf.geometry.y
         gdf["LONG"] = gdf.geometry.x

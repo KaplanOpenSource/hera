@@ -33,16 +33,10 @@ class dataManipulations():
 
         return boundaries
 
+    def makePolygonFromEndPoints(self,points):
 
-
-        # xMin
-        # 205000; // L = 350
-        # xMax
-        # 209000; // 4
-        # yMin
-        # 736000; // L = 280
-        # yMax
-        # 740000; // 7
-        # zMin - 5;
-        # zMax
-        # 650;
+        polygon = shapely.geometry.Polygon([[points[0],points[1]],
+                                            [points[0],points[3]],
+                                            [points[2],points[3]],
+                                            [points[2],points[1]]])
+        return polygon
