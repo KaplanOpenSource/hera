@@ -27,6 +27,7 @@ if version==3:
     from .simulations import LSM
     from .simulations.LSM.DataLayer import SingleSimulation
     from .measurements import GIS
+    from .simulations.interpulations.interpulations import interpulations
 from .simulations import openfoam
 
 """
