@@ -152,13 +152,13 @@ class GIS_datalayer():
         Returns: The geometry ([[ccoordinates], geometry_type])
 
         """
-        document = self._projectMultiDB.getMeasurementsDocumentsAsDict(name=name)
+        document = self._projectMultiDB.getMeasurementsDocumentsAsDict(name=name, type="GeometryShape")
         if len(document) ==0:
             geo=None
             geometry_type=None
         else:
             geo = document["documents"][0]["desc"]["geometry"]
-            geometry_type = document[0]["desc"]["geometry_type"]
+            geometry_type = document["documents"][0]["desc"]["geometry_type"]
 
         return geo, geometry_type
 
@@ -244,6 +244,8 @@ class GIS_datalayer():
             polygons = self.getFilesPolygonList(**kwargs)
             for i in range(len(points)):
                 if GeometryMode == "contains":
+                    import pdb
+                    pdb.set_trace()
                     if polygons[i].contains(Geometry):
                         containPoints.append(points[i])
                 elif GeometryMode == "intersects":
@@ -269,7 +271,7 @@ class GIS_datalayer():
                 check = self.check_data(points=points, CutName=CutName, mode=mode, **kwargs)
 
             if check:
-                data = self.getExistingDocuments(mode=mode, **kwargs)
+                data = self.getExistingDocuments(mode=mode, points=points, CutName=CutName, **kwargs)
             else:
                 if points == None or CutName == None:
                     raise KeyError("Could not find data. Please insert points and CutName for making new data.")
