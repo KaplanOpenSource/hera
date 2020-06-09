@@ -6,7 +6,7 @@ from .inputForModelsCreation import InputForModelsCreator
 import xarray
 
 
-class LSMTemplate():
+class LSMTemplate(object):
     _document = None
 
     def __init__(self, document):

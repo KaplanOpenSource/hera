@@ -15,7 +15,7 @@ class AbstractCalculator(object):
     _AllCalculatedParams = None
     _InMemoryAvgRef = None
     _Karman = 0.4
-    _saveProperties = {'fileFormat':None}
+    _saveProperties = {'dataFormat': None}
 
     def __init__(self, rawData, metadata, identifier):
         if type(rawData) == pandas.DataFrame:
@@ -61,8 +61,15 @@ class AbstractCalculator(object):
     def Karman(self):
         return self._Karman
 
-    def set_saveProperties(self, fileFormat, **kwargs):
-        self._saveProperties['fileFormat'] = fileFormat
+    def set_saveProperties(self, dataFormat, **kwargs):
+        """
+        Setting the parameters for handling the saving part.
+
+        :param dataFormat: The format to save the data to.
+        :param kwargs: Other arguments required for saving the data to the specific dataFormat.
+        :return:
+        """
+        self._saveProperties['dataFormat'] = dataFormat
         self._saveProperties.update(kwargs)
 
     def _updateInMemoryAvgRef(self, df):
@@ -95,7 +102,7 @@ class AbstractCalculator(object):
 
         self._updateInMemoryAvgRef(df)
 
-    def compute(self, mode):
+    def compute(self, mode='not_from_db_and_not_save'):
         if self._TemporaryData.columns.empty:
             raise ValueError("Parameters have not been calculated yet.")
 
@@ -108,8 +115,8 @@ class AbstractCalculator(object):
     def _compute_from_db_and_save(self):
         query = self._query()
         docExist = list(
-            datalayer.Analysis.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
-                                            end__gt=self.Identifier['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
+                                         end__gt=self.Identifier['start'], **query))
 
 
         if docExist:
@@ -123,8 +130,8 @@ class AbstractCalculator(object):
         query = self._query()
 
         docExist = list(
-            datalayer.Analysis.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
-                                            end__gt=self.Identifier['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
+                                         end__gt=self.Identifier['start'], **query))
 
         if docExist:
             df = docExist[-1].getData(usePandas=True)[[x[0] for x in self._CalculatedParams]]
@@ -152,12 +159,12 @@ class AbstractCalculator(object):
         return query
 
     def _save_to_db(self, params, query):
-        if self._saveProperties['fileFormat'] is None:
+        if self._saveProperties['dataFormat'] is None:
             raise AttributeError('No save properties are set. Please use set_saveProperties function')
         else:
             doc = {}
             doc['projectName'] = query.pop('projectName')
-            doc['fileFormat'] = self._saveProperties['fileFormat']
+            doc['dataFormat'] = self._saveProperties['dataFormat']
             doc['type'] = 'meteorological'
             doc['desc'] = query
             doc['desc']['start'] = self.Identifier['start']
@@ -165,11 +172,11 @@ class AbstractCalculator(object):
             doc['desc']['samplingWindow'] = self.SamplingWindow
             doc['desc']['params'] = params
             doc['resource'] = getSaveData(data=self._InMemoryAvgRef, **self._saveProperties)
-            datalayer.Analysis.addDocument(**doc)
+            datalayer.Cache.addDocument(**doc)
 
 
-def getSaveData(fileFormat, **kwargs):
-    return getattr(globals()['SaveDataHandler'], 'getSaveData_%s' % fileFormat)(**kwargs)
+def getSaveData(dataFormat, **kwargs):
+    return getattr(globals()['SaveDataHandler'], 'getSaveData_%s' % dataFormat)(**kwargs)
 
 
 class SaveDataHandler(object):
@@ -191,6 +198,7 @@ class SaveDataHandler(object):
 
     @staticmethod
     def getSaveData_parquet(data, path):
+        data = data.repartition(partition_size='100MB')
         data.to_parquet(path)
         return path
 

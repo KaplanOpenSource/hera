@@ -13,7 +13,7 @@ def toGeopandas(ContourData, inunits=m):
                 The output of a matplotlib counrour (maybe also contourf)
     :param inunits:
         The output will be in meters, but input can be in other units.
-        So use this to generate a conversion factor.
+        So use this to generate a utils factor.
     :return:
         A geopandas object with the contours as polygons and levels as attributes.
 

@@ -1,6 +1,6 @@
 import argparse
 import json
-from pyhera.hera.datalayer import Simulations
+from hera.datalayer import Simulations
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--jsonFile', dest='jsonFile', required=True, help='The document JSON file to upload')

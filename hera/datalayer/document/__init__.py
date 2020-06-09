@@ -7,6 +7,13 @@ from .metadataDocument import MetadataFrame
 dbObjects = {}
 
 def getMongoJSON():
+    """
+    Return the definition of the connection.
+
+    Returns
+    -------
+        dict
+    """
     configFile = os.path.join(os.environ.get('HOME'), '.pyhera', 'config.json')
     if os.path.isfile(configFile):
         with open(configFile, 'r') as jsonFile:
@@ -50,34 +57,76 @@ def getMongoConfigFromJson(user=None):
     ## build the connection to the db.
 
 
-def connectToDatabase(mongoConfig):
+def connectToDatabase(mongoConfig,alias=None):
     """
     Creates a connection to the database according to the mongoConfig.
 
-    :param mongoConfig:
-    :return:
+    Parameters
+    ----------
+
+    mongoConfig: dict
+                defines the connection to the DB:
+
+                - dbName : the name of the database.
+                - dbIP   : the IP of the database
+                - username: the unsername to log in with.
+                - password : the user password.
+
+    alias: str
+            An alternative alias. Used mainly for parallel applications.
+
+    Returns
+    -------
+        mongodb connection.
     """
-    connect(alias='%s-alias' % mongoConfig['dbName'],
+    alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
+
+    con = connect(alias=alias,
             host=mongoConfig['dbIP'],
             db=mongoConfig['dbName'],
             username=mongoConfig['username'],
             password=mongoConfig['password'],
             authentication_source='admin'
             )
+    return con
 
 
-def createDBConnection(user, mongoConfig):
+def createDBConnection(user, mongoConfig,alias=None):
     """
     Creates a connection to the database.
     Creates mongoengine objects and saving them to a global dictionary dbObjects.
 
-    :param user:
-    :param mongoConfig
-    :return:
+    saves DB objects for the user in a DBdict:
+
+        - connection: the connection to the db. has the alias [dbname]-alias
+                      or the given alias name.
+
+        - Metadata: the meta data object that holds all the documets.
+        - Measurements:  documents of the measurements.
+        - Cache:      documents of the cache.
+        - Simulations:   documents of the simulations.
+
+    Parameters
+    ----------
+
+    user: str
+            The username to register the connection under.
+    mongoConfig; dict
+            defines the connection to the DB.
+            see connectToDatabase for details.
+    alias: str
+            The name of the connection.
+            Used to prevent two connections with the same name.
+            if None, use the user name.
+
+    Returns
+    -------
+        dict.
+        return the DBdict.
     """
     dbDict = {}
 
-    connectToDatabase(mongoConfig=mongoConfig)
+    con = connectToDatabase(mongoConfig=mongoConfig,alias=alias)
 
     dbName = mongoConfig['dbName']
 
@@ -88,20 +137,56 @@ def createDBConnection(user, mongoConfig):
                                                                                 }
                                                                        }
                         )
+
+    dbDict['connection'] = con
     dbDict['Metadata'] = new_Metadata
 
     new_Measurements = type('Measurements', (new_Metadata,), {})
     dbDict['Measurements'] = new_Measurements
 
-    new_Analysis = type('Analysis', (new_Metadata,), {})
-    dbDict['Analysis'] = new_Analysis
+    new_Cache = type('Cache', (new_Metadata,), {})
+    dbDict['Cache'] = new_Cache
 
     new_Simulations = type('Simulations', (new_Metadata,), {})
     dbDict['Simulations'] = new_Simulations
 
     dbObjects[user] = dbDict
 
-    return user, dbDict
+    return dbDict
+
+
+
+def getDBObject(objectName, user=None):
+    """
+    Returns the mongoengine object(objectName) of a given user from the global dictionary dbObjects.
+
+    Parameters
+    ----------
+
+    objectName: str
+        The name of the object to return
+    user: str
+        Connection name
+    :return:
+        mongoengine object
+    """
+    user = getpass.getuser() if user is None else user
+
+    try:
+        dbs = dbObjects[user]
+    except KeyError:
+        allusers = ",".join([x for x in dbObjects.key()])
+        raise KeyError(f"user {user} not found. Must be one of: {allusers}")
+
+
+    try:
+        ret = dbs[objectName]
+    except KeyError:
+        allobjs = ",".join([x for x in dbs.keys()])
+        raise KeyError(f"object {objectName} not found. Must be one of: {allobjs}")
+
+    return ret
+
 
 
 # ---------------------default connections--------------------------
@@ -110,16 +195,4 @@ for user in getDBNamesFromJSON():
                        mongoConfig=getMongoConfigFromJson(user=user)
                        )
 # -------------------------------------------------------------------
-
-
-def getDBObject(objectName, user=None):
-    """
-    Returns the mongoengine object(objectName) of a given user from the global dictionary dbObjects.
-
-    :param objectName:
-    :param user:
-    :return:
-    """
-    user = getpass.getuser() if user is None else user
-    return dbObjects[user][objectName]
 

@@ -1,6 +1,6 @@
 package:
   name: "hera"
-  version: "0.1.0"
+  version: "0.3.0"
 
 source:
   git_url: http://mathsrv2:8081/edenn/pyhera.git
