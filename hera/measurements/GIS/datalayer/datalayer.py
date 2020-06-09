@@ -33,7 +33,7 @@ class GIS_datalayer():
 
         return data
 
-    def makeData(self, points, CutName, mode="Contour", additional_data=None):
+    def makeData(self, points, CutName, mode="Contour", additional_data=None, useOwn=False):
         """
         Generates a new document that holds the path of a GIS shapefile.
 
@@ -44,8 +44,13 @@ class GIS_datalayer():
             additional_data: A dictionary with any additional parameters and their values.
 
         """
-        fullfilesdirect = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["desc"]["modes"]
-        path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
+        if useOwn:
+            fullfilesdirect = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["desc"]["modes"]
+            path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
+            fullPath = "%s/%s" % (path, fullfilesdirect[mode])
+        else:
+            publicproject = datalayer.ProjectMultiDB(projectName="PublicData",users=["public"])
+            fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
 
         if additional_data is not None:
             additional_data["CutName"] = CutName
@@ -59,7 +64,7 @@ class GIS_datalayer():
 
             FileName = "%s//%s%s-%s.shp" % (self._FilesDirectory, self._projectName, CutName, mode)
 
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s/%s" % (points[0],points[1],points[2],points[3], FileName,path, fullfilesdirect[mode]))
+            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s" % (points[0],points[1],points[2],points[3], FileName,fullPath))
             self._projectMultiDB.addMeasurementsDocument(desc=additional_data, type="GIS",
                                                resource = FileName, dataFormat = "geopandas")
         else:
@@ -147,9 +152,13 @@ class GIS_datalayer():
         Returns: The geometry ([[ccoordinates], geometry_type])
 
         """
-        document = self._projectMultiDB.getMeasurementsDocumentsAsDict(name=name)["documents"]
-        geo = document[0]["desc"]["geometry"]
-        geometry_type = document[0]["desc"]["geometry_type"]
+        document = self._projectMultiDB.getMeasurementsDocumentsAsDict(name=name, type="GeometryShape")
+        if len(document) ==0:
+            geo=None
+            geometry_type=None
+        else:
+            geo = document["documents"][0]["desc"]["geometry"]
+            geometry_type = document["documents"][0]["desc"]["geometry_type"]
 
         return geo, geometry_type
 
@@ -207,7 +216,7 @@ class GIS_datalayer():
                                                resource="/mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/RELIEF/CONTOUR.shp",
                                                dataFormat="geopandas")
 
-    def getGISDocuments(self, points=None, CutName=None, mode="Contour", GeometryMode="contains", Geometry=None, **kwargs):
+    def getGISDocuments(self, points=None, CutName=None, mode="Contour", GeometryMode="contains", Geometry=None, useOwn=False, **kwargs):
         """
         This function is used to load GIS data.
         One may use it to get all data that corresponds to any parameters listed in a document,
@@ -235,6 +244,8 @@ class GIS_datalayer():
             polygons = self.getFilesPolygonList(**kwargs)
             for i in range(len(points)):
                 if GeometryMode == "contains":
+                    import pdb
+                    pdb.set_trace()
                     if polygons[i].contains(Geometry):
                         containPoints.append(points[i])
                 elif GeometryMode == "intersects":
@@ -260,12 +271,12 @@ class GIS_datalayer():
                 check = self.check_data(points=points, CutName=CutName, mode=mode, **kwargs)
 
             if check:
-                data = self.getExistingDocuments(mode=mode, **kwargs)
+                data = self.getExistingDocuments(mode=mode, points=points, CutName=CutName, **kwargs)
             else:
                 if points == None or CutName == None:
                     raise KeyError("Could not find data. Please insert points and CutName for making new data.")
                 else:
-                    self.makeData(points=points, CutName=CutName, mode=mode, additional_data=kwargs)
+                    self.makeData(points=points, CutName=CutName, mode=mode, useOwn=useOwn, additional_data=kwargs)
                     data = self.getExistingDocuments(points=points, CutName=CutName, mode=mode)
 
         return data
