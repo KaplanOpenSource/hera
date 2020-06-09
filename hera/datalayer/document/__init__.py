@@ -175,7 +175,7 @@ def getDBObject(objectName, user=None):
     try:
         dbs = dbObjects[user]
     except KeyError:
-        allusers = ",".join([x for x in dbObjects.key()])
+        allusers = ",".join([x for x in dbObjects.keys()])
         raise KeyError(f"user {user} not found. Must be one of: {allusers}")
 
 

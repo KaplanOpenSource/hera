@@ -37,7 +37,7 @@ Any additional parameters that describe the data may be added, such as the regio
 .. code-block:: python
 
     points = [193000, 731000, 218500, 763000] # The rectangle coordinantes
-    #example_data = dataHandler.getGISDocuments(points=points, CutName="Example", Region="Haifa")
+    #example_data = datalayer.getGISDocuments(points=points, CutName="Example", Region="Haifa")
 
 The function returns a list of the documents that fit the parameters.
 The data itself can be achieved by choosing a document and using the function getData().
@@ -75,6 +75,19 @@ It can also be used in oreder to retrieve a goeopandas dataframe that contains t
 
     datalayer.getGISDocuments(Geometry="Haifa_Port"])[0].getData()
 
+Demography
+**********
+
+Demography data in an area may be retrieved.
+If we have a document whose name or CutName is "TelAviv", for example,
+which holds coordinates that may define a polygon,
+we can find the amount of people who live in that polygon.
+
+.. code-block:: python
+
+    population = GIS.population(projectName = "Example")
+    data = population.projectPolygonOnPopulation(Geometry="TelAviv")
+
 Usage
 -----
 
@@ -85,3 +98,4 @@ Usage
     GIS/examples/Plotting
     GIS/examples/Convertions
     GIS/examples/DataManipulations
+    GIS/examples/Population
