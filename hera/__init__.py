@@ -1,4 +1,4 @@
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 
 
 
@@ -18,6 +18,10 @@ if version==3:
 from .simulations import openfoam
 
 """
+ 0.4.1
+ -----
+ With demography in GIS
+
  0.4.0
  -----
  Added features to the turbulence calculator.
