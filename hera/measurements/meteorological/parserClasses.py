@@ -1,7 +1,7 @@
 
 
 
-class IMS(object):
+class Parser_IMS(object):
 
     def __init__(self):
         pass
@@ -9,16 +9,7 @@ class IMS(object):
     def read(self, file):
         pass
 
-class CampbellBinary(object):
-
-    def __init__(self):
-        pass
-
-    def read(self, file):
-        pass
-
-
-class Radiosonde(object):
+class Parser_CampbellBinary(object):
 
     def __init__(self):
         pass
@@ -27,7 +18,16 @@ class Radiosonde(object):
         pass
 
 
-class TOA5(object):
+class Parser_Radiosonde(object):
+
+    def __init__(self):
+        pass
+
+    def read(self, file):
+        pass
+
+
+class Parser_TOA5(object):
 
     def __init__(self):
         pass

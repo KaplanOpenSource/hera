@@ -5,26 +5,30 @@ from .parserClasses import *
 from ...datalayer import Measurements
 from ...datalayer.document.metadataDocument import nonDBMetadata
 
+
 class DataLayer(object):
     _DataSource = None
 
     def __init__(self, DataSource):
         self._DataSource = DataSource
+        self._parser = globals()['Parser_%s' % self._DataSource]
 
     def getDocFromDB(self, projectName, resource=None, dataFormat=None, **desc):
         desc['DataSource'] = self._DataSource
-        return Measurements.getDocuments(projectName=projectName,
-                                         resource=resource,
-                                         dataFormat=dataFormat,
-                                         type='meteorological',
-                                         **desc
-                                         )
+        docList = Measurements.getDocuments(projectName=projectName,
+                                            resource=resource,
+                                            dataFormat=dataFormat,
+                                            type='meteorological',
+                                            **desc
+                                            )
+        return docList
 
     def getDocFromFile(self):
         pass
 
     def extractTrnasformLoad(self):
         pass
+
 
 class DataLayer_IMS(DataLayer):
 
