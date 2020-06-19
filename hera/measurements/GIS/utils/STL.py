@@ -4,6 +4,7 @@ from scipy.interpolate import griddata
 from numpy import array, cross, sqrt
 import numpy
 import pandas
+import math
 from ..datalayer.datalayer import GIS_datalayer
 from ..analytics.dataManipulations import dataManipulations
 from .... import datalayer
@@ -14,16 +15,16 @@ class convert():
 
     _projectName = None
     _FilesDirectory = None
-    _Measurments = None
+    _projectMultiDB = None
     _GISdatalayer = None
     _manipulator = None
 
-    def __init__(self, projectName, FilesDirectory):
+    def __init__(self, projectName, FilesDirectory, users=[None], useAll=False):
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory)
-        self._Measurments = datalayer.Measurements
+        self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory, users=users, useAll=useAll)
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users,useAll=useAll)
         self._manipulator = dataManipulations()
 
     def addSTLtoDB(self, path, NewFileName, points, xMin, xMax, yMin, yMax, zMin, zMax, dxdy, **kwargs):
@@ -42,11 +43,11 @@ class convert():
         """
 
 
-        self._Measurments.addDocument(projectName=self._projectName,
-                                      desc=dict(name = NewFileName, bounds = points, xMin=xMin, xMax=xMax, yMin=yMin, yMax=yMax, zMin=zMin, zMax=zMax, **kwargs),
-                                      type="stlFile",
-                                      resource=path,
-                                      dataFormat="string")
+        self._projectMultiDB.addMeasurementsDocument(desc=dict(name = NewFileName, bounds = points, dxdy=dxdy,
+                                                               xMin=xMin, xMax=xMax, yMin=yMin, yMax=yMax, zMin=zMin, zMax=zMax, **kwargs),
+                                                      type="stlFile",
+                                                      resource=path,
+                                                      dataFormat="string")
 
     def toSTL(self, data, NewFileName, dxdy=50, save=True, addtoDB=True, flat=None, path=None, **kwargs):
 
@@ -237,7 +238,7 @@ class convert():
             for i in range(len(Height)):
                 Height[i] = flat
         grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
-        numpy.nan_to_num(grid_z2, nan=min(Height), copy=False)
+        grid_z2 = self.organizeGrid(grid_z2)
 
         stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 
@@ -245,3 +246,22 @@ class convert():
                                  "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2.min(), "gridzMax":grid_z2.max(),})
 
         return stlstr, data
+
+    def organizeGrid(self, grid):
+
+        for row in grid:
+            for i in range(len(row)):
+                if math.isnan(row[i]):
+                    pass
+                else:
+                    break
+            for n in range(i):
+                row[n] = row[i]
+            for i in reversed(range(len(row))):
+                if math.isnan(row[i]):
+                    pass
+                else:
+                    break
+            for n in range(len(row)-i):
+                row[-n-1] = row[i]
+        return grid

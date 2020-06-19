@@ -7,3 +7,4 @@ simulations
 
     simulations/LSM
     simulations/openFoam
+    simulations/WRF

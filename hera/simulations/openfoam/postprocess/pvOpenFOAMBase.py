@@ -48,6 +48,9 @@ class paraviewOpenFOAM(object):
     @property
     def netcdfdir(self):
         return self._netcdfdir
+    @property
+    def possibleRegions(self):
+        return self._possibleRegions
 
     @hdfdir.setter
     def netcdfdir(self, netcdfdir):
@@ -134,6 +137,8 @@ class paraviewOpenFOAM(object):
         """
         self._readerName  = readerName
         self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
+        self.reader.MeshRegions.SelectAll()
+        self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
         if fieldnames is not None:
             self._reader.CellArrays = fieldnames
@@ -194,6 +199,8 @@ class paraviewOpenFOAM(object):
 
         rawData = servermanager.Fetch(datasource)
         data = dsa.WrapDataObject(rawData)
+        print(data.PointData)
+        print(type(data.PointData))
 
         if isinstance(data.Points, dsa.VTKArray):
             points = numpy.array(data.Points).squeeze()
@@ -279,6 +286,7 @@ class paraviewOpenFOAM(object):
                 data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
                 curfilename = "%s_%s.hdf" % (outfile, batchID)
                 print("\tWriting filter %s in file %s" % (filtername, curfilename))
+                print("dir", os.path.join(self.hdfdir, curfilename))
                 data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
 
         outfile = readername if outfile is None else outfile

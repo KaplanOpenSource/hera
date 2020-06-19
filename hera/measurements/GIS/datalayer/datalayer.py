@@ -5,15 +5,19 @@ import os
 
 class GIS_datalayer():
 
-    _Measurments = None
+    _projectMultiDB = None
     _projectName = None
     _FilesDirectory = None
 
-    def __init__(self, projectName, FilesDirectory):
+    @property
+    def project(self):
+        return self._projectMultiDB
+
+    def __init__(self, projectName, FilesDirectory, users=[None], useAll=False):
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._Measurments = datalayer.Measurements
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users, useAll=useAll)
 
         os.system("mkdir -p %s" % self._FilesDirectory)
 
@@ -25,25 +29,28 @@ class GIS_datalayer():
 
         Returns: The data
         """
-
-        data = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
+        data = self._projectMultiDB.getMeasurementsDocuments(**kwargs)
 
         return data
 
-    def makeData(self, points, CutName, mode="Contour", additional_data=None):
+    def makeData(self, points, CutName, mode="Contour", additional_data=None, useOwn=False):
         """
         Generates a new document that holds the path of a GIS shapefile.
 
         Parameters:
             points: Holds the ITM coordinates of a rectangle. It is a list, from the structure [minimum x, minimum y, maximum x, maximum y]\n
             CutName: Used as part of a new file's name. (string)\n
-            mode: The data type of the desired data. Recieves "Contour", "Buildings" or "Roads".\n
+            mode: The data type of the desired data. Recieves any mode specified in the GISOrigin document.\n
             additional_data: A dictionary with any additional parameters and their values.
 
         """
-
-        fullfilesdirect = {"Contour": "RELIEF/CONTOUR.shp", "Buildings": "BUILDINGS/BLDG.shp",
-                           "Roads": "TRANSPORTATION/MAIN_ROAD.shp"}
+        if useOwn:
+            fullfilesdirect = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["desc"]["modes"]
+            path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
+            fullPath = "%s/%s" % (path, fullfilesdirect[mode])
+        else:
+            publicproject = datalayer.ProjectMultiDB(projectName="PublicData",users=["public"])
+            fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
 
         if additional_data is not None:
             additional_data["CutName"] = CutName
@@ -52,18 +59,19 @@ class GIS_datalayer():
         else:
             additional_data = {"CutName": CutName, "points": points, "mode": mode}
 
-        documents = self._Measurments.getDocuments(projectName=self._projectName, points=points, mode=mode)
+        documents = self._projectMultiDB.getMeasurementsDocumentsAsDict(points=points, mode=mode)
         if len(documents) == 0:
 
             FileName = "%s//%s%s-%s.shp" % (self._FilesDirectory, self._projectName, CutName, mode)
 
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s /mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/%s" % (points[0],points[1],points[2],points[3], FileName, fullfilesdirect[mode]))
-            datalayer.Measurements.addDocument(projectName=self._projectName, desc=dict(**additional_data), type="GIS",
+            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s" % (points[0],points[1],points[2],points[3], FileName,fullPath))
+            self._projectMultiDB.addMeasurementsDocument(desc=additional_data, type="GIS",
                                                resource = FileName, dataFormat = "geopandas")
         else:
-            resource = documents[0].asDict()["resource"]
-            datalayer.Measurements.addDocument(projectName=self._projectName, desc=dict(**additional_data), type="GIS",
+            resource = documents["documents"][0]["resource"]
+            self._projectMultiDB.addMeasurementsDocument(desc=dict(**additional_data), type="GIS",
                                                resource = resource, dataFormat = "geopandas")
+
 
     def check_data(self, **kwargs):
         """
@@ -75,7 +83,7 @@ class GIS_datalayer():
 
         """
 
-        check = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
+        check = self._projectMultiDB.getMeasurementsDocuments(**kwargs)
 
         if 0 == len(check):
             result = False
@@ -95,13 +103,12 @@ class GIS_datalayer():
 
         """
 
-        documents = self._Measurments.getDocuments(projectName=self._projectName, **kwargs)
+        documents = self._projectMultiDB.getMeasurementsDocumentsAsDict(**kwargs)["documents"]
         points = []
         for document in documents:
-            data = document.asDict()
-            if "points" in data["desc"].keys():
-                if data["desc"]["points"] not in points:
-                    points.append(data["desc"]["points"])
+            if "points" in document["desc"].keys():
+                if document["desc"]["points"] not in points:
+                    points.append(document["desc"]["points"])
         return points
 
     def getFilesPolygonList(self, **kwargs):
@@ -145,10 +152,13 @@ class GIS_datalayer():
         Returns: The geometry ([[ccoordinates], geometry_type])
 
         """
-
-        document = self._Measurments.getDocuments(projectName=self._projectName, name=name)
-        geo = document[0].asDict()["desc"]["geometry"]
-        geometry_type = document[0].asDict()["desc"]["geometry_type"]
+        document = self._projectMultiDB.getMeasurementsDocumentsAsDict(name=name, type="GeometryShape")
+        if len(document) ==0:
+            geo=None
+            geometry_type=None
+        else:
+            geo = document["documents"][0]["desc"]["geometry"]
+            geometry_type = document["documents"][0]["desc"]["geometry_type"]
 
         return geo, geometry_type
 
@@ -201,13 +211,12 @@ class GIS_datalayer():
                     geopoints = [Geometry]
             else:
                 raise KeyError(KeyErrorText)
-            datalayer.Measurements.addDocument(projectName=self._projectName,
-                                               desc=dict(geometry=geopoints, geometry_type=geometry_type, name=name),
+            self._projectMultiDB.addMeasurementsDocument(desc=dict(geometry=geopoints, geometry_type=geometry_type, name=name),
                                                type="GeometryShape",
                                                resource="/mnt/public/New-MAPI-data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/RELIEF/CONTOUR.shp",
                                                dataFormat="geopandas")
 
-    def getGISDocuments(self, points=None, CutName=None, mode="Contour", GeometryMode="contains", Geometry=None, **kwargs):
+    def getGISDocuments(self, points=None, CutName=None, mode="Contour", GeometryMode="contains", Geometry=None, useOwn=False, **kwargs):
         """
         This function is used to load GIS data.
         One may use it to get all data that corresponds to any parameters listed in a document,
@@ -235,6 +244,8 @@ class GIS_datalayer():
             polygons = self.getFilesPolygonList(**kwargs)
             for i in range(len(points)):
                 if GeometryMode == "contains":
+                    import pdb
+                    pdb.set_trace()
                     if polygons[i].contains(Geometry):
                         containPoints.append(points[i])
                 elif GeometryMode == "intersects":
@@ -260,12 +271,12 @@ class GIS_datalayer():
                 check = self.check_data(points=points, CutName=CutName, mode=mode, **kwargs)
 
             if check:
-                data = self.getExistingDocuments(mode=mode, **kwargs)
+                data = self.getExistingDocuments(mode=mode, points=points, CutName=CutName, **kwargs)
             else:
                 if points == None or CutName == None:
                     raise KeyError("Could not find data. Please insert points and CutName for making new data.")
                 else:
-                    self.makeData(points=points, CutName=CutName, mode=mode, additional_data=kwargs)
+                    self.makeData(points=points, CutName=CutName, mode=mode, useOwn=useOwn, additional_data=kwargs)
                     data = self.getExistingDocuments(points=points, CutName=CutName, mode=mode)
 
         return data
@@ -280,8 +291,7 @@ class GIS_datalayer():
         :param extents: The extents of the image [left, right, bottom, top]
         :return:
         """
-        doc = dict(projectName=self._projectName,
-                   resource=path,
+        doc = dict(resource=path,
                    dataFormat='image',
                    type='GIS',
                    desc=dict(locationName=locationName,
@@ -291,5 +301,5 @@ class GIS_datalayer():
                              top=extents[3]
                              )
                    )
-        self._Measurments.addDocument(**doc)
+        self._projectMultiDB.addMeasurementsDocument(**doc)
 

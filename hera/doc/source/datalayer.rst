@@ -78,7 +78,7 @@ Each data is classified into one of the following categories.
 
 - Measurements - Any acquisition of data from the 'real world'. Satellites, meteorological measurments and dispersion measurements and etc.
 - Simulations  - Any output of a model. (OpenFOAM, WRF, LSM and etc).
-- Analysis     - Any data that is created during work and analyis and needed to be cached to accelerate the computations.
+- Cache        - Any data that is created during analyis and needed to be cached to accelerate the computations.
 
 Since each category can hold different types of data, each data document
 holds its type in  a 'type' property

@@ -6,15 +6,15 @@ import matplotlib.image as mpimg
 
 class Plotting():
 
-    _Measurments = None
+    _projectMultiDB = None
     _projectName = None
     _FilesDirectory = None
 
-    def __init__(self, projectName, FilesDirectory):
+    def __init__(self, projectName, FilesDirectory, users=[None],useAll=False):
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._Measurments = datalayer.Measurements
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users, useAll=useAll)
 
     def plotImageLocationFromDocument(self, doc, ax=None):
         """
@@ -44,8 +44,7 @@ class Plotting():
         :param query: Some more specific details to query on
         :return:
         """
-        doc =  self._Measurments.getDocuments(projectName=self._projectName,
-                                                  dataFormat='image',
+        doc =  self._projectMultiDB.getMeasurementsDocuments(dataFormat='image',
                                                   type='GIS',
                                                   locationName=locationName,
                                                   **query
@@ -90,7 +89,7 @@ class Plotting():
         else:
             plt.sca(ax)
 
-        d = GIS_datalayer(projectName = self._projectName, FilesDirectory=self._FilesDirectory)
+        d = GIS_datalayer(projectName = self._projectName, FilesDirectory=self._FilesDirectory, users=self._projectMultiDB.users, useAll=self._projectMultiDB.useAll)
 
         geo, geometry_type = d.getGeometryPoints(name)
         if geometry_type == "Point":

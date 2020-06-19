@@ -1,8 +1,16 @@
 import numpy
-import wrf
+try:
+    import wrf
+except ImportError:
+    print("You must install python-wrf to use this package ")
+
 import pandas
 import geopandas
-from netCDF4 import Dataset
+try:
+    from netCDF4 import Dataset
+except ImportError:
+    print("You must install python-wrf to use this package ")
+
 import xarray
 
 class wrfDatalayer():
@@ -71,19 +79,21 @@ class wrfDatalayer():
             request_i_time = [x for x in range(len(xdata.Time))]
 
         if lat is not None:
-            geo = geopandas.GeoDataFrame(dict(geometry=geopandas.points_from_xy([compare_lon],[lat])),index=[0])
-            geo.crs = 2039
-            geo = geo.to_crs(epsg=4326)
-            lat = geo.geometry[0].y
+            if lat > 360:
+                geo = geopandas.GeoDataFrame(dict(geometry=geopandas.points_from_xy([compare_lon],[lat])),index=[0])
+                geo.crs = 2039
+                geo = geo.to_crs(epsg=4326)
+                lat = geo.geometry[0].y
             changes = ["south_north", "south_north", "south_north_stag"]
             request_i_u = request_i = self.find_i(lat, xdata, "south_north", "XLAT")
             request_i_v = self.find_i(lat, xdata, "south_north_stag", "XLAT_V")
 
         elif lon is not None:
-            geo = geopandas.GeoDataFrame(dict(geometry=geopandas.points_from_xy([lon],[compare_lat])),index=[0])
-            geo.crs = 2039
-            geo = geo.to_crs(epsg=4326)
-            lon = geo.geometry[0].x
+            if lon > 360:
+                geo = geopandas.GeoDataFrame(dict(geometry=geopandas.points_from_xy([lon],[compare_lat])),index=[0])
+                geo.crs = 2039
+                geo = geo.to_crs(epsg=4326)
+                lon = geo.geometry[0].x
             changes = ["west_east", "west_east_stag", "west_east"]
             request_i_v = request_i = self.find_i(lon, xdata, "west_east", "XLONG")
             request_i_u = self.find_i(lon, xdata, "west_east_stag", "XLONG_U")
@@ -137,10 +147,11 @@ class wrfDatalayer():
                 d = pandas.concat([d, new_d])
 
         gdf = geopandas.GeoDataFrame(d, geometry=geopandas.points_from_xy(d.LONG, d.LAT))
-        gdf.crs = 4326
+        gdf.crs = {'init' :'epsg:4326'}
         gdf = gdf.to_crs(epsg=2039)
         gdf["LAT"] = gdf.geometry.y
         gdf["LONG"] = gdf.geometry.x
         gdf["height_over_terrain"] = gdf.height - gdf.terrain
+        dataframe = pandas.DataFrame(gdf.drop(columns='geometry'))
 
-        return gdf
+        return dataframe
