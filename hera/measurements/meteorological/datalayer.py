@@ -28,13 +28,13 @@ class DataLayer(object):
                                                       )
         return docList
 
-    def getDocFromFile(self):
+    def getDocFromFile(self, **kwargs):
         pass
 
-    def _parse(self, **kwargs):
+    def parse(self, **kwargs):
         return self._parser().parse(**kwargs)
 
-    def load(self):
+    def LoadData(self, **kwargs):
         pass
 
 
@@ -72,7 +72,6 @@ class DataLayer_IMS(DataLayer):
 
                                   }
 
-
     def getDocFromDB(self, projectName, resource=None, dataFormat=None, StationName=None, **kwargs):
 
         """
@@ -97,13 +96,15 @@ class DataLayer_IMS(DataLayer):
 
         """
 
-        desc = kwargs.copy()
-        desc['StationName'] = StationName
+        if StationName is not None:
+            kwargs['StationName'] = StationName
+
+        kwargs['DataSource'] = self._DataSource
 
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
                                        dataFormat=dataFormat,
-                                       desc=desc
+                                       desc=kwargs
                                        )
         return docList
 
@@ -125,10 +126,10 @@ class DataLayer_IMS(DataLayer):
 
         """
 
-        loaded_dask, _ = self._parse(path=path, station_column=station_column, time_coloumn=time_coloumn)
+        loaded_dask, _ = self.parse(path=path, station_column=station_column, time_coloumn=time_coloumn)
         return [nonDBMetadata(loaded_dask, **kwargs)]
 
-    def LoadData(self, newdata_path, outputpath, projectname, metadatafile=None, station_column='stn_name', time_coloumn='time_obs', **metadata):
+    def LoadData(self, newdata_path, outputpath, projectName, metadatafile=None, station_column='stn_name', time_coloumn='time_obs', **metadata):
 
         """
             This function load data from file to database:
@@ -141,7 +142,7 @@ class DataLayer_IMS(DataLayer):
             the path to the new data. in future might also be a web address.
         outputpath : string
             Destination folder path for saving files
-        projectname : string
+        projectName : string
             The project to which the data is associated. Will be saved in Matadata
         metadatafile : string
             The path to a metadata file, if exist
@@ -154,29 +155,29 @@ class DataLayer_IMS(DataLayer):
 
         """
 
-        metadata.update(dict(DataSource=self._DataSource))
+        metadata['DataSource'] = self._DataSource
 
         # 1- load the data #
 
-        loaded_dask, metadata_dict = self._parse(path=newdata_path,
-                                                 station_column=station_column,
-                                                 time_coloumn=time_coloumn,
-                                                 metadatafile=metadatafile,
-                                                 **metadata
-                                                 )
+        loaded_dask, metadata_dict = self.parse(path=newdata_path,
+                                                station_column=station_column,
+                                                time_coloumn=time_coloumn,
+                                                metadatafile=metadatafile,
+                                                **metadata
+                                                )
 
         groupby_data = loaded_dask.groupby(station_column)
 
         for stnname in metadata_dict:
             stn_dask = groupby_data.get_group(stnname)
 
-            filtered_stnname = metadata_dict['StationName']
+            filtered_stnname = metadata_dict[stnname]['StationName']
             print('updating %s data' % filtered_stnname)
 
             # 2- check if station exist in DataBase #
 
-            docList = datalayer.Measurements.getDocuments(projectName=projectname,
-                                                          type=type,
+            docList = datalayer.Measurements.getDocuments(projectName=projectName,
+                                                          type=self._docType,
                                                           DataSource=self._DataSource,
                                                           StationName=filtered_stnname
                                                           )
@@ -214,12 +215,163 @@ class DataLayer_IMS(DataLayer):
                 new_Data = stn_dask.repartition(partition_size=self._np_size)
                 new_Data.to_parquet(dir_path, engine='pyarrow')
 
-                datalayer.Measurements.addDocument(projectName=projectname,
+                datalayer.Measurements.addDocument(projectName=projectName,
                                                    resource=dir_path,
                                                    dataFormat='parquet',
-                                                   type=type,
+                                                   type=self._docType,
                                                    desc=desc
                                                    )
+
+
+class DataLayer_CampbellBinary(DataLayer):
+
+    def __init__(self):
+        super().__init__(DataSource='CampbellBinary')
+
+    def getDocFromDB(self, projectName, resource=None, dataFormat=None, station=None, instrument=None, height=None, **kwargs):
+
+        """
+        This function returns a list of 'doc' objects from the database that matches the requested query
+
+        parameters
+        ----------
+        projectName : String
+            The project to which the data is associated
+        resource : String/dict/JSON
+            The resource of the data
+        dataFormat: String
+            The data format
+        StationName : String
+            The name of the requested station. default None
+        kwargs : dict
+            Other properties for query
+
+        returns
+        -------
+        docList : List
+
+        """
+        if station is not None:
+            kwargs['station'] = station
+        if instrument is not None:
+            kwargs['instrument'] = instrument
+        if height is not None:
+            kwargs['height'] = height
+
+        kwargs['DataSource'] = self._DataSource
+
+        docList = super().getDocFromDB(projectName=projectName,
+                                       resource=resource,
+                                       dataFormat=dataFormat,
+                                       desc=kwargs
+                                       )
+        return docList
+
+    def getDocFromFile(self, path, **kwargs):
+
+        """
+        Reads data from file/directory and returns a 'metadata like' object
+
+        parameters
+        ----------
+
+        path : The path to the data file
+        time_coloumn : The name of the Time column for indexing. default ‘time_obs’
+        kwargs :
+
+        returns
+        -------
+        nonDBMetadata : list
+
+        """
+
+        loaded_dask, _ = self.parse(path=path)
+        return [nonDBMetadata(loaded_dask, **kwargs)]
+
+    def LoadData(self, newdata_path, outputpath, projectName, **metadata):
+
+        """
+            This function load data from file to database:
+
+
+        Parameters
+        ----------
+
+        newdata_path : string
+            the path to the new data. in future might also be a web address.
+        outputpath : string
+            Destination folder path for saving files
+        projectName : string
+            The project to which the data is associated. Will be saved in Matadata
+        metadata : dict, optional
+            These parameters will be added into the metadata desc.
+
+        """
+
+        metadata['DataSource'] = self._DataSource
+
+        # 1- load the data #
+
+        loaded_dask, metadata_dict = self.parse(path=newdata_path, **metadata)
+
+        groupby_data = loaded_dask.groupby(['station', 'instrument', 'height'])
+
+        for station in metadata_dict:
+            for instrument in metadata_dict[station]:
+                for height in metadata_dict[station][instrument]:
+                    dir_path = os.path.join(outputpath, station, instrument, height)
+                    docList = datalayer.Measurements.getDocuments(projectName=projectName,
+                                                                  type=self._docType,
+                                                                  DataSource=self._DataSource,
+                                                                  station=station,
+                                                                  instrument=instrument,
+                                                                  height=height
+                                                                  )
+
+                    new_dask = groupby_data.get_group((station, instrument, height))\
+                                           .drop(columns=['station', 'instrument', 'height'])
+
+                    for col in new_dask.columns:
+                        if new_dask[col].isnull().all().compute():
+                            new_dask = new_dask.drop(col, axis=1)
+
+                    if docList:
+                        if len(docList) > 1:
+                            raise ValueError("the list should be at max length of 1. Check your query.")
+                        else:
+
+                            # 3- get current data from database
+                            doc = docList[0]
+                            db_dask = doc.getData()
+                            data = [db_dask, new_dask]
+                            new_Data = dd.concat(data, interleave_partitions=True)\
+                                         .drop_duplicates()\
+                                         .repartition(partition_size=self._np_size)
+
+                            new_Data.to_parquet(doc.resource, engine='pyarrow')
+
+                            if doc.resource != dir_path:
+                                warnings.warn(
+                                    'The outputpath argument does not match the resource of the matching data '
+                                    'in the database.\nThe new data is saved in the resource of the matching '
+                                    'old data: %s' % doc.resource,
+                                    ResourceWarning)
+
+                    else:
+                        os.makedirs(dir_path, exist_ok=True)
+
+                        # 4- create meta data
+                        desc = metadata_dict[station][instrument][height]
+
+                        new_Data = new_dask.repartition(partition_size=self._np_size)
+                        new_Data.to_parquet(dir_path, engine='pyarrow')
+
+                        datalayer.Measurements.addDocument(projectName=projectName,
+                                                           resource=dir_path,
+                                                           dataFormat='parquet',
+                                                           type=self._docType,
+                                                           desc=desc
+                                                           )
 
 
 class InMemoryRawData(pandas.DataFrame):
