@@ -188,7 +188,7 @@ class Parser_CampbellBinary(object):
                 instrument_metadata = station_metadata.setdefault(instrument, dict())
                 for height in heights:
                     metadata.update(dict(station=station, instrument=instrument, height=height))
-                    instrument_metadata.set_default(height, metadata)
+                    instrument_metadata.setdefault(height, metadata)
 
         loaded_dask = dd.from_pandas(df, npartitions=1)
         return loaded_dask, metadata_dict

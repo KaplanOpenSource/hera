@@ -1,12 +1,13 @@
 import os
-import glob
 import json
 import pandas
-import dask.dataframe as dd
+import dask.dataframe
 from .parserClasses import *
 from ... import datalayer
+from .analytics.turbulencecalculator import TurbulenceCalculator
 from ...datalayer.document.metadataDocument import nonDBMetadata
 import warnings
+
 
 class DataLayer(object):
     _DataSource = None
@@ -98,8 +99,6 @@ class DataLayer_IMS(DataLayer):
 
         if StationName is not None:
             kwargs['StationName'] = StationName
-
-        kwargs['DataSource'] = self._DataSource
 
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
@@ -193,10 +192,10 @@ class DataLayer_IMS(DataLayer):
                     doc = docList[0]
                     stn_db = doc.getData()
                     data = [stn_db.reset_index(), stn_dask]
-                    new_Data = dd.concat(data, interleave_partitions=True)\
-                                 .set_index(time_coloumn)\
-                                 .drop_duplicates()\
-                                 .repartition(partition_size=self._np_size)
+                    new_Data = dask.dataframe.concat(data, interleave_partitions=True)\
+                                             .set_index(time_coloumn)\
+                                             .drop_duplicates()\
+                                             .repartition(partition_size=self._np_size)
 
                     new_Data.to_parquet(doc.resource, engine='pyarrow')
 
@@ -235,14 +234,18 @@ class DataLayer_CampbellBinary(DataLayer):
 
         parameters
         ----------
-        projectName : String
+        projectName: String
             The project to which the data is associated
-        resource : String/dict/JSON
+        resource: String/dict/JSON
             The resource of the data
         dataFormat: String
             The data format
-        StationName : String
+        station: String
             The name of the requested station. default None
+        instrument: String
+            The name of the requested instrument. default None
+        height: String/int
+            The requested height. default None
         kwargs : dict
             Other properties for query
 
@@ -256,9 +259,7 @@ class DataLayer_CampbellBinary(DataLayer):
         if instrument is not None:
             kwargs['instrument'] = instrument
         if height is not None:
-            kwargs['height'] = height
-
-        kwargs['DataSource'] = self._DataSource
+            kwargs['height'] = int(height)
 
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
@@ -298,7 +299,7 @@ class DataLayer_CampbellBinary(DataLayer):
         ----------
 
         newdata_path : string
-            the path to the new data. in future might also be a web address.
+            the path to the new data.
         outputpath : string
             Destination folder path for saving files
         projectName : string
@@ -344,9 +345,9 @@ class DataLayer_CampbellBinary(DataLayer):
                             doc = docList[0]
                             db_dask = doc.getData()
                             data = [db_dask, new_dask]
-                            new_Data = dd.concat(data, interleave_partitions=True)\
-                                         .drop_duplicates()\
-                                         .repartition(partition_size=self._np_size)
+                            new_Data = dask.dataframe.concat(data, interleave_partitions=True)\
+                                                     .drop_duplicates()\
+                                                     .repartition(partition_size=self._np_size)
 
                             new_Data.to_parquet(doc.resource, engine='pyarrow')
 
@@ -437,3 +438,106 @@ class InMemoryAvgData(InMemoryRawData):
             ret = lambda *args, **kwargs: getattr(self._TurbulenceCalculator, item)(inMemory = self, *args, **kwargs)
 
         return ret
+
+
+def getTurbulenceCalculatorFromDB(projectName, samplingWindow, start, end, usePandas=False, isMissingData=False, **kwargs):
+    """
+    This method loads the raw data that corresponds to the requirements (projectName, station, instrument.. ) and
+    creates a turbulence calculator with the desirable sampling window.
+
+
+    Parameters
+    ----------
+    projectName : str
+        The name of the project.
+
+    samplingWindow : str
+        The desirable sampling window.
+
+    start : str/pandas.Timestamp
+        Datetime of the begin.
+
+    end : str/pandas.Timestamp
+        Datetime of the end.
+
+    usePandas : bool, positional, default False
+        A flag of whether or not to use pandas.
+
+    isMissingData : bool, positional, default False
+        A flag if there is a missing data to compute accordingly.
+
+    kwargs :
+        Other query arguments.
+
+    Returns
+    -------
+    TurbulenceCalculator
+        A turbulence calculator of the loaded raw data.
+    """
+
+    if type(start) is str:
+        start = pandas.Timestamp(start)
+
+    if type(end) is str:
+        end = pandas.Timestamp(end)
+
+    docList = datalayer.Measurements.getDocuments(projectName = projectName, **kwargs)
+    dataList = [doc.getData(usePandas=usePandas) for doc in docList]
+
+    rawData = pandas.concat(dataList) if usePandas else dask.dataframe.concat(dataList)
+    rawData = rawData[start:end]
+
+    identifier = {'projectName': projectName,
+                  'samplingWindow': samplingWindow,
+                  'station': None,
+                  'instrument': None,
+                  'height': None,
+                  'start': start,
+                  'end': end
+                  }
+    identifier.update(kwargs)
+
+    projectData = datalayer.Project(projectName=projectName).getMetadata()[['height', 'instrument', 'station']].drop_duplicates()
+
+    if identifier['station'] is not None:
+        stationData = projectData.query("station=='%s'" % identifier['station']).iloc[0]
+        identifier['buildingHeight'] = stationData.get('buildingHeight', None)
+        identifier['averagedHeight'] = stationData.get('averagedHeight', None)
+
+    return TurbulenceCalculator(rawData = rawData, metadata=projectData, identifier=identifier, isMissingData=isMissingData)
+
+
+def getTurbulenceCalculatorFromData(data, samplingWindow, isMissingData=False):
+    """
+    This method returns turbulence calculator from a given data and sampling window.
+
+    Parameters
+    ----------
+
+    data : pandas.DataFrame/dask.dataframe
+        The raw data for the calculations.
+
+    samplingWindow : str
+        The desirable sampling window.
+
+    isMissingData : bool, optional, default False
+        A flag if there is a missing data to compute accordingly.
+
+    Returns
+    -------
+    TurbulenceCalculator
+        A turbulence calculator of the given data.
+    """
+    identifier = {'samplingWindow': samplingWindow
+                  }
+
+    return TurbulenceCalculator(rawData=data, metadata={}, identifier=identifier, isMissingData=isMissingData)
+
+
+def getTurbulenceCalculator(data=None, projectName=None, **kwargs):
+    if data is not None:
+        return getTurbulenceCalculatorFromData(data=data, **kwargs)
+    elif projectName is not None:
+        return getTurbulenceCalculatorFromDB(projectName=projectName, **kwargs)
+    else:
+        raise ValueError("'data' argument or 'projectName' argument must be delivered")
