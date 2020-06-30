@@ -1,26 +1,105 @@
 import argparse
 import json
-
+import glob
 import pandas
 import os
 import shutil
 import sys
+import pydoc
 version = sys.version_info[0]
+from hera.simulation.openfom.postprocces.etlVTk import ...
 if version == 2:
     from hera import openfoam
 else:
     from hera import datalayer
     import dask.dataframe as dd
 
-parser = argparse.ArgumentParser()
-parser.add_argument('command', nargs=1, type=str)
-parser.add_argument('args', nargs='*', type=str)
-parser.add_argument('-keepHDF', action='store_false')
-
-args = parser.parse_args()
 
 
-commands = ["load"]
+def makenames(names, pipeline, former):
+    for pipe in pipeline:
+        names.update({pipe: former + "_" + pipe})
+        print(pipe)
+        if "downstream" in pipeline[pipe].keys():
+            makenames(names,pipeline[pipe]["downstream"], former=former + pipe)
+
+
+def load_None(Tree,filter,metadata,path,name,projectName):
+
+    print("%s write label is not exist in pipeline. data will not be cached" % filter)
+
+def load_hdf(Tree,path, name, projectName,):
+
+    keys = pandas.HDFStore("%s/%s/hdf/%s_0.hdf" % (path, name, name)).keys()
+    fixed_keys = []
+    for key in keys:
+        if key[0] == "/":
+            fixed_keys.append(key[1:])
+        else:
+            fixed_keys.append(key)
+
+    if not os.path.isdir("%s/%s/parquet" % (path, name)):
+        os.makedirs("%s/%s/parquet" % (path, name))
+
+    print(fixed_keys)
+    with open("%s/%s/meta.json" % (path, name)) as json_file:
+        jsondata = json.load(json_file)
+    metadata = jsondata["metadata"]  # Reading the metadata
+
+    # Making a list of the pipeline filter names
+
+    names = {}
+
+    makenames(names, jsondata["pipelines"], "")
+
+    # Making the parquet files
+
+    for key in fixed_keys:
+        data = dd.read_hdf("%s/%s/hdf/%s_0.hdf" % (path, name, name), key=key)
+        for i in range(1, len([name for name in os.listdir('%s/%s/hdf' % (path, name)) if
+                               os.path.isfile(os.path.join('%s/%s/hdf' % (path, name), name))])):
+            new_data = dd.read_hdf("%s/%s/hdf/%s_%s.hdf" % (path, name, name, (i)), key=key)
+            data = dd.concat([data, new_data], interleave_partitions=True).reset_index().set_index(
+                "time").repartition(partition_size="100Mb")
+        data.to_parquet("%s/%s/parquet/%s.parquet" % (path, name, key))
+
+        # Adding a link to the parquet to the database
+
+        datalayer.Measurements.addDocument(projectName=projectName,
+                                           desc=dict(filter=key, pipeline=names[key], **metadata),
+                                           type="OFsimulation",
+                                           resource="%s/%s/parquet/%s.parquet" % (path, name, key),
+                                           dataFormat="parquet")
+
+    #   Delete hdf directory
+    if args.keepHDF:
+        shutil.rmtree("%s/%s/hdf" % (path, name), ignore_errors=True)
+        shutil.rmtree("%s/%s/meta.json" % (path, name), ignore_errors=True)
+
+
+def load_netcdf(Tree,nodeName,metadata,path,name,projectName):
+
+    piplelineTree=str(Tree).replace("[", "").replace("]", "").replace("'", "").replace(", ", ".")
+    datalayer.Measurements.addDocument(projectName=projectName,
+                                       desc=dict(filter=nodeName,
+                                                 pipeline=piplelineTree, **metadata),
+                                       type="OFsimulation",
+                                       resource=glob.glob(os.path.join(path,name,"netcdf/%s*.nc" %nodeName)),
+                                       dataFormat="netcdf_xarray")
+
+
+
+def recurseNode(Tree,nodeName,nodeData,metadata,path,name,projectName):
+    funcName = "load_%s" % nodeData.get('write', 'None')
+    #print(funcName)
+    mod=pydoc.locate(__name__)
+    loader = getattr(mod,funcName)
+
+    loader(Tree,nodeName,metadata,path,name,projectName)
+    ds = nodeData.get("downstream", {})
+    for nodeName, nodeData in ds.items():
+        recurseNode(Tree, nodeName, nodeData,metadata,path,name,projectName)
+    pass
 
 def load_handler(arguments):
     """
@@ -34,54 +113,85 @@ def load_handler(arguments):
     path = arguments[0]
     name = arguments[1]
     projectName = arguments[2]
+    #dataType =arguments[3] if len(arguments)>3 else 'hdf'
 
-    keys = pandas.HDFStore("%s/%s/hdf/%s_0.hdf" % (path, name, name)).keys()
-    fixed_keys = []
-    for key in keys:
-        if key[0]=="/":
-            fixed_keys.append(key[1:])
-        else:
-            fixed_keys.append(key)
-
-    if not os.path.isdir("%s/%s/parquet" % (path, name)):
-        os.makedirs("%s/%s/parquet" % (path, name))
-
-    print(fixed_keys)
     with open("%s/%s/meta.json" % (path, name)) as json_file:
         jsondata = json.load(json_file)
-    metadata = jsondata["metadata"] # Reading the metadata
+    metadata = jsondata["metadata"]  # Reading the metadata
+    pipelines = jsondata["pipelines"]  # Reading the pipelines
 
-    # Making a list of the pipeline filter names
-
-    names = {}
-
-    def makenames(pipeline, former):
-        for pipe in pipeline:
-            names.update({pipe: former+"_"+pipe})
-            print(pipe)
-            if "downstream" in pipeline[pipe].keys():
-                makenames(pipeline[pipe]["downstream"], former=former+pipe)
-    makenames(jsondata["pipelines"],"")
+    Tree=[]
+    for i,node in enumerate(pipelines):
+        Tree.append(node)
+        recurseNode(Tree,node,pipelines[node],metadata,path=path,name=name,projectName=projectName)
 
 
-    # Making the parquet files
+        pass
 
-    for key in fixed_keys:
-        data = dd.read_hdf("%s/%s/hdf/%s_0.hdf" % (path, name, name), key=key)
-        for i in range(1, len([name for name in os.listdir('%s/%s/hdf' % (path, name)) if os.path.isfile(os.path.join('%s/%s/hdf' % (path, name), name))])):
-            new_data = dd.read_hdf("%s/%s/hdf/%s_%s.hdf" % (path, name, name, (i)), key=key)
-            data = dd.concat([data, new_data],interleave_partitions=True).reset_index().set_index("time").repartition(partition_size="100Mb")
-        data.to_parquet("%s/%s/parquet/%s.parquet" % (path, name, key))
+        # keys = pandas.HDFStore("%s/%s/hdf/%s_0.hdf" % (path, name, name)).keys()
+        # fixed_keys = []
+        # for key in keys:
+        #     if key[0]=="/":
+        #         fixed_keys.append(key[1:])
+        #     else:
+        #         fixed_keys.append(key)
+        #
+        # if not os.path.isdir("%s/%s/parquet" % (path, name)):
+        #     os.makedirs("%s/%s/parquet" % (path, name))
+        #
+        # print(fixed_keys)
+        #
+        #
+        # # Making a list of the pipeline filter names
+        #
+        # names = {}
+        #
+        # makenames(names,jsondata["pipelines"],"")
+        #
+        # # Making the parquet files
+        #
+        # for key in fixed_keys:
+        #     data = dd.read_hdf("%s/%s/hdf/%s_0.hdf" % (path, name, name), key=key)
+        #     for i in range(1, len([name for name in os.listdir('%s/%s/hdf' % (path, name)) if
+        #                            os.path.isfile(os.path.join('%s/%s/hdf' % (path, name), name))])):
+        #         new_data = dd.read_hdf("%s/%s/hdf/%s_%s.hdf" % (path, name, name, (i)), key=key)
+        #         data = dd.concat([data, new_data], interleave_partitions=True).reset_index().set_index(
+        #             "time").repartition(partition_size="100Mb")
+        #     data.to_parquet("%s/%s/parquet/%s.parquet" % (path, name, key))
+        #
+        #     # Adding a link to the parquet to the database
+        #
+        #     datalayer.Measurements.addDocument(projectName=projectName,
+        #                                        desc=dict(filter=key, pipeline=names[key], **metadata),
+        #                                        type="OFsimulation",
+        #                                        resource="%s/%s/parquet/%s.parquet" % (path, name, key),
+        #                                        dataFormat="parquet")
+        #
+        # #   Delete hdf directory
+        # if args.keepHDF:
+        #     shutil.rmtree("%s/%s/hdf" % (path, name), ignore_errors=True)
+        #     shutil.rmtree("%s/%s/meta.json" % (path, name), ignore_errors=True)
 
-        # Adding a link to the parquet to the database
 
-        datalayer.Measurements.addDocument(projectName=projectName, desc=dict(filter=key, pipeline=names[key], **metadata), type="OFsimulation",
-                                           resource="%s/%s/parquet/%s.parquet" % (path, name, key), dataFormat="parquet")
+        #
+        # with open("%s/%s/meta.json" % (path, name)) as json_file:
+        #     jsondata = json.load(json_file)
+        # metadata = jsondata["metadata"] # Reading the metadata
 
-    #   Delete hdf directory
-    if args.keepHDF:
-        shutil.rmtree("%s/%s/hdf" % (path, name), ignore_errors=True)
-        shutil.rmtree("%s/%s/meta.json" % (path, name), ignore_errors=True)
+        # Making a list of the pipeline filter names
+
+        # names = {}
+
+       #  makenames(jsondata["pipelines"],"")
+       #
+       # # Adding a link to the parquet to the database
+       #
+       #  datalayer.Measurements.addDocument(projectName=projectName, desc=dict(filter=key, pipeline=names[key], **metadata), type="OFsimulation",
+       #  resource="%s/%s/netcdf/%s.nc" % (path, name, key), dataFormat="netcdf_xarray")
+
+
+
+
 
 def executePipeline_handler(arguments):
 
@@ -99,4 +209,16 @@ def executePipeline_handler(arguments):
     # (name
     #  ="test", pipelineJSON=data, casePath="/home/ofir/Projects/openFoamUsage/askervein", caseType="Reconstructed Case")
 
-globals()['%s_handler' % args.command[0]](args.args)
+
+if __name__ =="__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('command', nargs=1, type=str)
+    parser.add_argument('args', nargs='*', type=str)
+    parser.add_argument('-keepHDF', action='store_false')
+
+    args = parser.parse_args()
+
+    commands = ["load"]
+
+
+    globals()['%s_handler' % args.command[0]](args.args)
