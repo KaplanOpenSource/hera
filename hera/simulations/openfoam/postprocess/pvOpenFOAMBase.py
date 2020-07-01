@@ -242,7 +242,7 @@ class paraviewOpenFOAM(object):
 
         return curstep
 
-    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
+    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100):
         """
             Writes a list of datasources (vtk filters) to netcdf (with xarray).
 
@@ -261,7 +261,7 @@ class paraviewOpenFOAM(object):
                 the times to write
         fieldnames: list
                 the fields to write
-        batch: int
+        tsBlockNum: int
                 the number of
 
         Returns
@@ -285,29 +285,34 @@ class paraviewOpenFOAM(object):
 
         if not os.path.isdir(self.netcdfdir):
             os.makedirs(self.netcdfdir)
+
         blockDig = numpy.ceil(numpy.log10(len(timelist))) + 1
         blockID = 0
         L = []
+
         for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
 
             L.append(xray)
-            if len(L) == batch:
+            if len(L) == tsBlockNum:
                 if isinstance(L[0],dict):
                     filterList = [k for k in L[0].keys()]
                     for filtername in filterList:
                         writeList([item[filtername] for item in L],blockID,blockDig)
+
                 else:
                     writeList(L,blockID,blockDig)
                 L = []
+                blockID += 1
 
-        if isinstance(L[0],dict):
-            filterList = [k for k in L[0].keys()]
-            for filtername in filterList:
-                writeList([item[filtername] for item in L],blockID,blockDig)
-        else:
-            writeList(L,blockID,blockDig)
+        if len(L)>0:
+            if isinstance(L[0],dict):
+                filterList = [k for k in L[0].keys()]
+                for filtername in filterList:
+                    writeList([item[filtername] for item in L],blockID,blockDig)
+            else:
+                writeList(L,blockID,blockDig)
 
-    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
+    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100):
 
         def writeList(theList, blockID, blockDig):
             filterList = [x for x in L[0].keys()]
@@ -322,15 +327,16 @@ class paraviewOpenFOAM(object):
         outfile = readername if outfile is None else outfile
         if not os.path.isdir(self.hdfdir):
             os.makedirs(self.hdfdir)
-        blocDig=numpy.ceil(numpy.log10(len(timelist)))+1
 
+        blocDig=numpy.ceil(numpy.log10(len(timelist)))+1
         blockID = 0
         L = []
+
         for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,
                                    fieldnames=fieldnames):
             L.append(pnds)
 
-            if len(L) == batch:
+            if len(L) == tsBlockNum:
                 writeList(L, blockID,blocDig)
                 L=[]
                 blockID += 1
