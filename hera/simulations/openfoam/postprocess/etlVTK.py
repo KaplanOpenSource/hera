@@ -30,7 +30,6 @@ def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName)
     funcName = "load_%s" % nodeData.get('write', 'None')
     mod=pydoc.locate(__name__)
     loader = getattr(mod,funcName)
-    print (Tree)
     loader(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName)
     ds = nodeData.get("downstream", {})
     for nodeName, nodeData in ds.items():

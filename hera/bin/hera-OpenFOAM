@@ -34,7 +34,7 @@ def load_handler(arguments):
     path = arguments[1]
     name = arguments[2]
     projectName = arguments[3]
-    # keephdf=args.keepHDF
+
 
     with open(JSONpath) as json_file:
         jsondata = json.load(json_file)
@@ -48,7 +48,6 @@ def load_handler(arguments):
         recurseNode(Tree,node,pipelines[node],metadata,pipelines, path=path,name=name,projectName=projectName)
 
     #   Delete hdf directory
-    print(args.keepHDF)
     if args.keepHDF:
         print("deleting HDF files")
         shutil.rmtree("%s/%s/hdf" % (path, name), ignore_errors=True)
