@@ -4,7 +4,7 @@ import pandas
 
 class interpulations():
 
-    def newInterp(self, point, topography, stations, dx=20, dy=20, C=1000, D=5, Hsl=100, b=150):
+    def interp(self, point, stations,topography=None, dx=20, dy=20, C=1000, D=5, Hsl=100, b=150):
         """
         Interpulate the values of a variable by its values in different stations.
         params:
@@ -19,31 +19,38 @@ class interpulations():
             b: The value of parameter b, which effect the slope of the change from D to C.
         """
 
+        vector = True if type(stations[0][3])==list else False
         a_squared = 0.25*(dx**2+dy**2)
         lat = point[0]
         lon = point[1]
         elev = point[2]
-        h = elev-topography
-        Ctag = D/(-numpy.tanh((h-Hsl/2)/b)/2+0.5+D/C)
-        for s in range(len(stations)):
-            if stations[s][0] == lat and stations[s][1] == lon and stations[s][2] == elev:
-                return stations[s][3]
+        if topography is None:
+            Ctag=C
+        else:
+            h = elev-topography
+            Ctag = D/(-numpy.tanh((h-Hsl/2)/b)/2+0.5+D/C)
+        for n in range(len(stations)):
+            if stations[n][0] == lat and stations[n][1] == lon and stations[n][2] == elev:
+                return stations[n][3]
         wt = 0
-        value = [0 for i in range(len(stations[0][3]))]
-        for s in range(len(stations)):
-            r = float((stations[s][0] - lat) ** 2 + (stations[s][1] - lon) ** 2) ** 0.5
+        value = [0 for i in range(len(stations[0][3]))] if vector else 0
+        for n in range(len(stations)):
+            r = float((stations[n][0] - lat) ** 2 + (stations[n][1] - lon) ** 2) ** 0.5
             widw = 1.0 / (1. + (r**2)/a_squared)
-            dz = math.fabs(stations[s][2] - elev)
+            dz = math.fabs(stations[n][2] - elev)
             wedw = 1. /(1.+Ctag*(dz**2./a_squared))
             wt += widw*wedw
-        for s in range(len(stations)):
-            r = float((stations[s][0] - lat) ** 2 + (stations[s][1] - lon) ** 2) ** 0.5
+        for n in range(len(stations)):
+            r = float((stations[n][0] - lat) ** 2 + (stations[n][1] - lon) ** 2) ** 0.5
             widw = 1.0 / (1. + (r**2)/a_squared)
-            dz = math.fabs(stations[s][2] - elev)
+            dz = math.fabs(stations[n][2] - elev)
             wedw = 1. /(1.+Ctag*(dz**2./a_squared))
             wb = widw*wedw
-            for i in range(len(stations[0][3])):
-                value[i] += wb * stations[s][3][i] / wt
+            if vector:
+                for i in range(len(stations[0][3])):
+                    value[i] += wb * stations[n][3][i] / wt
+            else:
+                value += wb * stations[n][3] / wt
 
         return value
 
@@ -58,7 +65,7 @@ class interpulations():
             point = [station[0],station[1],station[2]]
             newStations = stations.copy()
             newStations.remove(station)
-            inter = self.newInterp(point=point, topography=point[2], stations=newStations, dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
+            inter = self.interp(point=point, topography=point[2], stations=newStations, dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
             measure = station[3]
             difference = []
             for i in range(len(inter)):
@@ -66,6 +73,26 @@ class interpulations():
             differences.append(difference)
 
         return differences
+
+    def interpPandas(self, points, stations, columnNames={"x":"x","y":"y","z":"z","topography":"topography"}, dx=20, dy=20, C=1000, D=5, Hsl=100, b=150):
+
+        points = points.reset_index()
+        points["interpulation"] = None
+        for i in range(len(points)):
+            point = [points[columnNames["x"]][i],points[columnNames["y"]][i],points[columnNames["z"]][i]]
+            topography = points[columnNames["topography"]][i] if columnNames["topography"] in points.columns else None
+            points["interpulation"][i] = self.interp(point=point, stations=stations, topography=topography,
+                                                     dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
+        return points
+
+    def interpArray(self, points, stations, columnNames={"x":"x","y":"y","z":"z","topography":"topography"}, dx=20, dy=20, C=1000, D=5, Hsl=100, b=150):
+
+        newPoints = pandas.DataFrame({"x":points[columnNames["x"]],
+                                      "y":points[columnNames["y"]],
+                                      "z":points[columnNames["z"]],
+                                      "topography":points[columnNames["topography"]]})
+        return self.interpPandas(points=newPoints, stations=stations, topography=newPoints["topography"],
+                                                     dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
 
 haifa1 = [
 [34.98535, 32.78562, 280],
