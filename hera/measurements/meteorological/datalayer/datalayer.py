@@ -45,6 +45,7 @@ def getTurbulenceCalculatorFromDB(projectName, samplingWindow, start, end, usePa
     if type(end) is str:
         end = pandas.Timestamp(end)
 
+
     docList = datalayer.Measurements.getDocuments(projectName = projectName, **kwargs)
     dataList = [doc.getData(usePandas=usePandas) for doc in docList]
 
