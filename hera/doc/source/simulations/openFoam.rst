@@ -25,7 +25,7 @@ The file needs to have the next structure:
 
 .. code-block:: python
 
-    "metadata" : {
+    {"metadata" : {
                "datadir"    : "/home/ofir/Projects/2020/Carmel5/results",
                "timelist"   : [1000],
                "fields"     : ["U"],
@@ -79,10 +79,11 @@ Loading the data to the database
 ................................
 
 The loading is done using a command line interface:
+Note that this sectioned must be executed in python-3 environment.
 
 .. code-block:: python
 
-    hera-OpenFOAM [path] [name] [projectName] --keepHDF
+    hera-OpenFOAM load [path] [name] [projectName] --keepHDF
 
 The path is the full directory of the directory
 specified as the metadata "datadir" in the json file.
