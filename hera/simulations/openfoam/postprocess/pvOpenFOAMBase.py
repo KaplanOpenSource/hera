@@ -287,7 +287,7 @@ class paraviewOpenFOAM(object):
             os.makedirs(self.netcdfdir)
 
         blockDig = numpy.ceil(numpy.log10(len(timelist))) + 1
-        blockID = 0
+        blockID = 0 +len(glob.glob(os.path.join(self.netcdfdir,'*.nc')))
         L = []
 
         for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
