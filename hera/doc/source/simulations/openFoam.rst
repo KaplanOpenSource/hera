@@ -155,3 +155,4 @@ Usage
 
     openFoam/ManagingData
     openFoam/analysis
+    openFoam/utils

@@ -1,7 +1,33 @@
 import pandas
 import numpy
 
-def centersToPandas(filepath='C', saveToTxt=False):
+def centersToPandas(filepath='C', saveToTxt=False, fileName="CellCenters.txt"):
+    """
+        Extract pandas from openfoam cell centers file.
+
+        It is also possible to save it to  a new txt file
+
+    Parameters
+    -----------
+
+    filepath: str
+        The path to the cell centers file.
+        Default: 'C'
+
+    saveToTxt:  boolean
+        Weather to save the centers coords to txt file
+        Default: False
+
+    fileName: str
+        The file name to save.
+        default: None
+
+    return
+    ------
+
+    cellData: pandas DF
+
+    """
 
     skiphead = 22
     skipend = 45043
@@ -25,7 +51,7 @@ def centersToPandas(filepath='C', saveToTxt=False):
         for i in range(numberOfCells):
             out.append(f"({L[i, 0]} {L[i, 1]} {L[i, 2]})\n")
 
-        with open("CellCenters.txt", "w") as outfile:
+        with open(fileName, "w") as outfile:
             outfile.write("".join(out))
 
     return cellData
