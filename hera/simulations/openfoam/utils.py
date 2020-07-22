@@ -1,7 +1,7 @@
 import pandas
 import numpy
 
-def centersToPandas(filepath='C', skiphead = 22,skipend = 8, saveToTxt=False, fileName="CellCenters.txt"):
+def centersToPandas(skipend, filepath='C', skiphead = 22, saveToTxt=False, fileName="CellCenters.txt"):
     """
         Extract pandas from openfoam cell centers file.
 
