@@ -320,7 +320,7 @@ class DataLayer_CampbellBinary(DataLayer):
         for station in metadata_dict:
             for instrument in metadata_dict[station]:
                 for height in metadata_dict[station][instrument]:
-                    dir_path = os.path.join(outputpath, station, instrument, height)
+                    dir_path = os.path.join(outputpath, station, instrument, str(height))
                     docList = datalayer.Measurements.getDocuments(projectName=projectName,
                                                                   type=self._docType,
                                                                   DataSource=self._DataSource,

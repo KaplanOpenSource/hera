@@ -187,8 +187,8 @@ class Parser_CampbellBinary(object):
                 heights = list(instrument_df['height'].unique())
                 instrument_metadata = station_metadata.setdefault(instrument, dict())
                 for height in heights:
-                    metadata.update(dict(station=station, instrument=instrument, height=height))
-                    instrument_metadata.setdefault(height, metadata)
+                    metadata.update(dict(station=station, instrument=instrument, height=int(height)))
+                    instrument_metadata.setdefault(int(height), metadata)
 
         loaded_dask = dd.from_pandas(df, npartitions=1)
         return loaded_dask, metadata_dict
@@ -199,7 +199,7 @@ class Parser_CampbellBinary(object):
         dfList = []
         for key in data:
             tmp_df = pandas.DataFrame(data[key], index=ts, columns=columns)
-            tmp_df['height'] = key
+            tmp_df['height'] = int(key)
             tmp_df['station'] = self.headers[0].split(',')[1]
             tmp_df['instrument'] = self.headers[0].split(',')[-1]
             dfList.append(tmp_df)
