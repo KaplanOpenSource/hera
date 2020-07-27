@@ -346,7 +346,9 @@ class DataLayer_CampbellBinary(DataLayer):
                             db_dask = doc.getData()
                             data = [db_dask, new_dask]
                             new_Data = dask.dataframe.concat(data, interleave_partitions=True)\
+                                                     .reset_index()\
                                                      .drop_duplicates()\
+                                                     .set_index('index')\
                                                      .repartition(partition_size=self._np_size)
 
                             new_Data.to_parquet(doc.resource, engine='pyarrow')
