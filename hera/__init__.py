@@ -1,9 +1,4 @@
-__version__ = '0.4.1'
-
-
-
-
-
+__version__ = '0.5.0'
 
 
 import sys
@@ -18,6 +13,10 @@ if version==3:
 from .simulations import openfoam
 
 """
+ 0.5.0
+ -----
+ Changed the meteorological structure(datalayer and presentaionlayer)
+
  0.4.1
  -----
  With demography in GIS
