@@ -162,8 +162,10 @@ class Parser_IMS(object):
 
 class Parser_CampbellBinary(object):
     _lut = None
-    _dataContent = None
+    _dataContent = None # The array of the data.
     _basenum = None
+
+    byteSize = None # the size of one record in bytes.
 
     def __init__(self):
         self._lut = {}
@@ -222,6 +224,8 @@ class Parser_CampbellBinary(object):
         print('Readinf File {}'.format(fullPath))
 
         self.readFileAndExtractHeader(fullPath)
+
+
         if self._basenum != -1:
             print('Done Readinf File {}'.format(fullPath))
             # print("Number of lines = {}".format(len(lines)))
@@ -231,7 +235,7 @@ class Parser_CampbellBinary(object):
             print('File columnst {}'.format(self.cols))
             print('File Format {}\nRecord size = {}\nTotal Number of Records = {}'.format(self.rawFormat, self.byteSize,
                                                                                           (len(self._dataContent) - self._basenum) // self.byteSize))
-            ts, data, rn = self.getdata()
+            ts, data, rn = self.getData()
 
             self.headers[0] = self.headers[0].replace('TOB1', 'TOA5')
             self.headers[1] = self.headers[1].replace('SECONDS,NANOSECONDS', 'TIMESTAMP')
@@ -243,7 +247,7 @@ class Parser_CampbellBinary(object):
             return ts, data, rn
         return None, None, None
 
-    def getdata(self):
+    def getData(self):
         tempVal = []
         retVal = {}
 
@@ -261,7 +265,7 @@ class Parser_CampbellBinary(object):
         rn = []
 
         while (base + self.byteSize <= len(self._dataContent)):
-            lastSec, lastmili, line = self.getDataFromStream(self._dataContent[base: base + self.byteSize])
+            lastSec, lastmili, line = self.getDataFromStream(self._dataContent[base  : base + self.byteSize])
             basetimestamp = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
             ts.append(basetimestamp)
 
