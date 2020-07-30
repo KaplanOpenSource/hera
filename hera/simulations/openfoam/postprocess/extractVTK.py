@@ -2,6 +2,7 @@ import pandas
 import os
 import json
 from pvOpenFOAMBase import paraviewOpenFOAM
+import paraview.simple as pvsimple
 
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).
@@ -90,7 +91,7 @@ class VTKpipeline(object):
             self._pvOFBase.hdfdir = os.path.join(name, "hdf")
             self._mainpath = os.path.join(name)
 
-    def execute(self, source, writeMetadata=True):
+    def execute(self, source, writeMetadata=True,tsBlockNum=100):
         """
             Builds the pipeline from the JSON vtk.
 
@@ -133,7 +134,7 @@ class VTKpipeline(object):
             if writer is None:
                 raise ValueError("The write %s is not found" % writer)
             writer(readername=source, datasourcenamelist=datasourceslist, timelist=timelist,
-                   fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None), outfile=self.name)
+                   fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None), outfile=self.name,tsBlockNum=tsBlockNum)
 
         if writeMetadata:
             with open('%s/meta.json' % self._mainpath, 'w') as outfile:

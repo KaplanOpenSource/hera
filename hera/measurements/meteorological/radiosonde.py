@@ -49,7 +49,7 @@ class DataLayer(object):
                     date=date,
                     columns=list(data.columns),
                     columnsDesc=self.columnsDescDict,
-                    DataSource='radiosonde'
+                    DataSource='Radiosonde'
                     )
         desc.update(kwargs)
 
@@ -81,7 +81,7 @@ class DataLayer(object):
         docList = Measurements.getDocuments(projectName=projectName,
                                             dataFormat='JSON_pandas',
                                             type='meteorological',
-                                            DataSource='radiosonde',
+                                            DataSource='Radiosonde',
                                             **query
                                             )
         return docList
