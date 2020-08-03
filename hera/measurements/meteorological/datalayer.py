@@ -268,7 +268,7 @@ class DataLayer_CampbellBinary(DataLayer):
                                        )
         return docList
 
-    def getDocFromFile(self, path, **kwargs):
+    def getDocFromFile(self, path, fromTime=None, **kwargs):
 
         """
         Reads data from file/directory and returns a 'metadata like' object
@@ -286,10 +286,10 @@ class DataLayer_CampbellBinary(DataLayer):
 
         """
 
-        loaded_dask, _ = self.parse(path=path)
+        loaded_dask, _ = self.parse(path=path, fromTime=fromTime)
         return [nonDBMetadata(loaded_dask, **kwargs)]
 
-    def LoadData(self, newdata_path, outputpath, projectName, **metadata):
+    def LoadData(self, newdata_path, outputpath, projectName, fromTime=None, **metadata):
 
         """
             This function load data from file to database:
@@ -313,7 +313,7 @@ class DataLayer_CampbellBinary(DataLayer):
 
         # 1- load the data #
 
-        loaded_dask, metadata_dict = self.parse(path=newdata_path, **metadata)
+        loaded_dask, metadata_dict = self.parse(path=newdata_path, fromTime=fromTime, **metadata)
 
         groupby_data = loaded_dask.groupby(['station', 'instrument', 'height'])
 

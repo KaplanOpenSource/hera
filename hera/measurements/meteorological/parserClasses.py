@@ -175,11 +175,11 @@ class Parser_CampbellBinary(object):
         self._basenum = 0
         self._chunkSize = chunkSize
 
-    def parse(self, path, **metadata):
+    def parse(self, path, fromTime=None, **metadata):
         if os.path.isfile(path):
-            df = self.getPandasFromFile(path)
+            df = self.getPandasFromFile(path, fromTime=fromTime)
         else:
-            df = self.getPandasFromDir(path)
+            df = self.getPandasFromDir(path, fromTime=fromTime)
 
         metadata_dict = dict()
         stations = df['station'].unique()
@@ -198,22 +198,23 @@ class Parser_CampbellBinary(object):
         loaded_dask = dd.from_pandas(df, npartitions=1)
         return loaded_dask, metadata_dict
 
-    def getPandasFromFile(self, path):
-        ts, data, _ = self.rawRead(path)
+    def getPandasFromFile(self, path, fromTime):
+        cbi = CampbellBinaryInterface(file=path)
+        ts, cols, data = self.getData(path, fromTime=fromTime)
         dfList = []
         for i, key in enumerate(data.keys()):
-            columns = self.cols[i]
+            columns = cols[i]
             tmp_df = pandas.DataFrame(data[key], index=ts, columns=columns)
             tmp_df['height'] = int(key)
-            tmp_df['station'] = self.headers[0].split(',')[1]
-            tmp_df['instrument'] = self.headers[0].split(',')[-1]
+            tmp_df['station'] = cbi.headers[0].split(',')[1]
+            tmp_df['instrument'] = cbi.headers[0].split(',')[-1]
             dfList.append(tmp_df)
         return pandas.concat(dfList, sort=True)
 
-    def getPandasFromDir(self, path):
+    def getPandasFromDir(self, path, fromTime):
         dfList = []
         for file in glob.glob(os.path.join(path, '*.dat')):
-            tmp_df = self.getPandasFromFile(file)
+            tmp_df = self.getPandasFromFile(file, fromTime=fromTime)
             dfList.append(tmp_df)
         return pandas.concat(dfList, sort=True)
 
@@ -250,219 +251,34 @@ class Parser_CampbellBinary(object):
             return ts, data, rn
         return None, None, None
 
-    def getData(self):
-        tempVal = []
+    def getData(self, file, fromTime):
+        cbi = CampbellBinaryInterface(file=file)
         retVal = {}
 
-        cols = []
-        for i in range(len(self.cols)):
-            cols.append(self.cols[i])
-            tempVal.append([])
-            if len(self.cols) == 1:
+        for i in range(len(cbi.columnsNames)):
+            if len(cbi.columnsNames) == 1:
                 retVal[10] = []
             else:
                 retVal[6 + 5 * i] = []
 
-        base = self._basenum
-        ts = []
-        rn = []
+        if type(fromTime)==str:
+            fromTime = pandas.Timestamp(fromTime)
 
-        while (base + self.byteSize <= len(self._dataContent)):
-            lastSec, lastmili, line = self.getDataFromStream(self._dataContent[base : base + self.byteSize])
-            basetimestamp = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
-            ts.append(basetimestamp)
-
-            for i in range(len(self.cols)):
-                rn.append(line[0])
-                tempVal[i].append(line[self.Indexes[i][0]: self.Indexes[i][1]])
-            base += self.byteSize
-
-        ind = 0
-        for key in retVal:
-            retVal[key] = tempVal[ind]
-            ind += 1
-        return ts, retVal, rn
-
-    def createPandasFromStream(self):
-
-        if self.byteSize == 0:
-            return
-
-        print('Create Pandas Data...')
-        tempVal = []
-        retVal = {}
-
-        cols = []
-        for i in range(len(self.cols)):
-            cols.append(self.cols[i])
-            tempVal.append([])
-            if len(self.cols) == 1:
-                retVal[10] = []
-            else:
-                retVal[6 + 5 * i] = []
-
-        base = self._basenum
+        recordIndex = 1 if fromTime is None else cbi.getRecordIndexByTime(fromTime)
+        import pdb
+        pdb.set_trace()
+        #base = self._basenum
         ts = []
 
-        while (base + self.byteSize < len(self._dataContent)):
-            lastSec, lastmili, line = self.getDataFromStream(self._dataContent[base: base + self.byteSize])
-            basetimestamp = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
-            ts.append(basetimestamp)
-            for i in range(len(self.cols)):
-                tempVal[i].append(line[self.Indexes[i][0]: self.Indexes[i][1]])
-            base += self.byteSize
+        while recordIndex+1 <= cbi.recordsNum:
+            time, line = cbi.getRecordByIndex(recordIndex)
+            ts.append(time)
 
-        if len(self.cols) == 1:
-            retVal[10] = pandas.DataFrame(tempVal[i], columns=cols[i], index=ts)
-        else:
-            for i in range(len(self.cols)):
-                retVal[6 + 5 * i] = pandas.DataFrame(tempVal[i], columns=cols[i], index=ts)
+            for i, key in enumerate(retVal):
+                retVal[key].append(line[cbi.columnsIndexes[i][0]: cbi.columnsIndexes[i][1]])
+            recordIndex += 1
 
-        print('Done...')
-        return retVal, self.headers
-
-    def floatConvert(self, hbyte, lowbyte):
-        if (hbyte & 0x80) > 0:
-            sign = -1.0
-        else:
-            sign = 1.0
-
-        shorti = hbyte & 0x60
-        if shorti == 0x60:
-            factor = 1000.0
-        elif shorti == 0x40:
-            factor = 100.0
-        elif shorti == 0x20:
-            factor = 10.0
-        else:
-            factor = 1.0
-
-        val = sign * ((hbyte & 0x1f) * 256.0 + lowbyte) / factor
-        return val
-
-    def newfloatConvert(self, key):
-        try:
-            return self._lut[ key ]
-        except:
-            if key == 65183:
-                self._lut[key] = float('nan')
-                return
-            val = self.floatConvert(int(key % 256), key / 256)
-            self._lut[key] = val
-            return val
-
-    def extractColumnNames(self):
-        colheader = self.headers[1].upper()
-        self.cols = []
-        self.Indexes = []
-
-        if colheader.find("U_") != -1:
-            # Raw Sonic Binary data file
-            for i in range(3):
-                if colheader.find("U_{}".format(i + 1)) != -1:
-                    self.cols.append(['u', 'v', 'w', 'T'])
-                    self.Indexes.append([1 + 4 * i, 5 + 4 * i])
-
-
-        elif colheader.find("TC_T") != -1:
-            if colheader.find("TC_T1") != -1:
-                self.cols.append(['TcT'])
-                self.Indexes.append([1, 2])
-            else:
-                for i in range(3):
-                    if colheader.find("TC_T({})".format(i + 1)) != -1:
-                        self.cols.append(['TcT'])
-                        self.Indexes.append([i + 1, i + 2])
-
-            self.cols[len(self.cols) - 1].append('TRH')
-            self.cols[len(self.cols) - 1].append('RH')
-            self.Indexes[len(self.Indexes) - 1][1] += 2
-        return
-
-    def readFileAndExtractHeader(self, filename):
-        try:
-            binFile = open(filename, 'rb')
-        except:
-            print('File {} Not Exists...'.format(filename))
-            self._basenum = -1
-            return
-
-        self._dataContent = binFile.read()
-        binFile.close()
-        print("Reading Done...")
-        self.headers = []
-        numlf = 5
-        self._basenum = 0
-        tempstr = ''
-
-        while numlf > 0:
-            tempstr += chr(self._dataContent[self._basenum])
-            if self._dataContent[self._basenum] == 10:
-                self.headers.append(tempstr)
-                tempstr = ''
-                numlf -= 1
-            self._basenum += 1
-
-        for i in range(len(self.headers)):
-            self.headers[i] = self.headers[i].replace('"', '').replace('\r\n', '')
-
-        if self.headers[0].find('TOA5,') == 0:
-            print('The file {} is ASCII File and will not be converted !!!!'.format(filename))
-            self._basenum = -1
-            return
-
-        self.extractColumnNames()
-
-        return
-
-    def getActualFormat(self):
-        if self.headers[4].find(",") == -1:
-            self.byteSize = 0
-            print("Missing Format Descriptor in line 4....")
-            return
-
-        rawFormata = self.headers[4].split(",")
-        self.rawFormat = len(rawFormata) * ['']
-
-        self.format = "<"
-        for i in range(len(rawFormata)):
-            self.rawFormat[i] = rawFormata[i].strip('"')
-            if rawFormata[i] == 'ULONG':
-                self.format += "I"
-            elif rawFormata[i] == 'FP2':
-                self.format += "H"
-            elif rawFormata[i] == 'IEEE4':
-                self.format += "f"
-            elif rawFormata[i] == 'IEEE8':
-                self.format += "d"
-            elif rawFormata[i] == 'USHORT':
-                self.format += "H"
-            elif rawFormata[i] == 'LONG':
-                self.format += "l"
-            elif rawFormata[i] == 'BOOL':
-                self.format += "?"
-            elif rawFormata[i].find("ASCII(") != -1:
-                self.format += rawFormata[i][6: -1] + 's'
-            else:
-                self.byteSize = 0
-                print("Unknown {} Format....".format(rawFormata[i]))
-                return
-        self.byteSize = struct.calcsize(self.format)
-
-    def byteToStr(self,inpbyte):
-        retval = ''
-        for i in range(len(inpbyte)):
-            retval += chr(inpbyte[ i ])
-        return retval.strip('\0')
-
-    def getDataFromStream(self, partStream):
-        retval = list(struct.unpack(self.format, partStream))
-        for i in range(3,len(retval)):
-            if self.rawFormat[ i ] == 'FP2':
-                retval[ i ] = self.newfloatConvert(retval[ i ])
-            elif self.rawFormat[ i ].find("ASCII(") != -1:
-                retval[i] = self.byteToStr(retval[i])
-        return retval[ 0 ], retval[ 1 ] / 1000000, retval[ 2: ]
+        return ts, cbi.columnsNames, retVal
 
 
 class CampbellBinaryInterface(object):
@@ -539,6 +355,10 @@ class CampbellBinaryInterface(object):
         if self._columnsIndexes is None:
             self._columnsIndexes = self._getColumnIndexes()
         return self._columnsIndexes
+
+    @property
+    def binData(self):
+        return self._binData
 
     def __init__(self, file):
         self._file = file
@@ -656,22 +476,26 @@ class CampbellBinaryInterface(object):
         return header_size
 
     def _getFirstTime(self):
-        time, _ = self._getRecordByIndex(0)
+        time, _ = self.getRecordByIndex(0)
         return time
 
     def _getLastTime(self):
-        time, _ = self._getRecordByIndex(self.recordsNum-1)
+        time, _ = self.getRecordByIndex(self.recordsNum-1)
         return time
 
     def _getTimeByIndex(self, i):
-        time, _ = self._getRecordByIndex(i)
+        time, _ = self.getRecordByIndex(i)
         return time
 
-    def _getRecordByIndex(self, i):
+    def getRecordByIndex(self, i):
         index = self.headersSize+i*self.recordSize
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
         time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
         return time, line
+
+    def getRecordByTime(self, time):
+        i = self.getRecordIndexByTime(time)
+        return self.getRecordByIndex(i)
 
     def _getDataFromStream(self, partStream):
         retval = list(struct.unpack(self.format, partStream))
