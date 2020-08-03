@@ -1,4 +1,4 @@
-__version__ = '0.5.0'
+__version__ = '0.5.1'
 
 
 import sys
@@ -13,6 +13,10 @@ if version==3:
 from .simulations import openfoam
 
 """
+ 0.5.1
+ -----
+ CampbellBinary parser and datalayer fixed.
+
  0.5.0
  -----
  Changed the meteorological structure(datalayer and presentaionlayer)

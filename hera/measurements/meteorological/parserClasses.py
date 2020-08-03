@@ -228,10 +228,10 @@ class Parser_CampbellBinary(object):
             else:
                 retVal[6 + 5 * i] = []
 
-        if type(fromTime)==str:
+        if type(fromTime) == str:
             fromTime = pandas.Timestamp(fromTime)
 
-        recordIndex = 1 if fromTime is None else cbi.getRecordIndexByTime(fromTime)
+        recordIndex = 0 if fromTime is None else cbi.getRecordIndexByTime(fromTime)
 
         ts = []
 
@@ -523,7 +523,10 @@ class CampbellBinaryInterface(object):
                 upperIndex = (lowerIndex+upperIndex)//2
             recordTime = self._getTimeByIndex((lowerIndex+upperIndex)//2)
 
-        return (lowerIndex+upperIndex)//2 if recordTime==time else None
+        if recordTime!=time:
+            raise IndexError("There is no record at %s" % time)
+        else:
+            return (lowerIndex+upperIndex)//2
 
 
 class Parser_Radiosonde(object):
