@@ -218,39 +218,6 @@ class Parser_CampbellBinary(object):
             dfList.append(tmp_df)
         return pandas.concat(dfList, sort=True)
 
-    def rawRead(self, fullPath):
-        """
-            XXX no !!! X.read(param1,param2)  XXXX
-            params = {'param1' :
-        :param fullPath:
-        :return:
-        """
-        print('Readinf File {}'.format(fullPath))
-
-        self.readFileAndExtractHeader(fullPath)
-
-
-        if self._basenum != -1:
-            print('Done Readinf File {}'.format(fullPath))
-            # print("Number of lines = {}".format(len(lines)))
-
-            self.getActualFormat()
-
-            print('File columnst {}'.format(self.cols))
-            print('File Format {}\nRecord size = {}\nTotal Number of Records = {}'.format(self.rawFormat, self.byteSize,
-                                                                                          (len(self._dataContent) - self._basenum) // self.byteSize))
-            self.headers[0] = self.headers[0].replace('TOB1', 'TOA5')
-            self.headers[1] = self.headers[1].replace('SECONDS,NANOSECONDS', 'TIMESTAMP')
-            self.headers[2] = self.headers[2].replace('SECONDS,NANOSECONDS', 'TS')
-            self.headers[3] = self.headers[3][1:]
-            self.headers = self.headers[:-1]
-
-            ts, data, rn = self.getData()
-
-            self._dataContent = None
-            return ts, data, rn
-        return None, None, None
-
     def getData(self, file, fromTime):
         cbi = CampbellBinaryInterface(file=file)
         retVal = {}
@@ -265,9 +232,7 @@ class Parser_CampbellBinary(object):
             fromTime = pandas.Timestamp(fromTime)
 
         recordIndex = 1 if fromTime is None else cbi.getRecordIndexByTime(fromTime)
-        import pdb
-        pdb.set_trace()
-        #base = self._basenum
+
         ts = []
 
         while recordIndex+1 <= cbi.recordsNum:
