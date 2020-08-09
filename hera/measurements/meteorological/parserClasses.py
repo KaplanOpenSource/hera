@@ -222,11 +222,8 @@ class Parser_CampbellBinary(object):
         cbi = CampbellBinaryInterface(file=file)
         retVal = {}
 
-        for i in range(len(cbi.columnsNames)):
-            if len(cbi.columnsNames) == 1:
-                retVal[10] = []
-            else:
-                retVal[6 + 5 * i] = []
+        for i in cbi.heights:
+            retVal[i] = []
 
         if type(fromTime) == str:
             fromTime = pandas.Timestamp(fromTime)
@@ -271,6 +268,21 @@ class CampbellBinaryInterface(object):
         if self._headers is None:
             self._headers = self._getHeaders()
         return self._headers
+
+    @property
+    def station(self):
+        return self.headers[0].split(',')[1]
+
+    @property
+    def instrument(self):
+        return self.headers[0].split(',')[-1]
+
+    @property
+    def heights(self):
+        if len(self.columnsNames) == 1:
+            return [10]
+        else:
+            return [6, 11, 16]
 
     @property
     def recordSize(self):

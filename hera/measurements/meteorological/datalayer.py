@@ -13,7 +13,7 @@ class DataLayer(object):
     _DataSource = None
     _parser = None
     _docType = 'meteorological'
-    _np_size = "100Mb"
+    _partitionSize = "100Mb"
 
     def __init__(self, DataSource):
         self._DataSource = DataSource
@@ -195,7 +195,7 @@ class DataLayer_IMS(DataLayer):
                     new_Data = dask.dataframe.concat(data, interleave_partitions=True)\
                                              .set_index(time_coloumn)\
                                              .drop_duplicates()\
-                                             .repartition(partition_size=self._np_size)
+                                             .repartition(partition_size=self._partitionSize)
 
                     new_Data.to_parquet(doc.resource, engine='pyarrow')
 
@@ -211,7 +211,7 @@ class DataLayer_IMS(DataLayer):
                 # 4- create meta data
                 desc = metadata_dict[stnname]
 
-                new_Data = stn_dask.repartition(partition_size=self._np_size)
+                new_Data = stn_dask.repartition(partition_size=self._partitionSize)
                 new_Data.to_parquet(dir_path, engine='pyarrow')
 
                 datalayer.Measurements.addDocument(projectName=projectName,
@@ -349,7 +349,7 @@ class DataLayer_CampbellBinary(DataLayer):
                                                      .reset_index()\
                                                      .drop_duplicates()\
                                                      .set_index('index')\
-                                                     .repartition(partition_size=self._np_size)
+                                                     .repartition(partition_size=self._partitionSize)
 
                             new_Data.to_parquet(doc.resource, engine='pyarrow')
 
@@ -366,7 +366,7 @@ class DataLayer_CampbellBinary(DataLayer):
                         # 4- create meta data
                         desc = metadata_dict[station][instrument][height]
 
-                        new_Data = new_dask.repartition(partition_size=self._np_size)
+                        new_Data = new_dask.repartition(partition_size=self._partitionSize)
                         new_Data.to_parquet(dir_path, engine='pyarrow')
 
                         datalayer.Measurements.addDocument(projectName=projectName,
