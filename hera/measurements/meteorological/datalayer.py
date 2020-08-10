@@ -128,7 +128,7 @@ class DataLayer_IMS(DataLayer):
         loaded_dask, _ = self.parse(path=path, station_column=station_column, time_coloumn=time_coloumn)
         return [nonDBMetadata(loaded_dask, **kwargs)]
 
-    def LoadData(self, newdata_path, outputpath, projectName, metadatafile=None, station_column='stn_name', time_coloumn='time_obs', **metadata):
+    def LoadData(self, newdata_path, outputpath, projectName, metadatafile=None, station_column='stn_name', time_column='time_obs', **metadata):
 
         """
             This function load data from file to database:
@@ -160,7 +160,7 @@ class DataLayer_IMS(DataLayer):
 
         loaded_dask, metadata_dict = self.parse(path=newdata_path,
                                                 station_column=station_column,
-                                                time_coloumn=time_coloumn,
+                                                time_column=time_column,
                                                 metadatafile=metadatafile,
                                                 **metadata
                                                 )
@@ -193,7 +193,7 @@ class DataLayer_IMS(DataLayer):
                     stn_db = doc.getData()
                     data = [stn_db.reset_index(), stn_dask]
                     new_Data = dask.dataframe.concat(data, interleave_partitions=True)\
-                                             .set_index(time_coloumn)\
+                                             .set_index(time_column)\
                                              .drop_duplicates()\
                                              .repartition(partition_size=self._partitionSize)
 
