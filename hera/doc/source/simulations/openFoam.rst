@@ -25,7 +25,7 @@ The file needs to have the next structure:
 
 .. code-block:: python
 
-    "metadata" : {
+    {"metadata" : {
                "datadir"    : "/home/ofir/Projects/2020/Carmel5/results",
                "timelist"   : [1000],
                "fields"     : ["U"],
