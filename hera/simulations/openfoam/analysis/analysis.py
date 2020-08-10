@@ -2,8 +2,6 @@ import paraview.simple as pvsimple
 from ..postprocess.pvOpenFOAMBase import paraviewOpenFOAM
 from ..postprocess.dataManipulations import dataManipulations
 import numpy
-import os
-from .... import datalayer
 
 class tests():
 
