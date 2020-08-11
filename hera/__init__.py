@@ -11,8 +11,6 @@ if version==3:
     from .simulations.LSM.DataLayer import SingleSimulation
     from .measurements import GIS
     from .simulations.interpulations.interpulations import interpulations
-    from .simulations.utils.coordinateHandler import coordinateHandler
-    coordinateHandler = coordinateHandler()
 from .simulations import openfoam
 
 """
