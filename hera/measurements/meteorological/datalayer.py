@@ -27,6 +27,7 @@ class DataLayer(object):
                                                       type=self._docType,
                                                       **desc
                                                       )
+
         return docList
 
     def getDocFromFile(self, **kwargs):
@@ -103,7 +104,7 @@ class DataLayer_IMS(DataLayer):
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
                                        dataFormat=dataFormat,
-                                       desc=kwargs
+                                       **kwargs
                                        )
         return docList
 
@@ -264,7 +265,7 @@ class DataLayer_CampbellBinary(DataLayer):
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
                                        dataFormat=dataFormat,
-                                       desc=kwargs
+                                       **kwargs
                                        )
         return docList
 
