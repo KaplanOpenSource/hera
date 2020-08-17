@@ -26,6 +26,9 @@ ydir=False means that the y component of the velocity is negative.
 The data was loaded from the database after it was added as demonstrated in the
 10 minutes tutorial.
 
+If the data is two dimensional, and the velocity has only x and z components,
+one should also input twoD = True.
+
 The function that arrange clips works similarly.
 
 .. code-block:: python

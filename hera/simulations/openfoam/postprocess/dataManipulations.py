@@ -11,7 +11,7 @@ class dataManipulations():
 
         self._projectName = projectName
 
-    def arrangeSlice(self, data, xdir=True, ydir=True, save=False, path=None, key="Slice", addToDB=True, hdfName="ArrangedSlice", **kwargs):
+    def arrangeSlice(self, data, twoD=False, xdir=True, ydir=True, save=False, path=None, key="Slice", addToDB=True, hdfName="ArrangedSlice", **kwargs):
         """
         Arranging data of a slice: adding distance downwind, velocity and height over terrain.
         Params:
@@ -22,7 +22,11 @@ class dataManipulations():
             The arranged data
         """
         data["terrain"] = [numpy.nan for x in range(len(data))]
-        data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
+        if twoD:
+            data = data.drop(columns="U_y")
+            data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_z"] * data["U_z"])
+        else:
+            data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
 
         if xdir:
             x2 = data["x"] - data['x'].min()
@@ -155,3 +159,32 @@ class dataManipulations():
             if addToDB:
                 datalayer.Measurements.addDocument(projectName=projectName, desc=(dict(filter=filter, **kwargs)),
                                                    resource=dict(path=path, key=key), type="OFsimulation", dataFormat="HDF")
+
+    def toSigmaCoordinate(self, data, sigmas=None):
+        zmax = data["z"].max()
+        data["sigma"] = data["z"]/(zmax-data["terrain"])
+        return data
+
+    def meanVelocity(self, data, sigmas, method="interpolate"):
+
+        datalist = []
+        if method=="interpolate":
+            for dist in list(data.distance.drop_duplicates()):
+                for sigma in sigmas:
+                    if sigma > data.loc[data.distance == dist].sigma.min() and sigma < data.loc[
+                        data.distance == dist].sigma.max():
+                        data = data.append({"distance": dist, "sigma": sigma}, ignore_index=True)
+                datalist.append(data.loc[data.distance == dist].sort_values(by=["distance", "sigma"]).set_index("sigma").interpolate(method="index").reset_index())
+        else:
+            for sigma in sigmas:
+                data["difference"] = numpy.square(data["sigma"] - sigma)
+                newData = data.loc[data.difference == data.difference.min()]
+                newData["sigma"] = sigma
+                datalist.append(newData)
+        data = pandas.concat(datalist)
+        datalist = []
+        for sigma in sigmas:
+            newdata = data.loc[data.sigma==sigma]
+            newdata["disturbance"] = 100*(newdata.Velocity - newdata.Velocity.mean())/newdata.Velocity
+            datalist.append(newdata)
+        return pandas.concat(datalist)

@@ -11,10 +11,10 @@ Ten minutes tutorial
 
 This tutorial first shows how to load openFoam simulation results to the database.
 
-The process is devided to two parts: the first executes operations on the raw data and saves it to the disk,
-and the second loads the data to the database.
+The process is divided to two parts: the first executes operations on the raw data and saves it to the disk,
+the second loads the data to the database.
 The first part is conducted in a python-2 environment, and the second one in python-3.
-Both operations use a command line interface.
+Both operations use a command Line Interface (CLI).
 
 Building a JSON pipeline file
 .............................
@@ -25,7 +25,7 @@ The file needs to have the next structure:
 
 .. code-block:: python
 
-    "metadata" : {
+    {"metadata" : {
                "datadir"    : "/home/ofir/Projects/2020/Carmel5/results",
                "timelist"   : [1000],
                "fields"     : ["U"],
@@ -49,24 +49,27 @@ The file needs to have the next structure:
 
 The json file consists a part called metadata, and a part called pipeline.
 The metadata may consist the parameters shown above, that affect the operation:
-they controll which fields, timesteps and mesh regions would be used. These parameters are not mandatory. It may also consist additional parameters that would be used as descriptors in the hera database.
+they control which fields, time steps and mesh regions would be used. These parameters are not mandatory. It may also consist additional parameters that would be used as descriptors in the hera database.
 
 Executing operations on the data
 ................................
 
-The execution is done using the command line interface:
+The execution is done using the CLI:
 
 .. code-block:: python
 
-    hera-OpenFOAM executePipeline [JSONpath] [name] [casePath] [caseType] [sourcename]
+    hera-OpenFOAM executePipeline [JSONpath] [name] [casePath] [caseType] [servername] [tsBlockNum]
 
 JSONpath is the path of the json file,
 name is a name used for the new files, casePath is the directory of the openFOAM project.
-caseType and sourcename are optional.
+caseType, servername  and tsBlockNum are optional.
+The CLI is positional order depended, so if one is defined- all the optional before must be defined as well
 caseType is either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
 for single processor cases, the default is 'Decomposed Case'.
-sourcename is a connection string to the paraview server.
+servername is a connection string to the paraview server.
 The default is None, which work locally.
+tsBlockNum is the number of time steps will be saved to single file. The default is 100
+All the parameters should pass as a string with "" or ''
 
 For example,
 
@@ -78,12 +81,13 @@ For example,
 Loading the data to the database
 ................................
 
-The loading is done using a command line interface:
+The loading is done using a CLI:
 
 .. code-block:: python
 
-    hera-OpenFOAM [path] [name] [projectName] --keepHDF
+    hera-OpenFOAM [JSONpath] [path] [name] [projectName] -keepHDF
 
+JSONpath is the path of the json file
 The path is the full directory of the directory
 specified as the metadata "datadir" in the json file.
 The name is the name used for the executePipeline.
@@ -92,22 +96,23 @@ for example,
 
 .. code-block:: python
 
-    hera-OpenFOAM load "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
+    hera-OpenFOAM load "/home/ofir/Projects/openFoamUsage/askervein/test.json" "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
 
-This command saves the results of each filter in a parquet file.
-A document that links to the parquet is added to the database.
+This command saves the results of each filter that has a 'write' property in the pipeline to the database.
+the hdf files are converted parquet file before loading.
+A document that links to the filter data is added to the database.
 The type indicated in the metadata is "OFsimulation".
 In addition, a descriptor called "filter" holds the name of the filter,
-for example, "Slice2", and a parameter called "pipeline" holds the whole pipeline,
-for example, "Slice1_Slice2".
+for example, "Slice2", and a parameter called "filterpipeline" holds the whole pipeline,
+for example, "Slice1.Slice2".
 
 The operation is deleting the hdf files that the vtkpipe.execute function has built.
 All the data that was held in the hdf files is now saved in a more organized manner in the parquet files.
-If one wishes to keep the hdf files, it can be done by adding "--keepHDF" at the end of the command:
+If one wishes to keep the hdf files, it can be done by adding "-keepHDF" at the end of the command:
 
 .. code-block:: python
 
-    hera-loadOF load "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example" --keepHDF
+    hera-loadOF load "/home/ofir/Projects/openFoamUsage/askervein/test.json" "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example" -keepHDF
 
 Arranging data
 ..............
@@ -150,3 +155,4 @@ Usage
 
     openFoam/ManagingData
     openFoam/analysis
+    openFoam/utils
