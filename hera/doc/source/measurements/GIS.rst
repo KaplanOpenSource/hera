@@ -75,6 +75,18 @@ It can also be used in oreder to retrieve a goeopandas dataframe that contains t
 
     datalayer.getGISDocuments(Geometry="Haifa_Port"])[0].getData()
 
+Synthetic city
+**************
+
+When making a cfd model of a city we can use real city data or build a synthetic city.
+The synthetic city will have the properties that we will choose.
+We assume that the gap between the buildings is equal in the x and y axis.
+
+.. code-block:: python
+
+	myDC = DataCenter()
+	myDC = createSynthetic(regionName, domainx, domainy, buildingx, buildingy, buildingz, gap)
+
 Demography
 **********
 
@@ -87,6 +99,24 @@ we can find the amount of people who live in that polygon.
 
     population = GIS.population(projectName = "Example")
     data = population.projectPolygonOnPopulation(Geometry="TelAviv")
+
+Get Altitude
+************
+
+We can have the altitude data from three different sources:
+1. MAPI - BNTL files, with it's coarse resolution (even km scale)
+2. mapquest 30m resolution, uses free key that has limited access
+
+.. code-block:: python
+
+	get_altitdue_ip(lat, lon)
+
+3. USGS 30m resolution
+
+.. code-block:: python
+
+ 	get_altitdue_gdal(lat, lon)
+
 
 Usage
 -----
