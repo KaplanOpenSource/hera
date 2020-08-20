@@ -1,4 +1,4 @@
-__version__ = '0.5.1'
+__version__ = '0.6.0'
 
 
 import sys
@@ -14,6 +14,10 @@ if version==3:
 from .simulations import openfoam
 
 """
+ 0.6.0
+ -----
+  - adding tonumber,tounum and tometeorological/to mathematical functions to the utils. 
+
  0.5.1
  -----
  CampbellBinary parser and datalayer fixed.
