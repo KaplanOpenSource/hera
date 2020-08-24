@@ -1,6 +1,7 @@
 import requests
 import random
 from osgeo import gdal
+import numpy as np
 
 def get_altitdue_ip(lat, lon):
 	"""
@@ -23,7 +24,7 @@ def get_altitdue_ip(lat, lon):
 def get_altitdue_gdal(lat, lon):
 
         # taken from https://earthexplorer.usgs.gov/
-        fheight = r'/home/nirb/Projects/bdw/gt30e020n40.tif'
+        fheight = r'/ibdata2/nirb/gt30e020n40.tif'
         ds = gdal.Open(fheight)
         myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
         myarray[myarray<-1000]=0
