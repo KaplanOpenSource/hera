@@ -14,6 +14,24 @@ This tutorial first shows how to load openFoam simulation results to the databas
 The process is divided to two parts: the first executes operations on the raw data and saves it to the disk,
 the second loads the data to the database.
 The first part is conducted in a python-2 environment, and the second one in python-3.
+To switch to a Python 2 environment and export the appropriate folders you need to check how exactly it works on your
+computer, but it should be like:
+
+.. code-block:: python
+
+    conda deactivate
+    conda deactivate
+
+
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/raid/opt/OpenFOAM/ThirdParty-7/build/linux64Gcc/ParaView-5.4.1/lib
+
+    export PYTHONPATH=/home/davidg/.local/lib/python2.7/site-packages
+                     :/home/davidg/Development/pyhera
+                     :/raid/opt/OpenFOAM/ThirdParty-7/platforms/linux64Gcc/ParaView-5.4.1/lib/paraview-5.4/site-packages
+                     :/raid/opt/OpenFOAM/ThirdParty-7/platforms/linux64Gcc/ParaView-5.4.1/lib/paraview-5.4/site-packages/vtk
+
+    source $HOME/OpenFOAM/OpenFOAM-7/etc/bashrc WM_LABEL_SIZE=64 FOAMY_HEX_MESH=yes
+
 Both operations use a command Line Interface (CLI).
 
 Building a JSON pipeline file
@@ -51,8 +69,8 @@ The json file consists a part called metadata, and a part called pipeline.
 The metadata may consist the parameters shown above, that affect the operation:
 they control which fields, time steps and mesh regions would be used. These parameters are not mandatory. It may also consist additional parameters that would be used as descriptors in the hera database.
 
-Executing operations on the data
-................................
+Executing operations on the OpenFOAM data
+.........................................
 
 The execution is done using the CLI:
 
@@ -85,7 +103,7 @@ The loading is done using a CLI:
 
 .. code-block:: python
 
-    hera-OpenFOAM [JSONpath] [path] [name] [projectName] -keepHDF
+    hera-OpenFOAM load [JSONpath] [path] [name] [projectName] -keepHDF
 
 JSONpath is the path of the json file
 The path is the full directory of the directory
@@ -151,8 +169,9 @@ Usage
 -----
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     openFoam/ManagingData
     openFoam/analysis
     openFoam/utils
+    openFoam/api
