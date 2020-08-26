@@ -12,15 +12,16 @@ def centersToPandas(skipend, filepath='C', skiphead = 22, saveToTxt=False, fileN
 
     filepath: str
         The path to the cell centers file.
+
         Default: 'C'
 
     saveToTxt:  boolean
-        Weather to save the centers coords to txt file
+        whether to save the centers coords to txt file
         Default: False
 
     fileName: str
         The file name to save.
-        default: None
+        Default: 'CellCenters.txt'
 
     return
     ------
