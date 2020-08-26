@@ -32,12 +32,13 @@ def get_altitdue_gdal(lat, lon):
         rastery = int((lon - gt[0]) / gt[1])
         rasterx = int((lat - gt[3]) / gt[5])
         height = myarray[rasterx,rastery]
+        return height
 
 if __name__ == "__main__":
     lon = random.randint(35750, 35800) / 1000.0 # Hermon
     lat = random.randint(33250, 33800) / 1000.0
-    alt = get_altitdue_ip(lat,lon)
-    alt = get_altitdue_gdal(lat,lon)
-    print("the altitude at position: ",lat,lon," is ", alt)
+    alt1 = get_altitdue_ip(lat,lon)
+    alt2 = get_altitdue_gdal(lat,lon)
+    print("the altitude at position: ",lat,lon," is ", alt1, alt2)
 
 
