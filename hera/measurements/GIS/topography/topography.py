@@ -39,6 +39,5 @@ if __name__ == "__main__":
     lat = random.randint(33250, 33800) / 1000.0
     alt1 = get_altitdue_ip(lat,lon)
     alt2 = get_altitdue_gdal(lat,lon)
-    print("the altitude at position: ",lat,lon," is ", alt1, alt2)
-
+    print("the altitude at position: ",lat,lon," is ", alt1, alt2) 
 
