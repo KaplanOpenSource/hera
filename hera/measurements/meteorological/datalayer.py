@@ -27,6 +27,7 @@ class DataLayer(object):
                                                       type=self._docType,
                                                       **desc
                                                       )
+
         return docList
 
     def getDocFromFile(self, **kwargs):
@@ -103,11 +104,11 @@ class DataLayer_IMS(DataLayer):
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
                                        dataFormat=dataFormat,
-                                       desc=kwargs
+                                       **kwargs
                                        )
         return docList
 
-    def getDocFromFile(self, path, station_column='stn_name', time_coloumn='time_obs', **kwargs):
+    def getDocFromFile(self, path, station_column='stn_name', time_column='time_obs', **kwargs):
 
         """
         Reads data from file/directory and returns a 'metadata like' object
@@ -116,7 +117,7 @@ class DataLayer_IMS(DataLayer):
         ----------
 
         path : The path to the data file
-        time_coloumn : The name of the Time column for indexing. default ‘time_obs’
+        time_column : The name of the Time column for indexing. default ‘time_obs’
         kwargs :
 
         returns
@@ -125,7 +126,7 @@ class DataLayer_IMS(DataLayer):
 
         """
 
-        loaded_dask, _ = self.parse(path=path, station_column=station_column, time_coloumn=time_coloumn)
+        loaded_dask, _ = self.parse(path=path, station_column=station_column, time_column=time_column)
         return [nonDBMetadata(loaded_dask, **kwargs)]
 
     def LoadData(self, newdata_path, outputpath, projectName, metadatafile=None, station_column='stn_name', time_column='time_obs', **metadata):
@@ -264,7 +265,7 @@ class DataLayer_CampbellBinary(DataLayer):
         docList = super().getDocFromDB(projectName=projectName,
                                        resource=resource,
                                        dataFormat=dataFormat,
-                                       desc=kwargs
+                                       **kwargs
                                        )
         return docList
 
@@ -277,7 +278,7 @@ class DataLayer_CampbellBinary(DataLayer):
         ----------
 
         path : The path to the data file
-        time_coloumn : The name of the Time column for indexing. default ‘time_obs’
+        time_column : The name of the Time column for indexing. default ‘time_obs’
         kwargs :
 
         returns

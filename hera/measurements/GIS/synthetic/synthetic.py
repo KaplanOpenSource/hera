@@ -3,11 +3,11 @@ import Mesh
 
 # Should run with "source initana2.sh"
 
-class sinthetic():
+class synthetic():
 
-    def createSinthetic(self, stlpath, domainx, domainy, buildingx, buildingy, buildingz, gap):
+    def createSynthetic(self, stlpath, domainx, domainy, buildingx, buildingy, buildingz, gap):
         """
-        Create a region with homogenous buildings, it is easier to check the code with sinthetic environment
+        Create a region with homogenous buildings, it is easier to check the code with synthetic environment
         
         param stlpath - the path where we save the stl
         param domainx - the width of the domain in the x direction
@@ -20,7 +20,7 @@ class sinthetic():
         return:
         """
         doc = FreeCAD.newDocument("Unnamed")
-        print('create sinthetic')
+        print('create synthetic')
         nx = 0
         km=-1
         while nx < domainx - gap - buildingx:
@@ -58,6 +58,6 @@ class sinthetic():
         Mesh.export(doc.Objects, stlpath)
 
 if __name__ == "__main__":
-    myDC1 = sinthetic()
-    myDC1.createSinthetic(u"/home/nirb/regions/sin9.stl", 500, 500, 50, 50, 50, 50)
+    myDC1 = synthetic()
+    myDC1.createSynthetic(u"/home/nirb/regions/sin9.stl", 500, 500, 50, 50, 50, 50)
 
