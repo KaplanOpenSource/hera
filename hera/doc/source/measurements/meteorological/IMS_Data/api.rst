@@ -8,7 +8,7 @@ imsdata API
 datalayer class
 ###############
 
-.. autoclass:: hera.measurements.meteorological.imsdata.DataLayer
+.. autoclass:: hera.measurements.meteorological.DataLayer_IMS
     :members:
     :undoc-members:
 

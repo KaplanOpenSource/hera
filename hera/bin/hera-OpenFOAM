@@ -25,7 +25,7 @@ def load_handler(arguments):
         arguments : a positional list pased by the user:
             arguments[0] - the path to the pipeline json file
             arguments[1] - the path to the main directory of the execute resulted files, as the metadata 'datadir' in the json file
-            arguments[2] - the name given to the output folder and to the hdf files
+            arguments[2] - the name given to the output folder (and to the hdf files if selected)
             arguments[3] - the 'projecName' will be saved to the database
 
 
@@ -73,15 +73,27 @@ def executePipeline_handler(arguments):
 
     """
 
+    #JSONpath = arguments[0]
+    # name = arguments[1]
+    # casePath = arguments[2]
+    # caseType = arguments[3] if len(arguments) > 3 else "Decomposed Case"
+    # servername = arguments[4] if len(arguments) > 4 else None
+    # tsBlockNum = int(arguments[5]) if len(arguments) > 5 else 100
+
     JSONpath = arguments[0]
-    name = arguments[1]
-    casePath = arguments[2]
-    caseType = arguments[3] if len(arguments) > 3 else "Decomposed Case"
-    servername = arguments[4] if len(arguments) > 4 else None
-    tsBlockNum = int(arguments[5]) if len(arguments) > 5 else 100
 
     with open(JSONpath) as json_file:
         data = json.load(json_file)
+
+    projectName= arguments[1]
+    name="VTKOutput"
+    casePath = data["metadata"].get("datadir", "None")
+    tsBlockNum = int(arguments[3]) if len(arguments) > 3 else 100
+    caseType = arguments[3] if len(arguments) > 3 else "Decomposed Case"
+    servername = arguments[5] if len(arguments) > 5 else None
+
+
+
     vtkpipe = openfoam.VTKpipeline(name=name, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=servername)
     vtkpipe.execute("mainReader", tsBlockNum=tsBlockNum)
 

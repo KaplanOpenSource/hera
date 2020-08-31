@@ -84,7 +84,8 @@ class VTKpipeline(object):
 
         outputdir = pipelineJSON["metadata"].get("datadir", "None")
         if outputdir != "None":
-            self._pvOFBase.hdfdir = "%s/%s/hdf" % (outputdir, name)
+            # self._pvOFBase.hdfdir = "%s/%s/hdf" % (outputdir, name)
+            self._pvOFBase.hdfdir = os.path.join("%s" % outputdir, "%s" % name, 'hdf')
             self._pvOFBase.netcdfdir = os.path.join(outputdir, name, "netcdf")
             self._mainpath = "%s/%s" % (outputdir, name)
         else:
