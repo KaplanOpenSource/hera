@@ -95,68 +95,68 @@ class interpulations():
                                                      dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
 
 
-	def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3):
-	    
-	# This function will return the wind velocity at height z 
+    def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3):
 
-	# parameters:
-	# z is the predicted height [m] above the ground
-	# uref is the velocity reference [m/s] at height href
-	# href is the reference height [m] of uref
-	# he is the mean building height [m] above the ground
-	# lambdap is the building percent when looking from top
-	# lambdaf is the building percent when looking from the side
-	# beta is the ratio between ustar and Uh
+        # This function will return the wind velocity at height z
 
-	# return
-	# u is the predicted velocity [m/s] that is calculated in this function
+        # parameters:
+        # z is the predicted height [m] above the ground
+        # uref is the velocity reference [m/s] at height href
+        # href is the reference height [m] of uref
+        # he is the mean building height [m] above the ground
+        # lambdap is the building percent when looking from top
+        # lambdaf is the building percent when looking from the side
+        # beta is the ratio between ustar and Uh
 
-	# variables:
-	# l is the mixing length [m]
+        # return
+        # u is the predicted velocity [m/s] that is calculated in this function
 
-	###############################
-	##    z=24
-	#    uref=3
-	#    href=24
-	#    he=24
-	#    lambdap=0.3
-	#    lambdaf=0.3
-	##  assuming href is he
-	    uh=uref
-	###############################
+        # variables:
+        # l is the mixing length [m]
 
-
-	    k = 0.41 # von Karman constant
-	    beta = beta# For closed uniform natural canopies, Raupach 1996
-	    # beta = ustar / uh
-	    # LA commercial area has lambdap=0.28, lambdaf=0.27 he=24.5m, LC=66, Coceal 2004
-	    lc = he*(1-lambdap)/lambdaf
-	    # calculating the mixing length at the canopy only to know d
-	    l = 2. * beta**3 * lc # mixing length in the canopy
-	    d = l/k
+        ###############################
+        ##    z=24
+        #    uref=3
+        #    href=24
+        #    he=24
+        #    lambdap=0.3
+        #    lambdaf=0.3
+        ##  assuming href is he
+        uh=uref
+        ###############################
 
 
-	    if href>=he: 
-	       #l = k*(href-d) # mixing length above the canopy
-	       z01 = d/math.exp(k/beta)
-	       z0 = l/k*math.exp(-k/beta)  # from Omri
-	#       print ('z0=',z0,z01,l, d/math.exp(k/beta))
-	       uh  = uref * k /beta / math.log(((href-he)+d)/z0)
-	    else: # href<he
-	       uh  = uref / math.exp(beta*(href-he)/l)
-	       print ('there is no sense of giving uref below building mean height because we have to give mean velocity, above he, one point represent the mean value, below, it is not represent')
-		
-	#    print('he=',he)
-	    if z <= he: # below the canopy
-	  #     l = 2. * beta**3 * lc # mixing length in the canopy
-	       u = uh * math.exp(beta*((z-he))/l)
-	    else: # above the canopy
-	#       calculate now for z 
-	#       l = k*(z-d) # mixing length above the canopy
-	#       z0 = d/math.exp(k/beta)
-	       u = uh*beta/k*math.log(((z-he)+d)/z0)
+        k = 0.41 # von Karman constant
+        beta = beta# For closed uniform natural canopies, Raupach 1996
+        # beta = ustar / uh
+        # LA commercial area has lambdap=0.28, lambdaf=0.27 he=24.5m, LC=66, Coceal 2004
+        lc = he*(1-lambdap)/lambdaf
+        # calculating the mixing length at the canopy only to know d
+        l = 2. * beta**3 * lc # mixing length in the canopy
+        d = l/k
 
-	    return u
+
+        if href>=he:
+            #l = k*(href-d) # mixing length above the canopy
+            z01 = d/math.exp(k/beta)
+            z0 = l/k*math.exp(-k/beta)  # from Omri
+            #       print ('z0=',z0,z01,l, d/math.exp(k/beta))
+            uh  = uref * k /beta / math.log(((href-he)+d)/z0)
+        else: # href<he
+            uh  = uref / math.exp(beta*(href-he)/l)
+            print ('there is no sense of giving uref below building mean height because we have to give mean velocity, above he, one point represent the mean value, below, it is not represent')
+
+        #    print('he=',he)
+        if z <= he: # below the canopy
+            #     l = 2. * beta**3 * lc # mixing length in the canopy
+            u = uh * math.exp(beta*((z-he))/l)
+        else: # above the canopy
+            #       calculate now for z
+            #       l = k*(z-d) # mixing length above the canopy
+            #       z0 = d/math.exp(k/beta)
+            u = uh*beta/k*math.log(((z-he)+d)/z0)
+
+        return u
 
 
 haifa1 = [
