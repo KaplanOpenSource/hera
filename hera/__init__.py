@@ -1,4 +1,4 @@
-__version__ = '0.5.1'
+__version__ = '0.6.1'
 
 
 import sys
@@ -10,10 +10,19 @@ if version==3:
     from .simulations import LSM
     from .simulations.LSM.DataLayer import SingleSimulation
     from .measurements import GIS
-    from .simulations.interpulations.interpulations import interpulations
+    from .simulations.interpolations.interpolations import spatialInterpolate
 from .simulations import openfoam
 
 """
+ 0.6.1
+ -----
+  - Fixing the simulations.interpolations package. 
+  - Renanimg interpolation->spatialInterpolations.  
+  
+ 0.6.0
+ -----
+  - adding tonumber,tounum and tometeorological/to mathematical functions to the utils. 
+
  0.5.1
  -----
  CampbellBinary parser and datalayer fixed.
