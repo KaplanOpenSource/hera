@@ -11,6 +11,7 @@ if version==3:
     from .simulations.LSM.DataLayer import SingleSimulation
     from .measurements import GIS
     from .simulations.interpolations.interpolations import spatialInterpolate
+    import riskassessment
 from .simulations import openfoam
 
 """
