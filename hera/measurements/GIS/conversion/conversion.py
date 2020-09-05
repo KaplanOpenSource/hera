@@ -1,11 +1,11 @@
 import geopandas
-from shapely.geometry import MultiLineString, LineString
+from shapely.geometry import LineString
 from scipy.interpolate import griddata
 from numpy import array, cross, sqrt
 import numpy
 import pandas
 from ..datalayer.datalayer import GIS_datalayer
-from ..analytics.dataManipulations import dataManipulations
+from hera.measurements.GIS.utils import dataManipulations
 from .... import datalayer
 
 # import FreeCAD

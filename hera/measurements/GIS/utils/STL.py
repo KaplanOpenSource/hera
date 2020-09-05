@@ -1,12 +1,12 @@
 import geopandas
-from shapely.geometry import MultiLineString, LineString
+from shapely.geometry import LineString
 from scipy.interpolate import griddata
 from numpy import array, cross, sqrt
 import numpy
 import pandas
 import math
 from ..datalayer.datalayer import GIS_datalayer
-from ..analytics.dataManipulations import dataManipulations
+from hera.measurements.GIS.utils import dataManipulations
 from .... import datalayer
 
 # import FreeCAD
@@ -50,19 +50,26 @@ class convert():
                                                       dataFormat="string")
 
     def toSTL(self, data, NewFileName, dxdy=50, save=True, addtoDB=True, flat=None, path=None, **kwargs):
-
         """
         Converts a geopandas dataframe data to an stl file.
 
         Parameters:
+        -----------
 
-            data: The data that should be converted to stl. May be a dataframe or a name of a saved polygon in the database.
-            NewFileName: A name for the new stl file, also used in the stl string. (string)
-            dxdy: the dimention of each cell in the mesh in meters, the default is 50.
-            save: Default is True. If True, the new stl string is saved as a file and the path to the file is added to the database.
-            flat: Default is None. Else, it assumes that the area is flat and the value of flat is the height of the mesh cells.
-            path: Default is None. Then, the path in which the data is saved is the given self.FilesDirectory. Else, the path is path. (string)
-            kwargs: Any additional metadata to be added to the new document in the database.
+            data: pandas.DataFrame
+                The data that should be converted to stl. May be a dataframe or a name of a saved polygon in the database.
+            NewFileName: str
+                A name for the new stl file, also used in the stl string. (string)
+            dxdy: float
+                the dimention of each cell in the mesh in meters, the default is 50.
+            save: bool
+                Default is True. If True, the new stl string is saved as a file and the path to the file is added to the database.
+            flat:
+                Default is None. Else, it assumes that the area is flat and the value of flat is the height of the mesh cells.
+            path:
+                Default is None. Then, the path in which the data is saved is the given self.FilesDirectory. Else, the path is path. (string)
+            kwargs:
+                Any additional metadata to be added to the new document in the database.
 
         Returns
         -------
@@ -71,7 +78,7 @@ class convert():
 
         if type(data) == str:
             polygon = self._GISdatalayer.getGeometry(data)
-            dataframe = self._GISdatalayer.getGISDocuments(Geometry=data, GeometryMode="contains")[0].getData()
+            dataframe = self._GISdatalayer.getGISDocuments(geometry=data, geometryMode="contains")[0].getData()
             geodata = self._manipulator.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
         elif type(data) == geopandas.geodataframe.GeoDataFrame:
             geodata = data

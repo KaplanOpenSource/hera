@@ -203,8 +203,6 @@ if __name__ == "__main__":
     fname = args.shpfile
     outfilename = args.output
     dxdy = args.dxdy
-    # "/home/yehudaa/Dropbox/Projects/data/Galim/GALIM-CONTOUR.shp"
-    # fname = "/home/yehudaa/Dropbox/EyalYehuda/Jerusalem/BLDG1.shp"
     fname = "/home/nirb/test/testme1/testme1-CONTOUR.shp"
     outfilename = "/home/nirb/test/testme1/testme1-CONTOUR.STL"
     dxdy = 50
