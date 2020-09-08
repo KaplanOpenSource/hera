@@ -219,9 +219,9 @@ class topography(datalayer.ProjectMultiDBPublic):
 
 
 
-    def
 
-    def toSTL(self,data,,**query):
+
+    def toSTL(self,data,**query):
         """
             convert the data to STL.
 
