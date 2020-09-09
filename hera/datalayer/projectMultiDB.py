@@ -91,6 +91,10 @@ class ProjectMultiDB:
     def users(self):
         return self._users
 
+    @property
+    def all(self):
+        return self._all
+
     @users.setter
     def users(self, newUsers):
         self._users = newUsers
