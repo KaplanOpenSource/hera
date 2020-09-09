@@ -1,4 +1,4 @@
-__version__ = '0.6.1'
+__version__ = '0.7.1'
 
 
 import sys
@@ -14,6 +14,16 @@ if version==3:
 from .simulations import openfoam
 
 """
+ 0.7.1
+ -----
+    - Added the 'all' to project 
+     
+ 0.7.0
+ -----
+  - Adding the riskassessmet package. 
+  - Adding the simulations/gaussian package. 
+  - adding the simulation/evaporation package. 
+
  0.6.1
  -----
   - Fixing the simulations.interpolations package. 
