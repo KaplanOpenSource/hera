@@ -5,12 +5,12 @@ from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
 
 
-class TurbulenceCalculator(AbstractCalculator):
+class singlePointTurbulenceStatistics(AbstractCalculator):
     _isMissingData = False
 
     def __init__(self, rawData, metadata, identifier, isMissingData=False):
         self._isMissingData = isMissingData
-        super(TurbulenceCalculator, self).__init__(rawData=rawData, metadata=metadata, identifier=identifier)
+        super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata, identifier=identifier)
 
     def fluctuations(self, inMemory=None):
         """
@@ -23,7 +23,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -95,7 +95,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -135,7 +135,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -160,7 +160,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -187,7 +187,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -213,7 +213,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -238,7 +238,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -267,7 +267,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -293,7 +293,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -319,7 +319,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -345,7 +345,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -371,7 +371,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -399,7 +399,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -427,7 +427,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -455,7 +455,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -483,7 +483,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -511,7 +511,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -539,7 +539,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -567,7 +567,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -595,7 +595,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -623,7 +623,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -647,7 +647,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -678,7 +678,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -702,7 +702,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -726,7 +726,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -751,7 +751,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -779,7 +779,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -809,7 +809,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -843,7 +843,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -870,7 +870,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         Returns
         -------
-        TurbulenceCalculator
+        singlePointTurbulenceStatistics
             The object himself.
         """
         if self._InMemoryAvgRef is None:
@@ -1243,7 +1243,7 @@ class TurbulenceCalculator(AbstractCalculator):
         return self
 
 
-class TurbulenceCalculatorSpark(TurbulenceCalculator):
+class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
 
     def fluctuations(self, inMemory=None):
         if self._InMemoryAvgRef is None:

@@ -4,6 +4,8 @@ from .project import getProjectList
 from .project import Project
 from .projectMultiDB import ProjectMultiDB,ProjectMultiDBPublic
 
+from .document.metadataDocument import nonDBMetadata
+
 from .utils import dictToMongoQuery
 from .datahandler import datatypes
 

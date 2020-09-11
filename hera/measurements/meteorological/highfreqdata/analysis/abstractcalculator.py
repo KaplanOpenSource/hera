@@ -1,8 +1,9 @@
 import dask.dataframe.core
 import pandas
 
-from ..inmemoryavgdata import InMemoryAvgData
-from .... import datalayer
+from hera.measurements.meteorological.highfreqdata
+in import InMemoryAvgData
+from hera import datalayer
 
 
 class AbstractCalculator(object):
@@ -120,7 +121,7 @@ class AbstractCalculator(object):
 
 
         if docExist:
-            df = docExist[-1].getData(usePandas=True)[[x[0] for x in self._CalculatedParams]]
+            df = docExist[-1].getDocFromDB(usePandas=True)[[x[0] for x in self._CalculatedParams]]
             self._updateInMemoryAvgRef(df)
         else:
             self._compute()
@@ -134,7 +135,7 @@ class AbstractCalculator(object):
                                          end__gt=self.Identifier['start'], **query))
 
         if docExist:
-            df = docExist[-1].getData(usePandas=True)[[x[0] for x in self._CalculatedParams]]
+            df = docExist[-1].getDocFromDB(usePandas=True)[[x[0] for x in self._CalculatedParams]]
             self._updateInMemoryAvgRef(df)
         else:
             self._compute()

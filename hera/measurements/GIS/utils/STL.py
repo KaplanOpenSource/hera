@@ -24,7 +24,7 @@ class convert():
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
         self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory, users=users, useAll=useAll)
-        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users,useAll=useAll)
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
         self._manipulator = dataManipulations()
 
     def addSTLtoDB(self, path, NewFileName, points, xMin, xMax, yMin, yMax, zMin, zMax, dxdy, **kwargs):
@@ -78,7 +78,7 @@ class convert():
 
         if type(data) == str:
             polygon = self._GISdatalayer.getGeometry(data)
-            dataframe = self._GISdatalayer.getGISDocuments(geometry=data, geometryMode="contains")[0].getData()
+            dataframe = self._GISdatalayer.getGISDocuments(geometry=data, geometryMode="contains")[0].getDocFromDB()
             geodata = self._manipulator.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
         elif type(data) == geopandas.geodataframe.GeoDataFrame:
             geodata = data
@@ -91,7 +91,7 @@ class convert():
         ymax = geodata['geometry'].bounds['maxy'].max()
         points = [xmin, ymin, xmax, ymax]
         if len(datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)) >0:
-            stlstr = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].getData()
+            stlstr = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].getDocFromDB()
             newdict = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].asDict()
             newdata = pandas.DataFrame(dict(gridxMin=[newdict["desc"]["xMin"]], gridxMax=[newdict["desc"]["xMax"]],
                                             gridyMin=[newdict["desc"]["yMin"]], gridyMax=[newdict["desc"]["yMax"]],

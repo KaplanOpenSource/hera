@@ -8,17 +8,17 @@ from itertools import product
 from . import getDBNamesFromJSON
 
 
-def getProjectList(user=None):
+def getProjectList(databaseName=None):
     """
         Return the list with the names of the existing projects .
 
-    :param user: str
+    :param databaseName: str
         The name of the database.
 
     :return:
         list.
     """
-    return list(set(AbstractCollection(user=user).getProjectList()))
+    return list(set(AbstractCollection(user=databaseName).getProjectList()))
 
 
 
@@ -52,7 +52,7 @@ class ProjectMultiDB:
     _measurements = None
     _cache     = None
     _simulations  = None
-    _users = None
+    _databaseNameList = None
     _useAll = None
 
     @property
@@ -88,16 +88,16 @@ class ProjectMultiDB:
         return self._simulations
 
     @property
-    def users(self):
-        return self._users
+    def databaseName(self):
+        return self._databaseNameList
 
-    @users.setter
-    def users(self, newUsers):
-        self._users = newUsers
-        self._measurements  = [Measurements_Collection(user=user) for user in newUsers]
-        self._cache         = [Cache_Collection(user=user) for user in newUsers]
-        self._simulations   = [Simulations_Collection(user=user) for user in newUsers]
-        self._all           = [AbstractCollection(user=user) for user in newUsers]
+    @databaseName.setter
+    def databaseName(self, newDatabaseList):
+        self._databaseNameList = newDatabaseList
+        self._measurements  = [Measurements_Collection(user=user) for user in newDatabaseList]
+        self._cache         = [Cache_Collection(user=user) for user in newDatabaseList]
+        self._simulations   = [Simulations_Collection(user=user) for user in newDatabaseList]
+        self._all           = [AbstractCollection(user=user) for user in newDatabaseList]
 
     @property
     def useAll(self):
@@ -108,37 +108,42 @@ class ProjectMultiDB:
         self._useAll=newUseAll
 
 
-    def getProjectName(self,user=None):
+    def getProjectName(self, databaseName=None):
 
-        if user is None:
+        if databaseName is None:
             projectName = self._projectName
         if isinstance(self._projectName,str):
             projectName = self._projectName
         else:
-            projectName = self._projectName[user]
+            projectName = self._projectName[databaseName]
 
         return  projectName
 
 
-    def __init__(self, projectName,users=None, useAll=False):
+    def __init__(self, projectName, databaseNameList=None, useAll=False):
         """
             Initialize the project.
 
-        :param projectName: str, dict .
+        Parameters
+        ----------
+
+        projectName: str, dict .
                 The name of the project.
                 if dict, the project name depends on the database.
 
-        :param user: str
-                the name of the database to use. If None, use the default database (the name of the current user).
+        databaseNameList: str,list
+                the name of the database to use.
+                If None, use the default database (the name of the current user).
+
 
         """
         self._projectName = projectName
-        self._users = numpy.atleast_1d(users)
+        self._databaseNameList = numpy.atleast_1d(databaseNameList)
         self._useAll = useAll
-        self._measurements  = dict([(user,Measurements_Collection(user=user)) for user in self._users])
-        self._cache         = dict([(user,Cache_Collection(user=user)) for user in self._users])
-        self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._users])
-        self._all           = dict([(user,AbstractCollection(user=user)) for user in self._users])
+        self._measurements  = dict([(user,Measurements_Collection(user=user)) for user in self._databaseNameList])
+        self._cache         = dict([(user,Cache_Collection(user=user)) for user in self._databaseNameList])
+        self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
+        self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
 
     def getMetadata(self):
         """
@@ -181,7 +186,7 @@ class ProjectMultiDB:
 
     def _addSomeTypeDocuments(self, searchtype, resource, dataFormat, type, users=None, **desc):
         if users is None:
-            userName = self._users[0]
+            userName = self._databaseNameList[0]
             projectName = self.getProjectName(userName)
             searchtype[userName].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
         else:
@@ -191,7 +196,7 @@ class ProjectMultiDB:
 
     def _deleteSomeTypeDocuments(self, searchtype, users=None, **kwargs):
         if users is None:
-            userName = self._users[0]
+            userName = self._databaseNameList[0]
             projectName = self.getProjectName(userName)
             searchtype[userName ].deleteDocuments(projectName=projectName, **kwargs)
         else:
@@ -243,7 +248,7 @@ class ProjectMultiDBPublic(ProjectMultiDB):
         The class accepts the default public project name.
 
     """
-    def __init__(self, projectName,publicProjectName, users=None, useAll=False):
+    def __init__(self, projectName, publicProjectName, databaseNameList=None, useAll=False):
         """
             Initializes the search list of the DB.
 
@@ -261,7 +266,7 @@ class ProjectMultiDBPublic(ProjectMultiDB):
 
          publicProjectName: str
                 The project name in the public DB.
-         users: str, list of str
+         databaseNameList: str, list of str
                 The name of the DB to look in (except for public).
                 Can be a str or a list.
 
@@ -280,15 +285,15 @@ class ProjectMultiDBPublic(ProjectMultiDB):
             projectNamesDict['Public'] = publicProjectName
 
         if isinstance(projectName,str):
-            for user in numpy.atleast_1d(users):
+            for user in numpy.atleast_1d(databaseNameList):
                 projectNamesDict[user] = projectName
 
         elif isinstance(projectName,dict):
                 projectNamesDict.update(projectName)
 
-        if users is None:
+        if databaseNameList is None:
             usersList = dbListNames + [getpass.getuser()]
         else:
-            usersList = dbListNames + list(numpy.atleast_1d(users))
+            usersList = dbListNames + list(numpy.atleast_1d(databaseNameList))
 
         super.__init__(projectName,users=usersList, useAll=useAll)

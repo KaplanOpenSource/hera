@@ -28,7 +28,7 @@ class population(datalayer.ProjectMultiDBPublic)::
                              from the data.
         """
 
-        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getData() if data is None else data
+        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getDocFromDB() if data is None else data
 
         if type(Geometry) == str:
             poly = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getGeometry(name=Geometry)
@@ -61,7 +61,7 @@ class population(datalayer.ProjectMultiDBPublic)::
         make a geodataframe with a selected polygon as the geometry, and the sum of the population in the polygons that intersect it as its population.
         """
 
-        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getData() if data is None else data
+        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getDocFromDB() if data is None else data
 
         if type(Geometry) == str:
             poly = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getGeometry(name=Geometry)
@@ -71,10 +71,10 @@ class population(datalayer.ProjectMultiDBPublic)::
                     raise KeyError("Geometry %s was not found" % Geometry)
                 else:
                     if convex:
-                        polys = dataManipulations().ConvexPolygons(documents[0].getData())
+                        polys = dataManipulations().ConvexPolygons(documents[0].getDocFromDB())
                         poly = polys.loc[polys.area==polys.area.max()].geometry[0]
                     else:
-                        poly = documents[0].getData().unary_union
+                        poly = documents[0].getDocFromDB().unary_union
         else:
             poly = Geometry
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]

@@ -188,7 +188,6 @@ def getDBObject(objectName, user=None):
     return ret
 
 
-
 # ---------------------default connections--------------------------
 for user in getDBNamesFromJSON():
     createDBConnection(user=user,

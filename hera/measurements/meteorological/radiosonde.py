@@ -1,28 +1,48 @@
 import pandas
-from ...datalayer import Measurements
+from ... import datalayer
 
 
-class DataLayer(object):
+class DataLayer(datalayer.ProjectMultiDBPublic):
     _columnsDescDict = None
 
     @property
     def columnsDescDict(self):
         return self._columnsDescDict
 
-    def __init__(self):
+
+    def __init__(self, projectName, databaseNameList=None, useAll=False):
+        """
+            Initializes a datalayer for the Radiosonde data.
+
+            Also looks up the 'RadiosondeData' in the public database.
+
+        Parameters
+        ----------
+
+        projectName: str
+                The project name
+        databaseNameList: list
+            The list of database naems to look for data.
+            if None, uses the database with the name of the user.
+
+        useAll: bool
+            Whether or not to return the query results after found in one DB.
+        """
+        super().__init__(projectName=projectName,
+                         publicProjectName="RadiosondeData",
+                         databaseNameList= databaseNameList,
+                         useAll = useAll)
+
         self._columnsDescDict = dict(RH='Relative humidity',
                                      Latitude='Latitude',
-                                     Longitude='Longitude'
-                                     )
+                                     Longitude='Longitude')
 
-    def loadData(self, projectName, locationName, date, filePath, **kwargs):
+    def loadData(self, locationName, date, filePath, **kwargs):
         """
         Loads a radiosonde data to the database as JSON_pandas from a csv file.
 
         Parameters
         ----------
-        projectName : str
-            The project name
 
         locationName : str
             The measurement location
@@ -53,15 +73,14 @@ class DataLayer(object):
                     )
         desc.update(kwargs)
 
-        doc = dict(projectName=projectName,
-                   resource=data.to_json(),
+        doc = dict(resource=data.to_json(),
                    dataFormat='JSON_pandas',
                    type='meteorological',
                    desc=desc
                    )
-        Measurements.addDocument(**doc)
+        self.addMeasurementsDocument(**doc)
 
-    def getData(self, projectName, **query):
+    def getDocFromDB(self, projectName, **query):
         """
         Returns list of metadata documents according to the input requirements.
 
@@ -78,12 +97,10 @@ class DataLayer(object):
         list
             List of the documents that fulfill the query
         """
-        docList = Measurements.getDocuments(projectName=projectName,
-                                            dataFormat='JSON_pandas',
-                                            type='meteorological',
-                                            DataSource='Radiosonde',
-                                            **query
-                                            )
+        docList = self.getMeasurementsDocuments(dataFormat='JSON_pandas',
+                                                type='meteorological',
+                                                DataSource='Radiosonde',
+                                                **query)
         return docList
 
 

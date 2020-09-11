@@ -44,7 +44,7 @@ def getBoundaries(doc):
     dict with the boundaries.
     """
 
-    dataframe = doc.getData()
+    dataframe = doc.getDocFromDB()
     points = doc.desc["points"]
 
     boundaries = dict(xmin=points[0], xmax=points[2], ymin=points[1], ymax=points[3], zmin=dataframe["HEIGHT"].min(), zmax=dataframe["HEIGHT"].max())

@@ -2,7 +2,7 @@ from ... import datalayer
 import getpass
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-
+from shapely.geometry import Point,box
 
 class locationImage(datalayer.ProjectMultiDBPublic):
     """
@@ -28,6 +28,7 @@ class locationImage(datalayer.ProjectMultiDBPublic):
         super.__init__(projectName=projectName,publicProjectName='imageLocation')
 
 
+    @staticmethod
     def plot(self,data,ax=None,**query):
         """
             Plots the image from the document or from a document.
@@ -68,10 +69,8 @@ class locationImage(datalayer.ProjectMultiDBPublic):
 
             doc = doc[0]
 
-        path = doc.resource
+        image = doc.getDocFromDB()
         extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
-        image = mpimg.imread(path)
-
         ax = plt.imshow(image, extent=extents)
 
 
@@ -119,6 +118,7 @@ class locationImage(datalayer.ProjectMultiDBPublic):
                    )
         self.addMeasurementsDocument(**doc)
 
+
     def query(self,imageName=None,point=None,**query):
         """
                 get the images.
@@ -135,8 +135,20 @@ class locationImage(datalayer.ProjectMultiDBPublic):
         :return:
 
         """
-        pass
-
+        docsList = self.getMeasurementsDocuments(imeageName=imageName,**query)
+        if point is not None:
+            point = point if isinstance(point,Point) else Point(point[0],point[1])
+            ret = []
+            for doc in docsList:
+                bb = box(doc.desc['xmin'],
+                         doc.desc['xmax'],
+                         doc.desc['ymin'],
+                         doc.desc['ymax'])
+                if point in bb:
+                    ret.append(doc)
+        else:
+            ret =  docsList
+        return ret
 
 
 class topography(datalayer.ProjectMultiDBPublic):
@@ -192,7 +204,7 @@ class topography(datalayer.ProjectMultiDBPublic):
             path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
             fullPath = "%s/%s" % (path, fullfilesdirect[mode])
         else:
-            publicproject = datalayer.ProjectMultiDB(projectName="PublicData",users=["public"])
+            publicproject = datalayer.ProjectMultiDB(projectName="PublicData", databaseNameList=["public"])
             fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
 
         descDict = dict(CutName=CutName,points=points,mode=mode)
