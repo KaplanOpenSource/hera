@@ -1,7 +1,7 @@
 import geopandas
 from ... import datalayer
 
-class population(datalayer.ProjectMultiDBPublic)::
+class population(datalayer.ProjectMultiDBPublic):
 
     _publicMeasure = None
     _projectName = None

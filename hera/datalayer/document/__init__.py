@@ -2,7 +2,7 @@ from mongoengine import *
 import os
 import json
 import getpass
-from .metadataDocument import MetadataFrame
+from .metadataDocument import MetadataFrame,nonDBMetadata
 
 dbObjects = {}
 

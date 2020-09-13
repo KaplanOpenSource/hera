@@ -1,9 +1,8 @@
 import dask.dataframe.core
 import pandas
 
-from hera.measurements.meteorological.highfreqdata
-in import InMemoryAvgData
-from hera import datalayer
+from hera.measurements.meteorological.highfreqdata import InMemoryAvgData
+from .....  import datalayer
 
 
 class AbstractCalculator(object):
@@ -203,10 +202,3 @@ class SaveDataHandler(object):
         data.to_parquet(path)
         return path
 
-# class CalculatedField(object):
-#
-#     def WindDirection(self):
-#         pass
-#
-#     def WindVelocity(self|):
-#         pass

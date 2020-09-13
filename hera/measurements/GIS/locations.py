@@ -1,8 +1,17 @@
+import logging
 from ... import datalayer
 import getpass
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+
 from shapely.geometry import Point,box
+
+try:
+    from freecad import app as FreeCAD
+except ImportError as e:
+    logging.warning("FreeCAD not Found, cannot convert to STL")
+
+
 
 class locationImage(datalayer.ProjectMultiDBPublic):
     """
@@ -233,16 +242,23 @@ class topography(datalayer.ProjectMultiDBPublic):
 
 
 
-    def toSTL(self,data,**query):
+    def toSTL(self,doc):
         """
-            convert the data to STL.
 
-            data can be either doc or str (the name of the location).
-            query - a mongoDB query.
+        Convert the data to STL.
 
-        :return:
+        Parameters
+        ----------
+
+        doc: datalayer document or hera.datalayer.nonDBMetadata
+
+
+        Returns
+        -------
+        str, the STL string file.
         """
         pass
+
 
     def query(self, imageName=None, point=None, **query):
         """
@@ -259,4 +275,69 @@ class buildings(datalayer.ProjectMultiDBPublic):
     """
         Holds the list of buildings.
     """
-    pass
+
+
+
+    def toSTL(self, doc11, flat=None):
+        """
+            Converts the document to the stl.
+
+            Parameters
+            ----------
+
+            doc: hera.datalayer.document.MetadataFrame, hera.datalayer.
+                The document with the data to convert.
+
+
+            Returns
+            -------
+            str
+            The string with the STL format.
+
+        """
+
+        maxheight = -500
+
+        FreeCADDOC = FreeCAD.newDocument("Unnamed")
+        shp =
+        k = -1
+        for j in range(len(shp)):  # converting al the buildings
+            try:
+                walls = shp['geometry'][j].exterior.xy
+            except:
+                continue
+            print('bad j !!!', j)
+        if j % 100 == 0:
+            print('100j', j, k, len(shp))  # just to see that the function is still working
+
+        k = k + 1
+        wallsheight = shp['BLDG_HT'][j]
+        if flat is None:
+            altitude = shp['HT_LAND'][j]
+        else:
+            altitude = flat
+        FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch' + str(j))
+        FreeCADDOC.Objects[2 * k].Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 0.000000),  # 2*k-1
+                                                         FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+
+        for i in range(len(walls[0]) - 1):
+            FreeCADDOC.Objects[2 * k].addGeometry(Part.Line(FreeCAD.Vector(walls[0][i], walls[1][i], altitude),
+                                                     FreeCAD.Vector(walls[0][i + 1], walls[1][i + 1], altitude)))
+
+        FreeCADDOC.addObject("PartDesign::Pad", "Pad" + str(j))
+        FreeCADDOC.Objects[2 * k + 1].Sketch = FreeCADDOC.Objects[2 * k]
+        buildingTopAltitude = wallsheight + altitude  # wallsheight + altitude
+        maxheight = max(maxheight, buildingTopAltitude)
+        FreeCADDOC.Objects[2 * k + 1].Length = buildingTopAltitude  # 35.000000
+        FreeCADDOC.Objects[2 * k + 1].Reversed = 0
+        FreeCADDOC.Objects[2 * k + 1].Midplane = 0
+        FreeCADDOC.Objects[2 * k + 1].Length2 = wallsheight  # 100.000000
+        FreeCADDOC.Objects[2 * k + 1].Type = 0
+        FreeCADDOC.Objects[2 * k + 1].UpToFace = None
+        FreeCADDOC.recompute()  # maybe it can go outside the for loop
+
+
+        FreeCADDOC.recompute()
+        Mesh.export(FreeCADDOC.Objects, "file-buildings.stl")
+
+        return maxheight
