@@ -108,3 +108,5 @@ class RawdataAnalysis:
             return self.singlePointTurbulenceStatisticsFromDB(projectName=projectName, **kwargs)
         else:
             raise ValueError("'data' argument or 'projectName' argument must be delivered")
+
+

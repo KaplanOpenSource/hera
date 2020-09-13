@@ -1,3 +1,5 @@
+import os
+import json
 import numpy
 import pandas
 import dask.dataframe
@@ -1295,3 +1297,69 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
             self._RawData['wind_dir_p'] = (180 - (180 - (self._RawData['wind_dir'] - self._RawData['wind_dir_bar']).abs()).abs()).abs()
 
         return self
+
+
+class InMemoryRawData(pandas.DataFrame):
+    _Attrs = None
+
+    def __init__(self, data=None, index=None, columns=None, dtype=None, copy=False):
+        super(InMemoryRawData, self).__init__(data=data, index=index, columns=columns, dtype=dtype, copy=copy)
+        self._Attrs = {}
+
+    def append(self, other, ignore_index=False, verify_integrity=False):
+        ret = super(InMemoryRawData, self).append(other, ignore_index=ignore_index, verify_integrity=verify_integrity)
+        ret = InMemoryRawData(ret)
+        ret._Attrs = other._Attrs
+        ret._Attrs.update(self._Attrs)
+
+        return ret
+
+    @classmethod
+    def read_hdf(cls, path_or_buf, key=None, **kwargs):
+        ret = InMemoryRawData(pandas.read_hdf(path_or_buf, key, **kwargs))
+        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.json')
+
+        if os.path.isfile(path_or_buf):
+            with open(path_or_buf, 'r') as jsonFile:
+                ret._Attrs = json.load(jsonFile)
+
+        return ret
+
+    def to_hdf(self, path_or_buf, key, **kwargs):
+        pandasCopy = self.copy()
+        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.hdf')
+        pandasCopy.to_hdf(path_or_buf, key, **kwargs)
+        path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.json')
+        attrsToSave = self._Attrs
+
+        if len(self._Attrs) > 0:
+            if os.path.isfile(path_or_buf):
+                with open(path_or_buf, 'r') as jsonFile:
+                    attrsFile = json.load(jsonFile)
+                    attrsFile.update(attrsToSave)
+                    attrsToSave = attrsFile
+
+            with open(path_or_buf, 'w') as jsonFile:
+                json.dump(attrsToSave, jsonFile, indent=4, sort_keys=True)
+
+
+class InMemoryAvgData(InMemoryRawData):
+    _TurbulenceCalculator = None
+
+    def __init__(self, data = None, index = None, columns = None, dtype = None, copy = False, turbulenceCalculator = None):
+        super(InMemoryAvgData, self).__init__(data = data, index = index, columns = columns, dtype = dtype, copy = copy)
+        self._TurbulenceCalculator = turbulenceCalculator
+        self._Attrs['samplingWindow'] = turbulenceCalculator.SamplingWindow
+
+    def __getattr__(self, item):
+        if self._TurbulenceCalculator is None:
+            raise AttributeError("The attribute '_TurbulenceCalculator' is None.")
+        elif not item in dir(self._TurbulenceCalculator):
+            raise NotImplementedError("The attribute '%s' is not implemented." % item)
+        elif item == 'compute':
+            ret = getattr(self._TurbulenceCalculator, item)
+        else:
+            ret = lambda *args, **kwargs: getattr(self._TurbulenceCalculator, item)(inMemory = self, *args, **kwargs)
+
+        return ret
+
