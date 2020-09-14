@@ -1,3 +1,4 @@
+import hera.datalayer.project
 from ..datalayer.datalayer import GIS_datalayer
 from .... import datalayer
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ class Plotting():
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
+        self._projectMultiDB = hera.datalayer.project.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
 
     def plotImageLocationFromDocument(self, doc, ax=None):
         """

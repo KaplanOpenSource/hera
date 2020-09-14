@@ -1,9 +1,10 @@
+import hera.datalayer.project
 from .highfreqdata.datalayer import InMemoryRawData
 from ... import datalayer
 
 import pydoc
 
-class DataLayer(datalayer.ProjectMultiDBPublic):
+class DataLayer(hera.datalayer.project.ProjectMultiDBPublic):
     _DataSource = None
     _parser = None
     _docType = 'meteorological'

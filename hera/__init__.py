@@ -1,4 +1,13 @@
 __version__ = '0.5.0'
+import json
+import os
+import logging
+import logging.config
+
+
+with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
+    log_conf = json.load(logconfile)
+logging.config.dictConfig(log_conf)
 
 
 import sys

@@ -1,10 +1,12 @@
 import pandas
 import dask
+
+import hera.datalayer.project
 from .... import datalayer
 from .analysis.analysislayer import RawdataAnalysis
 
 
-class RawSonic(datalayer.ProjectMultiDBPublic):
+class RawSonic(hera.datalayer.project.ProjectMultiDBPublic):
 
     _analysis = None
 

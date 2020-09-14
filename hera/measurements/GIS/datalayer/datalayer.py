@@ -1,3 +1,4 @@
+import hera.datalayer.project
 from .... import datalayer
 import pandas
 from shapely import geometry
@@ -17,7 +18,7 @@ class GIS_datalayer:
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
+        self._projectMultiDB = hera.datalayer.project.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
 
         os.system("mkdir -p %s" % self._FilesDirectory)
 
@@ -48,7 +49,7 @@ class GIS_datalayer:
             path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
             fullPath = "%s/%s" % (path, fullfilesdirect[mode])
         else:
-            publicproject = datalayer.ProjectMultiDB(projectName="PublicData", databaseNameList=["public"])
+            publicproject = hera.datalayer.project.ProjectMultiDB(projectName="PublicData", databaseNameList=["public"])
             fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
 
         if additional_data is not None:

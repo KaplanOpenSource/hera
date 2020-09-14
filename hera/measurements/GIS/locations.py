@@ -1,4 +1,6 @@
 import logging
+
+import hera.datalayer.project
 from ... import datalayer
 import getpass
 import matplotlib.pyplot as plt
@@ -13,7 +15,7 @@ except ImportError as e:
 
 
 
-class locationImage(datalayer.ProjectMultiDBPublic):
+class locationImage(hera.datalayer.project.ProjectMultiDBPublic):
     """
         A class to handle an image that represents a location.
 
@@ -160,7 +162,7 @@ class locationImage(datalayer.ProjectMultiDBPublic):
         return ret
 
 
-class topography(datalayer.ProjectMultiDBPublic):
+class topography(hera.datalayer.project.ProjectMultiDBPublic):
     """
         Holds a polygon with description. Allows querying on the location of the shapefile.
 
@@ -213,7 +215,7 @@ class topography(datalayer.ProjectMultiDBPublic):
             path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
             fullPath = "%s/%s" % (path, fullfilesdirect[mode])
         else:
-            publicproject = datalayer.ProjectMultiDB(projectName="PublicData", databaseNameList=["public"])
+            publicproject = hera.datalayer.project.ProjectMultiDB(projectName="PublicData", databaseNameList=["public"])
             fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
 
         descDict = dict(CutName=CutName,points=points,mode=mode)
@@ -271,7 +273,7 @@ class topography(datalayer.ProjectMultiDBPublic):
         """
         pass
 
-class buildings(datalayer.ProjectMultiDBPublic):
+class buildings(hera.datalayer.project.ProjectMultiDBPublic):
     """
         Holds the list of buildings.
     """

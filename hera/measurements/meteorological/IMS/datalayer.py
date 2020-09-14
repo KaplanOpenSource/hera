@@ -36,6 +36,8 @@ class IMSDatalayer(meteorological_datalayer):
                          databaseNameList=databaseNameList,
                          useAll=useAll)
 
+        self.logger.info("Init IMSDatalayer")
+
         self._HebRenameDict = {"שם תחנה": 'Station_name',
                                "תאריך": "Date",
                                "שעה- LST": "Time_(LST)",

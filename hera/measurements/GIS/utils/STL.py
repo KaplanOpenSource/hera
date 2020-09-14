@@ -5,6 +5,8 @@ from numpy import array, cross, sqrt
 import numpy
 import pandas
 import math
+
+import hera.datalayer.project
 from ..datalayer.datalayer import GIS_datalayer
 from hera.measurements.GIS.utils import dataManipulations
 from .... import datalayer
@@ -24,7 +26,7 @@ class convert():
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
         self._GISdatalayer = GIS_datalayer(projectName=projectName, FilesDirectory=FilesDirectory, users=users, useAll=useAll)
-        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
+        self._projectMultiDB = hera.datalayer.project.ProjectMultiDB(projectName=projectName, databaseNameList=users, useAll=useAll)
         self._manipulator = dataManipulations()
 
     def addSTLtoDB(self, path, NewFileName, points, xMin, xMax, yMin, yMax, zMin, zMax, dxdy, **kwargs):

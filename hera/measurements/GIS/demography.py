@@ -1,7 +1,9 @@
 import geopandas
+
+import hera.datalayer.project
 from ... import datalayer
 
-class population(datalayer.ProjectMultiDBPublic):
+class population(hera.datalayer.project.ProjectMultiDBPublic):
 
     _publicMeasure = None
     _projectName = None

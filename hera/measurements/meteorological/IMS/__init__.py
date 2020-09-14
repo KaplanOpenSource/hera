@@ -1,7 +1,7 @@
 from .analysis.date import *
 from .datalayer import IMSDatalayer
 
-IMS = IMSDatalayer("IMS")
+datalayer = IMSDatalayer("IMS")
 
 from .presentationLayer import SeasonalPlots,DailyPlots
 
