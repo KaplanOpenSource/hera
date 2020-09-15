@@ -3,6 +3,9 @@ import geopandas
 import hera.datalayer.project
 from ... import datalayer
 
+from .utils import ConvexPolygons
+
+
 class population(hera.datalayer.project.ProjectMultiDBPublic):
 
     _publicMeasure = None
@@ -14,7 +17,6 @@ class population(hera.datalayer.project.ProjectMultiDBPublic):
         return self._populationDict
 
     def __init__(self, projectName):
-
         self._publicMeasure = datalayer.Measurements_Collection(user="public")
         self._projectName = projectName
         self._populationDict = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19","YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
@@ -73,7 +75,7 @@ class population(hera.datalayer.project.ProjectMultiDBPublic):
                     raise KeyError("Geometry %s was not found" % Geometry)
                 else:
                     if convex:
-                        polys = dataManipulations().ConvexPolygons(documents[0].getDocFromDB())
+                        polys = ConvexPolygons(documents[0].getDocFromDB())
                         poly = polys.loc[polys.area==polys.area.max()].geometry[0]
                     else:
                         poly = documents[0].getDocFromDB().unary_union

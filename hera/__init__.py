@@ -9,6 +9,14 @@ with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config')
     log_conf = json.load(logconfile)
 logging.config.dictConfig(log_conf)
 
+EXECUTION = 15
+logging.addLevelName(EXECUTION, 'EXECUTION')
+
+def execution(self, message, *args, **kws):
+    self.log(EXECUTION, message, *args, **kws)
+
+logging.Logger.execution = execution
+
 
 import sys
 ## Load modules if it is python 3.
