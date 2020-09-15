@@ -37,7 +37,7 @@ class MetadataFrame(object):
         return getHandler(self.dataFormat).getDocFromDB(self.resource, **kwargs)
 
 
-class nonDBMetadata(object):
+class nonDBMetadataFrame(object):
     """
         A wrapper class to use when the data is not loaded into the
         DB.

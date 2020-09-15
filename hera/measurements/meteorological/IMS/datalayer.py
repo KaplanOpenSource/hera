@@ -1,7 +1,7 @@
 import os
 import dask.dataframe
 from ..datalayer import DataLayer as meteorological_datalayer
-from ....datalayer import nonDBMetadata
+from ....datalayer.document import nonDBMetadataFrame
 import warnings
 
 
@@ -110,12 +110,12 @@ class IMSDatalayer(meteorological_datalayer):
 
         returns
         -------
-        nonDBMetadata : list
+        nonDBMetadataFrame : list
 
         """
 
         loaded_dask, _ = self.parse(path=path, station_column=station_column, time_coloumn=time_coloumn)
-        return [nonDBMetadata(loaded_dask, **kwargs)]
+        return [nonDBMetadataFrame(loaded_dask, **kwargs)]
 
     def loadData(self, newdata_path, outputpath, projectName, metadatafile=None, station_column='stn_name',
                  time_column='time_obs', **metadata):
@@ -275,12 +275,12 @@ class CampbellBinary(meteorological_datalayer):
 
         returns
         -------
-        nonDBMetadata : list
+        nonDBMetadataFrame : list
 
         """
 
         loaded_dask, _ = self.parse(path=path)
-        return [nonDBMetadata(loaded_dask, **kwargs)]
+        return [nonDBMetadataFrame(loaded_dask, **kwargs)]
 
     def loadData(self, newdata_path, outputpath, projectName, **metadata):
 

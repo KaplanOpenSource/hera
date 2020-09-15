@@ -1,7 +1,5 @@
 import dask.dataframe.core
 import pandas
-
-from hera.measurements.meteorological.highfreqdata import InMemoryAvgData
 from .....  import datalayer
 
 
@@ -73,6 +71,7 @@ class AbstractCalculator(object):
         self._saveProperties.update(kwargs)
 
     def _updateInMemoryAvgRef(self, df):
+        from .turbulencestatistics import InMemoryAvgData
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = InMemoryAvgData(df, turbulenceCalculator=self)
         else:

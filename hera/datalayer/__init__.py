@@ -6,7 +6,6 @@ from .project import Project, ProjectMultiDB, ProjectMultiDBPublic
 from .utils import dictToMongoQuery
 from .datahandler import datatypes
 
-
 Measurements = Measurements_Collection()
 Simulations = Simulations_Collection()
 Cache = Cache_Collection()

@@ -117,8 +117,6 @@ class Project(object):
         :return:
         """
         name =  ".".join(str(self.__class__)[8:-2].split(".")[1:])
-        import pdb
-        pdb.set_trace()
         self._logger = logging.getLogger(name)
 
     def getMetadata(self):
@@ -203,6 +201,22 @@ class ProjectMultiDB:
     _simulations  = None
     _databaseNameList = None
     _useAll = None
+
+    _logger     = None
+
+    @property
+    def logger(self):
+        return self._logger
+
+    def _setLogger(self):
+        """
+            Set the logger with the name of the class.
+        :return:
+        """
+        name =  ".".join(str(self.__class__)[8:-2].split(".")[1:])
+        self._logger = logging.getLogger(name)
+
+
 
     @property
     def measurements(self):
@@ -293,6 +307,8 @@ class ProjectMultiDB:
         self._cache         = dict([(user,Cache_Collection(user=user)) for user in self._databaseNameList])
         self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
         self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
+
+        self._setLogger()
 
     def getMetadata(self):
         """
@@ -441,8 +457,8 @@ class ProjectMultiDBPublic(ProjectMultiDB):
                 projectNamesDict.update(projectName)
 
         if databaseNameList is None:
-            usersList = dbListNames + [getpass.getuser()]
+            databaseNameList_full = dbListNames + [getpass.getuser()]
         else:
-            usersList = dbListNames + list(numpy.atleast_1d(databaseNameList))
+            databaseNameList_full = dbListNames + list(numpy.atleast_1d(databaseNameList))
 
-        super.__init__(projectName,users=usersList, useAll=useAll)
+        super().__init__(projectName,databaseNameList=databaseNameList_full, useAll=useAll)

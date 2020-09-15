@@ -1,5 +1,5 @@
 import pandas
-from .singlepointturbulencestatistics import singlePointTurbulenceStatistics
+from .turbulencestatistics import singlePointTurbulenceStatistics
 
 class RawdataAnalysis:
 
@@ -15,10 +15,12 @@ class RawdataAnalysis:
 
 
     def singlePointTurbulenceStatisticsFromDB(self,
+                                              stationName,
+                                              height,
                                               samplingWindow,
                                               start,
                                               end,
-                                              usePandas=False,
+                                              inmemory=False,
                                               isMissingData=False, **kwargs):
         """
         This method loads the raw data that corresponds to the requirements (projectName, station, instrument.. ) and
@@ -39,7 +41,7 @@ class RawdataAnalysis:
         end : str/pandas.Timestamp
             Datetime of the end.
 
-        usePandas : bool, positional, default False
+        inmemory : bool, positional, default False
             A flag of whether or not to use pandas.
 
         isMissingData : bool, positional, default False
@@ -66,6 +68,13 @@ class RawdataAnalysis:
         identifier.update(kwargs)
 
         projectData = self.project.getMetadata()[['height', 'instrument', 'station']].drop_duplicates()
+        rawData     = self.project.getSonicData(stationName=stationName,
+                                                height=height,
+                                                inmemory=inmemory,
+                                                start=start,
+                                                end=end,
+                                                **kwargs)
+
 
         if identifier['station'] is not None:
             stationData = projectData.query("station=='%s'" % identifier['station']).iloc[0]

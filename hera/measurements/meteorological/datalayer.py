@@ -1,6 +1,4 @@
 import hera.datalayer.project
-from .highfreqdata.datalayer import InMemoryRawData
-from ... import datalayer
 
 import pydoc
 
@@ -34,9 +32,11 @@ class DataLayer(hera.datalayer.project.ProjectMultiDBPublic):
                          publicProjectName=publicProjectName,
                          databaseNameList=databaseNameList,
                          useAll=useAll)
-
+        self.logger.info(f"Initializing a multiDBPublic project with name {projectName} and public name: {publicProjectName}")
         self._DataSource = DataSource
-        parserCls = pydoc.locate(f"hermes.measurements.meteorological.parserClasses.Parser_{DataSource}")
+        classpath = f"hera.measurements.meteorological.parserClasses.Parser_{DataSource}"
+        parserCls = pydoc.locate(classpath)
+        self.logger.debug(f"Parser class is {classpath}")
         self._parser = parserCls()
 
     def getDocFromDB(self, resource=None, dataFormat=None, **desc):

@@ -18,7 +18,7 @@ class openfoam_Datalayer():
         else:
             print("data format must be one of the follows: [xarray ; pandas]")
 
-        return [datalayer.document.metadataDocument.nonDBMetadata(data=data,resource=path,dataFormat=dataFormat,type='OFsimulation',**kwargs)]
+        return [datalayer.document.metadataDocument.nonDBMetadataFrame(data=data, resource=path, dataFormat=dataFormat, type='OFsimulation', **kwargs)]
 
 
 
