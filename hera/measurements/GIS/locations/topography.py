@@ -1,8 +1,8 @@
 import os
 import logging
 import numpy
-from ...datalayer import project
-from ...datalayer import datatypes
+from .abstractLocation import datalayer as locationDatalayer
+from ....datalayer import datatypes
 import matplotlib.pyplot as plt
 
 import requests
@@ -21,14 +21,11 @@ except ImportError as e:
     logging.warning("FreeCAD not Found, cannot convert to STL")
 
 
-class topography(project.ProjectMultiDBPublic):
+class datalayer(locationDatalayer):
     """
         Holds a polygon with description. Allows querying on the location of the shapefile.
 
         The projectName in the public DB is 'locationGIS'
-
-
-
     """
     _dxdy = None
 
@@ -41,8 +38,13 @@ class topography(project.ProjectMultiDBPublic):
         if value is not None:
             self._dxdy = value
 
-    @def skipinterior(self):
+    @property
+    def skipinterior(self):
         return self._skipinterior
+
+    @property
+    def publicProjectName(self):
+        return 'Topography'
 
     def __init__(self, projectName, useAll=False, dxdy=None):
         """
@@ -56,7 +58,7 @@ class topography(project.ProjectMultiDBPublic):
         useAll: bool
             whether to return union of all the image locations or just for one DB.
         """
-        super().__init__(projectName=projectName,publicProjectName='locationGIS')
+        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName)
 
         self._dxdy = 10 if dxdy is None else dxdy  # m
         self._skipinterior = 100  # 100 # m, the meters to remove from the interpolation to make sure all exists.

@@ -1,8 +1,8 @@
 import os
 import logging
 import numpy
-from ...datalayer import project
-from ...datalayer import datatypes
+from .abstractLocation import datalayer as locationDatalayer
+from ....datalayer import datatypes
 
 import matplotlib.pyplot as plt
 
@@ -16,7 +16,7 @@ except ImportError as e:
     logging.warning("FreeCAD not Found, cannot convert to STL")
 
 
-class buildings(project.ProjectMultiDBPublic):
+class datalayer(locationDatalayer):
     """
         Holds the list of buildings.
     """
@@ -24,7 +24,13 @@ class buildings(project.ProjectMultiDBPublic):
     @property
     def doctype(self):
         return 'BuildingSTL'
+    @property
+    def publicProjectName(self):
+        return 'Buildings'
 
+    def __init__(self,projectName):
+
+        pass
 
     def toSTL(self, doc, outputfile,flat=None):
         """

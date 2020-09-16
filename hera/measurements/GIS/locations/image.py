@@ -1,17 +1,14 @@
 import os
 import logging
 import numpy
-from ....datalayer import project
+from .abstractLocation import datalayer as locationDatalayer
 from ....datalayer import datatypes
 
 import matplotlib.pyplot as plt
 
 from shapely.geometry import Point,box,MultiLineString, LineString
 
-
-
-
-class datalayer(project.ProjectMultiDBPublic):
+class datalayer(locationDatalayer):
     """
         A class to handle an image that represents a location.
 
