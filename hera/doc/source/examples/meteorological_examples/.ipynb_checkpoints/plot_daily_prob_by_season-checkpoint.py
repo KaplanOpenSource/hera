@@ -18,7 +18,7 @@ projectName='IMS_Data'
 stationName= 'AVNE ETAN'
 station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
 if len(station) > 0:
-    data=station[0].getData()
+    data=station[0].getDocFromDB()
     print(data)
 else:
     print('%s doclist is empty' % station)
@@ -28,7 +28,7 @@ else:
 # Reading sample data from directory:
 
 station=meteo.IMS_datalayer.getDocFromFile(path=os.path.join("documentationData","AVNE_ETAN"))
-data=station[0].getData()
+data=station[0].getDocFromDB()
 ###############################################################################
 # Then, select a column from the data to plot
 #

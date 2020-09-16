@@ -1,12 +1,27 @@
 GIS
 ===
 
-The GIS method is used to manage GIS data.
-Its main use is adding geopandas dataframes, polygons, points and picturs to the database
-and easily retrieving them using simple queries.
-In addition, it enables common data manipulations as built-in functions, and helps
-building stl files based on the stored data.
+The GIS module is used to manage GIS data.
+Each GIS data is considered as a tool.
 
+Currently there are 3 tools:
+
+#. **Image location** : Tools to manage images with its boundaries.
+#. **Demography**     : Tools to manage demography data.
+#. **Topography**     : Tools to manage topography data
+#. **Buildings**      : Tools to manage buildings.
+
+Usage
+-----
+
+.. toctree::
+    :maxdepth: 1
+
+    GIS/examples/ManagingData
+    GIS/examples/Plotting
+    GIS/examples/Convertions
+    GIS/examples/DataManipulations
+    GIS/examples/Population
 
 
 10-minute tutorial
@@ -100,32 +115,3 @@ we can find the amount of people who live in that polygon.
     population = GIS.population(projectName = "Example")
     data = population.projectPolygonOnPopulation(Geometry="TelAviv")
 
-Get Altitude
-************
-
-We can have the altitude data from three different sources:
-1. MAPI - BNTL files, with it's coarse resolution (even km scale)
-2. mapquest 30m resolution, uses free key that has limited access
-
-.. code-block:: python
-
-	get_altitdue_ip(lat, lon)
-
-3. USGS 30m resolution
-
-.. code-block:: python
-
- 	get_altitdue_gdal(lat, lon)
-
-
-Usage
------
-
-.. toctree::
-    :maxdepth: 1
-
-    GIS/examples/ManagingData
-    GIS/examples/Plotting
-    GIS/examples/Convertions
-    GIS/examples/DataManipulations
-    GIS/examples/Population
