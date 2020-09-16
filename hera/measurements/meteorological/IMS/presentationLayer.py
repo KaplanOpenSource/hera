@@ -4,7 +4,7 @@ import seaborn
 import dask.dataframe
 from itertools import product
 
-from hera.measurements.meteorological.analytics.dailyClimatology import calcHourlyDist
+from hera.measurements.meteorological.IMS.analysis.date import calcHourlyDist
 from hera.measurements import meteorological
 
 class Plots(object):

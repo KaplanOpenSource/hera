@@ -22,8 +22,7 @@ def andClause(excludeFields=[], **kwargs):
     return " and ".join(L)
 
 
-tonumber = lambda x,theunit: x.asNumber(theunit) if isinstance(x,Unum) else x
-tounit   = lambda x,theunit: x.asUnit(theunit) if isinstance(x,Unum) else x*theunit
+class tmp:
 
-toMeteorlogicalAngle = lambda mathematical_angle: (270-mathematical_angle) if ((270-mathematical_angle) >= 0) else (630-mathematical_angle)
-toMathematicalAngle  = toMeteorlogicalAngle
+    def __init__(self):
+        self.name = ".".join(str(self.__class__)[8:-2].split(".")[1:])

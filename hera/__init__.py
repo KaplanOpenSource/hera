@@ -1,4 +1,21 @@
-__version__ = '0.7.1'
+__version__ = '0.5.0'
+import json
+import os
+import logging
+import logging.config
+
+
+with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
+    log_conf = json.load(logconfile)
+logging.config.dictConfig(log_conf)
+
+EXECUTION = 15
+logging.addLevelName(EXECUTION, 'EXECUTION')
+
+def execution(self, message, *args, **kws):
+    self.log(EXECUTION, message, *args, **kws)
+
+logging.Logger.execution = execution
 
 
 import sys

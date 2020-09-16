@@ -2,7 +2,7 @@ from mongoengine import *
 import os
 import json
 import getpass
-from .metadataDocument import MetadataFrame
+from .metadataDocument import MetadataFrame,nonDBMetadataFrame
 
 dbObjects = {}
 
@@ -186,7 +186,6 @@ def getDBObject(objectName, user=None):
         raise KeyError(f"object {objectName} not found. Must be one of: {allobjs}")
 
     return ret
-
 
 
 # ---------------------default connections--------------------------

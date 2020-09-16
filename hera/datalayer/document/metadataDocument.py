@@ -3,6 +3,9 @@ import json
 from ..datahandler import getHandler
 
 class MetadataFrame(object):
+    """
+        A basic structure for a document.
+    """
     projectName = StringField(required=True)
     desc = DictField(required=True)
     type = StringField(required=True)
@@ -31,10 +34,10 @@ class MetadataFrame(object):
         -------
             object according to the datahandler. 
         """
-        return getHandler(self.dataFormat).getData(self.resource, **kwargs)
+        return getHandler(self.dataFormat).getDocFromDB(self.resource, **kwargs)
 
 
-class nonDBMetadata(object):
+class nonDBMetadataFrame(object):
     """
         A wrapper class to use when the data is not loaded into the
         DB.

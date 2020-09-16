@@ -1,8 +1,6 @@
 import dask.dataframe.core
 import pandas
-
-from ..inmemoryavgdata import InMemoryAvgData
-from .... import datalayer
+from .....  import datalayer
 
 
 class AbstractCalculator(object):
@@ -73,6 +71,7 @@ class AbstractCalculator(object):
         self._saveProperties.update(kwargs)
 
     def _updateInMemoryAvgRef(self, df):
+        from .turbulencestatistics import InMemoryAvgData
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = InMemoryAvgData(df, turbulenceCalculator=self)
         else:
@@ -120,7 +119,7 @@ class AbstractCalculator(object):
 
 
         if docExist:
-            df = docExist[-1].getData(usePandas=True)[[x[0] for x in self._CalculatedParams]]
+            df = docExist[-1].getDocFromDB(usePandas=True)[[x[0] for x in self._CalculatedParams]]
             self._updateInMemoryAvgRef(df)
         else:
             self._compute()
@@ -134,7 +133,7 @@ class AbstractCalculator(object):
                                          end__gt=self.Identifier['start'], **query))
 
         if docExist:
-            df = docExist[-1].getData(usePandas=True)[[x[0] for x in self._CalculatedParams]]
+            df = docExist[-1].getDocFromDB(usePandas=True)[[x[0] for x in self._CalculatedParams]]
             self._updateInMemoryAvgRef(df)
         else:
             self._compute()
@@ -202,10 +201,3 @@ class SaveDataHandler(object):
         data.to_parquet(path)
         return path
 
-# class CalculatedField(object):
-#
-#     def WindDirection(self):
-#         pass
-#
-#     def WindVelocity(self|):
-#         pass
