@@ -89,6 +89,8 @@ class population(hera.datalayer.project.ProjectMultiDBPublic):
             newData[populationType] = res_intersect_poly.sum()[populationType]
 
         if save:
+            if path is None:
+                raise KeyError("Select a path for the new file")
             newData.to_file(path)
             if addToDB:
                 if name is None:

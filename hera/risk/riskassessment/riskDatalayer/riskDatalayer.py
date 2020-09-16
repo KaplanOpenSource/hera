@@ -1,6 +1,6 @@
 from hera.datalayer.collection import Measurements_Collection
 
-class heraDatalayer():
+class riskDatalayer():
 
     _userDB = None
     _publicDB = None
@@ -19,7 +19,6 @@ class heraDatalayer():
             self._userDB.addDocument(projectName=projectName, resource="", type="Agent", dataFormat="string", desc=description)
 
     def getAgent(self, Agent, projectName="AgentsCollection"):
-
         if len(self._userDB.getDocuments(projectName=projectName, Agent=Agent)) > 0:
             newAgent = self._userDB.getDocuments(projectName=projectName, Agent=Agent)[0].asDict()["desc"]
         elif len(self._publicDB.getDocuments(projectName=projectName, Agent=Agent)) > 0:

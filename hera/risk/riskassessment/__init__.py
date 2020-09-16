@@ -23,7 +23,7 @@ def toMatematicalAngle(meteorological_angle):
 def toAzimuthAngle(mathematical_angle): 
 	return (90-mathematical_angle) if ((90-mathematical_angle) >= 0) else (450 - mathematical_angle)
 
-from .heraDatalayer.heraDatalayer import heraDatalayer
+from .riskDatalayer.riskDatalayer import riskDatalayer
 from .agents.Agents import Agent
 from .presentation.casualtiesFigs import casualtiesPlot
 from .protectionpolicy.ProtectionPolicy import  ProtectionPolicy

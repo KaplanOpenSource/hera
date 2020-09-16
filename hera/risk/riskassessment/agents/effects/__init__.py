@@ -21,5 +21,5 @@ geographical area (+ calculating the casualties).
      - MaxConcentration. 
 """
 
-from pyriskassessment.agents.effects.Injury import InjuryFactory 
+from .Injury import InjuryFactory
 injuryfactory = InjuryFactory()
