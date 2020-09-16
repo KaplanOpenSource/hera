@@ -79,7 +79,7 @@ class AbstractCollection(object):
         return self._metadataCol.objects(**query)
 
     def _getAllValueByKey(self, key, **query):
-        return [doc[key] for doc in self.getDocuments(projectName=None, **query)]
+        return list(set([doc[key] for doc in self.getDocuments(projectName=None, **query)]))
 
     def getProjectList(self):
         return self._getAllValueByKey(key='projectName')
