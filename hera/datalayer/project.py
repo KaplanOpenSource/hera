@@ -110,6 +110,27 @@ class Project(object):
 
         self._setLogger()
 
+    def getConfig(self):
+        """
+        Returns the config document's description.
+        If there is no config document, return None.
+        """
+        documents = self.getCacheDocumentsAsDict(type="__config__")
+        if len(documents) == 0:
+            raise KeyError("There is no config document.")
+        else:
+            desc = documents["documents"][0]["desc"]
+        return desc
+
+    def setConfig(self, config):
+        """
+        Create a config documnet or updates an existing config document.
+        """
+        documents = self.getCacheDocuments(type="__config__")
+        if len(documents) == 0:
+            self.addCacheDocument(type="__config__",desc=config)
+        else:
+            documents[0].update(desc=config)
 
     def _setLogger(self):
         """
@@ -309,6 +330,28 @@ class ProjectMultiDB:
         self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
 
         self._setLogger()
+
+    def getConfig(self):
+        """
+        Returns the config document's description.
+        If there is no config document, return None.
+        """
+        documents = self.getCacheDocumentsAsDict(type="__config__")
+        if len(documents) == 0:
+            raise KeyError("There is no config document.")
+        else:
+            desc = documents["documents"][0]["desc"]
+        return desc
+
+    def setConfig(self, config):
+        """
+        Create a config documnet or updates an existing config document.
+        """
+        documents = self.getCacheDocuments(type="__config__")
+        if len(documents) == 0:
+            self.addCacheDocument(type="__config__",desc=config)
+        else:
+            documents[0].update(desc=config)
 
     def getMetadata(self):
         """
