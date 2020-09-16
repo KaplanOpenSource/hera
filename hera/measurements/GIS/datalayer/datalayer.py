@@ -314,3 +314,45 @@ class GIS_datalayer:
 
         return data
 
+
+    def loadImage(self, path, locationName, extents):
+        """
+        Loads an image to the local database.
+
+        Parameters:
+        -----------
+
+        projectName: str
+                    The project name
+        path:  str
+                    The image path
+        locationName: str
+                    The location name
+        extents: list or dict
+                list: The extents of the image [xmin, xmax, ymin, ymax]
+                dict: A dict with the keys xmin,xmax,ymin,ymax
+
+
+        Returns
+        -------
+        """
+
+        if isinstance(extents,dict):
+            extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
+        elif isinstance(extents,list):
+            extentList = extents
+        else:
+            raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+
+
+        doc = dict(resource=path,
+                   dataFormat='image',
+                   type='GIS',
+                   desc=dict(locationName=locationName,
+                             xmin=extentList[0],
+                             xmax=extentList[1],
+                             ymin=extentList[2],
+                             ymax=extentList[3]
+                             )
+                   )
+        self._projectMultiDB.addMeasurementsDocument(**doc)
