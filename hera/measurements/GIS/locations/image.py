@@ -3,12 +3,12 @@ import logging
 import numpy
 from .abstractLocation import datalayer as locationDatalayer
 from ....datalayer import datatypes
-
+from ....datalayer import project
 import matplotlib.pyplot as plt
 
 from shapely.geometry import Point,box,MultiLineString, LineString
 
-class datalayer(locationDatalayer):
+class datalayer(project.ProjectMultiDBPublic):
     """
         A class to handle an image that represents a location.
 
@@ -16,25 +16,12 @@ class datalayer(locationDatalayer):
 
     """
 
-    @property
-    def publicProjectName(self):
-        return 'imageLocation'
+    _projectName = None
 
+    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Images"):
 
-    def __init__(self, projectName, useAll=False):
-        """
-                Initialize
-
-        Parameters
-        -----------
-        projectName: str
-            The name of the project name in the local DB.
-
-        useAll: bool
-            whether to return union of all the image locations or just for one DB.
-        """
-
-        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName)
+        self._projectName = projectName
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
 
     def plot(self,data,ax=None,**query):
         """
@@ -83,50 +70,44 @@ class datalayer(locationDatalayer):
 
         return ax
 
-    def loadImage(self, path, locationName, extents,sourceName):
+    def load(self, path, imageName, extents):
         """
-        Make region from the
-
         Parameters:
         -----------
-
         projectName: str
                     The project name
         path:  str
                     The image path
-        locationName: str
+        imageName: str
                     The location name
         extents: list or dict
                 list: The extents of the image [xmin, xmax, ymin, ymax]
                 dict: A dict with the keys xmin,xmax,ymin,ymax
-
-        sourceName: str
-            The source
-
         Returns
         -------
         """
-
         if isinstance(extents,dict):
             extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
         elif isinstance(extents,list):
             extentList = extents
         else:
             raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
-
-
         doc = dict(resource=path,
                    dataFormat='image',
                    type='GIS',
-                   desc=dict(locationName=locationName,
+                   desc=dict(imageName=imageName,
                              xmin=extentList[0],
                              xmax=extentList[1],
                              ymin=extentList[2],
                              ymax=extentList[3]
                              )
                    )
-        self.addMeasurementsDocument(**doc)
-
+        if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(
+                self._databaseNameList) > 1:
+            userName = self._databaseNameList[1]
+        else:
+            userName = self._databaseNameList[0]
+        self.addMeasurementsDocument(**doc,users=[userName])
 
     def query(self,imageName=None,point=None,**query):
         """

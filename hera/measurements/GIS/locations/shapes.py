@@ -1,0 +1,102 @@
+from ....datalayer import project
+from shapely import geometry
+
+class datalayer(project.ProjectMultiDBPublic):
+
+    _projectName = None
+
+    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Shapes"):
+
+        self._projectName = projectName
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+
+    def getShape(self, name):
+        """
+        Returns the geometry shape of a given name from the database.
+        Parameters:
+            name: THe shape's name (string)
+        Returns: The geometry (shapely Point or Polygon)
+
+        """
+        geo, shapeType = self.getShapePoints(name)
+        if shapeType == "Polygon":
+            geo = geometry.Polygon(geo)
+        elif shapeType == "Point":
+            geo = geometry.Point(geo[0])
+        return geo
+
+    def getShapePoints(self, name):
+        """
+        Returns the coordinates (list) and shape type ("Point" or "Polygon") of a geometry shape for a given name from the database.
+        Parameters:
+            name: THe shape's name (string)
+        Returns: The geometry ([[ccoordinates], shapeType])
+        """
+        document = self.getMeasurementsDocumentsAsDict(name=name, type="Shape")
+        if len(document) ==0:
+            geo=None
+            shapeType=None
+        else:
+            geo = document["documents"][0]["desc"]["geometry"]
+            shapeType = document["documents"][0]["desc"]["shapeType"]
+
+        return geo, shapeType
+
+    def addShape(self, Shape, name):
+        """
+        This function is used to add a new geometry shape to the database.
+
+        Parameters:
+            Shape: The geometry shape to add to the database. Geometry must be given as one of the following structurs.\n
+                      Shapely polygon or point, point coordinates ([x,y]), list of point coordinates ([[x1,y1],[x2,y2],...]),\n
+                      list of x coordinates and y coordinates ([[x1,x2,...],[y1,y2,...]]) \n
+            name: The name of the shape. (string)
+        """
+
+        check = self.getMeasurementsDocuments(name=name)
+        KeyErrorText = "Shape must be given as one of the following structurs.\n" \
+                        "Shapely polygon or point, point coordinates ([x,y]), list of point coordinates ([[x1,y1],[x2,y2],...]),\n" \
+                        "list of x coordinates and y coordinates ([[x1,x2,...],[y1,y2,...]])"
+        if len(check)>0:
+            raise KeyError("Name is already used.")
+        else:
+            if type(Shape)==geometry.polygon.Polygon:
+                geopoints = list(zip(*Shape.exterior.coords.xy))
+                shapeType = "Polygon"
+            elif type(Shape)==geometry.point.Point:
+                geopoints = list(Shape.coords)
+                shapeType = "Point"
+            elif type(Shape)==list:
+                if type(Shape[0])==list:
+                    if len(Shape)>=3:
+                        for geo in Shape:
+                            if len(geo)!=2:
+                                raise KeyError(KeyErrorText)
+                        shapeType = "Polygon"
+                        geopoints = Shape
+                    elif len(Shape)==2:
+                        if len(Shape[0])==len(Shape[1])>=3:
+                            shapeType = "Polygon"
+                            geopoints=[]
+                            for i in range(len(Shape[0])):
+                                geopoints.append([Shape[0][i], Shape[1][i]])
+                        else:
+                            raise KeyError(KeyErrorText)
+                    else:
+                        raise KeyError(KeyErrorText)
+                else:
+                    if len(Shape)!=2:
+                        raise KeyError(KeyErrorText)
+                    shapeType = "Point"
+                    geopoints = [Shape]
+            else:
+                raise KeyError(KeyErrorText)
+            if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(
+                    self._databaseNameList) > 1:
+                userName = self._databaseNameList[1]
+            else:
+                userName = self._databaseNameList[0]
+            self.addMeasurementsDocument(desc=dict(geometry=geopoints, shapeType=shapeType, name=name),
+                                               type="Shape",
+                                               resource="",
+                                               dataFormat="string",users=userName)

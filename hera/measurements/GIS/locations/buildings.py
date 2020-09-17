@@ -17,20 +17,17 @@ except ImportError as e:
 
 
 class datalayer(locationDatalayer):
-    """
-        Holds the list of buildings.
-    """
+
+    _publicProjectName = None
 
     @property
     def doctype(self):
         return 'BuildingSTL'
-    @property
-    def publicProjectName(self):
-        return 'Buildings'
 
-    def __init__(self,projectName):
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Buildings",Source="BNTL"):
 
-        pass
+        self.publicProjectName = publicProjectName
+        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
 
     def toSTL(self, doc, outputfile,flat=None):
         """

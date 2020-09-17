@@ -28,6 +28,7 @@ class datalayer(locationDatalayer):
         The projectName in the public DB is 'locationGIS'
     """
     _dxdy = None
+    _publicProjectName = None
 
     @property
     def dxdy(self):
@@ -42,23 +43,10 @@ class datalayer(locationDatalayer):
     def skipinterior(self):
         return self._skipinterior
 
-    @property
-    def publicProjectName(self):
-        return 'Topography'
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL", dxdy=None):
 
-    def __init__(self, projectName, useAll=False, dxdy=None):
-        """
-                Initialize
-
-        Parameters
-        -----------
-        projectName: str
-            The name of the project name in the local DB.
-
-        useAll: bool
-            whether to return union of all the image locations or just for one DB.
-        """
-        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName)
+        self.publicProjectName = publicProjectName
+        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
 
         self._dxdy = 10 if dxdy is None else dxdy  # m
         self._skipinterior = 100  # 100 # m, the meters to remove from the interpolation to make sure all exists.
