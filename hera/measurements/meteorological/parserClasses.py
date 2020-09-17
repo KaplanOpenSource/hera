@@ -232,7 +232,7 @@ class Parser_CampbellBinary(object):
             toTime = pandas.Timestamp(toTime)
 
         recordIndex = 0 if fromTime is None else cbi.getRecordIndexByTime(fromTime)
-        endIndex = cbi.recordsNum if toTime is None else cbi.getRecordByTime(toTime)+1
+        endIndex = cbi.recordsNum if toTime is None else cbi.getRecordIndexByTime(toTime)+1
 
         ts = []
 
