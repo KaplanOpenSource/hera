@@ -20,7 +20,6 @@ except ImportError as e:
 class locationImage(project.ProjectMultiDBPublic):
     """
         A class to handle an image that represents a location.
-
         Looks up the location in the public database in project 'imageLocation'.
 
     """
