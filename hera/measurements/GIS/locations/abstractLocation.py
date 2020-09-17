@@ -69,7 +69,6 @@ class datalayer(project.ProjectMultiDBPublic):
             self.addMeasurementsDocument(desc=dict(**additional_data), type=self._publicProjectName,
                                                resource = resource, dataFormat = "geopandas",users=[userName])
 
-
     def check_data(self, **kwargs):
         """
         Checks whether there is a document that fulfills desired requirements.

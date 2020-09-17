@@ -5,6 +5,7 @@ from .abstractLocation import datalayer as locationDatalayer
 from ....datalayer import datatypes
 from ....datalayer import project
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 from shapely.geometry import Point,box,MultiLineString, LineString
 
@@ -23,53 +24,6 @@ class datalayer(project.ProjectMultiDBPublic):
         self._projectName = projectName
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
 
-    def plot(self,data,ax=None,**query):
-        """
-            Plots the image from the document or from a document.
-
-        Parameters
-        -----------
-
-        data: imageLocation doc, str
-            Plot the image from the document or query
-            the DB for the image with data name and plot the first.
-            if more than 1 image exists, raise error.
-
-        ax: matplotlib.Axes
-            The axes to plot on, if None create
-            a new axes.
-
-        **query: mongoDB
-            query map.
-
-        Returns
-        --------
-            matplotlib.Axes
-
-            The axes of the image
-        """
-        if ax is None:
-            fig, ax = plt.subplots()
-
-
-        if isinstance(data,str):
-            doc = self.getMeasurementsDocuments(dataFormat='image',
-                                                type='GIS',
-                                                locationName=data,
-                                                **query)
-
-            if len(doc) > 1:
-                raise ValueError('More than 1 documents fills those requirements')
-
-            doc = doc[0]
-
-        image = doc.getDocFromDB()
-        extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
-        ax = plt.imshow(image, extent=extents)
-
-
-        return ax
-
     def load(self, path, imageName, extents):
         """
         Parameters:
@@ -86,6 +40,9 @@ class datalayer(project.ProjectMultiDBPublic):
         Returns
         -------
         """
+        check = self.getMeasurementsDocuments(dataFormat='image',type='GIS',imageName=imageName)
+        if len(check)>0:
+            raise KeyError("The imageName is already used.")
         if isinstance(extents,dict):
             extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
         elif isinstance(extents,list):
@@ -109,35 +66,31 @@ class datalayer(project.ProjectMultiDBPublic):
             userName = self._databaseNameList[0]
         self.addMeasurementsDocument(**doc,users=[userName])
 
-    def query(self,imageName=None,point=None,**query):
+class presentationLayer(datalayer):
+
+    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Images"):
+
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+
+    def plot(self, imageName, ax=None, **query):
         """
-                get the images.
-
-        Parameters
-        ----------
-
-        imageName:  str
-                image name.
-        point: tuple
-            a point inside the domain.
-        query:
-            querying the data.
+        :param imageName: The location name
+        :param query: Some more specific details to query on
         :return:
-
         """
-        docsList = self.getMeasurementsDocuments(imeageName=imageName,**query)
-        if point is not None:
-            point = point if isinstance(point,Point) else Point(point[0],point[1])
-            ret = []
-            for doc in docsList:
-                bb = box(doc.desc['xmin'],
-                         doc.desc['xmax'],
-                         doc.desc['ymin'],
-                         doc.desc['ymax'])
-                if point in bb:
-                    ret.append(doc)
-        else:
-            ret =  docsList
-        return ret
+        doc = self.getMeasurementsDocuments(dataFormat='image',type='GIS',imageName=imageName,**query)
+        if len(doc) > 1:
+            raise ValueError('More than 1 documents fills those requirements')
+        doc = doc[0]
 
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            plt.sca(ax)
+
+        path = doc.resource
+        extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
+        image = mpimg.imread(path)
+        ax = plt.imshow(image, extent=extents)
+        return ax
 

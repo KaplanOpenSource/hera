@@ -1,5 +1,6 @@
 from ....datalayer import project
 from shapely import geometry
+import matplotlib.pyplot as plt
 
 class datalayer(project.ProjectMultiDBPublic):
 
@@ -100,3 +101,48 @@ class datalayer(project.ProjectMultiDBPublic):
                                                type="Shape",
                                                resource="",
                                                dataFormat="string",users=userName)
+
+class presentationLayer(datalayer):
+
+    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Shapes"):
+
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+
+    def plot(self, names, color="black", marker="*", ax=None):
+        """
+        Plots saved geometry shapes.
+
+        Parameters:
+            names: The name/s of the shape/s (string or list of strings) \n
+            color: The color of the shape (string) n\
+            marker: The marker type for points. (string) \n
+            ax: The ax of the plot. \n
+            return: ax
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1,1)
+        else:
+            plt.sca(ax)
+        if type(names) == list:
+            for name in names:
+                self._plotSingleShape(name, color, marker, ax)
+        else:
+            self._plotSingleShape(names, color, marker, ax)
+
+        return ax
+
+    def _plotSingleShape(self, name, color, marker, ax=None):
+
+        if ax is None:
+            fig, ax = plt.subplots(1,1)
+        else:
+            plt.sca(ax)
+
+        geo, geometry_type = self.getShapePoints(name)
+        if geometry_type == "Point":
+            plt.scatter(*geo[0], color=color, marker=marker)
+        elif geometry_type == "Polygon":
+            geo = self.getShape(name)
+            x, y = geo.exterior.xy
+            ax = plt.plot(x, y, color=color)
+        return ax
