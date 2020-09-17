@@ -77,6 +77,7 @@ class SingleSimulation(object):
             dt_minutes = (self._finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
             self._finalxarray.attrs['dt'] = toUnum(dt_minutes, time_units)
             self._finalxarray.attrs['Q']  = toUnum(Q, q_units)
+            self._finalxarray.attrs["C"] = toUnum(1, q_units/(m**3))
 
             Qfactor = toNumber(self._finalxarray.attrs['Q'] * min / m ** 3,
                                q_units * time_units / m ** 3)

@@ -11,15 +11,18 @@ class population(hera.datalayer.project.ProjectMultiDBPublic):
     _publicMeasure = None
     _projectName = None
     _populationDict = None
+    _config = None
 
     @property
     def agesDefinition(self):
         return self._populationDict
 
-    def __init__(self, projectName):
+    def __init__(self, projectName,source="Pakaar"):
         self._publicMeasure = datalayer.Measurements_Collection(user="public")
         self._projectName = projectName
         self._populationDict = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19","YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
+        self.setConfig({"source":source})
+        self._config = self.getConfig()
 
     def projectPolygonOnPopulation(self, Geometry, data=None, populationTypes="All", usePopulationDict=True):
         """
@@ -32,7 +35,7 @@ class population(hera.datalayer.project.ProjectMultiDBPublic):
                              from the data.
         """
 
-        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getDocFromDB() if data is None else data
+        Data = self._publicMeasure.getDocuments(projectName="resources", source=self._config["source"])[0].getDocFromDB() if data is None else data
 
         if type(Geometry) == str:
             poly = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getGeometry(name=Geometry)
@@ -89,6 +92,8 @@ class population(hera.datalayer.project.ProjectMultiDBPublic):
             newData[populationType] = res_intersect_poly.sum()[populationType]
 
         if save:
+            if path is None:
+                raise KeyError("Select a path for the new file")
             newData.to_file(path)
             if addToDB:
                 if name is None:

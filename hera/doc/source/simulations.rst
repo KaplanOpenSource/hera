@@ -8,3 +8,5 @@ simulations
     simulations/LSM
     simulations/openFoam
     simulations/WRF
+    simulations/GFS
+    simulations/interpolations
