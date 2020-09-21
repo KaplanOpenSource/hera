@@ -1,24 +1,17 @@
-import os
 import logging
-import numpy
 from .abstractLocation import datalayer as locationDatalayer
-from ....datalayer import datatypes
 import matplotlib.pyplot as plt
 import geopandas
-from shapely.geometry import MultiLineString, LineString
 from scipy.interpolate import griddata
 from numpy import array, cross, sqrt
 import numpy
 import pandas
 import math
-
 import requests
 import random
 from osgeo import gdal
 import numpy as np
 from .shapes import datalayer as shapeDatalayer
-
-
 from shapely.geometry import Point,box,MultiLineString, LineString
 
 class datalayer(locationDatalayer):
