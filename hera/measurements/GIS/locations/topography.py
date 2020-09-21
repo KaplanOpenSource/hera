@@ -22,35 +22,32 @@ except ImportError as e:
 
 
 class datalayer(locationDatalayer):
-    """
-        Holds a polygon with description. Allows querying on the location of the shapefile.
 
-        The projectName in the public DB is 'locationGIS'
-    """
-    _dxdy = None
-    _publicProjectName = None
+    _analysis = None
 
     @property
-    def dxdy(self):
-        return self._dxdy
+    def analysis(self):
+        return self._analysis
 
-    @dxdy.setter
-    def dxdy(self, value):
-        if value is not None:
-            self._dxdy = value
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
+
+        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        self.setConfig({"source":Source,"dxdy":10,"skipinterior":100})
+        self._analysis = analysis(projectName=projectName, dataLayer=self)
+
+class analysis():
+
+    _datalayer = None
 
     @property
-    def skipinterior(self):
-        return self._skipinterior
+    def datalayer(self):
+        return self._datalayer
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL", dxdy=None):
+    def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
+                 publicProjectName="Topography", Source="BNTL"):
 
-        self.publicProjectName = publicProjectName
-        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
-
-        self._dxdy = 10 if dxdy is None else dxdy  # m
-        self._skipinterior = 100  # 100 # m, the meters to remove from the interpolation to make sure all exists.
-
+        self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
 
     def _make_facet_str(self, n, v1, v2, v3):
         facet_str = 'facet normal ' + ' '.join(map(str, n)) + '\n'

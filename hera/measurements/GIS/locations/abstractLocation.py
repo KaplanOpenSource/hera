@@ -53,7 +53,7 @@ class datalayer(project.ProjectMultiDBPublic):
         else:
             additional_data = {"CutName": CutName, "points": points}
 
-        documents = self.getMeasurementsDocumentsAsDict(points=points)
+        documents = self.getMeasurementsDocumentsAsDict(points=points,type=self._publicProjectName)
         if len(documents) == 0:
             FileName = "%s/%s.shp" % (self._FilesDirectory, CutName)
             os.system("ogr2ogr -clipsrc %s %s %s %s %s %s" % (points[0],points[1],points[2],points[3], FileName,fullPath))
