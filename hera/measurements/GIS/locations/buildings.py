@@ -32,7 +32,7 @@ class datalayer(locationDatalayer):
 
     def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Buildings",Source="BNTL"):
 
-        self.publicProjectName = publicProjectName
+        self._publicProjectName = publicProjectName
         super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
 

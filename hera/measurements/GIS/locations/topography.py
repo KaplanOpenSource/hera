@@ -4,22 +4,22 @@ import numpy
 from .abstractLocation import datalayer as locationDatalayer
 from ....datalayer import datatypes
 import matplotlib.pyplot as plt
+import geopandas
+from shapely.geometry import MultiLineString, LineString
+from scipy.interpolate import griddata
+from numpy import array, cross, sqrt
+import numpy
+import pandas
+import math
 
 import requests
 import random
 from osgeo import gdal
 import numpy as np
+from .shapes import datalayer as shapeDatalayer
 
 
 from shapely.geometry import Point,box,MultiLineString, LineString
-
-try:
-    from freecad import app as FreeCAD
-    import Part
-    import Mesh
-except ImportError as e:
-    logging.warning("FreeCAD not Found, cannot convert to STL")
-
 
 class datalayer(locationDatalayer):
 
@@ -32,12 +32,13 @@ class datalayer(locationDatalayer):
     def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
 
         super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
-        self.setConfig({"source":Source,"dxdy":10,"skipinterior":100})
+        self.setConfig({"source":Source,"dxdy":50,"skipinterior":100})
         self._analysis = analysis(projectName=projectName, dataLayer=self)
 
 class analysis():
 
     _datalayer = None
+    _dxdy = None
 
     @property
     def datalayer(self):
@@ -48,6 +49,7 @@ class analysis():
 
         self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
                          databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+        self._dxdy = self._datalayer.getConfig()["dxdy"]
 
     def PolygonDataFrameIntersection(self, dataframe, polygon):
         """
@@ -70,29 +72,7 @@ class analysis():
 
         return dataframe
 
-    def addSTLtoDB(self, path, NewFileName, points, xMin, xMax, yMin, yMax, zMin, zMax, dxdy, **kwargs):
-        """
-        Adds a path to the dataframe under the type 'stlType'.
-
-        Parameters:
-
-            path: The path (string)
-            NewFileName: A name for the file (string)
-            kwargs: Additional parameters for the document.
-
-        Returns: A list that contains the stl string and a dict that holds information about it.
-        -------
-
-        """
-
-
-        self._projectMultiDB.addMeasurementsDocument(desc=dict(name = NewFileName, bounds = points, dxdy=dxdy,
-                                                               xMin=xMin, xMax=xMax, yMin=yMin, yMax=yMax, zMin=zMin, zMax=zMax, **kwargs),
-                                                      type="stlFile",
-                                                      resource=path,
-                                                      dataFormat="string")
-
-    def toSTL(self, data, NewFileName, dxdy=50, save=True, addtoDB=True, flat=None, path=None, **kwargs):
+    def toSTL(self, data, NewFileName, save=True, addtoDB=True, flat=None, path=None, **kwargs):
 
         """
         Converts a geopandas dataframe data to an stl file.
@@ -113,9 +93,9 @@ class analysis():
         """
 
         if type(data) == str:
-            polygon = self._GISdatalayer.getGeometry(data)
-            dataframe = self._GISdatalayer.getGISDocuments(Geometry=data, GeometryMode="contains")[0].getData()
-            geodata = self._manipulator.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
+            polygon = shapeDatalayer(projectName=self.datalayer.projectName).getShape(data)
+            dataframe = self.datalayer.getDocuments(Shape=data, ShapeMode="contains")[0].getData()
+            geodata = self.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
         elif type(data) == geopandas.geodataframe.GeoDataFrame:
             geodata = data
         else:
@@ -126,25 +106,29 @@ class analysis():
         ymin = geodata['geometry'].bounds['miny'].min()
         ymax = geodata['geometry'].bounds['maxy'].max()
         points = [xmin, ymin, xmax, ymax]
-        if len(datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)) >0:
-            stlstr = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].getData()
-            newdict = datalayer.Measurements.getDocuments(projectName=self._projectName, type="stlFile", bounds=points, dxdy=dxdy)[0].asDict()
+        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._dxdy)
+        if len(documents) >0:
+            stlstr = documents[0].getData()
+            newdict = documents[0].asDict()
             newdata = pandas.DataFrame(dict(gridxMin=[newdict["desc"]["xMin"]], gridxMax=[newdict["desc"]["xMax"]],
                                             gridyMin=[newdict["desc"]["yMin"]], gridyMax=[newdict["desc"]["yMax"]],
                                             gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
         else:
-            stlstr, newdata = self.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName, dxdy=dxdy)
+            stlstr, newdata = self.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName)
 
         if save:
-            p = self._FilesDirectory if path is None else path
+            p = self.datalayer.FilesDirectory if path is None else path
             new_file_path = p + "/" + NewFileName + ".stl"
             new_file = open(new_file_path, "w")
             new_file.write(stlstr)
             newdata = newdata.reset_index()
             if addtoDB:
-                self.addSTLtoDB(p, NewFileName, points=points, xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0],
-                                yMin=newdata["gridyMin"][0], yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], dxdy=dxdy, **kwargs)
-
+                self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
+                                                                       xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
+                                                                       yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
+                                                             type="stlFile",
+                                                             resource=p,
+                                                             dataFormat="string")
         return stlstr, newdata
 
     def _make_facet_str(self, n, v1, v2, v3):
@@ -168,9 +152,7 @@ class analysis():
         """
         base_elev = elev.min() - 10
         stl_str = 'solid ' + NewFileName + '\n'
-        print(elev.shape[0] - 1)
         for i in range(elev.shape[0] - 1):
-            print(i)
             for j in range(elev.shape[1] - 1):
 
                 x = X[i, j];
@@ -282,11 +264,10 @@ class analysis():
                 Height[i] = flat
         grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
         grid_z2 = self.organizeGrid(grid_z2)
-
         stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 
         data = pandas.DataFrame({"XY": XY, "Height": Height, "gridxMin":grid_x.min(), "gridxMax":grid_x.max(),
-                                 "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2.min(), "gridzMax":grid_z2.max(),})
+                                 "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2[~numpy.isnan(grid_z2)].min(), "gridzMax":grid_z2[~numpy.isnan(grid_z2)].max(),})
 
         return stlstr, data
 

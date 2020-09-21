@@ -9,6 +9,18 @@ class datalayer(project.ProjectMultiDBPublic):
     _publicProjectName = None
     _FilesDirectory = None
 
+    @property
+    def FilesDirectory(self):
+        return self._FilesDirectory
+
+    @property
+    def projectName(self):
+        return self._projectName
+
+    @property
+    def publicProjectName(self):
+        return self._publicProjectName
+
     def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
 
         self._projectName = projectName
@@ -21,17 +33,6 @@ class datalayer(project.ProjectMultiDBPublic):
             os.system("mkdir -p %s" % FilesDirectory)
             self._FilesDirectory = FilesDirectory
 
-    def getExistingDocuments(self, **kwargs):
-        """
-        Loads data using an existing document in the database.
-
-        kwargs: any value of any parameter in the database, by which to select the data.
-
-        Returns: The data
-        """
-        data = self.getMeasurementsDocuments(**kwargs)
-
-        return data
 
     def makeData(self, points, CutName, additional_data=None, Source=None):
         """
@@ -168,7 +169,7 @@ class datalayer(project.ProjectMultiDBPublic):
             else:
                 data = []
                 for p in containPoints:
-                    data.append(self.getMeasurementsDocuments(points=p, type=self._publicProjectName, **kwargs))
+                    data += self.getMeasurementsDocuments(points=p, type=self._publicProjectName, **kwargs)
 
         else:
             if points==None and CutName==None:
@@ -180,7 +181,7 @@ class datalayer(project.ProjectMultiDBPublic):
                 if check:
                     data = self.getMeasurementsDocuments(CutName=CutName,type=self._publicProjectName, **kwargs)
             elif CutName==None and points!=None:
-                check = self.check_data(points=points, **kwargs)
+                check = self.check_data(points=points,type=self._publicProjectName, **kwargs)
                 if check:
                     data = self.getMeasurementsDocuments(CutName=CutName, type=self._publicProjectName,**kwargs)
             else:
