@@ -1,56 +1,128 @@
-import os
 import logging
-import numpy
 from .abstractLocation import datalayer as locationDatalayer
-from ....datalayer import datatypes
 import matplotlib.pyplot as plt
-
+import geopandas
+from scipy.interpolate import griddata
+from numpy import array, cross, sqrt
+import numpy
+import pandas
+import math
 import requests
 import random
 from osgeo import gdal
 import numpy as np
-
-
+from .shapes import datalayer as shapeDatalayer
 from shapely.geometry import Point,box,MultiLineString, LineString
 
-try:
-    from freecad import app as FreeCAD
-    import Part
-    import Mesh
-except ImportError as e:
-    logging.warning("FreeCAD not Found, cannot convert to STL")
-
-
 class datalayer(locationDatalayer):
-    """
-        Holds a polygon with description. Allows querying on the location of the shapefile.
 
-        The projectName in the public DB is 'locationGIS'
-    """
+    _analysis = None
+
+    @property
+    def analysis(self):
+        return self._analysis
+
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
+
+        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        self.setConfig({"source":Source,"dxdy":50,"skipinterior":100})
+        self._analysis = analysis(projectName=projectName, dataLayer=self)
+
+class analysis():
+
+    _datalayer = None
     _dxdy = None
-    _publicProjectName = None
 
     @property
-    def dxdy(self):
-        return self._dxdy
+    def datalayer(self):
+        return self._datalayer
 
-    @dxdy.setter
-    def dxdy(self, value):
-        if value is not None:
-            self._dxdy = value
+    def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
+                 publicProjectName="Topography", Source="BNTL"):
 
-    @property
-    def skipinterior(self):
-        return self._skipinterior
+        self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+        self._dxdy = self._datalayer.getConfig()["dxdy"]
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL", dxdy=None):
+    def PolygonDataFrameIntersection(self, dataframe, polygon):
+        """
+        Creates a new dataframe based on the intersection of a dataframe and a polygon.
+        Parameters:
+        ----------
+        dataframe: A geopandas dataframe.
+        polygon: A shapely polygon
 
-        self.publicProjectName = publicProjectName
-        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        Returns: A new geopandas dataframe
 
-        self._dxdy = 10 if dxdy is None else dxdy  # m
-        self._skipinterior = 100  # 100 # m, the meters to remove from the interpolation to make sure all exists.
+        """
 
+        newlines = []
+        for line in dataframe["geometry"]:
+            newline = polygon.intersection(line)
+            newlines.append(newline)
+        dataframe["geometry"] = newlines
+        dataframe = dataframe[~dataframe["geometry"].is_empty]
+
+        return dataframe
+
+    def toSTL(self, data, NewFileName, save=True, addtoDB=True, flat=None, path=None, **kwargs):
+
+        """
+        Converts a geopandas dataframe data to an stl file.
+
+        Parameters:
+
+            data: The data that should be converted to stl. May be a dataframe or a name of a saved polygon in the database.
+            NewFileName: A name for the new stl file, also used in the stl string. (string)
+            dxdy: the dimention of each cell in the mesh in meters, the default is 50.
+            save: Default is True. If True, the new stl string is saved as a file and the path to the file is added to the database.
+            flat: Default is None. Else, it assumes that the area is flat and the value of flat is the height of the mesh cells.
+            path: Default is None. Then, the path in which the data is saved is the given self.FilesDirectory. Else, the path is path. (string)
+            kwargs: Any additional metadata to be added to the new document in the database.
+
+        Returns
+        -------
+
+        """
+
+        if type(data) == str:
+            polygon = shapeDatalayer(projectName=self.datalayer.projectName).getShape(data)
+            dataframe = self.datalayer.getDocuments(Shape=data, ShapeMode="contains")[0].getData()
+            geodata = self.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
+        elif type(data) == geopandas.geodataframe.GeoDataFrame:
+            geodata = data
+        else:
+            raise KeyError("data should be geopandas dataframe or a polygon.")
+        xmin = geodata['geometry'].bounds['minx'].min()
+        xmax = geodata['geometry'].bounds['maxx'].max()
+
+        ymin = geodata['geometry'].bounds['miny'].min()
+        ymax = geodata['geometry'].bounds['maxy'].max()
+        points = [xmin, ymin, xmax, ymax]
+        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._dxdy)
+        if len(documents) >0:
+            stlstr = documents[0].getData()
+            newdict = documents[0].asDict()
+            newdata = pandas.DataFrame(dict(gridxMin=[newdict["desc"]["xMin"]], gridxMax=[newdict["desc"]["xMax"]],
+                                            gridyMin=[newdict["desc"]["yMin"]], gridyMax=[newdict["desc"]["yMax"]],
+                                            gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
+        else:
+            stlstr, newdata = self.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName)
+
+        if save:
+            p = self.datalayer.FilesDirectory if path is None else path
+            new_file_path = p + "/" + NewFileName + ".stl"
+            new_file = open(new_file_path, "w")
+            new_file.write(stlstr)
+            newdata = newdata.reset_index()
+            if addtoDB:
+                self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
+                                                                       xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
+                                                                       yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
+                                                             type="stlFile",
+                                                             resource=p,
+                                                             dataFormat="string")
+        return stlstr, newdata
 
     def _make_facet_str(self, n, v1, v2, v3):
         facet_str = 'facet normal ' + ' '.join(map(str, n)) + '\n'
@@ -62,7 +134,7 @@ class datalayer(locationDatalayer):
         facet_str += 'endfacet\n'
         return facet_str
 
-    def _makestl(self, X, Y, elev, solidname):
+    def _makestl(self, X, Y, elev, NewFileName):
         """
             Takes a mesh of x,y and elev and convert it to stl file.
 
@@ -71,10 +143,9 @@ class datalayer(locationDatalayer):
             elev - matrix of elevation.
 
         """
-        base_elev = 0
-        stl_str = 'solid ' + solidname + '\n'
+        base_elev = elev.min() - 10
+        stl_str = 'solid ' + NewFileName + '\n'
         for i in range(elev.shape[0] - 1):
-            print(i)
             for j in range(elev.shape[1] - 1):
 
                 x = X[i, j];
@@ -94,13 +165,13 @@ class datalayer(locationDatalayer):
                 v4 = [x, y, elev[i + 1, j + 1]]
 
                 # dem facet 1
-                n = numpy.cross(numpy.array(v1) - numpy.array(v2), numpy.array(v1) - numpy.array(v3))
-                n = n / numpy.sqrt(sum(n ** 2))
+                n = cross(array(v1) - array(v2), array(v1) - array(v3))
+                n = n / sqrt(sum(n ** 2))
                 stl_str += self._make_facet_str(n, v1, v2, v3)
 
                 # dem facet 2
-                n = numpy.cross(numpy.array(v2) - numpy.array(v3), numpy.array(v2) - numpy.array(v4))
-                n = n / numpy.sqrt(sum(n ** 2))
+                n = cross(array(v2) - array(v3), array(v2) - array(v4))
+                n = n / sqrt(sum(n ** 2))
                 # stl_str += self._make_facet_str( n, v2, v3, v4 )
                 stl_str += self._make_facet_str(n, v2, v4, v3)
 
@@ -136,46 +207,39 @@ class datalayer(locationDatalayer):
 
                     if (kboundary or lboundary):
                         # Add i,j,j-base.
-                        n = numpy.cross(numpy.array(vlist[k]) - numpy.array(vlist[l]), numpy.array(vblist[l]) - numpy.array(vlist[l]))
-                        n = n / numpy.sqrt(sum(n ** 2))
+                        n = cross(array(vlist[k]) - array(vlist[l]), array(vblist[l]) - array(vlist[l]))
+                        n = n / sqrt(sum(n ** 2))
                         stl_str += self._make_facet_str(n, vlist[k], vblist[l], vlist[l])
 
                         # add j-base,i-base,i
-                        n = numpy.cross(numpy.array(vlist[k]) - numpy.array(vblist[k]), numpy.array(vlist[k]) - numpy.array(vblist[l]))
-                        n = n / numpy.sqrt(sum(n ** 2))
+                        n = cross(array(vlist[k]) - array(vblist[k]), array(vlist[k]) - array(vblist[l]))
+                        n = n / sqrt(sum(n ** 2))
                         stl_str += self._make_facet_str(n, vlist[k], vblist[k], vblist[l])
 
-        stl_str += 'endsolid ' + solidname + '\n'
+        stl_str += 'endsolid ' + NewFileName + '\n'
         return stl_str
 
-    def toSTL(self, doc, solidname, flat=None):
+    def Convert_geopandas_to_stl(self, gpandas, points, NewFileName, dxdy=50, flat=None):
         """
             Gets a shape file of topography.
             each contour line has property 'height'.
             Converts it to equigrid xy mesh and then build the STL.
         """
 
-        # 1. read the shp file.
-        gpandas = doc.getData()
+        # 1. Convert contour map to regular height map.
+        # 1.1 get boundaries
+        xmin = points[0]
+        xmax = points[2]
 
-        # 2. Convert contour map to regular height map.
-        # 2.1 get boundaries
-        xmin = gpandas['geometry'].bounds['minx'].min()
-        xmax = gpandas['geometry'].bounds['maxx'].max()
-
-        ymin = gpandas['geometry'].bounds['miny'].min()
-        ymax = gpandas['geometry'].bounds['maxy'].max()
+        ymin = points[1]
+        ymax = points[3]
 
         print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
-        # 2.2 build the mesh.
-        inter = self.skipinterior
-        grid_x, grid_y = numpy.mgrid[(xmin + inter):(xmax - inter):self.dxdy,
-                         (ymin + inter):(ymax - inter):self.dxdy]
-
-        # 3. Get the points from the geom
+        # 1.2 build the mesh.
+        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
+        # 2. Get the points from the geom
         Height = []
         XY = []
-
         for i, line in enumerate(gpandas.iterrows()):
             if isinstance(line[1]['geometry'], LineString):
                 linecoords = [x for x in line[1]['geometry'].coords]
@@ -191,24 +255,33 @@ class datalayer(locationDatalayer):
         if flat is not None:
             for i in range(len(Height)):
                 Height[i] = flat
+        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+        grid_z2 = self.organizeGrid(grid_z2)
+        stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
 
-        # adding fill values for places outside the map, e.g. inside the sea.
-        grid_z2 = numpy.griddata(XY, Height, (grid_x, grid_y), method='cubic', fill_value=0.)
-        # replace zero height with small random values so the stl file won't contain NaNs
-        for i in range(grid_z2.shape[0]):
-            for j in range(grid_z2.shape[1]):
-                if (grid_z2[i, j] == 0.):
-                    grid_z2[i, j] = numpy.random.random()
+        data = pandas.DataFrame({"XY": XY, "Height": Height, "gridxMin":grid_x.min(), "gridxMax":grid_x.max(),
+                                 "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2[~numpy.isnan(grid_z2)].min(), "gridzMax":grid_z2[~numpy.isnan(grid_z2)].max(),})
 
-        if numpy.isnan(grid_z2).any():
-            print("Found some NaN in cubic iterpolation. consider increasing the boundaries of the interior")
-
-        stlstr = self._makestl(grid_x, grid_y, grid_z2, solidname)
-
-        data = {"grid_x": grid_x, "grid_y": grid_y, "grid_z": grid_z2, "XY": XY, "Height": Height, "geo": gpandas}
-        print("X min: %s , X max: %s " % (numpy.min(grid_x), numpy.min(grid_x)))
-        print("Y min: %s , Y max: %s " % (numpy.min(grid_y), numpy.min(grid_y)))
         return stlstr, data
+
+    def organizeGrid(self, grid):
+
+        for row in grid:
+            for i in range(len(row)):
+                if math.isnan(row[i]):
+                    pass
+                else:
+                    break
+            for n in range(i):
+                row[n] = row[i]
+            for i in reversed(range(len(row))):
+                if math.isnan(row[i]):
+                    pass
+                else:
+                    break
+            for n in range(len(row)-i):
+                row[-n-1] = row[i]
+        return grid
 
 
 def get_altitdue_ip(lat, lon):

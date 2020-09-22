@@ -4,3 +4,5 @@
 # from hera.measurements.GIS.utilsOld import dataManipulations
 # from .demography.population import population
 # dataManipulations = dataManipulations()
+from .demography import datalayer as demographyDatalayer
+demography = demographyDatalayer("Demography")

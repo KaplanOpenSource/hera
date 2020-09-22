@@ -1,6 +1,7 @@
 import os
 import logging
-import numpy
+import pandas
+import geopandas
 from .abstractLocation import datalayer as locationDatalayer
 from ....datalayer import datatypes
 
@@ -19,15 +20,21 @@ except ImportError as e:
 class datalayer(locationDatalayer):
 
     _publicProjectName = None
+    _analysis = None
 
     @property
     def doctype(self):
         return 'BuildingSTL'
 
+    @property
+    def analysis(self):
+        return self._analysis
+
     def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Buildings",Source="BNTL"):
 
-        self.publicProjectName = publicProjectName
+        self._publicProjectName = publicProjectName
         super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        self._analysis = analysis(projectName=projectName, dataLayer=self)
 
     def toSTL(self, doc, outputfile,flat=None):
         """
@@ -113,6 +120,64 @@ class datalayer(locationDatalayer):
         self.logger.info(f"toSTL: end. Maxheight {maxheight}")
         return maxheight
 
+
+class analysis():
+
+    _datalayer = None
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
+                 publicProjectName="Topography", Source="BNTL"):
+
+        self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+
+    def ConvexPolygons(self, data, buffer=100):
+        """
+        Returns polygons of groups of buildings.
+        """
+        data = data.reset_index()
+        d = data.buffer(buffer)
+        indicelist = [[0]]
+        for i in range(1, len(data)):
+            found = False
+            for g in range(len(indicelist)):
+                for n in indicelist[g]:
+                    if d[i].intersection(d[n]).is_empty:
+                        continue
+                    else:
+                        indicelist[g].append(i)
+                        found = True
+                        break
+                if found:
+                    break
+                if g == len(indicelist) - 1:
+                    indicelist.append([i])
+
+        geo = data.loc[indicelist[0]].unary_union.convex_hull
+        gpd = geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])
+        for indice in indicelist[1:]:
+            geo = data.loc[indice].unary_union.convex_hull
+            gpd = pandas.concat([gpd, geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])])
+
+        gpd = gpd.sort_values(by="area", ascending=False).reset_index()
+        found = False
+        for i in range(len(gpd)):
+            for j in range(i + 1, len(gpd)):
+                if gpd.loc[i].geometry.intersection(gpd.loc[j].geometry).is_empty:
+                    continue
+                else:
+                    found = True
+                    break
+            if found:
+                break
+        if found:
+            gpd = self.ConvexPolygons(gpd, buffer=1)
+
+        return gpd
 
 # class convert():
 #
