@@ -1,5 +1,5 @@
 from .collection import AbstractCollection
-from .collection import Analysis_Collection,Measurements_Collection,Simulations_Collection
+from .collection import Cache_Collection,Measurements_Collection,Simulations_Collection
 import pandas
 from functools import partial
 from itertools import product
@@ -24,7 +24,7 @@ class Project(object):
     """
         Provides a simple interface to the data of a specific project.
 
-        The class has all the following functions for the measurements, simulations and analysis:
+        The class has all the following functions for the measurements, simulations and Cache:
 
         -  getMeasurementsDocumentsAsDict"
         -  getMeasurementsDocuments
@@ -37,16 +37,18 @@ class Project(object):
         -  addSimulationsDocument
         -  deleteSimulationsDocuments
 
-        -  getAnalysisDocumentsAsDict"
-        -  getAnalysisDocuments
-        -  addAnalysisDocument
-        -  deleteAnalysisDocuments
+        -  getCacheDocumentsAsDict"
+        -  getCacheDocuments
+        -  addCacheDocument
+        -  deleteCacheDocuments
 
     """
     _projectName = None
 
+
+    _all          = None
     _measurements = None
-    _analysis     = None
+    _cache     = None
     _simulations  = None
 
     @property
@@ -60,20 +62,31 @@ class Project(object):
         return self._measurements
 
     @property
-    def analysis(self):
+    def cache(self):
         """
-            Access the analysis type documents.
+            Access the Cache type documents.
 
         :return:
-            hera.datalayer.collection.Analysis_Collection
+            hera.datalayer.collection.Cache_Collection
 
         """
-        return self._analysis
+        return self._cache
+
+    @property
+    def all(self):
+        """
+            Access the Cache type documents.
+
+        :return:
+            hera.datalayer.collection.Cache_Collection
+
+        """
+        return self._all
 
     @property
     def simulations(self):
         """
-            Access the analysis type documents.
+            Access the simulation type documents.
 
         :return:
             hera.datalayer.collection.Simulation_Collection
@@ -95,8 +108,9 @@ class Project(object):
         self._projectName = projectName
 
         self._measurements  = Measurements_Collection(user=user)
-        self._analysis      = Analysis_Collection(user=user)
+        self._cache      = Cache_Collection(user=user)
         self._simulations   = Simulations_Collection(user=user)
+        self._all           =   AbstractCollection(user=user)
 
     def getMetadata(self):
         """
@@ -133,16 +147,16 @@ class Project(object):
     def deleteSimulationsDocuments(self, **kwargs):
         return self.simulations.deleteDocuments(projectName=self._projectName, **kwargs)
 
-    def getAnalysisDocumentsAsDict(self,  with_id=False, **kwargs):
-        return self.analysis.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
+    def getCacheDocumentsAsDict(self,  with_id=False, **kwargs):
+        return self.cache.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
-    def getAnalysisDocuments(self, resource=None, dataFormat=None, type=None, **desc):
-        return self.analysis.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
-                                **desc)
+    def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        return self.cache.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
+                                       **desc)
 
-    def addAnalysisDocument(self, resource="", dataFormat="string", type="", desc={}):
-        return self.analysis.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
-                               desc=desc)
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+        return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
+                                      desc=desc)
 
-    def deleteAnalysisDocuments(self, **kwargs):
-        return self.analysis.deleteDocuments(projectName=self._projectName, **kwargs)
+    def deleteCacheDocuments(self, **kwargs):
+        return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)

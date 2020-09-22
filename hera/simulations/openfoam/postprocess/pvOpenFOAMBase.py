@@ -6,7 +6,7 @@ import numpy
 import os
 import glob
 import vtk.numpy_interface.dataset_adapter as dsa
-#import xarray
+import xarray
 
 #### import the simple module from the paraview
 import paraview.simple as pvsimple
@@ -48,8 +48,11 @@ class paraviewOpenFOAM(object):
     @property
     def netcdfdir(self):
         return self._netcdfdir
+    @property
+    def possibleRegions(self):
+        return self._possibleRegions
 
-    @hdfdir.setter
+    @netcdfdir.setter
     def netcdfdir(self, netcdfdir):
         self._netcdfdir = netcdfdir
 
@@ -134,6 +137,8 @@ class paraviewOpenFOAM(object):
         """
         self._readerName  = readerName
         self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
+        self.reader.MeshRegions.SelectAll()
+        self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
         if fieldnames is not None:
             self._reader.CellArrays = fieldnames
@@ -194,6 +199,8 @@ class paraviewOpenFOAM(object):
 
         rawData = servermanager.Fetch(datasource)
         data = dsa.WrapDataObject(rawData)
+        print(data.PointData)
+        print(type(data.PointData))
 
         if isinstance(data.Points, dsa.VTKArray):
             points = numpy.array(data.Points).squeeze()
@@ -235,68 +242,106 @@ class paraviewOpenFOAM(object):
 
         return curstep
 
-    # def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
-    #
-    #     def writeList(theList,batchID):
-    #
-    #         data = xarray.concat(theList, dim="time")
-    #         curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, batchID))
-    #         print("Writing %s " % curfilename)
-    #         data.to_netcdf(curfilename)
-    #         batchID += 1
-    #
-    #     self._outfile = readername if outfile is None else outfile
-    #
-    #     if not os.path.isdir(self.netcdfdir):
-    #         os.makedirs(self.netcdfdir)
-    #
-    #     batchID = 0
-    #     L = []
-    #     for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
-    #
-    #         L.append(xray)
-    #         if len(L) == batch:
-    #             if isinstance(L[0],dict):
-    #                 filterList = [k for k in L[0].keys()]
-    #                 for filtername in filterList:
-    #                     writeList([item[filtername] for item in L],batchID)
-    #             else:
-    #                 writeList(L)
-    #             L = []
-    #
-    #     if isinstance(L[0],dict):
-    #         filterList = [k for k in L[0].keys()]
-    #         for filtername in filterList:
-    #             writeList([item[filtername] for item in L],batchID)
-    #     else:
-    #         writeList(L)
+    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100):
+        """
+            Writes a list of datasources (vtk filters) to netcdf (with xarray).
 
-    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None,batch=100):
+            The grid data **must** be regular!!!.
 
-        def writeList(theList, batchID):
+        Parameters
+        ----------
+
+        readername: str
+                The name of the reader to use.
+        datasourcenamelist:
+                The name of the datasources to write.,
+        outfile: str
+                the directory to write the files.
+        timelist: list
+                the times to write
+        fieldnames: list
+                the fields to write
+        tsBlockNum: int
+                the number of
+
+        Returns
+        -------
+
+        None
+
+        """
+
+        def writeList(theList, blockID, blockDig):
+
+            data = xarray.concat(theList, dim="time")
+            blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
+            curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, blockfrmt))
+            #curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, blockID))
+            print("Writing %s " % curfilename)
+            data.to_netcdf(curfilename)
+            blockID += 1
+
+        self._outfile = readername if outfile is None else outfile
+
+        if not os.path.isdir(self.netcdfdir):
+            os.makedirs(self.netcdfdir)
+
+        blockDig = numpy.ceil(numpy.log10(len(timelist))) + 1
+        blockID = 0 +len(glob.glob(os.path.join(self.netcdfdir,'*.nc')))
+        L = []
+
+        for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
+
+            L.append(xray)
+            if len(L) == tsBlockNum:
+                if isinstance(L[0],dict):
+                    filterList = [k for k in L[0].keys()]
+                    for filtername in filterList:
+                        writeList([item[filtername] for item in L],blockID,blockDig)
+
+                else:
+                    writeList(L,blockID,blockDig)
+                L = []
+                blockID += 1
+
+        if len(L)>0:
+            if isinstance(L[0],dict):
+                filterList = [k for k in L[0].keys()]
+                for filtername in filterList:
+                    writeList([item[filtername] for item in L],blockID,blockDig)
+            else:
+                writeList(L,blockID,blockDig)
+
+    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100):
+
+        def writeList(theList, blockID, blockDig):
             filterList = [x for x in L[0].keys()]
             for filtername in filterList:
                 data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
-                curfilename = "%s_%s.hdf" % (outfile, batchID)
+                blockfrmt=('{:0%dd}' % blockDig).format(blockID)
+                curfilename = "%s_%s.hdf" % (outfile, blockfrmt)
                 print("\tWriting filter %s in file %s" % (filtername, curfilename))
+                print("dir", os.path.join(self.hdfdir, curfilename))
                 data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
 
         outfile = readername if outfile is None else outfile
         if not os.path.isdir(self.hdfdir):
             os.makedirs(self.hdfdir)
 
-        batchID = 0
+        blocDig=numpy.ceil(numpy.log10(len(timelist)))+1
+        blockID = 0
         L = []
+
         for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,
                                    fieldnames=fieldnames):
             L.append(pnds)
 
-            if len(L) == batch:
-                writeList(L, batchID)
+            if len(L) == tsBlockNum:
+                writeList(L, blockID,blocDig)
                 L=[]
-                batchID += 1
+                blockID += 1
         if len(L) > 0:
-            writeList(L, batchID)
+            writeList(L, blockID,blocDig)
 
     # def open_dataset(self, outfile=None, timechunk=10):
     #     """

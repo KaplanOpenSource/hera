@@ -1,4 +1,4 @@
-    def topography(self, infile, lowerleft1, lowerleft2, upperright1, upperright2, flat=None):
+def topography(self, infile, lowerleft1, lowerleft2, upperright1, upperright2, flat=None):
 	dxdy = 150 # 10
 	utls = geoPandas2STL.Topography(dxdy=float(dxdy))
 	print("Converting...")

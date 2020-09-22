@@ -2,3 +2,5 @@
 hera/doc/build
 hera/doc/source/auto_examples
 __pycache__
+*.pyc
+*.swp

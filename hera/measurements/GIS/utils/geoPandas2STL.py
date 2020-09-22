@@ -169,7 +169,13 @@ class Topography(object):
             for i in range(len(Height)):
                 Height[i]=flat
             
-        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+        # adding fill values for places outside the map, e.g. inside the sea.
+        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic' , fill_value=0.)
+        # replace zero height with small random values so the stl file won't contain NaNs
+        for i in range(grid_z2.shape[0]):
+            for j in range(grid_z2.shape[1]):
+                if (grid_z2[i,j]==0.):
+                    grid_z2[i,j]=numpy.random.random()
 
         if numpy.isnan(grid_z2).any():
             print("Found some NaN in cubic iterpolation. consider increasing the boundaries of the interior")
@@ -197,8 +203,6 @@ if __name__ == "__main__":
     fname = args.shpfile
     outfilename = args.output
     dxdy = args.dxdy
-    # "/home/yehudaa/Dropbox/Projects/data/Galim/GALIM-CONTOUR.shp"
-    # fname = "/home/yehudaa/Dropbox/EyalYehuda/Jerusalem/BLDG1.shp"
     fname = "/home/nirb/test/testme1/testme1-CONTOUR.shp"
     outfilename = "/home/nirb/test/testme1/testme1-CONTOUR.STL"
     dxdy = 50
