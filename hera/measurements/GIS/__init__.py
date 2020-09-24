@@ -1,8 +1,9 @@
-# from .datalayer.datalayer import GIS_datalayer
-# from .analytics.Plotting import Plotting
-# from .utilsOld.STL import convert
-# from hera.measurements.GIS.utilsOld import dataManipulations
-# from .demography.population import population
-# dataManipulations = dataManipulations()
 from .demography import datalayer as demographyDatalayer
 demography = demographyDatalayer("Demography")
+
+from .locations.image import datalayer as ImageDatalayer
+from .locations.topography import datalayer as TopographyDatalayer
+from .locations.buildings import datalayer as BuildingsDatalayer
+topography = TopographyDatalayer("Topography")
+buildings = BuildingsDatalayer("Buildings")
+#image = ImageDatalayer('imageLocations')

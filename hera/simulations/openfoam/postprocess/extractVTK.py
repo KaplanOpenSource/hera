@@ -81,17 +81,16 @@ class VTKpipeline(object):
         self._pvOFBase = paraviewOpenFOAM(casePath=casePath, caseType=caseType, servername=servername)
         self._VTKpipelineJSON = pipelineJSON
         self._name = name
-
-        outputdir = pipelineJSON["metadata"].get("datadir", "None")
+        outputdir = pipelineJSON["metadata"].get("CaseDirectory", "None")
+        
         if outputdir != "None":
-            self._pvOFBase.hdfdir = "%s/%s/hdf" % (outputdir, name)
+            self._pvOFBase.hdfdir = os.path.join("%s" % outputdir, "%s" % name, 'hdf')
             self._pvOFBase.netcdfdir = os.path.join(outputdir, name, "netcdf")
-            self._mainpath = "%s/%s" % (outputdir, name)
+            self._mainpath = os.path.join('%s' % outputdir,'%s' % name)
         else:
-            self._pvOFBase.hdfdir = os.path.join(name, "hdf")
-            self._mainpath = os.path.join(name)
+            raise Exception('Case directory is missing in pipeline file!')
 
-    def execute(self, source, writeMetadata=True,tsBlockNum=100):
+    def execute(self, source, writeMetadata=True, tsBlockNum=100, JSONName='', overWrite=False):
         """
             Builds the pipeline from the JSON vtk.
 
@@ -104,10 +103,9 @@ class VTKpipeline(object):
 
         # build the pipeline.
         reader = pvsimple.FindSource(source)
-
         filterWrite = {}
         self._buildFilterLayer(father=reader, structureJson=self._VTKpipelineJSON["pipelines"], filterWrite=filterWrite)
-
+        
         # Now execute the pipeline.
         timelist = self._VTKpipelineJSON["metadata"].get("timelist", "None")
         if (timelist == "None"):
@@ -133,11 +131,17 @@ class VTKpipeline(object):
             writer = getattr(self._pvOFBase, "write_%s" % frmt)
             if writer is None:
                 raise ValueError("The write %s is not found" % writer)
-            writer(readername=source, datasourcenamelist=datasourceslist, timelist=timelist,
-                   fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None), outfile=self.name,tsBlockNum=tsBlockNum)
+            writer(readername=source,
+                   datasourcenamelist=datasourceslist,
+                   timelist=timelist,
+                   fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None),
+                   outfile=self.name,
+                   tsBlockNum=tsBlockNum,
+                   JSONbaseName=JSONName,
+                   overWrite=overWrite)
 
         if writeMetadata:
-            with open('%s/meta.json' % self._mainpath, 'w') as outfile:
+            with open(os.path.join('%s' % self._mainpath,'meta.json') , 'w') as outfile:
                 json.dump(self._VTKpipelineJSON, outfile)
 
     def _buildFilterLayer(self, father, structureJson, filterWrite):

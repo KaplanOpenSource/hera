@@ -8,7 +8,6 @@ using built-in plotting functions.
 Ten minutes tutorial
 --------------------
 
-
 This tutorial first shows how to load openFoam simulation results to the database.
 
 The process is divided to two parts: the first executes operations on the raw data and saves it to the disk,
@@ -43,7 +42,7 @@ The file needs to have the next structure:
 
 .. code-block:: python
 
-    "metadata" : {
+    {"metadata" : {
                "datadir"    : "/home/ofir/Projects/2020/Carmel5/results",
                "timelist"   : [1000],
                "fields"     : ["U"],
@@ -64,10 +63,14 @@ The file needs to have the next structure:
                      }
     }
 
-
 The json file consists a part called metadata, and a part called pipeline.
+
 The metadata may consist the parameters shown above, that affect the operation:
-they control which fields, time steps and mesh regions would be used. These parameters are not mandatory. It may also consist additional parameters that would be used as descriptors in the hera database.
+they control which fields, time steps and mesh regions would be used. These parameters are not mandatory.
+It may also consist additional parameters that would be used as descriptors in the hera database.
+
+The pipeline part may also consist a 'write' parameter. If write exists then the filter will be saved
+to a file in the specified format ("hdf"/"netcdf")
 
 Executing operations on the OpenFOAM data
 .........................................
@@ -78,8 +81,9 @@ The execution is done using the CLI:
 
     hera-OpenFOAM executePipeline [JSONpath] [name] [casePath] [caseType] [servername] [tsBlockNum]
 
-JSONpath is the path of the json file,
-name is a name used for the new files, casePath is the directory of the openFOAM project.
+JSONpath is the path of the json pipeline file,
+name is the name used for the target resulted folder and for the new files (if hdf format selected),
+casePath is the path to the directory of the openFOAM project.
 caseType, servername  and tsBlockNum are optional.
 The CLI is positional order depended, so if one is defined- all the optional before must be defined as well
 caseType is either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
@@ -87,7 +91,6 @@ for single processor cases, the default is 'Decomposed Case'.
 servername is a connection string to the paraview server.
 The default is None, which work locally.
 tsBlockNum is the number of time steps will be saved to single file. The default is 100
-All the parameters should pass as a string with "" or ''
 
 For example,
 
@@ -95,6 +98,8 @@ For example,
 
     hera-OpenFOAM executePipeline "/home/ofir/Projects/openFoamUsage/askervein/test.json" "test" "/home/ofir/Projects/openFoamUsage/askervein" "Reconstructed Case"
 
+The resulted files is now saved (in the format specificated in the 'write' property at the pipeline)
+in the 'name' folder
 
 Loading the data to the database
 ................................
@@ -117,7 +122,7 @@ for example,
     hera-OpenFOAM load "/home/ofir/Projects/openFoamUsage/askervein/test.json" "Development/Hera/hera/simulations/openfoam/postprocess/dir" "test" "Example"
 
 This command saves the results of each filter that has a 'write' property in the pipeline to the database.
-the hdf files are converted parquet file before loading.
+hdf files will be converted to parquet file before loading.
 A document that links to the filter data is added to the database.
 The type indicated in the metadata is "OFsimulation".
 In addition, a descriptor called "filter" holds the name of the filter,
