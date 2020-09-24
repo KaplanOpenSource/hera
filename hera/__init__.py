@@ -37,14 +37,26 @@ logging.config.dictConfig(log_conf)
 """
  1.0.0
  -----
+<<<<<<< HEAD
     - Introduced tools. 
         - The GIS tools work  
     - Project classes are equipped with a logger. 
     
 
+=======
+ This version consists a structural change that introduces concept of Tools. 
+ 
+ A tool is a set of library functions that is designed to handle a single type of data. 
+ Many tools also include a capability to search for public data automatically. 
+ 
+ The change is cosmetic, but also includes several new concepts in tools such as datasource. 
+ A datasource is the name of data that will be used by default by the tool. For examplt the BNTL data 
+ is the default datasource of the mesasurements.GIS.topography tool. In this 
+ example, the default datasource is stored in the public database. 
+ 
  0.7.0
  -----
-  - Adding the riskassessmet package. 
+  - Adding the riskassessment package. 
   - Adding the simulations/gaussian package. 
   - adding the simulation/evaporation package. 
 
