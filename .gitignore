@@ -1,5 +1,6 @@
 .idea
 hera/doc/build
 hera/doc/source/auto_examples
+hera/logging/log
 __pycache__
 *.pyc

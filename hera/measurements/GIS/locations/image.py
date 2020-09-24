@@ -18,11 +18,17 @@ class datalayer(project.ProjectMultiDBPublic):
     """
 
     _projectName = None
+    _presentation = None
+
+    @property
+    def presentation(self):
+        return self._presentation
 
     def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Images"):
 
         self._projectName = projectName
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+        self._presentation = presentation(projectName=projectName,dataLayer=self)
 
     def load(self, path, imageName, extents):
         """
@@ -66,11 +72,19 @@ class datalayer(project.ProjectMultiDBPublic):
             userName = self._databaseNameList[0]
         self.addMeasurementsDocument(**doc,users=[userName])
 
-class presentationLayer(datalayer):
+class presentation():
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Images"):
+    _datalayer = None
 
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, projectName, dataLayer=None, databaseNameList=None, useAll=False,
+                 publicProjectName="Images"):
+
+        self._datalayer = datalayer(projectName=projectName, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll) if datalayer is None else dataLayer
 
     def plot(self, imageName, ax=None, **query):
         """
@@ -78,7 +92,7 @@ class presentationLayer(datalayer):
         :param query: Some more specific details to query on
         :return:
         """
-        doc = self.getMeasurementsDocuments(dataFormat='image',type='GIS',imageName=imageName,**query)
+        doc = self.datalayer.getMeasurementsDocuments(dataFormat='image',type='GIS',imageName=imageName,**query)
         if len(doc) > 1:
             raise ValueError('More than 1 documents fills those requirements')
         doc = doc[0]
