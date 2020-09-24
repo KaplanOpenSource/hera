@@ -4,12 +4,15 @@ import argparse
 import json
 import sys
 import shutil
+import os
 
 version = sys.version_info[0]
 from hera.simulations.openfoam.postprocess.etlVTK import recurseNode
 
 if version == 2:
     from hera import openfoam
+
+VTKOutput_folder='VTKOutput'
 
 def load_handler(arguments):
 
@@ -25,34 +28,35 @@ def load_handler(arguments):
         arguments : a positional list pased by the user:
             arguments[0] - the path to the pipeline json file
             arguments[1] - the path to the main directory of the execute resulted files, as the metadata 'datadir' in the json file
-            arguments[2] - the name given to the output folder and to the hdf files
+            arguments[2] - the name given to the output folder (and to the hdf files if selected)
             arguments[3] - the 'projecName' will be saved to the database
 
 
     """
 
     JSONpath = arguments[0]
-    path = arguments[1]
-    name = arguments[2]
-    projectName = arguments[3]
+    projectName = arguments[1]
 
+    JSONbaseName = os.path.splitext(os.path.basename(JSONpath))[0]
 
     with open(JSONpath) as json_file:
         jsondata = json.load(json_file)
+
     metadata = jsondata["metadata"]  # Reading the metadata
     pipelines = jsondata["pipelines"]  # Reading the pipelines
+    path=metadata['CaseDirectory']
 
 
     for i,node in enumerate(pipelines):
         Tree=[]
         Tree.append(node)
-        recurseNode(Tree,node,pipelines[node],metadata,pipelines, path=path,name=name,projectName=projectName)
+        recurseNode(Tree,node,pipelines[node],metadata,pipelines, path=path,name=VTKOutput_folder,projectName=projectName,JSONName=JSONbaseName)
 
     #   Delete hdf directory
     if args.keepHDF:
         print("deleting HDF files")
-        shutil.rmtree("%s/%s/hdf" % (path, name), ignore_errors=True)
-        shutil.rmtree("%s/%s/meta.json" % (path, name), ignore_errors=True)
+        shutil.rmtree("%s/%s/hdf" % (path, VTKOutput_folder), ignore_errors=True)
+        shutil.rmtree("%s/%s/meta.json" % (path, VTKOutput_folder), ignore_errors=True)
 
 
 def executePipeline_handler(arguments):
@@ -74,19 +78,18 @@ def executePipeline_handler(arguments):
     """
 
     JSONpath = arguments[0]
-    name = arguments[1]
-    casePath = arguments[2]
-    caseType = arguments[3] if len(arguments) > 3 else "Decomposed Case"
-    servername = arguments[4] if len(arguments) > 4 else None
-    tsBlockNum = int(arguments[5]) if len(arguments) > 5 else 100
+    JSONbaseName= os.path.splitext(os.path.basename(JSONpath))[0]
 
     with open(JSONpath) as json_file:
         data = json.load(json_file)
-    vtkpipe = openfoam.VTKpipeline(name=name, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=servername)
-    vtkpipe.execute("mainReader", tsBlockNum=tsBlockNum)
 
-    # (name
-    #  ="test", pipelineJSON=data, casePath="/home/ofir/Projects/openFoamUsage/askervein", caseType="Reconstructed Case")
+    casePath = data["metadata"].get("CaseDirectory", "None")
+    tsBlockNum = int(arguments[1]) if len(arguments) > 1 else 100
+    caseType = arguments[2] if len(arguments) > 2 else "Decomposed Case"
+    servername = arguments[3] if len(arguments) > 3 else None
+    overWrite=args.Del
+    vtkpipe = openfoam.VTKpipeline(name=VTKOutput_folder, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=servername)
+    vtkpipe.execute("mainReader", tsBlockNum=tsBlockNum, JSONName=JSONbaseName, overWrite=overWrite)
 
 
 if __name__ =="__main__":
@@ -94,6 +97,7 @@ if __name__ =="__main__":
     parser.add_argument('command', nargs=1, type=str)
     parser.add_argument('args', nargs='*', type=str)
     parser.add_argument('-keepHDF', action='store_false')
+    parser.add_argument('-Del', action='store_true')
 
     args = parser.parse_args()
 

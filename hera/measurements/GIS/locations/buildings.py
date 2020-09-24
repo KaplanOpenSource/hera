@@ -1,8 +1,9 @@
 import os
 import logging
-import numpy
-from ...datalayer import project
-from ...datalayer import datatypes
+import pandas
+import geopandas
+from .abstractLocation import datalayer as locationDatalayer
+from ....datalayer import datatypes
 
 import matplotlib.pyplot as plt
 
@@ -16,433 +17,28 @@ except ImportError as e:
     logging.warning("FreeCAD not Found, cannot convert to STL")
 
 
+class datalayer(locationDatalayer):
 
-class locationImage(project.ProjectMultiDBPublic):
-    """
-        A class to handle an image that represents a location.
-
-        Looks up the location in the public database in project 'imageLocation'.
-
-    """
-
-    def __init__(self, projectName, useAll=False):
-        """
-                Initialize
-
-        Parameters
-        -----------
-        projectName: str
-            The name of the project name in the local DB.
-
-        useAll: bool
-            whether to return union of all the image locations or just for one DB.
-        """
-
-        super.__init__(projectName=projectName,publicProjectName='imageLocation')
-
-
-    @staticmethod
-    def plot(self,data,ax=None,**query):
-        """
-            Plots the image from the document or from a document.
-
-        Parameters
-        -----------
-
-        data: imageLocation doc, str
-            Plot the image from the document or query
-            the DB for the image with data name and plot the first.
-            if more than 1 image exists, raise error.
-
-        ax: matplotlib.Axes
-            The axes to plot on, if None create
-            a new axes.
-
-        **query: mongoDB
-            query map.
-
-        Returns
-        --------
-            matplotlib.Axes
-
-            The axes of the image
-        """
-        if ax is None:
-            fig, ax = plt.subplots()
-
-
-        if isinstance(data,str):
-            doc = self.getMeasurementsDocuments(dataFormat='image',
-                                                type='GIS',
-                                                locationName=data,
-                                                **query)
-
-            if len(doc) > 1:
-                raise ValueError('More than 1 documents fills those requirements')
-
-            doc = doc[0]
-
-        image = doc.getDocFromDB()
-        extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
-        ax = plt.imshow(image, extent=extents)
-
-
-        return ax
-
-    def loadImage(self, path, locationName, extents,sourceName):
-        """
-        Make region from the
-
-        Parameters:
-        -----------
-
-        projectName: str
-                    The project name
-        path:  str
-                    The image path
-        locationName: str
-                    The location name
-        extents: list or dict
-                list: The extents of the image [xmin, xmax, ymin, ymax]
-                dict: A dict with the keys xmin,xmax,ymin,ymax
-
-        sourceName: str
-            The source
-
-        Returns
-        -------
-        """
-
-        if isinstance(extents,dict):
-            extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
-        elif isinstance(extents,list):
-            extentList = extents
-        else:
-            raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
-
-
-        doc = dict(resource=path,
-                   dataFormat='image',
-                   type='GIS',
-                   desc=dict(locationName=locationName,
-                             xmin=extentList[0],
-                             xmax=extentList[1],
-                             ymin=extentList[2],
-                             ymax=extentList[3]
-                             )
-                   )
-        self.addMeasurementsDocument(**doc)
-
-
-    def query(self,imageName=None,point=None,**query):
-        """
-                get the images.
-
-        Parameters
-        ----------
-
-        imageName:  str
-                image name.
-        point: tuple
-            a point inside the domain.
-        query:
-            querying the data.
-        :return:
-
-        """
-        docsList = self.getMeasurementsDocuments(imeageName=imageName,**query)
-        if point is not None:
-            point = point if isinstance(point,Point) else Point(point[0],point[1])
-            ret = []
-            for doc in docsList:
-                bb = box(doc.desc['xmin'],
-                         doc.desc['xmax'],
-                         doc.desc['ymin'],
-                         doc.desc['ymax'])
-                if point in bb:
-                    ret.append(doc)
-        else:
-            ret =  docsList
-        return ret
-
-class topography(project.ProjectMultiDBPublic):
-    """
-        Holds a polygon with description. Allows querying on the location of the shapefile.
-
-        The projectName in the public DB is 'locationGIS'
-
-
-
-    """
-
-
-    _dxdy = None
-
-    @property
-    def dxdy(self):
-        return self._dxdy
-
-    @dxdy.setter
-    def dxdy(self, value):
-        if value is not None:
-            self._dxdy = value
-
-    @def skipinterior(self):
-        return self._skipinterior
-
-
-    def __init__(self, projectName, useAll=False, dxdy=None):
-        """
-                Initialize
-
-        Parameters
-        -----------
-        projectName: str
-            The name of the project name in the local DB.
-
-        useAll: bool
-            whether to return union of all the image locations or just for one DB.
-        """
-        super().__init__(projectName=projectName,publicProjectName='locationGIS')
-
-        self._dxdy = 10 if dxdy is None else dxdy  # m
-        self._skipinterior = 100  # 100 # m, the meters to remove from the interpolation to make sure all exists.
-
-
-    def _make_facet_str(self, n, v1, v2, v3):
-        facet_str = 'facet normal ' + ' '.join(map(str, n)) + '\n'
-        facet_str += '  outer loop\n'
-        facet_str += '      vertex ' + ' '.join(map(str, v1)) + '\n'
-        facet_str += '      vertex ' + ' '.join(map(str, v2)) + '\n'
-        facet_str += '      vertex ' + ' '.join(map(str, v3)) + '\n'
-        facet_str += '  endloop\n'
-        facet_str += 'endfacet\n'
-        return facet_str
-
-    def _makestl(self, X, Y, elev, solidname):
-        """
-            Takes a mesh of x,y and elev and convert it to stl file.
-
-            X - matrix of x coordinate. [[ like meshgrid ]]
-            Y - matrix of y coordinate. [[ like meshgrid ]]
-            elev - matrix of elevation.
-
-        """
-        base_elev = 0
-        stl_str = 'solid ' + solidname + '\n'
-        for i in range(elev.shape[0] - 1):
-            print(i)
-            for j in range(elev.shape[1] - 1):
-
-                x = X[i, j];
-                y = Y[i, j]
-                v1 = [x, y, elev[i, j]]
-
-                x = X[i + 1, j];
-                y = Y[i, j]
-                v2 = [x, y, elev[i + 1, j]]
-
-                x = X[i, j];
-                y = Y[i, j + 1]
-                v3 = [x, y, elev[i, j + 1]]
-
-                x = X[i + 1, j + 1];
-                y = Y[i + 1, j + 1]
-                v4 = [x, y, elev[i + 1, j + 1]]
-
-                # dem facet 1
-                n = numpy.cross(numpy.array(v1) - numpy.array(v2), numpy.array(v1) - numpy.array(v3))
-                n = n / numpy.sqrt(sum(n ** 2))
-                stl_str += self._make_facet_str(n, v1, v2, v3)
-
-                # dem facet 2
-                n = numpy.cross(numpy.array(v2) - numpy.array(v3), numpy.array(v2) - numpy.array(v4))
-                n = n / numpy.sqrt(sum(n ** 2))
-                # stl_str += self._make_facet_str( n, v2, v3, v4 )
-                stl_str += self._make_facet_str(n, v2, v4, v3)
-
-                # base facets
-                v1b = list(v1)
-                v2b = list(v2)
-                v3b = list(v3)
-                v4b = list(v4)
-
-                v1b[-1] = base_elev
-                v2b[-1] = base_elev
-                v3b[-1] = base_elev
-                v4b[-1] = base_elev
-
-                n = [0.0, 0.0, -1.0]
-
-                stl_str += self._make_facet_str(n, v1b, v2b, v3b)
-                stl_str += self._make_facet_str(n, v2b, v3b, v4b)
-
-                vlist = [v1, v2, v3, v4]
-                vblist = [v1b, v2b, v3b, v4b]
-
-                # Now the walls.
-                for k, l in [(0, 1), (0, 2), (1, 3), (2, 3)]:
-                    # check if v[i],v[j] are on boundaries.
-                    kboundary = False
-                    if vlist[k][0] == X.min() or vlist[k][0] == X.max():
-                        kboundary = True
-
-                    lboundary = False
-                    if vlist[l][1] == Y.min() or vlist[l][1] == Y.max():
-                        lboundary = True
-
-                    if (kboundary or lboundary):
-                        # Add i,j,j-base.
-                        n = numpy.cross(numpy.array(vlist[k]) - numpy.array(vlist[l]), numpy.array(vblist[l]) - numpy.array(vlist[l]))
-                        n = n / numpy.sqrt(sum(n ** 2))
-                        stl_str += self._make_facet_str(n, vlist[k], vblist[l], vlist[l])
-
-                        # add j-base,i-base,i
-                        n = numpy.cross(numpy.array(vlist[k]) - numpy.array(vblist[k]), numpy.array(vlist[k]) - numpy.array(vblist[l]))
-                        n = n / numpy.sqrt(sum(n ** 2))
-                        stl_str += self._make_facet_str(n, vlist[k], vblist[k], vblist[l])
-
-        stl_str += 'endsolid ' + solidname + '\n'
-        return stl_str
-
-    def toSTL(self, doc, solidname, flat=None):
-        """
-            Gets a shape file of topography.
-            each contour line has property 'height'.
-            Converts it to equigrid xy mesh and then build the STL.
-        """
-
-        # 1. read the shp file.
-        gpandas = doc.getData()
-
-        # 2. Convert contour map to regular height map.
-        # 2.1 get boundaries
-        xmin = gpandas['geometry'].bounds['minx'].min()
-        xmax = gpandas['geometry'].bounds['maxx'].max()
-
-        ymin = gpandas['geometry'].bounds['miny'].min()
-        ymax = gpandas['geometry'].bounds['maxy'].max()
-
-        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
-        # 2.2 build the mesh.
-        inter = self.skipinterior
-        grid_x, grid_y = numpy.mgrid[(xmin + inter):(xmax - inter):self.dxdy,
-                         (ymin + inter):(ymax - inter):self.dxdy]
-
-        # 3. Get the points from the geom
-        Height = []
-        XY = []
-
-        for i, line in enumerate(gpandas.iterrows()):
-            if isinstance(line[1]['geometry'], LineString):
-                linecoords = [x for x in line[1]['geometry'].coords]
-                lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                XY += linecoords
-                Height += lineheight
-            else:
-                for ll in line[1]['geometry']:
-                    linecoords = [x for x in ll.coords]
-                    lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                    XY += linecoords
-                    Height += lineheight
-        if flat is not None:
-            for i in range(len(Height)):
-                Height[i] = flat
-
-        # adding fill values for places outside the map, e.g. inside the sea.
-        grid_z2 = numpy.griddata(XY, Height, (grid_x, grid_y), method='cubic', fill_value=0.)
-        # replace zero height with small random values so the stl file won't contain NaNs
-        for i in range(grid_z2.shape[0]):
-            for j in range(grid_z2.shape[1]):
-                if (grid_z2[i, j] == 0.):
-                    grid_z2[i, j] = numpy.random.random()
-
-        if numpy.isnan(grid_z2).any():
-            print("Found some NaN in cubic iterpolation. consider increasing the boundaries of the interior")
-
-        stlstr = self._makestl(grid_x, grid_y, grid_z2, solidname)
-
-        data = {"grid_x": grid_x, "grid_y": grid_y, "grid_z": grid_z2, "XY": XY, "Height": Height, "geo": gpandas}
-        print("X min: %s , X max: %s " % (numpy.min(grid_x), numpy.min(grid_x)))
-        print("Y min: %s , Y max: %s " % (numpy.min(grid_y), numpy.min(grid_y)))
-        return stlstr, data
-
-    def makeRegion(self, points, regionName, mode="Contour", desc=None):
-        """
-        Load a polygon document that holds the path of a GIS shapefile.
-
-        Parameters:
-        -----------
-            points: list, dict
-                Holds the ITM coordinates of a rectangle.
-                If it is a list: [minimum x, maximum x, minimum y, maximum y]
-                If it is a dic : dict(xmin=,xmax=,ymin=,ymax=).
-
-            regionName: str
-                Used as part of a new file's name.
-            mode: str
-                The data type of the desired data.
-                Recieves any mode specified in the GISOrigin document.\n
-
-            desc: dict
-                A dictionary with any additional data for the location.
-
-        Returns:
-        --------
-            The new document.
-
-        """
-        if useOwn:
-            fullfilesdirect = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["desc"]["modes"]
-            path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
-            fullPath = "%s/%s" % (path, fullfilesdirect[mode])
-        else:
-            publicproject = hera.datalayer.project.ProjectMultiDB(projectName="PublicData", databaseNameList=["public"])
-            fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
-
-        descDict = dict(CutName=regionName, points=points, mode=mode)
-
-        if desc is not None:
-            descDict.update(desc)
-
-        documents = self.getMeasurementsDocumentsAsDict(points=points, mode=mode)
-        if len(documents) == 0:
-
-            FileName = "%s//%s%s-%s.shp" % (self._FilesDirectory, self._projectName, regionName, mode)
-
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s" % (points[0],points[1],points[2],points[3], FileName,fullPath))
-            self.addMeasurementsDocument(desc=desc,
-                                         type="GIS",
-                                         resource = FileName,
-                                         dataFormat = "geopandas")
-        else:
-            resource = documents["documents"][0]["resource"]
-            self.addMeasurementsDocument(desc=dict(**desc),
-                                         type="GIS",
-                                         resource = resource,
-                                         dataFormat = "geopandas")
-
-
-    def query(self, imageName=None, point=None, **query):
-        """
-            query the existing topography.
-
-        :param imageName:
-        :param point:
-        :param query:
-        :return:
-        """
-        pass
-
-class buildings(project.ProjectMultiDBPublic):
-    """
-        Holds the list of buildings.
-    """
+    _publicProjectName = None
+    _analysis = None
 
     @property
     def doctype(self):
         return 'BuildingSTL'
 
+    @property
+    def analysis(self):
+        return self._analysis
+
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Buildings",Source="BNTL"):
+
+        self._publicProjectName = publicProjectName
+        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        self._analysis = analysis(projectName=projectName, dataLayer=self)
+
+    def setConfig(self,Source="BNTL", user=None, **kwargs):
+        config = dict(source=Source,**kwargs)
+        super().setConfig(config,user=user)
 
     def toSTL(self, doc, outputfile,flat=None):
         """
@@ -529,8 +125,63 @@ class buildings(project.ProjectMultiDBPublic):
         return maxheight
 
 
+class analysis():
 
+    _datalayer = None
 
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
+                 publicProjectName="Buildings", Source="BNTL"):
+
+        self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+
+    def ConvexPolygons(self, data, buffer=100):
+        """
+        Returns polygons of groups of buildings.
+        """
+        data = data.reset_index()
+        d = data.buffer(buffer)
+        indicelist = [[0]]
+        for i in range(1, len(data)):
+            found = False
+            for g in range(len(indicelist)):
+                for n in indicelist[g]:
+                    if d[i].intersection(d[n]).is_empty:
+                        continue
+                    else:
+                        indicelist[g].append(i)
+                        found = True
+                        break
+                if found:
+                    break
+                if g == len(indicelist) - 1:
+                    indicelist.append([i])
+
+        geo = data.loc[indicelist[0]].unary_union.convex_hull
+        gpd = geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])
+        for indice in indicelist[1:]:
+            geo = data.loc[indice].unary_union.convex_hull
+            gpd = pandas.concat([gpd, geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])])
+
+        gpd = gpd.sort_values(by="area", ascending=False).reset_index()
+        found = False
+        for i in range(len(gpd)):
+            for j in range(i + 1, len(gpd)):
+                if gpd.loc[i].geometry.intersection(gpd.loc[j].geometry).is_empty:
+                    continue
+                else:
+                    found = True
+                    break
+            if found:
+                break
+        if found:
+            gpd = self.ConvexPolygons(gpd, buffer=1)
+
+        return gpd
 
 # class convert():
 #

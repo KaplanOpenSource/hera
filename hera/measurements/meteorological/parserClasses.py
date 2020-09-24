@@ -541,6 +541,278 @@ class CampbellBinaryInterface(object):
             return (lowerIndex+upperIndex)//2
 
 
+class CampbellBinaryInterface(object):
+    _file = None
+    _binData = None
+    _headersSize = None
+    _headers = None
+    _recordSize = None
+    _format = None
+    _rawFormat = None
+    _lut = None
+    _firstTime = None
+    _lastTime = None
+    _columnsNames = None
+    _columnsIndexes = None
+
+    @property
+    def headersSize(self):
+        if self._headersSize is None:
+            self._headersSize = self._getHeadersSize()
+        return self._headersSize
+
+    @property
+    def headers(self):
+        if self._headers is None:
+            self._headers = self._getHeaders()
+        return self._headers
+
+    @property
+    def recordSize(self):
+        if self._recordSize is None:
+            if self.headers[4].find(",") == -1:
+                raise Exception("Missing Format Descriptor in line 4....")
+            self._recordSize = struct.calcsize(self.format)
+
+        return self._recordSize
+
+    @property
+    def recordsNum(self):
+        return (len(self._binData)-self.headersSize)//self.recordSize
+
+    @property
+    def rawFormat(self):
+        if self._rawFormat is None:
+            self._getFormat()
+        return self._rawFormat
+
+    @property
+    def format(self):
+        if self._format is None:
+            self._format = self._getFormat()
+        return self._format
+
+    @property
+    def firstTime(self):
+        if self._firstTime is None:
+            self._firstTime = self._getFirstTime()
+        return self._firstTime
+
+    @property
+    def lastTime(self):
+        if self._lastTime is None:
+            self._lastTime = self._getLastTime()
+        return self._lastTime
+
+    @property
+    def columnsNames(self):
+        if self._columnsNames is None:
+            self._columnsNames = self._getColumnNames()
+        return self._columnsNames
+
+    @property
+    def columnsIndexes(self):
+        if self._columnsIndexes is None:
+            self._columnsIndexes = self._getColumnIndexes()
+        return self._columnsIndexes
+
+    def __init__(self, file):
+        self._file = file
+
+        with open(file, 'rb') as binFile:
+            self._binData = binFile.read()
+
+        self._lut = {}
+
+    def _getFormat(self):
+        rawFormata = self.headers[4].split(",")
+        self._rawFormat = len(rawFormata) * ['']
+
+        format = "<"
+        for i in range(len(rawFormata)):
+            self._rawFormat[i] = rawFormata[i].strip('"')
+            if rawFormata[i] == 'ULONG':
+                format += "I"
+            elif rawFormata[i] == 'FP2':
+                format += "H"
+            elif rawFormata[i] == 'IEEE4':
+                format += "f"
+            elif rawFormata[i] == 'IEEE8':
+                format += "d"
+            elif rawFormata[i] == 'USHORT':
+                format += "H"
+            elif rawFormata[i] == 'LONG':
+                format += "l"
+            elif rawFormata[i] == 'BOOL':
+                format += "?"
+            elif rawFormata[i].find("ASCII(") != -1:
+                format += rawFormata[i][6: -1] + 's'
+            else:
+                raise Exception("Unknown {} Format....".format(rawFormata[i]))
+        return format
+
+    def _getHeaders(self):
+        headers = []
+        numlf = 5
+        basenum = 0
+        tempstr = ''
+
+        while numlf > 0:
+            tempstr += chr(self._binData[basenum])
+            if self._binData[basenum] == 10:
+                headers.append(tempstr)
+                tempstr = ''
+                numlf -= 1
+            basenum += 1
+
+        for i in range(len(headers)):
+            headers[i] = headers[i].replace('"', '').replace('\r\n', '')
+
+        # headers[0] = headers[0].replace('TOB1', 'TOA5')
+        # headers[1] = headers[1].replace('SECONDS,NANOSECONDS', 'TIMESTAMP')
+        # headers[2] = headers[2].replace('SECONDS,NANOSECONDS', 'TS')
+        # headers[3] = headers[3][1:]
+        # headers = headers[:-1]
+
+        return headers
+
+    def _getColumnNames(self):
+        colheader = self.headers[1].upper()
+        cols = []
+
+        if colheader.find("U_") != -1:
+            # Raw Sonic Binary data file
+            for i in range(3):
+                if colheader.find("U_{}".format(i + 1)) != -1:
+                    cols.append(['u', 'v', 'w', 'T'])
+
+        elif colheader.find("TC_T") != -1:
+            if colheader.find("TC_T1") != -1:
+                cols.append(['TcT'])
+            else:
+                for i in range(3):
+                    if colheader.find("TC_T({})".format(i + 1)) != -1:
+                        cols.append(['TcT'])
+
+            cols[len(cols) - 1].append('TRH')
+            cols[len(cols) - 1].append('RH')
+        return cols
+
+    def _getColumnIndexes(self):
+        colheader = self.headers[1].upper()
+        Indexes = []
+
+        if colheader.find("U_") != -1:
+            # Raw Sonic Binary data file
+            for i in range(3):
+                if colheader.find("U_{}".format(i + 1)) != -1:
+                    Indexes.append([1 + 4 * i, 5 + 4 * i])
+
+
+        elif colheader.find("TC_T") != -1:
+            if colheader.find("TC_T1") != -1:
+                Indexes.append([1, 2])
+            else:
+                for i in range(3):
+                    if colheader.find("TC_T({})".format(i + 1)) != -1:
+                        Indexes.append([i + 1, i + 2])
+
+            Indexes[len(Indexes) - 1][1] += 2
+        return Indexes
+
+    def _getHeadersSize(self):
+        numlf = 5
+        header_size = 0
+
+        while numlf > 0:
+            if self._binData[header_size] == 10:
+                numlf -= 1
+            header_size += 1
+
+        return header_size
+
+    def _getFirstTime(self):
+        time, _ = self._getRecordByIndex(0)
+        return time
+
+    def _getLastTime(self):
+        time, _ = self._getRecordByIndex(self.recordsNum-1)
+        return time
+
+    def _getTimeByIndex(self, i):
+        time, _ = self._getRecordByIndex(i)
+        return time
+
+    def _getRecordByIndex(self, i):
+        index = self.headersSize+i*self.recordSize
+        lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
+        time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
+        return time, line
+
+    def _getDataFromStream(self, partStream):
+        retval = list(struct.unpack(self.format, partStream))
+        for i in range(3, len(retval)):
+            if self.rawFormat[i] == 'FP2':
+                retval[i] = self._newfloatConvert(retval[i])
+            elif self.rawFormat[i].find("ASCII(") != -1:
+                retval[i] = self._byteToStr(retval[i])
+        return retval[0], retval[1] / 1000000, retval[2:]
+
+    def _byteToStr(self,inpbyte):
+        retval = ''
+        for i in range(len(inpbyte)):
+            retval += chr(inpbyte[i])
+        return retval.strip('\0')
+
+    def _floatConvert(self, hbyte, lowbyte):
+        if (hbyte & 0x80) > 0:
+            sign = -1.0
+        else:
+            sign = 1.0
+
+        shorti = hbyte & 0x60
+        if shorti == 0x60:
+            factor = 1000.0
+        elif shorti == 0x40:
+            factor = 100.0
+        elif shorti == 0x20:
+            factor = 10.0
+        else:
+            factor = 1.0
+
+        val = sign * ((hbyte & 0x1f) * 256.0 + lowbyte) / factor
+        return val
+
+    def _newfloatConvert(self, key):
+        try:
+            return self._lut[key]
+        except:
+            if key == 65183:
+                self._lut[key] = float('nan')
+                return
+            val = self._floatConvert(int(key % 256), key / 256)
+            self._lut[key] = val
+            return val
+
+    def getRecordIndexByTime(self, time):
+        upperIndex = self.recordsNum-1
+        lowerIndex = 0
+        recordTime = self._getTimeByIndex((lowerIndex+upperIndex)//2)
+        tmpUpperIndex = -1
+        tmpLowerIndex = -1
+
+        while recordTime != time and (tmpLowerIndex != lowerIndex or tmpUpperIndex != upperIndex):
+            tmpUpperIndex = upperIndex
+            tmpLowerIndex = lowerIndex
+            if time > recordTime:
+                lowerIndex = (lowerIndex+upperIndex)//2
+            else:
+                upperIndex = (lowerIndex+upperIndex)//2
+            recordTime = self._getTimeByIndex((lowerIndex+upperIndex)//2)
+
+        return (lowerIndex+upperIndex)//2 if recordTime==time else None
+
+
 class Parser_Radiosonde(object):
 
     def __init__(self):

@@ -123,6 +123,27 @@ class Project(object):
 
         self._setLogger()
 
+    def getConfig(self):
+        """
+        Returns the config document's description.
+        If there is no config document, return None.
+        """
+        documents = self.getCacheDocumentsAsDict(type="__config__")
+        if len(documents) == 0:
+            raise KeyError("There is no config document.")
+        else:
+            desc = documents["documents"][0]["desc"]
+        return desc
+
+    def setConfig(self, config):
+        """
+        Create a config documnet or updates an existing config document.
+        """
+        documents = self.getCacheDocuments(type="__config__")
+        if len(documents) == 0:
+            self.addCacheDocument(type="__config__",desc=config)
+        else:
+            documents[0].update(desc=config)
 
     def _setLogger(self):
         """
@@ -323,6 +344,38 @@ class ProjectMultiDB:
 
         self._setLogger()
 
+    def getConfig(self):
+        """
+        Returns the config document's description.
+        If there is no config document, return None.
+        """
+        documents = self.getCacheDocumentsAsDict(type="__config__")
+        if len(documents) == 0:
+            raise KeyError("There is no config document.")
+        else:
+            if type(documents)==list:
+                desc = documents[0]["documents"][0]["desc"]
+            else:
+                desc = documents["documents"][0]["desc"]
+        return desc
+
+    def setConfig(self, config, user=None):
+        """
+        Create a config documnet or updates an existing config document.
+        """
+        documents = self.getCacheDocuments(type="__config__",user=user)
+        if len(documents) == 0:
+            if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public":
+                if len(self._databaseNameList) == 1:
+                    raise KeyError("Can't set config document in public, choose aditional user/s.")
+                else:
+                    user = self._databaseNameList[1] if user is None else user
+            else:
+                user = self._databaseNameList[0] if user is None else user
+            self.addCacheDocument(type="__config__",desc=config,users=[user])
+        else:
+            documents[0].update(desc=config)
+
     def getMetadata(self):
         """
         Returns a pandas dataframe which contains all the description of all ot the documents in the current project.
@@ -336,8 +389,9 @@ class ProjectMultiDB:
 
         return pandas.DataFrame(descList)
 
-    def _getSomeTypeDocumentsAsDict(self, searchtype, with_id, **kwargs):
+    def _getSomeTypeDocumentsAsDict(self, searchtype, with_id, users=None, **kwargs):
         returnData = []
+        searchtype = searchtype if users is None else dict([(user, searchtype[user]) for user in users])
         for userName, searched in searchtype.items():
             projectName = self.getProjectName(userName)
             data = searched.getDocumentsAsDict(projectName=projectName, with_id=with_id, **kwargs)
@@ -347,6 +401,7 @@ class ProjectMultiDB:
                 else:
                     returnData = data
                     break
+
         return returnData
 
     def _getSomeTypeDocuments(self, searchtype, resource, dataFormat, type, **desc):
@@ -364,7 +419,10 @@ class ProjectMultiDB:
 
     def _addSomeTypeDocuments(self, searchtype, resource, dataFormat, type, users=None, **desc):
         if users is None:
-            userName = self._databaseNameList[0]
+            if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(self._databaseNameList) > 1:
+                userName = self._databaseNameList[1]
+            else:
+                userName = self._databaseNameList[0]
             projectName = self.getProjectName(userName)
             searchtype[userName].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
         else:
@@ -382,8 +440,8 @@ class ProjectMultiDB:
                 projectName = self.getProjectName(user)
                 searchtype[user].deleteDocuments(projectName=projectName, **kwargs)
 
-    def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
-        return self._getSomeTypeDocumentsAsDict(searchtype=self._measurements, with_id=with_id, **kwargs)
+    def getMeasurementsDocumentsAsDict(self, with_id=False, users=None, **kwargs):
+        return self._getSomeTypeDocumentsAsDict(searchtype=self._measurements, with_id=with_id, users=users, **kwargs)
 
     def getMeasurementsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         return self._getSomeTypeDocuments(searchtype=self._measurements, resource=resource, dataFormat=dataFormat, type=type, **desc)
@@ -394,8 +452,8 @@ class ProjectMultiDB:
     def deleteMeasurementsDocuments(self, users=None, **kwargs):
         return self._deleteSomeTypeDocuments(searchType=self._measurements, users=users, **kwargs)
 
-    def getSimulationsDocumentsAsDict(self, with_id=False, **kwargs):
-        return self._getSomeTypeDocumentsAsDict(searchtype=self._simulations, with_id=with_id, **kwargs)
+    def getSimulationsDocumentsAsDict(self, with_id=False, users=None, **kwargs):
+        return self._getSomeTypeDocumentsAsDict(searchtype=self._simulations, with_id=with_id,users=users, **kwargs)
 
     def getSimulationsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         return self._getSomeTypeDocuments(searchtype=self._simulations, resource=resource, dataFormat=dataFormat, type=type, **desc)
@@ -406,8 +464,8 @@ class ProjectMultiDB:
     def deleteSimulationsDocuments(self, users=None, **kwargs):
         return self._deleteSomeTypeDocuments(searchtype=self._simulations, users=users, **kwargs)
 
-    def getCacheDocumentsAsDict(self,  with_id=False, **kwargs):
-        return self._getSomeTypeDocumentsAsDict(searchtype=self._cache, with_id=with_id, **kwargs)
+    def getCacheDocumentsAsDict(self,  with_id=False, users=None, **kwargs):
+        return self._getSomeTypeDocumentsAsDict(searchtype=self._cache, with_id=with_id, users=users, **kwargs)
 
     def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         return self._getSomeTypeDocuments(searchtype=self._cache, resource=resource, dataFormat=dataFormat, type=type, **desc)
@@ -452,7 +510,6 @@ class ProjectMultiDBPublic(ProjectMultiDB):
                 If true, return a union of all the results from all the DB.
 
         """
-
         projectNamesDict = dict()
         dbListNames = []
         if ('public' in getDBNamesFromJSON()):
@@ -462,16 +519,18 @@ class ProjectMultiDBPublic(ProjectMultiDB):
             dbListNames = ['Public']
             projectNamesDict['Public'] = publicProjectName
 
-        if isinstance(projectName,str):
-            for user in numpy.atleast_1d(databaseNameList):
-                projectNamesDict[user] = projectName
-
         elif isinstance(projectName,dict):
                 projectNamesDict.update(projectName)
 
         if databaseNameList is None:
-            databaseNameList_full = dbListNames + [getpass.getuser()]
+            users = [getpass.getuser()]
+            databaseNameList_full = dbListNames + users
+            if isinstance(projectName, str):
+                for user in numpy.atleast_1d(users):
+                    projectNamesDict[user] = projectName
         else:
+            if isinstance(projectName, str):
+                for user in numpy.atleast_1d(databaseNameList):
+                    projectNamesDict[user] = projectName
             databaseNameList_full = dbListNames + list(numpy.atleast_1d(databaseNameList))
-
-        super().__init__(projectName,databaseNameList=databaseNameList_full, useAll=useAll)
+        super().__init__(projectNamesDict,databaseNameList=databaseNameList_full, useAll=useAll)
