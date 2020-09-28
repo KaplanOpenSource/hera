@@ -10,3 +10,4 @@ simulations
     simulations/WRF
     simulations/GFS
     simulations/interpolations
+    simulations/utils

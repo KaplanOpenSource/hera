@@ -5,11 +5,17 @@ import matplotlib.pyplot as plt
 class datalayer(project.ProjectMultiDBPublic):
 
     _projectName = None
+    _presentation = None
+
+    @property
+    def presentation(self):
+        return self._presentation
 
     def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Shapes"):
 
         self._projectName = projectName
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+        self._presentation = presentation(projectName=projectName,dataLayer=self)
 
     def getShape(self, name):
         """
@@ -102,11 +108,20 @@ class datalayer(project.ProjectMultiDBPublic):
                                                resource="",
                                                dataFormat="string",users=userName)
 
-class presentationLayer(datalayer):
+class presentation():
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Shapes"):
+    _datalayer = None
 
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, projectName, dataLayer=None, databaseNameList=None, useAll=False,
+                 publicProjectName="Shapes"):
+
+        self._datalayer = datalayer(projectName=projectName, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll) if datalayer is None else dataLayer
+
 
     def plot(self, names, color="black", marker="*", ax=None):
         """
@@ -138,11 +153,11 @@ class presentationLayer(datalayer):
         else:
             plt.sca(ax)
 
-        geo, geometry_type = self.getShapePoints(name)
+        geo, geometry_type = self.datalayer.getShapePoints(name)
         if geometry_type == "Point":
             plt.scatter(*geo[0], color=color, marker=marker)
         elif geometry_type == "Polygon":
-            geo = self.getShape(name)
+            geo = self.datalayer.getShape(name)
             x, y = geo.exterior.xy
             ax = plt.plot(x, y, color=color)
         return ax

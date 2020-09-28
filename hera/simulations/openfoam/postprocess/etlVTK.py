@@ -9,7 +9,7 @@ if version == 3:
     import dask.dataframe as dd
 
 
-def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName):
+def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName,JSONName):
 
     """
     This function is recursively passed on the pipeline tree from json file and execute the needed functions by file write format
@@ -30,7 +30,7 @@ def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName)
     funcName = "load_%s" % nodeData.get('write', 'None')
     mod=pydoc.locate(__name__)
     loader = getattr(mod,funcName)
-    loader(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName)
+    loader(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName,JSONName)
     ds = nodeData.get("downstream", {})
     for nodeName, nodeData in ds.items():
         Tree.append(nodeName)
@@ -44,7 +44,7 @@ def load_None(Tree, filterName, filterPipe, metadata, pipelines, path, name, pro
 
     print("%s write label is not exist in pipeline. data will not be cached" % filterName)
 
-def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, projectName):
+def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, projectName,JSONName):
 
     """
     This function handles the saving of netcdf files to the database.
@@ -71,17 +71,25 @@ def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, p
     if 'downstream' in filterProps.keys():
         del (filterProps['downstream'])
 
-    datalayer.Measurements.addDocument(projectName=projectName,
-                                       desc=dict(filter=filterName,
-                                                 pipeline=pipelines,
-                                                 filterpipeline=piplelineTree,
-                                                 **metadata
-                                                 ),
-                                       type="OFsimulation",
-                                       resource=glob.glob(os.path.join(path, name,"netcdf/%s*.nc" % filterName)),
-                                       dataFormat="netcdf_xarray")
 
-    print("%s data cached as netcdf" % filterName)
+    docList=datalayer.Simulations.getDocuments(type='HermesOpenFoam',
+                                               projectName=projectName,
+                                               resource=path)
+
+    OF_WorkFlow = docList[0].desc['OF_Workflow']
+    
+    datalayer.Simulations.addDocument(projectName=projectName,
+                                      desc=dict(filter=filterName,
+                                                pipeline=pipelines,
+                                                pipline_metadata=metadata,
+                                                filterpipeline=piplelineTree,
+                                                OF_WorkFlow=OF_WorkFlow
+                                                ),
+                                      type="OFsimulation",
+                                      resource=glob.glob(os.path.join(path, name,"netcdf","%s_%s*.nc" %(JSONName, filterName))),
+                                      dataFormat="netcdf_xarray")
+
+    print("%s_%s data cached as netcdf" %(JSONName, filterName))
 
 def load_hdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, projectName):
 

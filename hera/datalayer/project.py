@@ -49,6 +49,8 @@ class Project(object):
     """
     _projectName = None
 
+
+    _all          = None
     _measurements = None
     _cache     = None
     _simulations  = None
@@ -79,6 +81,17 @@ class Project(object):
 
         """
         return self._cache
+
+    @property
+    def all(self):
+        """
+            Access the Cache type documents.
+
+        :return:
+            hera.datalayer.collection.Cache_Collection
+
+        """
+        return self._all
 
     @property
     def simulations(self):

@@ -29,7 +29,7 @@ class Plotting():
             fig, ax = plt.subplots()
 
         path = doc.resource
-        extents = [doc.desc['left'], doc.desc['right'], doc.desc['bottom'], doc.desc['top']]
+        extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
         image = mpimg.imread(path)
 
         ax = plt.imshow(image, extent=extents)

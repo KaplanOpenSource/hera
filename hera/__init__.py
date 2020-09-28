@@ -1,6 +1,5 @@
 __version__ = '1.0.0'
 
-
 import sys
 import os
 import json
@@ -14,28 +13,37 @@ if version==3:
     from .measurements import GIS
     from .simulations.interpolations.interpolations import spatialInterpolate
     #from .risk import riskassessment
+
 from .simulations import openfoam
 
 import logging
 import logging.config
 
+with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
+     log_conf_str = logconfile.read().replace("\n","")
+     log_conf = json.loads(log_conf_str.replace("{herapath}",os.path.dirname(__file__)))
 
-# with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
-#     log_conf = json.load(logconfile)
-# logging.config.dictConfig(log_conf)
-#
-# EXECUTION = 15
-# logging.addLevelName(EXECUTION, 'EXECUTION')
-#
-# def execution(self, message, *args, **kws):
-#     self.log(EXECUTION, message, *args, **kws)
-#
-# logging.Logger.execution = execution
+EXECUTION = 15
+logging.addLevelName(EXECUTION, 'EXECUTION')
+
+def execution(self, message, *args, **kws):
+    self.log(EXECUTION, message, *args, **kws)
+
+logging.Logger.execution = execution
+
+logging.config.dictConfig(log_conf)
 
 
 """
  1.0.0
  -----
+<<<<<<< HEAD
+    - Introduced tools. 
+        - The GIS tools work  
+    - Project classes are equipped with a logger. 
+    
+
+=======
  This version consists a structural change that introduces concept of Tools. 
  
  A tool is a set of library functions that is designed to handle a single type of data. 

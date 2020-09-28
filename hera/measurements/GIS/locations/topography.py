@@ -7,12 +7,13 @@ from numpy import array, cross, sqrt
 import numpy
 import pandas
 import math
-import requests
 import random
-from osgeo import gdal
+import gdal
 import numpy as np
 from .shapes import datalayer as shapeDatalayer
 from shapely.geometry import Point,box,MultiLineString, LineString
+import requests
+
 
 class datalayer(locationDatalayer):
 
@@ -25,8 +26,74 @@ class datalayer(locationDatalayer):
     def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
 
         super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
-        self.setConfig({"source":Source,"dxdy":50,"skipinterior":100})
         self._analysis = analysis(projectName=projectName, dataLayer=self)
+        self.setConfig()
+
+    def setConfig(self,Source="BNTL",dxdy=50, heightSource="USGS", user=None, **kwargs):
+        config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,**kwargs)
+        super().setConfig(config,user=user)
+
+    def getHeight(self, latitude, longitude):
+
+        try:
+            height = self.__getattribute__("getHeight_%s" % self.getConfig()["heightSource"])(longitude=longitude,latitude=latitude)
+        except AttributeError:
+            print("The height source is not known.")
+
+        return height
+
+    def getHeight_mapquest(self, latitude, longitude):
+        resp = requests.get(
+            'http://open.mapquestapi.com/elevation/v1/profile?key=D5z9RSebQJLbUs4bohANIB4TzJdbvyvm&shapeFormat=raw&latLngCollection=' + str(
+                latitude) + ',' + str(longitude))
+
+        height = resp.json()['elevationProfile'][0]['height']
+
+        return height
+
+    def getHeight_USGS(self, latitude, longitude):
+
+        path = self.getMeasurementsDocuments(type="Height",**self.getConfig())[0].getData()
+
+        if latitude > 29 and latitude < 30 and longitude > 34 and longitude < 35:
+            fheight = r'%s/N29E034.hgt' % path
+        elif latitude > 29 and latitude < 30 and longitude > 35 and longitude < 36:
+            fheight = r'%s/N29E035.hgt'% path
+        elif latitude > 30 and latitude < 31 and longitude > 34 and longitude < 35:
+            fheight = r'%s/N30E034.hgt'% path
+        elif latitude > 30 and latitude < 31 and longitude > 35 and longitude < 36:
+            fheight = r'%s/N30E035.hgt'% path
+        elif latitude > 31 and latitude < 32 and longitude > 34 and longitude < 35:
+            fheight = r'%s/N31E034.hgt'% path
+        elif latitude > 31 and latitude < 32 and longitude > 35 and longitude < 36:
+            fheight = r'%s/N31E035.hgt'% path
+        elif latitude > 32 and latitude < 33 and longitude > 34 and longitude < 35:
+            fheight = r'%s/N32E034.hgt'% path
+        elif latitude > 32 and latitude < 33 and longitude > 35 and longitude < 36:
+            fheight = r'%s/N32E035.hgt'% path
+        elif latitude > 33 and latitude < 33 and longitude > 35 and longitude < 36:
+            fheight = r'%s/N33E035.hgt'% path
+        else:
+            raise KeyError("The point is outside Isreal.")
+            # print('!!!!NOT in Israel !!!!!!!!')
+            # # taken from https://earthexplorer.usgs.gov/
+            # fheight = r'/ibdata2/nirb/gt30e020n40.tif'
+
+        ds = gdal.Open(fheight)
+        myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+        myarray[myarray < -1000] = 0
+        gt = ds.GetGeoTransform()
+        rastery = (longitude - gt[0]) / gt[1]
+        rasterx = (latitude - gt[3]) / gt[5]
+        height11 = myarray[int(rasterx), int(rastery)]
+        height12 = myarray[int(rasterx) + 1, int(rastery)]
+        height21 = myarray[int(rasterx), int(rastery) + 1]
+        height22 = myarray[int(rasterx) + 1, int(rastery) + 1]
+        height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
+        height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
+        height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
+
+        return height
 
 class analysis():
 
@@ -307,8 +374,8 @@ def get_altitdue_ip(lat, lon):
 def get_altitdue_gdal(lat, lon):
     #        if lat<=30:
     # USGS EROS Archive - Digital Elevation - Global Multi-resolution Terrain Elevation Data 2010 (GMTED2010)
-    fheight = r'/data3/nirb/10N030E_20101117_gmted_med075.tif'
-    fheight = r'/data3/nirb/30N030E_20101117_gmted_med075.tif'
+    # fheight = r'/data3/nirb/10N030E_20101117_gmted_med075.tif'
+    # fheight = r'/data3/nirb/30N030E_20101117_gmted_med075.tif'
     # https://dds.cr.usgs.gov/srtm/version2_1/SRTM3/Africa/   # 90m resolution
     if lat > 29 and lat < 30 and lon > 34 and lon < 35:
         fheight = r'/data3/nirb/N29E034.hgt'
@@ -334,7 +401,7 @@ def get_altitdue_gdal(lat, lon):
         fheight = r'/ibdata2/nirb/gt30e020n40.tif'
 
     ds = gdal.Open(fheight)
-    myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+    myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
     myarray[myarray < -1000] = 0
     gt = ds.GetGeoTransform()
     rastery = (lon - gt[0]) / gt[1]
@@ -351,15 +418,15 @@ def get_altitdue_gdal(lat, lon):
 
 
 if __name__ == "__main__":
-    lon = random.randint(35750, 35800) / 1000.0  # Hermon
-    lat = random.randint(33250, 33800) / 1000.0
+    longitude = random.randint(35750, 35800) / 1000.0  # Hermon
+    latitude = random.randint(33250, 33800) / 1000.0
     #    lon = 34.986008  // elevation should be 273m according to amud anan
     #    lat = 32.808486  // elevation should be 273m according to amud anan
     #    lon = 35.755  // elevation should be ~820 according to amud anan
     #    lat = 33.459  // elevation should be ~820 according to amud anan
-    lon = 35.234987  # 744m
-    lat = 31.777978  # 744m
-    alt1 = get_altitdue_ip(lat, lon)
-    alt2 = get_altitdue_gdal(lat, lon)
-    print("the altitude at position: ", lat, lon, " is ", alt1, alt2)
+    longitude = 35.234987  # 744m
+    latitude = 31.777978  # 744m
+    #alt1 = get_altitdue_ip(lat, longitude)
+    alt2 = get_altitdue_gdal(latitude, longitude)
+    print("the altitude at position: ", latitude, longitude, " is ", alt1, alt2)
 

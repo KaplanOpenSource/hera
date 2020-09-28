@@ -36,6 +36,10 @@ class datalayer(locationDatalayer):
         super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
 
+    def setConfig(self,Source="BNTL", user=None, **kwargs):
+        config = dict(source=Source,**kwargs)
+        super().setConfig(config,user=user)
+
     def toSTL(self, doc, outputfile,flat=None):
         """
             Converts the document to the stl and saves it to the disk.
@@ -61,7 +65,7 @@ class datalayer(locationDatalayer):
             The string with the STL format.
 
         """
-        self.logger.info("toSTL: begin")
+        self.logger.info(f"begin with doc={doc},outputfile={outputfile},flat={flat}")
 
         maxheight = -500
 
@@ -130,7 +134,7 @@ class analysis():
         return self._datalayer
 
     def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
-                 publicProjectName="Topography", Source="BNTL"):
+                 publicProjectName="Buildings", Source="BNTL"):
 
         self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
                          databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
