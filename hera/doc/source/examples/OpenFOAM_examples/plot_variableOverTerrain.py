@@ -13,7 +13,7 @@ Plot a variable at a fixed height along slice
 
 from hera.simulations.openfoam.postProcess.meshUtilities.datalayer import datalayer
 OFdatalayer = datalayer(projectName="Documentation")
-#data = datalayer.getDocuments(filter="Slice1)[0].getData().compute()
+#data = datalayer.getDocuments(filter="Slice1")[0].getData().compute()
 
 ###########################
 # For the documentation, we would load it directly from the resource.

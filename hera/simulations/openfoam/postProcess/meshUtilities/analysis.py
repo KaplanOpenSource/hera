@@ -60,6 +60,7 @@ class analysis():
         data = data.query("heightOverTerrain>=0")
 
         self.datalayer.saveAndAddtoDB(save=save, addToDB=addToDB, data=data, path=path, key=key, filter=hdfName, **kwargs)
+
         return data
 
     def regularizeTimeSteps(self, data, fieldList=["U_x","U_z"], timelist=None, coordinateType="Regular", toPandas=True, **kwargs):

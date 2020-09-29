@@ -73,11 +73,16 @@ class presentation():
         ax.set_ylabel(labels[2])
         ax.set_xlabel(labels[0])
         for point in points:
+            data = data.append(pandas.DataFrame([{"distance":point}]))
+        data = data.sort_values(by="distance").interpolate(by="distance")
+        terrain = data.query("distance in @points")
+        dataPoints = self.analysis.regularizeTimeSteps(data=data, fieldList=["Velocity"], coord1="distance",coordinateType="Sigma", terrain=terrain, n=100).reset_index()
+        for point in points:
             axins = ax.inset_axes([point, data.loc[data.distance==point].terrain.mean(), data.distance.max()/10,
                                    data.z.max()-data.loc[data.distance==point].terrain.mean()], transform=ax.transData)
-            getattr(axins, style)(data.loc[data.distance==point].sort_values(by=["distance", "heightOverTerrain"]).Velocity,
-                    data.loc[data.distance==point].sort_values(by=["distance", "heightOverTerrain"]).z, color=colors[1], zorder=0)
-            axins.set_ylim(data.loc[data.distance==point].terrain.mean(), data.loc[data.distance==point].z.max())
+            getattr(axins, style)(dataPoints.loc[dataPoints.distance==point].sort_values(by=["distance", "sigma"]).Velocity,
+                    dataPoints.loc[dataPoints.distance==point].sort_values(by=["distance", "sigma"]).z, color=colors[1], zorder=0)
+            axins.set_ylim(data.loc[data.distance==point].terrain.mean(), dataPoints.loc[dataPoints.distance==point].z.max())
             axins.get_yaxis().set_visible(False)
             axins.xaxis.set_ticks_position("top")
             axins.xaxis.set_label_position("top")
@@ -85,24 +90,4 @@ class presentation():
             axins.set_xticks(xticks)
             axins.set_xlabel(labels[1])
             ax.scatter(point, data.loc[data.distance==point].terrain.mean(), color=colors[1], zorder=15)
-
-    def velocityInHeight(self, data, height):
-
-        xs = []
-        ys = []
-        vels = []
-
-        for x in data.query("heightOverTerrain>@height-2 and heightOverTerrain<@height+2").x.drop_duplicates():
-            for y in data.query("heightOverTerrain>@height-2 and heightOverTerrain<@height+2").loc[data.x==x].y.drop_duplicates():
-                if len(data.loc[data.x==x].loc[data.y==y].loc[data.heightOverTerrain > height - 2]) > 0 and len(
-                       data.loc[data.x==x].loc[data.y==y].loc[data.heightOverTerrain < height + 2]) > 0:
-                    d = data.loc[data.x==x].loc[data.y==y]
-                    d2 = pandas.DataFrame([dict(x=x, y=y, heightOverTerrain=height)])
-                    value = d.append(d2).sort_values(by="heightOverTerrain").set_index("heightOverTerrain").interpolate(
-                        method='index').loc[height]["Velocity"]
-                    if math.isnan(value):
-                        pass
-                    else:
-                        vels.append(value)
-                        xs.append(x)
-                        ys.append(y)
+        return ax
