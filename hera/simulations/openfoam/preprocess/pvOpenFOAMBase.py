@@ -319,7 +319,7 @@ class paraviewOpenFOAM(object):
             else:
                 writeList(L,blockID,blockDig,JSONbaseName)
 
-    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100,JSONbaseName=''):
+    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100,JSONbaseName='',**kwargs):
 
         def writeList(theList, blockID, blockDig):
             filterList = [x for x in L[0].keys()]

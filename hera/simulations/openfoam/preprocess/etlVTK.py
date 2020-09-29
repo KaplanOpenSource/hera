@@ -35,7 +35,7 @@ def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName,
     ds = nodeData.get("downstream", {})
     for nodeName, nodeData in ds.items():
         Tree.append(nodeName)
-        recurseNode(Tree, nodeName, nodeData,metadata,pipelines,path,name,projectName)
+        recurseNode(Tree, nodeName, nodeData,metadata,pipelines,path,name,projectName,JSONName)
 
 def load_None(Tree, filterName, filterPipe, metadata, pipelines, path, name, projectName):
     """
@@ -90,7 +90,7 @@ def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, p
 
     print("%s_%s data cached as netcdf" %(JSONName, filterName))
 
-def load_hdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, projectName):
+def load_hdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, projectName,JSONName=None):
 
     """
     This function handles the saving of hdf files to the database.
@@ -128,7 +128,7 @@ def load_hdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, proj
         del (filterProps['downstream'])
 
 
-    datalayer.Measurements.addDocument(projectName=projectName,
+    datalayer.Simulations.addDocument(projectName=projectName,
                                        desc=dict(filter=filterName,
                                                  filterProperties=filterProps,
                                                  filterpipeline=piplelineTree,

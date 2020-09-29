@@ -1,14 +1,24 @@
 import pandas
 import matplotlib.pyplot as plt
 import math
-from ..preprocess.dataManipulations import dataManipulations
 
-class Plotting():
+class presentation():
 
-    _arrange = None
+    _datalayer = None
+    _analysis = None
 
-    def __init__(self):
-        self._arrange=dataManipulations("")
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    @property
+    def analysis(self):
+        return self._analysis
+
+    def __init__(self, dataLayer, Analysis):
+
+        self._datalayer =  dataLayer
+        self._analysis = Analysis
 
     def variableAgainstDistance(self, data, variable, height, style="plot", colors=["red", "blue"], signedColors=["blue", "orange", "green", "red"],
                                 signedDists=None, labels=None, topography=True, ax=None):
@@ -31,24 +41,12 @@ class Plotting():
         else:
             plt.sca(ax)
 
-        # distances=[]
-        # variables=[]
-        # for dist in data.distance.drop_duplicates():
-        #     if len(data.loc[data.distance == dist].loc[data.heightOverTerrain>height-10]) > 0 and len(data.loc[data.distance == dist].loc[data.heightOverTerrain<height+10]) > 0:
-        #         d = data.loc[data.distance == dist]
-        #         d2 = pandas.DataFrame([dict(distance=dist, heightOverTerrain=height)])
-        #         value = d.append(d2).sort_values(by="heightOverTerrain").set_index("heightOverTerrain").interpolate(method='index').loc[height][variable]
-        #         if math.isnan(value):
-        #             pass
-        #         else:
-        #             variables.append(value)
-        #             distances.append(dist)
-        heightdata = self._arrange.makeSliceHeightData(data=data, height=height, variable=variable)
-
-        data = data.sort_values(by="distance")
+        dataHeight = self.analysis.regularizeTimeSteps(data=data, fieldList=[variable], coord1="distance",coordinateType="constantHeight",heightsList=[height]).reset_index()
+        data = data.sort_values(by="distance").reset_index().drop(0)
+        dataHeight = dataHeight.sort_values(by="distance").drop(0)
         labels = labels if labels is not None else ["Distance Downwind (m)", variable, "Terrain (m)"]
 
-        getattr(ax, style)(heightdata.distance, heightdata[variable], color=colors[0])
+        getattr(ax, style)(dataHeight.distance, dataHeight[variable], color=colors[0])
         ax.tick_params(axis='y', labelcolor=colors[0])
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1], color=colors[0])

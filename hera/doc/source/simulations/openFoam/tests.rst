@@ -1,11 +1,7 @@
-Analysis
-========
-
-This page shows some basic analysis processes that hera supports.
-
 Tests
------
-The tests module may support performing tests of the validity of the simulation.
+=====
+
+The tests tool may support performing tests of the validity of the simulation.
 Note that it should be executed in python 2 environment.
 
 .. code-block:: python
@@ -64,3 +60,18 @@ Then, we can check whether there are coordinates for which the velocity decrease
 .. code-block:: python
 
     decreasingVelocityPoints = data.loc[data.diffs<0]
+
+Perform all tests
+.................
+
+There is also a function that activate both functions discussed above.
+It returns a dictionary with two keys. The first key is called UalongXYdifference.
+It is the size of the difference between the minimum amd maximum values of U
+at a chosen percentage height.
+The second key is called UalongZconsistent. Its value is True if there isn't an area in
+which the velocity decreases with height, and False otherwise.
+
+.. code-block:: python
+
+    tests.performAllTests(percentage=80,fields = "U")
+

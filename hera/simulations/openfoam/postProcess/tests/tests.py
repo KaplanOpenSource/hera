@@ -1,13 +1,11 @@
 import paraview.simple as pvsimple
-from ..postprocess.pvOpenFOAMBase import paraviewOpenFOAM
-from ..postprocess.dataManipulations import dataManipulations
+from ...preprocess.pvOpenFOAMBase import paraviewOpenFOAM
 import numpy
 
 class tests():
 
     _pvOFBase = None  # Holds the OF base.
     _casePath = None
-    _manipulator = None
 
     @property
     def name(self):
@@ -39,9 +37,8 @@ class tests():
         """
         self._pvOFBase = paraviewOpenFOAM(casePath=casePath, caseType=caseType, servername=servername)
         self._casePath = casePath
-        self._manipulator = dataManipulations()
 
-    def getHeightSlice(self, percentage=90, fields="U", save=False, addToDB=False, key="Slice", path=None, projectName=None, hdfName="HeightSlice", **kwargs):
+    def getHeightSlice(self, percentage=90, fields="U"):
         """
         Returns a pandas dataframe of a z slice in height of desired percentage of the total height.
         """
@@ -69,12 +66,9 @@ class tests():
         data = self._pvOFBase._readTimeStep(filter, timelist[-1], fieldnames=fields, xarray=False)
         data["Velocity"] = numpy.sqrt(data["U_x"] * data["U_x"] + data["U_y"] * data["U_y"] + data["U_z"] * data["U_z"])
 
-        self._manipulator.saveAndAddtoDB(save=save, addToDB=addToDB, data=data, path=path, key=key, projectName=projectName,
-                                         filter=hdfName, height=height, **kwargs)
-
         return data
 
-    def changeOfVelocityInHeight(self, save=False, addToDB=False, key="Slice", path=None, projectName=None, hdfName="VelocityDifference", **kwargs):
+    def changeOfVelocityInHeight(self):
         """
         Returns a dataframe with the difference in velocity between adjacent points along z axis.
         """
@@ -87,17 +81,14 @@ class tests():
         data = data.groupby(['x', "y"]).filter(lambda x: x.z.is_unique)
         data['diffs'] = data.groupby(['x', "y"])['Velocity'].transform(lambda x: x.diff()).fillna(0)
 
-        self._manipulator.saveAndAddtoDB(save=save, addToDB=addToDB, data=data, path=path, key=key, projectName=projectName,
-                                         filter=hdfName, **kwargs)
-
         return data
 
-    def performAllTests(self, save=False, addToDB=False, path=None, projectName=None, **kwargs):
+    def performAllTests(self, percentage=90, fields="U"):
         """
         Performs all the tests on the data and returns a dictionary with the results.
         """
-        height90data = self.getHeightSlice(save=save, addToDB=addToDB, path=path, projectName=projectName, **kwargs)
-        changeOfVelocityData = self.changeOfVelocityInHeight(save=save, addToDB=addToDB, path=path, projectName=projectName, **kwargs)
+        height90data = self.getHeightSlice(percentage=percentage,fields=fields)
+        changeOfVelocityData = self.changeOfVelocityInHeight()
         height90percentage = (height90data["Velocity"].max()-height90data["Velocity"].min())/height90data["Velocity"].min()*100
         ChangeWithHeight = False if len(changeOfVelocityData.loc[changeOfVelocityData.diffs<0])>0 else True
         results = dict(UalongXYdifference=height90percentage, UalongZconsistent=ChangeWithHeight)
