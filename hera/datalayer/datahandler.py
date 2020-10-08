@@ -237,8 +237,10 @@ class DataHandler_parquet(object):
         -------
         dask.Dataframe or pandas.DataFrame
         """
+
+        df = dask.dataframe.read_parquet(resource)
         try:
-            df = dask.dataframe.read_parquet(resource)
+            df.compute()
         except:
             df = pandas.read_parquet(resource)
             usePandas = False
