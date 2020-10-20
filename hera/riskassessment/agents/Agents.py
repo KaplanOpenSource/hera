@@ -1,7 +1,9 @@
-from ..agents import effects
+import os 
+import json 
+from  pyriskassessment.agents import effects
 from  hera.simulations.utils import toNumber,toUnum
 from unum.units import *
-from ..riskDatalayer.riskDatalayer import riskDatalayer
+from ..heraDatalayer.heraDatalayer import heraDatalayer
 
 class Agent(object): 
 
@@ -35,7 +37,7 @@ class Agent(object):
 	def tenbergeCoefficient(self,value):
 		self._effectParameters["tenbergeCoefficient"] = float(value)
 		for effectname,effectconfig in self._agentconfig["effects"].items():
-			self._effects[effectname] = effects.injuryfactory.getInjury(effectname, effectconfig, **self._effectParameters)
+			self._effects[effectname] = effects.injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
 
 	def __init__(self,name, projectName="AgentsCollection"):
 		"""
@@ -56,13 +58,13 @@ class Agent(object):
 		# conffile = os.path.join(os.path.expanduser("~"),".pyriskassessment","%s.json" % name)
 		# with open(conffile,'r') as config:
 		# 	self._agentconfig = json.load(config)
-		self._agentconfig = riskDatalayer().getAgent(projectName=projectName, Agent=name)
+		self._agentconfig = heraDatalayer().getAgent(projectName=projectName, Agent=name)
 		
 		self._effectParameters = self._agentconfig.get("effectParameters",{})
 
 		self._effects = {}
 		for effectname,effectconfig in self._agentconfig["effects"].items():
-			self._effects[effectname] = effects.injuryfactory.getInjury(effectname, effectconfig, **self._effectParameters)
+			self._effects[effectname] = effects.injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
 
 		self.__dict__.update(self._effects)
 

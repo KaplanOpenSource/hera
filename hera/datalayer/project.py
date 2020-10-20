@@ -49,6 +49,8 @@ class Project(object):
     """
     _projectName = None
 
+
+    _all          = None
     _measurements = None
     _cache     = None
     _simulations  = None
@@ -81,6 +83,17 @@ class Project(object):
         return self._cache
 
     @property
+    def all(self):
+        """
+            Access the Cache type documents.
+
+        :return:
+            hera.datalayer.collection.Cache_Collection
+
+        """
+        return self._all
+
+    @property
     def simulations(self):
         """
             Access the simulation type documents.
@@ -104,41 +117,10 @@ class Project(object):
         """
         self._projectName = projectName
 
-        self._measurements  = Measurements_Collection(user=databaseName)
-        self._cache      = Cache_Collection(user=databaseName)
-        self._simulations   = Simulations_Collection(user=databaseName)
-
-        self._setLogger()
-
-    def getConfig(self):
-        """
-        Returns the config document's description.
-        If there is no config document, return None.
-        """
-        documents = self.getCacheDocumentsAsDict(type="__config__")
-        if len(documents) == 0:
-            raise KeyError("There is no config document.")
-        else:
-            desc = documents["documents"][0]["desc"]
-        return desc
-
-    def setConfig(self, config):
-        """
-        Create a config documnet or updates an existing config document.
-        """
-        documents = self.getCacheDocuments(type="__config__")
-        if len(documents) == 0:
-            self.addCacheDocument(type="__config__",desc=config)
-        else:
-            documents[0].update(desc=config)
-
-    def _setLogger(self):
-        """
-            Set the logger with the name of the class.
-        :return:
-        """
-        name =  ".".join(str(self.__class__)[8:-2].split(".")[1:])
-        self._logger = logging.getLogger(name)
+        self._measurements  = Measurements_Collection(user=user)
+        self._cache      = Cache_Collection(user=user)
+        self._simulations   = Simulations_Collection(user=user)
+        self._all           =   AbstractCollection(user=user)
 
     def getMetadata(self):
         """

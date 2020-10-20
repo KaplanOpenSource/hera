@@ -1,4 +1,5 @@
-__version__ = '1.0.0'
+__version__ = '0.7.1'
+
 
 import sys
 import os
@@ -34,13 +35,10 @@ logging.Logger.execution = execution
 logging.config.dictConfig(log_conf)
 
 """
- 1.0.0
+ 0.7.1
  -----
-    - Introduced tools. 
-        - The GIS tools work  
-    - Project classes are equipped with a logger. 
-    
-
+    - Added the 'all' to project 
+     
  0.7.0
  -----
   - Adding the riskassessmet package. 

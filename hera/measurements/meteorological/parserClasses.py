@@ -175,11 +175,11 @@ class Parser_CampbellBinary(object):
         self._basenum = 0
         self._chunkSize = chunkSize
 
-    def parse(self, path, fromTime=None, **metadata):
+    def parse(self, path, fromTime=None, toTime=None, **metadata):
         if os.path.isfile(path):
-            df = self.getPandasFromFile(path, fromTime=fromTime)
+            df = self.getPandasFromFile(path, fromTime=fromTime, toTime=toTime)
         else:
-            df = self.getPandasFromDir(path, fromTime=fromTime)
+            df = self.getPandasFromDir(path, fromTime=fromTime, toTime=toTime)
 
         metadata_dict = dict()
         stations = df['station'].unique()
@@ -198,9 +198,9 @@ class Parser_CampbellBinary(object):
         loaded_dask = dd.from_pandas(df, npartitions=1)
         return loaded_dask, metadata_dict
 
-    def getPandasFromFile(self, path, fromTime):
+    def getPandasFromFile(self, path, fromTime, toTime):
         cbi = CampbellBinaryInterface(file=path)
-        ts, cols, data = self.getData(path, fromTime=fromTime)
+        ts, cols, data = self.getData(path, fromTime=fromTime, toTime=toTime)
         dfList = []
         for i, key in enumerate(data.keys()):
             columns = cols[i]
@@ -211,14 +211,14 @@ class Parser_CampbellBinary(object):
             dfList.append(tmp_df)
         return pandas.concat(dfList, sort=True)
 
-    def getPandasFromDir(self, path, fromTime):
+    def getPandasFromDir(self, path, fromTime, toTime):
         dfList = []
         for file in glob.glob(os.path.join(path, '*.dat')):
-            tmp_df = self.getPandasFromFile(file, fromTime=fromTime)
+            tmp_df = self.getPandasFromFile(file, fromTime=fromTime, toTime=toTime)
             dfList.append(tmp_df)
         return pandas.concat(dfList, sort=True)
 
-    def getData(self, file, fromTime):
+    def getData(self, file, fromTime, toTime):
         cbi = CampbellBinaryInterface(file=file)
         retVal = {}
 
@@ -228,11 +228,15 @@ class Parser_CampbellBinary(object):
         if type(fromTime) == str:
             fromTime = pandas.Timestamp(fromTime)
 
+        if type(toTime) == str:
+            toTime = pandas.Timestamp(toTime)
+
         recordIndex = 0 if fromTime is None else cbi.getRecordIndexByTime(fromTime)
+        endIndex = cbi.recordsNum if toTime is None else cbi.getRecordIndexByTime(toTime)+1
 
         ts = []
 
-        while recordIndex+1 <= cbi.recordsNum:
+        while recordIndex < endIndex:
             time, line = cbi.getRecordByIndex(recordIndex)
             ts.append(time)
 
@@ -460,10 +464,6 @@ class CampbellBinaryInterface(object):
         time, _ = self.getRecordByIndex(self.recordsNum-1)
         return time
 
-    def _getTimeByIndex(self, i):
-        time, _ = self.getRecordByIndex(i)
-        return time
-
     def getRecordByIndex(self, i):
         index = self.headersSize+i*self.recordSize
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
@@ -519,10 +519,14 @@ class CampbellBinaryInterface(object):
             self._lut[key] = val
             return val
 
+    def getTimeByRecordIndex(self, i):
+        time, _ = self.getRecordByIndex(i)
+        return time
+
     def getRecordIndexByTime(self, time):
-        upperIndex = self.recordsNum-1
+        upperIndex = self.recordsNum
         lowerIndex = 0
-        recordTime = self._getTimeByIndex((lowerIndex+upperIndex)//2)
+        recordTime = self.getTimeByRecordIndex((lowerIndex+upperIndex)//2)
         tmpUpperIndex = -1
         tmpLowerIndex = -1
 
@@ -533,7 +537,7 @@ class CampbellBinaryInterface(object):
                 lowerIndex = (lowerIndex+upperIndex)//2
             else:
                 upperIndex = (lowerIndex+upperIndex)//2
-            recordTime = self._getTimeByIndex((lowerIndex+upperIndex)//2)
+            recordTime = self.getTimeByRecordIndex((lowerIndex+upperIndex)//2)
 
         if recordTime!=time:
             raise IndexError("There is no record at %s" % time)

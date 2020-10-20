@@ -42,14 +42,14 @@ class InjuryFactory(object):
 		except KeyError: 
                         raise ValueError("Calculator not defined")
 
-		calculatorCLS = pydoc.locate("hera.risk.riskassessment.agents.effects.Calculator.Calculator%s" % calcType)
+		calculatorCLS = pydoc.locate("pyriskassessment.agents.effects.Calculator.Calculator%s" % calcType)
 		calculator    = calculatorCLS(**calcParam,**additionalparameters)
 
-		injuryCLS = pydoc.locate("hera.risk.riskassessment.agents.effects.Injury.Injury%s" % injuryType)
+		injuryCLS = pydoc.locate("pyriskassessment.agents.effects.Injury.Injury%s" % injuryType) 
 		
 		if injuryCLS is None: 
 			
-			injuryExists  = ",".join([x[6:] for x in dir(pydoc.locate("hera.risk.riskassessment.agents.effects.Injury")) if x.startswith("Injury")])
+			injuryExists  = ",".join([x[6:] for x in dir(pydoc.locate("pyriskassessment.agents.effects.Injury")) if x.startswith("Injury")])
 
 			raise NotImplementedError("The injury %s is not defined. Injuries found: %s  " % (injuryType,injuryExists))
 
@@ -97,10 +97,9 @@ class Injury(object):
 
 		injuryType = cfgJSON.get("type",None)
 		if (injuryType is None):
-
 			raise ValueError("InjuryLevel type is nor defined")
 
-		injuryCLS = pydoc.locate("hera.risk.riskassessment.agents.effects.InjuryLevel.InjuryLevel%s" % injuryType)
+		injuryCLS = pydoc.locate("pyriskassessment.agents.effects.InjuryLevel.InjuryLevel%s" % injuryType)
 		self._levelsmap = {}
 		self._levels = []
 		levelNames = cfgJSON.get("levels")
@@ -116,6 +115,7 @@ class Injury(object):
 
 			curindex = levelNames.index(lvl)
 			lvlparams["higher_severity"] = None if curindex == 0 else self.levels[curindex-1]
+
 			injry = injuryCLS(lvl, calculator=calculator, units=units, **lvlparams)
 			self._levels.append(injry)
 			self._levelsmap[lvl] = injry
