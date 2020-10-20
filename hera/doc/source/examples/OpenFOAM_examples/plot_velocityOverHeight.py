@@ -21,31 +21,31 @@ from hera import datalayer
 # For the documentation, we would load it directly from the resource.
 
 import dask.dataframe
-data = dask.dataframe.read_parquet("documentationData/Slice1.parquet").compute()
-
-#######################
-# Now, we use a function of hera openfoam in order to arrange the data.
-# The arrangement adds columns that hold the velocity magnitude, the height ofer the terrain
-# and the distance downwind from the domain's corner.
-
-from hera import openfoam
-op = openfoam.dataManipulations(projectName="Example")
-data = op.arrangeSlice(data=data, ydir=False)
-
-#######################
-# ydir = False means that the wind component in the y direction is negative.
+# data = dask.dataframe.read_parquet("documentationData/Slice1.parquet").compute()
 #
-# We have to find points in which there is enough data.
-# In order to do so, we may use the next function:
-
-optionalLocations = op.findDetaiedLocations(data)
-
-#########################
-# The function returns a list of specific distances downwinds which have data of velocities in many different heights.
-# One may choose any values from the list. We chose three values randomly.
+# #######################
+# # Now, we use a function of hera openfoam in order to arrange the data.
+# # The arrangement adds columns that hold the velocity magnitude, the height ofer the terrain
+# # and the distance downwind from the domain's corner.
 #
-# The plot is plotted using the plotting model.
-# The colors and labels can be changed from the default values by addressing parameters called "colors" and "labels".
-
-plotting = openfoam.Plotting()
-plotting.UinLocations(data=data, points=[optionalLocations[9], optionalLocations[56], optionalLocations[80]])
+# from hera import openfoam
+# op = openfoam.dataManipulations(projectName="Example")
+# data = op.arrangeSlice(data=data, ydir=False)
+#
+# #######################
+# # ydir = False means that the wind component in the y direction is negative.
+# #
+# # We have to find points in which there is enough data.
+# # In order to do so, we may use the next function:
+#
+# optionalLocations = op.findDetaiedLocations(data)
+#
+# #########################
+# # The function returns a list of specific distances downwinds which have data of velocities in many different heights.
+# # One may choose any values from the list. We chose three values randomly.
+# #
+# # The plot is plotted using the plotting model.
+# # The colors and labels can be changed from the default values by addressing parameters called "colors" and "labels".
+#
+# plotting = openfoam.Plotting()
+# plotting.UinLocations(data=data, points=[optionalLocations[9], optionalLocations[56], optionalLocations[80]])

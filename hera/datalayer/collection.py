@@ -187,9 +187,9 @@ class AbstractCollection(object):
                       'use getDocuments to get documents and use getData of the document object' ,DeprecationWarning)
         docList = self.getDocuments(projectName=projectName, **kwargs)
         if usePandas is None:
-            return [doc.getData() for doc in docList]
+            return [doc.getDocFromDB() for doc in docList]
         else:
-            return [doc.getData(usePandas=usePandas) for doc in docList]
+            return [doc.getDocFromDB(usePandas=usePandas) for doc in docList]
 
 
 class Measurements_Collection(AbstractCollection):

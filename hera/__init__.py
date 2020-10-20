@@ -1,19 +1,50 @@
-__version__ = '0.6.1'
+__version__ = '0.7.1'
 
 
 import sys
+import os
+import json
 ## Load modules if it is python 3.
 version = sys.version_info[0]
 if version==3:
     from .simulations import WRF
-    from .measurements import meteorological as meteo
+    #from .measurements import meteorological as meteo
     from .simulations import LSM
     from .simulations.LSM.DataLayer import SingleSimulation
     from .measurements import GIS
     from .simulations.interpolations.interpolations import spatialInterpolate
+    #from .risk import riskassessment
+
 from .simulations import openfoam
 
+import logging
+import logging.config
+
+with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
+     log_conf_str = logconfile.read().replace("\n","")
+     log_conf = json.loads(log_conf_str.replace("{herapath}",os.path.dirname(__file__)))
+
+EXECUTION = 15
+logging.addLevelName(EXECUTION, 'EXECUTION')
+
+def execution(self, message, *args, **kws):
+    self.log(EXECUTION, message, *args, **kws)
+
+logging.Logger.execution = execution
+
+logging.config.dictConfig(log_conf)
+
 """
+ 0.7.1
+ -----
+    - Added the 'all' to project 
+     
+ 0.7.0
+ -----
+  - Adding the riskassessmet package. 
+  - Adding the simulations/gaussian package. 
+  - adding the simulation/evaporation package. 
+
  0.6.1
  -----
   - Fixing the simulations.interpolations package. 

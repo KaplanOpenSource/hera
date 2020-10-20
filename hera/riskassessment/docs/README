@@ -1,0 +1,34 @@
+Move to the docs asap!. 
+
+Tenberge Threshold correction. 
+------------------------------
+
+When using the Tenberge model 
+
+	\begin{equation}
+		T_L = \int_{t_0}^{t_1} C^n dt 
+	\end{equation}
+
+We have to correct the Toxic levels. accoding to the following procedure. 
+
+1. Calculate the concentration in which the Dose was estimated. In our case it would 
+   usually be in a constant concentration for 2 min. 
+
+  \begin{equation}
+	C = \frac{D}{2[min]}
+  \end{equation}
+
+2. Now calculate the new Dose by substituting in the tenberge equation: 
+   \begin{equation} 
+	2[min]*C^n = 2[min]\left(\frac{D}{2[min]}\right)^n = T_L
+   \end{equation}
+
+  This procedure was also documented in A comparative analysis of tocivy models. Weinrich SL, Lawrence AE, Burr JK. IDA, 2008
+  
+
+3. Correct the probit. Numerical experiments (the code in python/HaberToBerge.py) show that the 
+   new probig is the old one divided by n. 
+
+
+
+The values of GB were modified. 

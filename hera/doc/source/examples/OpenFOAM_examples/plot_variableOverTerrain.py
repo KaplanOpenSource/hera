@@ -28,29 +28,29 @@ data = dask.dataframe.read_parquet("documentationData/Slice1.parquet").compute()
 # The arrangement adds columns that hold the velocity magnitude, the height ofer the terrain
 # and the distance downwind from the domain's corner.
 
-from hera import openfoam
-op = openfoam.dataManipulations(projectName="Example")
-data = op.arrangeSlice(data=data, ydir=False)
-
-#######################
-# ydir = False means that the wind component in the y direction is negative.
+# from hera import openfoam
+# op = openfoam.dataManipulations(projectName="Example")
+# data = op.arrangeSlice(data=data, ydir=False)
 #
-# The plot is plotted using a module named plotting.
-# We will plot the velocity at height 30 m above the terrain.
-
-plotting = openfoam.Plotting()
-plotting.variableAgainstDistance(data=data, variable="Velocity", height=30)
-
-#######################
-# The default style of the plot is a lineplot. A scatter plot can be plotted instead:
-
-plotting.variableAgainstDistance(data=data, variable="Velocity", height=30, style="scatter")
-
-#######################
-# The colors and labels can be changed from the default values.
-# In addition, signed distances may be added as in the next example.
-# The colors of the signed lines are default colors that may be changed using the parameter signedColors.
-
-plotting.variableAgainstDistance(data=data, variable="Velocity", height=30, signedDists=[500,1500,2500,3500],
-                                 colors=["orange", "green"], labels=["Distance (m)", "Velocity (m/s)", "Terrain (m)"])
-
+# #######################
+# # ydir = False means that the wind component in the y direction is negative.
+# #
+# # The plot is plotted using a module named plotting.
+# # We will plot the velocity at height 30 m above the terrain.
+#
+# plotting = openfoam.Plotting()
+# plotting.variableAgainstDistance(data=data, variable="Velocity", height=30)
+#
+# #######################
+# # The default style of the plot is a lineplot. A scatter plot can be plotted instead:
+#
+# plotting.variableAgainstDistance(data=data, variable="Velocity", height=30, style="scatter")
+#
+# #######################
+# # The colors and labels can be changed from the default values.
+# # In addition, signed distances may be added as in the next example.
+# # The colors of the signed lines are default colors that may be changed using the parameter signedColors.
+#
+# plotting.variableAgainstDistance(data=data, variable="Velocity", height=30, signedDists=[500,1500,2500,3500],
+#                                  colors=["orange", "green"], labels=["Distance (m)", "Velocity (m/s)", "Terrain (m)"])
+#
