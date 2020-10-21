@@ -3,6 +3,7 @@ import getpass
 import logging
 import numpy
 from . import getDBNamesFromJSON
+from ..utils import loggedObject
 
 from .collection import AbstractCollection,\
     Cache_Collection,\
@@ -24,7 +25,7 @@ def getProjectList(user=None):
 
 
 
-class Project(object):
+class Project(loggedObject):
     """
         Provides a simple interface to the data of a specific project.
 
@@ -54,12 +55,6 @@ class Project(object):
     _measurements = None
     _cache     = None
     _simulations  = None
-
-    _logger     = None
-
-    @property
-    def logger(self):
-        return self._logger
 
     @property
     def measurements(self):
@@ -115,6 +110,7 @@ class Project(object):
                 the name of the database to use. If None, use the default database (the name of the current databaseName).
 
         """
+        super().__init__()
         self._projectName = projectName
 
         self._measurements  = Measurements_Collection(user=user)
@@ -172,7 +168,7 @@ class Project(object):
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
 
-class ProjectMultiDB:
+class ProjectMultiDB(loggedObject):
     """
         Provides a simple interface to the data of a specific project.
 
@@ -204,20 +200,6 @@ class ProjectMultiDB:
     _simulations  = None
     _databaseNameList = None
     _useAll = None
-
-    _logger     = None
-
-    @property
-    def logger(self):
-        return self._logger
-
-    def _setLogger(self):
-        """
-            Set the logger with the name of the class.
-        :return:
-        """
-        name =  ".".join(str(self.__class__)[8:-2].split(".")[1:])
-        self._logger = logging.getLogger(name)
 
 
 
@@ -311,7 +293,6 @@ class ProjectMultiDB:
         self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
         self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
 
-        self._setLogger()
 
     def getConfig(self):
         """
