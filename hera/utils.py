@@ -1,3 +1,4 @@
+import logging
 from unum import Unum
 
 def andClause(excludeFields=[], **kwargs):

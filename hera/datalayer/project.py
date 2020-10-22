@@ -1,6 +1,5 @@
 import pandas
 import getpass
-import logging
 import numpy
 from . import getDBNamesFromJSON
 from ..utils import loggedObject
