@@ -1,46 +1,80 @@
 import geopandas
-from ... import datalayer
+from .locations.shapes import datalayer as shapeDatalayer
+from ...datalayer import project
+from .locations.buildings import datalayer as buildingsDatalayer
+import shapely
 
-class population(datalayer.ProjectMultiDBPublic)::
+class datalayer(project.ProjectMultiDBPublic):
 
-    _publicMeasure = None
+    _publicProjectName = None
     _projectName = None
-    _populationDict = None
+    _analysis = None
+    _Data = None
+
 
     @property
-    def agesDefinition(self):
-        return self._populationDict
+    def analysis(self):
+        return self._analysis
 
-    def __init__(self, projectName):
+    @property
+    def publicProjectName(self):
+        return self._publicProjectName
 
-        self._publicMeasure = datalayer.Measurements_Collection(user="public")
+    def __init__(self, projectName,publicProjectName="Demography",databaseNameList=None, useAll=False,):
         self._projectName = projectName
-        self._populationDict = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19","YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
+        self._publicProjectName = publicProjectName
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll)
+        self.setConfig()
+        self._analysis = analysis(projectName=projectName, dataLayer=self)
 
-    def projectPolygonOnPopulation(self, Geometry, data=None, populationTypes="All", usePopulationDict=True):
+        datalist = self.getMeasurementsDocuments(source=self.getConfig()["source"])
+        if len(datalist) > 0:
+            self._Data = datalist[0].getData()
+        else:
+            self._Data = None
+
+    def setConfig(self, Source="Lamas", units="WGS84",populationTypes = None, user=None, **kwargs):
+        """
+        Create a config documnet or updates an existing config document.
+        """
+        populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
+                           "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"} if populationTypes is None else populationTypes
+        config = dict(source=Source,units=units,populationTypes=populationTypes, **kwargs)
+        super().setConfig(config=config,user=user)
+
+        datalist = self.getMeasurementsDocuments(source=config["source"])
+
+        if len(datalist) > 0:
+            self._Data = datalist[0].getData()
+        else:
+            self._Data = None
+
+    def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
         """
         Finds the population in a polygon.
         Params:
-            Geometry: The polygon, either a shapely polygon or a name of a saved geometry in the database.
-            data: Default is None. In that case, the function uses the population data saved in PublicData.
-                  Otherwise, a geodataframe.
-            populationTypes: A string or a list of strings with options from self._populationDict or column names
+            Shape: The polygon, either a shapely polygon or a name of a saved geometry in the database.
+            populationTypes: A string or a list of strings with options from config/population or column names
                              from the data.
         """
 
-        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getData() if data is None else data
-
-        if type(Geometry) == str:
-            poly = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getGeometry(name=Geometry)
+        Data = self._Data if Data is None else Data
+        if type(Shape) == str:
+            sDatalayer = shapeDatalayer(projectName=projectName, databaseNameList=self._databaseNameList, useAll=self._useAll)
+            poly = sDatalayer.getShape(Shape)
             if poly is None:
-                documents = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getExistingDocuments(CutName=Geometry)
+                documents = sDatalayer.getMeasurementsDocuments(CutName=Shape)
                 if len(documents) == 0:
-                    raise KeyError("Geometry %s was not found" % Geometry)
+                    raise KeyError("Shape %s was not found" % Shape)
                 else:
-                    poly = dataManipulations().makePolygonFromEndPoints(documents[0].asDict()["desc"]["points"])
+                    points = documents[0].asDict()["desc"]["points"]
+                    poly = shapely.geometry.Polygon([[points[0],points[1]],
+                                            [points[0],points[3]],
+                                            [points[2],points[3]],
+                                            [points[2],points[1]]])
         else:
-            poly = Geometry
-
+            poly = Shape
         if type(populationTypes) == str:
             populationTypes = [populationTypes]
 
@@ -50,48 +84,65 @@ class population(datalayer.ProjectMultiDBPublic)::
             {"geometry": intersection_poly.geometry,
              "areaFraction": intersection_poly.area/res_intersect_poly.area})
         for populationType in populationTypes:
-            if usePopulationDict:
-                populationType = self._populationDict[populationType]
+            if "populationTypes" in self.getConfig():
+                if populationType in self.getConfig()["populationTypes"]:
+                    populationType = self.getConfig()["populationTypes"][populationType]
             res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
 
         return res_intersection
 
-    def populateNewArea(self, Geometry, data=None, populationTypes=None, convex=True,save=False, addToDB=False, path=None, name=None, **kwargs):
+class analysis():
+
+    _datalayer = None
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, projectName, dataLayer=None, databaseNameList=None, useAll=False,
+                 publicProjectName="Demography", Source="Lamas"):
+
+        self._datalayer = datalayer(projectName=projectName, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+
+    def populateNewArea(self, Shape, projectName, populationTypes=None, convex=True,save=False, addToDB=False, path=None, name=None, Data=None, **kwargs):
         """
         make a geodataframe with a selected polygon as the geometry, and the sum of the population in the polygons that intersect it as its population.
         """
 
-        Data = self._publicMeasure.getDocuments(projectName="PublicData", type="Population")[0].getData() if data is None else data
-
-        if type(Geometry) == str:
-            poly = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getGeometry(name=Geometry)
+        Data = self.datalayer._Data if Data is None else Data
+        if type(Shape) == str:
+            sDatalayer = shapeDatalayer(projectName=projectName, databaseNameList=self.datalayer._databaseNameList, useAll=self.datalayer._useAll)
+            poly = sDatalayer.getShape(Shape)
             if poly is None:
-                documents = GIS_datalayer(projectName=self._projectName, FilesDirectory="").getExistingDocuments(CutName=Geometry)
+                documents = sDatalayer.getMeasurementsDocuments(CutName=Shape)
                 if len(documents) == 0:
-                    raise KeyError("Geometry %s was not found" % Geometry)
+                    raise KeyError("Shape %s was not found" % Shape)
                 else:
                     if convex:
-                        polys = dataManipulations().ConvexPolygons(documents[0].getData())
+                        polys = buildingsDatalayer(projectName=projectName).analysis.ConvexPolygons(documents[0].getData())
                         poly = polys.loc[polys.area==polys.area.max()].geometry[0]
                     else:
                         poly = documents[0].getData().unary_union
         else:
-            poly = Geometry
+            poly = Shape
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
-        populationTypes = ["total_pop","age_0_14","age_15_19","age_20_29","age_30_64","age_65_up"] if populationTypes is None else populationTypes
+        populationTypes = self.datalayer.getConfig()["populationTypes"].values() if populationTypes is None else populationTypes
 
         newData = geopandas.GeoDataFrame.from_dict([{"geometry": poly}])
         for populationType in populationTypes:
             newData[populationType] = res_intersect_poly.sum()[populationType]
 
         if save:
+            if path is None:
+                raise KeyError("Select a path for the new file")
             newData.to_file(path)
             if addToDB:
                 if name is None:
-                    if type(Geometry) == str:
-                        name = Geometry
+                    if type(Shape) == str:
+                        name = Shape
                     else:
                         raise KeyError("Select a name for the new area")
-                datalayer.Measurements.addDocument(projectName=self._projectName, desc=(dict(name=name, **kwargs)),
-                                                   resource=path, type="Population", dataFormat="geopandas")
+                self.datalayer.addMeasurementsDocument(desc=(dict(name=name, **kwargs)),
+                                                   resource=path, type="Demography", dataFormat="geopandas")
         return newData

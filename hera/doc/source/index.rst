@@ -54,7 +54,6 @@ Contains several specializations:
     - LSM: Manage Lagrangian stochastic models.
 
 
-
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
@@ -62,6 +61,7 @@ Contains several specializations:
    datalayer
    measurements
    simulations
+   riskassessment
    instructions_for_dev
    how_to
    auto_examples/index

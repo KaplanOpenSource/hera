@@ -29,6 +29,10 @@ class paraviewOpenFOAM(object):
     _reader = None      # the reference to the reader object.
     _readerName = None  # the name of the reader in the vtk pipeline.
 
+
+    DECOMPOSED_CASE    = "Decomposed Case"
+    RECONSTRUCTED_CASE = "Reconstructed Case"
+
     @property
     def reader(self):
         return self._reader
@@ -151,7 +155,6 @@ class paraviewOpenFOAM(object):
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
 
-
     def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, xarray=False):
         """
             reads a list of datasource lists to a dictionary
@@ -193,10 +196,8 @@ class paraviewOpenFOAM(object):
             yield ret
 
     def _readTimeStep(self, datasource, timeslice, fieldnames=None, xarray=False):
-
         # read the timestep.
         datasource.UpdatePipeline(timeslice)
-
         rawData = servermanager.Fetch(datasource)
         data = dsa.WrapDataObject(rawData)
         print(data.PointData)
@@ -242,7 +243,7 @@ class paraviewOpenFOAM(object):
 
         return curstep
 
-    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100):
+    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100,JSONbaseName='',overWrite=False):
         """
             Writes a list of datasources (vtk filters) to netcdf (with xarray).
 
@@ -271,23 +272,29 @@ class paraviewOpenFOAM(object):
 
         """
 
-        def writeList(theList, blockID, blockDig):
+        def writeList(theList, blockID, blockDig,JSONbaseName,overWrite):
 
             data = xarray.concat(theList, dim="time")
             blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
-            curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, blockfrmt))
-            #curfilename = os.path.join(self.netcdfdir, "%s_%s.nc" % (filtername, blockID))
-            print("Writing %s " % curfilename)
+            curfilename = os.path.join(self.netcdfdir, "%s_%s_%s.nc" % (JSONbaseName,filtername, blockfrmt))
+            if os.path.exists(curfilename):
+                if not overWrite:
+                    raise Exception ('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
+
             data.to_netcdf(curfilename)
             blockID += 1
+
+
 
         self._outfile = readername if outfile is None else outfile
 
         if not os.path.isdir(self.netcdfdir):
             os.makedirs(self.netcdfdir)
 
-        blockDig = numpy.ceil(numpy.log10(len(timelist))) + 1
-        blockID = 0 +len(glob.glob(os.path.join(self.netcdfdir,'*.nc')))
+        blockDig = max(5,numpy.ceil(numpy.log10(len(timelist))) + 1)
+
+        blockID = 0
+
         L = []
 
         for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
@@ -297,10 +304,10 @@ class paraviewOpenFOAM(object):
                 if isinstance(L[0],dict):
                     filterList = [k for k in L[0].keys()]
                     for filtername in filterList:
-                        writeList([item[filtername] for item in L],blockID,blockDig)
+                        writeList([item[filtername] for item in L],blockID,blockDig,JSONbaseName,overWrite)
 
                 else:
-                    writeList(L,blockID,blockDig)
+                    writeList(L,blockID,blockDig,JSONbaseName,overWrite)
                 L = []
                 blockID += 1
 
@@ -308,11 +315,11 @@ class paraviewOpenFOAM(object):
             if isinstance(L[0],dict):
                 filterList = [k for k in L[0].keys()]
                 for filtername in filterList:
-                    writeList([item[filtername] for item in L],blockID,blockDig)
+                    writeList([item[filtername] for item in L],blockID,blockDig,JSONbaseName,overWrite)
             else:
-                writeList(L,blockID,blockDig)
+                writeList(L,blockID,blockDig,JSONbaseName)
 
-    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100):
+    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100,JSONbaseName=''):
 
         def writeList(theList, blockID, blockDig):
             filterList = [x for x in L[0].keys()]
@@ -328,7 +335,7 @@ class paraviewOpenFOAM(object):
         if not os.path.isdir(self.hdfdir):
             os.makedirs(self.hdfdir)
 
-        blocDig=numpy.ceil(numpy.log10(len(timelist)))+1
+        blockDig=numpy.ceil(numpy.log10(len(timelist)))+1
         blockID = 0
         L = []
 
@@ -337,11 +344,11 @@ class paraviewOpenFOAM(object):
             L.append(pnds)
 
             if len(L) == tsBlockNum:
-                writeList(L, blockID,blocDig)
+                writeList(L, blockID,blockDig)
                 L=[]
                 blockID += 1
         if len(L) > 0:
-            writeList(L, blockID,blocDig)
+            writeList(L, blockID,blockDig)
 
     # def open_dataset(self, outfile=None, timechunk=10):
     #     """
