@@ -38,7 +38,7 @@ class datalayer(locationDatalayer):
 
     def setConfig(self,Source="BNTL", user=None, **kwargs):
         config = dict(source=Source,**kwargs)
-        super().setConfig(config,user=user)
+        super().setConfig(config)
 
     def toSTL(self, doc, outputfile,flat=None):
         """

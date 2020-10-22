@@ -31,7 +31,7 @@ class datalayer(locationDatalayer):
 
     def setConfig(self,Source="BNTL",dxdy=50, heightSource="USGS", user=None, **kwargs):
         config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,**kwargs)
-        super().setConfig(config,user=user)
+        super().setConfig(config)
 
     def getHeight(self, latitude, longitude):
 

@@ -25,7 +25,7 @@ class datalayer(project.ProjectMultiDBPublic):
 
         self._projectName = projectName
         self._publicProjectName = publicProjectName
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,useAll=useAll)
         self.setConfig({"source":Source})
         if FilesDirectory == "":
             self._FilesDirectory = os.getcwd()

@@ -129,11 +129,8 @@ class Project(object):
         If there is no config document, return None.
         """
         documents = self.getCacheDocumentsAsDict(type="__config__")
-        if len(documents) == 0:
-            raise KeyError("There is no config document.")
-        else:
-            desc = documents["documents"][0]["desc"]
-        return desc
+        return dict()  if len(documents) == 0 else documents[0].desc
+
 
     def setConfig(self, config):
         """
@@ -226,17 +223,15 @@ class ProjectMultiDB:
         -  deleteCacheDocuments
 
     """
-    _projectName = None
-
-
     _all = None
     _measurements = None
     _cache     = None
     _simulations  = None
-    _databaseNameList = None
     _useAll = None
 
     _logger     = None
+
+    _projectNameDict = None
 
     @property
     def logger(self):
@@ -285,16 +280,35 @@ class ProjectMultiDB:
         return self._simulations
 
     @property
-    def databaseName(self):
-        return self._databaseNameList
+    def projectNameDict(self):
+        """
+            return the DB->project name map
+        :return:
+        """
+        return self._projectNameDict
 
-    @databaseName.setter
-    def databaseName(self, newDatabaseList):
-        self._databaseNameList = newDatabaseList
-        self._measurements  = [Measurements_Collection(user=user) for user in newDatabaseList]
-        self._cache         = [Cache_Collection(user=user) for user in newDatabaseList]
-        self._simulations   = [Simulations_Collection(user=user) for user in newDatabaseList]
-        self._all           = [AbstractCollection(user=user) for user in newDatabaseList]
+    @projectNameDict.setter
+    def projectNameDict(self, value):
+        """
+            Creates the DB->project name map.
+
+        :param value: str or dict.
+
+                if str, define a map with the default DB (user name)
+                else just use the map passed.
+        :return:
+        """
+        if isinstance(value,str):
+            self._projectNameDict ={getpass.getuser() : value}
+        elif isinstance(value, dict):
+            self._projectNameDict = value
+        else:
+            raise ValueError("project name dict must be str or dict. ")
+
+    @property
+    def databaseNames(self):
+        return [x for x in self.projectNameDict.keys()]
+
 
     @property
     def useAll(self):
@@ -306,27 +320,36 @@ class ProjectMultiDB:
 
 
     def getProjectName(self, databaseName=None):
+        """
+            Return the project name of the relevant database.
 
-        if databaseName is None:
-            projectName = self._projectName
+        :param databaseName: str
+                    The name of the database. Return the name of the default database (the user name)
+                    if None.
+        :return:
+        """
         if isinstance(self._projectName,str):
             projectName = self._projectName
         else:
+            databaseName  = getpass.getuser() if databaseName is None else databaseName
             projectName = self._projectName[databaseName]
 
         return  projectName
 
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False):
+    def __init__(self, projectNameDict, useAll=False):
         """
             Initialize the project.
 
         Parameters
         ----------
 
-        projectName: str, dict .
+        projectNameDict: str, dict .
                 The name of the project.
-                if dict, the project name depends on the database.
+
+                if str, use the project name only in the default DB.
+
+                if dict, defines the DB to look in and the corresponding project name.
 
         databaseNameList: str,list
                 the name of the database to use.
@@ -334,47 +357,37 @@ class ProjectMultiDB:
 
 
         """
-        self._projectName = projectName
-        self._databaseNameList = numpy.atleast_1d(databaseNameList)
-        self._useAll = useAll
-        self._measurements  = dict([(user,Measurements_Collection(user=user)) for user in self._databaseNameList])
-        self._cache         = dict([(user,Cache_Collection(user=user)) for user in self._databaseNameList])
-        self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
-        self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
 
         self._setLogger()
+        self.projectNameDict = projectNameDict
+        self._useAll = useAll
+        self._measurements  = dict([(user,Measurements_Collection(user=user)) for user in self.databaseNames])
+        self._cache         = dict([(user,Cache_Collection(user=user)) for user in self.databaseNames])
+        self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self.databaseNames])
+        self._all           = dict([(user,AbstractCollection(user=user)) for user in self.databaseNames])
+
+
 
     def getConfig(self):
         """
         Returns the config document's description.
         If there is no config document, return None.
         """
-        documents = self.getCacheDocumentsAsDict(type="__config__")
-        if len(documents) == 0:
-            raise KeyError("There is no config document.")
-        else:
-            if type(documents)==list:
-                desc = documents[0]["documents"][0]["desc"]
-            else:
-                desc = documents["documents"][0]["desc"]
-        return desc
+        documents = self.getCacheDocuments(type="__config__")
+        return dict() if len(documents) == 0 else documents[0].desc
 
-    def setConfig(self, config, user=None):
+
+    def setConfig(self, config):
         """
         Create a config documnet or updates an existing config document.
         """
-        documents = self.getCacheDocuments(type="__config__",user=user)
+        documents = self.getCacheDocuments(type="__config__")
         if len(documents) == 0:
-            if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public":
-                if len(self._databaseNameList) == 1:
-                    raise KeyError("Can't set config document in public, choose aditional user/s.")
-                else:
-                    user = self._databaseNameList[1] if user is None else user
-            else:
-                user = self._databaseNameList[0] if user is None else user
-            self.addCacheDocument(type="__config__",desc=config,users=[user])
+            self.addCacheDocument(type="__config__",desc=config)
         else:
-            documents[0].update(desc=config)
+            doc = documents[0]
+            doc.desc.update(desc=config)
+            documents[0].save()
 
     def getMetadata(self):
         """
@@ -481,53 +494,39 @@ class ProjectMultiDBPublic(ProjectMultiDB):
         The class accepts the default public project name.
 
     """
-    def __init__(self, projectName, publicProjectName, databaseNameList=None, useAll=False):
+    def __init__(self, projectName, publicProjectName, useAll=False):
         """
-            Initializes the search list of the DB.
+            Initializing a multi-database project that has in data in a Public database.
 
-            The class is initiated with the default project name for the public DB
-            and the list of DB's and project names to look for.
 
-            The public is initiated as the first DB to look in.
 
         Parameters:
         -----------
 
          projectName: str, dict
-            The project name (if str).
-            if dict, the map of project name for a DB.
+            if Str, look only in the default database (the name of the user)
+            using that project name.
+
+            if dict, the map of project name -> DB. will define the DB to look in.
 
          publicProjectName: str
                 The project name in the public DB.
-         databaseNameList: str, list of str
-                The name of the DB to look in (except for public).
-                Can be a str or a list.
 
          useAll: bool
                 If true, return a union of all the results from all the DB.
 
         """
-        projectNamesDict = dict()
-        dbListNames = []
-        if ('public' in getDBNamesFromJSON()):
-            databaseNameList_full = ['public']
+        if isinstance(projectName,str):
+            projectNamesDict = {getpass.getuser() : projectName}
+        elif isinstance(projectName,dict):
+            projectNamesDict = projectName
+        else:
+            raise ValueError(f"projectName must be str or dict, not {type(projectName)}")
+
+
+        if 'public' in getDBNamesFromJSON():
             projectNamesDict['public'] = publicProjectName
         if ('Public' in getDBNamesFromJSON()):
-            databaseNameList_full = ['public']
             projectNamesDict['Public'] = publicProjectName
 
-        elif isinstance(projectName,dict):
-                projectNamesDict.update(projectName)
-
-        if databaseNameList is None:
-            users = [getpass.getuser()]
-            databaseNameList_full +=  users
-            if isinstance(projectName, str):
-                for user in numpy.atleast_1d(users):
-                    projectNamesDict[user] = projectName
-        else:
-            if isinstance(projectName, str):
-                for user in numpy.atleast_1d(databaseNameList):
-                    projectNamesDict[user] = projectName
-            databaseNameList_full = dbListNames + list(numpy.atleast_1d(databaseNameList))
-        super().__init__(projectNamesDict,databaseNameList=databaseNameList_full, useAll=useAll)
+        super().__init__(projectNamesDict, useAll=useAll)
