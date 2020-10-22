@@ -72,6 +72,11 @@ def connectToDatabase(mongoConfig,alias=None):
                 - username: the unsername to log in with.
                 - password : the user password.
 
+                str
+                defines a connection string.
+
+                username:password@dbIP/dbName
+
     alias: str
             An alternative alias. Used mainly for parallel applications.
 
@@ -79,6 +84,15 @@ def connectToDatabase(mongoConfig,alias=None):
     -------
         mongodb connection.
     """
+    if isinstance(mongoConfig,str):
+        username,password = mongoConfig.split("@")[0].split(":")
+        dbIP, dbName      = mongoConfig.split("@")[1].split("/")
+        mongoConfig = dict(username=username,
+                           password=password,
+                           dbName=dbName,
+                           dbIP=dbIP)
+
+
     alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
 
     con = connect(alias=alias,

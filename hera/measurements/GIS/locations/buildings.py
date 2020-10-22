@@ -65,7 +65,7 @@ class datalayer(locationDatalayer):
             The string with the STL format.
 
         """
-        self.logger.info("toSTL: begin")
+        self.logger.info(f"begin with doc={doc},outputfile={outputfile},flat={flat}")
 
         maxheight = -500
 
