@@ -3,20 +3,22 @@ __version__ = '1.0.1'
 import sys
 import os
 import json
+
 ## Load modules if it is python 3.
 version = sys.version_info[0]
 if version==3:
-    from .simulations import WRF
-    #from .measurements import meteorological as meteo
-    from .simulations import LSM
-    from .simulations.LSM.DataLayer import SingleSimulation
+    from .measurements import meteorological as meteo
     from .measurements import GIS
-    from .simulations.interpolations.interpolations import spatialInterpolate
+
+
+    from .simulations import WRF
+    from .simulations import LSM
+    from .simulations import interpolations
+
     #from .risk import riskassessment
 
 from .simulations import openfoam
 
-import logging
 import logging.config
 
 with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
@@ -32,6 +34,11 @@ def execution(self, message, *args, **kws):
 logging.Logger.execution = execution
 
 logging.config.dictConfig(log_conf)
+
+
+
+from .utils import toAzimuthAngle,toMatematicalAngle,toMeteorologicalAngle,tonumber,tounum
+
 
 
 """

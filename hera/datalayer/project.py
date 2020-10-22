@@ -419,10 +419,7 @@ class ProjectMultiDB:
 
     def _addSomeTypeDocuments(self, searchtype, resource, dataFormat, type, users=None, **desc):
         if users is None:
-            if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(self._databaseNameList) > 1:
-                userName = self._databaseNameList[1]
-            else:
-                userName = self._databaseNameList[0]
+            userName = getpass.getuser()
             projectName = self.getProjectName(userName)
             searchtype[userName].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
         else:
@@ -432,7 +429,7 @@ class ProjectMultiDB:
 
     def _deleteSomeTypeDocuments(self, searchtype, users=None, **kwargs):
         if users is None:
-            userName = self._databaseNameList[0]
+            userName = getpass.getuser()
             projectName = self.getProjectName(userName)
             searchtype[userName ].deleteDocuments(projectName=projectName, **kwargs)
         else:

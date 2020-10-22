@@ -1,9 +1,7 @@
 import numpy 
 import matplotlib.pyplot as plt 
-from .. import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
+from ....utils import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
 from descartes import PolygonPatch 
-from matplotlib.collections 	import PatchCollection 
-from shapely.geometry 		import GeometryCollection,LineString
 
 class casualtiesPlot(object): 
 

@@ -1,15 +1,16 @@
-import numpy 
-from .. import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
-import pydoc
-from shapely 			import affinity
-from shapely.geometry 		import GeometryCollection,LineString,point
-import pandas
+import numpy
 import geopandas
+import pydoc
+from shapely import affinity
+from shapely.geometry import GeometryCollection,LineString,point
+import pandas
 from itertools import product,chain
 import multiprocessing
 from functools import partial
 
-def getRiskAreaAlgorithm(algorithmName,**kwargs): 
+from ....utils import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
+
+def getRiskAreaAlgorithm(algorithmName,**kwargs):
 	"""
 		Return an estimator class. 
 		kwargs are the parameters passed  as the constructor. 

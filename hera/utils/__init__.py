@@ -1,4 +1,6 @@
+from unum.units import *
 from unum import Unum
+from unum import NameConflictError
 
 def andClause(excludeFields=[], **kwargs):
 
@@ -22,8 +24,22 @@ def andClause(excludeFields=[], **kwargs):
     return " and ".join(L)
 
 
-tonumber = lambda x,theunit: x.asNumber(theunit) if isinstance(x,Unum) else x
-tounit   = lambda x,theunit: x.asUnit(theunit) if isinstance(x,Unum) else x*theunit
 
-toMeteorlogicalAngle = lambda mathematical_angle: (270-mathematical_angle) if ((270-mathematical_angle) >= 0) else (630-mathematical_angle)
-toMathematicalAngle  = toMeteorlogicalAngle
+tonumber = lambda x,theunit: x.asNumber(theunit) if isinstance(x,Unum) else x
+tounum = lambda x,theunit: x.asUnit(theunit) if isinstance(x,Unum) else x*theunit
+
+
+def toMeteorologicalAngle(mathematical_angle):
+	return (270-mathematical_angle) if ((270-mathematical_angle)   >= 0)   else (630-mathematical_angle)
+def toMatematicalAngle(meteorological_angle):
+	return (270-meteorological_angle) if ((270-meteorological_angle) >= 0) else (630 - meteorological_angle)
+
+def toAzimuthAngle(mathematical_angle):
+	return (90-mathematical_angle) if ((90-mathematical_angle) >= 0) else (450 - mathematical_angle)
+
+
+try:
+	dosage = Unum.unit('dosage',mg*min/m**3,"Exposure dosage")
+# except NameConflictError:
+except NameConflictError:
+	pass
