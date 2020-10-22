@@ -1,25 +1,28 @@
 import pandas
 import dask
 
-from ....datalayer import project
+from ....datalayer import ProjectMultiDBPublic
 from .analysis.analysislayer import RawdataAnalysis
 
 
-class RawSonic(project.ProjectMultiDBPublic):
+class RawData(ProjectMultiDBPublic):
 
-    _analysis = None
+    _dataType = None
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False):
+    @property
+    def dataType(self):
+        return self._dataType
+
+
+    def __init__(self, projectName,dataType,databaseNameList=None,useAll=True): # databaseNameList=None, useAll=False
 
         super().__init__(projectName=projectName,
-                         publicProjectName="RawSonic",
-                         databaseNameList= databaseNameList,
-                         useAll = useAll)
-
-        self._analysis = RawdataAnalysis(self)
+                         publicProjectName=f"{dataType}_highfreq",
+                         databaseNameList=databaseNameList,
+                         useAll=useAll)
 
 
-    def _getRawData(self,stationName,dataType,height=None,start=None,end=None,inmemory=False,**kwargs):
+    def _getRawData(self,stationName,height=None,start=None,end=None,inmemory=False,**kwargs):
         """
             Returns raw data of the requested type.
 
@@ -55,18 +58,41 @@ class RawSonic(project.ProjectMultiDBPublic):
             end = pandas.Timestamp(end)
 
         # shoudl add a document type='SonicData' or something.
-        qry = dict(type=dataType,
+        qry = dict(type=self.dataType,
                    stationName=stationName,
                    height=height)
 
         kwargs.update(qry)
+
 
         docList = self.getMeasurementsDocuments(**kwargs)
         rawData = dask.dataframe.concat([doc.getData() for doc in docList])[start:end]
 
         return rawData.compute() if inmemory else rawData
 
-    def getSonicData(self,stationName,height=None,start=None,end=None,inmemory=False,**kwargs):
+
+class RawSonic(RawData):
+
+
+    _analysis = None
+
+    @property
+    def analysis(self):
+        return self._analysis
+
+
+    def __init__(self, projectName, databaseNameList=None, useAll=False):
+
+        super().__init__(projectName=projectName,
+                         publicProjectName="RawSonic",
+                         databaseNameList= databaseNameList,
+                         useAll = useAll)
+
+        self._analysis = RawdataAnalysis(self)
+
+
+
+    def getData(self,stationName,height=None,start=None,end=None,inmemory=False,**kwargs):
         """
             Return the sonic raw data either in dask or loaded to memeory (pandas).
 
@@ -102,7 +128,22 @@ class RawSonic(project.ProjectMultiDBPublic):
                          end=end,
                          inmemory=inmemory, **kwargs)
 
-    def getTemperatureRawData(self,stationName,height=None,start=None,end=None,inmemory=False,**kwargs):
+
+
+
+class Temperature(RawData):
+
+
+
+    def __init__(self, projectName, databaseNameList=None, useAll=False):
+
+        super().__init__(projectName=projectName,
+                         publicProjectName="RawSonic",
+                         databaseNameList= databaseNameList,
+                         useAll = useAll)
+
+
+    def getData(self,stationName,height=None,start=None,end=None,inmemory=False,**kwargs):
             """
                 Return the temperature raw data either in dask or loaded to memeory (pandas).
 

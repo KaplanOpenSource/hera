@@ -5,6 +5,7 @@ import dask.dataframe
 from itertools import product
 
 from .analysis import calcHourlyDist
+from .analysis import seasonsdict
 
 class Plots(object):
     """
@@ -131,25 +132,10 @@ class Plots(object):
 
 class SeasonalPlots(Plots):
 
-    _seasonsdict=None
 
     def __init__(self):
 
         super().__init__()
-
-        self._seasonsdict=dict(Winter=dict(monthes=[12, 1, 2],
-                                           strmonthes='[DJF]'
-                                           ),
-                               Spring=dict(monthes=[3,4,5],
-                                          strmonthes='[MAM]'
-                                          ),
-                               Summer=dict(monthes=[6,7,8],
-                                          strmonthes='[JJA]'
-                                          ),
-                               Autumn=dict(monthes=[9,10,11],
-                                          strmonthes='[SOM]'
-                                          )
-                               )
 
     def plotProbContourf_bySeason(self, data, plotField, levels = None, scatter = True, withLabels = True, colorbar=True,
                                   Cmapname='jet',ax=None,scatter_properties = dict(),contour_values = dict(),
@@ -198,18 +184,28 @@ class SeasonalPlots(Plots):
 
         axPositionList = [x for x in product(range(ax.shape[0]), range(ax.shape[1]))]
 
-        for axPosition, season in zip(axPositionList, self._seasonsdict):
-            qstring = 'monthonly in %s' % self._seasonsdict.get(season)['monthes']
+        for axPosition, season in zip(axPositionList, seasonsdict):
+            qstring = 'monthonly in %s' % seasonsdict.get(season)['monthes']
             seasondata=curdata.query(qstring)
 
-            CS,CFS,ax_i=dailyplots.plotProbContourf(self,seasondata, plotField, ax=ax[axPosition[0], axPosition[1]],
-                                                                   colorbar=False,Cmapname=Cmapname, levels = levels, scatter = scatter, withLabels = withLabels,
-                                                                   scatter_properties = scatter_properties, contour_values = contour_values,
-                                                                   contour_properties = contour_properties, contourf_properties = contourf_properties,
-                                                                   labels_properties = labels_properties,
-                                                                   ax_functions_properties= ax_functions_properties, normalization = normalization)
+            CS,CFS,ax_i=dailyplots.plotProbContourf(self,
+                                                    seasondata,
+                                                    plotField,
+                                                    ax=ax[axPosition[0], axPosition[1]],
+                                                    colorbar=False,
+                                                    Cmapname=Cmapname,
+                                                    levels = levels,
+                                                    scatter = scatter,
+                                                    withLabels = withLabels,
+                                                    scatter_properties = scatter_properties,
+                                                    contour_values = contour_values,
+                                                    contour_properties = contour_properties,
+                                                    contourf_properties = contourf_properties,
+                                                    labels_properties = labels_properties,
+                                                    ax_functions_properties= ax_functions_properties,
+                                                    normalization = normalization)
 
-            ax_i.set_title('%s %s' % (season,self._seasonsdict.get(season)['strmonthes']))
+            ax_i.set_title('%s %s' % (season,seasonsdict.get(season)['strmonthes']))
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         if colorbar==True:

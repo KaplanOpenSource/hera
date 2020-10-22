@@ -8,7 +8,7 @@ from osgeo import gdal
 #        the downloaded file can be '/ibdata2/nirb/Projects/test.grib2'
 
 
-class gfs():
+class GFS:
 
     def get_gfs_list(gfs_file):
         """

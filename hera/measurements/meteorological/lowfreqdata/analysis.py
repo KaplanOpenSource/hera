@@ -1,6 +1,5 @@
 from hera.analytics.statistics import calcDist2d
 import numpy
-from datetime import datetime
 import pandas
 import dask
 
@@ -9,10 +8,10 @@ SPRING = 'Spring'
 SUMMER = 'Summer'
 AUTUMN = 'Autumn'
 
-seasonsdict = dict(Winter=dict(monthes=[12,1,2]),
-                   Spring=dict(monthes=[3,4,5]),
-                   Summer=dict(monthes=[6,7,8]),
-                   Autumn=dict(monthes=[9,10,11])
+seasonsdict = dict(WINTER=dict(monthes=[12,1,2],strmonthes='[DJF]'),
+                   SPRING=dict(monthes=[3,4,5],strmonthes='[MAM]'),
+                   SUMMER=dict(monthes=[6,7,8],strmonthes='[JJA]'),
+                   AUTUMN=dict(monthes=[9,10,11],strmonthes='[SOM]')
                    )
 
 
