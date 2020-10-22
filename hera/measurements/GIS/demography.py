@@ -27,7 +27,12 @@ class datalayer(project.ProjectMultiDBPublic):
                          databaseNameList=databaseNameList, useAll=useAll)
         self.setConfig()
         self._analysis = analysis(projectName=projectName, dataLayer=self)
-        self._Data = self.getMeasurementsDocuments(source=self.getConfig()["source"])[0].getData()
+
+        datalist = self.getMeasurementsDocuments(source=self.getConfig()["source"])
+        if len(datalist) > 0:
+            self._Data = datalist[0].getData()
+        else:
+            self._Data = None
 
     def setConfig(self, Source="Lamas", units="WGS84",populationTypes = None, user=None, **kwargs):
         """
@@ -37,7 +42,13 @@ class datalayer(project.ProjectMultiDBPublic):
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"} if populationTypes is None else populationTypes
         config = dict(source=Source,units=units,populationTypes=populationTypes, **kwargs)
         super().setConfig(config=config,user=user)
-        self._Data = self.getMeasurementsDocuments(source=config["source"])[0].getData()
+
+        datalist = self.getMeasurementsDocuments(source=config["source"])
+
+        if len(datalist) > 0:
+            self._Data = datalist[0].getData()
+        else:
+            self._Data = None
 
     def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
         """

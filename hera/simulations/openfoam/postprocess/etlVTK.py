@@ -13,6 +13,7 @@ def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName,
 
     """
     This function is recursively passed on the pipeline tree from json file and execute the needed functions by file write format
+
     Parameter
     ----------
 
@@ -63,8 +64,6 @@ def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, p
     projectName:
 
     """
-
-
     piplelineTree=str(Tree).replace("[", "").replace("]", "").replace("'", "").replace(", ", ".")
 
     filterProps=dict(filterPipe)

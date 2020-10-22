@@ -29,6 +29,10 @@ class paraviewOpenFOAM(object):
     _reader = None      # the reference to the reader object.
     _readerName = None  # the name of the reader in the vtk pipeline.
 
+
+    DECOMPOSED_CASE    = "Decomposed Case"
+    RECONSTRUCTED_CASE = "Reconstructed Case"
+
     @property
     def reader(self):
         return self._reader
