@@ -510,10 +510,10 @@ class ProjectMultiDBPublic(ProjectMultiDB):
         projectNamesDict = dict()
         dbListNames = []
         if ('public' in getDBNamesFromJSON()):
-            dbListNames = ['public']
+            databaseNameList_full = ['public']
             projectNamesDict['public'] = publicProjectName
         if ('Public' in getDBNamesFromJSON()):
-            dbListNames = ['Public']
+            databaseNameList_full = ['public']
             projectNamesDict['Public'] = publicProjectName
 
         elif isinstance(projectName,dict):
@@ -521,7 +521,7 @@ class ProjectMultiDBPublic(ProjectMultiDB):
 
         if databaseNameList is None:
             users = [getpass.getuser()]
-            databaseNameList_full = dbListNames + users
+            databaseNameList_full +=  users
             if isinstance(projectName, str):
                 for user in numpy.atleast_1d(users):
                     projectNamesDict[user] = projectName

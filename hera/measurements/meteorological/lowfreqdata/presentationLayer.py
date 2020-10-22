@@ -4,8 +4,7 @@ import seaborn
 import dask.dataframe
 from itertools import product
 
-from hera.measurements.meteorological.IMS.analysis.date import calcHourlyDist
-from hera.measurements import meteorological
+from .analysis import calcHourlyDist
 
 class Plots(object):
     """
@@ -203,7 +202,7 @@ class SeasonalPlots(Plots):
             qstring = 'monthonly in %s' % self._seasonsdict.get(season)['monthes']
             seasondata=curdata.query(qstring)
 
-            CS,CFS,ax_i=meteorological.DailyPlots.plotProbContourf(self,seasondata, plotField, ax=ax[axPosition[0], axPosition[1]],
+            CS,CFS,ax_i=dailyplots.plotProbContourf(self,seasondata, plotField, ax=ax[axPosition[0], axPosition[1]],
                                                                    colorbar=False,Cmapname=Cmapname, levels = levels, scatter = scatter, withLabels = withLabels,
                                                                    scatter_properties = scatter_properties, contour_values = contour_values,
                                                                    contour_properties = contour_properties, contourf_properties = contourf_properties,
@@ -463,7 +462,7 @@ class DailyPlots(Plots):
             plt.sca(ax)
 
         if scatter==True:
-            ax = meteorological.DailyPlots.plotScatter(self,data,plotField,ax=ax,scatter_properties=scatter_properties)
+            ax = dailyplots.plotScatter(self,data,plotField,ax=ax,scatter_properties=scatter_properties)
             # ax = self.plotScatter(data,plotField,ax=ax,scatter_properties=scatter_properties)
 
         CS = plt.contour(x_hist, y_hist, M_hist,levels=countour_levels,**contour_props)
@@ -486,3 +485,9 @@ class DailyPlots(Plots):
             plt.colorbar(ax=ax, ticks=countourf_levels)
 
         return CS,CFS,ax
+
+
+
+seasonplots = SeasonalPlots()
+dailyplots  = DailyPlots()
+

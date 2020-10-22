@@ -1,20 +1,29 @@
 import os
 import dask.dataframe
-from ..datalayer import DataLayer as meteorological_datalayer
-from ....datalayer.document import nonDBMetadataFrame
 import warnings
+import pydoc
+
+from .parsers import JSONIMS
+
+from ....datalayer.document import nonDBMetadataFrame
+from ....datalayer import ProjectMultiDBPublic,datatypes
 
 
-class IMSDatalayer(meteorological_datalayer):
+class datalayer(ProjectMultiDBPublic):
     """
-        Loads the IMS data format.
+        Loads the lowfreqdata data format.
     """
     _HebRenameDict = None
     _hebStnRename = None
+    _np_size = None
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False):
+    _doc_type = None
+
+    _outputPath = None
+
+    def __init__(self, projectName):
         """
-            Initializes a datalayer for the IMS data.
+            Initializes a datalayer for the lowfreqdata data.
 
             Also looks up the 'IMSData' in the public database.
 
@@ -23,20 +32,13 @@ class IMSDatalayer(meteorological_datalayer):
 
         projectName: str
                 The project name
-        databaseNameList: list
-            The list of database naems to look for data.
-            if None, uses the database with the name of the user.
-
-        useAll: bool
-            Whether or not to return the query results after found in one DB.
         """
-        super().__init__(DataSource='IMS',
-                         projectName=projectName,
-                         publicProjectName="IMSData",
-                         databaseNameList=databaseNameList,
-                         useAll=useAll)
+        super().__init__(projectName=projectName,
+                         publicProjectName='lowfreqdata',
+                         databaseNameList=None,
+                         useAll=True)
 
-        self.logger.info("Init IMSDatalayer")
+        self.logger.info("Init Low frequency data")
 
         self._HebRenameDict = {"שם תחנה": 'Station_name',
                                "תאריך": "Date",
@@ -61,12 +63,30 @@ class IMSDatalayer(meteorological_datalayer):
                                "זמן סיום 10 הדקות המקסימליות()": "maximum_wind_10minute_time"
 
                                }
-        self._hebStnRenameDict = {'בית דגן                                           ': "Bet_Dagan"
+        self._hebStnRenameDict = {'בית דגן                                           ': "Bet_Dagan"}
+        self._np_size = "100MB"
 
-                                  }
+        self._doc_type = "IMSData"
 
-    def getDocFromDB(self, resource=None, dataFormat=None, StationName=None, **kwargs):
+    @property
+    def docType(self):
+        return self._doc_type
 
+
+    @property
+    def outputPath(self):
+        return self._outputPath
+
+    @outputPath.setter
+    def outputPath(self, value):
+        if value is not None:
+            finalPath = os.path.join(value,"parquet")
+            os.makedirs(finalPath, exist_ok=True)
+        self._outputPath = value
+
+
+
+    def getStationDataFromDB(self,StationName=None, **kwargs):
         """
         This function returns a list of 'doc' objects from the database that matches the requested query
 
@@ -87,25 +107,27 @@ class IMSDatalayer(meteorological_datalayer):
         docList : List
 
         """
-
         if StationName is not None:
             kwargs['StationName'] = StationName
 
-        docList = super().getDocFromDB(resource=resource,
-                                       dataFormat=dataFormat,
-                                       desc=kwargs)
+        docList = self.getMeasurementsDocuments(dataFormat=datatypes.PARQUET,type="IMSData",**kwargs)
         return docList
 
-    def getDocFromFile(self, path, station_column='stn_name', time_coloumn='time_obs', **kwargs):
-
+    def getStationDataFromFile(self,
+                               fileName,
+                               fileFormat=JSONIMS,
+                               storeDB = True,
+                               **kwargs):
         """
         Reads data from file/directory and returns a 'metadata like' object
 
         parameters
         ----------
 
-        path : The path to the data file
-        time_coloumn : The name of the Time column for indexing. default ‘time_obs’
+        fileName : str
+            The path to the data file
+        fileName : str
+
         kwargs :
 
         returns
@@ -114,100 +136,66 @@ class IMSDatalayer(meteorological_datalayer):
 
         """
 
-        loaded_dask, _ = self.parse(path=path, station_column=station_column, time_coloumn=time_coloumn)
-        return [nonDBMetadataFrame(loaded_dask, **kwargs)]
+        classPath = ".".join(__class__.split(".")[:-1])
+        parserPath = classPath + ".parsers.Parser_" + fileFormat
 
-    def loadData(self, newdata_path, outputpath, projectName, metadatafile=None, station_column='stn_name',
-                 time_column='time_obs', **metadata):
+        parserCls = pydoc.locate(parserPath)
+        parser = parserCls()
 
-        """
-            This function load data from file to database:
+        loaded_dask, metadata_dict  = parser.parse(fileName=fileName)
+
+        if storeDB:
+            groupby_data = loaded_dask.groupby(parser.station_column)
+            for stnname in metadata_dict:
+                stn_dask = groupby_data.get_group(stnname)
+
+                filtered_stnname = metadata_dict[stnname]['StationName']
+                self.logger.execution('updating the data of %s' % filtered_stnname)
+
+                # 2- check if station exist in DataBase #
+                docList = self.getStationDataFromDB(StationName=filtered_stnname)
+
+                if len(docList) == 0:
+
+                    if self.outputPath is None:
+                        self.outputPath = os.path.basedir(fileName)
+
+                    dir_path = os.path.join(self.outputpath, filtered_stnname).replace(' ', '_')
 
 
-        Parameters
-        ----------
+                    # 4- create meta data
+                    desc = metadata_dict[stnname]
 
-        newdata_path : string
-            the path to the new data. in future might also be a web address.
-        outputpath : string
-            Destination folder path for saving files
-        projectName : string
-            The project to which the data is associated. Will be saved in Matadata
-        metadatafile : string
-            The path to a metadata file, if exist
-        station_column : string
-            The name of the 'Station Name' column, for the groupby method.  default 'stn_name'
-        time_column : string
-            The name of the Time column for indexing. default 'time_obs'
-        metadata : dict, optional
-            These parameters will be added into the metadata desc.
+                    new_Data = stn_dask.repartition(partition_size=self._np_size)
+                    new_Data.to_parquet(dir_path, engine='pyarrow')
 
-        """
+                    doc = self.addMeasurementsDocument(resource=dir_path,
+                                                       dataFormat=datatypes.PARQUET,
+                                                       type=self.docType,
+                                                       desc=desc)
 
-        metadata['DataSource'] = self._DataSource
+                    ret = [doc]
 
-        # 1- load the data #
-
-        loaded_dask, metadata_dict = self.parse(path=newdata_path,
-                                                station_column=station_column,
-                                                time_column=time_column,
-                                                metadatafile=metadatafile,
-                                                **metadata
-                                                )
-
-        groupby_data = loaded_dask.groupby(station_column)
-
-        for stnname in metadata_dict:
-            stn_dask = groupby_data.get_group(stnname)
-
-            filtered_stnname = metadata_dict[stnname]['StationName']
-            print('updating %s data' % filtered_stnname)
-
-            # 2- check if station exist in DataBase #
-
-            docList = self.get(projectName=projectName,
-                               type=self._docType,
-                               DataSource=self._DataSource,
-                               StationName=filtered_stnname
-                               )
-
-            dir_path = os.path.join(outputpath, filtered_stnname).replace(' ', '_')
-
-            if docList:
-                if len(docList) > 1:
-                    raise ValueError("the list should be at max length of 1. Check your query.")
                 else:
 
                     # 3- get current data from database
                     doc = docList[0]
-                    stn_db = doc.getDocFromDB()
-                    data = [stn_db.reset_index(), stn_dask]
+
+                    data = [doc.getData().reset_index(), stn_dask]
                     new_Data = dask.dataframe.concat(data, interleave_partitions=True) \
-                        .set_index(time_column) \
+                        .set_index(parser.time_column) \
                         .drop_duplicates() \
                         .repartition(partition_size=self._np_size)
 
                     new_Data.to_parquet(doc.resource, engine='pyarrow')
 
-                    if doc.resource != dir_path:
-                        warnings.warn('The outputpath argument does not match the resource of the matching data '
-                                      'in the database.\nThe new data is saved in the resource of the matching '
-                                      'old data: %s' % doc.resource,
-                                      ResourceWarning)
+                    ret = docList[0]
 
             else:
-                os.makedirs(dir_path, exist_ok=True)
+                ret = [nonDBMetadataFrame(loaded_dask, **kwargs)]
 
-                # 4- create meta data
-                desc = metadata_dict[stnname]
+        return ret
 
-                new_Data = stn_dask.repartition(partition_size=self._np_size)
-                new_Data.to_parquet(dir_path, engine='pyarrow')
-
-                self.addMeasurementsDocument(resource=dir_path,
-                                             dataFormat='parquet',
-                                             type=self._docType,
-                                             desc=desc)
 
 
 class CampbellBinary(meteorological_datalayer):
@@ -216,7 +204,7 @@ class CampbellBinary(meteorological_datalayer):
     """
 
     def __init__(self, projectName, databaseNameList=None, useAll=False):
-        super().__init__(DataSource='IMS',
+        super().__init__(DataSource='lowfreqdata',
                          projectName=projectName,
                          publicProjectName="IMSData",
                          databaseNameList=databaseNameList,

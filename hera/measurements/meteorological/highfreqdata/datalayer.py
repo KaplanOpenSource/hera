@@ -133,8 +133,3 @@ class RawSonic(project.ProjectMultiDBPublic):
                              inmemory=inmemory, **kwargs)
 
 
-    def loadData(self):
-        """
-            Loading the rawdata to the db. Maybe add parsers.
-        :return:
-        """
