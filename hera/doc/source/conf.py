@@ -22,7 +22,7 @@ copyright = '2019, Eden'
 author = 'Eden Nitsan, Yehuda Arav, Ofir Blumer, David Giguzin'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = '1.0.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -33,7 +33,8 @@ release = '0.0.1'
 extensions = ['sphinx.ext.autodoc',
 	      'sphinx_gallery.gen_gallery',
 	      'nbsphinx',
-	      'numpydoc'
+	      'numpydoc',
+		  'sphinx.ext.autosectionlabel'
 	     ]
 sphinx_gallery_conf = {'examples_dirs': 'examples',   # path to your example scripts
 		       'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output

@@ -3,44 +3,33 @@
 plot single contourf
 =====================
 """
-from hera import meteo
 
-import os # import for documentation purose 
+from hera.measurements.meteorology.lowfreqdata import lowfreqDataLayer,dailyplots
+import seaborn # import for documentation purose
+seaborn.set() # for documentation purose
+import os # import for documentation purose
+import matplotlib.pyplot as plt
+
+from hera.measurements.meteorology.lowfreqdata.analysis import seasonsdict
 
 ###############################################################################
 # First, we read data from the data base:
 #
 # [For documentation purposes, we will read a sample data (using getDocFromFile function) and create a document-like object].
 
-projectName='IMS_Data'
-stationName= 'AVNE ETAN'
-station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
-if len(station) > 0:
-    data=station[0].getDocFromDB()
-    print(data)
-else:
-    print('%s doclist is empty' % station)
+stationName= 'AVNE_ETAN'
+station=lowfreqDataLayer.getStationDataFromFile(pathToData=stationName,
+                                                     fileFormat=lowfreqDataLayer.JSONIMS,
+                                                     storeDB =False)
 
-
-###############################################################################
-# Reading sample data from directory:
-
-station=meteo.IMS_datalayer.getDocFromFile(path=os.path.join("documentationData","AVNE_ETAN"))
-data=station[0].getDocFromDB()
-###############################################################################
-# Then, select a column from the data to plot
-#
-# Let's print the available columns and see what the column we selected stands for:
-
-
-print(data.columns)
+data=station.getData()
 
 
 ###############################################################################
 #  Now we can plot:
 
 plotField='WD'
-meteo.IMS_dailyplots.plotProbContourf(data,plotField)
+dailyplots.plotProbContourf(data,plotField)
 
 ###############################################################################
 # The user can override the default ax settings, colors, labeles and more.
@@ -51,5 +40,6 @@ meteo.IMS_dailyplots.plotProbContourf(data,plotField)
 ax_functions_properties=dict(set_ylim=[0,360],
                              set_yticks=[x for x in range(0, 361, 30)]
                             )
-meteo.IMS_dailyplots.plotProbContourf(data,plotField,ax_functions_properties=ax_functions_properties)
+dailyplots.plotProbContourf(data,plotField,ax_functions_properties=ax_functions_properties)
 
+plt.show()

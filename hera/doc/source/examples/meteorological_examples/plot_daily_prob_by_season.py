@@ -3,46 +3,32 @@
 plot contourf by seasons
 ==========================
 """
-from hera import meteo
+from hera.measurements.meteorology.lowfreqdata import lowfreqDataLayer,seasonplots
+import seaborn # import for documentation purose
+seaborn.set() # for documentation purose
+import os # import for documentation purose
+import matplotlib.pyplot as plt
 
-import seaborn # import for documentation purose 
-import os # import for documentation purose 
-seaborn.set() # for documentation purose 
+
 
 ###############################################################################
 # First, we read data from the data base:
 #
 # [For documentation purposes, we will read a sample data (using getDocFromFile function) and create a document-like object].
 
-projectName='IMS_Data'
-stationName= 'AVNE ETAN'
-station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
-if len(station) > 0:
-    data=station[0].getDocFromDB()
-    print(data)
-else:
-    print('%s doclist is empty' % station)
+stationName= 'AVNE_ETAN'
+station=lowfreqDataLayer.getStationDataFromFile(pathToData=stationName,
+                                                     fileFormat=lowfreqDataLayer.JSONIMS,
+                                                     storeDB =False)
 
-
-###############################################################################
-# Reading sample data from directory:
-
-station=meteo.IMS_datalayer.getDocFromFile(path=os.path.join("documentationData","AVNE_ETAN"))
-data=station[0].getDocFromDB()
-###############################################################################
-# Then, select a column from the data to plot
-#
-# Let's print the available columns and see what the column we selected stands for:
-
-
-print(data.columns)
+data=station.getData()
 
 
 ###############################################################################
 #  Now we can plot:
 
 plotField='TD'
-meteo.IMS_seasonplots.plotProbContourf_bySeason(data,plotField)
+seasonplots.plotProbContourf_bySeason(data,plotField)
 
 ###############################################################################
 # The user can override the default ax settings, colors, labeles and more.
@@ -57,5 +43,5 @@ ax_functions_properties=dict(set_ylim=[0,45],
 withLabels=False
 Cmapname='coolwarm'
 
-meteo.IMS_seasonplots.plotProbContourf_bySeason(data,plotField,ax_functions_properties=ax_functions_properties,withLabels=withLabels,Cmapname=Cmapname)
+seasonplots.plotProbContourf_bySeason(data,plotField,ax_functions_properties=ax_functions_properties,withLabels=withLabels,Cmapname=Cmapname)
 

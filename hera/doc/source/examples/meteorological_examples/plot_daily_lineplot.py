@@ -3,49 +3,45 @@
 plot single daily lineplot
 ==========================
 """
-from hera import meteo
-import seaborn # import for documentation purose 
-seaborn.set() # for documentation purose 
-import os # import for documentation purose 
+
+from hera.measurements.meteorology.lowfreqdata import lowfreqDataLayer,dailyplots
+import seaborn # import for documentation purose
+seaborn.set() # for documentation purose
+import os # import for documentation purose
+import matplotlib.pyplot as plt
 
 ###############################################################################
 # First, we read data from the data base:
 #
-# [For documentation purposes, we will read a sample data (using getDocFromFile function) and create a document-like object].
+# For documentation purposes, we will read a sample data (using getDocFromFile function)
+# and create a document-like object.
 
-projectName='IMS_Data'
-stationName= 'AVNE ETAN'
-station=meteo.IMS_datalayer.getDocFromDB(projectName=projectName, StationName=stationName)
-if len(station) > 0:
-    data=station[0].getDocFromDB()
-    print(data)
-else:
-    print('%s doclist is empty' % station)
+stationName= 'AVNE_ETAN'
+station=lowfreqDataLayer.getStationDataFromFile(pathToData=stationName,
+                                                     fileFormat=lowfreqDataLayer.JSONIMS,
+                                                     storeDB =False)
 
+data=station.getData()
 
-###############################################################################
-# Reading sample data from directory:
-
-station=meteo.IMS_datalayer.getDocFromFile(path=os.path.join("documentationData","AVNE_ETAN"))
-data=station[0].getDocFromDB()
 ###############################################################################
 # Then, select a column from the data to plot
 #
 # Let's print the available columns and see what the column we selected stands for:
-
-
+#
+#
 print(data.columns)
-
-
+#
+#
 ###############################################################################
 #  Now we can plot:
 
 plotField='RH'
 datetetoplot='2015-02-26'
 
-meteo.IMS_dailyplots.dateLinePlot(data,plotField=plotField,date=datetetoplot)
 
-###############################################################################
+dailyplots.dateLinePlot(data,plotField=plotField,date=datetetoplot)
+
+##############################################################################
 # The user can override the default ax settings, colors, labeles and more.
 # See the full documentation of the plotProbContourf function for details.
 #
@@ -56,4 +52,9 @@ ax_functions_properties=dict(set_ylim=[0,100],
                   )
 line_properties=dict(color='k')
 
-meteo.IMS_dailyplots.dateLinePlot(data,plotField=plotField,date=datetetoplot,ax_functions_properties=ax_functions_properties,line_properties=line_properties)
+dailyplots.dateLinePlot(data,
+                                  plotField=plotField,
+                                  date=datetetoplot,
+                                  ax_functions_properties=ax_functions_properties,
+                                  line_properties=line_properties)
+

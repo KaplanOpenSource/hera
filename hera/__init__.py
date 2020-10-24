@@ -1,4 +1,4 @@
-__version__ = '1.0.1'
+__version__ = '1.1.0'
 
 import sys
 import os
@@ -7,7 +7,7 @@ import json
 ## Load modules if it is python 3.
 version = sys.version_info[0]
 if version==3:
-    from .measurements import meteorological as meteo
+    from .measurements import meteorology as meteo
     from .measurements import GIS
 
 
@@ -82,7 +82,7 @@ from .utils import toAzimuthAngle,toMatematicalAngle,toMeteorologicalAngle,tonum
 
  0.5.0
  -----
- Changed the meteorological structure(datalayer and presentaionlayer)
+ Changed the meteorology structure(datalayer and presentaionlayer)
 
  0.4.1
  -----

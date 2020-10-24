@@ -47,10 +47,6 @@ In order to relate to anther user, use
     measurement_newDB = Measurements_Collection(user="public")
 
 
-MongoDB query language
-----------------------
-
-
 
 
 

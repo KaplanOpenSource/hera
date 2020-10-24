@@ -328,11 +328,11 @@ class ProjectMultiDB:
                     if None.
         :return:
         """
-        if isinstance(self._projectName,str):
-            projectName = self._projectName
+        if isinstance(self._projectNameDict,str):
+            projectName = self._projectNameDict
         else:
             databaseName  = getpass.getuser() if databaseName is None else databaseName
-            projectName = self._projectName[databaseName]
+            projectName = self._projectNameDict[databaseName]
 
         return  projectName
 
@@ -424,7 +424,7 @@ class ProjectMultiDB:
             data = searched.getDocuments(projectName=projectName, resource=resource, dataFormat=dataFormat,type=type, **desc)
             if len(data) != 0:
                 if self._useAll:
-                    returnData.append(data)
+                    returnData += data
                 else:
                     returnData = data
                     break
@@ -434,11 +434,12 @@ class ProjectMultiDB:
         if users is None:
             userName = getpass.getuser()
             projectName = self.getProjectName(userName)
-            searchtype[userName].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
+            ret = searchtype[userName].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
         else:
             for user in numpy.atleast_1d(users):
                 projectName = self.getProjectName(user)
-                searchtype[user].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
+                ret = searchtype[user].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
+        return ret
 
     def _deleteSomeTypeDocuments(self, searchtype, users=None, **kwargs):
         if users is None:
