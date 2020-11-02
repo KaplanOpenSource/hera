@@ -1,0 +1,105 @@
+#! /usr/bin/env python
+
+import argparse
+from hermes import expandPipeline
+from hermes import hermesWorkflow
+import json
+import os
+import pathlib
+from hera.datalayer import Project
+
+parser = argparse.ArgumentParser()
+parser.add_argument('command', nargs=1, type=str)
+parser.add_argument('args', nargs='*', type=str)
+
+class argsHandler(Project):
+
+    templateDocType = "HermesOpenFOAM"
+
+    def __init__(self,projectName=None):
+
+        projectName = "OpenFoamRuns" if projectName is None else projectName
+        super().__init__(projectName)
+
+
+    def expand_handler(self,arguments):
+
+        templatePath = arguments[0]
+        newTemplatePath = arguments[1]
+
+        # parametersPath = arguments[2] if len(arguments) > 3 else None
+
+        self._expand_and_load(templatePath,newTemplatePath)
+
+
+    def _expand_and_load(self,templatePath,newTemplatePath,loadToDB=True):
+
+        expander = expandPipeline()
+        newTemplate = expander.expand(pipelinePath=templatePath)
+        with open(newTemplatePath, 'w') as fp:
+            json.dump(newTemplate, fp)
+
+        if loadToDB:
+            self.looger.info("Saving template to the DB")
+            self.addSimulationDocument(resource=newTemplate['CaseDirectory'],
+                                       dataFormat='string',
+                                       type=self.templateDocType,
+                                       desc=dict(OF_Workflow=newTemplate)) #desc=dict(OF_Workflow=newTemplate
+        self.logger.info("Done")
+
+
+
+    def _build(self,
+               ):
+
+        flow = hermesWorkflow(templatePath, WDPath,"")
+        build = flow.build(builder)
+        with open(pythonPath, "w") as file:
+            file.write(build)
+
+        self.logger.info("Done")
+
+
+
+    def _executeLuigi(self,pythonPath):
+
+        cwd = pathlib.Path().absolute()
+        moduleParent = pathlib.Path(pythonPath).parent.absolute()
+        os.chdir(moduleParent)
+        os.system(f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler")
+        os.chdir(cwd)
+
+
+    def buildPython_handler(self,arguments):
+
+        templatePath = arguments[0]
+        pythonPath = arguments[1]
+        WDPath = arguments[2] if len(arguments) > 2 else str(pathlib.Path(pythonPath).parent.absolute())
+        builder = arguments[3] if len(arguments) > 3 else "luigi"
+
+        self._build(templatePath,WDPath,builder,pythonPath)
+
+
+    def executeLuigi_handler(self,arguments):
+        pythonPath = arguments[0]
+
+        self._executeLuigi(pythonPath)
+
+
+    def runAll_handler(self,argumentsFile):
+
+        with open(argumentsFile) as f:
+            argDict = json.load(f)
+
+        self._expand_and_load(argDict["templatePath"],argDict["newTemplatePath"])
+        self._build(argDict["templatePath"],argDict["WDPath"],argDict["builder"],argDict["pythonPath"])
+        self._executeLuigi(argDict["pythonPath"])
+
+if __name__=="__main__":
+
+    handler = argsHandler()
+    args = parser.parse_args()
+    funcName = args.command[0](args.args)
+    func = getattr(handler,f"{funcName}_handler")
+    func(args.args)
+

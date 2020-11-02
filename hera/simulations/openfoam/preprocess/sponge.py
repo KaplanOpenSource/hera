@@ -8,18 +8,60 @@ from  PyFoam.Basics.DataStructures import Field
 from ....utils import loggedObject
 
 class spongeLayer(loggedObject):
+    """
+    This class manages the creation of an alpha file which will be used in the run to create a sponge layer.
+    The class receives 'params' as a dict, string or path to json file with the parameters in the following structure:
 
-    params=None
+    filename- the filename to save on disc
+    default_value- the initial fill value to the temporary internalField which will last in the area out of any sponge area
+    dimensions- the dimensions of the alpha parameter
+    SpongeLayers- the sponge layers to aplly
+        "sponeName":"profile" : "TypeOfProfile", "direction": "x or y or z","vals": [{"direction string": diirection value,"alpha": alpha _value}
 
-    _spongeLayersInterpolator = None
 
-    def __init__(self,params,centerFile="0/C",scalarField="0/p"):
+    params example:
+
+    {
+  "fileName": "alpha",
+  "default_value" : 0,
+  "dimensions": "[ 0 0 -1 0 0 0 0 ]",
+  "SpongeLayers" : {
+    "top": {
+      "profile": "linear",
+      "direction": "z",
+      "vals":
+      [{"z": 7,"alpha": 0},
+       {"z": 8,"alpha": 1e-2},
+       {"z": 9,"alpha": 1e-1},
+       {"z": 10,"alpha": 1e-1}]
+        }
+      }
+    }
+
+
+    """
+
+    params      = None
+    _centerFile = None
+    _alpha      = None
+    _dirMap     = None
+
+    def __init__(self, params, CellCentersFile="0/C", ScalarFieldFile="0/p"):
+
+        """
+
+        parametrs
+        --------
+        params: The parameters
+        CellCentersFile: the path to cell center file
+        ScalarFieldFile: the path to scalar tamplate file
+        """
 
         super().__init__()
 
         self.logger.info("Initialize spongeLayer")
-
         self.logger.info("Loading configuration")
+
         if isinstance(params,str):
             self.logger.debug("params is a string, checking to see if it is a file on the disk")
             if os.path.exists(params):
@@ -30,62 +72,96 @@ class spongeLayer(loggedObject):
         else:
             self.params=dict(params)
 
-        self.logger.execution(f"got parameters {params}")
+        self.logger.execution(f"got parameters from {params}")
         self.logger.info("Reading cell centers")
 
-        self._centerFile = ParsedParameterFile(centerFile)
-        self._alpha      = ParsedParameterFile(scalarField)
+        self._centerFile = ParsedParameterFile(CellCentersFile)
+        self.logger.info("Reading alpha template")
+        self._alpha      = ParsedParameterFile(ScalarFieldFile)
         self._dirMap=dict(x=0,y=1,z=2)
-        self._spongeLayers = {}
+
 
     def itrSpongeAreas(self):
 
-        tmpField = Field([self.params['default_value']] * len(self._centerFile['internalField']), "alpha")
+        """
+        iteration on sponge areas:
+            - Creates a temporary 'internalField'
+            - looping on all sponge areas from params file
 
-        for spongeName, spongeData in self.params["SpongeLayers"].keys():
+        :return:
+        """
+
+        tmpField = Field([self.params['default_value']] * len(self._centerFile['internalField']), "List<scalar>")  #"alpha"
+
+        for spongeName, spongeData in self.params["SpongeLayers"].items():
 
             self.logger.execution(f"Creating sponge interpolation {spongeName}")
-            coord = self._dirMap.get(spongeData['direction'])
-            limits = pandas.DataFrame.from_dict(spongeData['vals']).sort_values(self.params['params']['direction'])
 
-            tmp=calcSpongeArea(tmpField,coord,limits)
-            #_spongeLayers['f = interp1d(limits[coord], limits['alpha'], kind=type)
+            coord = spongeData['direction']
+            coord_val= self._dirMap.get(spongeData['direction'])
+            limits = pandas.DataFrame.from_dict(spongeData['vals']).sort_values(spongeData['direction'])
+            type=spongeData['profile']
 
-    def calcSpongeArea(self,tmpField,coord,limits):
+            tmp=self.calcSpongeArea(tmpField,coord,coord_val,limits,spongeName,type)
+
+            return tmp
+
+    def calcSpongeArea(self,tmpField,coord,coord_val,limits,spongeName,type):
+
         """
-        builds matrix of [x,y,z,alpha]
+        fills the tmp matrix of internalField with alpha values according to the params
 
         parameters
         ----------
-        type: the unterpolation method
+
+        tmpField:
+        coord:
+        coord_val:
+        limits:
+        spongeName:
+        type: the interpolation method (from params file)
 
         return
         ------
-        P: dataframe
-            the dataframe with the retrived alpha and coordinates
+
+        tmpField: the new alpha internalField
         """
+
+
         self.logger.info(f"Starting alpha Mat with type {type}")
+
         f = interp1d(limits[coord], limits['alpha'], kind=type)
-        for index,point in enumerate() self._centerFile['internalField']):
-            if index%50000==0:
+        numOfCells=len(self._centerFile['internalField'])
+
+        self.logger.execution(f"Processing sponge {spongeName}")
+        for index,point in enumerate(self._centerFile['internalField']):
+            if index / numOfCells * 100 % 10 == 0:
+
                 self.logger.execution(f"processing node {index} of {len(self._centerFile['internalField'])}")
-                self.logger.execution(f"Processing sponge {spongeName}")
 
-                val = point[coord]
-                try:
-                    tmpField[index] = self.get_alpha(f, val)
-                except:
-                    'log here'
+            val = point[coord_val]
+            try:
+                tmpField[index] = f(val)
+            except:
+                self.logger.debug(f"point {point} not in sponge {spongeName}")
+        self.logger.execution(f"Processing sponge {spongeName} finished")
+
+        return tmpField
 
 
+    def CreateAlphaFile(self):
 
+        """
+        Main flow of Alpha file creation.
+        Runs all necessary functions from the spongeLayer class and saves the result as a 'fileName' file
 
-    def CreateAlphaFile(self,f,val):
+        """
 
-        tmpField=itrSpongeAreas()
+        tmpField = self.itrSpongeAreas()
+
         self._alpha.content['dimensions']= self.params['dimensions']
         self._alpha['internalField']=tmpField
 
-        self._alpha.writeFileAs(os.path.join(self.params['fileName']))
+        self._alpha.writeFileAs(os.path.join('constant',self.params['fileName']))
 
 

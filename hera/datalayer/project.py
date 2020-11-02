@@ -112,10 +112,10 @@ class Project(loggedObject):
         super().__init__()
         self._projectName = projectName
 
-        self._measurements  = Measurements_Collection(user=user)
-        self._cache      = Cache_Collection(user=user)
-        self._simulations   = Simulations_Collection(user=user)
-        self._all           =   AbstractCollection(user=user)
+        self._measurements  = Measurements_Collection(user=databaseName)
+        self._cache      = Cache_Collection(user=databaseName)
+        self._simulations   = Simulations_Collection(user=databaseName)
+        self._all           =   AbstractCollection(user=databaseName)
 
     def getMetadata(self):
         """
@@ -308,20 +308,20 @@ class ProjectMultiDB(loggedObject):
                 desc = documents["documents"][0]["desc"]
         return desc
 
-    def setConfig(self, config, user=None):
+    def setConfig(self, config, dbName=None):
         """
         Create a config documnet or updates an existing config document.
         """
-        documents = self.getCacheDocuments(type="__config__",user=user)
+        documents = self.getCacheDocuments(type="__config__", user=dbName)
         if len(documents) == 0:
             if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public":
                 if len(self._databaseNameList) == 1:
                     raise KeyError("Can't set config document in public, choose aditional user/s.")
                 else:
-                    user = self._databaseNameList[1] if user is None else user
+                    dbName = self._databaseNameList[1] if dbName is None else dbName
             else:
-                user = self._databaseNameList[0] if user is None else user
-            self.addCacheDocument(type="__config__",desc=config,users=[user])
+                dbName = self._databaseNameList[0] if dbName is None else dbName
+            self.addCacheDocument(type="__config__", desc=config, users=[dbName])
         else:
             documents[0].update(desc=config)
 
