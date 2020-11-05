@@ -58,6 +58,13 @@ class Project(object):
     _logger     = None
 
     @property
+    def projectName(self):
+        return self._projectName
+
+    def getProjectName(self):
+        return self._projectName
+
+    @property
     def logger(self):
         return self._logger
 
