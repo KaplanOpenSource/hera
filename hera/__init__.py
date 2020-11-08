@@ -1,4 +1,4 @@
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 import sys
 import os
@@ -42,15 +42,19 @@ from .utils import toAzimuthAngle,toMatematicalAngle,toMeteorologicalAngle,tonum
 
 
 """
+ 1.1.1
+------ 
+
+    - Changes to the  command lines. 
+    - Rearranging the meteorology. 
+
+
  1.0.0
  -----
-<<<<<<< HEAD
     - Introduced tools. 
         - The GIS tools work  
     - Project classes are equipped with a logger. 
-    
 
-=======
  This version consists a structural change that introduces concept of Tools. 
  
  A tool is a set of library functions that is designed to handle a single type of data. 
