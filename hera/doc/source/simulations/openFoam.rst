@@ -32,4 +32,5 @@ Usage
     openFoam/preProcess
     openFoam/meshUtilities
     openFoam/tests
+    openFoam/LSM
     openFoam/api

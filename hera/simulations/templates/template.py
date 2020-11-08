@@ -84,9 +84,8 @@ class LSMTemplate(object):
 
         os.system('cp -rf %s %s' % (os.path.join(self.modelFolder, '*'), saveDir))
         # write to file.
-        output = ifmc.render(os.path.join(saveDir, 'INPUTj'))
-        with open(os.path.join(saveDir, 'INPUT'),"w") as f:
-            f.write(output)
+        ifmc.render(os.path.join(saveDir, 'INPUT'))
+
         # run the model.
         os.chdir(saveDir)
         os.system('./a.out')
