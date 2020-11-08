@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 from hera.datalayer import Project
+from pathlib import Path
 
 
 class argsHandler(Project):
@@ -18,22 +19,16 @@ class argsHandler(Project):
         super().__init__(projectName)
 
 
-    def expand_handler(self,args):
-        arguments=args.args
-        templatePath = arguments[0]
-        newTemplatePath = arguments[1]
-        loadToDB=True
-        
-        if args.noDB:
-            loadToDB=False
-
-
-        # parametersPath = arguments[2] if len(arguments) > 3 else None
-
-        self._expand_and_load(templatePath,newTemplatePath,loadToDB)
-
-
     def _expand_and_load(self,templatePath,newTemplatePath,loadToDB=True):
+
+        """
+        parameters
+        ----------
+        templatePath: string. the fileName/path to workflow json file
+        newTemplatePath: string. the fileName/path for resulted expanded workflow json file
+        loadToDB: boolean. load/not the workflow to DB. determined by the -noDB flag
+
+        """
 
         expander = expandWorkflow()
         newTemplate = expander.expand(templatePath)
@@ -49,8 +44,18 @@ class argsHandler(Project):
         self.logger.info("Done")
 
 
-
     def _build(self,templatePath,WDPath,builder,pythonPath):
+
+        """
+
+        parameters
+        ----------
+        templatePath: string. the fileName/path to the expanded workflow json file
+        WDPath:
+        builder:
+        pythonPath: string. the fileName/path for resulted python file
+
+        """
 
 
         flow = hermesWorkflow(templatePath, WDPath,"")
@@ -61,8 +66,15 @@ class argsHandler(Project):
         self.logger.info("Done")
 
 
-
     def _executeLuigi(self,pythonPath):
+
+        """
+
+        parameters
+        ----------
+        pythonPath: string. the fileName/path of the python file
+
+        """
 
         cwd = pathlib.Path().absolute()
         moduleParent = pathlib.Path(pythonPath).parent.absolute()
@@ -71,7 +83,29 @@ class argsHandler(Project):
         os.chdir(cwd)
 
 
+    def expand_handler(self,args):
+        """
+        parameters
+        ----------
+        args: argparse object' resulted from CLI inputs
+
+        """
+        arguments=args.args
+        templatePath = arguments[0]
+        newTemplatePath = arguments[1]
+        loadToDB=False if args.noDB else True
+
+        self._expand_and_load(templatePath, newTemplatePath, loadToDB)
+
+
     def buildPython_handler(self,args):
+        """
+        parameters
+        ----------
+        args: argparse object' resulted from CLI inputs
+
+        """
+
         arguments=args.args
         templatePath = arguments[0]
         pythonPath = arguments[1]
@@ -82,20 +116,43 @@ class argsHandler(Project):
 
 
     def executeLuigi_handler(self,args):
+        """
+        parameters
+        ----------
+        args: argparse object' resulted from CLI inputs
+
+        """
+
         arguments=args.args
         pythonPath = arguments[0]
 
         self._executeLuigi(pythonPath)
 
 
-    def runAll_handler(self,argumentsFile):
+    def runAll_handler(self,args):
+        """
+        parameters
+        ----------
+        args: argparse object' resulted from CLI inputs
 
-        with open(argumentsFile) as f:
+        """
+
+        arguments=args.args
+
+        with open(arguments[0]) as f:
             argDict = json.load(f)
 
-        self._expand_and_load(argDict["templatePath"],argDict["newTemplatePath"])
-        self._build(argDict["templatePath"],argDict["WDPath"],argDict["builder"],argDict["pythonPath"])
-        self._executeLuigi(argDict["pythonPath"])
+        templatePath=argDict["templatePath"]
+        newTemplatePath=argDict["newTemplatePath"]
+        loadToDB=False if args.noDB else True
+
+        pythonPath=argDict.get('pythonPath')
+        WDPath=argDict.get('WDPath',str(pathlib.Path(pythonPath).parent.absolute()))
+        builder = argDict.get('builder', "luigi")
+
+        self._expand_and_load(templatePath,newTemplatePath,loadToDB)
+        self._build(newTemplatePath,WDPath,builder,pythonPath)
+        self._executeLuigi(Path(pythonPath).stem)
 
 
 if __name__=="__main__":
@@ -105,9 +162,8 @@ if __name__=="__main__":
     parser.add_argument('args', nargs='*', type=str)
     parser.add_argument('-noDB', action='store_true')
     args = parser.parse_args()
-
     funcName = args.command[0]
-    projectName = args.args[-1] if len(args.args) > 2 and funcName=='expand' else None
+    projectName = args.args[-1] if not args.noDB and funcName=='expand' else None
 
     handler = argsHandler(projectName)
     function = getattr(handler,f"{funcName}_handler")
