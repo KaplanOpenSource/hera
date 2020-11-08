@@ -911,6 +911,8 @@ class TurbulenceCalculator(AbstractCalculator):
         ret = 0
         if L is None:
             return "No Stability"
+        if numpy.isnan(L):
+            return "No Stability"
         if 1. / L < -.0875:
             ret = "very unstable"  # very un stable (A)
         elif 1. / L < -0.0081:
@@ -1049,7 +1051,7 @@ class TurbulenceCalculator(AbstractCalculator):
 
         :param v_bar: str name of column in ubar_data that contains the y component of the mean velocity
 
-        :param w_bar: str name of column in ubar_data that contains the z component of the mean velocity
+        :param w_bar: str name of col   umn in ubar_data that contains the z component of the mean velocity
 
         :param mode: either default "MeanDir" or "3dMeanDir"
                         MeanDir - calculate only D11, where the 1 component is aligned with the mean velocity 3d direction
@@ -1097,10 +1099,11 @@ class TurbulenceCalculator(AbstractCalculator):
         else:
             raise("mode must be either MeanDir or 3dMeanDir")
 
-        self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
-                                self.Identifier["start"]) & (ubar_data.index < self.Identifier["end"])]
-        self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
-        self._CalculatedParams.append(["u_mag" + title_additions,{}])
+        if "u_mag" not in self.TemporaryData.columns:
+            self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
+                                    self.Identifier["start"]) & (ubar_data.index < self.Identifier["end"])]
+            self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
+            self._CalculatedParams.append(["u_mag" + title_additions,{}])
         return self
 
     def StrucFun_eps(self, tau_range = None, ubar_data = None, u_bar = "u_bar", v_bar = "v_bar", w_bar = "w_bar",
@@ -1217,9 +1220,10 @@ class TurbulenceCalculator(AbstractCalculator):
                                                         .resample(self.SamplingWindow).mean()
                 self._CalculatedParams.append([col_names[tau],{}])
 
-        self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
-        self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
-        self._CalculatedParams.append(["u_mag" + title_additions,{}])
+        if "u_mag" not in self.TemporaryData.columns:
+            self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
+            self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
+            self._CalculatedParams.append(["u_mag" + title_additions,{}])
 
         return self
 

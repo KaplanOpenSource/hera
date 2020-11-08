@@ -1,5 +1,6 @@
 import dask.dataframe.core
 import pandas
+import dask.diagnostics as diag
 
 from ..inmemoryavgdata import InMemoryAvgData
 from .... import datalayer
@@ -86,6 +87,7 @@ class AbstractCalculator(object):
 
         if self._DataType == 'dask':
             try:
+                # with diag.ProgressBar():
                 df = self._TemporaryData[[x[0] for x in self._CalculatedParams]].compute()
             except ValueError as valueError:
                 errorMessage = """A value error occurred while computing the data.
