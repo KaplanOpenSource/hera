@@ -1,47 +1,48 @@
 #! /usr/bin/env python
 
 import argparse
-from hermes import expandPipeline
+from hermes import expandWorkflow
 from hermes import hermesWorkflow
 import json
 import os
 import pathlib
 from hera.datalayer import Project
 
-parser = argparse.ArgumentParser()
-parser.add_argument('command', nargs=1, type=str)
-parser.add_argument('args', nargs='*', type=str)
 
 class argsHandler(Project):
 
     templateDocType = "HermesOpenFOAM"
 
     def __init__(self,projectName=None):
-
         projectName = "OpenFoamRuns" if projectName is None else projectName
         super().__init__(projectName)
 
 
-    def expand_handler(self,arguments):
-
+    def expand_handler(self,args):
+        arguments=args.args
         templatePath = arguments[0]
         newTemplatePath = arguments[1]
+        loadToDB=True
+        
+        if args.noDB:
+            loadToDB=False
+
 
         # parametersPath = arguments[2] if len(arguments) > 3 else None
 
-        self._expand_and_load(templatePath,newTemplatePath)
+        self._expand_and_load(templatePath,newTemplatePath,loadToDB)
 
 
     def _expand_and_load(self,templatePath,newTemplatePath,loadToDB=True):
 
-        expander = expandPipeline()
-        newTemplate = expander.expand(pipelinePath=templatePath)
+        expander = expandWorkflow()
+        newTemplate = expander.expand(templatePath)
         with open(newTemplatePath, 'w') as fp:
             json.dump(newTemplate, fp)
 
         if loadToDB:
-            self.looger.info("Saving template to the DB")
-            self.addSimulationDocument(resource=newTemplate['CaseDirectory'],
+            self.logger.info("Saving template to the DB")
+            self.addSimulationsDocument(resource=newTemplate['CaseDirectory'],
                                        dataFormat='string',
                                        type=self.templateDocType,
                                        desc=dict(OF_Workflow=newTemplate)) #desc=dict(OF_Workflow=newTemplate
@@ -49,8 +50,8 @@ class argsHandler(Project):
 
 
 
-    def _build(self,
-               ):
+    def _build(self,templatePath,WDPath,builder,pythonPath):
+
 
         flow = hermesWorkflow(templatePath, WDPath,"")
         build = flow.build(builder)
@@ -70,8 +71,8 @@ class argsHandler(Project):
         os.chdir(cwd)
 
 
-    def buildPython_handler(self,arguments):
-
+    def buildPython_handler(self,args):
+        arguments=args.args
         templatePath = arguments[0]
         pythonPath = arguments[1]
         WDPath = arguments[2] if len(arguments) > 2 else str(pathlib.Path(pythonPath).parent.absolute())
@@ -80,7 +81,8 @@ class argsHandler(Project):
         self._build(templatePath,WDPath,builder,pythonPath)
 
 
-    def executeLuigi_handler(self,arguments):
+    def executeLuigi_handler(self,args):
+        arguments=args.args
         pythonPath = arguments[0]
 
         self._executeLuigi(pythonPath)
@@ -95,11 +97,18 @@ class argsHandler(Project):
         self._build(argDict["templatePath"],argDict["WDPath"],argDict["builder"],argDict["pythonPath"])
         self._executeLuigi(argDict["pythonPath"])
 
+
 if __name__=="__main__":
 
-    handler = argsHandler()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('command', nargs=1, type=str)
+    parser.add_argument('args', nargs='*', type=str)
+    parser.add_argument('-noDB', action='store_true')
     args = parser.parse_args()
-    funcName = args.command[0](args.args)
-    func = getattr(handler,f"{funcName}_handler")
-    func(args.args)
 
+    funcName = args.command[0]
+    projectName = args.args[-1] if len(args.args) > 2 and funcName=='expand' else None
+
+    handler = argsHandler(projectName)
+    function = getattr(handler,f"{funcName}_handler")
+    function(args)
