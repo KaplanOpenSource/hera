@@ -95,6 +95,7 @@ class preProcess(project.ProjectMultiDBPublic):
 #     L.append(xray)
 # data = xarray.concat(L, dim="datetime")
 # data.to_netcdf(os.path.join("/home/ofir/Projects/2020/testLSM/checkGauss/netcdf", "data%s.nc" % i))
+
 if __name__=="__main__":
     from hera.simulations.openfoam.lsm.preProcess import preProcess
     pre = preProcess(projectName="LSMOpenFOAM")
