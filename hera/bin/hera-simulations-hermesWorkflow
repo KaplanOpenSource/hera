@@ -32,15 +32,26 @@ class argsHandler(Project):
 
         expander = expandWorkflow()
         newTemplate = expander.expand(templatePath)
-        with open(newTemplatePath, 'w') as fp:
-            json.dump(newTemplate, fp)
+
 
         if loadToDB:
             self.logger.info("Saving template to the DB")
-            self.addSimulationsDocument(resource=newTemplate['CaseDirectory'],
+            doc=self.addSimulationsDocument(resource=newTemplate['CaseDirectory'],
                                        dataFormat='string',
                                        type=self.templateDocType,
                                        desc=dict(OF_Workflow=newTemplate)) #desc=dict(OF_Workflow=newTemplate
+
+            newPath=os.path.join(newTemplate['CaseDirectory'],str(doc.id))
+            newTemplate['workflow']['nodes']['copyDirectory']["GUI"]["Properties"]["Target"]["current_val"]=newPath
+            newTemplate['CaseDirectory']=newPath
+            doc.resource=newPath
+            doc.desc['OF_Workflow']=newTemplate
+            doc.save()
+
+
+        with open(newTemplatePath, 'w') as fp:
+            json.dump(newTemplate, fp)
+
         self.logger.info("Done")
 
 

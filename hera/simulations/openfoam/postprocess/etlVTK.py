@@ -71,7 +71,7 @@ def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, p
         del (filterProps['downstream'])
 
 
-    docList=datalayer.Simulations.getDocuments(type='HermesOpenFoam',
+    docList=datalayer.Simulations.getDocuments(type='HermesOpenFOAM',
                                                projectName=projectName,
                                                resource=path)
 
