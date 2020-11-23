@@ -12,7 +12,7 @@
 #
 # from hera.measurements.meteorological.IMS.dailyClimatology import calcHourlyDist
 #
-# from hera.measurements.meteorological.IMS.presentationLayer import DailyPlots
+from hera.measurements.meteorological.IMS.presentationLayer import DailyPlots
 # IMS_dailyplots = DailyPlots()
 #
 # from hera.measurements.meteorological.IMS.presentationLayer import SeasonalPlots

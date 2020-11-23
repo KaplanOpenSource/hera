@@ -200,8 +200,8 @@ class paraviewOpenFOAM(object):
         datasource.UpdatePipeline(timeslice)
         rawData = servermanager.Fetch(datasource)
         data = dsa.WrapDataObject(rawData)
-        print(data.PointData)
-        print(type(data.PointData))
+        #print(data.PointData)
+        #print(type(data.PointData))
 
         if isinstance(data.Points, dsa.VTKArray):
             points = numpy.array(data.Points).squeeze()

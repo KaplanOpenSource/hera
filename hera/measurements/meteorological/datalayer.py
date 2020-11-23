@@ -4,8 +4,10 @@ import pandas
 import dask.dataframe
 from .parserClasses import *
 from ... import datalayer
-from .analytics.turbulencecalculator import TurbulenceCalculator
-from ...datalayer.document.metadataDocument import nonDBMetadata
+#from .analytics.turbulencecalculator import TurbulenceCalculator
+from .highfreqdata.analysis import turbulencestatistics as TurbulenceCalculator
+#from ...datalayer.document.metadataDocument import nonDBMetadata
+from ...datalayer.document.metadataDocument import nonDBMetadataFrame as nonDBMetadata
 import warnings
 
 
@@ -192,7 +194,7 @@ class DataLayer_IMS(DataLayer):
                     # 3- get current data from database
                     doc = docList[0]
                     stn_db = doc.getData()
-                    data = [stn_db.reset_index(), stn_dask]
+                    data = [stn_db.reset_index(), stn_dask.reset_index()]
                     new_Data = dask.dataframe.concat(data, interleave_partitions=True)\
                                              .set_index(time_column)\
                                              .drop_duplicates()\
