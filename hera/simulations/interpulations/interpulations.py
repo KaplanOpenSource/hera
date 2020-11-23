@@ -95,7 +95,7 @@ class interpulations():
                                                      dx=dx, dy=dy, C=C, D=D, Hsl=Hsl, b=b)
 
 
-	def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3):
+    def windprofile(self, z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3):
 	    
 	# This function will return the wind velocity at height z 
 
@@ -121,175 +121,166 @@ class interpulations():
 	#    he=24
 	#    lambdap=0.3
 	#    lambdaf=0.3
-	##  assuming href is he
-	    uh=uref
 	###############################
 
-
-	    k = 0.41 # von Karman constant
-	    beta = beta# For closed uniform natural canopies, Raupach 1996
+         k = 0.41 # von Karman constant
+	    # beta = beta# For closed uniform natural canopies, Raupach 1996
 	    # beta = ustar / uh
 	    # LA commercial area has lambdap=0.28, lambdaf=0.27 he=24.5m, LC=66, Coceal 2004
-	    lc = he*(1-lambdap)/lambdaf
+         lc = he*(1-lambdap)/lambdaf
 	    # calculating the mixing length at the canopy only to know d
-	    l = 2. * beta**3 * lc # mixing length in the canopy
-	    d = l/k
+         l = 2. * beta**3 * lc # mixing length in the canopy
+         d = l/k  # displacement height
+         z0 = l/k*math.exp(-k/beta) # surface roughness
 
-
-	    if href>=he: 
-	       #l = k*(href-d) # mixing length above the canopy
-	       z01 = d/math.exp(k/beta)
-	       z0 = l/k*math.exp(-k/beta)  # from Omri
-	#       print ('z0=',z0,z01,l, d/math.exp(k/beta))
+         if href>=he: 
 	       uh  = uref * k /beta / math.log(((href-he)+d)/z0)
-	    else: # href<he
+         else: # href<he
 	       uh  = uref / math.exp(beta*(href-he)/l)
 	       print ('there is no sense of giving uref below building mean height because we have to give mean velocity, above he, one point represent the mean value, below, it is not represent')
 		
-	#    print('he=',he)
-	    if z <= he: # below the canopy
-	  #     l = 2. * beta**3 * lc # mixing length in the canopy
-	       u = uh * math.exp(beta*((z-he))/l)
-	    else: # above the canopy
-	#       calculate now for z 
-	#       l = k*(z-d) # mixing length above the canopy
-	#       z0 = d/math.exp(k/beta)
+         if z <= he: # below the canopy
+            u = uh * math.exp(beta*((z-he))/l)
+         else: # above the canopy
 	       u = uh*beta/k*math.log(((z-he)+d)/z0)
 
-	    return u
+         return u
 
-
-haifa1 = [
-[34.98535, 32.78562, 280],
-[34.99925, 32.77753, 370],
-[35.08025, 32.829758, 10],
-[34.99718, 32.81188, 75],
-[35.03992, 32.789, 18],
-[34.99066, 32.80078, 274],
-[35.00926, 32.78981, 150],
-[35.09444, 32.74263, 95],
-[34.97059, 32.79695, 215],
-[35.0554, 32.5119, 15],
-[35.02111, 32.791929, 104],
-[35.02026, 32.78685, 240],
-[35.04226, 32.76994, 90],
-[35.00167, 32.81644, 8],
-[35.03613, 32.73827, 507],
-[35.1123, 32.81148, 65],
-[35.077715, 32.814143, 25],
-[35.08511, 32.78866, 5],
-[35.1294, 32.7218, 201],
-[35.07873, 32.85182, 27],
-[35.091182, 32.854514, 15],
-[35.054671, 32.831263, 0],
-[35.00168, 32.78943, 190],
-[34.9651, 32.8226, 107]
-]
-
-haifa0 =[8.7,
-6.6,
-35.7,
-23,
-16.8,
-10.6,
-10.9,
-8.8,
-4,
-8.2,
-13.6,
-8.4,
-10.6,
-50.7,
-5.8,
-8.3,
-20.6,
-8.7,
-10.9,
-19,
-19.9,
-24.6,
-8.7,
-5.7
-]
-
-haifa0 = [7.4
-,6.4
-,12.3
-,27.9
-,12.7
-,12.3
-,6.6
-,9.3
-,6.6
-,15.1
-,9.8
-,6.7
-,35.4
-,4.2
-,4.5
-,5.2
-,4
-,11.8
-,7
-,7.9
-,6.1
-,8.5
-,10.5
-]
-
-haifa0=[6.6
-,5.1
-,13.2
-,36.5
-,9
-,10.4
-,5.8
-,6
-,5.9
-,11.7
-,6.6
-,4.7
-,46.5
-,5.2
-,5.8
-,6.1
-,3.2
-,8.4
-,7.8
-,6.1
-,6.8
-,7.2
-,11
-]
-
-haifa0 = [19
-,17.1
-,33.7
-,53.4
-,14.8
-,20.4
-,21.1
-,12.7
-,19.7
-,59
-,32.9
-,25
-,17.6
-,49
-,8.5
-,18.6
-,23.6
-,7.4
-,17.3
-,11.1
-,21.5
-,6.7
-,26.5
-,10.1
-]
-
-# stations=[]
-# for i in range(len(haifa0)):
-#     stations.append([haifa1[i][0], haifa1[i][1], haifa0[i], haifa1[i][2]])
-# print (interp(35., 32.,  stations, elev = 111))
-# print (interp(stations[3][0], stations[3][1],  stations, elev = stations[3][2]))
+if __name__ == "__main__":
+    a = interpulations()
+    print('wind at height is:', a.windprofile(200., lambdaf=0.000001, lambdap=0.000001, he=0.000001))
+    
+    haifa1 = [
+    [34.98535, 32.78562, 280],
+    [34.99925, 32.77753, 370],
+    [35.08025, 32.829758, 10],
+    [34.99718, 32.81188, 75],
+    [35.03992, 32.789, 18],
+    [34.99066, 32.80078, 274],
+    [35.00926, 32.78981, 150],
+    [35.09444, 32.74263, 95],
+    [34.97059, 32.79695, 215],
+    [35.0554, 32.5119, 15],
+    [35.02111, 32.791929, 104],
+    [35.02026, 32.78685, 240],
+    [35.04226, 32.76994, 90],
+    [35.00167, 32.81644, 8],
+    [35.03613, 32.73827, 507],
+    [35.1123, 32.81148, 65],
+    [35.077715, 32.814143, 25],
+    [35.08511, 32.78866, 5],
+    [35.1294, 32.7218, 201],
+    [35.07873, 32.85182, 27],
+    [35.091182, 32.854514, 15],
+    [35.054671, 32.831263, 0],
+    [35.00168, 32.78943, 190],
+    [34.9651, 32.8226, 107]
+    ]
+    
+    haifa0 =[8.7,
+    6.6,
+    35.7,
+    23,
+    16.8,
+    10.6,
+    10.9,
+    8.8,
+    4,
+    8.2,
+    13.6,
+    8.4,
+    10.6,
+    50.7,
+    5.8,
+    8.3,
+    20.6,
+    8.7,
+    10.9,
+    19,
+    19.9,
+    24.6,
+    8.7,
+    5.7
+    ]
+    
+    haifa0 = [7.4
+    ,6.4
+    ,12.3
+    ,27.9
+    ,12.7
+    ,12.3
+    ,6.6
+    ,9.3
+    ,6.6
+    ,15.1
+    ,9.8
+    ,6.7
+    ,35.4
+    ,4.2
+    ,4.5
+    ,5.2
+    ,4
+    ,11.8
+    ,7
+    ,7.9
+    ,6.1
+    ,8.5
+    ,10.5
+    ]
+    
+    haifa0=[6.6
+    ,5.1
+    ,13.2
+    ,36.5
+    ,9
+    ,10.4
+    ,5.8
+    ,6
+    ,5.9
+    ,11.7
+    ,6.6
+    ,4.7
+    ,46.5
+    ,5.2
+    ,5.8
+    ,6.1
+    ,3.2
+    ,8.4
+    ,7.8
+    ,6.1
+    ,6.8
+    ,7.2
+    ,11
+    ]
+    
+    haifa0 = [19
+    ,17.1
+    ,33.7
+    ,53.4
+    ,14.8
+    ,20.4
+    ,21.1
+    ,12.7
+    ,19.7
+    ,59
+    ,32.9
+    ,25
+    ,17.6
+    ,49
+    ,8.5
+    ,18.6
+    ,23.6
+    ,7.4
+    ,17.3
+    ,11.1
+    ,21.5
+    ,6.7
+    ,26.5
+    ,10.1
+    ]
+    
+    # stations=[]
+    # for i in range(len(haifa0)):
+    #     stations.append([haifa1[i][0], haifa1[i][1], haifa0[i], haifa1[i][2]])
+    # print (interp(35., 32.,  stations, elev = 111))
+    # print (interp(stations[3][0], stations[3][1],  stations, elev = stations[3][2]))
