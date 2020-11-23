@@ -85,13 +85,7 @@ def connectToDatabase(mongoConfig,alias=None):
         mongodb connection.
     """
     if isinstance(mongoConfig,str):
-        username,password = mongoConfig.split("@")[0].split(":")
-        dbIP, dbName      = mongoConfig.split("@")[1].split("/")
-        mongoConfig = dict(username=username,
-                           password=password,
-                           dbName=dbName,
-                           dbIP=dbIP)
-
+        mongoConfig = parseConnectionString(mongoConfig)
 
     alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
 
@@ -139,6 +133,9 @@ def createDBConnection(user, mongoConfig,alias=None):
         return the DBdict.
     """
     dbDict = {}
+    if isinstance(mongoConfig,str):
+        mongoConfig = parseConnectionString(mongoConfig)
+
 
     con = connectToDatabase(mongoConfig=mongoConfig,alias=alias)
 
@@ -200,6 +197,14 @@ def getDBObject(objectName, user=None):
         raise KeyError(f"object {objectName} not found. Must be one of: {allobjs}")
 
     return ret
+
+def parseConnectionString(conStr):
+    username, password = conStr.split("@")[0].split(":")
+    dbIP, dbName = conStr.split("@")[1].split("/")
+    return dict(username=username,
+                       password=password,
+                       dbName=dbName,
+                       dbIP=dbIP)
 
 
 # ---------------------default connections--------------------------

@@ -5,3 +5,7 @@ hera/logging/log
 __pycache__
 *.pyc
 *.swp
+*.log
+build 
+dist
+pyhera.egg-info/

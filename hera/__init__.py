@@ -1,22 +1,24 @@
-__version__ = '1.0.1'
+__version__ = '1.1.2'
 
 import sys
 import os
 import json
+
 ## Load modules if it is python 3.
 version = sys.version_info[0]
 if version==3:
-    from .simulations import WRF
-    #from .measurements import meteorological as meteo
-    from .simulations import LSM
-    from .simulations.LSM.DataLayer import SingleSimulation
+    from .measurements import meteorology as meteo
     from .measurements import GIS
-    from .simulations.interpolations.interpolations import spatialInterpolate
+
+
+    from .simulations import WRF
+    from .simulations import LSM
+    from .simulations import interpolations
+
     #from .risk import riskassessment
 
 from .simulations import openfoam
 
-import logging
 import logging.config
 
 with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
@@ -34,16 +36,31 @@ logging.Logger.execution = execution
 logging.config.dictConfig(log_conf)
 
 
+
+from .utils import toAzimuthAngle,toMatematicalAngle,toMeteorologicalAngle,tonumber,tounum
+
+
+
 """
+ 1.1.2
+------
+  - Changes to the intepolations in the simulations module. 
+  - updated documentations. 
+   
+
+ 1.1.1
+------ 
+
+    - Changes to the  command lines. 
+    - Rearranging the meteorology. 
+
+
  1.0.0
  -----
-<<<<<<< HEAD
     - Introduced tools. 
         - The GIS tools work  
     - Project classes are equipped with a logger. 
-    
 
-=======
  This version consists a structural change that introduces concept of Tools. 
  
  A tool is a set of library functions that is designed to handle a single type of data. 
@@ -75,7 +92,7 @@ logging.config.dictConfig(log_conf)
 
  0.5.0
  -----
- Changed the meteorological structure(datalayer and presentaionlayer)
+ Changed the meteorology structure(datalayer and presentaionlayer)
 
  0.4.1
  -----

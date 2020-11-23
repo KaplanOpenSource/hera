@@ -35,6 +35,7 @@ class datalayer(locationDatalayer):
         self._publicProjectName = publicProjectName
         super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
+        self.setConfig()
 
     def setConfig(self, Source="BNTL", dbName=None, **kwargs):
         config = dict(source=Source,**kwargs)

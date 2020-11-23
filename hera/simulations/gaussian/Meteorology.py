@@ -131,7 +131,7 @@ class StandardMeteorolgyConstant(object):
                           default units are m/s.
                           default value is 4m/s
 
-            ustar       - The u* of the meteorological conditions.
+            ustar       - The u* of the meteorology conditions.
                           the default value is 30cm/s
 
             skinSurfaceTemperature - The temperature of the surface skin.

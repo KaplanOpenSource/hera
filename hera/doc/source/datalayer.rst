@@ -1,4 +1,4 @@
-datalayer
+Datalayer
 *********
 
 The data the that is produced in by the measurements or the simulation might be large
@@ -46,7 +46,7 @@ The library uses a connection to the databse that is defined in the path
     }
 }
 
-The default connection is the default with the linux user name.
+The default connection is the **default with the linux user name**.
 It is possible to add other database connections. See below on how
 to access other databases.
 
@@ -56,8 +56,10 @@ to access other databases.
 This tutorial demonstrate how to store and retrieve data from the database
 with the default connection (the username of the linux system).
 
+All pieces of data are related to a project.
+
 Listing all projects
-----------------
+---------------------
 
 List all the project by calling the geProjectList function.
 
@@ -65,108 +67,10 @@ List all the project by calling the geProjectList function.
 
     projectList = hera.datalayer.getProjectList()
 
-Adding Data
------------
-
-first, import the requested module:
-
-.. code-block:: python
-
-    from hera import datalayer
-
-Each data is classified into one of the following categories.
-
-- Measurements - Any acquisition of data from the 'real world'. Satellites, meteorological measurments and dispersion measurements and etc.
-- Simulations  - Any output of a model. (OpenFOAM, WRF, LSM and etc).
-- Cache        - Any data that is created during analyis and needed to be cached to accelerate the computations.
-
-Since each category can hold different types of data, each data document
-holds its type in  a 'type' property
-when saving a new document in the database, you must provide 'projectName', 'desc', 'dataFormat' and 'resource'
-
-for example, a Measurements data from type Meteorology and parquet data files format should be added to database like this:
-
-.. code-block:: python
-
-    datalayer.Measurements.addDocument(projectName='myProjectName',
-                                       resource='path-to-parquet-files-on-disk',
-                                       dataFormat=datalayer.datatypes.PARQUET,
-                                       type='Meteorology'
-                                       desc={'property1': 'value1',
-                                             'property2': 'value2'
-                                             }
-                                       )
-
-Querying data
----------------
-
-When querying the database, you have to provide the 'projectName'
-and conditions that will be used as filters.
-
-If the filter field is not type, resource or dataFormat, the query
-will be performed on the desc field.
-
-For example, for the following query you will get all of the documents
-in the project 'projectName' that 'property1' in the desc property equals 'value1'
-
-.. code-block:: python
-
-    docList = datalayer.Measurements.getDocuments(projectName='projectName',property1='value1')
-
-Now, you can use the function getData() to retrieve data presented by the document.
-For example, we will read the first document from the docList and get its data.
-
-.. code-block:: python
-
-    doc = docList[0]
-    data = doc.getData()
-
-
-The getData method loads the data from the database according to the 'dataFormat'.
-
-It is possible to query all the documents.
-
-.. code-block:: python
-
-    docList = datalayer.All.getDocuments(projectName='projectName',property1='value1')
-
-Lists all the documents in the project, regrdless of their type.
-
-Updating data
-------------
-
-It is possible to update the data of the record.
-to do so, just add the new properties to the record and save it.
-
-.. code-block:: python
-
-    doc = docList[0]
-    doc.desc['newproperty'] = 'newValue'
-    doc.save()
-
-
-Similalry, it is possible to remove a property from the record
-
-.. code-block:: python
-
-    doc = docList[0]
-    del doc.desc['newproperty']
-    doc.save()
-
-
-Delete data
-------------
-
-In order to delete a document we can use the delete function of the document.
-
-.. code-block:: python
-
-    doc = docList[0]
-    doc.delete()
-
+.. include:: datalayer/addgetdata.rst
 
 Advanced Querying data
-----------------------
+======================
 
 Querying data relies on the mongoDB query language to
 query the desc. Briefly, in the mongoDB language translates the JSON path to a
@@ -203,6 +107,18 @@ For example add '__lt' to find all the documents that are less than a value.
 The last line retrieves all the documents that the field 'd' includes the item 1 in it.
 
 
+
+
+
+API
+=====
+
+
+.. toctree::
+    :maxdepth: 2
+
+    datalayer/api
+
 Usage
 =====
 
@@ -212,5 +128,4 @@ Usage
     datalayer/cli
     datalayer/usage
     datalayer/datahandlers
-    datalayer/api
     datalayer/architecture

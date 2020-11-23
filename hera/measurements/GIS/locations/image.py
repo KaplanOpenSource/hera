@@ -20,6 +20,8 @@ class datalayer(project.ProjectMultiDBPublic):
     _projectName = None
     _presentation = None
 
+    docType = "GIS_Image"
+
     @property
     def presentation(self):
         return self._presentation
@@ -30,7 +32,7 @@ class datalayer(project.ProjectMultiDBPublic):
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
         self._presentation = presentation(projectName=projectName,dataLayer=self)
 
-    def load(self, path, imageName, extents):
+    def load(self, path, imageName, extents,**desc):
         """
         Parameters:
         -----------
@@ -43,10 +45,13 @@ class datalayer(project.ProjectMultiDBPublic):
         extents: list or dict
                 list: The extents of the image [xmin, xmax, ymin, ymax]
                 dict: A dict with the keys xmin,xmax,ymin,ymax
+
+        desc: additional description of the figure.
+
         Returns
         -------
         """
-        check = self.getMeasurementsDocuments(dataFormat='image',type='GIS',imageName=imageName)
+        check = self.getMeasurementsDocuments(dataFormat='image',type=self.docType ,imageName=imageName)
         if len(check)>0:
             raise KeyError("The imageName is already used.")
         if isinstance(extents,dict):
@@ -55,22 +60,30 @@ class datalayer(project.ProjectMultiDBPublic):
             extentList = extents
         else:
             raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+
+        imageparams = dict(imageName=imageName,
+             xmin=extentList[0],
+             xmax=extentList[1],
+             ymin=extentList[2],
+             ymax=extentList[3]
+             )
+
+        imageparams.update(desc)
+
         doc = dict(resource=path,
                    dataFormat='image',
                    type='GIS',
-                   desc=dict(imageName=imageName,
-                             xmin=extentList[0],
-                             xmax=extentList[1],
-                             ymin=extentList[2],
-                             ymax=extentList[3]
-                             )
-                   )
+                   desc=imageparams)
+
         if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(
                 self._databaseNameList) > 1:
             userName = self._databaseNameList[1]
         else:
             userName = self._databaseNameList[0]
         self.addMeasurementsDocument(**doc,users=[userName])
+
+    def listImages(self,**filters):
+        return self.getMeasurementsDocuments(type=self.docType ,imageName=imageName)
 
 class presentation():
 

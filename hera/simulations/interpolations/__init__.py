@@ -1,1 +1,0 @@
-from .interpolations import spatialInterpolate

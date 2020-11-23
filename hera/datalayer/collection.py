@@ -150,10 +150,17 @@ class AbstractCollection(object):
 
         Returns
         -------
+        list
+
+        dictionary with the data that was removed.
 
         """
+        deletedDocs = []
         for doc in self.getDocuments(projectName=projectName, **query):
+            deletedDocs.append(doc.asDict(with_id=True))
             doc.delete()
+
+        return deletedDocs
 
     def deleteDocumentByID(self, id):
         """
@@ -166,11 +173,19 @@ class AbstractCollection(object):
 
         Returns
         -------
+        dict.
+
+        The record that was deleted.
 
         """
+
+
+
         doc = self.getDocumentByID(id=id)
+        deletedDoc = doc.asDict(with_id=True)
         doc.delete()
-        return doc
+
+        return deletedDoc
 
     def getData(self, projectName, usePandas=None, **kwargs):
         """

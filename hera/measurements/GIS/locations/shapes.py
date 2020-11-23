@@ -14,7 +14,7 @@ class datalayer(project.ProjectMultiDBPublic):
     def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Shapes"):
 
         self._projectName = projectName
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,useAll=useAll)
         self._presentation = presentation(projectName=projectName,dataLayer=self)
 
     def getShape(self, name):

@@ -39,6 +39,20 @@ Document definition
 Project
 ########
 
-.. autoclass:: hera.datalayer.document.project.Project
+.. autoclass:: hera.datalayer.project.Project
+    :members:
+    :undoc-members:
+
+ProjectMultiDB
+##############
+
+.. autoclass:: hera.datalayer.project.ProjectMultiDB
+    :members:
+    :undoc-members:
+
+ProjectMultiDB
+##############
+
+.. autoclass:: hera.datalayer.project.ProjectMultiDBPublic
     :members:
     :undoc-members:

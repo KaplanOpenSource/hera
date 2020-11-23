@@ -4,7 +4,7 @@ import xarray
 import pandas
 import pydoc 
 from unum.units import * 
-from .. import dosage,tounum,tonumber
+from ....utils import dosage,tounum,tonumber
 
 class ProtectionPolicy(object): 
 	"""
