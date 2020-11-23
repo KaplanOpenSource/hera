@@ -20,10 +20,11 @@ class datalayer(project.ProjectMultiDBPublic):
     def publicProjectName(self):
         return self._publicProjectName
 
-    def __init__(self, projectName,publicProjectName="Demography", useAll=False,):
+    def __init__(self, projectName,publicProjectName="Demography",databaseNameList=None, useAll=False,):
         self._projectName = projectName
         self._publicProjectName = publicProjectName
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName, useAll=useAll)
+        super().__init__(projectName=projectName, publicProjectName=publicProjectName,
+                         databaseNameList=databaseNameList, useAll=useAll)
         self.setConfig()
         self._analysis = analysis(projectName=projectName, dataLayer=self)
 
@@ -33,14 +34,14 @@ class datalayer(project.ProjectMultiDBPublic):
         else:
             self._Data = None
 
-    def setConfig(self, Source="Lamas", units="WGS84",populationTypes = None, user=None, **kwargs):
+    def setConfig(self, Source="Lamas", units="WGS84", populationTypes = None, dbName=None, **kwargs):
         """
         Create a config documnet or updates an existing config document.
         """
         populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"} if populationTypes is None else populationTypes
         config = dict(source=Source,units=units,populationTypes=populationTypes, **kwargs)
-        super().setConfig(config=config)
+        super().setConfig(config=config, dbName=dbName)
 
         datalist = self.getMeasurementsDocuments(source=config["source"])
 
