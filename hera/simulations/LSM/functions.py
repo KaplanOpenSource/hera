@@ -7,9 +7,9 @@ from itertools import product
 DEFAULTPROJET = "LSM"
 
 DOCTYPE_TEMPLATE = "LSM_Template"
-DOCTYPE_RUN      = "LSM_Run"
+DOCTYPE_RUN      = "LSM_run"
 
-def getTemplates(projectName, **query):
+def getTemplates(**query):
     """
     get a list of Template objects that fulfill the query
     :param query:
