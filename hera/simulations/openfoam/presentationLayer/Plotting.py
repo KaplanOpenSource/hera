@@ -1,8 +1,7 @@
-from hera import GIS
 import pandas
 import matplotlib.pyplot as plt
 import math
-from ..postprocess.dataManipulations import dataManipulations
+from ..preprocess.dataManipulations import dataManipulations
 
 class Plotting():
 
