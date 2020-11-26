@@ -65,7 +65,7 @@ class AgentHome(ProjectMultiDBPublic):
 
 		"""
 		configList = self.getMeasurementsDocuments(type='Agent')
-		return [x['name'] for x in configList]
+		return [x.desc['name'] for x in configList]
 
 
 	def loadAgent(self,name,agentDescription,public=True):
