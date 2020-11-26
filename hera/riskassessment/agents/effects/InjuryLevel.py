@@ -268,7 +268,7 @@ class InjuryLevelExponential(InjuryLevel):
 
 	def getPercent(self,ToxicLoad):
 		
-		ret = 1-numpy.exp(self.k*numpy.array(ToxicLoad))
+		ret = 1-numpy.exp(-self.k*numpy.array(ToxicLoad))
 		return ret 
 
 	def _getGeopandas(self,concentrationField,x,y,**parameters):
