@@ -6,14 +6,14 @@ import os
 import json 
 
 from hera.simulations.utils.matplotlibCountour import toGeopandas
-from ... import dosage,tounum,tonumber
+from .... import tounit,tonumber
 from unum.units import *
 from unum import Unum
 
 import matplotlib.pyplot as plt 
 from scipy.stats import lognorm
 
-
+dosage = mg/m**3
 
 class InjuryLevel(object): 
 	"""
@@ -152,7 +152,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		if "TL_50" not in parameters: 
 			raise ValueError("Must supply TL_50") 
 		else: 
-			parameters["TL_50"] = tounum(parameters["TL_50"],dosage)
+			parameters["TL_50"] = tounit(parameters["TL_50"],dosage)
 		if "sigma" not in parameters: 
 			raise ValueError("Must supply sigma (1/probit)") 
 
@@ -205,6 +205,8 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		if self._parameters.get("higher_severity",None) is not None:
 			HigherToxicLoads = self._parameters["higher_severity"].getToxicLoad(defaultLevels)
 			ToxicLoads = numpy.unique(numpy.sort(numpy.concatenate([ToxicLoads,HigherToxicLoads])))
+		import pdb
+		pdb.set_trace()
 		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
 		if numpy.max(CS.levels) < numpy.min(ToxicLoads): 
 			ret = geopandas.GeoDataFrame()
@@ -229,14 +231,14 @@ class InjuryLevelThreshold(InjuryLevel):
 
 		thr = eval(parameters["threshold"])
 
-		parameters["threshold"] = thr if isinstance(thr,Unum) else tounum(eval(parameters["threshold"]),actualunit) 
+		parameters["threshold"] = thr if isinstance(thr,Unum) else tounit(eval(parameters["threshold"]),actualunit)
 
 		super(InjuryLevelThreshold,self).__init__(name,calculator,units=actualunit,**parameters)
 
 	def getPercent(self,ToxicLoad):
 		threshold = self.threshold
 		ToxicLoad = numpy.atleast_1d(ToxicLoad)
-		ret = numpy.array([ 1 if tounum(x,self.units) > threshold else 0 for x in ToxicLoad])
+		ret = numpy.array([ 1 if tounit(x,self.units) > threshold else 0 for x in ToxicLoad])
 		return ret[0] if len(ToxicLoad)==1 else ret
 
 	def _getGeopandas(self,concentrationField,x,y,**parameters):

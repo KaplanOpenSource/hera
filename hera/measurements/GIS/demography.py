@@ -77,7 +77,6 @@ class datalayer(project.ProjectMultiDBPublic):
             poly = Shape
         if type(populationTypes) == str:
             populationTypes = [populationTypes]
-
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
         intersection_poly = res_intersect_poly["geometry"].intersection(poly)
         res_intersection = geopandas.GeoDataFrame.from_dict(

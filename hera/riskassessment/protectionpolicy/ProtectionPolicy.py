@@ -4,7 +4,7 @@ import xarray
 import pandas
 import pydoc 
 from unum.units import * 
-from ....utils import dosage,tounum,tonumber
+from ...utils import tounit,tonumber
 
 class ProtectionPolicy(object): 
 	"""
@@ -257,9 +257,9 @@ class ActionIndoor(abstractAction):
 		"""
 		super().__init__(actionID,"indoor",policy,**kwargs) 
 		if "turnover" in kwargs: 
-			self._alpha = tounum(1/kwargs["turnover"],1/h) 
+			self._alpha = tounit(1/kwargs["turnover"],1/h)
 		elif "alpha" in kwargs: 
-			self._alpha = tounum(kwargs["alpha"],1/h) 
+			self._alpha = tounit(kwargs["alpha"],1/h)
 		else: 
 			raise ValueError("Must supply either alpha or turnover rate to indoor calculation (ID %s) " % self.actionid)
 		

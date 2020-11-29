@@ -26,8 +26,8 @@ def andClause(excludeFields=[], **kwargs):
 tonumber = lambda x,theunit: x.asNumber(theunit) if isinstance(x,Unum) else x
 tounit   = lambda x,theunit: x.asUnit(theunit) if isinstance(x,Unum) else x*theunit
 
-toMeteorlogicalAngle = lambda mathematical_angle: (270-mathematical_angle) if ((270-mathematical_angle) >= 0) else (630-mathematical_angle)
-toMathematicalAngle  = toMeteorlogicalAngle
+toMeteorologicalAngle = lambda mathematical_angle: (270-mathematical_angle) if ((270-mathematical_angle) >= 0) else (630-mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 
 
 #############

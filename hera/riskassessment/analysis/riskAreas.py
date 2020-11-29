@@ -8,7 +8,7 @@ from itertools import product,chain
 import multiprocessing
 from functools import partial
 
-from ....utils import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
+from ...utils import toMeteorologicalAngle,toMathematicalAngle
 
 def getRiskAreaAlgorithm(algorithmName,**kwargs):
 	"""

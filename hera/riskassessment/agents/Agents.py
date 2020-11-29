@@ -1,6 +1,6 @@
 from unum.units import *
 from .effects import  injuryfactory
-from ...utils import tonumber,tounum
+from ...utils import tonumber,tounit
 
 from ...datalayer import ProjectMultiDBPublic
 
@@ -63,7 +63,7 @@ class Agent(ProjectMultiDBPublic):
 		if len(configList)==0:
 			raise ValueError(f"Agent {name} is not found. Load it with hera-risk-agent load")
 
-		self._agentconfig = configList.desc['agentConfig']
+		self._agentconfig = configList[0].desc
 		self._effectParameters = self._agentconfig.get("effectParameters",{})
 
 		self._effects = {}
@@ -125,7 +125,7 @@ class PhysicalPropeties(object):
 
 	@molecularWeight.setter
 	def molecularWeight(self,value):
-		self._molecularWeight = tounum(eval(value),g/mol)
+		self._molecularWeight = tounit(eval(value),g/mol)
 
 
 	@property
@@ -134,7 +134,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
-		self._sorptionCoefficient = tounum(eval(value),cm/s)
+		self._sorptionCoefficient = tounit(eval(value),cm/s)
 
 	@property
 	def spreadFactor(self):
