@@ -3,7 +3,7 @@ import xarray
 import numpy
 from unum.units import *
 
-from ..utils import toUnum,toNumber
+#from ..utils import toUnum,toNumber
 
 # def toVTK(self, data, outputdir, name, fields):
 #     from pyevtk.hl import gridToVTK
@@ -49,7 +49,7 @@ class SingleSimulation(object):
             self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
         else:
             self._document = resource
-            self._finalxarray = resource.getDocFromDB()
+            self._finalxarray = resource.getData()
             if type(self._finalxarray) is str:
                 self._finalxarray = xarray.open_mfdataset(self._finalxarray, combine='by_coords')
 
