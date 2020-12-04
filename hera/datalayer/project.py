@@ -4,6 +4,7 @@ import numpy
 from . import getDBNamesFromJSON
 from hera.utils.loggedObject import loggedObject
 
+
 from .collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
@@ -28,18 +29,24 @@ class Project(loggedObject):
     """
         Provides a simple interface to the data of a specific project.
 
-        The class has all the following functions for the measurements, simulations and Cache:
+        The class has all the following functions for the measurements, simulations and cache.
+
+        **Measurements**
+
 
         -  getMeasurementsDocumentsAsDict"
         -  getMeasurementsDocuments
         -  addMeasurementsDocument
         -  deleteMeasurementsDocuments
 
+        **Simulations**
 
         -  getSimulationsDocumentsAsDict"
         -  getSimulationsDocuments
         -  addSimulationsDocument
         -  deleteSimulationsDocuments
+
+        **Cache**
 
         -  getCacheDocumentsAsDict"
         -  getCacheDocuments
@@ -48,25 +55,24 @@ class Project(loggedObject):
 
     """
     _projectName = None
-
-
     _all          = None
     _measurements = None
     _cache     = None
     _simulations  = None
 
     @property
-    def measurements(self):
+    def measurements(self) -> Measurements_Collection:
         """
             Access the measurement type documents.
 
         :return:
+
             hera.datalayer.collection.Measurements_Collection
         """
         return self._measurements
 
     @property
-    def cache(self):
+    def cache(self) -> Cache_Collection:
         """
             Access the Cache type documents.
 
@@ -77,18 +83,18 @@ class Project(loggedObject):
         return self._cache
 
     @property
-    def all(self):
+    def all(self) -> AbstractCollection:
         """
-            Access the Cache type documents.
+            Access to all document types.
 
         :return:
-            hera.datalayer.collection.Cache_Collection
+            hera.datalayer.collection.AbstractCollection
 
         """
         return self._all
 
     @property
-    def simulations(self):
+    def simulations(self) -> Simulations_Collection:
         """
             Access the simulation type documents.
 
@@ -98,14 +104,16 @@ class Project(loggedObject):
         """
         return self._simulations
 
-    def __init__(self, projectName, databaseName=None):
+    def __init__(self, projectName:str, databaseName:str=None):
         """
-            Initialize the project.
+            Initialize the project class.
 
-        :param projectName: str
+        Parameters
+        ----------
+        projectName: str
                 The name of the project.
 
-        :param databaseName: str
+        databaseName: str
                 the name of the database to use. If None, use the default database (the name of the current databaseName).
 
         """
@@ -117,53 +125,281 @@ class Project(loggedObject):
         self._simulations   = Simulations_Collection(user=databaseName)
         self._all           =   AbstractCollection(user=databaseName)
 
-    def getMetadata(self):
+    def getMetadata(self)->pandas.DataFrame:
         """
-        Returns a pandas dataframe which contains all the description of all ot the documents in the current project.
+        Return the description of all ot the documents in the current project.
+        It assumes that description is a key-value format (does not support more complex structures).
 
-        :return: pandas
+        Returns:
+             pandas.DataFrame
         """
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
 
-    def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
+    def getMeasurementsDocumentsAsDict(self, with_id:bool=False, **kwargs):
+        """
+        Return the metadata of the Measurements as a list of Dict
+
+        Parameters
+        -----------
+        with_id: bool
+            If true, add the id of the document to the map.
+
+        kwargs: key-value
+            Filters to query the database.
+
+        Returns
+        -------
+            List
+            A list of dict with the description of the project.
+        """
         return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
-    def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+    def getMeasurementsDocuments(self,  resource:str=None, dataFormat:str=None, type:str=None, **desc):
+        """
+            Return a list of measurements. Allow filtering with queries.
+
+            Each results is list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        Parameters
+        ----------
+        resource: str, optional
+
+        dataFormat: str, optional
+        type: str, optional
+
+        desc: key-value
+            A key-value list for the filtering of the documents.
+
+
+        Returns
+        -------
+            A list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+            Add a measurements document.
+
+        Parameters
+        -----------
+
+        resource: str
+            The link to the resource.
+
+        dataFormat: str
+            The format of the data. Current known format are detailed in ::class:`.datatypes.datatypes`
+
+        type: str
+            The type of the document. A general field to help the filter.
+
+        desc: dict
+            The description of the metadata.
+
+        Returns
+        -------
+            :class:`.document.metadataDocument.MetadataFrame`.
+
+        """
         return self.measurements.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
 
     def deleteMeasurementsDocuments(self, **kwargs):
+        """
+            Delete all the measurements documents that fulfill the criteria.
+            This will **not** delete the resource from the disk.
+
+
+        Parameters
+        ----------
+        kwargs: key-value
+            The filters.
+
+        Returns
+        -------
+            The documents that were deleted.
+        """
         return self.measurements.deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getSimulationsDocumentsAsDict(self, with_id=False, **kwargs):
+        """
+            Get the simulation document as a  a list of dictionary.
+            The keys are the fields of the :class:`.document.metadataDocument.MetadataFrame` object.
+
+        Parameters
+        -----------
+        with_id: bool
+            if True return the id of the document.
+
+        kwargs: key-value
+            The filters
+
+        Returns
+        -------
+            A list of dict.
+        """
         return self.simulations.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getSimulationsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Get the simulations documents as a list of :class:`.document.metadataDocument.MetadataFrame` object.
+
+        Parameters
+        ----------
+        resource: str
+                The resource (path to the data file or the data itself).
+        dataFormat: str
+                The format of the data. Taken from ::class:`..datatypes.datatypes`.
+        type: str
+            An additional field that aids in filtering the data.
+
+        desc: key-valye
+            The metadata of the document.
+
+        Returns
+        -------
+            list of :class:`.document.metadataDocument.MetadataFrame` object.
+
+        """
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                 **desc)
 
     def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+            Add a simulation document.
+
+        Parameters
+        -----------
+
+        resource: str
+            The link to the resource.
+
+        dataFormat: str
+            The format of the data. Current known format are detailed in ::class:`.datatypes.datatypes`
+
+        type: str
+            The type of the document. A general field to help the filter.
+
+        desc: dict
+            The description of the metadata.
+
+        Returns
+        -------
+            :class:`.document.metadataDocument.MetadataFrame`.
+
+        """
         return self.simulations.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                desc=desc)
 
     def deleteSimulationsDocuments(self, **kwargs):
+        """
+            Delete all the measurements documents that fulfill the criteria.
+            This will **not** delete the resource from the disk.
+
+
+        Parameters
+        ----------
+        kwargs: key-value
+            The filters.
+
+        Returns
+        -------
+            The documents that were deleted.
+        """
         return self.simulations.deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getCacheDocumentsAsDict(self,  with_id=False, **kwargs):
+        """
+            Get the cache document as a  a list of dictionary.
+            The keys are the fields of the :class:`.document.metadataDocument.MetadataFrame` object.
+
+        Parameters
+        -----------
+        with_id: bool
+            if True return the id of the document.
+
+        kwargs: key-value
+            The filters
+
+        Returns
+        -------
+            A list of dict.
+        """
+
         return self.cache.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Get the cache documents as a list of :class:`.document.metadataDocument.MetadataFrame` object.
+
+        Parameters
+        ----------
+        resource: str
+                The resource (path to the data file or the data itself).
+        dataFormat: str
+                The format of the data. Taken from ::class:`..datatypes.datatypes`.
+        type: str
+            An additional field that aids in filtering the data.
+
+        desc: key-valye
+            The metadata of the document.
+
+        Returns
+        -------
+            list of :class:`.document.metadataDocument.MetadataFrame` object.
+
+        """
+
         return self.cache.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                        **desc)
 
     def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+            Add a cache document.
+
+        Parameters
+        -----------
+
+        resource: str
+            The link to the resource.
+
+        dataFormat: str
+            The format of the data. Current known format are detailed in ::class:`.datatypes.datatypes`
+
+        type: str
+            The type of the document. A general field to help the filter.
+
+        desc: dict
+            The description of the metadata.
+
+        Returns
+        -------
+            :class:`.document.metadataDocument.MetadataFrame`.
+
+        """
+
         return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                       desc=desc)
 
     def deleteCacheDocuments(self, **kwargs):
+        """
+            Delete all the cache documents that fulfill the criteria.
+            This will **not** delete the resource from the disk.
+
+
+        Parameters
+        ----------
+        kwargs: key-value
+            The filters.
+
+        Returns
+        -------
+            The documents that were deleted.
+        """
+
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
 
@@ -171,20 +407,26 @@ class ProjectMultiDB(loggedObject):
     """
         Provides a simple interface to the data of a specific project.
 
-        The class has all the following functions for the measurements, simulations and Cache:
+        The class has all the following functions for the measurements, simulations and cache.
 
-        -  getMeasurementsDocumentsAsDict"
+        **Measurements**
+
+        -  getMeasurementsDocumentsAsDict
         -  getMeasurementsDocuments
         -  addMeasurementsDocument
         -  deleteMeasurementsDocuments
 
 
-        -  getSimulationsDocumentsAsDict"
+        **Simulations**
+
+        -  getSimulationsDocumentsAsDict
         -  getSimulationsDocuments
         -  addSimulationsDocument
         -  deleteSimulationsDocuments
 
-        -  getCacheDocumentsAsDict"
+        **Cache**
+
+        -  getCacheDocumentsAsDict
         -  getCacheDocuments
         -  addCacheDocument
         -  deleteCacheDocuments
@@ -255,7 +497,24 @@ class ProjectMultiDB(loggedObject):
         self._useAll=newUseAll
 
 
-    def getProjectName(self, databaseName=None):
+    def getProjectName(self, databaseName:str=None) -> str:
+        """
+            Return the project name.
+
+            In this class, each project can have its own name.
+
+        Parameters
+        ----------
+
+        databaseName: str
+            The name of the database to
+
+        Returns
+        -------
+        str
+
+        The database name
+        """
 
         if databaseName is None:
             projectName = self._projectName

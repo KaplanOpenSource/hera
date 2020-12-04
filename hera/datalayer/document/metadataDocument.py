@@ -5,6 +5,25 @@ from ..datahandler import getHandler
 class MetadataFrame(object):
     """
         A basic structure for a document.
+
+        Each document is related to a project and described by the following fields:
+
+        - type : str : The type of the document.
+                       This is an helper attribute that is used to query the data.
+
+        - resource: str: The resource that the document represents.
+                         This can be either path to a file on the disk or the data itself.
+
+        - dataFormat : str: The format of the data. Taken from ::class:`..datatypes.datatypes`
+
+        - desc: dict: A dictionary of arbitrary format tha tholds the metadata of the record.
+
+        - id : str : The id of the record in the DB.
+
+
+
+
+
     """
     projectName = StringField(required=True)
     desc = DictField(required=True)
