@@ -1,4 +1,4 @@
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 
 import sys
 import os
@@ -43,6 +43,12 @@ from .utils.unum import  tonumber,tounum
 
 
 """
+ 1.1.2
+------
+  - Changes to the intepolations in the simulations module. 
+  - updated documentations. 
+   
+
  1.1.1
 ------ 
 
