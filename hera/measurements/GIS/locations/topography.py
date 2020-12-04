@@ -29,9 +29,9 @@ class datalayer(locationDatalayer):
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         self.setConfig()
 
-    def setConfig(self,Source="BNTL",dxdy=50, heightSource="USGS", user=None, **kwargs):
+    def setConfig(self, Source="BNTL", dxdy=50, heightSource="USGS", dbName=None, **kwargs):
         config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,**kwargs)
-        super().setConfig(config)
+        super().setConfig(config, dbName=dbName)
 
     def getHeight(self, latitude, longitude):
 

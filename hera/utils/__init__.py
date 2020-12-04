@@ -1,6 +1,5 @@
-from unum.units import *
+import logging
 from unum import Unum
-from unum import NameConflictError
 
 def andClause(excludeFields=[], **kwargs):
 
@@ -24,22 +23,24 @@ def andClause(excludeFields=[], **kwargs):
     return " and ".join(L)
 
 
-
 tonumber = lambda x,theunit: x.asNumber(theunit) if isinstance(x,Unum) else x
-tounum = lambda x,theunit: x.asUnit(theunit) if isinstance(x,Unum) else x*theunit
+tounit   = lambda x,theunit: x.asUnit(theunit) if isinstance(x,Unum) else x*theunit
+
+toMeteorlogicalAngle = lambda mathematical_angle: (270-mathematical_angle) if ((270-mathematical_angle) >= 0) else (630-mathematical_angle)
+toMathematicalAngle  = toMeteorlogicalAngle
 
 
-def toMeteorologicalAngle(mathematical_angle):
-	return (270-mathematical_angle) if ((270-mathematical_angle)   >= 0)   else (630-mathematical_angle)
-def toMatematicalAngle(meteorological_angle):
-	return (270-meteorological_angle) if ((270-meteorological_angle) >= 0) else (630 - meteorological_angle)
+#############
 
-def toAzimuthAngle(mathematical_angle):
-	return (90-mathematical_angle) if ((90-mathematical_angle) >= 0) else (450 - mathematical_angle)
+class loggedObject:
 
+    _logger = None
 
-try:
-	dosage = Unum.unit('dosage',mg*min/m**3,"Exposure dosage")
-# except NameConflictError:
-except NameConflictError:
-	pass
+    @property
+    def logger(self):
+        return self._logger
+
+    def __init__(self):
+        name = ".".join(str(self.__class__)[8:-2].split(".")[1:])
+        self._logger = logging.getLogger(name)
+

@@ -31,14 +31,20 @@ release = '1.0.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinx.ext.autodoc',
-	      'sphinx_gallery.gen_gallery',
 	      'nbsphinx',
 	      'numpydoc',
 		  'sphinx.ext.autosectionlabel'
 	     ]
-sphinx_gallery_conf = {'examples_dirs': 'examples',   # path to your example scripts
-		       'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
-		      }
+
+# extensions = ['sphinx.ext.autodoc',
+# 	      'sphinx_gallery.gen_gallery',
+# 	      'nbsphinx',
+# 	      'numpydoc'
+# 	     ]
+
+# sphinx_gallery_conf = {'examples_dirs': 'examples',   # path to your example scripts
+# 		       'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+# 		      }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -54,7 +60,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'pydata_sphinx_theme'
+html_theme = 'pandas_sphinx_theme'
 #html_theme = 'pydata_sphinx_theme'
 
 # Add any paths that contain custom static files (such as style sheets) here,
