@@ -94,14 +94,15 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		for ((severity,timestamp),data) in self.groupby(["severity","datetime"]):
 			for indx,row in data.iterrows():
 				curpoly = shiftedPolygons.loc[indx]
-				res     = pop.projectPolygonOnPopulation(Data=demog_data,Shape=curpoly, populationTypes=population)
-				if len(res) > 0:
-					for popu in population:
-						res['effected%s' % popu] = res[popu]*row.percentEffected
-					res['percentEffected']  = row.percentEffected
-					res['ToxicLoad']        = row.ToxicLoad
-					res['severity'] = severity 
-					res['datetime'] = timestamp 
-					retList.append(res) 
+				if curpoly.is_valid:
+					res     = pop.projectPolygonOnPopulation(Data=demog_data,Shape=curpoly, populationTypes=population)
+					if len(res) > 0:
+						for popu in population:
+							res['effected%s' % popu] = res[popu]*row.percentEffected
+						res['percentEffected']  = row.percentEffected
+						res['ToxicLoad']        = row.ToxicLoad
+						res['severity'] = severity
+						res['datetime'] = timestamp
+						retList.append(res)
 
 		return None if len(retList) ==0 else pandas.concat(retList)

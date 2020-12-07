@@ -54,7 +54,7 @@ def centersToPandas(skipend, filepath='C', skiphead = 22, saveToTxt=False, fileN
 
     return cellData
 
-def groundToPandas(casePath,times, ground="ground",fillna=True,fillVal=0):
+def makeCellHeights(casePath,times, ground="ground",fileName="cellHeights",fillna=True,fillVal=0):
     f = open(os.path.join(casePath,"0","cellCenters"), "r")
     lines = f.readlines()
     f.close()
@@ -105,7 +105,7 @@ def groundToPandas(casePath,times, ground="ground",fillna=True,fillVal=0):
     for i in range(boundaryLine,len(boundarylines)):
          newFileString += boundarylines[i]
     for time in times:
-         with open(os.path.join(casePath,str(time),"cellHeights"),"w") as newFile:
+         with open(os.path.join(casePath,str(time),fileName),"w") as newFile:
             newFile.write(newFileString)
 
 
