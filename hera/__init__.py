@@ -1,4 +1,4 @@
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 
 import sys
 import os
@@ -37,11 +37,18 @@ logging.config.dictConfig(log_conf)
 
 
 
-#from .utils import toAzimuthAngle,toMatematicalAngle,toMeteorologicalAngle,tonumber,tounum
-from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
+from .utils.angle import toMathematicalAngle,toMeteorlogicalAngle
+from .utils.unum import  tonumber,tounum
+
 
 
 """
+ 1.1.2
+------
+  - Changes to the intepolations in the simulations module. 
+  - updated documentations. 
+   
+
  1.1.1
 ------ 
 

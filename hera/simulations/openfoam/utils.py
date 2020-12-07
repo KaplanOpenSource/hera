@@ -24,13 +24,12 @@ def centersToPandas(skipend, filepath='C', skiphead = 22, saveToTxt=False, fileN
         The file name to save.
         Default: 'CellCenters.txt'
 
-    return
-    ------
+    Returns
+    --------
 
     cellData: pandas DF
 
     """
-
     cellData = pandas.read_csv(filepath, skiprows=skiphead,
                                skipfooter=skipend,
                                engine='python',
