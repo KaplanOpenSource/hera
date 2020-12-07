@@ -2,7 +2,7 @@ import pandas
 import getpass
 import numpy
 from . import getDBNamesFromJSON
-from ..utils import loggedObject
+from hera.utils.loggedObject import loggedObject
 
 from .collection import AbstractCollection,\
     Cache_Collection,\

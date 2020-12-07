@@ -5,7 +5,8 @@ import json
 from scipy.interpolate import interp1d
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
 from  PyFoam.Basics.DataStructures import Field
-from ....utils import loggedObject
+from hera.utils.loggedObject import loggedObject
+
 
 class spongeLayer(loggedObject):
     """
