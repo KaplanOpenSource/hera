@@ -9,8 +9,7 @@ version = sys.version_info[0]
 if version==3:
     from .measurements import meteorology as meteo
     from .measurements import GIS
-
-
+    from .simulations.evaporation.models import evaporationModels
     from .simulations import WRF
     from .simulations import LSM
     from .simulations import interpolations
