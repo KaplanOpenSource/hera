@@ -150,17 +150,8 @@ class Agent:
 				}
 			}
 
-<<<<<<< HEAD
-
-		configList = self.getMeasurementsDocuments(type='Agent',name=name)
-		if len(configList)==0:
-			raise ValueError(f"Agent {name} is not found. Load it with hera-risk-agent load")
-
-		self._agentconfig = configList[0].desc
-=======
 		"""
 		self._agentconfig = descriptor['agentConfig']
->>>>>>> 7fbf20536c81c54cd69d1745f88bbcb264158e82
 		self._effectParameters = self._agentconfig.get("effectParameters",{})
 
 		self._effects = {}
