@@ -36,7 +36,7 @@ logging.config.dictConfig(log_conf)
 
 
 
-from .utils.angle import toMathematicalAngle,toMeteorlogicalAngle
+from .utils.angle import toMathematicalAngle,toMeteorologicalAngle
 from .utils.unum import  tonumber,tounum
 
 

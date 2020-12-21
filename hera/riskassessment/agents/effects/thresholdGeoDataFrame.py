@@ -4,10 +4,12 @@ import pandas
 import geopandas 
 import pydoc
 from unum.units import *
-from .... import toMeteorologicalAngle,toMathematicalAngle
+#from .... import toMeteorologicalAngle,toMathematicalAngle
 from hera import GIS
 from hera.measurements.GIS.demography import datalayer as demoDatalayer
 pop = demoDatalayer(projectName="Demography", databaseNameList=None, useAll=False,publicProjectName="Demography")
+toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 
 class thresholdGeoDataFrame(geopandas.GeoDataFrame): 
 

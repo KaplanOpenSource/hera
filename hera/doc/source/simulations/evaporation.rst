@@ -11,5 +11,5 @@ Usage
 
 .. toctree::
     :maxdepth: 2
-
+    evaporation/usage
     evaporation/Models

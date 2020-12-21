@@ -1,6 +1,8 @@
 import numpy 
 import matplotlib.pyplot as plt 
-from ...utils import toMeteorologicalAngle,toMathematicalAngle
+#from ...utils import toMeteorologicalAngle,toMathematicalAngle
+toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 from descartes import PolygonPatch 
 
 class casualtiesPlot(object): 

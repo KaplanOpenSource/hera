@@ -36,7 +36,7 @@ FSG
 This model uses the next equations for the molecular diffusion:
 
 .. math::
-    D =10^{-3}\frac{T^{1.75}\sqrt{1/M_air+1/M_agent}}{\left(V_air^{1/3}+V_agent^{1/3}\right)^2}
+    D =10^{-7}\frac{T^{1.75}\sqrt{1/M_air+1/M_agent}}{\left(V_air^{1/3}+V_agent^{1/3}\right)^2}
     =diffusivity\;\left(\frac{m^2}{s}\right)\\
     T=temperature\;(K)\\
     M=molecular\;weight\;\left(\frac{g}{mol}\right)\\
@@ -48,7 +48,7 @@ EPA
 This model uses the next equations for the molecular diffusion:
 
 .. math::
-    D =0.0000409\frac{T^{1.9}\sqrt{1/M_air+1/M_agent}}{M_agent^{1/3}}
+    D =4.09\cdot10^{-9}\frac{T^{1.9}\sqrt{1/M_air+1/M_agent}}{M_agent^{1/3}}
     =diffusivity\;\left(\frac{m^2}{s}\right)\\
     T=temperature\;(K)\\
     M=molecular\;weight\;\left(\frac{g}{mol}\right)\\

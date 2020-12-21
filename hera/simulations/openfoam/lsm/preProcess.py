@@ -39,7 +39,7 @@ class preProcess(project.ProjectMultiDBPublic):
         self._cloudName = cloudName
 
 
-    def extractFile(self,path,time,names,skiphead=20,skipend=4):
+    def extractFile(self,path,time,names,skiphead=20,skipend=4,vector=True):
         """
         Extracts data from a csv file.
         params:
@@ -51,12 +51,13 @@ class preProcess(project.ProjectMultiDBPublic):
         """
         newData = dask.dataframe.read_csv(path, skiprows=skiphead,
                                   skipfooter=skipend, engine='python', header=None, delim_whitespace=True, names=names)
-        newData[names[0]] = newData[names[0]].str[1:]
-        newData[names[2]] = newData[names[2]].str[:-1]
+        if vector:
+            newData[names[0]] = newData[names[0]].str[1:]
+            newData[names[2]] = newData[names[2]].str[:-1]
         newData["time"] = time
         return newData.astype(float)
 
-    def extractRunResult(self,times = None,file=None,save=False,addToDB=True,withVelocity=False, **kwargs):
+    def extractRunResult(self, times = None, file=None, save=False, addToDB=True, withVelocity=False, withReleaseTimes=False,releaseTime=0, **kwargs):
         """
         Extracts results of an LSM run.
         parmas:
@@ -77,6 +78,9 @@ class preProcess(project.ProjectMultiDBPublic):
                     dataU = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/U",filename,['U_x', 'U_y', 'U_z'])
                     for col in ['U_x', 'U_y', 'U_z']:
                         newData[col] = dataU[col]
+                if withReleaseTimes:
+                    dataM = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/age",filename,['age'],vector=False)
+                    newData["releaseTime"] = dataM["time"]-dataM["age"]+releaseTime
                 data=data.append(newData)
             except:
                 pass
@@ -90,7 +94,7 @@ class preProcess(project.ProjectMultiDBPublic):
         return data
 
     def getConcentration(self, nParticles, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, save=False, addToDB=True, file=None, **kwargs):
+                         Qunits=mg, lengthUnits=m, timeUnits=s, save=False, addToDB=True, file=None,releaseTime=0, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -114,20 +118,35 @@ class preProcess(project.ProjectMultiDBPublic):
         dy = toNumber(toUnum(dy, lengthUnits), lengthUnits)
         dz = toNumber(toUnum(dz, lengthUnits), lengthUnits)
         dt = int(toNumber(toUnum(dt, timeUnits), timeUnits))
-        Q = toNumber(toUnum(Q, Qunits),Qunits)
+        withReleaseTimes=False
+        if type(Q)==list:
+            if len(Q) != endTime-startTime+1:
+                raise KeyError("Number of values in Q must be equal to the number of time steps!")
+            Q = [toNumber(toUnum(q, Qunits),Qunits) for q in Q]
+            releaseTimes = [releaseTime+ i for i in range(int(endTime-startTime+1))]
+            dataQ = pandas.DataFrame({"releaseTime":releaseTimes,"Q":Q})
+            withReleaseTimes = True
+        else:
+            Q = toNumber(toUnum(Q, Qunits),Qunits)
         datalist = []
         for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-            data = self.extractRunResult(times=[t for t in range(time, time + dt)])
+            data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime)
             data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
             data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
             data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
             data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
-            data["Dosage"] = Q/(nParticles * dx * dy * dz)
+            if type(Q)==list:
+                data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+            else:
+                data["Q"] = Q
+            data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
+            data = data.drop(columns="Q")
             data = data.groupby(["x","y","z","time"]).sum()
             data["Concentration"] = data["Dosage"] / dt
             datalist.append(data.compute())
             print(f"Finished times {time} to {time+dt}")
         data = pandas.concat(datalist).reset_index()
+
         if save:
             cur = os.getcwd()
             file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
