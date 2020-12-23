@@ -27,18 +27,29 @@ The concentration is achieved using the following function:
 .. code-block:: python
 
     from unum.units import *
-    Concentration = pre.getConcentration(nParticles=100000,endTime=100,file="somedirectory/somefilename.parquet"
+    Concentration = pre.getConcentration(endTime=100,file="somedirectory/somefilename.parquet"
                                          startTime=1,Q=1*kg, dt=10*s,dx=10*m,dy=10*m, dz=10*m,
-                                         Qunits=mg,lengthUnits=m,timeUnits=s,save=False,addToDB=True)
+                                         Qunits=mg,lengthUnits=m,timeUnits=s,nParticles=None,save=False,addToDB=True)
 
-nParticles is the total number of particles induced to the system.
 endTime is the final time step to read.
 All other parameters are optional; the values above are the default value, except for file, whose default is None.
+
 Q is the total mass of the particles.
+In case of an instantaneous release, one should deliver a value in units of mass, as shown above.
+In case of a continueous release with constant rate, one may either deliver a value in units of mass or mass over time.
+If the units are of mass, this is the mass which is released every time step.
+If the units are mass over time, Q defines the rate of the release.
+In case of a continueous release which is not constant with time, one should deliver a list of values in units of mass,
+which is equal in length to the number of time steps.
+
 The dx, dy, dz, dt parameters are the dimensions of the cells and time steps that are used
 to calculate the concentration.
 The "units" parameters are the units of the concentration (Qunits/(lengthUnits**3)
 and time in the final dataframe.
+
+nParticles is the number of particles released in a single time step. If nParticles is None, the number of particles is found using the kinematicCloudPositions file;
+if the function can't find the file it may ask the user to deliver the number to the function.
+
 If save is set to True, the concentration is saved under the file parameter name.
 If this parameter is None, it is saved in the current working directory under the name "Concentration.parquet".
 If addToDB is True, the data is added to the database. Any aditional descriptors may be given as **kwargs.

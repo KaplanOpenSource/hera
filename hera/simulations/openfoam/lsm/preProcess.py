@@ -93,8 +93,8 @@ class preProcess(project.ProjectMultiDBPublic):
                                             desc=dict(casePath=self.casePath,cloudName=self.cloudName,**kwargs))
         return data
 
-    def getConcentration(self, nParticles, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, save=False, addToDB=True, file=None,releaseTime=0, **kwargs):
+    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
+                         Qunits=mg, lengthUnits=m, timeUnits=s, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -114,6 +114,13 @@ class preProcess(project.ProjectMultiDBPublic):
         addToDB = a boolian parameter, to choose whether to save the data. default is True. It is used only if save is True.
         **kwargs = any additional parameters to add to the description in the DB.
         """
+        if nParticles is None:
+            with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
+                Lines = readFile.readlines()
+            try:
+                nParticles=int(Lines[15])
+            except:
+                raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
         dx = toNumber(toUnum(dx, lengthUnits), lengthUnits)
         dy = toNumber(toUnum(dy, lengthUnits), lengthUnits)
         dz = toNumber(toUnum(dz, lengthUnits), lengthUnits)
@@ -122,12 +129,18 @@ class preProcess(project.ProjectMultiDBPublic):
         if type(Q)==list:
             if len(Q) != endTime-startTime+1:
                 raise KeyError("Number of values in Q must be equal to the number of time steps!")
-            Q = [toNumber(toUnum(q, Qunits),Qunits) for q in Q]
+            try:
+                Q = [toNumber(toUnum(q, Qunits),Qunits) for q in Q]
+            except:
+                Q = [toNumber(toUnum(q, Qunits), Qunits/timeUnits) for q in Q]
             releaseTimes = [releaseTime+ i for i in range(int(endTime-startTime+1))]
             dataQ = pandas.DataFrame({"releaseTime":releaseTimes,"Q":Q})
             withReleaseTimes = True
         else:
-            Q = toNumber(toUnum(Q, Qunits),Qunits)
+            try:
+                Q = toNumber(toUnum(Q, Qunits),Qunits)
+            except:
+                Q = toNumber(toUnum(Q, Qunits), Qunits/timeUnits)
         datalist = []
         for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
             data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime)
