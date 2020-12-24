@@ -16,8 +16,8 @@ class argsHandler(Project):
 
     def __init__(self,projectName=None):
         projectName = "OpenFoamRuns" if projectName is None else projectName
-        super().__init__(projectName)
-
+        super().__init__(projectName,loggerName="bin")
+        self.logger.info("Initialize")
 
     def _expand_and_load(self,templatePath,newTemplatePath,loadToDB=True):
 
@@ -33,20 +33,36 @@ class argsHandler(Project):
         expander = expandWorkflow()
         newTemplate = expander.expand(templatePath)
 
-
         if loadToDB:
             self.logger.info("Saving template to the DB")
-            doc=self.addSimulationsDocument(resource=newTemplate['CaseDirectory'],
+            doc=self.addSimulationsDocument(resource=newTemplate['workflow']['nodes']['Parameters']['GUI']["WebGui"]["formData"]['caseDirectory'],
                                        dataFormat='string',
                                        type=self.templateDocType,
                                        desc=dict(OF_Workflow=newTemplate)) #desc=dict(OF_Workflow=newTemplate
+            print(doc.id)
+            newPath=os.path.join(newTemplate['workflow']['nodes']['Parameters']['GUI']["WebGui"]["formData"]['caseDirectory'],str(doc.id))
+            #newPath=os.path.join(newTemplate['CaseDirectory'],str(doc.id))
+            #newTemplate['workflow']['nodes']['copyDirectory']["GUI"]["Properties"]["Target"]["current_val"]=newPath
+            newTemplate['workflow']['nodes']['Parameters']['GUI']["WebGui"]["formData"]['caseDirectory']=newPath
 
-            newPath=os.path.join(newTemplate['CaseDirectory'],str(doc.id))
-            newTemplate['workflow']['nodes']['copyDirectory']["GUI"]["Properties"]["Target"]["current_val"]=newPath
-            newTemplate['CaseDirectory']=newPath
+            if 'copyDirectory' in newTemplate['workflow']['nodeList']:
+                sourceFolder = newTemplate['workflow']['nodes']['Parameters']['GUI']["WebGui"]["formData"]['OFtemplateDirectory']
+                json_files = [f for f in os.listdir(sourceFolder) if f.endswith('.json')]
+
+                if len(json_files) > 1:
+                    raise self.logger.warning(f"found more then single json in {sourceFolder}. only parameter json file should exists")
+                try:
+                    with open(os.path.join(sourceFolder, json_files[0])) as f:
+                        templateParams = json.load(f)
+
+                    newTemplate['templateParams'] = templateParams
+                except:
+                    self.logger.warning(f"no template parameter json file in {sourceFolder}")
+            self.logger.info("updating template to the DB")
             doc.resource=newPath
             doc.desc['OF_Workflow']=newTemplate
             doc.save()
+            self.logger.info("workflow parameters updated and saved to DB")
 
 
         with open(newTemplatePath, 'w') as fp:
@@ -174,7 +190,7 @@ if __name__=="__main__":
     parser.add_argument('-noDB', action='store_true')
     args = parser.parse_args()
     funcName = args.command[0]
-    projectName = args.args[-1] if not args.noDB and funcName=='expand' else None
+    projectName = args.args[-1] if not args.noDB and funcName in ['runAll','expand'] else None
 
     handler = argsHandler(projectName)
     function = getattr(handler,f"{funcName}_handler")

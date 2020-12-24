@@ -98,7 +98,7 @@ class Project(loggedObject):
         """
         return self._simulations
 
-    def __init__(self, projectName, databaseName=None):
+    def __init__(self, projectName, databaseName=None,loggerName=None):
         """
             Initialize the project.
 
@@ -108,8 +108,10 @@ class Project(loggedObject):
         :param databaseName: str
                 the name of the database to use. If None, use the default database (the name of the current databaseName).
 
+        :param loggerName: str
+                Determine the name of the logger. if None, use the classpath of the current class.
         """
-        super().__init__()
+        super().__init__(loggerName=loggerName)
         self._projectName = projectName
 
         self._measurements  = Measurements_Collection(user=databaseName)

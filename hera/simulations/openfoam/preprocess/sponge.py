@@ -7,6 +7,18 @@ from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
 from  PyFoam.Basics.DataStructures import Field
 from ....utils import loggedObject
 
+
+class sponge_handler(object):
+
+    def run(self,**params):
+
+
+
+        caseDirectory = params['caseDirectory']
+        spongeLayerObj = spongeLayer(params["Parameters"], caseDirectory)
+        spongeLayerObj.CreateAlphaFile()
+
+
 class spongeLayer(loggedObject):
     """
     This class manages the creation of an alpha file which will be used in the run to create a sponge layer.
@@ -45,8 +57,9 @@ class spongeLayer(loggedObject):
     _centerFile = None
     _alpha      = None
     _dirMap     = None
+    caseDirectory=None
 
-    def __init__(self, params, CellCentersFile="0/C", ScalarFieldFile="0/p"):
+    def __init__(self, params,caseDirectory, CellCentersFile="0/C", ScalarFieldFile="0/p"):
 
         """
 
@@ -71,13 +84,15 @@ class spongeLayer(loggedObject):
                 self.params=json.loads(params)
         else:
             self.params=dict(params)
+        self.caseDirectory=caseDirectory
 
         self.logger.execution(f"got parameters from {params}")
         self.logger.info("Reading cell centers")
 
-        self._centerFile = ParsedParameterFile(CellCentersFile)
+
+        self._centerFile = ParsedParameterFile(os.path.join(self.caseDirectory, CellCentersFile))
         self.logger.info("Reading alpha template")
-        self._alpha      = ParsedParameterFile(ScalarFieldFile)
+        self._alpha      = ParsedParameterFile(os.path.join(self.caseDirectory,ScalarFieldFile))
         self._dirMap=dict(x=0,y=1,z=2)
 
 
@@ -156,12 +171,13 @@ class spongeLayer(loggedObject):
         Runs all necessary functions from the spongeLayer class and saves the result as a 'fileName' file
 
         """
-
+        print('CreateAlphaFile started')
         tmpField = self.itrSpongeAreas()
 
         self._alpha.content['dimensions']= self.params['dimensions']
         self._alpha['internalField']=tmpField
 
-        self._alpha.writeFileAs(os.path.join('constant',self.params['fileName']))
+        print(f"saving new file to:{os.path.join(self.caseDirectory,'constant',self.params['fileName'])}")
+        self._alpha.writeFileAs(os.path.join(self.caseDirectory,'constant',self.params['fileName']))
 
 

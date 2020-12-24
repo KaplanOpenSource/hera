@@ -28,6 +28,7 @@ with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config')
 EXECUTION = 15
 logging.addLevelName(EXECUTION, 'EXECUTION')
 
+
 def execution(self, message, *args, **kws):
     self.log(EXECUTION, message, *args, **kws)
 
