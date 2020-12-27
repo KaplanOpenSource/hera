@@ -68,9 +68,10 @@ class bibItem:
                         # and it has comma in the end, remove it.
                         # raise a flag to and the 've' to the next word.
                         if len(sentence) > indx-1:
-                            if sentence[indx-1][-1] ==',':
-                                # remove the comma.
-                                sentence[indx - 1] = sentence[indx - 1][:-1]
+                            if len(sentence[indx-1]) > 0:
+                                if sentence[indx-1][-1] ==',':
+                                    # remove the comma.
+                                    sentence[indx - 1] = sentence[indx - 1][:-1]
                             addVe = True
                             continue
 
@@ -201,7 +202,7 @@ class bibtexFile:
 
     def convert(self):
         final = []
-        for itm in bb.items:
+        for itm in self.items:
             final.append(itm.convert())
 
         return "\n".join([self._first_last_Lines[0]] + final + [self._first_last_Lines[0]])
