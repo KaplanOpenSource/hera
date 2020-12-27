@@ -227,7 +227,7 @@ class DailyPlots(Plots):
         super().__init__()
 
         self._linedict=dict(zorder=4,
-                            color='magenta',
+                            #color='magenta',
                             linestyle='-',
                             linewidth=3
                             # size=0.5,
