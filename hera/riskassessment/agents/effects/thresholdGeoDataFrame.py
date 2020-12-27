@@ -44,9 +44,9 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
                         that represetents the parameters that will pass to the GISResource. 
 
 			:param: loc - the location of the fall. 
-			:param: meteorological_angle - wind  in meteorological angle. 
+			:param: meteorological_angle - wind  in meteorology angle.
 							either this or the mathematical_angle
-			:param: mathematical_angle   - wind  in meteorological angle.
+			:param: mathematical_angle   - wind  in meteorology angle.
 							either this or the meteorological_angle 
 		"""
 		if isinstance(meteorological_angle,collections.Iterable): 

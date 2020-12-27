@@ -246,7 +246,7 @@ class InjuryThreshold(Injury):
 		return ret 
 
 
-class ExponentialThreshold(Injury): 
+class InjuryExponential(Injury):
 
 	def _postCalculate(self,retList,time): 
 		"""

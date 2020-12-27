@@ -17,7 +17,7 @@ class GIS_datalayer:
 
         self._FilesDirectory = FilesDirectory
         self._projectName = projectName
-        self._projectMultiDB = datalayer.ProjectMultiDB(projectName=projectName,users=users, useAll=useAll)
+        self._projectMultiDB = datalayer.ProjectMultiDB(projectNameDict=projectName, users=users, useAll=useAll)
 
         os.system("mkdir -p %s" % self._FilesDirectory)
 
@@ -48,7 +48,7 @@ class GIS_datalayer:
             path = self._projectMultiDB.getMeasurementsDocumentsAsDict(type="GISOrigin")["documents"][0]["resource"]
             fullPath = "%s/%s" % (path, fullfilesdirect[mode])
         else:
-            publicproject = datalayer.ProjectMultiDB(projectName="PublicData",users=["public"])
+            publicproject = datalayer.ProjectMultiDB(projectNameDict="PublicData", users=["public"])
             fullPath = publicproject.getMeasurementsDocumentsAsDict(type="GIS",mode=mode)["documents"][0]["resource"]
 
         if additional_data is not None:
@@ -314,3 +314,45 @@ class GIS_datalayer:
 
         return data
 
+
+    def loadImage(self, path, locationName, extents):
+        """
+        Loads an image to the local database.
+
+        Parameters:
+        -----------
+
+        projectName: str
+                    The project name
+        path:  str
+                    The image path
+        locationName: str
+                    The location name
+        extents: list or dict
+                list: The extents of the image [xmin, xmax, ymin, ymax]
+                dict: A dict with the keys xmin,xmax,ymin,ymax
+
+
+        Returns
+        -------
+        """
+
+        if isinstance(extents,dict):
+            extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
+        elif isinstance(extents,list):
+            extentList = extents
+        else:
+            raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+
+
+        doc = dict(resource=path,
+                   dataFormat='image',
+                   type='GIS',
+                   desc=dict(locationName=locationName,
+                             xmin=extentList[0],
+                             xmax=extentList[1],
+                             ymin=extentList[2],
+                             ymax=extentList[3]
+                             )
+                   )
+        self._projectMultiDB.addMeasurementsDocument(**doc)

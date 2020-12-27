@@ -1,9 +1,7 @@
 import numpy 
 import matplotlib.pyplot as plt 
-from .. import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
+from ....utils import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
 from descartes import PolygonPatch 
-from matplotlib.collections 	import PatchCollection 
-from shapely.geometry 		import GeometryCollection,LineString
 
 class casualtiesPlot(object): 
 
@@ -60,7 +58,7 @@ class casualtiesPlot(object):
 			ax.bar(pivotedData[angleColumn],pivotedData[severity],label=severity,bottom=bottom,**plotprops)
 			bottom += pivotedData[severity]
 		
-		# setting meteorological angles. 
+		# setting meteorology angles.
 		metlist = ["$%d^o$" % coordsTickConvertor(x) for x in numpy.linspace(0,360,9)]
 		ax.set_xticklabels(metlist)
 
@@ -104,7 +102,7 @@ class casualtiesPlot(object):
 			plt.sca(ax)
 
 		if ((meteorological_angle is None) and (mathematical_angle is None)): 
-			raise ValueError("Must supply meteorological or mathematical angle") 
+			raise ValueError("Must supply meteorology or mathematical angle")
 
 		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMatematicalAngle(meteorological_angle)
 		retProj		= results.project(area,loc,mathematical_angle=rotate_angle)

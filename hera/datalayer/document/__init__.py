@@ -2,7 +2,7 @@ from mongoengine import *
 import os
 import json
 import getpass
-from .metadataDocument import MetadataFrame
+from .metadataDocument import MetadataFrame,nonDBMetadataFrame
 
 dbObjects = {}
 
@@ -72,6 +72,11 @@ def connectToDatabase(mongoConfig,alias=None):
                 - username: the unsername to log in with.
                 - password : the user password.
 
+                str
+                defines a connection string.
+
+                username:password@dbIP/dbName
+
     alias: str
             An alternative alias. Used mainly for parallel applications.
 
@@ -79,6 +84,9 @@ def connectToDatabase(mongoConfig,alias=None):
     -------
         mongodb connection.
     """
+    if isinstance(mongoConfig,str):
+        mongoConfig = parseConnectionString(mongoConfig)
+
     alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
 
     con = connect(alias=alias,
@@ -125,6 +133,9 @@ def createDBConnection(user, mongoConfig,alias=None):
         return the DBdict.
     """
     dbDict = {}
+    if isinstance(mongoConfig,str):
+        mongoConfig = parseConnectionString(mongoConfig)
+
 
     con = connectToDatabase(mongoConfig=mongoConfig,alias=alias)
 
@@ -187,6 +198,13 @@ def getDBObject(objectName, user=None):
 
     return ret
 
+def parseConnectionString(conStr):
+    username, password = conStr.split("@")[0].split(":")
+    dbIP, dbName = conStr.split("@")[1].split("/")
+    return dict(username=username,
+                       password=password,
+                       dbName=dbName,
+                       dbIP=dbIP)
 
 
 # ---------------------default connections--------------------------

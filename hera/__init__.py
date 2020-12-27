@@ -1,26 +1,80 @@
-__version__ = '0.7.1'
-
+__version__ = '1.1.2'
 
 import sys
+import os
+import json
+
 ## Load modules if it is python 3.
 version = sys.version_info[0]
 if version==3:
-    from .simulations import WRF
-    from .measurements import meteorological as meteo
-    from .simulations import LSM
-    from .simulations.LSM.DataLayer import SingleSimulation
+    from .measurements import meteorology as meteo
     from .measurements import GIS
-    from .simulations.interpolations.interpolations import spatialInterpolate
+
+
+    from .simulations import WRF
+    from .simulations import LSM
+    from .simulations import interpolations
+
+    #from .risk import riskassessment
+
 from .simulations import openfoam
 
+import logging.config
+
+with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
+     log_conf_str = logconfile.read().replace("\n","")
+     log_conf = json.loads(log_conf_str.replace("{herapath}",os.path.dirname(__file__)))
+
+EXECUTION = 15
+logging.addLevelName(EXECUTION, 'EXECUTION')
+
+def execution(self, message, *args, **kws):
+    self.log(EXECUTION, message, *args, **kws)
+
+logging.Logger.execution = execution
+
+logging.config.dictConfig(log_conf)
+
+
+
+from .utils.angle import toMathematicalAngle,toMeteorlogicalAngle
+from .utils.unum import  tonumber,tounum
+
+
+
 """
- 0.7.1
+ 1.1.2
+------
+  - Changes to the intepolations in the simulations module. 
+  - updated documentations. 
+   
+
+ 1.1.1
+------ 
+
+    - Changes to the  command lines. 
+    - Rearranging the meteorology. 
+
+
+ 1.0.0
  -----
-    - Added the 'all' to project 
-     
+    - Introduced tools. 
+        - The GIS tools work  
+    - Project classes are equipped with a logger. 
+
+ This version consists a structural change that introduces concept of Tools. 
+ 
+ A tool is a set of library functions that is designed to handle a single type of data. 
+ Many tools also include a capability to search for public data automatically. 
+ 
+ The change is cosmetic, but also includes several new concepts in tools such as datasource. 
+ A datasource is the name of data that will be used by default by the tool. For examplt the BNTL data 
+ is the default datasource of the mesasurements.GIS.topography tool. In this 
+ example, the default datasource is stored in the public database. 
+ 
  0.7.0
  -----
-  - Adding the riskassessmet package. 
+  - Adding the riskassessment package. 
   - Adding the simulations/gaussian package. 
   - adding the simulation/evaporation package. 
 
@@ -39,7 +93,7 @@ from .simulations import openfoam
 
  0.5.0
  -----
- Changed the meteorological structure(datalayer and presentaionlayer)
+ Changed the meteorology structure(datalayer and presentaionlayer)
 
  0.4.1
  -----

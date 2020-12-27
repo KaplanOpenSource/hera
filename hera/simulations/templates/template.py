@@ -33,7 +33,7 @@ class LSMTemplate(object):
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self, saveDir, projectName='LSM', to_xarray=False, to_database=False, **kwargs):
+    def run(self, saveDir, projectName='LSM', to_xarray=True, to_database=True, **kwargs):
         """
         Execute the LSM simulation
 
@@ -55,6 +55,7 @@ class LSMTemplate(object):
         # create the input file.
         # paramsMap['wind_dir'] = self.paramsMap['wind_dir_meteorological']
         self._document['desc']['params'].update(kwargs)
+        print(self.dirPath)
         ifmc = InputForModelsCreator(self.dirPath) # was os.path.dirname(__file__)
         ifmc.setParamsMap(self.params)
         ifmc.setTemplate('%s_%s' % (self.modelName, self.version))

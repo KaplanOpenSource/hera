@@ -261,16 +261,14 @@ class InjuryLevelExponential(InjuryLevel):
 
 	def __init__(self,name,calculator,**parameters): 
 
-		if "threshold" not in parameters: 
-			raise ValueError("Cannot find the threshold")
 
-		parameters["k"] = float(eval(parameters["k"])) 
+		parameters["k"] = float(parameters["k"])
 
-		super(InjuryLevelThreshold,self).__init__(name,calculator,**parameters)
+		super().__init__(name,calculator,**parameters)
 
 	def getPercent(self,ToxicLoad):
 		
-		ret = 1-numpy.exp(self.k*numpy.array(ToxicLoad))
+		ret = 1-numpy.exp(-self.k*numpy.array(ToxicLoad))
 		return ret 
 
 	def _getGeopandas(self,concentrationField,x,y,**parameters):

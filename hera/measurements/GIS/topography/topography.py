@@ -28,23 +28,23 @@ def get_altitdue_gdal(lat, lon):
         fheight = r'/data3/nirb/10N030E_20101117_gmted_med075.tif'    
         fheight = r'/data3/nirb/30N030E_20101117_gmted_med075.tif'    
         #https://dds.cr.usgs.gov/srtm/version2_1/SRTM3/Africa/   # 90m resolution     
-        if lat>29 and lat<30 and lon>34 and lon<35:
+        if   lat>=29 and lat<30 and lon>=34 and lon<35:
             fheight = r'/data3/nirb/N29E034.hgt'
-        elif lat>29 and lat<30 and lon>35 and lon<36:
+        elif lat>=29 and lat<30 and lon>=35 and lon<36:
             fheight = r'/data3/nirb/N29E035.hgt'
-        elif lat>30 and lat<31 and lon>34 and lon<35:
+        elif lat>=30 and lat<31 and lon>=34 and lon<35:
             fheight = r'/data3/nirb/N30E034.hgt'
-        elif lat>30 and lat<31 and lon>35 and lon<36:
+        elif lat>=30 and lat<31 and lon>=35 and lon<36:
             fheight = r'/data3/nirb/N30E035.hgt'
-        elif lat>31 and lat<32 and lon>34 and lon<35:
+        elif lat>=31 and lat<32 and lon>=34 and lon<35:
             fheight = r'/data3/nirb/N31E034.hgt'
-        elif lat>31 and lat<32 and lon>35 and lon<36:
+        elif lat>=31 and lat<32 and lon>=35 and lon<36:
             fheight = r'/data3/nirb/N31E035.hgt'
-        elif lat>32 and lat<33 and lon>34 and lon<35:
+        elif lat>=32 and lat<33 and lon>=34 and lon<35:
             fheight = r'/data3/nirb/N32E034.hgt'
-        elif lat>32 and lat<33 and lon>35 and lon<36:
+        elif lat>=32 and lat<33 and lon>=35 and lon<36:
             fheight = r'/data3/nirb/N32E035.hgt'
-        elif lat>33 and lat<33 and lon>35 and lon<36:
+        elif lat>=33 and lat<33 and lon>=35 and lon<36:
             fheight = r'/data3/nirb/N33E035.hgt'
         else:
             print ('!!!!NOT in Israel !!!!!!!!')            
@@ -57,12 +57,30 @@ def get_altitdue_gdal(lat, lon):
         gt = ds.GetGeoTransform()
         rastery = (lon - gt[0]) / gt[1]
         rasterx = (lat - gt[3]) / gt[5]
+        rasterx1 = int(rasterx)+1
+        rastery1 = int(rastery)+1
+        if int(rasterx)+1>myarray.shape[0]:
+            print('out of file bounds')
+        if int(rasterx)+1==myarray.shape[0]:
+            # we assume that if the coordinate is greater than the file limit, it is very close to it
+            # better way is to choose the file chooser better, e.g. 34.999583333333334 instead of 35
+            rasterx1 = int(rasterx)            
+        if int(rastery)+1>myarray.shape[1]:
+            print('out of file bounds')
+        if int(rastery)+1==myarray.shape[1]:
+            # we assume that if the coordinate is greater than the file limit, it is very close to it
+            # better way is to choose the file chooser better, e.g. 34.999583333333334 instead of 35
+            rastery1 = int(rastery)
+            
+            
         height11 = myarray[int(rasterx),int(rastery)]
-        height12 = myarray[int(rasterx)+1,int(rastery)]
-        height21 = myarray[int(rasterx),int(rastery)+1]
-        height22 = myarray[int(rasterx)+1,int(rastery)+1]
+        height12 = myarray[rasterx1,int(rastery)]
+        height21 = myarray[int(rasterx),rastery1]
+        height22 = myarray[rasterx1,rastery1]
+
         height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
         height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
+
         height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
         
         return height
@@ -76,7 +94,9 @@ if __name__ == "__main__":
 #    lat = 33.459  // elevation should be ~820 according to amud anan  
     lon = 35.234987 # 744m
     lat = 31.777978 # 744m
+    lon = 34.999998634427406 # Haifa
+    lat = 32.79598183313829 # Haifa
     alt1 = get_altitdue_ip(lat,lon)
     alt2 = get_altitdue_gdal(lat,lon)
-    print("the altitude at position: ",lat,lon," is ", alt1, alt2) 
+    print("the altitude at position: ",lat,lon," is ", alt1,' (using api), ', alt2,' (using file)') 
 

@@ -1,11 +1,97 @@
-import os 
-import json 
-from  pyriskassessment.agents import effects
-from  hera.simulations.utils import toNumber,toUnum
 from unum.units import *
-from ..heraDatalayer.heraDatalayer import heraDatalayer
+from .effects import  injuryfactory
+from ...utils import tonumber,tounum
 
-class Agent(object): 
+from ...datalayer import ProjectMultiDBPublic
+
+
+class AgentHome(ProjectMultiDBPublic):
+	"""
+		A class to load and get agents.
+
+		Supports retrieval from the DB and initializing from a descriptor.
+
+	"""
+
+	def __init__(self, projectName="AgentsCollection"):
+		super().__init__(projectName=projectName, publicProjectName="AgentsCollection")
+
+
+
+	def getAgent(self, nameOrDesc):
+		"""
+			Initialize the agents.
+
+		:param nameOrDesc: str or JSON.
+			Can be either the name of the agent (str) or
+			the descriptor
+
+			{
+				"name" : [the name of the agent],
+				"effectParameters" : {
+					TenBergeCoefficient and ect.
+				},
+				"effects": {
+					"effect name" : { effect data (+ injury levels) }
+
+
+				}
+			}
+
+
+		:param projectName: str
+				The name of the project in the local DB that will be searched for the agent.
+		:return:
+		"""
+		if isinstance(nameOrDesc,str):
+			configList = self.getMeasurementsDocuments(type='Agent',name=nameOrDesc)
+			if len(configList)==0:
+				raise ValueError(f"Agent {nameOrDesc} is not found. Load it with hera-risk-agent load")
+			descriptor = configList.desc
+		elif isinstance(nameOrDesc,dict):
+			descriptor = nameOrDesc
+		else:
+			raise ValueError("nameOrDesc must be the agent name (str) or its JSON description (dict) ")
+
+		return Agent(descriptor)
+
+
+	def listAgents(self):
+		"""
+			Lists the agents that are currently loaded in the DB (both local and public).
+
+		:return: list
+			A list of agent names.
+
+		"""
+		configList = self.getMeasurementsDocuments(type='Agent')
+		return [x.desc['name'] for x in configList]
+
+
+	def loadAgent(self,name,agentDescription,public=True):
+		"""
+			Adds the agent to the DB. Either to the public or to the local DB.
+
+		:param name: str
+				Agent name
+		:param agentDescription: dict
+				The agent description
+
+		:return:
+				None
+		"""
+
+		agentDescription['name'] = name
+
+		destDB = "public" if public else None
+
+		self.addMeasurementsDocument(resource="",
+									 type="Agent",
+									 dataFormat="string",
+									 users=destDB ,
+									 desc=agentDescription)
+
+class Agent:
 
 	_effects = None 
 
@@ -37,38 +123,46 @@ class Agent(object):
 	def tenbergeCoefficient(self,value):
 		self._effectParameters["tenbergeCoefficient"] = float(value)
 		for effectname,effectconfig in self._agentconfig["effects"].items():
-			self._effects[effectname] = effects.injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
+			self._effects[effectname] = injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
 
-	def __init__(self,name, projectName="AgentsCollection"):
+
+	def __init__(self,descriptor):
 		"""
-			Reads the agent json. 
-			The name of the agent is the configuration file. 
+			Constructor of the Agent project.
+
+			Initializes an agent.
+
+
+		Parameters
+		-----------
+		descriptor: JSON
+			A JSON object (dict) that holds all the information on the agent.
 
 			{
-				"effectParameters" : { 
-					TenBergeCoefficient and ect. 
+				"name" : [the name of the agent],
+				"effectParameters" : {
+					TenBergeCoefficient and ect.
 				},
-				"effects": { 
-					"effect name" : { effect data (+ injury levels) } 
-					
+				"effects": {
+					"effect name" : { effect data (+ injury levels) }
+
 
 				}
 			}
+
 		"""
-		# conffile = os.path.join(os.path.expanduser("~"),".pyriskassessment","%s.json" % name)
-		# with open(conffile,'r') as config:
-		# 	self._agentconfig = json.load(config)
-		self._agentconfig = heraDatalayer().getAgent(projectName=projectName, Agent=name)
-		
+		self._agentconfig = descriptor['agentConfig']
 		self._effectParameters = self._agentconfig.get("effectParameters",{})
 
 		self._effects = {}
 		for effectname,effectconfig in self._agentconfig["effects"].items():
-			self._effects[effectname] = effects.injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
+			self._effects[effectname] = injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
 
 		self.__dict__.update(self._effects)
 
 		self._physicalproperties = PhysicalPropeties(self._agentconfig)
+
+
 
 
 class PhysicalPropeties(object):
@@ -96,7 +190,7 @@ class PhysicalPropeties(object):
 
 	@molecularWeight.setter
 	def molecularWeight(self,value):
-		self._molecularWeight = toUnum(eval(value),g/mol)
+		self._molecularWeight = tounum(eval(value),g/mol)
 
 
 	@property
@@ -105,7 +199,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
-		self._sorptionCoefficient = toUnum(eval(value),cm/s)
+		self._sorptionCoefficient = tounum(eval(value),cm/s)
 
 	@property
 	def spreadFactor(self):
@@ -134,7 +228,7 @@ class PhysicalPropeties(object):
 		:return:
 			The vapor saturation as Unum.
 		"""
-		temperature = toNumber(temperature,celsius)
+		temperature = tonumber(temperature,celsius)
 		MW = self.getMolecularWeight().asNumber(g/mol)
 
 		a,b,c,d = self._volatilityConst
@@ -154,7 +248,7 @@ class PhysicalPropeties(object):
 			:return:
 				The density as Unum
 		"""
-		temperature = toNumber(temperature,celsius)
+		temperature = tonumber(temperature,celsius)
 		a,b,c = self._densityConst
 
 		return (a-b*(temperature-c))*g/cm**3
