@@ -205,7 +205,7 @@ class bibtexFile:
         for itm in self.items:
             final.append(itm.convert())
 
-        return "\n".join([self._first_last_Lines[0]] + final + [self._first_last_Lines[0]])
+        return "\n".join([self._first_last_Lines[0]] + final + [self._first_last_Lines[1]])
 
 
 if __name__ == "__main__":
