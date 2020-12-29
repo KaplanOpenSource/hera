@@ -12,3 +12,4 @@ else:
     OFdatalayer=openfoam_Datalayer()
     from .utils import centersToPandas
     from .utils import makeCellHeights
+    from .utils import makeUstar

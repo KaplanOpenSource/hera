@@ -132,7 +132,7 @@ class analysis():
 
         return dataframe
 
-    def toSTL(self, data, NewFileName, save=True, addtoDB=True, flat=None, path=None, **kwargs):
+    def toSTL(self, data, NewFileName, save=True, addToDB=True, flat=None, path=None, **kwargs):
 
         """
         Converts a geopandas dataframe data to an stl file.
@@ -182,7 +182,7 @@ class analysis():
             new_file = open(new_file_path, "w")
             new_file.write(stlstr)
             newdata = newdata.reset_index()
-            if addtoDB:
+            if addToDB:
                 self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
                                                                        xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
                                                                        yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),

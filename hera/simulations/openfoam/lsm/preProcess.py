@@ -73,7 +73,7 @@ class preProcess(project.ProjectMultiDBPublic):
         times = os.listdir(self.casePath) if times is None else times
         for filename in times:
             try:
-                newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalPositions",filename,['x', 'y', 'z'])
+                newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalSigmaPositions",filename,['x', 'y', 'height'])
                 if withVelocity:
                     dataU = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/U",filename,['U_x', 'U_y', 'U_z'])
                     for col in ['U_x', 'U_y', 'U_z']:
@@ -114,6 +114,7 @@ class preProcess(project.ProjectMultiDBPublic):
         addToDB = a boolian parameter, to choose whether to save the data. default is True. It is used only if save is True.
         **kwargs = any additional parameters to add to the description in the DB.
         """
+
         if nParticles is None:
             with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
                 Lines = readFile.readlines()
@@ -125,54 +126,60 @@ class preProcess(project.ProjectMultiDBPublic):
         dy = toNumber(toUnum(dy, lengthUnits), lengthUnits)
         dz = toNumber(toUnum(dz, lengthUnits), lengthUnits)
         dt = int(toNumber(toUnum(dt, timeUnits), timeUnits))
-        withReleaseTimes=False
-        if type(Q)==list:
-            if len(Q) != endTime-startTime+1:
+        withReleaseTimes = False
+        if type(Q) == list:
+            if len(Q) != endTime - startTime + 1:
                 raise KeyError("Number of values in Q must be equal to the number of time steps!")
             try:
-                Q = [toNumber(toUnum(q, Qunits),Qunits) for q in Q]
+                Q = [toNumber(toUnum(q, Qunits), Qunits) for q in Q]
             except:
-                Q = [toNumber(toUnum(q, Qunits), Qunits/timeUnits) for q in Q]
-            releaseTimes = [releaseTime+ i for i in range(int(endTime-startTime+1))]
-            dataQ = pandas.DataFrame({"releaseTime":releaseTimes,"Q":Q})
+                Q = [toNumber(toUnum(q, Qunits), Qunits / timeUnits) for q in Q]
+            releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
+            dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
             withReleaseTimes = True
         else:
             try:
-                Q = toNumber(toUnum(Q, Qunits),Qunits)
+                Q = toNumber(toUnum(Q, Qunits), Qunits)
             except:
-                Q = toNumber(toUnum(Q, Qunits), Qunits/timeUnits)
-        datalist = []
-        for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-            data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime)
-            data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
-            data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
-            data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
-            data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
-            if type(Q)==list:
-                data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
-            else:
-                data["Q"] = Q
-            data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
-            data = data.drop(columns="Q")
-            data = data.groupby(["x","y","z","time"]).sum()
-            data["Concentration"] = data["Dosage"] / dt
-            datalist.append(data.compute())
-            print(f"Finished times {time} to {time+dt}")
-        data = pandas.concat(datalist).reset_index()
-
-        if save:
-            cur = os.getcwd()
-            file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
-            data.to_parquet(file, compression="GZIP")
-            if addToDB:
-                self.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
-                                            desc=dict(casePath=self.casePath, cloudName=self.cloudName,
+                Q = toNumber(toUnum(Q, Qunits), Qunits / timeUnits)
+        documents = self.getSimulationsDocuments(type="openFoamLSMrun",
+                                                casePath=self.casePath, cloudName=self.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
-                                                      dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs))
+                                                      dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
+        if len(documents)==0:
+            datalist = []
+            for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
+                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime)
+                data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
+                data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
+                data["height"] = (data["height"] / dz).astype(int) * dz + dz / 2
+                data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
+                if type(Q)==list:
+                    data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+                else:
+                    data["Q"] = Q
+                data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
+                data = data.drop(columns="Q")
+                data = data.groupby(["x","y","height","time"]).sum()
+                data["Concentration"] = data["Dosage"] / dt
+                datalist.append(data.compute())
+                print(f"Finished times {time} to {time+dt}")
+            data = pandas.concat(datalist).reset_index()
 
+            if save:
+                cur = os.getcwd()
+                file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
+                data.to_parquet(file, compression="GZIP")
+                if addToDB:
+                    self.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
+                                                desc=dict(casePath=self.casePath, cloudName=self.cloudName,
+                                                          startTime=startTime, endTime=endTime, Q=Q, dx=dx,
+                                                          dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs))
+        else:
+            data = documents[0].getData(usePandas=True)
         return data
 
-    def makePointSource(self, x, y, z, nParticles):
+    def makeSource(self, x, y, z, nParticles,type="Point",**kwargs):
         """
         Writes an instantaneous point source for the run.
         params:
@@ -192,8 +199,24 @@ class preProcess(project.ProjectMultiDBPublic):
                  "    object      kinematicCloudPositions;\n}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
                  f"{nParticles}\n(\n"
+        string = getattr(self,f"makeSource_{type}")(string,x,y,z,nParticles,**kwargs)
+        with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"w") as writeFile:
+            writeFile.write(string)
+
+    def makeSource_Point(self,string,x,y,z,nParticles,**kwargs):
         for i in range(nParticles):
             string += f"({x} {y} {z})\n"
         string += ")\n"
-        with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"w") as writeFile:
-            writeFile.write(string)
+        return string
+
+if __name__ == "__main__":
+
+    xs = [0.01*h for h in range(200)]
+    vels = []
+    for h in xs:
+        if h <= 0.39:
+            vels.append((3.84*h+1.5))
+        elif h >0.39 and h<1.18:
+            vels.append((1.27901266*h+2.50064835))
+        else:
+            vels.append(4)

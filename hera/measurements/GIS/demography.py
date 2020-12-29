@@ -11,7 +11,6 @@ class datalayer(project.ProjectMultiDBPublic):
     _analysis = None
     _Data = None
 
-
     @property
     def analysis(self):
         return self._analysis
