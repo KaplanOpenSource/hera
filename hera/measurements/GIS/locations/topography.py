@@ -13,7 +13,8 @@ import requests
 from unum.units import *
 import scipy
 from ..topography.STL import stlFactory
-
+from ....simulations.utils import coordinateHandler
+import os
 
 class datalayer(locationDatalayer):
 
@@ -176,23 +177,28 @@ class analysis():
         else:
             stl = stlFactory()
             stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName)
-
-        if save:
-            p = self.datalayer.FilesDirectory if path is None else path
-            new_file_path = p + "/" + NewFileName + ".stl"
-            new_file = open(new_file_path, "w")
-            new_file.write(stlstr)
-            newdata = newdata.reset_index()
-            if addToDB:
-                self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
-                                                                       xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
-                                                                       yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
-                                                             type="stlFile",
-                                                             resource=p,
-                                                             dataFormat="string")
+            if save:
+                p = self.datalayer.FilesDirectory if path is None else path
+                new_file_path = os.path.join(p,f"{NewFileName}.stl")
+                with open(new_file_path, "w") as new_file:
+                    new_file.write(stlstr)
+                newdata = newdata.reset_index()
+                if addToDB:
+                    self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
+                                                                           xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
+                                                                           yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
+                                                                 type="stlFile",
+                                                                 resource=stlstr,
+                                                                 dataFormat="string")
         return stlstr, newdata
 
-    def getDEM(self,data, addToDB=False,**kwargs):
+    def getDEM(self,data,**kwargs):
+
+        """
+        Creats a dem format string of topography.
+        data is either a CutName of a topography or a geopandas dataframe.
+        any additional kwargs may be used to locate the dataframe.
+        """
 
         if type(data) == str:
             geodata = self.datalayer.getDocuments(CutName=data,**kwargs)[0].getData()
@@ -205,59 +211,87 @@ class analysis():
 
         ymin = geodata['geometry'].bounds['miny'].min()
         ymax = geodata['geometry'].bounds['maxy'].max()
-        documents = self.datalayer.getMeasurementsDocuments(type="DEM", bounds=[xmin, ymin, xmax, ymax], dxdy=self._dxdy)
-        if len(documents) == 0:
-            Nx = int(((xmax - xmin) / self._dxdy))
-            Ny = int(((ymax - ymin) / self._dxdy))
+        Nx = int(((xmax - xmin) / self._dxdy))
+        Ny = int(((ymax - ymin) / self._dxdy))
 
-            print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
-            dx = (xmax - xmin) / (Nx)
-            dy = (ymax - ymin) / (Ny)
-            print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
-            # 2.2 build the mesh.
-            grid_x, grid_y = numpy.mgrid[xmin:xmax:self._dxdy, ymin:ymax:self._dxdy]
-            # 3. Get the points from the geom
-            Height = []
-            XY = []
+        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
+        dx = (xmax - xmin) / (Nx)
+        dy = (ymax - ymin) / (Ny)
+        print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
+        # 2.2 build the mesh.
+        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._dxdy, ymin:ymax:self._dxdy]
+        # 3. Get the points from the geom
+        Height = []
+        XY = []
 
-            for i, line in enumerate(geodata.iterrows()):
-                if isinstance(line[1]['geometry'], LineString):
-                    linecoords = [x for x in line[1]['geometry'].coords]
+        for i, line in enumerate(geodata.iterrows()):
+            if isinstance(line[1]['geometry'], LineString):
+                linecoords = [x for x in line[1]['geometry'].coords]
+                lineheight = [line[1]['HEIGHT']] * len(linecoords)
+                XY += linecoords
+                Height += lineheight
+            else:
+                for ll in line[1]['geometry']:
+                    linecoords = [x for x in ll.coords]
                     lineheight = [line[1]['HEIGHT']] * len(linecoords)
                     XY += linecoords
                     Height += lineheight
-                else:
-                    for ll in line[1]['geometry']:
-                        linecoords = [x for x in ll.coords]
-                        lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                        XY += linecoords
-                        Height += lineheight
 
-            grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
 
-            if np.ma.is_masked(grid_z2):
-                nans = grid_z2.mask
-            else:
-                nans = np.isnan(grid_z2)
-            notnans = np.logical_not(nans)
-            grid_z2[nans] = scipy.interpolate.griddata((grid_x[notnans], grid_y[notnans]), grid_z2[notnans],
-                                                 (grid_x[nans], grid_y[nans]), method='nearest').ravel()
-
-            DEMstring = f"{xmin} {xmax} {ymin} {ymax}\n{int(Nx)} {int(Ny)}\n"
-
-            for i in range(Nx):
-                for j in range(Ny):
-                    DEMstring += f"{(float(grid_z2[j, i]))} "
-                DEMstring += "\n"
-
-            if addToDB:
-                self.datalayer.addMeasurementsDocument(desc=dict(bounds=[xmin, ymin, xmax, ymax], dxdy=self._dxdy, **kwargs),
-                                                             type="DEM",
-                                                             resource=DEMstring,
-                                                             dataFormat="string")
+        if np.ma.is_masked(grid_z2):
+            nans = grid_z2.mask
         else:
-            DEMstring = documents[0].getData()
+            nans = np.isnan(grid_z2)
+        notnans = np.logical_not(nans)
+        grid_z2[nans] = scipy.interpolate.griddata((grid_x[notnans], grid_y[notnans]), grid_z2[notnans],
+                                             (grid_x[nans], grid_y[nans]), method='nearest').ravel()
+
+        DEMstring = f"{xmin} {xmax} {ymin} {ymax}\n{int(Nx)} {int(Ny)}\n"
+
+        for i in range(Nx):
+            for j in range(Ny):
+                DEMstring += f"{(float(grid_z2[j, i]))} "
+            DEMstring += "\n"
+
         return DEMstring
+
+    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,**kwargs):
+        nx = int((groundData[coord1].max()-groundData[coord1].min())/resolution)
+        ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
+        xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
+        nsteps = int(len(data) / 1000)
+        interpList = []
+        concatedList = []
+
+        for i in range(1, nsteps):
+            partition = data.loc[i * 1000:(i + 1) * 1000]
+            newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
+            interpList.append(newInterp.drop_duplicates())
+            if i >= 100 and i % 100 == 0:
+                concatedList.append(pandas.concat(interpList))
+                interpList = []
+                print(f"Interpolated ground heights for another step")
+
+        partition = data.loc[(i + 1) * 1000:]
+        newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
+        interpList.append(newInterp)
+        concatedList.append(pandas.concat(interpList))
+        print("finished interpolations")
+        interpolatedGroundValues = pandas.concat(concatedList)
+        cellData = data.set_index([coord1, coord2]).join(
+            interpolatedGroundValues.rename(columns={coord3: "ground"}).reset_index().drop_duplicates(
+                [coord1, coord2]).set_index([coord1, coord2]), on=[coord1, coord2])
+        cellData = cellData.fillna(cellData[coord3].min())
+        cellData["height"] = cellData[coord3] - cellData["ground"]
+        cellData.loc[cellData.height < 0, "height"] = 0
+        if savePandas:
+            cellData.to_parquet(file, compression="gzip")
+            if addToDB:
+                self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
+                                   type="cellData", desc=dict(resolution=resolution,**kwargs))
+
+        return cellData.reset_index()
 
 def get_altitdue_ip(lat, lon):
     """

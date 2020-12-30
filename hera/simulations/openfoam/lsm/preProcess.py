@@ -4,6 +4,10 @@ import os
 from .... datalayer import project
 from unum.units import *
 from ...utils import toUnum, toNumber
+from ....measurements.GIS import topography
+import numpy
+from ..utils import getCellDataAndGroundData
+from ...utils import coordinateHandler
 
 class preProcess(project.ProjectMultiDBPublic):
 
@@ -208,6 +212,125 @@ class preProcess(project.ProjectMultiDBPublic):
             string += f"({x} {y} {z})\n"
         string += ")\n"
         return string
+
+    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False):
+
+        documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+        if len(documents)==0:
+            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
+            cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+                                                     file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
+                                                     savePandas=savePandas,addToDB=addToDB)
+        else:
+            cellData = documents[0].getData()
+        f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
+        lines = f.readlines()
+        f.close()
+        fboundary = open(os.path.join(self.casePath, "0", "Hmix"), "r")
+        boundarylines = fboundary.readlines()
+        fboundary.close()
+
+        for i in range(len(lines)):
+            if "internalField" in lines[i]:
+                cellStart = i + 3
+                nCells = int(lines[i + 1])
+        for boundaryLine in range(len(boundarylines)):
+            if "boundaryField" in boundarylines[boundaryLine]:
+                break
+
+        newFileString = ""
+        for i in range(cellStart):
+            newFileString += lines[i]
+        for i in range(nCells):
+            newFileString += f"({cellData['x'][i]} {cellData['y'][i]} {cellData['height'][i]})\n"
+        newFileString += ")\n;\n\n"
+        for i in range(boundaryLine, len(boundarylines)):
+            newFileString += boundarylines[i]
+        for time in times:
+            with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
+                newFile.write(newFileString)
+
+    def makeUstar(self, times, fileName="ustar", ground="ground",savePandas=False, addToDB=False,resolution=10):
+        documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+        if len(documents)==0:
+            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
+            cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+                                                     file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
+                                                     savePandas=savePandas,addToDB=addToDB)
+        else:
+            cellData = documents[0].getData()
+        for time in times:
+            f = open(os.path.join(self.casePath, str(time), "U"), "r")
+            lines = f.readlines()
+            f.close()
+            fboundary = open(os.path.join(self.casePath, str(time), "Hmix"), "r")
+            boundarylines = fboundary.readlines()
+            fboundary.close()
+
+            for i in range(len(lines)):
+                if "internalField" in lines[i]:
+                    cellStart = i + 3
+                    nCells = int(lines[i + 1])
+            for boundaryLine in range(len(boundarylines)):
+                if "boundaryField" in boundarylines[boundaryLine]:
+                    break
+            Ufield = pandas.read_csv(os.path.join(self.casePath, str(time), "U"), skiprows=cellStart,
+                                     skipfooter=len(lines) - (cellStart + nCells),
+                                     engine='python',
+                                     header=None,
+                                     delim_whitespace=True, names=['u', 'v', 'w'])
+            Ufield['u'] = Ufield['u'].str[1:]
+            Ufield['w'] = Ufield['w'].str[:-1]
+            Ufield = Ufield.astype(float)
+            Ufield["U"] = numpy.sqrt(Ufield['u'] ** 2 + Ufield['v'] ** 2 + Ufield['w'] ** 2)
+            data = cellData.join(Ufield)
+            xarrayU = coordinateHandler.regularizeTimeSteps(data=data.loc[data.U < 5].loc[data.U > 4].drop_duplicates(["x", "y"]),
+                                                  fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
+            nsteps = int(nCells / 1000)
+            interpList = []
+            concatedList = []
+
+            for i in range(1, nsteps):
+                partition = data.loc[i * 1000:(i + 1) * 1000]
+                newInterp = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
+                interpList.append(newInterp.drop_duplicates())
+                if i >= 100 and i % 100 == 0:
+                    concatedList.append(pandas.concat(interpList))
+                    interpList = []
+                    print(f"Interpolated velocity near ground for another step")
+
+            partition = data.loc[(i + 1) * 1000:]
+            newInterp = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
+            interpList.append(newInterp)
+            concatedList.append(pandas.concat(interpList))
+            print("finished interpolations")
+            interpolatedUValues = pandas.concat(concatedList)
+            data = data.set_index(["x", "y"]).join(
+                interpolatedUValues.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
+                    ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
+            data.loc[data["UnearGround"] < 1.5, "UnearGround"] = 1.5
+            data["ustar"] = data["UnearGround"] * 0.4 / numpy.log(data["height"] / 0.15)
+            data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
+            data = data.fillna(data.ustar.mean())
+            newFileString = ""
+            data = data.reset_index()
+            for i in range(cellStart):
+                newFileString += lines[i]
+            newFileString = newFileString.replace("vector", "scalar").replace("Vector", "Scalar")
+            for i in range(nCells):
+                newFileString += f"{data['ustar'][i]}\n"
+            newFileString += ")\n;\n\n"
+            for i in range(boundaryLine, len(boundarylines)):
+                newFileString += boundarylines[i]
+            for time in times:
+                with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
+                    newFile.write(newFileString)
+            print("wrote time ", time)
+            if savePandas:
+                data.to_parquet(os.path.join(self.casePath, f"{fileName}_{time}.parquet"), compression="gzip")
+                if addToDB:
+                    p.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
+                                       type="ustar", desc={"casePath": self.casePath, "time": time})
 
 if __name__ == "__main__":
 
