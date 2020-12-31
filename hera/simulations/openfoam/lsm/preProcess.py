@@ -221,9 +221,8 @@ class preProcess(project.ProjectMultiDBPublic):
             cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
                                                      file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
                                                      savePandas=savePandas,addToDB=addToDB)
-            return cellData
         else:
-            cellData = documents[0].getData(usePandas=True)
+            cellData = documents[0].getData()
         f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
         lines = f.readlines()
         f.close()
@@ -251,7 +250,7 @@ class preProcess(project.ProjectMultiDBPublic):
             with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
 
-    def makeUstar(self, times, fileName="ustar", ground="ground",savePandas=False, heightLimits=[4,5],addToDB=False,resolution=10):
+    def makeUstar(self, times, fileName="ustar", ground="ground",savePandas=False, addToDB=False,resolution=10):
         documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
@@ -259,7 +258,7 @@ class preProcess(project.ProjectMultiDBPublic):
                                                      file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
                                                      savePandas=savePandas,addToDB=addToDB)
         else:
-            cellData = documents[0].getData(usePandas=True)
+            cellData = documents[0].getData()
         for time in times:
             f = open(os.path.join(self.casePath, str(time), "U"), "r")
             lines = f.readlines()
@@ -285,7 +284,7 @@ class preProcess(project.ProjectMultiDBPublic):
             Ufield = Ufield.astype(float)
             Ufield["U"] = numpy.sqrt(Ufield['u'] ** 2 + Ufield['v'] ** 2 + Ufield['w'] ** 2)
             data = cellData.join(Ufield)
-            xarrayU = coordinateHandler.regularizeTimeSteps(data=data.loc[data.U < max(heightLimits)].loc[data.U > min(heightLimits)].drop_duplicates(["x", "y"]),
+            xarrayU = coordinateHandler.regularizeTimeSteps(data=data.loc[data.U < 5].loc[data.U > 4].drop_duplicates(["x", "y"]),
                                                   fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
             nsteps = int(nCells / 1000)
             interpList = []
