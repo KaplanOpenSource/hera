@@ -91,3 +91,64 @@ They can be created this way:
     z = 10 # the z coordinate
     nParticles = 100000 # the number of particles
     pre.makePointSource(x,y,z,nParticles)
+
+Height from ground
+------------------
+
+A field with the height from ground at each point is mandatory in order to run an OpenFOAM LSM simulation.
+A file which holds this field may be made using the next function.
+
+It should be noted that before using the function,
+the cell centers must be extracted to a file.
+This can be done by running the next command at the case path:
+
+.. code-block:: python
+
+    cellCenters
+
+Then, the function may be called.
+
+.. code-block:: python
+
+    times = [0,10000]
+    pre.makeCellHeights(times, ground="ground",fileName="cellHeights")
+
+times is a list of time steps directories in which the file is saved.
+ground is the name of the patch from which the vertical distance is calculated;
+its default value is "ground".
+fileName is the name of the new file;
+its default value is "cellHeights".
+
+The file which is written is a list of vectors for all cells, sorted by the
+cells order in the mesh.
+The first component of each vector is the cell's x coordinate,
+the second is the cell's y coordinate,
+and the third is its "height",
+the vertical distance from the "ground" patch.
+
+Shear velocity
+--------------
+
+A field with the shear velocity at each point is mandatory in order to run an OpenFOAM LSM simulation.
+A file which holds this field may be made using the next function.
+
+It should be noted that before using the function,
+the cell centers must be extracted to a file.
+This can be done by running the next command at the case path:
+
+.. code-block:: python
+
+    cellCenters
+
+Then, the function may be called.
+
+.. code-block:: python
+
+    times = [0,10000]
+    pre.makeUstar(times, ground="ground",fileName="ustar")
+
+times is a list of time steps directories in which the file is saved.
+ground is the name of the patch from which the vertical distance is calculated;
+its default value is "ground".
+fileName is the name of the new file;
+its default value is "ustar".

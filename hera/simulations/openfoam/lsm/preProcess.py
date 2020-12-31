@@ -214,7 +214,16 @@ class preProcess(project.ProjectMultiDBPublic):
         return string
 
     def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False):
-
+        """
+        makes a file with the height of each cell.
+        params:
+        times = A list of time directories in which to save the new file
+        ground = The name of the ground patch, default is "ground"
+        fileName = The new file's name
+        resolution = The cell length used in the conversion of the ground dataframe to a regular grid
+        savePandas = Boolian, whether to save the dataframe
+        addToDB = Boolian, whether to add the dataframe to the DB
+        """
         documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
@@ -222,7 +231,7 @@ class preProcess(project.ProjectMultiDBPublic):
                                                      file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
                                                      savePandas=savePandas,addToDB=addToDB)
         else:
-            cellData = documents[0].getData()
+            cellData = documents[0].getData(usePandas=True)
         f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
         lines = f.readlines()
         f.close()
@@ -251,6 +260,16 @@ class preProcess(project.ProjectMultiDBPublic):
                 newFile.write(newFileString)
 
     def makeUstar(self, times, fileName="ustar", ground="ground",savePandas=False, addToDB=False,resolution=10):
+        """
+        makes a file with the shear velocity in each cell.
+        params:
+        times = A list of time directories in which to save the new file
+        fileName = The new file's name
+        ground = The name of the ground patch, default is "ground"
+        resolution = The cell length used in the conversion of the ground dataframe to a regular grid
+        savePandas = Boolian, whether to save the dataframe
+        addToDB = Boolian, whether to add the dataframe to the DB
+        """
         documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
@@ -329,7 +348,7 @@ class preProcess(project.ProjectMultiDBPublic):
             if savePandas:
                 data.to_parquet(os.path.join(self.casePath, f"{fileName}_{time}.parquet"), compression="gzip")
                 if addToDB:
-                    p.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
+                    self.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
                                        type="ustar", desc={"casePath": self.casePath, "time": time})
 
 if __name__ == "__main__":
