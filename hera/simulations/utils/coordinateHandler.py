@@ -91,15 +91,22 @@ class coordinateHandler(object):
 
         for field in numpy.atleast_1d(fieldList):
             try:
-                interpField = griddata(points, data[field], (grid_1, grid_2), method='linear', fill_value=data[field].min())
+                interpField = griddata(points, data[field], (grid_1, grid_2), method='linear')
+                if numpy.ma.is_masked(interpField):
+                    nans = interpField.mask
+                else:
+                    nans = numpy.isnan(interpField)
+                notnans = numpy.logical_not(nans)
+                interpField[nans] = griddata((grid_1[notnans], grid_2[notnans]), interpField[notnans],
+                                                     (grid_1[nans], grid_2[nans]), method='nearest').ravel()
             except KeyError:
                 raise KeyError("field %s not found. Available keys are %s" % (field, ",".join(data.columns)))
             ret[field] = ([coord1, coord2], interpField)
 
         if time is None:
-            ret = xarray.Dataset(ret, coords={coord1: C1, coord2: C2})
+            ret = xarray.Dataset(ret, coords={coord1: C1, coord2: C2}).transpose()
         else:
-            ret = xarray.Dataset(ret, coords={coord1: C1, coord2: C2, 'time': time})
+            ret = xarray.Dataset(ret, coords={coord1: C1, coord2: C2, 'time': time}).transpose()
         if toPandas:
             ret = ret.to_dataframe()
         return ret
