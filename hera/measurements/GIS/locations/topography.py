@@ -257,35 +257,45 @@ class analysis():
         return DEMstring
 
     def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,**kwargs):
+        """
+        adds a column of height from ground for a dataframe which describes a mesh.
+        params:
+        data = The dataframe of the mesh.
+        groundData = A dataframe that holds vertical coordinates values of the ground.
+        coord1 = An horizontal coordinate name, default is "x"
+        coord2 = A second horizontal coordinate name, default is "y"
+        coord3 = A vertical coordinate name, default is "z"
+        resolution = The cell length used in the conversion of the ground dataframe to a regular grid
+        file = The new file's name
+        savePandas = Boolian, whether to save the dataframe
+        addToDB = Boolian, whether to add the dataframe to the DB
+        kwargs = Any additional parameters to use as descriptors of the new file
+        """
         nx = int((groundData[coord1].max()-groundData[coord1].min())/resolution)
         ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
         xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
-        nsteps = int(len(data) / 1000)
+        nsteps = int(len(data) / 10000)
         interpList = []
-        concatedList = []
 
-        for i in range(1, nsteps):
-            partition = data.loc[i * 1000:(i + 1) * 1000]
+        for i in range(nsteps):
+            partition = data.loc[i * 10000:(i + 1) * 10000]
             newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
-            interpList.append(newInterp.drop_duplicates())
-            if i >= 100 and i % 100 == 0:
-                concatedList.append(pandas.concat(interpList))
-                interpList = []
-                print(f"Interpolated ground heights for another step")
+            cellData = partition.set_index([coord1, coord2]).join(newInterp.rename(columns={coord3: "ground"}).reset_index().drop_duplicates(
+                                                        [coord1, coord2]).set_index([coord1, coord2]), on=[coord1, coord2])
+            interpList.append(cellData)
+            print("finished interpolating for another 10000 cells")
 
-        partition = data.loc[(i + 1) * 1000:]
+        partition = data.loc[(i + 1) * 10000:]
         newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
-        interpList.append(newInterp)
-        concatedList.append(pandas.concat(interpList))
-        print("finished interpolations")
-        interpolatedGroundValues = pandas.concat(concatedList)
-        cellData = data.set_index([coord1, coord2]).join(
-            interpolatedGroundValues.rename(columns={coord3: "ground"}).reset_index().drop_duplicates(
+        cellData = partition.set_index([coord1, coord2]).join(
+            newInterp.rename(columns={coord3: "ground"}).reset_index().drop_duplicates(
                 [coord1, coord2]).set_index([coord1, coord2]), on=[coord1, coord2])
-        cellData = cellData.fillna(cellData[coord3].min())
+        interpList.append(cellData)
+        cellData = pandas.concat(interpList)
         cellData["height"] = cellData[coord3] - cellData["ground"]
         cellData.loc[cellData.height < 0, "height"] = 0
         if savePandas:
+            file = os.path.join(self.datalayer.FilesDirectory,"cellData.parquet") if file is None else file
             cellData.to_parquet(file, compression="gzip")
             if addToDB:
                 self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
