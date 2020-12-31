@@ -260,29 +260,9 @@ class analysis():
         nx = int((groundData[coord1].max()-groundData[coord1].min())/resolution)
         ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
         xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
-        interpList = []
-        concatedList = []
-        dropped=data.drop_duplicates(["x","y"]).reset_index(drop=True)
-        nsteps = int(len(dropped) / 1000)
-        for i in range(1, nsteps):
-            partition = dropped.loc[i * 1000:(i + 1) * 1000]
-            newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
-            interpList.append(newInterp.drop_duplicates())
-            if i >= 100 and i % 100 == 0:
-                concatedList.append(pandas.concat(interpList))
-                interpList = []
-                print(f"Interpolated ground heights for another step")
-
-        partition = dropped.loc[(i + 1) * 1000:]
-        newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
-        interpList.append(newInterp)
-        concatedList.append(pandas.concat(interpList))
-        print("finished interpolations")
-        interpolatedGroundValues = pandas.concat(concatedList)
-        import pdb
-        pdb.set_trace()
-        cellData = data.set_index([coord1, coord2]).join(interpolatedGroundValues.rename(columns={coord3: "ground"}).reset_index().drop_duplicates([coord1, coord2]).set_index([coord1, coord2]), on=[coord1, coord2])
-        cellData = cellData.fillna(cellData[coord3].min())
+        ground=[]
+        for i, line in enumerate(data.iterrows()):
+            gro
         cellData["height"] = cellData[coord3] - cellData["ground"]
         cellData.loc[cellData.height < 0, "height"] = 0
         cellData = cellData.reset_index()
