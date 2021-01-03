@@ -9,12 +9,18 @@ import numpy
 from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
 import xarray
+from .sourcesFactory import sourcesFactory
 
 class preProcess(project.ProjectMultiDBPublic):
 
     _publicProjectName = None
     _casePath = None
     _cloudName = None
+    _sources = None
+
+    @property
+    def sources(self):
+        return self._sources
 
     @property
     def casePath(self):
@@ -42,6 +48,7 @@ class preProcess(project.ProjectMultiDBPublic):
         super().__init__(projectName=projectName,publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
         self._casePath = casePath
         self._cloudName = cloudName
+        self._sources = sourcesFactory()
 
 
     def extractFile(self,path,time,names,skiphead=20,skipend=4,vector=True):
@@ -184,7 +191,7 @@ class preProcess(project.ProjectMultiDBPublic):
             data = documents[0].getData(usePandas=True)
         return data
 
-    def makeSource(self, x, y, z, nParticles,type="Point",**kwargs):
+    def makeSource(self, x, y, z, nParticles,type="Point",fileName="kinematicCloudPositions",**kwargs):
         """
         Writes an instantaneous point source for the run.
         params:
@@ -204,15 +211,12 @@ class preProcess(project.ProjectMultiDBPublic):
                  "    object      kinematicCloudPositions;\n}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
                  f"{nParticles}\n(\n"
-        string = getattr(self,f"makeSource_{type}")(string,x,y,z,nParticles,**kwargs)
-        with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"w") as writeFile:
-            writeFile.write(string)
-
-    def makeSource_Point(self,string,x,y,z,nParticles,**kwargs):
+        source = self.sources.getSource(x=x,y=y,z=z,nParticles=nParticles,type=type,**kwargs)
         for i in range(nParticles):
-            string += f"({x} {y} {z})\n"
+            string += f"({source.loc[i].x} {source.loc[i].y} {source.loc[i].z})\n"
         string += ")\n"
-        return string
+        with open(os.path.join(self.casePath,"constant",fileName),"w") as writeFile:
+            writeFile.write(string)
 
     def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False):
         """
