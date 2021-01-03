@@ -8,6 +8,7 @@ from ....measurements.GIS import topography
 import numpy
 from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
+import xarray
 
 class preProcess(project.ProjectMultiDBPublic):
 
@@ -317,30 +318,16 @@ class preProcess(project.ProjectMultiDBPublic):
                                                                 fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
                 nsteps = int(len(data) / 10000)
                 interpList = []
-                if dField is not None:
+                if dField is None:
+                    xarrayD = xarray.zeros_like(xarrayU).rename({"U":dColumn})
+                else:
                     xarrayD = coordinateHandler.regularizeTimeSteps(data=dField, n=(nx,ny),coord1Lim=(data["x"].min(), data["x"].max()),
                                                                    coord2Lim=(data["y"].min(), data["y"].max()),
                                                                    fieldList=[dColumn], coord2="y", addSurface=False, toPandas=False)[0]
-                    for i in range(nsteps):
-                        partition = data.loc[i * 10000:(i + 1) * 10000]
-                        newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
-                        nans = newInterpU.loc[newInterpU.z.isnull()]
-                        interpNans = []
-                        for l, line in enumerate(nans.iterrows()):
-                            interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
-                        nans["U"] = interpNans
-                        newInterpU = pandas.concat([newInterpU.dropna(), nans])
-                        newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                        newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
-                                    newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                                    ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                        cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
-                        interpList.append(cellData)
-                        print("finished interpolating for another 10000 cells")
-                    partition = data.loc[(i + 1) * 10000:]
-                    # newInterpU = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
+                for i in range(nsteps):
+                    partition = data.loc[i * 10000:(i + 1) * 10000]
                     newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
-                    nans = newInterpU.loc[newInterpU.z.isnull()]
+                    nans = newInterpU.loc[newInterpU.U.isnull()]
                     interpNans = []
                     for l, line in enumerate(nans.iterrows()):
                         interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
@@ -348,29 +335,30 @@ class preProcess(project.ProjectMultiDBPublic):
                     newInterpU = pandas.concat([newInterpU.dropna(), nans])
                     newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
                     newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
-                        newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                            ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
+                                newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
+                                ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
                     cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
                     interpList.append(cellData)
-                else:
-                    for i in range(nsteps):
-                        partition = data.loc[i * 10000:(i + 1) * 10000]
-                        newInterp = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                        cellData = partition.set_index(["x", "y"]).join(
-                            newInterp.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                                ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                        interpList.append(cellData)
-                        print("finished interpolating for another 10000 cells")
-                    partition = data.loc[(i + 1) * 10000:]
-                    newInterp = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                    cellData = partition.set_index(['x', 'y']).join(
-                        newInterp.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                            ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                    interpList.append(cellData)
+                    print("finished interpolating for another 10000 cells")
+                partition = data.loc[(i + 1) * 10000:]
+                # newInterpU = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
+                newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
+                nans = newInterpU.loc[newInterpU.U.isnull()]
+                interpNans = []
+                for l, line in enumerate(nans.iterrows()):
+                    interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
+                nans["U"] = interpNans
+                newInterpU = pandas.concat([newInterpU.dropna(), nans])
+                newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
+                newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
+                    newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
+                        ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
+                cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
+                interpList.append(cellData)
 
                 data = pandas.concat(interpList)
                 data.loc[data["UnearGround"] < 1.5, "UnearGround"] = 1.5
-                data["ustar"] = data["UnearGround"] * 0.4 / numpy.log((heightLimits[1]-heightLimits[0])/(2*0.15))
+                data["ustar"] = data["UnearGround"] * 0.4 / numpy.log((0.5*(heightLimits[1]+heightLimits[0])-data[dColumn])/(0.15))
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
                 newFileString = ""
                 data = data.reset_index()
