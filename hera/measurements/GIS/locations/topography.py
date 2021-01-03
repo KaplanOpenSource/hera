@@ -279,19 +279,31 @@ class analysis():
 
         for i in range(nsteps):
             partition = data.loc[i * 10000:(i + 1) * 10000]
-            newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
-            cellData = partition.set_index([coord1, coord2]).join(newInterp.rename(columns={coord3: "ground"}).reset_index().drop_duplicates(
-                                                        [coord1, coord2]).set_index([coord1, coord2]), on=[coord1, coord2])
+            newInterp = xarrayGround.interp(x=partition[coord1], y=partition[coord2]).to_dataframe().reset_index().drop_duplicates([coord1, coord2])
+            nans = newInterp.loc[newInterp.z.isnull()]
+            interpNans=[]
+            for l, line in enumerate(nans.iterrows()):
+                interpNans.append(float(xarrayGround.sel(x=line[1][coord1], y=line[1][coord2],method="nearest")[coord3]))
+            nans[coord3] = interpNans
+            newInterp = pandas.concat([newInterp.dropna(),nans])
+            cellData = partition.set_index([coord1, coord2]).join(newInterp.rename(columns={coord3: "ground"}).set_index([coord1, coord2]), on=[coord1, coord2])
             interpList.append(cellData)
             print("finished interpolating for another 10000 cells")
 
         partition = data.loc[(i + 1) * 10000:]
-        newInterp = xarrayGround.interp(x=partition['x'], y=partition['y']).to_dataframe()
+        newInterp = xarrayGround.interp(x=partition[coord1],
+                                        y=partition[coord2]).to_dataframe().reset_index().drop_duplicates(
+            [coord1, coord2])
+        nans = newInterp.loc[newInterp.z.isnull()]
+        interpNans = []
+        for l, line in enumerate(nans.iterrows()):
+            interpNans.append(float(xarrayGround.sel(x=line[1][coord1], y=line[1][coord2], method="nearest")[coord3]))
+        nans[coord3] = interpNans
+        newInterp = pandas.concat([newInterp.dropna(), nans])
         cellData = partition.set_index([coord1, coord2]).join(
-            newInterp.rename(columns={coord3: "ground"}).reset_index().drop_duplicates(
-                [coord1, coord2]).set_index([coord1, coord2]), on=[coord1, coord2])
+            newInterp.rename(columns={coord3: "ground"}).set_index([coord1, coord2]), on=[coord1, coord2])
         interpList.append(cellData)
-        cellData = pandas.concat(interpList)
+        cellData = pandas.concat(interpList).reset_index()
         cellData["height"] = cellData[coord3] - cellData["ground"]
         cellData.loc[cellData.height < 0, "height"] = 0
         if savePandas:
@@ -301,7 +313,7 @@ class analysis():
                 self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
                                    type="cellData", desc=dict(resolution=resolution,**kwargs))
 
-        return cellData.reset_index()
+        return cellData
 
 def get_altitdue_ip(lat, lon):
     """
