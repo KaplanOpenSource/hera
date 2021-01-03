@@ -1,6 +1,6 @@
 from ...datalayer import Simulations
 from .DataLayer import SingleSimulation
-from ..templates import LSMTemplate
+#from ..templates import LSMTemplate
 import pandas
 from itertools import product
 
