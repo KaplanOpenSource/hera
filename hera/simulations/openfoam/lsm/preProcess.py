@@ -389,12 +389,4 @@ class preProcess(project.ProjectMultiDBPublic):
 
 if __name__ == "__main__":
 
-    xs = [0.01*h for h in range(200)]
-    vels = []
-    for h in xs:
-        if h <= 0.39:
-            vels.append((3.84*h+1.5))
-        elif h >0.39 and h<1.18:
-            vels.append((1.27901266*h+2.50064835))
-        else:
-            vels.append(4)
+    pass

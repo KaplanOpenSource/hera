@@ -33,7 +33,7 @@ class LSMTemplate(object):
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self, saveDir, projectName='LSM', to_xarray=True, to_database=True, **kwargs):
+    def run(self, saveDir, projectName='LSM', to_xarray=True, to_database=True, topo=None,**kwargs):
         """
         Execute the LSM simulation
 
@@ -89,6 +89,9 @@ class LSMTemplate(object):
 
         # run the model.
         os.chdir(saveDir)
+        if topo is not None:
+            with open("TOPO","w") as file:
+                file.write(topo)
         os.system('./a.out')
 
         if to_xarray:
