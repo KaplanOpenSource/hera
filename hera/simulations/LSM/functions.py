@@ -1,23 +1,22 @@
 from ...datalayer import Simulations
 from .DataLayer import SingleSimulation
-from ..templates import LSMTemplate
+from .template import LSMTemplate
 import pandas
 from itertools import product
 
-DEFAULTPROJET = "LSM"
+DEFAULTPROJECT = 'LSM'
+DOCTYPE_TEMPLATE = "LSM_template"
+DOCTYPE_RUN      = "LSM_Run"
 
-DOCTYPE_TEMPLATE = "LSM_Template"
-DOCTYPE_RUN      = "LSM_run"
-
-def getTemplates(**query):
+def getTemplates(projectName=DEFAULTPROJECT, **query):
     """
     get a list of Template objects that fulfill the query
     :param query:
     :return:
     """
 
-    docList = Simulations.getDocuments(projectName=DEFAULTPROJET , type=DOCTYPE_TEMPLATE , **query)
-    return [LSMTemplate(doc) for doc in docList]
+    docList = Simulations.getDocuments(projectName=projectName, type='LSM_template', **query)
+    return [LSMTemplate(doc,projectName=projectName) for doc in docList]
 
 def getTemplateByID(id):
     """
@@ -26,30 +25,32 @@ def getTemplateByID(id):
     :param id:
     :return:
     """
-    return LSMTemplate(Simulations.getDocumentByID(id))
+    doc = Simulations.getDocumentByID(id)
+    return LSMTemplate(doc,doc.projectName)
 
-def listTemplates(projectName=DEFAULTPROJET , wideFormat=False, **query):
+def listTemplates(projectName=DEFAULTPROJECT, wideFormat=False, **query):
     """
     list the template parameters that fulfil the query
     :param query:
     :return:
     """
-    docList = Simulations.getDocuments(projectName=projectName, type=DOCTYPE_TEMPLATE , **query)
+    docList = Simulations.getDocuments(projectName=projectName, type=DOCTYPE_TEMPLATE, **query)
     descList = [doc.desc.copy() for doc in docList]
     for (i, desc) in enumerate(descList):
         desc.update({'id':docList[i].id})
+        desc.update({'projectName': docList[i].projectName})
+
     params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
     params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
     desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
     df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
 
     ret = pandas.concat(df_list,ignore_index=True,sort=False)
-    if wideFormat:
+    if not wideFormat:
         ret = ret.melt()
-
     return ret
 
-def getSimulations(projectName=DEFAULTPROJET , **query):
+def getSimulations(projectName=DEFAULTPROJECT, **query):
     """
     get a list of SingleSimulation objects that fulfill the query
     :param query:
@@ -68,7 +69,7 @@ def getSimulationByID(id):
     """
     return SingleSimulation(Simulations.getDocumentByID(id))
 
-def listSimulations(projectName=DEFAULTPROJET , wideFormat=False, **query):
+def listSimulations(projectName=DEFAULTPROJECT, wideFormat=False, **query):
     """
         List the Simulation parameters that fulfil the query
     :param query:

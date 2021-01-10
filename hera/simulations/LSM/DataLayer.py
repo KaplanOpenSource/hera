@@ -49,7 +49,7 @@ class SingleSimulation(object):
             self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
         else:
             self._document = resource
-            self._finalxarray = resource.getData()
+            self._finalxarray = resource.getDocFromDB()
             if type(self._finalxarray) is str:
                 self._finalxarray = xarray.open_mfdataset(self._finalxarray, combine='by_coords')
 
@@ -74,10 +74,13 @@ class SingleSimulation(object):
             The calculated dosage in 'Dosage' key
         """
         if 'dt' not in self._finalxarray.attrs.keys():
-            dt_minutes = (self._finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
+            if type(self._finalxarray.datetime.diff('datetime')[0].values.item())==float:
+                dt_minutes = self._finalxarray.datetime.diff('datetime')[0].values.item()*s #temporary solution!!!!!
+            else:
+                dt_minutes = (self._finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
             self._finalxarray.attrs['dt'] = toUnum(dt_minutes, time_units)
             self._finalxarray.attrs['Q']  = toUnum(Q, q_units)
-            self._finalxarray.attrs["C"] = toUnum(1, q_units/(m**3))
+            self._finalxarray.attrs['C']  = toUnum(1, q_units/ m ** 3)
 
             Qfactor = toNumber(self._finalxarray.attrs['Q'] * min / m ** 3,
                                q_units * time_units / m ** 3)
