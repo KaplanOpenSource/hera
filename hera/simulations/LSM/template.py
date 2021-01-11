@@ -114,7 +114,6 @@ class LSMTemplate(Project):
         os.system('cp -rf %s %s' % (os.path.join(self.modelFolder, '*'), saveDir))
         # write to file.
         ifmc.render(os.path.join(saveDir, 'INPUT'))
-        import pdb
 
         os.chdir(saveDir)
         if topography is not None:
@@ -123,26 +122,32 @@ class LSMTemplate(Project):
             # make stations files
         if stations is not None:
             stations = stations.rename(columns={timeColumn:"datetime"})
-            stationsXarray = stations.set_index([stationColumn, xColumn, yColumn, "datetime"]).to_xarray()
+            stationsXarray = stations.set_index([xColumn, yColumn, "datetime"]).to_xarray()
             resampled = stationsXarray.resample(datetime="5Min").interpolate()
             stations = resampled.to_dataframe().reset_index()
+            stations[stationColumn] = stations[xColumn].astype(str)+stations[yColumn].astype(str)
             allStationsFile = f"{len(stations[stationColumn].drop_duplicates())}\n"
             i = 0
             j = 0
             for station in stations[stationColumn].drop_duplicates():
                 stationName = f"{chr(65+i)}{chr(65+j)}"
+                print(stationName,i,j)
+                import pdb
+                pdb.set_trace()
                 allStationsFile += f"{stationName}  {list(stations.loc[stations[stationColumn]==station][xColumn])[0]}   " \
                                    f"{list(stations.loc[stations[stationColumn]==station][yColumn])[0]}\n"
                 stationFile = ""
-                for i in range(2901):
+                for k in range(2901):
                     stationFile += "0 0\n"
-                for i, line in enumerate(stations.loc[stations[stationColumn]==station].iterrows()):
+                for k, line in enumerate(stations.loc[stations[stationColumn]==station].iterrows()):
                     stationFile += f"{line[1][uColumn]} {line[1][directionColumn]}\n"
                 with open(os.path.join("tozaot","Meteorology",f"{stationName}_st.txt"),"w") as newStationFile:
                     newStationFile.write(stationFile)
                 if j == 25:
                     j = 0
                     i += 1
+                else:
+                    j += 1
             with open("STATIONS","w") as newStationFile:
                 newStationFile.write(allStationsFile)
         # run the model.
