@@ -122,10 +122,13 @@ class LSMTemplate(Project):
             # make stations files
         if stations is not None:
             stations = stations.rename(columns={timeColumn:"datetime"})
-            stationsXarray = stations.set_index([xColumn, yColumn, "datetime"]).to_xarray()
+            onlyStations = stations.drop(columns=["datetime",uColumn,directionColumn])
+            stations[stationColumn] = stations[xColumn].astype(str) + stations[yColumn].astype(str)
+            stationsXarray = stations.set_index([xColumn, yColumn, "datetime"]).drop(columns=stationColumn).to_xarray()
             resampled = stationsXarray.resample(datetime="5Min").interpolate()
             stations = resampled.to_dataframe().reset_index()
-            stations[stationColumn] = stations[xColumn].astype(str)+stations[yColumn].astype(str)
+            stations = stations.set_index([xColumn,yColumn]).join(onlyStations.set_index([xColumn,yColumn])).reset_index().dropna()
+
             allStationsFile = f"{len(stations[stationColumn].drop_duplicates())}\n"
             i = 0
             j = 0
