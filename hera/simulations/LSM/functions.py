@@ -6,7 +6,7 @@ from itertools import product
 
 DEFAULTPROJECT = 'LSM'
 DOCTYPE_TEMPLATE = "LSM_template"
-DOCTYPE_RUN      = "LSM_Run"
+DOCTYPE_RUN      = "LSM_run"
 
 def getTemplates(projectName=DEFAULTPROJECT, **query):
     """
