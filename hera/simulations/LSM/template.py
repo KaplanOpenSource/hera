@@ -8,7 +8,6 @@ from hera.datalayer import Project
 import shutil
 import xarray
 
-
 class LSMTemplate(Project):
     _document = None
 
@@ -90,7 +89,7 @@ class LSMTemplate(Project):
         if to_database:
             doc = self.addSimulationsDocument(
 
-                                        type='%s_run' % self.modelName,
+                                        type=self.LSM_RUN_TYPE,
                                         resource='None',
                                         dataFormat='None',
                                         desc=dict(params=self._document['desc']['params'],
@@ -134,11 +133,10 @@ class LSMTemplate(Project):
             j = 0
             for station in stations[stationColumn].drop_duplicates():
                 stationName = f"{chr(65+i)}{chr(65+j)}"
-                print(stationName,i,j)
-                import pdb
-                pdb.set_trace()
-                allStationsFile += f"{stationName}  {list(stations.loc[stations[stationColumn]==station][xColumn])[0]}   " \
-                                   f"{list(stations.loc[stations[stationColumn]==station][yColumn])[0]}\n"
+                allStationsFile += f"{stationName}  {list(stations.loc[stations[stationColumn]==station][xColumn])[0]}"
+                for k in range(9-len(str(list(stations.loc[stations[stationColumn]==station][xColumn])[0]))):
+                    allStationsFile += " "
+                allStationsFile += f"{list(stations.loc[stations[stationColumn]==station][yColumn])[0]}\n"
                 stationFile = ""
                 for k in range(2901):
                     stationFile += "0 0\n"
