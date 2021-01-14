@@ -176,8 +176,6 @@ class Injury(object):
 				retList.append(data)
 
 		ret = self._postCalculate(retList,time)
-		import pdb
-		pdb.set_trace()
 		return thresholdGeoDataFrame(ret)
 
 	def calculateRaw(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*L/min,**parameters):

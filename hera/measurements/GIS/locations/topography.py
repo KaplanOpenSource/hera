@@ -256,7 +256,7 @@ class analysis():
 
         return DEMstring
 
-    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,**kwargs):
+    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,fillna=0,**kwargs):
         """
         adds a column of height from ground for a dataframe which describes a mesh.
         params:
@@ -274,46 +274,24 @@ class analysis():
         nx = int((groundData[coord1].max()-groundData[coord1].min())/resolution)
         ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
         xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
-        nsteps = int(len(data) / 10000)
-        interpList = []
-
-        for i in range(nsteps):
-            partition = data.loc[i * 10000:(i + 1) * 10000]
-            newInterp = xarrayGround.interp(x=partition[coord1], y=partition[coord2]).to_dataframe().reset_index().drop_duplicates([coord1, coord2])
-            nans = newInterp.loc[newInterp.z.isnull()]
-            interpNans=[]
-            for l, line in enumerate(nans.iterrows()):
-                interpNans.append(float(xarrayGround.sel(x=line[1][coord1], y=line[1][coord2],method="nearest")[coord3]))
-            nans[coord3] = interpNans
-            newInterp = pandas.concat([newInterp.dropna(),nans])
-            cellData = partition.set_index([coord1, coord2]).join(newInterp.rename(columns={coord3: "ground"}).set_index([coord1, coord2]), on=[coord1, coord2])
-            interpList.append(cellData)
-            print("finished interpolating for another 10000 cells")
-
-        partition = data.loc[(i + 1) * 10000:]
-        newInterp = xarrayGround.interp(x=partition[coord1],
-                                        y=partition[coord2]).to_dataframe().reset_index().drop_duplicates(
-            [coord1, coord2])
-        nans = newInterp.loc[newInterp.z.isnull()]
-        interpNans = []
-        for l, line in enumerate(nans.iterrows()):
-            interpNans.append(float(xarrayGround.sel(x=line[1][coord1], y=line[1][coord2], method="nearest")[coord3]))
-        nans[coord3] = interpNans
-        newInterp = pandas.concat([newInterp.dropna(), nans])
-        cellData = partition.set_index([coord1, coord2]).join(
-            newInterp.rename(columns={coord3: "ground"}).set_index([coord1, coord2]), on=[coord1, coord2])
-        interpList.append(cellData)
-        cellData = pandas.concat(interpList).reset_index()
-        cellData["height"] = cellData[coord3] - cellData["ground"]
-        cellData.loc[cellData.height < 0, "height"] = 0
+        ground = []
+        for i in range(len(data)):
+            x = data.loc[i][coord1]
+            y = data.loc[i][coord2]
+            ground.append(float(xarrayGround.interp(**{coord1:x,coord2:y}).fillna(fillna)[coord3]))
+            if i > 9999 and i % 10000 == 0:
+                print(i)
+        data["ground"]=ground
+        data["height"] = data[coord3] - data["ground"]
+        data.loc[data.height < 0, "height"] = 0
         if savePandas:
             file = os.path.join(self.datalayer.FilesDirectory,"cellData.parquet") if file is None else file
-            cellData.to_parquet(file, compression="gzip")
+            data.to_parquet(file, compression="gzip")
             if addToDB:
                 self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
                                    type="cellData", desc=dict(resolution=resolution,**kwargs))
 
-        return cellData
+        return data
 
 def get_altitdue_ip(lat, lon):
     """

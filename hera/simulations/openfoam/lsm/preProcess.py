@@ -218,7 +218,7 @@ class preProcess(project.ProjectMultiDBPublic):
         with open(os.path.join(self.casePath,"constant",fileName),"w") as writeFile:
             writeFile.write(string)
 
-    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False):
+    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False,fillna=0):
         """
         makes a file with the height of each cell.
         params:
@@ -234,7 +234,7 @@ class preProcess(project.ProjectMultiDBPublic):
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
             cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
                                                      file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                     savePandas=savePandas,addToDB=addToDB)
+                                                     savePandas=savePandas,addToDB=addToDB,fillna=fillna)
         else:
             cellData = documents[0].getData(usePandas=True)
         f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
@@ -320,47 +320,25 @@ class preProcess(project.ProjectMultiDBPublic):
                 xarrayU = coordinateHandler.regularizeTimeSteps(data=data.loc[data.height < heightLimits[1]].loc[data.height > heightLimits[0]]
                                                                 .drop_duplicates(["x", "y"]), n=(nx,ny),
                                                                 fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
-                nsteps = int(len(data) / 10000)
-                interpList = []
                 if dField is None:
                     xarrayD = xarray.zeros_like(xarrayU).rename({"U":dColumn})
                 else:
                     xarrayD = coordinateHandler.regularizeTimeSteps(data=dField, n=(nx,ny),coord1Lim=(data["x"].min(), data["x"].max()),
                                                                    coord2Lim=(data["y"].min(), data["y"].max()),
                                                                    fieldList=[dColumn], coord2="y", addSurface=False, toPandas=False)[0]
-                for i in range(nsteps):
-                    partition = data.loc[i * 10000:(i + 1) * 10000]
-                    newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
-                    nans = newInterpU.loc[newInterpU.U.isnull()]
-                    interpNans = []
-                    for l, line in enumerate(nans.iterrows()):
-                        interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
-                    nans["U"] = interpNans
-                    newInterpU = pandas.concat([newInterpU.dropna(), nans])
-                    newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                    newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
-                                newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                                ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                    cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
-                    interpList.append(cellData)
-                    print("finished interpolating for another 10000 cells")
-                partition = data.loc[(i + 1) * 10000:]
-                # newInterpU = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
-                nans = newInterpU.loc[newInterpU.U.isnull()]
-                interpNans = []
-                for l, line in enumerate(nans.iterrows()):
-                    interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
-                nans["U"] = interpNans
-                newInterpU = pandas.concat([newInterpU.dropna(), nans])
-                newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
-                    newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                        ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
-                interpList.append(cellData)
-
-                data = pandas.concat(interpList)
+                fillU = xarrayU.U.mean()
+                fillD = xarrayD[dColumn].mean()
+                unearground = []
+                ds = []
+                for i in range(len(data)):
+                    x = data.loc[i].x
+                    y = data.loc[i].y
+                    unearground.append(float(xarrayU.interp(x= x, y= y).fillna(fillU).U))
+                    ds.append(float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn]))
+                    if i > 9999 and i % 10000 == 0:
+                        print(i)
+                data["UnearGround"] = unearground
+                data[dColumn] = ds
                 data.loc[data["UnearGround"] < 1.5, "UnearGround"] = 1.5
                 data["ustar"] = data["UnearGround"] * 0.4 / numpy.log((0.5*(heightLimits[1]+heightLimits[0])-data[dColumn])/(0.15))
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
@@ -381,9 +359,9 @@ class preProcess(project.ProjectMultiDBPublic):
             newFileString += ")\n;\n\n"
             for i in range(boundaryLine, len(boundarylines)):
                 newFileString += boundarylines[i]
-            for time in times:
-                with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
-                    newFile.write(newFileString)
+
+            with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
+                newFile.write(newFileString)
             print("wrote time ", time)
 
 
