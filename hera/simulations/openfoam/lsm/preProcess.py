@@ -264,7 +264,7 @@ class preProcess(project.ProjectMultiDBPublic):
             with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
 
-    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",savePandas=False, addToDB=False,resolution=10):
+    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",savePandas=False, addToDB=False,flat=False,resolution=10):
         """
         makes a file with the shear velocity in each cell.
         params:
@@ -277,11 +277,15 @@ class preProcess(project.ProjectMultiDBPublic):
         """
 
         documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
-            cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
-                                                     file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                     savePandas=savePandas,addToDB=addToDB)
+            if flat:
+                cellData["height"] = cellData["z"]
+            else:
+                cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+                                                         file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
+                                                         savePandas=savePandas,addToDB=addToDB)
         else:
             cellData = documents[0].getData(usePandas=True)
 
