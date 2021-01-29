@@ -38,6 +38,7 @@ def toNetcdf(basefiles, addzero=True, datetimeFormat="timestamp"):
     for (i,curData) in enumerate(combined):
         print("\t... reading %s" % curData[0])
         cur = pandas.read_csv(curData[0], delim_whitespace=True, names=["y", "x", "z", "Dosage"]) #,dtype={'x':int,'y':int,'z':int,'Dosage':float})
+
         cur['time'] = curData[1]
 
         if dt is None:
