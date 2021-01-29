@@ -85,7 +85,7 @@ class preProcess(project.ProjectMultiDBPublic):
         times = os.listdir(self.casePath) if times is None else times
         for filename in times:
             try:
-                newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalSigmaPositions",filename,['x', 'y', 'height'])
+                newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalPositions",filename,['x', 'y', 'height'])
                 if withVelocity:
                     dataU = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/U",filename,['U_x', 'U_y', 'U_z'])
                     for col in ['U_x', 'U_y', 'U_z']:
@@ -158,6 +158,8 @@ class preProcess(project.ProjectMultiDBPublic):
                                                 casePath=self.casePath, cloudName=self.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                       dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
+        import pdb
+        pdb.set_trace()
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:

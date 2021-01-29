@@ -61,7 +61,7 @@ class LSMTemplate(Project):
             If to_xarray is true, determine wehter to keep the original files.
             if False, removes the Lagrnagian files.
         """
-
+        fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
         saveDir = os.path.abspath(saveDir)
 
         # create the input file.
@@ -71,10 +71,10 @@ class LSMTemplate(Project):
             self._document['desc']['params'].update(homogeneousWind=".TRUE.")
             print("setting homogeneous wind")
         else:
-            if stations is None:
-                raise KeyError("When using topography stations must be delivered.")
-            else:
-                self._document['desc']['params'].update(TopoFile="'TOPO'")
+            # if stations is None:
+            #     raise KeyError("When using topography stations must be delivered.")
+            # else:
+            self._document['desc']['params'].update(TopoFile="'TOPO'")
         if stations is not None:
             self._document['desc']['params'].update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
         xshift = (self._document['desc']['params']["TopoXmax"] - self._document['desc']['params']["TopoXmin"]) * \
@@ -154,7 +154,7 @@ class LSMTemplate(Project):
         # run the model.
         os.system('./a.out')
         if to_xarray:
-            results_full_path = os.path.join(saveDir, "tozaot", "machsan", "OUTD2d03_3_")
+            results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[self._document['desc']['params']["particles3D"]])
             netcdf_output = os.path.join(saveDir, "netcdf")
             os.makedirs(netcdf_output, exist_ok=True)
 

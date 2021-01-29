@@ -99,7 +99,6 @@ class datalayer(locationDatalayer):
 class analysis():
 
     _datalayer = None
-    _dxdy = None
 
     @property
     def datalayer(self):
@@ -110,7 +109,6 @@ class analysis():
 
         self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
                          databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
-        self._dxdy = self._datalayer.getConfig()["dxdy"]
 
     def PolygonDataFrameIntersection(self, dataframe, polygon):
         """
@@ -167,7 +165,7 @@ class analysis():
         ymin = geodata['geometry'].bounds['miny'].min()
         ymax = geodata['geometry'].bounds['maxy'].max()
         points = [xmin, ymin, xmax, ymax]
-        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._dxdy)
+        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._datalayer.getConfig()["dxdy"])
         if len(documents) >0:
             stlstr = documents[0].getData()
             newdict = documents[0].asDict()
@@ -176,7 +174,7 @@ class analysis():
                                             gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
         else:
             stl = stlFactory()
-            stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName)
+            stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName,dxdy=self._datalayer.getConfig()["dxdy"])
             if save:
                 p = self.datalayer.FilesDirectory if path is None else path
                 new_file_path = os.path.join(p,f"{NewFileName}.stl")
@@ -184,7 +182,7 @@ class analysis():
                     new_file.write(stlstr)
                 newdata = newdata.reset_index()
                 if addToDB:
-                    self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
+                    self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._datalayer.getConfig()["dxdy"],
                                                                            xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
                                                                            yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
                                                                  type="stlFile",
@@ -211,15 +209,15 @@ class analysis():
 
         ymin = geodata['geometry'].bounds['miny'].min()
         ymax = geodata['geometry'].bounds['maxy'].max()
-        Nx = int(((xmax - xmin) / self._dxdy))
-        Ny = int(((ymax - ymin) / self._dxdy))
+        Nx = int(((xmax - xmin) / self._datalayer.getConfig()["dxdy"]))
+        Ny = int(((ymax - ymin) / self._datalayer.getConfig()["dxdy"]))
 
         print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
         dx = (xmax - xmin) / (Nx)
         dy = (ymax - ymin) / (Ny)
         print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
         # 2.2 build the mesh.
-        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._dxdy, ymin:ymax:self._dxdy]
+        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._datalayer.getConfig()["dxdy"], ymin:ymax:self._datalayer.getConfig()["dxdy"]]
         # 3. Get the points from the geom
         Height = []
         XY = []
