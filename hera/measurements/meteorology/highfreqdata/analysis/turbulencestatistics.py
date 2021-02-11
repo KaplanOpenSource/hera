@@ -204,7 +204,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         return self
 
-    def horizontal_speed(self, inMemory=None):
+    def horizontalSpeed(self, inMemory=None):
         """
         Calculates the mean and the std of the horizontal speed.
 
@@ -279,7 +279,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         if 'sigmaHOverWindSpeed' not in self._TemporaryData.columns:
             self.sigmaH()
-            self.wind_speed()
+            self.horizontalSpeed()
             sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['horizontal_speed_bar']
             self._TemporaryData['sigmaHOverWindSpeed'] = sigmaHOverWindSpeed
             self._CalculatedParams.append(['sigmaHOverWindSpeed',{}])
@@ -305,7 +305,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         if 'sigmaWOverWindSpeed' not in self._TemporaryData.columns:
             self.sigma()
-            self.wind_speed()
+            self.horizontalSpeed()
             sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['horizontal_speed_bar']
             self._TemporaryData['sigmaWOverWindSpeed'] = sigmaWOverWindSpeed
             self._CalculatedParams.append(['sigmaWOverWindSpeed',{}])
@@ -357,7 +357,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         if 'uStarOverWindSpeed' not in self._TemporaryData.columns:
             self.Ustar()
-            self.wind_speed()
+            self.horizontalSpeed()
             uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['horizontal_speed_bar']
             self._TemporaryData['uStarOverWindSpeed'] = uStarOverWindPeed
             self._CalculatedParams.append(['uStarOverWindSpeed',{}])
