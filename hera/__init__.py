@@ -43,6 +43,10 @@ from .utils.unum import  tonumber,tounum
 
 
 """
+Next Version
+
+- changed wind_speed to horizontal_wind_speed in the turbulence calculator. 
+
  1.1.3
 ------
    - Updates of the documentation. 

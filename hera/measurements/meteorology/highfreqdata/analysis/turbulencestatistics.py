@@ -204,7 +204,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         return self
 
-    def wind_speed(self, inMemory=None):
+    def horizontal_speed(self, inMemory=None):
         """
         Calculates the mean and the std of the horizontal speed.
 
@@ -221,13 +221,15 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'wind_speed_bar' not in self._TemporaryData.columns:
+        if 'horizontal_speed_bar' not in self._TemporaryData.columns:
             self.fluctuations()
-            wind_speed_bar = numpy.hypot(self._TemporaryData['u_bar'], self._TemporaryData['v_bar'])
-            self._TemporaryData['wind_speed_bar'] = wind_speed_bar
-            self._CalculatedParams.append(['wind_speed_bar',{}])
+            horizontal_speed_bar = numpy.hypot(self._TemporaryData['u_bar'], self._TemporaryData['v_bar'])
+            self._TemporaryData['horizontal_speed_bar'] = horizontal_speed_bar
+            self._CalculatedParams.append(['horizontal_speed_bar',{}])
 
         return self
+
+
 
     def wind_dir_std(self, inMemory=None):
         """
@@ -278,7 +280,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if 'sigmaHOverWindSpeed' not in self._TemporaryData.columns:
             self.sigmaH()
             self.wind_speed()
-            sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['wind_speed_bar']
+            sigmaHOverWindSpeed = self._TemporaryData['sigmaH']/self._TemporaryData['horizontal_speed_bar']
             self._TemporaryData['sigmaHOverWindSpeed'] = sigmaHOverWindSpeed
             self._CalculatedParams.append(['sigmaHOverWindSpeed',{}])
 
@@ -304,7 +306,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if 'sigmaWOverWindSpeed' not in self._TemporaryData.columns:
             self.sigma()
             self.wind_speed()
-            sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['wind_speed_bar']
+            sigmaWOverWindSpeed = self._TemporaryData['sigmaW']/self._TemporaryData['horizontal_speed_bar']
             self._TemporaryData['sigmaWOverWindSpeed'] = sigmaWOverWindSpeed
             self._CalculatedParams.append(['sigmaWOverWindSpeed',{}])
 
@@ -356,7 +358,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if 'uStarOverWindSpeed' not in self._TemporaryData.columns:
             self.Ustar()
             self.wind_speed()
-            uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['wind_speed_bar']
+            uStarOverWindPeed = self._TemporaryData['Ustar']/self._TemporaryData['horizontal_speed_bar']
             self._TemporaryData['uStarOverWindSpeed'] = uStarOverWindPeed
             self._CalculatedParams.append(['uStarOverWindSpeed',{}])
 
