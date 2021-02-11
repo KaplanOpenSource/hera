@@ -25,7 +25,7 @@ class datalayer(locationDatalayer):
 
     def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
 
-        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,useAll=useAll,Source=Source)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         self.setConfig()
 

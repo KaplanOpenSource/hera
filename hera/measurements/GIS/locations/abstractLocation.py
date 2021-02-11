@@ -21,7 +21,7 @@ class datalayer(project.ProjectMultiDBPublic):
     def publicProjectName(self):
         return self._publicProjectName
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
+    def __init__(self, projectName, FilesDirectory="", useAll=False,publicProjectName="Topography",Source="BNTL"):
 
         self._projectName = projectName
         self._publicProjectName = publicProjectName
