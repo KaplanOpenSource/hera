@@ -61,15 +61,28 @@ class preProcess(project.ProjectMultiDBPublic):
         skiphead: number of lines to skip from the beginning of the file
         skipend: number of lines to skip from the ending of the file
         """
+
         newData = dask.dataframe.read_csv(path, skiprows=skiphead,
                                   skipfooter=skipend, engine='python', header=None, delim_whitespace=True, names=names)
-        if vector:
-            newData[names[0]] = newData[names[0]].str[1:]
-            newData[names[2]] = newData[names[2]].str[:-1]
+
+        if len(newData)==0:
+            file = open(path, "r")
+            lines = file.readlines()
+            file.close()
+            vals = lines[17].replace("{", " ").replace("(", " ").replace("}", " ").replace(")", " ").split()
+            dataDict = {}
+            for i in range(len(names)):
+                dataDict[names[i]]=[vals[i+1] for j in range(int(vals[0]))]
+            newData = pandas.DataFrame(dataDict)
+        else:
+            if vector:
+                newData[names[0]] = newData[names[0]].str[1:]
+                newData[names[2]] = newData[names[2]].str[:-1]
+
         newData["time"] = time
         return newData.astype(float)
 
-    def extractRunResult(self, times = None, file=None, save=False, addToDB=True, withVelocity=False, withReleaseTimes=False,releaseTime=0, **kwargs):
+    def extractRunResult(self, times = None, file=None, save=False, addToDB=True, withVelocity=False, withReleaseTimes=False,withMass=False,releaseTime=0, **kwargs):
         """
         Extracts results of an LSM run.
         parmas:
@@ -85,7 +98,8 @@ class preProcess(project.ProjectMultiDBPublic):
         times = os.listdir(self.casePath) if times is None else times
         for filename in times:
             try:
-                newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalPositions",filename,['x', 'y', 'height'])
+                newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalSigmaPositions",filename,['x', 'y', 'height'])
+
                 if withVelocity:
                     dataU = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/U",filename,['U_x', 'U_y', 'U_z'])
                     for col in ['U_x', 'U_y', 'U_z']:
@@ -93,6 +107,13 @@ class preProcess(project.ProjectMultiDBPublic):
                 if withReleaseTimes:
                     dataM = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/age",filename,['age'],vector=False)
                     newData["releaseTime"] = dataM["time"]-dataM["age"]+releaseTime
+                if withMass:
+                    dataM = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/mass",filename, ['mass'], vector=False)
+                    try:
+                        newData["mass"] = dataM["mass"]
+                    except:
+                        newData = newData.compute()
+                        newData["mass"] = dataM["mass"]
                 data=data.append(newData)
             except:
                 pass
@@ -106,7 +127,7 @@ class preProcess(project.ProjectMultiDBPublic):
         return data
 
     def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
+                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -158,28 +179,35 @@ class preProcess(project.ProjectMultiDBPublic):
                                                 casePath=self.casePath, cloudName=self.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                       dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
-        import pdb
-        pdb.set_trace()
+
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime)
+                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime,withMass=OFmass)
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
                 data["height"] = (data["height"] / dz).astype(int) * dz + dz / 2
                 data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
-                if type(Q)==list:
-                    data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+                if OFmass:
+                    data = data.groupby(["x","y","height","time"]).sum()
+                    data["mass"] = data["mass"] * toNumber(toUnum(1*kg, Qunits), Qunits)
+                    data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
-                    data["Q"] = Q
-                data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
-                data = data.drop(columns="Q")
-                data = data.groupby(["x","y","height","time"]).sum()
+                    if type(Q)==list:
+                        data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+                    else:
+                        data["Q"] = Q
+                    data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
+                    data = data.drop(columns="Q")
+                    data = data.groupby(["x","y","height","time"]).sum()
                 data["Concentration"] = data["Dosage"] / dt
                 datalist.append(data.compute())
                 print(f"Finished times {time} to {time+dt}")
             data = pandas.concat(datalist).reset_index()
 
+            if OFmass:
+                Q = data.loc[data.time==data.time.min()].mass.sum()/dt
+                print(f"Q = {toUnum(Q,Qunits)} (extracted from the simulation itself)")
             if save:
                 cur = os.getcwd()
                 file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
@@ -245,7 +273,6 @@ class preProcess(project.ProjectMultiDBPublic):
         fboundary = open(os.path.join(self.casePath, "0", "Hmix"), "r")
         boundarylines = fboundary.readlines()
         fboundary.close()
-
         for i in range(len(lines)):
             if "internalField" in lines[i]:
                 cellStart = i + 3
