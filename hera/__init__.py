@@ -8,16 +8,16 @@ import json
 version = sys.version_info[0]
 if version==3:
     from .measurements import meteorology as meteo
-    from .measurements import GIS
+#    from .measurements import GIS
 
 
-    from .simulations import WRF
-    from .simulations import LSM
-    from .simulations import interpolations
+#    from .simulations import WRF
+#    from .simulations import LSM
+#    from .simulations import interpolations
 
     #from .risk import riskassessment
 
-from .simulations import openfoam
+#from .simulations import openfoam
 
 import logging.config
 
