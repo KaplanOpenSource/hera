@@ -1,6 +1,7 @@
 from unum.units import *
 from .effects import  injuryfactory
-from ...utils import tonumber,tounum
+from ...simulations.utils import toNumber,toUnum
+import numpy
 
 from ...datalayer import ProjectMultiDBPublic
 
@@ -183,15 +184,21 @@ class PhysicalPropeties(object):
 	def _densityConst(self):
 		return self._params["densityConstants"]
 
+	@property
+	def _vaporConst(self):
+		return self._params["vaporPressure"]
 
 	@property
 	def molecularWeight(self):
 		return self._molecularWeight
 
+	@property
+	def molecularVolume(self):
+		return self._params["molecularVolume"]
+
 	@molecularWeight.setter
 	def molecularWeight(self,value):
-		self._molecularWeight = tounum(eval(value),g/mol)
-
+		self._molecularWeight = toUnum(eval(value),g/mol)
 
 	@property
 	def sorptionCoefficient(self):
@@ -199,7 +206,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
-		self._sorptionCoefficient = tounum(eval(value),cm/s)
+		self._sorptionCoefficient = toUnum(eval(value),cm/s)
 
 	@property
 	def spreadFactor(self):
@@ -228,7 +235,7 @@ class PhysicalPropeties(object):
 		:return:
 			The vapor saturation as Unum.
 		"""
-		temperature = tonumber(temperature,celsius)
+		temperature = toNumber(temperature,celsius)
 		MW = self.getMolecularWeight().asNumber(g/mol)
 
 		a,b,c,d = self._volatilityConst
@@ -248,10 +255,22 @@ class PhysicalPropeties(object):
 			:return:
 				The density as Unum
 		"""
-		temperature = tonumber(temperature,celsius)
+		temperature = toNumber(temperature,celsius)
 		a,b,c = self._densityConst
 
 		return (a-b*(temperature-c))*g/cm**3
+
+	def vaporPressure(self, temperature):
+		temperature = toNumber(temperature, K)
+		A = self._vaporConst["A"]
+		B = self._vaporConst["B"]
+		C = self._vaporConst["C"]
+		D = self._vaporConst["D"] if "D" in self._vaporConst.keys() else 0
+		E = self._vaporConst["E"] if "E" in self._vaporConst.keys() else 0
+		F = self._vaporConst["F"] if "F" in self._vaporConst.keys() else 0
+		units = self._vaporConst["units"]
+		return toNumber((10 ** (A - B / (temperature - C) + D * numpy.log10(
+			temperature) + E * temperature + F * temperature ** 2)) * units, bar)
 
 
 	def __init__(self,configJSON):
@@ -259,8 +278,8 @@ class PhysicalPropeties(object):
 		if "physicalProperties" in configJSON:
 			self._params 		 = configJSON["physicalProperties"]
 			self.molecularWeight = self._params["molecularWeight"]
-			self.sorptionCoefficient = self._params["sorptionCoefficient"]
-			self.spreadFactor    = self._params["spreadFactor"]
+			self.sorptionCoefficient = self._params["sorptionCoefficient"] if "sorptionCoefficient" in self._params.keys() else "1"
+			self.spreadFactor    = self._params["spreadFactor"] if "spreadFactor" in self._params.keys() else "1"
 	
 
 

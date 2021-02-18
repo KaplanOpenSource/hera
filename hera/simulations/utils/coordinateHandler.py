@@ -39,7 +39,7 @@ class coordinateHandler(object):
         return retlist
 
     def regularizeTimeStep_Regular(self, data, fieldList, time, coord1Lim=(None, None), coord2Lim=(None, None), coord1='x',
-                                   coord2='z', n=(600, 600), toPandas=True):
+                                   coord2='z', n=(600, 600), toPandas=True, addSurface=True):
         """
         Converts a pandas dataframe of a slice into regular grid points.
 
@@ -77,25 +77,25 @@ class coordinateHandler(object):
 
         # create the xarray
         ret = {}
+        if addSurface:
+            interpField_U = griddata(points, data['U_z'], (grid_1, grid_2), method='linear', fill_value=0)
+            SurfaceIndex = []
+            for i in range(len(C2)):
+                SurfaceIndex.append(numpy.argmax(interpField_U[:, i] > 0) - 1)
 
-        interpField_U = griddata(points, data['U_z'], (grid_1, grid_2), method='linear', fill_value=0)
-        SurfaceIndex = []
-        for i in range(len(C2)):
-            SurfaceIndex.append(numpy.argmax(interpField_U[:, i] > 0) - 1)
-
-        surface = numpy.take(grid_1[:, 0], SurfaceIndex)
-        distance = grid_1 - surface
+            surface = numpy.take(grid_1[:, 0], SurfaceIndex)
+            distance = grid_1 - surface
+            ret['surfaceIndex'] = ([coord2], SurfaceIndex)
+            ret['surfaceX'] = ([coord2], surface)
+            ret['distance'] = ([coord1, 'z'], distance)
 
         for field in numpy.atleast_1d(fieldList):
             try:
-                interpField = griddata(points, data[field], (grid_1, grid_2), method='linear', fill_value=0)
+                interpField = griddata(points, data[field], (grid_1, grid_2), method='linear', fill_value=data[field].min())
             except KeyError:
                 raise KeyError("field %s not found. Available keys are %s" % (field, ",".join(data.columns)))
             ret[field] = ([coord1, coord2], interpField)
 
-        ret['surfaceIndex'] = ([coord2], SurfaceIndex)
-        ret['surfaceX'] = ([coord2], surface)
-        ret['distance'] = ([coord1, 'z'], distance)
         if time is None:
             ret = xarray.Dataset(ret, coords={coord1: C1, coord2: C2})
         else:

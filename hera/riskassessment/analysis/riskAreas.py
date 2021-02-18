@@ -8,8 +8,9 @@ from itertools import product,chain
 import multiprocessing
 from functools import partial
 
-from ....utils import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
-
+#from ...utils import toMeteorologicalAngle,toMathematicalAngle
+toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 def getRiskAreaAlgorithm(algorithmName,**kwargs):
 	"""
 		Return an estimator class. 

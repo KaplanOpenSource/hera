@@ -27,7 +27,6 @@ Usage
     openFoam/StepByStep/HermesHeraToOF
     openFoam/ManagingData
     openFoam/analysis
-    openFoam/utils
 
     openFoam/preProcess
     openFoam/meshUtilities
