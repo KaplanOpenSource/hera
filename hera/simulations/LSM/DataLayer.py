@@ -3,7 +3,7 @@ import xarray
 import numpy
 from unum.units import *
 
-#from ..utils import toUnum,toNumber
+from ..utils import toUnum,toNumber
 
 # def toVTK(self, data, outputdir, name, fields):
 #     from pyevtk.hl import gridToVTK
