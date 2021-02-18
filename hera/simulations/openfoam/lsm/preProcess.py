@@ -61,15 +61,28 @@ class preProcess(project.ProjectMultiDBPublic):
         skiphead: number of lines to skip from the beginning of the file
         skipend: number of lines to skip from the ending of the file
         """
+
         newData = dask.dataframe.read_csv(path, skiprows=skiphead,
                                   skipfooter=skipend, engine='python', header=None, delim_whitespace=True, names=names)
-        if vector:
-            newData[names[0]] = newData[names[0]].str[1:]
-            newData[names[2]] = newData[names[2]].str[:-1]
+
+        if len(newData)==0:
+            file = open(path, "r")
+            lines = file.readlines()
+            file.close()
+            vals = lines[17].replace("{", " ").replace("(", " ").replace("}", " ").replace(")", " ").split()
+            dataDict = {}
+            for i in range(len(names)):
+                dataDict[names[i]]=[vals[i+1] for j in range(int(vals[0]))]
+            newData = pandas.DataFrame(dataDict)
+        else:
+            if vector:
+                newData[names[0]] = newData[names[0]].str[1:]
+                newData[names[2]] = newData[names[2]].str[:-1]
+
         newData["time"] = time
         return newData.astype(float)
 
-    def extractRunResult(self, times = None, file=None, save=False, addToDB=True, withVelocity=False, withReleaseTimes=False,releaseTime=0, **kwargs):
+    def extractRunResult(self, times = None, file=None, save=False, addToDB=True, withVelocity=False, withReleaseTimes=False,withMass=False,releaseTime=0, **kwargs):
         """
         Extracts results of an LSM run.
         parmas:
@@ -86,6 +99,7 @@ class preProcess(project.ProjectMultiDBPublic):
         for filename in times:
             try:
                 newData = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/globalSigmaPositions",filename,['x', 'y', 'height'])
+
                 if withVelocity:
                     dataU = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/U",filename,['U_x', 'U_y', 'U_z'])
                     for col in ['U_x', 'U_y', 'U_z']:
@@ -93,6 +107,13 @@ class preProcess(project.ProjectMultiDBPublic):
                 if withReleaseTimes:
                     dataM = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/age",filename,['age'],vector=False)
                     newData["releaseTime"] = dataM["time"]-dataM["age"]+releaseTime
+                if withMass:
+                    dataM = self.extractFile(f"{self.casePath}/{filename}/lagrangian/{self.cloudName}/mass",filename, ['mass'], vector=False)
+                    try:
+                        newData["mass"] = dataM["mass"]
+                    except:
+                        newData = newData.compute()
+                        newData["mass"] = dataM["mass"]
                 data=data.append(newData)
             except:
                 pass
@@ -106,7 +127,7 @@ class preProcess(project.ProjectMultiDBPublic):
         return data
 
     def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
+                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -158,26 +179,35 @@ class preProcess(project.ProjectMultiDBPublic):
                                                 casePath=self.casePath, cloudName=self.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                       dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
+
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime)
+                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime,withMass=OFmass)
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
                 data["height"] = (data["height"] / dz).astype(int) * dz + dz / 2
                 data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
-                if type(Q)==list:
-                    data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+                if OFmass:
+                    data = data.groupby(["x","y","height","time"]).sum()
+                    data["mass"] = data["mass"] * toNumber(toUnum(1*kg, Qunits), Qunits)
+                    data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
-                    data["Q"] = Q
-                data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
-                data = data.drop(columns="Q")
-                data = data.groupby(["x","y","height","time"]).sum()
+                    if type(Q)==list:
+                        data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+                    else:
+                        data["Q"] = Q
+                    data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
+                    data = data.drop(columns="Q")
+                    data = data.groupby(["x","y","height","time"]).sum()
                 data["Concentration"] = data["Dosage"] / dt
                 datalist.append(data.compute())
                 print(f"Finished times {time} to {time+dt}")
             data = pandas.concat(datalist).reset_index()
 
+            if OFmass:
+                Q = data.loc[data.time==data.time.min()].mass.sum()/dt
+                print(f"Q = {toUnum(Q,Qunits)} (extracted from the simulation itself)")
             if save:
                 cur = os.getcwd()
                 file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
@@ -218,7 +248,7 @@ class preProcess(project.ProjectMultiDBPublic):
         with open(os.path.join(self.casePath,"constant",fileName),"w") as writeFile:
             writeFile.write(string)
 
-    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False):
+    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False,fillna=0):
         """
         makes a file with the height of each cell.
         params:
@@ -234,7 +264,7 @@ class preProcess(project.ProjectMultiDBPublic):
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
             cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
                                                      file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                     savePandas=savePandas,addToDB=addToDB)
+                                                     savePandas=savePandas,addToDB=addToDB,fillna=fillna)
         else:
             cellData = documents[0].getData(usePandas=True)
         f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
@@ -243,7 +273,6 @@ class preProcess(project.ProjectMultiDBPublic):
         fboundary = open(os.path.join(self.casePath, "0", "Hmix"), "r")
         boundarylines = fboundary.readlines()
         fboundary.close()
-
         for i in range(len(lines)):
             if "internalField" in lines[i]:
                 cellStart = i + 3
@@ -264,7 +293,7 @@ class preProcess(project.ProjectMultiDBPublic):
             with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
 
-    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",savePandas=False, addToDB=False,resolution=10):
+    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",savePandas=False, addToDB=False,flat=False,resolution=10):
         """
         makes a file with the shear velocity in each cell.
         params:
@@ -277,11 +306,15 @@ class preProcess(project.ProjectMultiDBPublic):
         """
 
         documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
-            cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
-                                                     file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                     savePandas=savePandas,addToDB=addToDB)
+            if flat:
+                cellData["height"] = cellData["z"]
+            else:
+                cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+                                                         file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
+                                                         savePandas=savePandas,addToDB=addToDB)
         else:
             cellData = documents[0].getData(usePandas=True)
 
@@ -320,47 +353,25 @@ class preProcess(project.ProjectMultiDBPublic):
                 xarrayU = coordinateHandler.regularizeTimeSteps(data=data.loc[data.height < heightLimits[1]].loc[data.height > heightLimits[0]]
                                                                 .drop_duplicates(["x", "y"]), n=(nx,ny),
                                                                 fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
-                nsteps = int(len(data) / 10000)
-                interpList = []
                 if dField is None:
                     xarrayD = xarray.zeros_like(xarrayU).rename({"U":dColumn})
                 else:
                     xarrayD = coordinateHandler.regularizeTimeSteps(data=dField, n=(nx,ny),coord1Lim=(data["x"].min(), data["x"].max()),
                                                                    coord2Lim=(data["y"].min(), data["y"].max()),
                                                                    fieldList=[dColumn], coord2="y", addSurface=False, toPandas=False)[0]
-                for i in range(nsteps):
-                    partition = data.loc[i * 10000:(i + 1) * 10000]
-                    newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
-                    nans = newInterpU.loc[newInterpU.U.isnull()]
-                    interpNans = []
-                    for l, line in enumerate(nans.iterrows()):
-                        interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
-                    nans["U"] = interpNans
-                    newInterpU = pandas.concat([newInterpU.dropna(), nans])
-                    newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                    newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
-                                newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                                ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                    cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
-                    interpList.append(cellData)
-                    print("finished interpolating for another 10000 cells")
-                partition = data.loc[(i + 1) * 10000:]
-                # newInterpU = xarrayU.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                newInterpU = xarrayU.interp(x=partition["x"],y=partition["y"]).to_dataframe().reset_index().drop_duplicates(["x", "y"])
-                nans = newInterpU.loc[newInterpU.U.isnull()]
-                interpNans = []
-                for l, line in enumerate(nans.iterrows()):
-                    interpNans.append(float(xarrayU.sel(x=line[1]["x"], y=line[1]["y"], method="nearest")["U"]))
-                nans["U"] = interpNans
-                newInterpU = pandas.concat([newInterpU.dropna(), nans])
-                newInterpD = xarrayD.interp(x=partition['x'], y=partition['y']).to_dataframe()
-                newInterp = newInterpD.reset_index().drop_duplicates(["x", "y"]).set_index(["x", "y"]).join(
-                    newInterpU.rename(columns={"U": "UnearGround"}).reset_index().drop_duplicates(
-                        ["x", "y"]).set_index(["x", "y"]), on=["x", "y"])
-                cellData = partition.set_index(["x", "y"]).join(newInterp, on=["x", "y"])
-                interpList.append(cellData)
-
-                data = pandas.concat(interpList)
+                fillU = xarrayU.U.mean()
+                fillD = xarrayD[dColumn].mean()
+                unearground = []
+                ds = []
+                for i in range(len(data)):
+                    x = data.loc[i].x
+                    y = data.loc[i].y
+                    unearground.append(float(xarrayU.interp(x= x, y= y).fillna(fillU).U))
+                    ds.append(float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn]))
+                    if i > 9999 and i % 10000 == 0:
+                        print(i)
+                data["UnearGround"] = unearground
+                data[dColumn] = ds
                 data.loc[data["UnearGround"] < 1.5, "UnearGround"] = 1.5
                 data["ustar"] = data["UnearGround"] * 0.4 / numpy.log((0.5*(heightLimits[1]+heightLimits[0])-data[dColumn])/(0.15))
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
@@ -381,9 +392,9 @@ class preProcess(project.ProjectMultiDBPublic):
             newFileString += ")\n;\n\n"
             for i in range(boundaryLine, len(boundarylines)):
                 newFileString += boundarylines[i]
-            for time in times:
-                with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
-                    newFile.write(newFileString)
+
+            with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
+                newFile.write(newFileString)
             print("wrote time ", time)
 
 

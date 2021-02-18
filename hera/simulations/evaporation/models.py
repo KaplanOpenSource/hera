@@ -1,6 +1,6 @@
 from ...datalayer import project
 from ...riskassessment import AgentHome
-from ..utils import toNumber
+from ..utils import toNumber, toUnum
 from unum.units import *
 import numpy
 
@@ -106,8 +106,8 @@ class evaporationModels(object):
         density = self.Mair / (temperature *  8.205 * 10 ** (-5)) # (g/(m^3))
         return self.dynamicViscocityAir(temperature=temperature)/(density*self.molecularDiffusion(temperature))
 
-    def flux(self,diameter,velocity,temperature):
-        return getattr(self, f"flux_{self._evaporationModel}")(diameter,velocity,temperature)
+    def flux(self,diameter,velocity,temperature,units=g/(m**2*s)):
+        return toUnum(getattr(self, f"flux_{self._evaporationModel}")(diameter,velocity,temperature)*g/(m**2*s),units)
 
     def flux_US(self, diameter,velocity,temperature):
         temperature = toNumber(temperature, K)

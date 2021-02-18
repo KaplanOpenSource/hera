@@ -99,7 +99,6 @@ class datalayer(locationDatalayer):
 class analysis():
 
     _datalayer = None
-    _dxdy = None
 
     @property
     def datalayer(self):
@@ -110,7 +109,6 @@ class analysis():
 
         self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
                          databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
-        self._dxdy = self._datalayer.getConfig()["dxdy"]
 
     def PolygonDataFrameIntersection(self, dataframe, polygon):
         """
@@ -167,7 +165,7 @@ class analysis():
         ymin = geodata['geometry'].bounds['miny'].min()
         ymax = geodata['geometry'].bounds['maxy'].max()
         points = [xmin, ymin, xmax, ymax]
-        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._dxdy)
+        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._datalayer.getConfig()["dxdy"])
         if len(documents) >0:
             stlstr = documents[0].getData()
             newdict = documents[0].asDict()
@@ -176,7 +174,7 @@ class analysis():
                                             gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
         else:
             stl = stlFactory()
-            stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName)
+            stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName,dxdy=self._datalayer.getConfig()["dxdy"])
             if save:
                 p = self.datalayer.FilesDirectory if path is None else path
                 new_file_path = os.path.join(p,f"{NewFileName}.stl")
@@ -184,7 +182,7 @@ class analysis():
                     new_file.write(stlstr)
                 newdata = newdata.reset_index()
                 if addToDB:
-                    self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._dxdy,
+                    self.datalayer.addMeasurementsDocument(desc=dict(name=NewFileName, bounds=points, dxdy=self._datalayer.getConfig()["dxdy"],
                                                                            xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
                                                                            yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
                                                                  type="stlFile",
@@ -211,15 +209,15 @@ class analysis():
 
         ymin = geodata['geometry'].bounds['miny'].min()
         ymax = geodata['geometry'].bounds['maxy'].max()
-        Nx = int(((xmax - xmin) / self._dxdy))
-        Ny = int(((ymax - ymin) / self._dxdy))
+        Nx = int(((xmax - xmin) / self._datalayer.getConfig()["dxdy"]))
+        Ny = int(((ymax - ymin) / self._datalayer.getConfig()["dxdy"]))
 
         print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
         dx = (xmax - xmin) / (Nx)
         dy = (ymax - ymin) / (Ny)
         print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
         # 2.2 build the mesh.
-        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._dxdy, ymin:ymax:self._dxdy]
+        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._datalayer.getConfig()["dxdy"], ymin:ymax:self._datalayer.getConfig()["dxdy"]]
         # 3. Get the points from the geom
         Height = []
         XY = []
@@ -256,7 +254,7 @@ class analysis():
 
         return DEMstring
 
-    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,**kwargs):
+    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,fillna=0,**kwargs):
         """
         adds a column of height from ground for a dataframe which describes a mesh.
         params:
@@ -274,46 +272,24 @@ class analysis():
         nx = int((groundData[coord1].max()-groundData[coord1].min())/resolution)
         ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
         xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
-        nsteps = int(len(data) / 10000)
-        interpList = []
-
-        for i in range(nsteps):
-            partition = data.loc[i * 10000:(i + 1) * 10000]
-            newInterp = xarrayGround.interp(x=partition[coord1], y=partition[coord2]).to_dataframe().reset_index().drop_duplicates([coord1, coord2])
-            nans = newInterp.loc[newInterp.z.isnull()]
-            interpNans=[]
-            for l, line in enumerate(nans.iterrows()):
-                interpNans.append(float(xarrayGround.sel(x=line[1][coord1], y=line[1][coord2],method="nearest")[coord3]))
-            nans[coord3] = interpNans
-            newInterp = pandas.concat([newInterp.dropna(),nans])
-            cellData = partition.set_index([coord1, coord2]).join(newInterp.rename(columns={coord3: "ground"}).set_index([coord1, coord2]), on=[coord1, coord2])
-            interpList.append(cellData)
-            print("finished interpolating for another 10000 cells")
-
-        partition = data.loc[(i + 1) * 10000:]
-        newInterp = xarrayGround.interp(x=partition[coord1],
-                                        y=partition[coord2]).to_dataframe().reset_index().drop_duplicates(
-            [coord1, coord2])
-        nans = newInterp.loc[newInterp.z.isnull()]
-        interpNans = []
-        for l, line in enumerate(nans.iterrows()):
-            interpNans.append(float(xarrayGround.sel(x=line[1][coord1], y=line[1][coord2], method="nearest")[coord3]))
-        nans[coord3] = interpNans
-        newInterp = pandas.concat([newInterp.dropna(), nans])
-        cellData = partition.set_index([coord1, coord2]).join(
-            newInterp.rename(columns={coord3: "ground"}).set_index([coord1, coord2]), on=[coord1, coord2])
-        interpList.append(cellData)
-        cellData = pandas.concat(interpList).reset_index()
-        cellData["height"] = cellData[coord3] - cellData["ground"]
-        cellData.loc[cellData.height < 0, "height"] = 0
+        ground = []
+        for i in range(len(data)):
+            x = data.loc[i][coord1]
+            y = data.loc[i][coord2]
+            ground.append(float(xarrayGround.interp(**{coord1:x,coord2:y}).fillna(fillna)[coord3]))
+            if i > 9999 and i % 10000 == 0:
+                print(i)
+        data["ground"]=ground
+        data["height"] = data[coord3] - data["ground"]
+        data.loc[data.height < 0, "height"] = 0
         if savePandas:
             file = os.path.join(self.datalayer.FilesDirectory,"cellData.parquet") if file is None else file
-            cellData.to_parquet(file, compression="gzip")
+            data.to_parquet(file, compression="gzip")
             if addToDB:
                 self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
                                    type="cellData", desc=dict(resolution=resolution,**kwargs))
 
-        return cellData
+        return data
 
 def get_altitdue_ip(lat, lon):
     """

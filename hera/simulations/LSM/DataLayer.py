@@ -74,10 +74,13 @@ class SingleSimulation(object):
             The calculated dosage in 'Dosage' key
         """
         if 'dt' not in self._finalxarray.attrs.keys():
-            dt_minutes = (self._finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
+            if type(self._finalxarray.datetime.diff('datetime')[0].values.item())==float:
+                dt_minutes = self._finalxarray.datetime.diff('datetime')[0].values.item()*s #temporary solution!!!!!
+            else:
+                dt_minutes = (self._finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
             self._finalxarray.attrs['dt'] = toUnum(dt_minutes, time_units)
             self._finalxarray.attrs['Q']  = toUnum(Q, q_units)
-            self._finalxarray.attrs["C"] = toUnum(1, q_units/(m**3))
+            self._finalxarray.attrs['C']  = toUnum(1, q_units/ m ** 3)
 
             Qfactor = toNumber(self._finalxarray.attrs['Q'] * min / m ** 3,
                                q_units * time_units / m ** 3)
