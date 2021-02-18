@@ -81,4 +81,3 @@ class sourcesFactory():
             ys.append(y-xdist[i]*numpy.sin(rotateAngle)+ydist[i]*numpy.cos(rotateAngle))
             zs.append(z+zdist[i])
         return pandas.DataFrame({"x":xs,"y":ys,"z":zs})
-

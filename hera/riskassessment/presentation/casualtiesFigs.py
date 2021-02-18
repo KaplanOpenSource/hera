@@ -117,7 +117,7 @@ class casualtiesPlot(object):
 		for severity,prop,lineprop in zip(severityList,cycler,boundarycycler):
 			if severity not in projected.index:
 				continue
-			if projected.loc[severity].geometry.type == 'GeometryCollection': 
+			if projected.loc[severity].geometry.type == 'GeometryCollection' or projected.loc[severity].geometry.type == 'MultiPolygon':
 				for pol in projected.loc[severity].geometry:
 					if pol.type == 'LineString':
 						ax.plot(*pol.xy,**lineprop)
@@ -125,11 +125,12 @@ class casualtiesPlot(object):
 						ax.add_patch(PolygonPatch(pol,**prop) )
 			else:
 				ax.add_patch(PolygonPatch(projected.loc[severity].geometry,**prop) )
-		
+
 		for ((severity,severitydata),prop) in zip(results.shiftLocationAndAngle(loc,mathematical_angle=rotate_angle,geometry="TotalPolygon")
 								 .query("severity in %s" % numpy.atleast_1d(plumSeverity))
 								 .groupby("severity"),
 							  boundarycycler):
+
 			plt.plot(*severitydata.TotalPolygon.convex_hull.unary_union.exterior.xy,**prop)
 
 		return ax,retProj

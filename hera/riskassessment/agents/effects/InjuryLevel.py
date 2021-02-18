@@ -81,7 +81,6 @@ class InjuryLevel(object):
 			concField = valueField.sel(**{time:tt}) if timesel else valueField
 
 			ret = self._getGeopandas(concField,x,y,field,**parameters)
-
 			if not ret.empty:
 
 				ret = ret[ret.area > 1]   # 1 m**2. 
