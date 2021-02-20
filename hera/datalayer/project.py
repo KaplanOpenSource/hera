@@ -638,51 +638,222 @@ class ProjectMultiDB(loggedObject):
                 projectName = self.getProjectName(user)
                 searchtype[user].addDocument(projectName=projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
-    def _deleteSomeTypeDocuments(self, searchtype, users=None, **kwargs):
-        if users is None:
+    def _deleteSomeTypeDocuments(self, searchtype, dbname=None, **kwargs):
+        if dbname is None:
             userName = self._databaseNameList[0]
             projectName = self.getProjectName(userName)
             searchtype[userName ].deleteDocuments(projectName=projectName, **kwargs)
         else:
-            for user in numpy.atleast_1d(users):
+            for user in numpy.atleast_1d(dbname):
                 projectName = self.getProjectName(user)
                 searchtype[user].deleteDocuments(projectName=projectName, **kwargs)
 
     def getMeasurementsDocumentsAsDict(self, with_id=False, users=None, **kwargs):
+        """
+        Return the metadata of the Measurements as a list of Dict
+        Searches in all the related databased according to the search policy.
+
+        Parameters
+        -----------
+        with_id: bool
+            If true, add the id of the document to the map.
+
+        kwargs: key-value
+            Filters to query the database.
+
+        Returns
+        -------
+            List
+            A list of dict with the description of the project.
+        """
+
         return self._getSomeTypeDocumentsAsDict(searchtype=self._measurements, with_id=with_id, users=users, **kwargs)
 
     def getMeasurementsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Return a list of measurements. Allow filtering with queries.
+
+            Each results is list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        Parameters
+        ----------
+        resource: str, optional
+
+        dataFormat: str, optional
+        type: str, optional
+
+        desc: key-value
+            A key-value list for the filtering of the documents.
+
+
+        Returns
+        -------
+            A list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        """
+
         return self._getSomeTypeDocuments(searchtype=self._measurements, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}, users=None):
         return self._addSomeTypeDocuments(searchtype=self._measurements, resource=resource, dataFormat=dataFormat, type=type, desc=desc, users=users)
 
     def deleteMeasurementsDocuments(self, users=None, **kwargs):
-        return self._deleteSomeTypeDocuments(searchType=self._measurements, users=users, **kwargs)
+        """
+            Delete all the cache documents that fulfill the criteria.
+            This will **not** delete the resource from the disk.
 
-    def getSimulationsDocumentsAsDict(self, with_id=False, users=None, **kwargs):
-        return self._getSomeTypeDocumentsAsDict(searchtype=self._simulations, with_id=with_id,users=users, **kwargs)
+
+        Parameters
+        ----------
+        kwargs: key-value
+            The filters.
+
+        Returns
+        -------
+            The documents that were deleted.
+        """
+
+        return self._deleteSomeTypeDocuments(searchType=self._measurements, dbname=users, **kwargs)
+
+    def getSimulationsDocumentsAsDict(self, with_id=False, dbname=None, **kwargs):
+        """
+        Return the metadata of the Simulations as a list of Dict.
+        Searches in all the related databased according to the search policy.
+
+        Parameters
+        -----------
+        with_id: bool
+            If true, add the id of the document to the map.
+
+        kwargs: key-value
+            Filters to query the database.
+
+        Returns
+        -------
+            List
+            A list of dict with the description of the project.
+        """
+
+        return self._getSomeTypeDocumentsAsDict(searchtype=self._simulations, with_id=with_id, users=dbname, **kwargs)
 
     def getSimulationsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Return a list of measurements. Allow filtering with queries.
+
+            Each results is list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        Parameters
+        ----------
+        resource: str, optional
+
+        dataFormat: str, optional
+        type: str, optional
+
+        desc: key-value
+            A key-value list for the filtering of the documents.
+
+
+        Returns
+        -------
+            A list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        """
+
         return self._getSomeTypeDocuments(searchtype=self._simulations, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
     def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}, users=None):
         return self._addSomeTypeDocuments(searchtype=self._simulations, resource=resource, dataFormat=dataFormat, type=type, desc=desc, users=users)
 
     def deleteSimulationsDocuments(self, users=None, **kwargs):
-        return self._deleteSomeTypeDocuments(searchtype=self._simulations, users=users, **kwargs)
+        """
+            Delete all the simulation documents that fulfill the criteria.
+            This will **not** delete the resource from the disk.
+
+
+        Parameters
+        ----------
+        kwargs: key-value
+            The filters.
+
+        Returns
+        -------
+            The documents that were deleted.
+        """
+
+        return self._deleteSomeTypeDocuments(searchtype=self._simulations, dbname=users, **kwargs)
 
     def getCacheDocumentsAsDict(self,  with_id=False, users=None, **kwargs):
+        """
+        Return the metadata of the Cache as a list of Dict.
+        Searches in all the related databased according to the search policy.
+
+        Parameters
+        -----------
+        with_id: bool
+            If true, add the id of the document to the map.
+
+        kwargs: key-value
+            Filters to query the database.
+
+        Returns
+        -------
+            List
+            A list of dict with the description of the project.
+        """
+
         return self._getSomeTypeDocumentsAsDict(searchtype=self._cache, with_id=with_id, users=users, **kwargs)
 
     def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Return a list of cached documents. Allow filtering with queries.
+
+            Each results is list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        Parameters
+        ----------
+        resource: str, optional
+
+        dataFormat: str, optional
+        type: str, optional
+
+        desc: key-value
+            A key-value list for the filtering of the documents.
+
+
+        Returns
+        -------
+            A list of :class:`.document.metadataDocument.MetadataFrame`.
+
+
+        """
+
         return self._getSomeTypeDocuments(searchtype=self._cache, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
     def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}, users=None):
         return self._addSomeTypeDocuments(searchtype=self._cache, resource=resource, dataFormat=dataFormat, type=type, desc=desc, users=users)
 
     def deleteCacheDocuments(self, users=None, **kwargs):
-        return self._deleteSomeTypeDocuments(searchtype=self._cache, users=users, **kwargs)
+        """
+            Delete all the cache documents that fulfill the criteria.
+            This will **not** delete the resource from the disk.
+
+
+        Parameters
+        ----------
+        kwargs: key-value
+            The filters.
+
+        Returns
+        -------
+            The documents that were deleted.
+        """
+
+        return self._deleteSomeTypeDocuments(searchtype=self._cache, dbname=users, **kwargs)
 
 
 class ProjectMultiDBPublic(ProjectMultiDB):
