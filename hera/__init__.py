@@ -39,7 +39,10 @@ logging.config.dictConfig(log_conf)
 """
 Next Version
 
-- changed wind_speed to horizontal_wind_speed in the turbulence calculator. 
+    - Fixing the imports to be lighter
+    - Some other changes to make the risk assessment procedure work.  
+    - Updating the AgentsHome according to the existing agents description
+    - changed wind_speed to horizontal_wind_speed in the turbulence calculator. 
 
  1.1.3
 ------

@@ -48,7 +48,7 @@ class AgentHome(ProjectMultiDBPublic):
 			configList = self.getMeasurementsDocuments(type='Agent',Agent=nameOrDesc)
 			if len(configList)==0:
 				raise ValueError(f"Agent {nameOrDesc} is not found. Load it with hera-risk-agent load")
-			descriptor = configList.desc
+			descriptor = configList[0].desc
 		elif isinstance(nameOrDesc,dict):
 			descriptor = nameOrDesc
 		else:
@@ -152,7 +152,7 @@ class Agent:
 			}
 
 		"""
-		self._agentconfig = descriptor['agentConfig']
+		self._agentconfig = descriptor
 		self._effectParameters = self._agentconfig.get("effectParameters",{})
 
 		self._effects = {}
