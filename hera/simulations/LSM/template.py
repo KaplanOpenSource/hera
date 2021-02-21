@@ -13,10 +13,45 @@ class LSMTemplate(Project):
 
     LSM_RUN_TYPE = 'LSM_run'
 
-    def __init__(self, document,projectName):
+    def __init__(self, document,projectName,to_xarray=True,to_database=False,forceKeep=False):
+        """
+        Initializes the template object.
+
+    Parameters
+    ----------
+
+        document: DB document (or JSON)
+            contains the defaults parameters and the data under document['desc']
+
+        projectName: str
+            The project name of the current simulations.
+
+        to_xarray: bool
+            Save the simulation results into xarray or not
+
+        to_database: bool
+            Save the simulation run in the database or not
+
+        forceKeep: bool
+            If to_xarray is true, determine wehter to keep the original files.
+            if False, removes the Lagrnagian files.
+
+
+
+        """
         super().__init__(projectName=projectName)
         self._document = document
-        pass
+
+        self.to_xarray =to_xarray
+        self.to_database = to_database
+        self.forceKeep = forceKeep
+        self.datetimeFormat = "timestamp"
+        self.xColumn = "x"
+        self.yColumn = "y"
+        self.uColumn = "u"
+        self.directionColumn = "direction"
+        self.timeColumn = "datetime"
+
 
     @property
     def dirPath(self):
@@ -38,8 +73,7 @@ class LSMTemplate(Project):
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self, saveDir, to_xarray=True, to_database=False,forceKeep=False,datetimeFormat="timestamp",topography=None, stations=None,
-                stationColumn="station",xColumn="x",yColumn="y",uColumn="u",directionColumn="direction",timeColumn="datetime",**kwargs):
+    def run(self, saveDir,topography=None, stations=None,overwrite=False,params=dict(),**descriptor):
         """
         Execute the LSM simulation
 
@@ -51,22 +85,29 @@ class LSMTemplate(Project):
         saveDir: str
             Path of the directory to put in the model run
 
-        to_xarray: bool
-            Save the simulation results into xarray or not
+        overwrite: bool
+            False: execute the simulation event if it is in DB (the to_database is True).
+            True : retrieve simulation from DB (if to_database is True)
 
-        to_database: bool
-            Save the simulation run in the database or not
+            The retrieval will work only if the simulations were converted to xarray (to_xarray was true when they were calculated).
 
-        forceKeep: bool
-            If to_xarray is true, determine wehter to keep the original files.
-            if False, removes the Lagrnagian files.
+        params: dict
+            overweriting the parameters of the simulation
+
+        descriptors : a list of key/value that describe that simulations.
+
+        Return:
+            the xarray (if it is in the DB, or the simulation was converted to xarray)
+            other wise None.
+
         """
         fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
         saveDir = os.path.abspath(saveDir)
 
         # create the input file.
         # paramsMap['wind_dir'] = self.paramsMap['wind_dir_meteorological']
-        self._document['desc']['params'].update(kwargs)
+        self._document['desc']['params'].update(params)
+        self._document['desc'].update(descriptor)
         if topography is None:
             self._document['desc']['params'].update(homogeneousWind=".TRUE.")
             print("setting homogeneous wind")
@@ -86,28 +127,31 @@ class LSMTemplate(Project):
         ifmc.setParamsMap(self._document['desc']['params'])
         ifmc.setTemplate('%s_%s' % (self.modelName, self.version))
 
-        if to_database:
-            doc = self.addSimulationsDocument(
+        if self.to_database:
+            docList = self.getSimulationsDocuments(type=self.LSM_RUN_TYPE,params=self._document['desc']['params'],version=self.version)
+            if len(docList)==0:
+                doc = self.addSimulationsDocument(
+                                            type=self.LSM_RUN_TYPE,
+                                            resource='None',
+                                            dataFormat='None',
+                                            desc=dict(params=self._document['desc']['params'],
+                                                      version=self.version,
+                                                      datetimeFormat=self.datetimeFormat
+                                                      )
+                                            )
 
-                                        type=self.LSM_RUN_TYPE,
-                                        resource='None',
-                                        dataFormat='None',
-                                        desc=dict(params=self._document['desc']['params'],
-                                                  version=self.version,
-                                                  datetimeFormat=datetimeFormat
-                                                  )
-                                        )
+                saveDir = os.path.join(saveDir, str(doc.id))
+                if self.to_xarray:
+                    doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
+                    doc['dataFormat'] = 'netcdf_xarray'
+                else:
+                    doc['resource'] = os.path.join(saveDir)
+                    doc['dataFormat'] = 'string'
+                doc.save()
+            elif not overwrite:
+                    return docList[0].getData()
 
-            saveDir = os.path.join(saveDir, str(doc.id))
-            if to_xarray:
-                doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
-                doc['dataFormat'] = 'netcdf_xarray'
-            else:
-                doc['resource'] = saveDir
-                doc['dataFormat'] = 'string'
-
-            doc.save()
-
+        ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)
 
         os.system('cp -rf %s %s' % (os.path.join(self.modelFolder, '*'), saveDir))
@@ -119,29 +163,30 @@ class LSMTemplate(Project):
             with open("TOPO","w") as topofile:
                 topofile.write(topography)
             # make stations files
+
         if stations is not None:
-            stations = stations.rename(columns={timeColumn:"datetime"})
-            onlyStations = stations.drop(columns=["datetime",uColumn,directionColumn])
-            stations[stationColumn] = stations[xColumn].astype(str) + stations[yColumn].astype(str)
-            stationsXarray = stations.set_index([xColumn, yColumn, "datetime"]).drop(columns=stationColumn).to_xarray()
+            stations = stations.rename(columns={self.timeColumn:"datetime"})
+            onlyStations = stations.drop(columns=["datetime",self.uColumn,self.directionColumn])
+            stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
+            stationsXarray = stations.set_index([self.xColumn, self.yColumn, "datetime"]).drop(columns=self.stationColumn).to_xarray()
             resampled = stationsXarray.resample(datetime="5Min").interpolate()
             stations = resampled.to_dataframe().reset_index()
-            stations = stations.set_index([xColumn,yColumn]).join(onlyStations.set_index([xColumn,yColumn])).reset_index().dropna()
+            stations = stations.set_index([self.xColumn,self.yColumn]).join(onlyStations.set_index([self.xColumn,self.yColumn])).reset_index().dropna()
 
-            allStationsFile = f"{len(stations[stationColumn].drop_duplicates())}\n"
+            allStationsFile = f"{len(stations[self.stationColumn].drop_duplicates())}\n"
             i = 0
             j = 0
-            for station in stations[stationColumn].drop_duplicates():
+            for station in stations[self.stationColumn].drop_duplicates():
                 stationName = f"{chr(65+i)}{chr(65+j)}"
-                allStationsFile += f"{stationName}  {list(stations.loc[stations[stationColumn]==station][xColumn])[0]}"
-                for k in range(9-len(str(list(stations.loc[stations[stationColumn]==station][xColumn])[0]))):
+                allStationsFile += f"{stationName}  {list(stations.loc[stations[self.stationColumn]==station][self.xColumn])[0]}"
+                for k in range(9-len(str(list(stations.loc[stations[self.stationColumn]==station][self.xColumn])[0]))):
                     allStationsFile += " "
-                allStationsFile += f"{list(stations.loc[stations[stationColumn]==station][yColumn])[0]}\n"
+                allStationsFile += f"{list(stations.loc[stations[self.stationColumn]==station][self.yColumn])[0]}\n"
                 stationFile = ""
                 for k in range(2901):
                     stationFile += "0 0\n"
-                for k, line in enumerate(stations.loc[stations[stationColumn]==station].iterrows()):
-                    stationFile += f"{line[1][uColumn]} {line[1][directionColumn]}\n"
+                for k, line in enumerate(stations.loc[stations[self.stationColumn]==station].iterrows()):
+                    stationFile += f"{line[1][self.uColumn]} {line[1][self.directionColumn]}\n"
                 with open(os.path.join("tozaot","Meteorology",f"{stationName}_st.txt"),"w") as newStationFile:
                     newStationFile.write(stationFile)
                 if j == 25:
@@ -151,16 +196,17 @@ class LSMTemplate(Project):
                     j += 1
             with open("STATIONS","w") as newStationFile:
                 newStationFile.write(allStationsFile)
+
         # run the model.
         os.system('./a.out')
-        if to_xarray:
+        if self.to_xarray:
             results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[self._document['desc']['params']["particles3D"]])
             netcdf_output = os.path.join(saveDir, "netcdf")
             os.makedirs(netcdf_output, exist_ok=True)
 
             L = []
             i = 0
-            for xray in LagrangianReader.toNetcdf(basefiles=results_full_path,datetimeFormat=datetimeFormat):
+            for xray in LagrangianReader.toNetcdf(basefiles=results_full_path,datetimeFormat=self.datetimeFormat):
                 L.append(xray)
 
                 if len(L) == 100:  # args.chunk:
@@ -174,15 +220,18 @@ class LSMTemplate(Project):
             # save the rest.
             finalxarray = xarray.concat(L, dim="datetime")
 
-            for var,shift in zip(["x","y"],[xshift,yshift]):
-                finalxarray[var] -= shift
+            new_coords = dict(x=finalxarray.x-xshift,y=finalxarray.y-yshift)
+            finalxarray= finalxarray.assign_coords(coords=new_coords)
 
             print("saved xarray in ",netcdf_output)
-            if not forceKeep:
+            if not self.forceKeep:
                 machsanPath = os.path.dirname(results_full_path)
                 allfiles = os.path.join(machsanPath ,"*")
                 os.system(f"rm {allfiles}")
+
+
             finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
+            return finalxarray
 
     def getLSMRuns(self,**query):
         """

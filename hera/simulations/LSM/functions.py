@@ -8,15 +8,30 @@ DEFAULTPROJECT = 'LSM'
 DOCTYPE_TEMPLATE = "LSM_template"
 DOCTYPE_RUN      = "LSM_run"
 
-def getTemplates(projectName=DEFAULTPROJECT, **query):
+def getTemplates(projectName=DEFAULTPROJECT,to_xarray=True,to_database=False,forceKeep=False, **query):
     """
     get a list of Template objects that fulfill the query
-    :param query:
+
+    Parameters
+    ----------
+
+    to_xarray: bool
+        Save the simulation results into xarray or not
+
+    to_database: bool
+        Save the simulation run in the database or not
+
+    forceKeep: bool
+        If to_xarray is true, determine wehter to keep the original files.
+        if False, removes the Lagrnagian files.
+
+
+    query
     :return:
     """
 
     docList = Simulations.getDocuments(projectName=projectName, type='LSM_template', **query)
-    return [LSMTemplate(doc,projectName=projectName) for doc in docList]
+    return [LSMTemplate(doc,projectName=projectName,to_xarray=to_xarray,to_database=to_database,forceKeep=forceKeep) for doc in docList]
 
 def getTemplateByID(id):
     """
