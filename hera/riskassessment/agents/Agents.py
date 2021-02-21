@@ -45,7 +45,7 @@ class AgentHome(ProjectMultiDBPublic):
 		:return:
 		"""
 		if isinstance(nameOrDesc,str):
-			configList = self.getMeasurementsDocuments(type='Agent',name=nameOrDesc)
+			configList = self.getMeasurementsDocuments(type='Agent',Agent=nameOrDesc)
 			if len(configList)==0:
 				raise ValueError(f"Agent {nameOrDesc} is not found. Load it with hera-risk-agent load")
 			descriptor = configList.desc
@@ -66,7 +66,7 @@ class AgentHome(ProjectMultiDBPublic):
 
 		"""
 		configList = self.getMeasurementsDocuments(type='Agent')
-		return [x.desc['name'] for x in configList]
+		return [x.desc['Agent'] for x in configList]
 
 
 	def loadAgent(self,name,agentDescription,public=True):
