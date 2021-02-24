@@ -39,7 +39,7 @@ class datalayer(locationDatalayer):
         try:
             height = self.__getattribute__("getHeight_%s" % self.getConfig()["heightSource"])(longitude=longitude,latitude=latitude)
         except AttributeError:
-            print("The height source is not known.")
+            raise KeyError("The height source is not known.")
 
         return height
 

@@ -2,6 +2,9 @@ from shapely import geometry
 import os
 from ....datalayer import project
 from .shapes import datalayer as shapeDatalayer
+import numpy
+import xarray
+import dask
 
 class datalayer(project.ProjectMultiDBPublic):
 
@@ -44,8 +47,6 @@ class datalayer(project.ProjectMultiDBPublic):
             additional_data: A dictionary with any additional parameters and their values.
 
         """
-
-        Source = self.getConfig()["source"] if Source is None else Source
         fullPath = self.getMeasurementsDocumentsAsDict(source=Source)["documents"][0]["resource"]
 
         if additional_data is not None:
@@ -56,19 +57,42 @@ class datalayer(project.ProjectMultiDBPublic):
 
         documents = self.getMeasurementsDocumentsAsDict(points=points,type=self._publicProjectName)
         if len(documents) == 0:
-            FileName = "%s/%s.shp" % (self._FilesDirectory, CutName)
-            os.system("ogr2ogr -clipsrc %s %s %s %s %s %s" % (points[0],points[1],points[2],points[3], FileName,fullPath))
-            self.addMeasurementsDocument(desc=additional_data, type=self._publicProjectName,
-                                               resource = FileName, dataFormat = "geopandas")
+            getattr(self,f"makeData_{Source}")(CutName=CutName,points=points,fullPath=fullPath,additional_data=additional_data)
         else:
             resource = documents["documents"][0]["resource"]
+            dataFormat = documents["documents"][0]["dataFormat"]
             if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(
                     self._databaseNameList) > 1:
                 userName = self._databaseNameList[1]
             else:
                 userName = self._databaseNameList[0]
             self.addMeasurementsDocument(desc=dict(**additional_data), type=self._publicProjectName,
-                                               resource = resource, dataFormat = "geopandas",users=[userName])
+                                               resource = resource, dataFormat = dataFormat,users=[userName])
+
+    def makeData_BNTL(self, CutName,points,fullPath,additional_data,**kwargs):
+
+        FileName = "%s/%s.shp" % (self._FilesDirectory, CutName)
+        os.system(
+            "ogr2ogr -clipsrc %s %s %s %s %s %s" % (points[0], points[1], points[2], points[3], FileName, fullPath))
+        self.addMeasurementsDocument(desc=additional_data, type=self._publicProjectName,
+                                     resource=FileName, dataFormat="geopandas")
+
+    def makeData_SRTM(self,CutName,points,additional_data,**kwargs):
+
+        FileName = "%s/%s.parquet" % (self._FilesDirectory, CutName)
+        allData = self.getMeasurementsDocuments(source="SRTM",type=self._publicProjectName)[0].getData()
+        dataArray = allData.read(1)
+        xs = numpy.linspace(allData.bounds.left,allData.bounds.right,dataArray.shape[1])
+        ys = numpy.linspace(allData.bounds.top,allData.bounds.bottom,dataArray.shape[0])
+        xmin = numpy.where(xs>points[0])[0].min()
+        ymin = numpy.where(ys<points[1])[0].min()
+        xmax = numpy.where(xs<points[2])[0].max()
+        ymax = numpy.where(ys>points[3])[0].max()
+        data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["y","x"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe("height").reset_index()
+        data = dask.dataframe.from_pandas(data,npartitions=1)
+        data.to_parquet(FileName,compression="GZIP")
+        self.addMeasurementsDocument(desc=additional_data, type=self._publicProjectName,
+                                     resource=FileName, dataFormat="parquet")
 
     def check_data(self, **kwargs):
         """
@@ -145,7 +169,7 @@ class datalayer(project.ProjectMultiDBPublic):
             **kwargs: any additional parameters that describe the data.
             return: The data.
         """
-
+        Source = self.getConfig()["source"] if Source is None else Source
         if Shape is not None:
             if type(Shape)==str:
                 try:

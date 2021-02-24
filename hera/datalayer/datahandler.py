@@ -6,6 +6,7 @@ import geopandas
 import matplotlib.image as mpimg
 import sys
 import pickle
+import rasterio
 version = sys.version_info[0]
 if version == 3:
     from json import JSONDecodeError
@@ -283,5 +284,25 @@ class DataHandler_pickle(object):
         img
         """
         obj = pickle.load(resource)
+
+        return obj
+
+class DataHandler_tif(object):
+
+    @staticmethod
+    def getData(resource):
+        """
+        Loads an pickled object using the resource.
+
+        Parameters
+        ----------
+        resource : str
+            The path to the pickled object
+
+        Returns
+        -------
+        img
+        """
+        obj = rasterio.open(resource)
 
         return obj
