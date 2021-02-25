@@ -5,6 +5,7 @@ from .shapes import datalayer as shapeDatalayer
 import numpy
 import xarray
 import dask
+import geopandas
 
 class datalayer(project.ProjectMultiDBPublic):
 
@@ -70,6 +71,9 @@ class datalayer(project.ProjectMultiDBPublic):
                                                resource = resource, dataFormat = dataFormat,users=[userName])
 
     def makeData_BNTL(self, CutName,points,fullPath,additional_data,**kwargs):
+        """
+        Generates a new shapefile, used for BNTL source
+        """
 
         FileName = "%s/%s.shp" % (self._FilesDirectory, CutName)
         os.system(
@@ -78,6 +82,9 @@ class datalayer(project.ProjectMultiDBPublic):
                                      resource=FileName, dataFormat="geopandas")
 
     def makeData_SRTM(self,CutName,points,additional_data,**kwargs):
+        """
+        Generates a new dask dataframe, used for SRTM source
+        """
 
         FileName = "%s/%s.parquet" % (self._FilesDirectory, CutName)
         allData = self.getMeasurementsDocuments(source="SRTM",type=self._publicProjectName)[0].getData()
@@ -88,8 +95,16 @@ class datalayer(project.ProjectMultiDBPublic):
         ymin = numpy.where(ys<points[1])[0].min()
         xmax = numpy.where(xs<points[2])[0].max()
         ymax = numpy.where(ys>points[3])[0].max()
-        data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["y","x"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe("height").reset_index()
-        data = dask.dataframe.from_pandas(data,npartitions=1)
+        xColumn = self.getConfig()["xColumn"] if "xColumn" in self.getConfig().keys() else "x"
+        yColumn = self.getConfig()["yColumn"] if "yColumn" in self.getConfig().keys() else "y"
+        heightColumn = self.getConfig()["heightColumn"] if "heightColumn" in self.getConfig().keys() else "height"
+        data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["yWGS84","xWGS84"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe(heightColumn).reset_index()
+        gdf = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data["xWGS84"], data["yWGS84"]))
+        gdf.crs = {"init": "epsg:4326"}
+        gdf = gdf.to_crs({"init": "epsg:2039"})
+        gdf[xColumn] = gdf.geometry.x
+        gdf[yColumn] = gdf.geometry.y
+        data = dask.dataframe.from_pandas(gdf.drop(columns="geometry"),npartitions=1)
         data.to_parquet(FileName,compression="GZIP")
         self.addMeasurementsDocument(desc=additional_data, type=self._publicProjectName,
                                      resource=FileName, dataFormat="parquet")
