@@ -25,12 +25,11 @@ class datalayer(project.ProjectMultiDBPublic):
     def publicProjectName(self):
         return self._publicProjectName
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography"):
 
         self._projectName = projectName
         self._publicProjectName = publicProjectName
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,useAll=useAll)
-        self.setConfig({"source":Source})
         if FilesDirectory == "":
             self._FilesDirectory = os.getcwd()
         else:

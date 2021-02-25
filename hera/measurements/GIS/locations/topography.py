@@ -25,15 +25,14 @@ class datalayer(locationDatalayer):
     def analysis(self):
         return self._analysis
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",Source="BNTL"):
+    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",
+                 source="BNTL", dxdy=50, heightSource="USGS", xColumn="x",yColumn="y",heightColumn="height", dbName=None,**kwargs):
 
-        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll,Source=Source)
+        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
-        self.setConfig()
-
-    def setConfig(self, Source="BNTL", dxdy=50, heightSource="USGS", xColumn="x",yColumn="y",heightColumn="height", dbName=None, **kwargs):
-        config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,xColumn=xColumn,yColumn=yColumn,heightColumn=heightColumn,**kwargs)
-        super().setConfig(config, dbName=dbName)
+        documents = self.getCacheDocuments(type="__config__")
+        if len(documents)==0 or len(kwargs.keys())>0:
+            self.setConfig(dbName=dbName,source=source,dxdy=dxdy,heightSource=heightSource,xColumn=xColumn,yColumn=yColumn,heightColumn=heightColumn,**kwargs)
 
     def getHeight(self, latitude, longitude):
 
