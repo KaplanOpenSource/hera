@@ -26,7 +26,6 @@ class datalayer(project.ProjectMultiDBPublic):
                          databaseNameList=databaseNameList, useAll=useAll)
         self.setConfig()
         self._analysis = analysis(projectName=projectName, dataLayer=self)
-
         datalist = self.getMeasurementsDocuments(source=self.getConfig()["source"])
         if len(datalist) > 0:
             self._Data = datalist[0].getData()
@@ -39,10 +38,10 @@ class datalayer(project.ProjectMultiDBPublic):
         """
         populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"} if populationTypes is None else populationTypes
-        config = dict(source=Source,units=units,populationTypes=populationTypes, **kwargs)
-        super().setConfig(config=config, dbName=dbName)
 
-        datalist = self.getMeasurementsDocuments(source=config["source"])
+        super().setConfig(source=Source,units=units,populationTypes=populationTypes, dbName=dbName, **kwargs)
+
+        datalist = self.getMeasurementsDocuments(source=Source)
 
         if len(datalist) > 0:
             self._Data = datalist[0].getData()
