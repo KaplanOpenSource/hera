@@ -15,6 +15,7 @@ import scipy
 from ..topography.STL import stlFactory
 from ....simulations.utils import coordinateHandler
 import os
+import dask
 
 class datalayer(locationDatalayer):
 
@@ -30,8 +31,8 @@ class datalayer(locationDatalayer):
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         self.setConfig()
 
-    def setConfig(self, Source="BNTL", dxdy=50, heightSource="USGS", dbName=None, **kwargs):
-        config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,**kwargs)
+    def setConfig(self, Source="BNTL", dxdy=50, heightSource="USGS", xColumn="x",yColumn="y",heightColumn="height", dbName=None, **kwargs):
+        config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,xColumn=xColumn,yColumn=yColumn,heightColumn=heightColumn,**kwargs)
         super().setConfig(config, dbName=dbName)
 
     def getHeight(self, latitude, longitude):
@@ -194,61 +195,74 @@ class analysis():
 
         """
         Creats a dem format string of topography.
-        data is either a CutName of a topography or a geopandas dataframe.
+        data is either a CutName of a topography or a geopandas/pandas/dask dataframe.
         any additional kwargs may be used to locate the dataframe.
         """
 
         if type(data) == str:
             geodata = self.datalayer.getDocuments(CutName=data,**kwargs)[0].getData()
-        elif type(data) == geopandas.geodataframe.GeoDataFrame:
+        elif type(data) == geopandas.geodataframe.GeoDataFrame or type(data) == pandas.core.frame.DataFrame or type(data) == dask.dataframe.core.DataFrame:
             geodata = data
         else:
-            raise KeyError("data should be geopandas dataframe or a string.")
-        xmin = geodata['geometry'].bounds['minx'].min()
-        xmax = geodata['geometry'].bounds['maxx'].max()
+            raise KeyError("data should be geopandas/pandas/dask dataframe or a string.")
+        if type(data) == geopandas.geodataframe.GeoDataFrame:
+            xmin = geodata['geometry'].bounds['minx'].min()
+            xmax = geodata['geometry'].bounds['maxx'].max()
 
-        ymin = geodata['geometry'].bounds['miny'].min()
-        ymax = geodata['geometry'].bounds['maxy'].max()
-        Nx = int(((xmax - xmin) / self._datalayer.getConfig()["dxdy"]))
-        Ny = int(((ymax - ymin) / self._datalayer.getConfig()["dxdy"]))
+            ymin = geodata['geometry'].bounds['miny'].min()
+            ymax = geodata['geometry'].bounds['maxy'].max()
+            Nx = int(((xmax - xmin) / self._datalayer.getConfig()["dxdy"]))
+            Ny = int(((ymax - ymin) / self._datalayer.getConfig()["dxdy"]))
 
-        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
-        dx = (xmax - xmin) / (Nx)
-        dy = (ymax - ymin) / (Ny)
-        print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
-        # 2.2 build the mesh.
-        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._datalayer.getConfig()["dxdy"], ymin:ymax:self._datalayer.getConfig()["dxdy"]]
-        # 3. Get the points from the geom
-        Height = []
-        XY = []
+            print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
+            dx = (xmax - xmin) / (Nx)
+            dy = (ymax - ymin) / (Ny)
+            print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
+            # 2.2 build the mesh.
+            grid_x, grid_y = numpy.mgrid[xmin:xmax:self._datalayer.getConfig()["dxdy"], ymin:ymax:self._datalayer.getConfig()["dxdy"]]
+            # 3. Get the points from the geom
+            Height = []
+            XY = []
 
-        for i, line in enumerate(geodata.iterrows()):
-            if isinstance(line[1]['geometry'], LineString):
-                linecoords = [x for x in line[1]['geometry'].coords]
-                lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                XY += linecoords
-                Height += lineheight
-            else:
-                for ll in line[1]['geometry']:
-                    linecoords = [x for x in ll.coords]
+            for i, line in enumerate(geodata.iterrows()):
+                if isinstance(line[1]['geometry'], LineString):
+                    linecoords = [x for x in line[1]['geometry'].coords]
                     lineheight = [line[1]['HEIGHT']] * len(linecoords)
                     XY += linecoords
                     Height += lineheight
+                else:
+                    for ll in line[1]['geometry']:
+                        linecoords = [x for x in ll.coords]
+                        lineheight = [line[1]['HEIGHT']] * len(linecoords)
+                        XY += linecoords
+                        Height += lineheight
 
-        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+            grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
 
-        if np.ma.is_masked(grid_z2):
-            nans = grid_z2.mask
+            if np.ma.is_masked(grid_z2):
+                nans = grid_z2.mask
+            else:
+                nans = np.isnan(grid_z2)
+            notnans = np.logical_not(nans)
+            grid_z2[nans] = scipy.interpolate.griddata((grid_x[notnans], grid_y[notnans]), grid_z2[notnans],
+                                                 (grid_x[nans], grid_y[nans]), method='nearest').ravel()
         else:
-            nans = np.isnan(grid_z2)
-        notnans = np.logical_not(nans)
-        grid_z2[nans] = scipy.interpolate.griddata((grid_x[notnans], grid_y[notnans]), grid_z2[notnans],
-                                             (grid_x[nans], grid_y[nans]), method='nearest').ravel()
+            if type(geodata) == dask.dataframe.core.DataFrame:
+                geodata = geodata.compute()
+            xmin = geodata[self.datalayer.getConfig()["xColumn"]].min()
+            xmax = geodata[self.datalayer.getConfig()["xColumn"]].max()
+
+            ymin = geodata[self.datalayer.getConfig()["yColumn"]].min()
+            ymax = geodata[self.datalayer.getConfig()["yColumn"]].max()
+            Nx = int(((xmax - xmin) / self._datalayer.getConfig()["dxdy"]))
+            Ny = int(((ymax - ymin) / self._datalayer.getConfig()["dxdy"]))
+            grid_z2=coordinateHandler.regularizeTimeSteps(data=geodata, fieldList=[self.datalayer.getConfig()["heightColumn"]],
+                                                          coord1=self.datalayer.getConfig()["xColumn"], coord2=self.datalayer.getConfig()["yColumn"],
+                                                          n=(Nx, Ny), addSurface=False, toPandas=False)[0][self.datalayer.getConfig()["heightColumn"]]
 
         DEMstring = f"{xmin} {xmax} {ymin} {ymax}\n{int(Nx)} {int(Ny)}\n"
-
-        for i in range(Nx):
-            for j in range(Ny):
+        for i in range(Ny):
+            for j in range(Nx):
                 DEMstring += f"{(float(grid_z2[j, i]))} "
             DEMstring += "\n"
 
