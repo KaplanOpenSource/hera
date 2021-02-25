@@ -74,7 +74,7 @@ class LSMTemplate(Project):
             # if stations is None:
             #     raise KeyError("When using topography stations must be delivered.")
             # else:
-            self._document['desc']['params'].update(TopoFile="'TOPO'")
+            self._document['desc']['params'].update(TopoFile="'TOPO'",flat=".FALSE.")
         if stations is not None:
             self._document['desc']['params'].update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
         xshift = (self._document['desc']['params']["TopoXmax"] - self._document['desc']['params']["TopoXmin"]) * \
