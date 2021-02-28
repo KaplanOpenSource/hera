@@ -30,10 +30,10 @@ class datalayer(locationDatalayer):
     def analysis(self):
         return self._analysis
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Buildings",source="BNTL",**kwargs):
+    def __init__(self, projectName, FilesDirectory="", useAll=False,publicProjectName="Buildings",source="BNTL",**kwargs):
 
         self._publicProjectName = publicProjectName
-        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll)
+        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,useAll=useAll)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         documents = self.getCacheDocuments(type="__config__")
         if len(documents)==0 or len(kwargs.keys())>0:

@@ -92,9 +92,9 @@ class LSMTemplate(Project):
                                         type=self.LSM_RUN_TYPE,
                                         resource='None',
                                         dataFormat='None',
-                                        desc=dict(params=self._document['desc']['params'],
-                                                  version=self.version,
-                                                  datetimeFormat=datetimeFormat
+                                        desc=dict(version=self.version,
+                                                  datetimeFormat=datetimeFormat,
+                                                  **self._document['desc']['params']
                                                   )
                                         )
 

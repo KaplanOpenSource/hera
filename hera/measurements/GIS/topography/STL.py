@@ -4,6 +4,7 @@ import pandas
 from numpy import array, cross, sqrt
 import numpy
 from scipy.interpolate import griddata
+from ....simulations.utils import coordinateHandler
 
 class stlFactory():
 
@@ -144,6 +145,40 @@ class stlFactory():
 
         data = pandas.DataFrame({"XY": XY, "Height": Height, "gridxMin":grid_x.min(), "gridxMax":grid_x.max(),
                                  "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2[~numpy.isnan(grid_z2)].min(), "gridzMax":grid_z2[~numpy.isnan(grid_z2)].max(),})
+
+        return stlstr, data
+
+    def Convert_pandas_to_stl(self, gpandas, points, NewFileName, dxdy=50,xColumn="x",yColumn="y", heightColumn="height",flat=None):
+        """
+            Gets a shape file of topography.
+            each contour line has property 'height'.
+            Converts it to equigrid xy mesh and then build the STL.
+        """
+
+        # 1. Convert contour map to regular height map.
+        # 1.1 get boundaries
+        xmin = points[0]
+        xmax = points[2]
+
+        ymin = points[1]
+        ymax = points[3]
+
+        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
+        # 1.2 build the mesh.
+        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
+        # 2. Get the points from the geom
+        Nx = int(((xmax - xmin) / dxdy))
+        Ny = int(((ymax - ymin) / dxdy))
+        grid_z2 = coordinateHandler.regularizeTimeSteps(data=gpandas, fieldList=[heightColumn],
+                                              coord1=xColumn,
+                                              coord2=yColumn,
+                                              n=(Nx, Ny), addSurface=False, toPandas=False)[0][heightColumn]
+        grid_z2 = self.organizeGrid(grid_z2)
+
+        stlstr = self._makestl(grid_x, grid_y, grid_z2.values, NewFileName)
+
+        data = pandas.DataFrame({"gridxMin":[grid_x.min()], "gridxMax":[grid_x.max()],
+                                 "gridyMin":[grid_y.min()], "gridyMax":[grid_y.max()]})
 
         return stlstr, data
 

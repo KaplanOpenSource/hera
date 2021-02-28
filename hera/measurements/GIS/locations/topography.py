@@ -25,10 +25,10 @@ class datalayer(locationDatalayer):
     def analysis(self):
         return self._analysis
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography",
+    def __init__(self, projectName, FilesDirectory="", useAll=False,publicProjectName="Topography",
                  source="BNTL", dxdy=50, heightSource="USGS", xColumn="x",yColumn="y",heightColumn="height", dbName=None,**kwargs):
 
-        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,databaseNameList=databaseNameList,useAll=useAll)
+        super().__init__(projectName=projectName,publicProjectName=publicProjectName,FilesDirectory=FilesDirectory,useAll=useAll)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         documents = self.getCacheDocuments(type="__config__")
         if len(documents)==0 or len(kwargs.keys())>0:
@@ -155,15 +155,25 @@ class analysis():
             polygon = shapeDatalayer(projectName=self.datalayer.projectName).getShape(data)
             dataframe = self.datalayer.getDocuments(Shape=data, ShapeMode="contains")[0].getData()
             geodata = self.PolygonDataFrameIntersection(polygon=polygon, dataframe=dataframe)
-        elif type(data) == geopandas.geodataframe.GeoDataFrame:
+        elif type(data) == geopandas.geodataframe.GeoDataFrame or type(data) == pandas.core.frame.DataFrame or type(data) == dask.dataframe.core.DataFrame:
             geodata = data
         else:
-            raise KeyError("data should be geopandas dataframe or a polygon.")
-        xmin = geodata['geometry'].bounds['minx'].min()
-        xmax = geodata['geometry'].bounds['maxx'].max()
+            raise KeyError("data should be a dataframe or a polygon.")
+        if type(data) == geopandas.geodataframe.GeoDataFrame:
+            xmin = geodata['geometry'].bounds['minx'].min()
+            xmax = geodata['geometry'].bounds['maxx'].max()
 
-        ymin = geodata['geometry'].bounds['miny'].min()
-        ymax = geodata['geometry'].bounds['maxy'].max()
+            ymin = geodata['geometry'].bounds['miny'].min()
+            ymax = geodata['geometry'].bounds['maxy'].max()
+        else:
+            if type(geodata) == dask.dataframe.core.DataFrame:
+                geodata = geodata.compute()
+            xmin = geodata[self.datalayer.getConfig()["xColumn"]].min()
+            xmax = geodata[self.datalayer.getConfig()["xColumn"]].max()
+
+            ymin = geodata[self.datalayer.getConfig()["yColumn"]].min()
+            ymax = geodata[self.datalayer.getConfig()["yColumn"]].max()
+
         points = [xmin, ymin, xmax, ymax]
         documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._datalayer.getConfig()["dxdy"])
         if len(documents) >0:
@@ -174,7 +184,12 @@ class analysis():
                                             gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
         else:
             stl = stlFactory()
-            stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName,dxdy=self._datalayer.getConfig()["dxdy"])
+            if type(data) == geopandas.geodataframe.GeoDataFrame:
+                stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName,dxdy=self._datalayer.getConfig()["dxdy"])
+            else:
+                stlstr, newdata = stl.Convert_pandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=NewFileName,dxdy=self._datalayer.getConfig()["dxdy"],
+                                                            xColumn=self.datalayer.getConfig()["xColumn"],yColumn=self.datalayer.getConfig()["yColumn"],
+                                                            heightColumn=self.datalayer.getConfig()["heightColumn"])
             if save:
                 p = self.datalayer.FilesDirectory if path is None else path
                 new_file_path = os.path.join(p,f"{NewFileName}.stl")

@@ -12,6 +12,8 @@ class datalayer(project.ProjectMultiDBPublic):
     _projectName = None
     _publicProjectName = None
     _FilesDirectory = None
+    _boundsName = None
+    _srtmBounds = None
 
     @property
     def FilesDirectory(self):
@@ -25,17 +27,30 @@ class datalayer(project.ProjectMultiDBPublic):
     def publicProjectName(self):
         return self._publicProjectName
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Topography"):
+    @property
+    def boundsName(self):
+        return self._boundsName
+
+    @property
+    def srtmBounds(self):
+        return self._srtmBounds
+
+    def __init__(self, projectName, FilesDirectory="", useAll=False,publicProjectName="Topography"):
 
         self._projectName = projectName
         self._publicProjectName = publicProjectName
+        self._boundsName = "Bounds"
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,useAll=useAll)
         if FilesDirectory == "":
             self._FilesDirectory = os.getcwd()
         else:
             os.system("mkdir -p %s" % FilesDirectory)
             self._FilesDirectory = FilesDirectory
-
+        srtmDocs = self.getMeasurementsDocumentsAsDict(source="SRTM", type=self._publicProjectName)
+        self._srtmBounds = []
+        if type(srtmDocs)==dict:
+            for doc in srtmDocs["documents"]:
+                self._srtmBounds.append(doc["desc"][self._boundsName])
 
     def makeData(self, points, CutName, additional_data=None, Source=None):
         """
@@ -84,29 +99,36 @@ class datalayer(project.ProjectMultiDBPublic):
         """
         Generates a new dask dataframe, used for SRTM source
         """
-
-        FileName = "%s/%s.parquet" % (self._FilesDirectory, CutName)
-        allData = self.getMeasurementsDocuments(source="SRTM",type=self._publicProjectName)[0].getData()
-        dataArray = allData.read(1)
-        xs = numpy.linspace(allData.bounds.left,allData.bounds.right,dataArray.shape[1])
-        ys = numpy.linspace(allData.bounds.top,allData.bounds.bottom,dataArray.shape[0])
-        xmin = numpy.where(xs>points[0])[0].min()
-        ymin = numpy.where(ys<points[1])[0].min()
-        xmax = numpy.where(xs<points[2])[0].max()
-        ymax = numpy.where(ys>points[3])[0].max()
-        xColumn = self.getConfig()["xColumn"] if "xColumn" in self.getConfig().keys() else "x"
-        yColumn = self.getConfig()["yColumn"] if "yColumn" in self.getConfig().keys() else "y"
-        heightColumn = self.getConfig()["heightColumn"] if "heightColumn" in self.getConfig().keys() else "height"
-        data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["yWGS84","xWGS84"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe(heightColumn).reset_index()
-        gdf = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data["xWGS84"], data["yWGS84"]))
-        gdf.crs = {"init": "epsg:4326"}
-        gdf = gdf.to_crs({"init": "epsg:2039"})
-        gdf[xColumn] = gdf.geometry.x
-        gdf[yColumn] = gdf.geometry.y
-        data = dask.dataframe.from_pandas(gdf.drop(columns="geometry"),npartitions=1)
-        data.to_parquet(FileName,compression="GZIP")
-        self.addMeasurementsDocument(desc=additional_data, type=self._publicProjectName,
-                                     resource=FileName, dataFormat="parquet")
+        availableBounds = {}
+        for bounds in self.srtmBounds:
+            if points[0] >= bounds[0] and points[0] <= bounds[2] and points[2] >= bounds[0] and points[2] <= bounds[2] and points[1] >= bounds[1] and points[1] <= bounds[3] and points[3] >= bounds[1] and points[3] <= bounds[3]:
+                availableBounds[self.boundsName] = bounds
+                break
+        if len(availableBounds)>0:
+            FileName = "%s/%s.parquet" % (self._FilesDirectory, CutName)
+            allData = self.getMeasurementsDocuments(source="SRTM",type=self._publicProjectName, **availableBounds)[0].getData()
+            dataArray = allData.read(1)
+            xs = numpy.linspace(allData.bounds.left,allData.bounds.right,dataArray.shape[1])
+            ys = numpy.linspace(allData.bounds.top,allData.bounds.bottom,dataArray.shape[0])
+            xmin = numpy.where(xs>points[0])[0].min()
+            ymin = numpy.where(ys<points[1])[0].min()
+            xmax = numpy.where(xs<points[2])[0].max()
+            ymax = numpy.where(ys>points[3])[0].max()
+            xColumn = self.getConfig()["xColumn"] if "xColumn" in self.getConfig().keys() else "x"
+            yColumn = self.getConfig()["yColumn"] if "yColumn" in self.getConfig().keys() else "y"
+            heightColumn = self.getConfig()["heightColumn"] if "heightColumn" in self.getConfig().keys() else "height"
+            data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["yWGS84","xWGS84"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe(heightColumn).reset_index()
+            gdf = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data["xWGS84"], data["yWGS84"]))
+            gdf.crs = {"init": "epsg:4326"}
+            gdf = gdf.to_crs({"init": "epsg:2039"})
+            gdf[xColumn] = gdf.geometry.x
+            gdf[yColumn] = gdf.geometry.y
+            data = dask.dataframe.from_pandas(gdf.drop(columns="geometry"),npartitions=1)
+            data.to_parquet(FileName,compression="GZIP")
+            self.addMeasurementsDocument(desc=additional_data, type=self._publicProjectName,
+                                         resource=FileName, dataFormat="parquet")
+        else:
+            raise KeyError("Couldn't find SRTM files which include the requested points!")
 
     def check_data(self, **kwargs):
         """
