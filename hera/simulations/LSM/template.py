@@ -211,8 +211,8 @@ class LSMTemplate(Project):
 
                 if len(L) == 100:  # args.chunk:
                     finalxarray = xarray.concat(L, dim="datetime")
-                    for var, shift in zip(["x", "y"], [xshift, yshift]):
-                        finalxarray[var] -= shift
+                    new_coords = dict(x=finalxarray.x - xshift, y=finalxarray.y - yshift)
+                    finalxarray = finalxarray.assign_coords(coords=new_coords)
                     finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
                     L = []
                     i += 1
