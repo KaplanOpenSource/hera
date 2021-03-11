@@ -543,6 +543,7 @@ class ProjectMultiDB(loggedObject):
 
 
         """
+        super().__init__()
         self._projectName = projectName
         self._databaseNameList = numpy.atleast_1d(databaseNameList)
         self._useAll = useAll

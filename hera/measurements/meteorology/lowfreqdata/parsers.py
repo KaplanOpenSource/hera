@@ -28,7 +28,7 @@ class LowFrequencyAbstractParser:
 
 class Parser_JSONIMS(LowFrequencyAbstractParser):
     """
-        Parsing
+        Parsing a JSON IMS file.
     """
     _removelist = None
 
@@ -105,6 +105,22 @@ class Parser_JSONIMS(LowFrequencyAbstractParser):
         return comments
 
     def parse(self, pathToData, metadatafile=None, **metadata):
+        """
+
+            Parses a JSON IMS file or directory to dask. Also builds the metadata file.
+
+        :param pathToData: str
+                The path to the data file or directory
+
+        :param metadatafile: str
+                The path to the metadata file (optional).
+
+        :param metadata: parameters.
+                Additional parameters that will added to the metadata
+        :return: tuple (dask,dict)
+            The data converted to dask file, and the dict of metadata.
+
+        """
 
         station_column  = self.station_column
         time_column     = self.time_column
