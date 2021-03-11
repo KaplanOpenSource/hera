@@ -117,6 +117,8 @@ class Project(loggedObject):
         self._simulations   = Simulations_Collection(user=databaseName)
         self._all           =   AbstractCollection(user=databaseName)
 
+
+
     def getMetadata(self):
         """
         Returns a pandas dataframe which contains all the description of all ot the documents in the current project.
