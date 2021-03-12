@@ -1,15 +1,10 @@
-import os
-import logging
-import numpy
-from .abstractLocation import datalayer as locationDatalayer
-from ....datalayer import datatypes
-from ....datalayer import project
+from . import abstractLocation
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
 from shapely.geometry import Point,box,MultiLineString, LineString
 
-class datalayer(project.ProjectMultiDBPublic):
+class ImageToolkit(abstractLocation.AbstractLocationToolkit):
     """
         A class to handle an image that represents a location.
 
@@ -17,43 +12,46 @@ class datalayer(project.ProjectMultiDBPublic):
 
     """
 
-    _projectName = None
     _presentation = None
-
-    docType = "GIS_Image"
 
     @property
     def presentation(self):
         return self._presentation
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Images"):
+    def __init__(self, projectName,FilesDirectory=None):
 
-        self._projectName = projectName
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
-        self._presentation = presentation(projectName=projectName,dataLayer=self)
+        super().__init__(projectName=projectName,
+                         toolkitName="Image",
+                         FilesDirectory=FilesDirectory)
 
-    def load(self, path, imageName, extents,**desc):
+        self._presentation = presentation(dataLayer=self)
+
+    def loadImageToDB(self, path, imageName, extents,**desc):
         """
-        Parameters:
-        -----------
-        projectName: str
-                    The project name
-        path:  str
-                    The image path
-        imageName: str
-                    The location name
-        extents: list or dict
-                list: The extents of the image [xmin, xmax, ymin, ymax]
-                dict: A dict with the keys xmin,xmax,ymin,ymax
+            Parameters:
+            -----------
+            projectName: str
+                        The project name
+            path:  str
+                        The image path
+            imageName: str
+                        The location name
+            extents: list or dict
+                    list: The extents of the image [xmin, xmax, ymin, ymax]
+                    dict: A dict with the keys xmin,xmax,ymin,ymax
 
-        desc: additional description of the figure.
+            desc: additional description of the figure.
 
-        Returns
-        -------
+            Returns
+            -------
+            return the document.
         """
-        check = self.getMeasurementsDocuments(dataFormat='image',type=self.docType ,imageName=imageName)
-        if len(check)>0:
-            raise KeyError("The imageName is already used.")
+        check = self.getLocationByRegion(imageName)
+
+        if check is not None:
+            raise KeyError(f"Image {imageName} already exists in project {self.projectName}")
+
+
         if isinstance(extents,dict):
             extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
         elif isinstance(extents,list):
@@ -61,31 +59,35 @@ class datalayer(project.ProjectMultiDBPublic):
         else:
             raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
 
-        imageparams = dict(imageName=imageName,
-             xmin=extentList[0],
-             xmax=extentList[1],
-             ymin=extentList[2],
-             ymax=extentList[3]
-             )
+        imageparams = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME : imageName,
+                         "xmin":extentList[0],
+                         "xmax":extentList[1],
+                         "ymin":extentList[2],
+                         "ymax":extentList[3]
+                       }
 
         imageparams.update(desc)
 
-        doc = dict(resource=path,
-                   dataFormat='image',
-                   type='GIS',
-                   desc=imageparams)
+        doc = self.addMeasurementsDocument(resource=path,
+                                     dataFormat=abstractLocation.toolkit.datatypes.IMAGE,
+                                     type=self.name,
+                                     desc=imageparams)
 
-        if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public" and len(
-                self._databaseNameList) > 1:
-            userName = self._databaseNameList[1]
-        else:
-            userName = self._databaseNameList[0]
-        self.addMeasurementsDocument(**doc,users=[userName])
+        return doc
+
+
+    def getImage(self,imageName,**filters):
+        qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: imageName}
+        qry.update(filters)
+        docList = self.getMeasurementsDocuments(type=self.name,**qry)
+
+        return None if len(docList) ==0 else docList[0]
+
 
     def listImages(self,**filters):
-        return self.getMeasurementsDocuments(type=self.docType ,imageName=imageName)
+        return self.getMeasurementsDocuments(type=self.name,**filters)
 
-class presentation():
+class presentation:
 
     _datalayer = None
 
@@ -93,22 +95,30 @@ class presentation():
     def datalayer(self):
         return self._datalayer
 
-    def __init__(self, projectName, dataLayer=None, databaseNameList=None, useAll=False,
-                 publicProjectName="Images"):
+    def __init__(self,dataLayer):
+        self._datalayer = dataLayer
 
-        self._datalayer = datalayer(projectName=projectName, publicProjectName=publicProjectName,
-                         databaseNameList=databaseNameList, useAll=useAll) if datalayer is None else dataLayer
+    def plot(self, imageNameOrData, ax=None):
+        """
+            Plot the image
 
-    def plot(self, imageName, ax=None, **query):
+        Parameters
+        ----------
+
+        imageName: str or image
+            The image name from the
+
+        Returns
+        -------
+            return the ax of the figure.
         """
-        :param imageName: The location name
-        :param query: Some more specific details to query on
-        :return:
-        """
-        doc = self.datalayer.getMeasurementsDocuments(dataFormat='image',type='GIS',imageName=imageName,**query)
-        if len(doc) > 1:
-            raise ValueError('More than 1 documents fills those requirements')
-        doc = doc[0]
+
+        if isinstance(imageNameOrData,str):
+            doc = self.datalayer.getImage(imageNameOrData)
+            image = doc.getData()
+        else:
+            image = imageNameOrData
+
 
         if ax is None:
             fig, ax = plt.subplots()
