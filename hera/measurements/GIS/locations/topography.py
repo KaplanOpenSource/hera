@@ -1,5 +1,5 @@
 import logging
-from .abstractLocation import datalayer as locationDatalayer
+from .abstractLocation import AbstractLocationToolkit as locationDatalayer
 import geopandas
 from scipy.interpolate import griddata
 import numpy
@@ -16,7 +16,7 @@ from ..topography.STL import stlFactory
 from ....simulations.utils import coordinateHandler
 import os
 
-class datalayer(locationDatalayer):
+class abstractLocationToolkit(locationDatalayer):
 
     _analysis = None
 
@@ -107,8 +107,8 @@ class analysis():
     def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
                  publicProjectName="Topography", Source="BNTL"):
 
-        self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
-                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+        self._datalayer = abstractLocationToolkit(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
+                                                  databaseNameList=databaseNameList, useAll=useAll, Source=Source) if abstractLocationToolkit is None else dataLayer
 
     def PolygonDataFrameIntersection(self, dataframe, polygon):
         """

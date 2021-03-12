@@ -2,46 +2,64 @@ import os
 import logging
 import pandas
 import geopandas
-from .abstractLocation import datalayer as locationDatalayer
+from . import abstractLocation
 from ....datalayer import datatypes
-
-import matplotlib.pyplot as plt
-
-from shapely.geometry import Point,box,MultiLineString, LineString
 
 try:
     from freecad import app as FreeCAD
     import Part
     import Mesh
 except ImportError as e:
-    logging.warning("FreeCAD not Found, cannot convert to STL")
+    logging.warning("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
 
 
-class datalayer(locationDatalayer):
+class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
+    """
+        Toolkit to manage the buildings.
 
-    _publicProjectName = None
+        Reading the shapefile with geoDataFrame will result in dataframe
+        with the following columns:
+
+        - geometry: the polygon of the building
+        - Building height column : the column name is in BuildingHeightColumn
+                                    default value: BLDG_HT
+        - Land height  : the columns name is in LandHeightColumn
+                                default value: HT_LAND
+    """
+
     _analysis = None
 
+    _BuildingHeightColumn = None
+
     @property
-    def doctype(self):
-        return 'BuildingSTL'
+    def BuildingHeightColumn(self):
+        return self._BuildingHeightColumn
+
+    @BuildingHeightColumn.setter
+    def BuildingHeightColumn(self, value):
+        self._BuildingHeightColumn = value
+
+    @property
+    def LandHeightColumn(self):
+        return self._LandHeightColumns
+
+    @LandHeightColumn.setter
+    def LandHeightColumn(self, value):
+        self._LandHeightColumns = value
 
     @property
     def analysis(self):
         return self._analysis
 
-    def __init__(self, projectName, FilesDirectory="", databaseNameList=None, useAll=False,publicProjectName="Buildings",Source="BNTL"):
+    def __init__(self, projectName, FilesDirectory=None):
 
-        self._publicProjectName = publicProjectName
-        super().__init__(projectName=projectName,publicProjectName=self.publicProjectName,FilesDirectory=FilesDirectory,useAll=useAll,Source=Source)
-        self._analysis = analysis(projectName=projectName, dataLayer=self)
-        self.setConfig()
+        super().__init__(projectName=projectName,toolkitName="Buildings",FilesDirectory=FilesDirectory)
+        self._analysis = analysis(dataLayer=self)
 
-    def setConfig(self, Source="BNTL", dbName=None, **kwargs):
-        config = dict(source=Source,**kwargs)
-        super().setConfig(config, dbName=dbName)
+        self._BuildingHeightColumn = "BLDG_HT"
+        self._LandHeightColumns   = 'HT_LAND'
 
-    def toSTL(self, doc, outputfile,flat=None):
+    def toSTL(self, regionNameOrData, outputFileName,flat=None,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
         """
             Converts the document to the stl and saves it to the disk.
             Adds the stl file to the DB.
@@ -50,8 +68,10 @@ class datalayer(locationDatalayer):
             Parameters
             ----------
 
-            doc: hera.datalayer.document.MetadataFrame, hera.datalayer.
-                The document with the data to convert.
+            regionNameOrData: str or geopandas .
+                The name of the datasource or the geopandas file to convert.
+
+                If geopandas has the following columns:
 
             flat: None or float.
                 The base of the building.
@@ -60,20 +80,25 @@ class datalayer(locationDatalayer):
             outputfile: str
                 a path to the output file.
 
+            saveMode: str
+                if None, does not add to the DB.
+                if toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
+                if toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
+
             Returns
             -------
-            float
-            The string with the STL format.
+                The maximal height
 
         """
-        self.logger.info(f"begin with doc={doc},outputfile={outputfile},flat={flat}")
 
         maxheight = -500
 
         FreeCADDOC = FreeCAD.newDocument("Unnamed")
 
-
-        shp = doc.getData() if hasattr(doc,"getData") else doc
+        if isinstance(regionNameOrData,str):
+            shp = self.getLocationByRegion(regionNameOrData).getData()
+        else:
+            shp = regionNameOrData
 
         k = -1
         for j in range(len(shp)):  # converting al the buildings
@@ -86,9 +111,9 @@ class datalayer(locationDatalayer):
                 self.logger.execution(f"{j} shape file is executed. Length Shape: {len(shp)}")
 
             k = k + 1
-            wallsheight = shp['BLDG_HT'][j]
+            wallsheight = shp[self.BuildingHeightColumn][j]
             if flat is None:
-                altitude = shp['HT_LAND'][j]
+                altitude = shp[self.LandHeightColumn][j]
             else:
                 altitude = flat
 
@@ -114,16 +139,52 @@ class datalayer(locationDatalayer):
 
         FreeCADDOC.recompute() # maybe it should be in the loop.
 
-        outputfileFull = os.path.abspath(outputfile)
+
+        outputfileFull = os.path.abspath(os.path.join(self.FilesDirectory,outputFileName))
         Mesh.export(FreeCADDOC.Objects, outputfileFull)
 
-        self.addCacheDocument(type=self.doctype,
-                              resource=outputfileFull,
-                              dataFormat=datatypes.STRING)
+        if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+
+            regionNameSTL = outputFileName.split(".")[0] if "." in outputFileName else outputFileName
+
+            doc = self.getSTL(regionNameSTL)
+
+            if doc is not None and saveMode == abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                raise ValueError(f"STL {regionNameSTL} exists in project {self.projectName}")
+
+            desc = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL}
+            if doc is None:
+                self.addCacheDocument(type=self.doctype,
+                                      resource=outputfileFull,
+                                      dataFormat=datatypes.STRING,
+                                      desc=desc)
+            else:
+                doc.resource = outputfileFull
+                doc.desc = desc
+                doc.save()
+
 
 
         self.logger.info(f"toSTL: end. Maxheight {maxheight}")
         return maxheight
+
+    def getSTL(self,regionNameSTL):
+        """
+            Retrive the STL from the DB
+
+        Parameters
+        ----------
+        regionNameSTL: str
+            The name of the regiona name STL.
+
+        Returns
+        -------
+            The document of the STL.
+        """
+        desc = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL}
+        docList = self.getCacheDocuments(**desc)
+        return None if len(docList)==0 else docList[0]
 
 
 class analysis():
@@ -134,24 +195,38 @@ class analysis():
     def datalayer(self):
         return self._datalayer
 
-    def __init__(self, projectName, dataLayer=None, FilesDirectory="", databaseNameList=None, useAll=False,
-                 publicProjectName="Buildings", Source="BNTL"):
+    def __init__(self, dataLayer):
 
-        self._datalayer = datalayer(projectName=projectName, FilesDirectory=FilesDirectory, publicProjectName=publicProjectName,
-                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
+        self._datalayer = dataLayer
 
-    def ConvexPolygons(self, data, buffer=100):
+
+    def ConvexPolygons(self, regionNameOrData, buffer=100):
         """
-        Returns polygons of groups of buildings.
+            Returns convex polygons of groups of buildings.
+
+        Parameters
+        ----------
+        :param data: str or geopandas DataFrame.
+                The data to get the convex of.
+
+        :param buffer:
+
+        Returns
+        -------
+
         """
-        data = data.reset_index()
-        d = data.buffer(buffer)
+        if isinstance(regionNameOrData,str):
+            data = self.getRegions(regionNameOrData).getData()
+        else:
+            data = regionNameOrData
+
+        data = data.reset_index().buffer(buffer)
         indicelist = [[0]]
         for i in range(1, len(data)):
             found = False
             for g in range(len(indicelist)):
                 for n in indicelist[g]:
-                    if d[i].intersection(d[n]).is_empty:
+                    if data[i].intersection(data[n]).is_empty:
                         continue
                     else:
                         indicelist[g].append(i)

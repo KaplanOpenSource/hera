@@ -1,7 +1,7 @@
 from .demography import DemographyToolkit as demographyDatalayer
 from .locations.image import datalayer as ImageDatalayer
-from .locations.topography import datalayer as TopographyDatalayer
-from .locations.buildings import datalayer as BuildingsDatalayer
+from .locations.topography import abstractLocationToolkit as TopographyDatalayer
+from .locations.buildings import abstractLocationToolkit as BuildingsDatalayer
 
 
 #topography = TopographyDatalayer("Topography")
