@@ -1,31 +1,51 @@
-from ....datalayer import project
+from . import abstractLocation
 from shapely import geometry
 import matplotlib.pyplot as plt
+from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from ....datalayer import datatypes
+import os
 
-class datalayer(project.ProjectMultiDBPublic):
+class ShapesToolKit(abstractLocation.AbstractLocationToolkit):
+    """
+        Holds geoJSON shape files.
 
-    _projectName = None
+    """
+
     _presentation = None
 
     @property
     def presentation(self):
         return self._presentation
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="Shapes"):
+    @property
+    def doctype(self):
+        return f"{self.name}_GeoJSON"
 
-        self._projectName = projectName
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,useAll=useAll)
-        self._presentation = presentation(projectName=projectName,dataLayer=self)
 
-    def getShape(self, name):
+
+    def __init__(self, projectName,FilesDirectory=None ):
+
+
+        super().__init__(projectName=projectName,
+                         toolkitName="Shapes",
+                         FilesDirectory=FilesDirectory)
+
+        self._presentation = presentation(dataLayer=self)
+
+    def getShape(self, regionName):
         """
-        Returns the geometry shape of a given name from the database.
-        Parameters:
-            name: THe shape's name (string)
-        Returns: The geometry (shapely Point or Polygon)
+            Returns the geometry shape of a given name from the database.
+
+        Parameters
+        -----------
+            regionName: The shape's name (string)
+
+        Returns
+        --------
+            The geometry (shapely Point or Polygon)
 
         """
-        geo, shapeType = self.getShapePoints(name)
+        geo, shapeType = self.getShapePoints(regionName)
         if shapeType == "Polygon":
             geo = geometry.Polygon(geo)
         elif shapeType == "Point":
@@ -48,6 +68,116 @@ class datalayer(project.ProjectMultiDBPublic):
             shapeType = document["documents"][0]["desc"]["shapeType"]
 
         return geo, shapeType
+
+    def loadData(self, fileNameOrData, extents, saveMode=TOOLKIT_SAVEMODE_NOSAVE, regionName=None, additionalData=dict()):
+        """
+            Loading a data from file, and possibly store the region in the database.
+
+        Parameters
+        ----------
+        fileNameOrData: str
+                If str , the datafile to load
+                If other objects - convert the
+        parser: str
+                The name of the parser to use
+
+        saveMode: str
+                Can be either:
+
+                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
+                                                  raise exception if file exists.
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
+                                                  Replace the file if it exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
+                                                    Raise exception if the entry exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
+                                                    Replace the entry in the DB if it exists.
+
+
+            kwargs: Contains:
+                regionName: If fileNameOrData is an object, required if saveMode is not NOSAVE.
+                additionalData: additional metadata to add if adding to the DB.
+
+        Returns
+        -------
+            The data or the doc.
+
+            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
+            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
+        """
+
+        if isinstance(fileNameOrData,str):
+
+
+            if os.path.exists(os.path.abspath(fileNameOrData)):
+
+                regionName = os.path.basename(fileNameOrData).split(".")[0] if regionName is None else regionName
+
+                data = mpimg.imread(os.path.abspath(fileNameOrData))
+            else:
+                raise FileNotFoundError(f"The {fileNameOrData} does not exist.")
+
+        else:
+            regionName = None
+            data = fileNameOrData
+
+        doc = None
+
+        if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
+                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                        TOOLKIT_SAVEMODE_FILEANDDB,
+                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+
+            outputFileName = os.path.join(self.FilesDirectory, f"{regionName}.png")
+
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_ONLYFILE]:
+                if os.path.exists(outputFileName):
+                    raise FileExistsError(f"{outputFileName} exists in project {self.projectName}")
+
+            mpimg.imsave(outputFileName,data)
+
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+
+                doc = self.getDatasourceData(regionName)
+                if doc is not None and saveMode==TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
+
+                if isinstance(extents, dict):
+                    extentList = [extents['xmin'], extents['xmax'], extents['ymin'], extents['ymax']]
+                elif isinstance(extents, list):
+                    extentList = extents
+                else:
+                    raise ValueError(
+                        "extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+
+                additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
+                                       abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
+                                       "xmin": extentList[0],
+                                       "xmax": extentList[1],
+                                       "ymin": extentList[2],
+                                       "ymax": extentList[3]
+                                       })
+
+                if doc is None:
+                    self.addCacheDocument(
+                        type = self.doctype,
+                        resource=outputFileName,
+                        dataFormat=datatypes.IMAGE,
+                        desc = additionalData
+                    )
+
+                else:
+                    doc['resource'] = outputFileName
+                    doc.desc = additionalData
+                    doc.save()
+
+        return data if doc is None else doc
+
 
     def addShape(self, Shape, name):
         """
@@ -116,11 +246,9 @@ class presentation():
     def datalayer(self):
         return self._datalayer
 
-    def __init__(self, projectName, dataLayer=None, databaseNameList=None, useAll=False,
-                 publicProjectName="Shapes"):
+    def __init__(self,dataLayer):
 
-        self._datalayer = datalayer(projectName=projectName, publicProjectName=publicProjectName,
-                         databaseNameList=databaseNameList, useAll=useAll) if datalayer is None else dataLayer
+        self._datalayer = datalayer
 
 
     def plot(self, names, color="black", marker="*", ax=None):

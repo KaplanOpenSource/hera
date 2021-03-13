@@ -1,7 +1,7 @@
 from shapely import geometry
 import os
 from .... import toolkit
-from .shapes import datalayer as shapeDatalayer
+
 
 TOOLKIT_LOCATION_REGIONNAME = "regionName"
 TOOLKIT_LOCATION_POINTS     = "points"
@@ -98,7 +98,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
     def makeRegion(self, points, regionName, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, dataSourceOrFile=None, dataSourceVersion=None, additional_data=dict()):
         """
-        Create a new region
+        Create a new region from the larger data source.
 
         The region can be created from a file on the disk or from a region that was stored to the DB
 
@@ -132,7 +132,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         """
         doc = None
-        self.logger.info(f"Project {self.projectName}, Toolkit {self.name}: Start")
+        self.logger.info(f"Project {self.projectName}, Toolkit {self.toolkitName}: Start")
         if os.path.exists(dataSourceOrFile):
             self.logger.execution(f"Using existing file {dataSourceOrFile}")
             inputData = dataSourceOrFile
@@ -153,7 +153,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             doc  = self.getDatasourceDocument(datasourceName=regionName,**additional_data)
             if (doc is not None) and (saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
-                raise ValueError(f"{regionName} with parameters {additional_data} already exists for project {self.projectName} in toolkit {self.name}")
+                raise ValueError(f"{regionName} with parameters {additional_data} already exists for project {self.projectName} in toolkit {self.toolkitName}")
 
         if isinstance(points,list):
             points = dict(minX= points[0], minY=points[1], maxX=points[2] , maxY=points[3])
@@ -179,7 +179,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                 additional_data[toolkit.TOOLKIT_DATASOURCE_NAME] = regionName
                 additional_data[toolkit.TOOLKIT_LOCATION_REGIONNAME] = regionName
                 additional_data[toolkit.TOOLKIT_LOCATION_POINTS] = points
-                additional_data[toolkit.TOOLKIT_TOOLKITNAME_FIELD] = self.name
+                additional_data[toolkit.TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
 
                 self.addDataSource(dataSourceName=regionName,
                                    resource=outputFileName,
@@ -209,7 +209,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             List of docs.
         """
         queryDict = {"type":toolkit.TOOLKIT_DATASOURCE_TYPE,
-                     toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.name}
+                     toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName}
 
         queryDict.update(**kwargs)
         return self.getMeasurementsDocuments(**queryDict)

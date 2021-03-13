@@ -3,6 +3,10 @@ import logging
 import pandas
 import geopandas
 from . import abstractLocation
+
+from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+
+
 from ....datalayer import datatypes
 
 try:
@@ -59,7 +63,11 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
         self._BuildingHeightColumn = "BLDG_HT"
         self._LandHeightColumns   = 'HT_LAND'
 
-    def toSTL(self, regionNameOrData, outputFileName,flat=None,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+    @property
+    def doctype(self):
+        return f"{self.name}_STL"
+
+    def toSTL(self, regionNameOrData, outputFileName,flat=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
         """
             Converts the document to the stl and saves it to the disk.
             Adds the stl file to the DB.
@@ -143,17 +151,21 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
         outputfileFull = os.path.abspath(os.path.join(self.FilesDirectory,outputFileName))
         Mesh.export(FreeCADDOC.Objects, outputfileFull)
 
-        if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+        if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                        TOOLKIT_SAVEMODE_FILEANDDB]:
 
             regionNameSTL = outputFileName.split(".")[0] if "." in outputFileName else outputFileName
 
             doc = self.getSTL(regionNameSTL)
 
-            if doc is not None and saveMode == abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+            if doc is not None and saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
                 raise ValueError(f"STL {regionNameSTL} exists in project {self.projectName}")
 
-            desc = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL}
+            desc = {
+                    abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
+                    abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                   }
+
             if doc is None:
                 self.addCacheDocument(type=self.doctype,
                                       resource=outputfileFull,
@@ -182,9 +194,104 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
         -------
             The document of the STL.
         """
-        desc = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL}
+        desc = {
+                abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
+                "type" : self.doctype
+                }
         docList = self.getCacheDocuments(**desc)
         return None if len(docList)==0 else docList[0]
+
+
+    def loadData(self, fileNameOrData, saveMode=TOOLKIT_SAVEMODE_NOSAVE, regionName=None, additionalData=dict()):
+        """
+            Loading a data from file and possibly saves to the DB.
+            Manages the parsing of the datafile.
+
+        Parameters
+        ----------
+        fileNameOrData: str
+                If str , the datafile to load
+                If other objects - convert the
+
+        saveMode: str
+                Can be either:
+
+                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
+                                                  raise exception if file exists.
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
+                                                  Replace the file if it exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
+                                                    Raise exception if the entry exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
+                                                    Replace the entry in the DB if it exists.
+
+
+
+        regionName: str
+            optional name for the datasource.
+
+        additionalData: dict
+             additional metadata if adding to the DB
+
+
+        Returns
+        -------
+            The data or the doc.
+
+            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
+            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
+        """
+
+        if isinstance(fileNameOrData,str):
+            if os.path.exists(os.path.abspath(fileNameOrData)):
+                regionName = os.path.basename(fileNameOrData).split(".")[0] if regionName is None else regionName
+                data = geopandas.read_file(fileNameOrData)
+            else:
+                raise FileNotFoundError(f"The {fileNameOrData} does not exist.")
+
+        else:
+            data = fileNameOrData
+
+        doc = None
+
+        if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
+                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                        TOOLKIT_SAVEMODE_FILEANDDB,
+                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+
+            outputFileName = os.path.join(self.FilesDirectory, f"{regionName}.shp")
+
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_ONLYFILE]:
+                if os.path.exists(outputFileName):
+                    raise FileExistsError(f"{outputFileName} exists in project {self.projectName}")
+
+            data.to_file(outputFileName)
+
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+
+                doc = self.getDatasourceData(regionName)
+                if doc is not None and saveMode==TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
+
+                additionalData[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] =  imageName
+
+                if doc is None:
+                    self.addDataSource(dataSourceName=regionName,
+                                       resource=outputFileName,
+                                       dataFormat=datatypes.GEOPANDAS,
+                                       **additionalData)
+
+                else:
+                    doc['resource'] = outputFileName
+                    doc.desc = additionalData
+                    doc.save()
+
+        return data if doc is None else doc
 
 
 class analysis():
