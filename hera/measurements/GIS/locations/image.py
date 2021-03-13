@@ -1,8 +1,9 @@
 from . import abstractLocation
-import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-
-from shapely.geometry import Point,box,MultiLineString, LineString
+import matplotlib.pyplot as plt
+import os
+from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from ....datalayer import datatypes
 
 class ImageToolkit(abstractLocation.AbstractLocationToolkit):
     """
@@ -18,6 +19,11 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
     def presentation(self):
         return self._presentation
 
+    @property
+    def doctype(self):
+        return f"{self.name}_PNG"
+
+
     def __init__(self, projectName,FilesDirectory=None):
 
         super().__init__(projectName=projectName,
@@ -26,66 +32,127 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
 
         self._presentation = presentation(dataLayer=self)
 
-    def loadImageToDB(self, path, imageName, extents,**desc):
+
+    def loadData(self, fileNameOrData, extents, saveMode=TOOLKIT_SAVEMODE_NOSAVE, regionName=None, additionalData=dict()):
         """
-            Parameters:
-            -----------
-            projectName: str
-                        The project name
-            path:  str
-                        The image path
-            imageName: str
-                        The location name
-            extents: list or dict
-                    list: The extents of the image [xmin, xmax, ymin, ymax]
-                    dict: A dict with the keys xmin,xmax,ymin,ymax
+            Loading a data from file, and possibly store the region in the database.
 
-            desc: additional description of the figure.
+        Parameters
+        ----------
+        fileNameOrData: str
+                If str , the datafile to load
+                If other objects - convert the
+        parser: str
+                The name of the parser to use
 
-            Returns
-            -------
-            return the document.
+        saveMode: str
+                Can be either:
+
+                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
+                                                  raise exception if file exists.
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
+                                                  Replace the file if it exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
+                                                    Raise exception if the entry exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
+                                                    Replace the entry in the DB if it exists.
+
+
+            kwargs: Contains:
+                regionName: If fileNameOrData is an object, required if saveMode is not NOSAVE.
+                additionalData: additional metadata to add if adding to the DB.
+
+        Returns
+        -------
+            The data or the doc.
+
+            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
+            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
         """
-        check = self.getLocationByRegion(imageName)
 
-        if check is not None:
-            raise KeyError(f"Image {imageName} already exists in project {self.projectName}")
+        if isinstance(fileNameOrData,str):
 
 
-        if isinstance(extents,dict):
-            extentList = [extents['xmin'],extents['xmax'],extents['ymin'],extents['ymax']]
-        elif isinstance(extents,list):
-            extentList = extents
+            if os.path.exists(os.path.abspath(fileNameOrData)):
+
+                regionName = os.path.basename(fileNameOrData).split(".")[0] if regionName is None else regionName
+
+                data = mpimg.imread(os.path.abspath(fileNameOrData))
+            else:
+                raise FileNotFoundError(f"The {fileNameOrData} does not exist.")
+
         else:
-            raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+            regionName = None
+            data = fileNameOrData
 
-        imageparams = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME : imageName,
-                         "xmin":extentList[0],
-                         "xmax":extentList[1],
-                         "ymin":extentList[2],
-                         "ymax":extentList[3]
-                       }
+        doc = None
 
-        imageparams.update(desc)
+        if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
+                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                        TOOLKIT_SAVEMODE_FILEANDDB,
+                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
-        doc = self.addMeasurementsDocument(resource=path,
-                                     dataFormat=abstractLocation.toolkit.datatypes.IMAGE,
-                                     type=self.name,
-                                     desc=imageparams)
+            outputFileName = os.path.join(self.FilesDirectory, f"{regionName}.png")
 
-        return doc
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_ONLYFILE]:
+                if os.path.exists(outputFileName):
+                    raise FileExistsError(f"{outputFileName} exists in project {self.projectName}")
+
+            mpimg.imsave(outputFileName,data)
+
+            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+
+                doc = self.getDatasourceData(regionName)
+                if doc is not None and saveMode==TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
+
+                if isinstance(extents, dict):
+                    extentList = [extents['xmin'], extents['xmax'], extents['ymin'], extents['ymax']]
+                elif isinstance(extents, list):
+                    extentList = extents
+                else:
+                    raise ValueError(
+                        "extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+
+                additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
+                                       abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
+                                       "xmin": extentList[0],
+                                       "xmax": extentList[1],
+                                       "ymin": extentList[2],
+                                       "ymax": extentList[3]
+                                       })
+
+                if doc is None:
+                    self.addCacheDocument(
+                        type = self.doctype,
+                        resource=outputFileName,
+                        dataFormat=datatypes.IMAGE,
+                        desc = additionalData
+                    )
+
+                else:
+                    doc['resource'] = outputFileName
+                    doc.desc = additionalData
+                    doc.save()
+
+        return data if doc is None else doc
 
 
-    def getImage(self,imageName,**filters):
-        qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: imageName}
+    def getImage(self, regionName, **filters):
+        qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
+               abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
         qry.update(filters)
-        docList = self.getMeasurementsDocuments(type=self.name,**qry)
+        docList = self.getCacheDocuments(type=self.doctype, **qry)
 
         return None if len(docList) ==0 else docList[0]
 
-
     def listImages(self,**filters):
-        return self.getMeasurementsDocuments(type=self.name,**filters)
+        return self.getMeasurementsDocuments(type=self.doctype, **filters)
 
 class presentation:
 
@@ -98,26 +165,36 @@ class presentation:
     def __init__(self,dataLayer):
         self._datalayer = dataLayer
 
-    def plot(self, imageNameOrData, ax=None):
+    def plot(self, imageNameOrData,extents=None, ax=None):
         """
             Plot the image
 
         Parameters
         ----------
 
-        imageName: str or image
-            The image name from the
+        imageName: str or image (numpy.array)
+            str - the resource name in the DB .
+            if its array then its the data
 
         Returns
         -------
             return the ax of the figure.
         """
-
         if isinstance(imageNameOrData,str):
             doc = self.datalayer.getImage(imageNameOrData)
+            extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
             image = doc.getData()
         else:
             image = imageNameOrData
+            if extents is None:
+                    raise ValueError("extents must be supplied if imageNameOrData is image")
+
+            if isinstance(extents, dict):
+                extents = [extents['xmin'], extents['xmax'], extents['ymin'], extents['ymax']]
+            elif isinstance(extents, list):
+                extents = extents
+            else:
+                raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=)")
 
 
         if ax is None:
@@ -125,9 +202,7 @@ class presentation:
         else:
             plt.sca(ax)
 
-        path = doc.resource
-        extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
-        image = mpimg.imread(path)
+
         ax = plt.imshow(image, extent=extents)
         return ax
 

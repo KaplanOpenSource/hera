@@ -58,7 +58,7 @@ class abstractToolkit(project):
         return self._analysis
 
     @property
-    def name(self):
+    def toolkitName(self):
         return self._toolkitname
 
 
@@ -87,9 +87,9 @@ class abstractToolkit(project):
         :return: dict
                 The configuration of the toolkit.
         """
-        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.name}__config__")
+        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")
         if len(documents) == 0:
-            self.addCacheDocument(type=f"{self.projectName}__{self.name}__config__",
+            self.addCacheDocument(type=f"{self.projectName}__{self.toolkitName}__config__",
                                   resource="",
                                   dataFormat=datatypes.STRING,
                                   desc={})
@@ -163,7 +163,7 @@ class abstractToolkit(project):
             list of dicts or pandas
         """
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
-                                                toolkit=self.name)
+                                                toolkit=self.toolkitName)
 
         ret = []
         for doc in docList:
@@ -199,8 +199,8 @@ class abstractToolkit(project):
         """
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 name=datasourceName,
-                                                toolkit=self.name,
-                                                version=version,**kwargs)
+                                                toolkit=self.toolkitName,
+                                                version=version, **kwargs)
 
         if len(docList) ==0:
             ret =  None
@@ -225,7 +225,7 @@ class abstractToolkit(project):
         :return: dict
 
         """
-        return dict(type=TOOLKIT_DATASOURCE_TYPE, toolkit=self.name)
+        return dict(type=TOOLKIT_DATASOURCE_TYPE, toolkit=self.toolkitName)
 
     def getDatasourceData(self, datasourceName=None, version=None):
         """
@@ -249,7 +249,6 @@ class abstractToolkit(project):
         doc = self.getDatasourceDocument(datasourceName=datasourceName, version=version)
         return None if doc is None else doc.getData()
 
-
     def addDataSource(self,dataSourceName,resource,dataFormat,version=None,**kwargs):
         """
             Adds a resource to the toolkit.
@@ -264,7 +263,7 @@ class abstractToolkit(project):
         :return:
         """
 
-        kwargs[TOOLKIT_TOOLKITNAME_FIELD] = self.name
+        kwargs[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
         kwargs[TOOLKIT_DATASOURCE_NAME] = dataSourceName
         kwargs[TOOLKIT_DATASOURCE_VERSION] = version
 
@@ -274,3 +273,43 @@ class abstractToolkit(project):
                                      desc=kwargs)
         return doc
 
+
+
+    def loadData(self,fileNameOrData,outputFile,saveMode=TOOLKIT_SAVEMODE_NOSAVE,datasourceName=None,additionalData=dict()):
+        """
+            Loading a data from file. Manages the parsing of the
+            datafile.
+
+        Parameters
+        ----------
+        fileNameOrData: str
+                If str , the datafile to load
+                If other objects - convert the
+        parser: str
+                The name of the parser to use
+
+        :param saveMode: str
+                Can be either:
+
+                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
+                                                  raise exception if file exists.
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
+                                                  Replace the file if it exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
+                                                    Raise exception if the entry exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
+                                                    Replace the entry in the DB if it exists.
+
+        Returns
+        -------
+            The data or the doc.
+
+            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
+            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
+        """
+        raise NotImplementedError("Implemented in the loading data in the specific toolkit")
