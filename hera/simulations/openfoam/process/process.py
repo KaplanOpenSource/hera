@@ -47,7 +47,7 @@ class process():
         os.system("cp -avr %s %s" % (datalayer.Measurements.getDocuments(projectName=self._projectName,Template="OpenFoam")[0].asDict()["resource"], newPath))
         os.system("mv %s/template %s/%s" % (newPath, newPath, dirName))
         GIScon = GIS.convert(projectName=self._projectName, FilesDirectory="%s/%s/constant/triSurface" % (newPath, dirName))
-        stlstr, data = GIScon.toSTL(data=data, NewFileName="topo", dxdy=dxdy)
+        stlstr, data = GIScon.toSTL(data=data, outputFileName="topo", dxdy=dxdy)
         data = data.reset_index()
 
         # Edit the blockMesh
