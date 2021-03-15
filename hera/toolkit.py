@@ -275,9 +275,9 @@ class abstractToolkit(project):
 
 
 
-    def loadData(self,fileNameOrData,outputFile,saveMode=TOOLKIT_SAVEMODE_NOSAVE,datasourceName=None,additionalData=dict()):
+    def loadData(self,fileNameOrData,saveMode,**kwargs):
         """
-            Loading a data from file. Manages the parsing of the
+            Abstract loading a data from file. Manages the parsing of the
             datafile.
 
         Parameters
@@ -305,11 +305,5 @@ class abstractToolkit(project):
                     - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
                                                     Replace the entry in the DB if it exists.
 
-        Returns
-        -------
-            The data or the doc.
-
-            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
-            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
         """
         raise NotImplementedError("Implemented in the loading data in the specific toolkit")
