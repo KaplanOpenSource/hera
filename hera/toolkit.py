@@ -177,9 +177,26 @@ class abstractToolkit(project):
 
         return pandas.DataFrame(ret) if asPandas else ret
 
+    def getDatasourceDocumentsList(self, **kwargs):
+        """
+            Return all the datasources associated with this toolkit.
+
+        Returns
+        -------
+            List of docs.
+        """
+        queryDict = {"type": TOOLKIT_DATASOURCE_TYPE,
+                     TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName}
+
+        queryDict.update(**kwargs)
+        return self.getMeasurementsDocuments(**queryDict)
+
+
     def getDatasourceDocument(self, datasourceName, version=None,**kwargs):
         """
             Return the document of the datasource.
+            If version is not specified, return the latest version.
+
             Returns a single document.
 
         Parameters

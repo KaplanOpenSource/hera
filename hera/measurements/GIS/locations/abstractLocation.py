@@ -1,6 +1,9 @@
 from shapely import geometry
 import os
+import io
 from .... import toolkit
+import geopandas
+from ..shapes import ShapesToolKit
 
 
 TOOLKIT_LOCATION_REGIONNAME = "regionName"
@@ -103,15 +106,18 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         The region can be created from a file on the disk or from a region that was stored to the DB
 
         Parameters:
-            points: list or dict
+            points: list or dict, or geopandas.
                 Holds the ITM coordinates of a rectangle.
                  list  - [minimum x, minimum y, maximum x, maximum y]
                  dict  - {minX : , minY : maxX : , maxY : }
 
-            saveMode: str (constants
+                 if a geopandas, use the bounds of the polygon.
+
+            saveMode: str (constants)
                 The mode of the creation of the region.
                 can be one of the following:
 
+                - toolkit.TOOLKIT_SAVEMODE_NOSAVE               : dont save.
                 - toolkit.TOOLKIT_SAVEMODE_FILE                 : Write the region to the file. Raise exception if file exists.
                 - toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE     : Write the region to the file. Overwrite file  exists.
                 - toolkit.TOOLKIT_SAVEMODE_FILEANDDB            : Write the region to the file, add to the DB as dataresource of that
@@ -123,6 +129,9 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
             dataSourceOrFile: str
                     The name of the resource, or the path to the  dataset file that is being cropped.
+
+            dataSourceVersion: tuple of ints
+                    The version of the dataset. If None, take the latest version.
 
             regionName: str
                 The new region name
@@ -161,7 +170,9 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             for field in ["minX","minY","maxX","maxY"]:
                 if field not in points:
                     raise ValueError(f"points dict must have the following fields: minX,minY,maxX,maxY")
-
+        elif isinstance(points,geopandas.geodataframe):
+            bounds = points.unary_union.bounds
+            points = dict(minX=bounds[0], minY=bounds[1], maxX=bounds[2], maxY=bounds[3])
 
         try:
             cmd = f"ogr2ogr -clipsrc {points['minX']} {points['minY']} {points['maxX']} {points['maxY']} {outputFileName} {inputData}"
@@ -198,24 +209,66 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         return outputFileName if doc is None else doc
 
-
-
-    def getRegions(self,**kwargs):
+    def makeRegionByShapeName(self, shapeNameOrArea, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,regionName=None, dataSourceOrFile=None, dataSourceVersion=None, additional_data=dict()):
         """
-            Return all the regions associated with this toolkit.
 
-        Returns
-        -------
-            List of docs.
+        Creates the area from the shape given as input.
+        The shape can be either the shape name in the DB, a geoJSON
+        or a geopandas.
+
+        in the DB that is a region of the dataSource
+
+        Parameters
+        ----------
+        shapeNameOrArea: str or geopandas.geoDataFrame
+            Either shape name (in the DB), a geoJSON str or the geoDataframe.
+
+        regionName: str
+            The new region name
+
+        saveMode: str (constants)
+                The mode of the creation of the region.
+                TOOLKIT_SAVEMODE_FILEANDDB is default.
+
+                can be one of the following:
+
+                - toolkit.TOOLKIT_SAVEMODE_NOSAVE               : dont save.
+                - toolkit.TOOLKIT_SAVEMODE_FILE                 : Write the region to the file. Raise exception if file exists.
+                - toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE     : Write the region to the file. Overwrite file  exists.
+                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB            : Write the region to the file, add to the DB as dataresource of that
+                                                                  toolkit. If the db record exists, raise exception.
+                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE    : Write the region to the file, add to the DB as dataresource of that
+                                                                  toolkit. If the db record exists, raise exception.
+
+
+        dataSourceOrFile: str
+                The name of the resource, or the path to the  dataset file that is being cropped.
+
+        dataSourceVersion: tuple of ints
+                The version of the dataset. If None, take the latest version.
+
+        additional_data: dict
+                If saved to DB, use this as additional fields to the meta-data
+
+
+        :return:
         """
-        queryDict = {"type":toolkit.TOOLKIT_DATASOURCE_TYPE,
-                     toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName}
+        if isinstance(shapeNameOrArea, str):
+            points = ShapesToolKit(projectName=self.projectName).getShape(shapeNameOrArea)
+            if points is None:
+                points = geopandas.read_file(io.StringIO(shapeNameOrArea))
 
-        queryDict.update(**kwargs)
-        return self.getMeasurementsDocuments(**queryDict)
+        return self.makeRegion(points=points,
+                                regionName=regionName,
+                                saveMode=saveMode,
+                                dataSourceOrFile=dataSourceOrFile,
+                                dataSourceVersion=dataSourceVersion,
+                                additional_data=additional_data)
 
 
-    def getLocationByPoints(self,point):
+
+
+    def getRegionDocumentByPoints(self,point):
         """
 
         Parameters
@@ -227,7 +280,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         -------
             list with documents that the contain the point
         """
-        docList = self.getRegions()
+        docList = self.getRegionDocuments()
 
         ret = []
         for doc in docList:
@@ -237,7 +290,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         return ret
 
-    def getLocationByRegion(self,regionName):
+    def getRegionDocumentByName(self,regionName):
         """
 
         Parameters
@@ -250,11 +303,12 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             Return the locations with the region anme
         """
         regionQry = { toolkit.TOOLKIT_LOCATION_REGIONNAME : regionName}
-        return self.getRegions(**regionQry)
+        return self.getRegionDocuments(**regionQry)
+
+
 
     def getRegionNameList(self):
-        return [doc.desc[toolkit.TOOLKIT_LOCATION_REGIONNAME] for doc in self.getRegions()]
-
+        return [doc.desc[toolkit.TOOLKIT_LOCATION_REGIONNAME] for doc in self.getRegionDocuments()]
 
 
 
