@@ -103,7 +103,10 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         """
         Create a new region from the larger data source.
 
-        The region can be created from a file on the disk or from a region that was stored to the DB
+        The region can be created from a file on the disk or from a region that was stored to the DB.
+
+        If stored to DB, they are stored as datasources and therefore can be accessed through
+        the datasource retrieval functions of the toolkit class.
 
         Parameters:
             points: list or dict, or geopandas.
@@ -216,7 +219,9 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         The shape can be either the shape name in the DB, a geoJSON
         or a geopandas.
 
-        in the DB that is a region of the dataSource
+        If stored to DB, they are stored as datasources and therefore can be accessed through
+        the datasource retrieval functions of the toolkit class.
+
 
         Parameters
         ----------
@@ -266,8 +271,6 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                                 additional_data=additional_data)
 
 
-
-
     def getRegionDocumentByPoints(self,point):
         """
 
@@ -302,12 +305,31 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         -------
             Return the locations with the region anme
         """
-        regionQry = { toolkit.TOOLKIT_LOCATION_REGIONNAME : regionName}
-        return self.getRegionDocuments(**regionQry)
 
+        return self.getDatasourceDocument(regionName)
+
+    def getRegionByName(self,regionName):
+        """
+
+        Parameters
+        ---------
+
+            regionName: str
+                    The name of the region
+        Returns
+        -------
+            Return the locations with the region anme
+        """
+
+        return self.getDatasourceData(regionName)
 
 
     def getRegionNameList(self):
+        """
+            Return the list of region names.
+
+        :return:
+        """
         return [doc.desc[toolkit.TOOLKIT_LOCATION_REGIONNAME] for doc in self.getRegionDocuments()]
 
 

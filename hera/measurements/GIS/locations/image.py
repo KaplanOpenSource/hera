@@ -129,6 +129,7 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
                         "extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
 
                 additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
+                                       abstractLocation.toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
                                        abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
                                        "xmin": extentList[0],
                                        "xmax": extentList[1],
