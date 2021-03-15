@@ -278,7 +278,7 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
                 if doc is not None and saveMode==TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
 
-                additionalData[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] =  imageName
+                additionalData[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] =  regionName
 
                 if doc is None:
                     self.addDataSource(dataSourceName=regionName,

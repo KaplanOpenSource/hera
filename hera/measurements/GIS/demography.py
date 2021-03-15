@@ -1,15 +1,18 @@
 import geopandas
-from .locations.shapes import datalayer as shapeDatalayer
+
 from ... import toolkit
 from ...datalayer import datatypes
-from .locations.buildings import abstractLocationToolkit as buildingsDatalayer
+from .shapes import ShapesToolKit
+from .locations.buildings import BuildingsToolkit
 import shapely
+
+from ...toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+
 
 
 class DemographyToolkit(toolkit.abstractToolkit):
     """
         A toolkit to manage demography data
-
 
     """
 
@@ -51,8 +54,8 @@ class DemographyToolkit(toolkit.abstractToolkit):
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
 
-        self._shapes    = shapeDatalayer(projectName=projectName)
-        self._buildings = buildingsDatalayer(projectName=projectName)
+        self._shapes    = ShapesToolKit(projectName=projectName)
+        self._buildings = BuildingsToolkit(projectName=projectName)
 
 
     def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
@@ -88,7 +91,7 @@ class analysis:
                         dataSourceVersion=None,
                         populationTypes=None,
                         convex=True,
-                        saveMode=SAVEMODE_NOSAVE,
+                        saveMode=TOOLKIT_SAVEMODE_NOSAVE,
                         path=None,
                         regionName=None, **kwargs):
         """

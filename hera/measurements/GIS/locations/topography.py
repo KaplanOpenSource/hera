@@ -1,4 +1,3 @@
-import logging
 from .abstractLocation import AbstractLocationToolkit as locationDatalayer
 import geopandas
 from scipy.interpolate import griddata
@@ -7,10 +6,9 @@ import pandas
 import random
 import gdal
 import numpy as np
-from .shapes import datalayer as shapeDatalayer
-from shapely.geometry import Point,box,MultiLineString, LineString
+from hera.measurements.GIS.shapes import datalayer as shapeDatalayer
+from shapely.geometry import LineString
 import requests
-from unum.units import *
 import scipy
 from ..topography.STL import stlFactory
 from ....simulations.utils import coordinateHandler

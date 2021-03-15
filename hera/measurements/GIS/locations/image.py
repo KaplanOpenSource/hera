@@ -42,8 +42,18 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
         fileNameOrData: str
                 If str , the datafile to load
                 If other objects - convert the
-        parser: str
-                The name of the parser to use
+
+        extents: dict or list
+            if list:
+                [xmin, xmax, ymin, ymax]
+
+            if dict:
+                the dictionary with the keys:
+                    - xmin
+                    - xmax
+                    - ymin
+                    - ymax
+
 
         saveMode: str
                 Can be either:
@@ -81,7 +91,6 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
             if os.path.exists(os.path.abspath(fileNameOrData)):
 
                 regionName = os.path.basename(fileNameOrData).split(".")[0] if regionName is None else regionName
-
                 data = mpimg.imread(os.path.abspath(fileNameOrData))
             else:
                 raise FileNotFoundError(f"The {fileNameOrData} does not exist.")
@@ -107,7 +116,7 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
 
             if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
-                doc = self.getDatasourceData(regionName)
+                doc = self.getImage(regionName)
                 if doc is not None and saveMode==TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
 

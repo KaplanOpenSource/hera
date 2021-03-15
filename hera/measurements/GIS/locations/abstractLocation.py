@@ -237,7 +237,6 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         return ret
 
-
     def getLocationByRegion(self,regionName):
         """
 
@@ -252,8 +251,6 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         """
         regionQry = { toolkit.TOOLKIT_LOCATION_REGIONNAME : regionName}
         return self.getRegions(**regionQry)
-
-
 
     def getRegionNameList(self):
         return [doc.desc[toolkit.TOOLKIT_LOCATION_REGIONNAME] for doc in self.getRegions()]
