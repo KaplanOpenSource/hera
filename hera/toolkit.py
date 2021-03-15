@@ -117,41 +117,10 @@ class abstractToolkit(project):
         doc.desc.update(kwargs)
         doc.save()
 
-    def setDefaultDataSource(self, datasourceName, version=None):
+
+    def getDataSourceList(self,asPandas=True):
         """
-            Set the default datasource.
-            If the version is not supplied, take the latest.
-
-            Raise ValueError if source datasourceName is not present in the DB.
-
-        Parameters
-        ----------
-        datasourceName: str
-            The datasourceName of the data source to set as default.
-        version: tuple
-            If not present, take the latest version in the project DB.
-
-        Returns
-        -------
-            None
-        """
-        sourceDoc = self.getDatasourceDocument(datasourceName=datasourceName, version=version)
-
-        if sourceDoc is None:
-            raise ValueError(f"Data Source {datasourceName} is not found in the project {self.projectName}")
-
-        if isinstance(sourceDoc,list):
-            # There is more than one version, take the latest.
-            versionsList =[ doc.desc[TOOLKIT_DATASOURCE_VERSION] for doc in sourceDoc]
-            latestVersion = numpy.max(versionsList,axis=0)
-        else:
-            latestVersion = version
-
-        self.setConfig(toolkit=dict(name=datasourceName, version=latestVersion))
-
-    def getSourceList(self,asPandas=True):
-        """
-            Return the list of sources and their versions that are related to this toolkit
+            Return the list of all data sources and their versions that are related to this toolkit
 
         Parameters
         ----------
@@ -227,22 +196,6 @@ class abstractToolkit(project):
             docList = [doc for doc in docList if doc['desc']['version']==latestVersion]
             ret =docList[0]
         return ret
-
-    def _getDataDescriptor(self):
-        """
-            Returns a map with the description of the toolkit.
-            Used to save the analysis products of the toolkit such that they will be considered as a
-            datasources.
-
-            the dict holds the keys:
-                type : the const TOOLKIT_DATASOURCE_TYPE
-                toolkit: the name of the toolkit
-
-
-        :return: dict
-
-        """
-        return dict(type=TOOLKIT_DATASOURCE_TYPE, toolkit=self.toolkitName)
 
     def getDatasourceData(self, datasourceName=None, version=None):
         """

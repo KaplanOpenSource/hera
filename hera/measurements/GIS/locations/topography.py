@@ -1,22 +1,20 @@
-from .import abstractLocation
 import geopandas
 import random
 import gdal
-import numpy as np
-
-from shapely.geometry import LineString
-import math
-import pandas
-from numpy import array, cross, sqrt
+import io
+import scipy
 import numpy
-from scipy.interpolate import griddata
-
+import math
+import os
 import requests
+from scipy.interpolate import griddata
+from shapely.geometry import LineString
 
+from .import abstractLocation
 from ....simulations.utils import coordinateHandler
 
+from ....datalayer import datatypes
 
-import os
 
 class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
 
@@ -25,6 +23,11 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
     @property
     def analysis(self):
         return self._analysis
+
+    @property
+    def doctype(self):
+        return f"{self.name}_STL"
+
 
     def __init__(self, projectName, FilesDirectory=""):
 
@@ -95,7 +98,7 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
 
         return height
 
-    def toSTL(self, regionNameOrData, outputFileName, flat=None, saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE, **kwargs):
+    def toSTL(self, regionNameOrData, outputFileName, dxdy=50, saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE, additionalData=dict()):
         """
             Converts a topographic data to STL file.
 
@@ -138,7 +141,7 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
             flat: float or None.
                 If not None, it assumes that the area is flat and the value of flat is the height of the mesh cells.
 
-            kwargs:
+            additional_data: dict
                 Any additional metadata to be added to the new document in the database.
 
         Returns
@@ -148,34 +151,68 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
         """
 
         if isinstance(regionNameOrData,str):
-            regionDoc self.getRegionByName(regionNameOrData)
-
-
-
-        documents = self.datalayer.getMeasurementsDocuments(type="stlFile", bounds=points, dxdy=self._datalayer.getConfig()["dxdy"])
-        if len(documents) >0:
-            stlstr = documents[0].getData()
-            newdict = documents[0].asDict()
-            newdata = pandas.DataFrame(dict(gridxMin=[newdict["desc"]["xMin"]], gridxMax=[newdict["desc"]["xMax"]],
-                                            gridyMin=[newdict["desc"]["yMin"]], gridyMax=[newdict["desc"]["yMax"]],
-                                            gridzMin=[newdict["desc"]["zMin"]], gridzMax=[newdict["desc"]["zMax"]]))
+            region = self.getRegionByName(regionNameOrData)
+            if region is None:
+                region = geopandas.read_file(io.StringIO(regionNameOrData))
+        elif isinstance(regionNameOrData,geopandas.geodataframe):
+            region = regionNameOrData
         else:
-            stl = stlFactory()
-            stlstr, newdata = stl.Convert_geopandas_to_stl(gpandas=geodata, points=points, flat=flat, NewFileName=outputFileName, dxdy=self._datalayer.getConfig()["dxdy"])
-            if save:
-                p = self.datalayer.FilesDirectory if path is None else path
-                new_file_path = os.path.join(p, f"{outputFileName}.stl")
-                with open(new_file_path, "w") as new_file:
-                    new_file.write(stlstr)
-                newdata = newdata.reset_index()
-                if addToDB:
-                    self.datalayer.addMeasurementsDocument(desc=dict(name=outputFileName, bounds=points, dxdy=self._datalayer.getConfig()["dxdy"],
-                                                                     xMin=newdata["gridxMin"][0], xMax=newdata["gridxMax"][0], yMin=newdata["gridyMin"][0],
-                                                                     yMax=newdata["gridyMax"][0], zMin=newdata["gridzMin"][0], zMax=newdata["gridzMax"][0], **kwargs),
-                                                                 type="stlFile",
-                                                                 resource=stlstr,
-                                                                 dataFormat="string")
-        return stlstr, newdata
+            raise ValueError(f"The regionNameOrData must be region name, geoJSON str or geodataframe")
+
+        stlstr = stlFactory().vectorToSTL(region,dxdy=dxdy)
+
+        if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
+
+            if "stl" not in outputFileName:
+                outputFileName = f"{outputFileName.split('.')[0]}.stl"
+
+            fullfileNames = os.path.join(self.FilesDirectory,outputFileName)
+
+            if os.path.exists(fullfileNames) and saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                                                              abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+                raise FileExistsError(f"The output STL file {fullfileNames} exists")
+
+            with open(fullfileNames,'w') as outfiles:
+                outfiles.write(stlstr)
+
+
+            if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                            abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+
+                regionDoc = self.getSTL(regionNameOrData)
+
+                if regionDoc is not None and saveMode==abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"{regionNameOrData} already exists in the DB")
+
+                xmin, ymin, xmax, ymax = region.bounds
+
+                additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: outputFileName.split('.')[0],
+                                       abstractLocation.toolkit.TOOLKIT_DATASOURCE_NAME: outputFileName.split('.')[0],
+                                       abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
+                                       "xmin": xmin,
+                                       "xmax": xmax,
+                                       "ymin": ymin,
+                                       "ymax": ymax
+                                       })
+
+                if regionDoc is None:
+                    regionDoc = self.addCacheDocument(type=self.doctype,
+                                                    resource=fullfileNames,
+                                                    dataFormat=datatypes.STRING,
+                                                    desc=additionalData)
+                else:
+                    regionDoc.resource = fullfileNames
+                    regionDoc.desc = additionalData
+                    regionDoc.save()
+
+
+        return stlstr if regionDoc is None else regionDoc
+
+
+
 
     def getDEM(self,data,**kwargs):
 
@@ -242,6 +279,52 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
         return DEMstring
 
 
+    def getSTL(self,regionNameSTL):
+        """
+            Return the topography STL
+
+        Parameters
+        -----------
+        regionNameSTL: str
+            The name of the region
+
+
+        Returns
+        -------
+            Return the ATL document
+        """
+        desc = {
+                abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
+                "type" : self.doctype
+                }
+        docList = self.getCacheDocuments(**desc)
+        return None if len(docList)==0 else docList[0]
+
+    def getSTLDocumentsList(self):
+        """
+            Return a list with all the STL documents list
+        Returns
+        -------
+            list with STL documents
+        """
+        desc = {
+                "type" : self.doctype
+                }
+        return self.getCacheDocuments(**desc)
+
+    def getSTLList(self):
+        """
+            Return a list with all the STL documents names
+        Returns
+        -------
+            list with STL documents
+        """
+        desc = {
+                "type" : self.doctype
+                }
+        return [x.desc[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] for x in self.getCacheDocuments(**desc)]
+
+
 class analysis():
 
     _datalayer = None
@@ -294,7 +377,23 @@ class analysis():
 
 
 
-class stlFactory():
+class stlFactory:
+    """
+        Helper class to convert geopandas to STL
+    """
+
+    _heightColumnsNames=None
+
+    def __init__(self):
+        self._heightColumnsNames= "HEIGHT"
+
+    @property
+    def heightColumnsNames(self):
+        return self._heightColumnsNames
+
+    @heightColumnsNames.setter
+    def heightColumnsNames(self, value):
+        self._heightColumnsNames = value
 
     def _make_facet_str(self, n, v1, v2, v3):
         facet_str = 'facet normal ' + ' '.join(map(str, n)) + '\n'
@@ -306,43 +405,110 @@ class stlFactory():
         facet_str += 'endfacet\n'
         return facet_str
 
-    def _makestl(self, X, Y, elev, NewFileName):
+    def rasterize(self,gpandas, dxdy=50):
         """
-            Takes a mesh of x,y and elev and convert it to stl file.
+            Convert the height-contour in geopandas to raster (regular mesh)
 
-            X - matrix of x coordinate. [[ like meshgrid ]]
-            Y - matrix of y coordinate. [[ like meshgrid ]]
-            elev - matrix of elevation.
+
+        Parameters
+        -----------
+        gpandas: geopandas.geodataframe
+                The height contours as geopandas.
+
+                The structure of the geodataframe is geometry
+                which are height lines and a height column (its name given in self.heightColumnsNames, default is HEIGHT).
+
+        dxdy: float
+            The resolution of the regularization
+
+
+        Returns
+        -------
+            A dict after interpolating to regular mesh.
+
+            Return dict with x,y and height keys as 2D arrays.
+
 
         """
-        base_elev = elev.min() - 10
-        stl_str = 'solid ' + NewFileName + '\n'
-        for i in range(elev.shape[0] - 1):
-            for j in range(elev.shape[1] - 1):
+        # 1. Convert contour map to regular height map.
+        # 1.1 get boundaries
+        xmin,ymin,xmax,ymax = gpandas.bounds
 
-                x = X[i, j];
-                y = Y[i, j]
-                v1 = [x, y, elev[i, j]]
+        #print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
+        # 1.2 build the mesh.
+        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
 
-                x = X[i + 1, j];
-                y = Y[i, j]
-                v2 = [x, y, elev[i + 1, j]]
+        # 2. Get the points from the geom
+        Height = []
+        XY = []
+        for i, line in enumerate(gpandas.iterrows()):
+            if isinstance(line[1]['geometry'], LineString):
+                linecoords = [x for x in line[1]['geometry'].coords]
+                lineheight = [line[1][self.heightColumnsNames]] * len(linecoords)
+                XY += linecoords
+                Height += lineheight
+            else:
+                for ll in line[1]['geometry']:
+                    linecoords = [x for x in ll.coords]
+                    lineheight = [line[1][self.heightColumnsNames]] * len(linecoords)
+                    XY += linecoords
+                    Height += lineheight
 
-                x = X[i, j];
-                y = Y[i, j + 1]
-                v3 = [x, y, elev[i, j + 1]]
+        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+        grid_z2 = self._organizeGrid(grid_z2)
 
-                x = X[i + 1, j + 1];
-                y = Y[i + 1, j + 1]
-                v4 = [x, y, elev[i + 1, j + 1]]
+        return dict(x=grid_x,y=grid_y,height=grid_z2)
+
+    def rasterToSTL(self, grid_x, grid_y, grid_z, solidName):
+        """
+
+        Parameters
+        ----------
+        grid_x: numpy.array
+
+            2D array with the x grid
+        grid_y: numpy.array
+
+            2D array with the y grid
+        grid_z: numpy.array
+
+            2D array with the z (height) grid
+
+        solidName: str
+            The name of the topography solid
+
+        Returns
+        -------
+            The STL as string.
+        """
+        base_elev = grid_z.min() - 10
+        stl_str = f"solid {solidName}\n"
+        for i in range(grid_z.shape[0] - 1):
+            for j in range(grid_z.shape[1] - 1):
+
+                x = grid_x[i, j];
+                y = grid_y[i, j]
+                v1 = [x, y, grid_z[i, j]]
+
+                x = grid_x[i + 1, j];
+                y = grid_y[i, j]
+                v2 = [x, y, grid_z[i + 1, j]]
+
+                x = grid_x[i, j];
+                y = grid_y[i, j + 1]
+                v3 = [x, y, grid_z[i, j + 1]]
+
+                x = grid_x[i + 1, j + 1];
+                y = grid_y[i + 1, j + 1]
+                v4 = [x, y, grid_z[i + 1, j + 1]]
 
                 # dem facet 1
-                n = cross(array(v1) - array(v2), array(v1) - array(v3))
+                n = numpy.cross(array(v1) - array(v2), array(v1) - array(v3))
                 n = n / sqrt(sum(n ** 2))
                 stl_str += self._make_facet_str(n, v1, v2, v3)
 
                 # dem facet 2
-                n = cross(array(v2) - array(v3), array(v2) - array(v4))
+                n = numpy.cross(array(v2) - array(v3), array(v2) - array(v4))
                 n = n / sqrt(sum(n ** 2))
                 # stl_str += self._make_facet_str( n, v2, v3, v4 )
                 stl_str += self._make_facet_str(n, v2, v4, v3)
@@ -370,73 +536,56 @@ class stlFactory():
                 for k, l in [(0, 1), (0, 2), (1, 3), (2, 3)]:
                     # check if v[i],v[j] are on boundaries.
                     kboundary = False
-                    if vlist[k][0] == X.min() or vlist[k][0] == X.max():
+                    if vlist[k][0] == grid_x.min() or vlist[k][0] == grid_x.max():
                         kboundary = True
 
                     lboundary = False
-                    if vlist[l][1] == Y.min() or vlist[l][1] == Y.max():
+                    if vlist[l][1] == grid_y.min() or vlist[l][1] == grid_y.max():
                         lboundary = True
 
                     if (kboundary or lboundary):
                         # Add i,j,j-base.
-                        n = cross(array(vlist[k]) - array(vlist[l]), array(vblist[l]) - array(vlist[l]))
+                        n = numpy.cross(array(vlist[k]) - array(vlist[l]), array(vblist[l]) - array(vlist[l]))
                         n = n / sqrt(sum(n ** 2))
                         stl_str += self._make_facet_str(n, vlist[k], vblist[l], vlist[l])
 
                         # add j-base,i-base,i
-                        n = cross(array(vlist[k]) - array(vblist[k]), array(vlist[k]) - array(vblist[l]))
+                        n = numpy.cross(array(vlist[k]) - array(vblist[k]), array(vlist[k]) - array(vblist[l]))
                         n = n / sqrt(sum(n ** 2))
                         stl_str += self._make_facet_str(n, vlist[k], vblist[k], vblist[l])
 
-        stl_str += 'endsolid ' + NewFileName + '\n'
+        stl_str += f"endsolid {solidName}\n"
         return stl_str
 
-    def Convert_geopandas_to_stl(self, gpandas, points, NewFileName, dxdy=50, flat=None):
+
+    def vectorToSTL(self,gpandas,dxdy=50,solidName="Topography"):
         """
-            Gets a shape file of topography.
-            each contour line has property 'height'.
-            Converts it to equigrid xy mesh and then build the STL.
+            Convert the vector to topography
+
+        Parameters
+        ----------
+        gpandas: geopandas.geodataframe
+            The height contours as geopandas.
+
+        dxdy: float
+            The resolution of the conversion
+
+        solidName: str
+            The name of the solid. The default is 'Topogrphay'.
+
+        Returns
+        -------
+            string of the STL
         """
 
-        # 1. Convert contour map to regular height map.
-        # 1.1 get boundaries
-        xmin = points[0]
-        xmax = points[2]
+        rasterMap = self.rasterize(gpandas,dxdy=dxdy)
+        return self.rasterToSTL(grid_x=rasterMap['x'],
+                                grid_y=rasterMap['y'],
+                                grid_z=rasterMap['height'],
+                                solidName=solidName)
 
-        ymin = points[1]
-        ymax = points[3]
 
-        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
-        # 1.2 build the mesh.
-        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
-        # 2. Get the points from the geom
-        Height = []
-        XY = []
-        for i, line in enumerate(gpandas.iterrows()):
-            if isinstance(line[1]['geometry'], LineString):
-                linecoords = [x for x in line[1]['geometry'].coords]
-                lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                XY += linecoords
-                Height += lineheight
-            else:
-                for ll in line[1]['geometry']:
-                    linecoords = [x for x in ll.coords]
-                    lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                    XY += linecoords
-                    Height += lineheight
-        if flat is not None:
-            for i in range(len(Height)):
-                Height[i] = flat
-        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
-        grid_z2 = self.organizeGrid(grid_z2)
-        stlstr = self._makestl(grid_x, grid_y, grid_z2, NewFileName)
-
-        data = pandas.DataFrame({"XY": XY, "Height": Height, "gridxMin":grid_x.min(), "gridxMax":grid_x.max(),
-                                 "gridyMin":grid_y.min(), "gridyMax":grid_y.max(), "gridzMin":grid_z2[~numpy.isnan(grid_z2)].min(), "gridzMax":grid_z2[~numpy.isnan(grid_z2)].max(),})
-
-        return stlstr, data
-
-    def organizeGrid(self, grid):
+    def _organizeGrid(self, grid):
 
         for row in grid:
             for i in range(len(row)):
