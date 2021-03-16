@@ -18,26 +18,23 @@ from ....datalayer import datatypes
 
 class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
 
-    _analysis = None
 
-    @property
-    def analysis(self):
-        return self._analysis
+    _stlFactory = None
 
     @property
     def doctype(self):
-        return f"{self.name}_STL"
+        return f"{self.toolkitName}_STL"
 
+    @property
+    def stlFactory(self):
+        return self._stlFactory
 
     def __init__(self, projectName, FilesDirectory=""):
 
         super().__init__(projectName=projectName,FilesDirectory=FilesDirectory,toolkitName="topography")
         self._analysis = analysis(projectName=projectName, dataLayer=self)
 
-    #
-    # def setConfig(self, Source="BNTL", dxdy=50, heightSource="USGS", dbName=None, **kwargs):
-    #     config = dict(source=Source,dxdy=dxdy,heightSource=heightSource,**kwargs)
-    #     super().setConfig(config, dbName=dbName)
+        self._stlFactory = stlFactory()
 
     def getHeight(self, latitude, longitude):
 
@@ -159,7 +156,7 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
         else:
             raise ValueError(f"The regionNameOrData must be region name, geoJSON str or geodataframe")
 
-        stlstr = stlFactory().vectorToSTL(region,dxdy=dxdy)
+        stlstr = self.stlFactory.vectorToSTL(region,dxdy=dxdy)
 
         if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
                         abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
@@ -211,69 +208,63 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
 
         return stlstr if regionDoc is None else regionDoc
 
-
-
-
-    def getDEM(self,data,**kwargs):
+    def getDEM(self,regionNameOrData,dxdy=50,**filters):
 
         """
-        Creats a dem format string of topography.
-        data is either a CutName of a topography or a geopandas dataframe.
-        any additional kwargs may be used to locate the dataframe.
+            Creates a Data Elevation Model (DEM) format string of topography.
+
+            Parameters
+            ----------
+
+            regionNameOrData: str, geoJSON string, or geodataframe.
+                The name of the regions, geoJSON string or geodataframe.
+
+            dxdy: float
+                The resolution of the conversion .
+
+            Returns
+            -------
+
+                The DEM string format.
         """
 
-        if type(data) == str:
-            geodata = self.datalayer.getDocuments(CutName=data,**kwargs)[0].getData()
-        elif type(data) == geopandas.geodataframe.GeoDataFrame:
-            geodata = data
+        if isinstance(regionNameOrData,str):
+            data = self.getDatasourceData(datatypes=regionNameOrData,**filters)
+            if data is None:
+                data = geopandas.read_file(io.StringIO(regionNameOrData))
+        elif isinstance(regionNameOrData,geopandas.geodataframe):
+            data = regionNameOrData
         else:
-            raise KeyError("data should be geopandas dataframe or a string.")
-        xmin = geodata['geometry'].bounds['minx'].min()
-        xmax = geodata['geometry'].bounds['maxx'].max()
+            raise ValueError("regionNameOrData must be wither region name in the DB, geoJSON string or a geopandas.geodataframe")
 
-        ymin = geodata['geometry'].bounds['miny'].min()
-        ymax = geodata['geometry'].bounds['maxy'].max()
-        Nx = int(((xmax - xmin) / self._datalayer.getConfig()["dxdy"]))
-        Ny = int(((ymax - ymin) / self._datalayer.getConfig()["dxdy"]))
+        rasterized = self.stlFactory.rasterize(data,dxdy=dxdy)
 
-        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s); N=(%s,%s)" % (xmin, xmax, ymin, ymax, Nx, Ny))
-        dx = (xmax - xmin) / (Nx)
-        dy = (ymax - ymin) / (Ny)
-        print("Mesh increments: D=(%s,%s); N=(%s,%s)" % (dx, dy, Nx, Ny))
-        # 2.2 build the mesh.
-        grid_x, grid_y = numpy.mgrid[xmin:xmax:self._datalayer.getConfig()["dxdy"], ymin:ymax:self._datalayer.getConfig()["dxdy"]]
-        # 3. Get the points from the geom
-        Height = []
-        XY = []
-
-        for i, line in enumerate(geodata.iterrows()):
-            if isinstance(line[1]['geometry'], LineString):
-                linecoords = [x for x in line[1]['geometry'].coords]
-                lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                XY += linecoords
-                Height += lineheight
-            else:
-                for ll in line[1]['geometry']:
-                    linecoords = [x for x in ll.coords]
-                    lineheight = [line[1]['HEIGHT']] * len(linecoords)
-                    XY += linecoords
-                    Height += lineheight
-
-        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
-
-        if np.ma.is_masked(grid_z2):
-            nans = grid_z2.mask
+        if numpy.ma.is_masked(rasterized['height']):
+            nans = rasterized['height'].mask
         else:
-            nans = np.isnan(grid_z2)
-        notnans = np.logical_not(nans)
-        grid_z2[nans] = scipy.interpolate.griddata((grid_x[notnans], grid_y[notnans]), grid_z2[notnans],
+            nans = numpy.isnan(rasterized['height'])
+
+        notnans = numpy.logical_not(nans)
+
+        grid_x = rasterized['x']
+        grid_y = rasterized['y']
+
+        xmin = grid_x.min()
+        xmax = grid_x.max()
+        ymin = grid_y.min()
+        ymax = grid_y.max()
+        Nx   = grid_x.shape[0]
+        Ny   = grid_x.shape[1]
+
+
+        rasterized['height'][nans] = scipy.interpolate.griddata((grid_x[notnans], grid_y[notnans]), rasterized['height'][notnans],
                                              (grid_x[nans], grid_y[nans]), method='nearest').ravel()
 
-        DEMstring = f"{xmin} {xmax} {ymin} {ymax}\n{int(Nx)} {int(Ny)}\n"
+        DEMstring = f"{xmin} {xmax} {ymin} {ymax}\n{Nx} {Ny}\n"
 
         for i in range(Nx):
             for j in range(Ny):
-                DEMstring += f"{(float(grid_z2[j, i]))} "
+                DEMstring += f"{(float(rasterized['height'][j, i]))} "
             DEMstring += "\n"
 
         return DEMstring
@@ -324,6 +315,12 @@ class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
                 }
         return [x.desc[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] for x in self.getCacheDocuments(**desc)]
 
+    def loadData(self):
+        """
+         BUILD
+        :return:
+        """
+        pass
 
 class analysis():
 
@@ -375,8 +372,6 @@ class analysis():
         return data
 
 
-
-
 class stlFactory:
     """
         Helper class to convert geopandas to STL
@@ -426,7 +421,10 @@ class stlFactory:
         -------
             A dict after interpolating to regular mesh.
 
-            Return dict with x,y and height keys as 2D arrays.
+            Return dict with the keys:
+              x:    A 2D map of the x coordinate
+              y :   A 2D map of the y coordinate
+              height: A 2D map of the height
 
 
         """

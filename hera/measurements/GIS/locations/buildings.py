@@ -7,7 +7,7 @@ from . import abstractLocation
 from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
 
-from ....datalayer import datatypes
+from ....datalayer import datatypes,nonDBMetadataFrame
 
 try:
     from freecad import app as FreeCAD
@@ -31,8 +31,6 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
                                 default value: HT_LAND
     """
 
-    _analysis = None
-
     _BuildingHeightColumn = None
 
     @property
@@ -51,9 +49,6 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
     def LandHeightColumn(self, value):
         self._LandHeightColumns = value
 
-    @property
-    def analysis(self):
-        return self._analysis
 
     def __init__(self, projectName, FilesDirectory=None):
 
@@ -281,17 +276,17 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
                 additionalData[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] =  regionName
 
                 if doc is None:
-                    self.addDataSource(dataSourceName=regionName,
-                                       resource=outputFileName,
-                                       dataFormat=datatypes.GEOPANDAS,
-                                       **additionalData)
+                    doc = self.addDataSource(dataSourceName=regionName,
+                                               resource=outputFileName,
+                                               dataFormat=datatypes.GEOPANDAS,
+                                               **additionalData)
 
                 else:
                     doc['resource'] = outputFileName
                     doc.desc = additionalData
                     doc.save()
 
-        return data if doc is None else doc
+        return nonDBMetadataFrame(data) if doc is None else doc
 
 
 class analysis():
