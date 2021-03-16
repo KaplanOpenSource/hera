@@ -15,12 +15,6 @@ class ShapesToolKit(toolkit.abstractToolkit):
         Holds the geoJSON in the resource of the mongoDB
     """
 
-    _presentation = None
-
-    @property
-    def presentation(self):
-        return self._presentation
-
     @property
     def doctype(self):
         return f"{self.name}_GeoJSON"

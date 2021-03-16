@@ -1,4 +1,5 @@
 from .datalayer import project,datatypes
+import os
 import pandas
 import numpy
 
@@ -12,6 +13,7 @@ TOOLKIT_SAVEMODE_ONLYFILE = "File"
 TOOLKIT_SAVEMODE_ONLYFILE_REPLACE = "File_overwrite"
 TOOLKIT_SAVEMODE_FILEANDDB = "DB"
 TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
+
 
 
 class abstractToolkit(project):
@@ -48,6 +50,12 @@ class abstractToolkit(project):
     _analysis = None # holds the analysis layer.
     _presentation = None # holds the presentation layer
 
+    _FilesDirectory = None
+
+    @property
+    def FilesDirectory(self):
+        return self._FilesDirectory
+
 
     @property
     def presentation(self):
@@ -62,22 +70,27 @@ class abstractToolkit(project):
         return self._toolkitname
 
 
-    def __init__(self,toolkitName,projectName):
+
+
+    def __init__(self,toolkitName,projectName,FilesDirectory=None):
         """
             Initializes a new toolkit.
 
         Params
 
         toolkitName: str
-                    The name of the toolkit
+            The name of the toolkit
 
         projectName: str
-                    The project that the toolkit works in.
+            The project that the toolkit works in.
 
+        FilesDirectory: str
+            The directory to save datasource
 
         """
         super().__init__(projectName=projectName)
         self._toolkitname = toolkitName
+        self._FilesDirectory = os.path.abspath("." if FilesDirectory is None else FilesDirectory)
 
     def _getConfigDocument(self):
         """
@@ -116,7 +129,6 @@ class abstractToolkit(project):
         doc = self._getConfigDocument()
         doc.desc.update(kwargs)
         doc.save()
-
 
     def getDataSourceList(self,asPandas=True):
         """
@@ -160,8 +172,7 @@ class abstractToolkit(project):
         queryDict.update(**kwargs)
         return self.getMeasurementsDocuments(**queryDict)
 
-
-    def getDatasourceDocument(self, datasourceName, version=None,**kwargs):
+    def getDatasourceDocument(self, datasourceName, version=None, **filters):
         """
             Return the document of the datasource.
             If version is not specified, return the latest version.
@@ -179,6 +190,9 @@ class abstractToolkit(project):
             if not found, return the latest source
 
 
+        filters:
+            Additional parameters to the query.
+
         Returns
         -------
                 The document of the source. (None if not found)
@@ -186,7 +200,7 @@ class abstractToolkit(project):
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 name=datasourceName,
                                                 toolkit=self.toolkitName,
-                                                version=version, **kwargs)
+                                                version=version, **filters)
 
         if len(docList) ==0:
             ret =  None
@@ -197,7 +211,7 @@ class abstractToolkit(project):
             ret =docList[0]
         return ret
 
-    def getDatasourceData(self, datasourceName=None, version=None):
+    def getDatasourceData(self, datasourceName=None, version=None,**filters):
         """
             Returns the data from the datasource.
 
@@ -212,11 +226,14 @@ class abstractToolkit(project):
             if not found, return the latest source
 
 
+        filters: dict
+                additional filters to the query.
+
         Returns
         -------
                 The data of the source. (None if not found)
         """
-        doc = self.getDatasourceDocument(datasourceName=datasourceName, version=version)
+        doc = self.getDatasourceDocument(datasourceName=datasourceName, version=version,**filters)
         return None if doc is None else doc.getData()
 
     def addDataSource(self,dataSourceName,resource,dataFormat,version=None,**kwargs):
@@ -242,8 +259,6 @@ class abstractToolkit(project):
                                      dataFormat=dataFormat,
                                      desc=kwargs)
         return doc
-
-
 
     def loadData(self,fileNameOrData,saveMode,**kwargs):
         """

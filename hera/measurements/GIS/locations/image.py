@@ -3,7 +3,7 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import os
 from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-from ....datalayer import datatypes
+from ....datalayer import datatypes, nonDBMetadataFrame
 
 class ImageToolkit(abstractLocation.AbstractLocationToolkit):
     """
@@ -12,12 +12,6 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
         Looks up the location in the public database in project 'imageLocation'.
 
     """
-
-    _presentation = None
-
-    @property
-    def presentation(self):
-        return self._presentation
 
     @property
     def doctype(self):
@@ -79,10 +73,7 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
 
         Returns
         -------
-            The data or the doc.
-
-            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
-            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
+            The doc (DB document or nonDB document).
         """
 
         if isinstance(fileNameOrData,str):
@@ -150,7 +141,7 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
                     doc.desc = additionalData
                     doc.save()
 
-        return data if doc is None else doc
+        return nonDBMetadataFrame(data) if doc is None else doc
 
 
     def getImage(self, regionName, **filters):

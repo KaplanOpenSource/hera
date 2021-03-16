@@ -1,5 +1,5 @@
 import geopandas
-
+import io
 from ... import toolkit
 from ...datalayer import datatypes
 from .shapes import ShapesToolKit
@@ -160,7 +160,7 @@ class analysis:
         return newData
 
     def calculatePopulationInPolygon(self,
-                                     Shape,
+                                     shapeNameOrData,
                                      dataSourceOrData,
                                      dataSourceVersion=None,
                                      populationTypes=None):
@@ -170,50 +170,59 @@ class analysis:
         Parameters:
         -----------
 
-            Shape: shapely.Polygon or str.
+            shapeNameOrData: str, shapely.Polygon, geopandas
                     The polygon to calculate the poulation in.
-                    Can be either the polygon itself (shapely.Polygon) or a name of a saved geometry in the database.
-                    The saved geometries in the DB are obtained using the shapeToolkit.
+
+                    Can be either:
+                        - the polygon itself (shapely.Polygon)
+                        - shape name in the DB (str)
+                        - geoJSON (str)
+                        - geopandas.
 
             dataSourceOrData: str or geopandas
                     The demographic data.
-                    If str, tries to load it from the datasource
+
+                    Can be either:
+                        - demography data source name
+                        - geoJSON (str)
+                        - geopandas
+
 
             dataSourceVersion: 3-tuple of int
+                    If dataSourceOrData is demography data source name
+                    then dataSourceVersion is a possible version.
 
             populationTypes: str or list of str
                     Additional population columns that will be calculated.
 
+        Returns
+        -------
+            geopandas
+            The intersection of the demography and the polygon.
+
         """
 
-        Data = self.datalayer.data
-        if isinstance(Shape,str):
 
-            poly = self.datalayer.shapes.getShape(Shape)
+        if isinstance(shapeNameOrData,str):
+            poly = self.datalayer.shapes.getShape(shapeNameOrData)
             if poly is None:
-                documents = self.datalayer.shapes.getMeasurementsDocuments(CutName=Shape)
-                if len(documents) == 0:
-                    raise KeyError("Shape %s was not found" % Shape)
-                else:
-                    points = documents[0].asDict()["desc"]["points"]
-                    poly = shapely.geometry.Polygon([[points[0], points[1]],
-                                                     [points[0], points[3]],
-                                                     [points[2], points[3]],
-                                                     [points[2], points[1]]])
+                poly = geopandas.read_file(io.StringIO(shapeNameOrData))
         else:
-            poly = Shape
+            poly = shapeNameOrData
 
         if isinstance(dataSourceOrData,str):
-            Data = self.datalayer.getDataSourceData(dataSourceOrData,dataSourceVersion)
+            demography = self.datalayer.getDataSourceData(dataSourceOrData,dataSourceVersion)
+            if demography is None:
+                demography = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:
-            Data = dataSourceOrData
+            demography = dataSourceOrData
 
         populationTypes = self.datalayer.populationTypes if populationTypes is None else populationTypes
 
         if isinstance(populationTypes,str):
             populationTypes = [populationTypes]
 
-        res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
+        res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
         intersection_poly = res_intersect_poly["geometry"].intersection(poly)
 
         res_intersection = geopandas.GeoDataFrame.from_dict(
