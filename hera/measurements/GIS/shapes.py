@@ -6,7 +6,7 @@ from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 from ... import toolkit
 
-from ...datalayer import datatypes
+from ...datalayer import datatypes, nonDBMetadataFrame
 import os
 
 class ShapesToolKit(toolkit.abstractToolkit):
@@ -58,10 +58,7 @@ class ShapesToolKit(toolkit.abstractToolkit):
 
         Returns
         -------
-            The data or the doc.
-
-            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
-            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
+            The document with a DB.
         """
 
         if isinstance(fileNameOrData,str):
@@ -103,7 +100,7 @@ class ShapesToolKit(toolkit.abstractToolkit):
                     doc.desc = additionalData
                     doc.save()
 
-        return data if doc is None else doc
+        return nonDBMetadataFrame(data) if doc is None else doc
 
 
     def getShape(self, regionName):
