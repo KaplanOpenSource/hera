@@ -1,7 +1,7 @@
 import pandas
 import matplotlib.pyplot as plt
 import math
-from ..preprocess.dataManipulations import dataManipulations
+from ..preProcess.dataManipulations import dataManipulations
 
 class Plotting():
 

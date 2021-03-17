@@ -1,5 +1,5 @@
 import paraview.simple as pvsimple
-from ...preprocess.pvOpenFOAMBase import paraviewOpenFOAM
+from ...preProcess.pvOpenFOAMBase import paraviewOpenFOAM
 import numpy
 
 class tests():
