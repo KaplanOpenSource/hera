@@ -620,8 +620,6 @@ def get_altitdue_ip(lat, lon):
     height = resp.json()['elevationProfile'][0]['height']
 
     return height
-
-
 def get_altitdue_gdal(lat, lon):
     #        if lat<=30:
     # USGS EROS Archive - Digital Elevation - Global Multi-resolution Terrain Elevation Data 2010 (GMTED2010)

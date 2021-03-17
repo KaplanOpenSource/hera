@@ -1,10 +1,10 @@
 import geopandas
 import io
+import os
 from ... import toolkit
-from ...datalayer import datatypes
+from ...datalayer import datatypes,nonDBMetadataFrame
 from .shapes import ShapesToolKit
 from .locations.buildings import BuildingsToolkit
-import shapely
 
 from ...toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
@@ -30,7 +30,11 @@ class DemographyToolkit(toolkit.abstractToolkit):
         return self._shapes
 
 
-    def __init__(self, projectName):
+    @property
+    def populationTypes(self):
+        return self._populationTypes
+
+    def __init__(self, projectName, FilesDirectory=None):
         """
             Initializes the demography tool.
 
@@ -57,6 +61,44 @@ class DemographyToolkit(toolkit.abstractToolkit):
         self._shapes    = ShapesToolKit(projectName=projectName)
         self._buildings = BuildingsToolkit(projectName=projectName)
 
+        if FilesDirectory is None:
+            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
+            self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
+            self.logger.execution(f"Using {self._FilesDirectory}")
+        else:
+            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
+            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
+            self._FilesDirectory = FilesDirectory
+
+
+    def setDefaultDirectory(self,fileDirectory,create=True):
+        """
+            Set the default directory for the project.
+
+        Parameters
+        ----------
+        fileDirectory: str
+                The path to save the regions in.
+                The directory is created if create flag is true (and directory does not exist).
+
+        create: bool
+            If false and directory does not exist, raise a NotADirectoryError exception.
+
+        Returns
+        -------
+            str, the path.
+        """
+        fllpath = os.path.abspath(fileDirectory)
+
+        if not os.path.exists(fllpath):
+            if create:
+                self.logger.execution(f"Directory {fllpath} does not exist. create")
+                os.system(f"mkdir -p {fllpath}")
+            else:
+                raise NotADirectoryError(f"{fllpath} is not a directory, and create is False.")
+
+        self.setConfig("filesDirectory",fllpath)
+
 
     def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
         import warnings
@@ -68,6 +110,15 @@ class DemographyToolkit(toolkit.abstractToolkit):
     @property
     def populationTypes(self):
         return self._populationTypes
+
+
+    @property
+    def FilesDirectory(self):
+        return self._FilesDirectory
+
+
+    def loadData(self):
+        pass
 
 
 class analysis:
@@ -84,51 +135,90 @@ class analysis:
     def __init__(self, dataLayer):
         self._datalayer = dataLayer
 
-
-    def populateNewArea(self,
-                        Shape,
-                        dataSourceOrData,
-                        dataSourceVersion=None,
-                        populationTypes=None,
-                        convex=True,
-                        saveMode=TOOLKIT_SAVEMODE_NOSAVE,
-                        path=None,
-                        regionName=None, **kwargs):
+    def createNewArea(self,
+                      shapeNameOrData,
+                      dataSourceOrData,
+                      dataSourceVersion=None,
+                      populationTypes=None,
+                      convex=True,
+                      saveMode=TOOLKIT_SAVEMODE_NOSAVE,
+                      regionName=None, metadata=dict()):
         """
-            Make a geoDataFrame with a selected polygon as the geometry,
+            Make a geoDataFrame with a polygon as the geometry,
             and the sum of the population in the polygons that intersect it as its population.
+
+
+            If saveMode is set to save to file (with or without DB) the regionName
+            is used as the file name.
+
 
         Parameters
         -----------
-        Shape:
-        dataSourceOrData:
-        dataSourceVersion: 3-tuple of int
+        shapeNameOrData: str, geopandas
+            A shape name, geopandas dataframe, geoJSON str
 
-        populationTypes:
-        convex:
-        saveMode:
-        path:
-        regionName:
-        kwargs:
+        dataSourceOrData: str, geopandas
+            A demography data source name, a geoJSON (shapes with the population) or geopandas.dataframe
+
+        dataSourceVersion: 3-tuple of int
+            A version of the demography data source
+
+        convex: bool
+
+
+        saveMode: str
+                Can be either:
+
+                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
+                                                  raise exception if file exists.
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
+                                                  Replace the file if it exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
+                                                    Raise exception if the entry exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
+                                                    Replace the entry in the DB if it exists.
+
+
+        regionName: str
+            optional. If saved to the DB, use this as a region.
+        metadata: dict
+            Metadata to be saved to the DB if neeeded.
 
         Returns
         -------
-
+            Document with the new data
         """
-        if isinstance(dataSourceOrData,str):
-            Data = self.datalayer.getDataSourceData(dataSourceOrData,dataSourceVersion)
+        if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
+                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                        TOOLKIT_SAVEMODE_FILEANDDB,
+                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE] and regionName is None:
+            raise ValueError("Must specify regionName if saveMode is set to save data")
+
+        if isinstance(dataSourceOrData, str):
+            Data = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
+            if Data is None:
+                Data = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:
             Data = dataSourceOrData
 
-        if isinstance(Shape,str):
-            polydoc = self.datalayer.shapes.getShape(Shape)
+        if isinstance(shapeNameOrData, str):
+            polydoc = self.datalayer.shapes.getShape(shapeNameOrData)
+
+            if polydoc is None:
+                polydoc = geopandas.read_file(io.StringIO(polydoc))
+
             if convex:
                 polys = self.datalayer.buildings.analysis.ConvexPolygons(polydoc)
-                poly = polys.loc[polys.area==polys.area.max()].geometry[0]
+                poly = polys.loc[polys.area == polys.area.max()].geometry[0]
             else:
                 poly = polydoc.unary_union
         else:
-            poly = Shape
+            poly = shapeNameOrData
 
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
 
@@ -139,31 +229,31 @@ class analysis:
             if populationType in res_intersect_poly:
                 newData[populationType] = res_intersect_poly.sum()[populationType]
 
-        if saveMode !=toolkit.TOOLKIT_SAVEMODE_NOSAVE:
-            if path is None:
-                raise KeyError("Select a path for the new file")
-            newData.to_file(path)
+
+        doc = None
+        if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
+
+            filename = regionName if "." in regionName else f"{regionName}.shp"
+
+            fullname = os.path.join(self.datalayer.FilesDirectory,filename)
+            newData.to_file(fullname)
             if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB
-                if regionName is None:
-                    if type(Shape) == str:
-                        regionName = Shape
-                    else:
-                        raise KeyError("Select a regionName for the new area")
+
+                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.name}
+                desc.update(**metadata)
+                doc = self.datalayer.addCacheDocument(desc=desc,
+                                                resource=fullname,
+                                                type=toolkit.TOOLKIT_DATASOURCE_TYPE,
+                                                dataFormat=datatypes.GEOPANDAS)
 
 
-                desc = {toolkit.TOOLKIT_DATASOURCE_NAME : regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.name}
-                desc.update(**kwargs)
-                self.datalayer.addMeasurementsDocument(desc=desc,
-                                                       resource=path,
-                                                       type=toolkit.TOOLKIT_DATASOURCE_TYPE,
-                                                       dataFormat=datatypes.GEOPANDAS)
-        return newData
+        return nonDBMetadataFrame(newData) if doc is None else doc
 
     def calculatePopulationInPolygon(self,
                                      shapeNameOrData,
                                      dataSourceOrData,
                                      dataSourceVersion=None,
-                                     populationTypes=None):
+                                    populationTypes=None):
         """
             Finds the population in a polygon.
 

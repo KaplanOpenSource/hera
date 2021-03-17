@@ -236,10 +236,8 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
 
         Returns
         -------
-            The data or the doc.
+            Document with the data
 
-            Return the data if the saveMode is either [ TOOLKIT_SAVEMODE_NOSAVE, TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_ONLYFILE_REPLACE].
-            Return the DB document is the saveMode is either  [TOOLKIT_SAVEMODE_FILEANDDB, TOOLKIT_SAVEMODE_FILEANDDB_REPLACE].
         """
 
         if isinstance(fileNameOrData,str):
@@ -360,3 +358,73 @@ class analysis():
             gpd = self.ConvexPolygons(gpd, buffer=1)
 
         return gpd
+
+
+#     def createSynthetic(self, stlpath, domainx, domainy, buildingx, buildingy, buildingz, gap):
+#         """
+#         Create a region with homogenous buildings, it is easier to check the code with synthetic environment
+#
+#         param stlpath - the path where we save the stl
+#         param domainx - the width of the domain in the x direction
+#         param domainy - the width of the domain in the x direction
+#         param buildingx - the width of each building in the x direction
+#         param buildingy - the width of each building in the y direction
+#         param buildingz - the height of each building
+#         param gap - the distance between the buildings in the x direction and the y direction, the domain will start with a gap
+#
+#         return:
+#         """
+#         doc = FreeCAD.newDocument("Unnamed")
+#         print('create synthetic')
+#         nx = 0
+#         km=-1
+#         while nx < domainx - gap - buildingx:
+# #            nx += gap
+#             ny = 0
+#             while ny < domainy - gap - buildingy:
+# #                ny += gap
+#                 km += 1
+#                 doc.addObject('Sketcher::SketchObject', 'Sketch' + str(km))
+#                 doc.Objects[2*km].Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 0.000000), # 2*k-1
+# 		                                                           FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+#                 doc.Objects[2*km].addGeometry(Part.Line(FreeCAD.Vector(nx, ny, 0),
+# 		                                                  FreeCAD.Vector(nx, ny+buildingy, 0)))
+#                 doc.Objects[2*km].addGeometry(Part.Line(FreeCAD.Vector(nx, ny+buildingy, 0),
+# 		                                                  FreeCAD.Vector(nx+buildingx, ny+buildingy, 0)))
+#                 doc.Objects[2*km].addGeometry(Part.Line(FreeCAD.Vector(nx+buildingx, ny+buildingy, 0),
+# 		                                                  FreeCAD.Vector(nx+buildingx, ny, 0)))
+#                 doc.Objects[2*km].addGeometry(Part.Line(FreeCAD.Vector(nx+buildingx, ny, 0),
+# 		                                                  FreeCAD.Vector(nx, ny, 0)))
+#
+#                 doc.addObject("PartDesign::Pad", "Pad"+str(km))
+#                 doc.Objects[2 * km + 1].Sketch = doc.Objects[2*km]
+#                 doc.Objects[2 * km + 1].Length = buildingz # 35.000000
+#                 doc.Objects[2 * km + 1].Reversed = 0
+#                 doc.Objects[2 * km + 1].Midplane = 0
+#                 doc.Objects[2 * km + 1].Length2 = buildingz # 100.000000
+#                 doc.Objects[2 * km + 1].Type = 0
+#                 doc.Objects[2 * km + 1].UpToFace = None
+#                 doc.recompute()
+#                 ny += buildingy + gap
+#             nx += buildingx + gap
+#
+#         doc.recompute()
+# 		                # Mesh.export([doc.getObject("Extrude")], u"/home/nirb/regions/menuO1.stl")
+#         Mesh.export(doc.Objects, stlpath)
+
+    # def downWindSlope(self, file, Zxmin, Zxmax, Xmin=0,Xmax=10000,Ymin=0,Ymax=10000,nX=500,nY=500):
+    #     """
+    #     Creats a tilted ground for a fortran LSM run
+    #     """
+    #     slope = (Zxmax-Zxmin)/(Xmax-Xmin)
+    #     dx = (Xmax-Xmin)/(nX+2)
+    #     string = f"{Xmin} {Xmax} {Ymin} {Ymax}\n" \
+    #              f"{nX} {nY}\n"
+    #     downWindLine = ""
+    #     for i in range(1,nX+1):
+    #         downWindLine += f"{Zxmin+slope*dx*i} "
+    #     downWindLine += "\n"
+    #     for i in range(nY):
+    #         string += downWindLine
+    #     with open(file, "w") as writefile:
+    #         writefile.write(string)
