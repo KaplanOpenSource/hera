@@ -1,19 +1,23 @@
 import pandas
 import dask
 import os
-from .... datalayer import project
-from unum.units import *
-from ...utils import toUnum, toNumber
-from ....measurements.GIS import topography
+import xarray
 import numpy
+
+from unum.units import *
+from ....utils import tounum, tonumber
+
+from ....measurements.GIS.locations import topography
+
 from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
-import xarray
+
+from .... import toolkit
+
 from .sourcesFactory import sourcesFactory
 
-class preProcess(project.ProjectMultiDBPublic):
+class OFLSMToolkit(toolkit.abstractToolkit):
 
-    _publicProjectName = None
     _casePath = None
     _cloudName = None
     _sources = None
@@ -30,24 +34,18 @@ class preProcess(project.ProjectMultiDBPublic):
     def casePath(self,newPath):
         self._casePath = newPath
 
-    @property
-    def cloudName(self):
-        return self._cloudName
-
-    @cloudName.setter
-    def cloudName(self,newName):
-        self._cloudName = newName
-
-    def __init__(self, projectName, casePath, cloudName, databaseNameList=None, useAll=False,publicProjectName="OpenFOAMLSM"):
+    def __init__(self, projectName, casePath):
         """
-        params:
-        casePath = the path of the case
-        cloudName = the name of the cloud, in which the particles' properties are saved.
+        Parameters
+        ----------
+        casePath: str
+            The path of the case
+
+        cloudName: str,
+            The name of the cloud, in which the particles' properties are saved.
         """
-        self._publicProjectName = publicProjectName
-        super().__init__(projectName=projectName,publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
+        super().__init__(projectName=projectName,toolkitName="OF_LSM")
         self._casePath = casePath
-        self._cloudName = cloudName
         self._sources = sourcesFactory()
 
 
@@ -155,26 +153,26 @@ class preProcess(project.ProjectMultiDBPublic):
                 nParticles=int(Lines[15])
             except:
                 raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
-        dx = toNumber(toUnum(dx, lengthUnits), lengthUnits)
-        dy = toNumber(toUnum(dy, lengthUnits), lengthUnits)
-        dz = toNumber(toUnum(dz, lengthUnits), lengthUnits)
-        dt = int(toNumber(toUnum(dt, timeUnits), timeUnits))
+        dx = tonumber(tounum(dx, lengthUnits), lengthUnits)
+        dy = tonumber(tounum(dy, lengthUnits), lengthUnits)
+        dz = tonumber(tounum(dz, lengthUnits), lengthUnits)
+        dt = int(tonumber(tounum(dt, timeUnits), timeUnits))
         withReleaseTimes = False
         if type(Q) == list:
             if len(Q) != endTime - startTime + 1:
                 raise KeyError("Number of values in Q must be equal to the number of time steps!")
             try:
-                Q = [toNumber(toUnum(q, Qunits), Qunits) for q in Q]
+                Q = [tonumber(tounum(q, Qunits), Qunits) for q in Q]
             except:
-                Q = [toNumber(toUnum(q, Qunits), Qunits / timeUnits) for q in Q]
+                Q = [tonumber(tounum(q, Qunits), Qunits / timeUnits) for q in Q]
             releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
             dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
             withReleaseTimes = True
         else:
             try:
-                Q = toNumber(toUnum(Q, Qunits), Qunits)
+                Q = tonumber(tounum(Q, Qunits), Qunits)
             except:
-                Q = toNumber(toUnum(Q, Qunits), Qunits / timeUnits)
+                Q = tonumber(tounum(Q, Qunits), Qunits / timeUnits)
         documents = self.getSimulationsDocuments(type="openFoamLSMrun",
                                                 casePath=self.casePath, cloudName=self.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
@@ -190,7 +188,7 @@ class preProcess(project.ProjectMultiDBPublic):
                 data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
                 if OFmass:
                     data = data.groupby(["x","y","height","time"]).sum()
-                    data["mass"] = data["mass"] * toNumber(toUnum(1*kg, Qunits), Qunits)
+                    data["mass"] = data["mass"] * tonumber(tounum(1*kg, Qunits), Qunits)
                     data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
                     if type(Q)==list:
