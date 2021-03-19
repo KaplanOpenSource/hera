@@ -1,7 +1,7 @@
 import pandas
 import matplotlib.pyplot as plt
 import math
-from ..preProcess.dataManipulations import dataManipulations
+from hera.simulations.openfoam.NavierStokes.preProcess import dataManipulations
 
 class Plotting():
 

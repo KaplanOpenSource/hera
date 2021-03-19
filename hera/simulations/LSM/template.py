@@ -1,19 +1,28 @@
 import os
-# from ...datalayer.document.metadataDocument import Simulations as SimulationsDoc
-from ...datalayer.document import getDBObject
-from ..LSM import LagrangianReader
-from .DataLayer import SingleSimulation
+from .singleSimulation import SingleSimulation
+from ...datalayer import nonDBMetadataFrame,datatypes
+from itertools import product
+
 from ..utils.inputForModelsCreation import InputForModelsCreator
-from hera.datalayer import Project
-import shutil
 import xarray
+import pandas
+import numpy
 
-class LSMTemplate(Project):
+class LSMTemplate:
     _document = None
+    _toolkit = None
 
-    LSM_RUN_TYPE = 'LSM_run'
+    _config =None
 
-    def __init__(self, document,projectName,to_xarray=True,to_database=False,forceKeep=False):
+    @property
+    def toolkit(self):
+        return self._toolkit
+
+    @property
+    def doctype_simulation(self):
+        return "LSM_run"
+
+    def __init__(self, document,toolkit):
         """
         Initializes the template object.
 
@@ -23,34 +32,21 @@ class LSMTemplate(Project):
         document: DB document (or JSON)
             contains the defaults parameters and the data under document['desc']
 
-        projectName: str
-            The project name of the current simulations.
-
-        to_xarray: bool
-            Save the simulation results into xarray or not
-
-        to_database: bool
-            Save the simulation run in the database or not
-
-        forceKeep: bool
-            If to_xarray is true, determine wehter to keep the original files.
-            if False, removes the Lagrnagian files.
-
-
 
         """
-        super().__init__(projectName=projectName)
-        self._document = document
 
-        self.to_xarray =to_xarray
-        self.to_database = to_database
-        self.forceKeep = forceKeep
+        self._document = document
+        self._toolkit  = toolkit
+
+        self.to_xarray      = toolkit.to_xarray
+        self.to_database    = toolkit.to_database
+        self.forceKeep      = toolkit.forceKeep
         self.datetimeFormat = "timestamp"
-        self.xColumn = "x"
-        self.yColumn = "y"
-        self.uColumn = "u"
-        self.directionColumn = "direction"
-        self.timeColumn = "datetime"
+        self.xColumn        = "x"
+        self.yColumn        = "y"
+        self.uColumn        = "u"
+        self.directionColumn= "direction"
+        self.timeColumn     = "datetime"
 
 
     @property
@@ -67,21 +63,22 @@ class LSMTemplate(Project):
 
     @property
     def modelName(self):
-        return self._document['type'].split('_')[0]
+        return self._document['desc']['modelName']
+    
+    @property
+    def templateName(self):
+        return self._document['desc']['templateName']
 
     @property
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self, saveDir,topography=None, stations=None,overwrite=False,params=dict(),**descriptor):
+    def run(self,topography=None, stations=None,overwrite=False,params=dict(),**descriptor):
         """
         Execute the LSM simulation
 
         Parameters
         ----------
-        projectName: str
-            The project name
-
         saveDir: str
             Path of the directory to put in the model run
 
@@ -102,51 +99,55 @@ class LSMTemplate(Project):
 
         """
         fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
-        saveDir = os.path.abspath(saveDir)
+        saveDir = os.path.abspath(self.toolkit.FilesDirectory)
 
         # create the input file.
-        # paramsMap['wind_dir'] = self.paramsMap['wind_dir_meteorological']
-        self._document['desc']['params'].update(params)
-        self._document['desc'].update(descriptor)
+
+        updated_params = dict(self._document['desc']['params'])
+        updated_params.update(params)
+        updated_params.update(descriptor)
+
+
         if topography is None:
-            self._document['desc']['params'].update(homogeneousWind=".TRUE.")
+            updated_params.update(homogeneousWind=".TRUE.")
             print("setting homogeneous wind")
         else:
-            # if stations is None:
-            #     raise KeyError("When using topography stations must be delivered.")
-            # else:
-            self._document['desc']['params'].update(TopoFile="'TOPO'")
-        if stations is not None:
-            self._document['desc']['params'].update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
-        xshift = (self._document['desc']['params']["TopoXmax"] - self._document['desc']['params']["TopoXmin"]) * \
-                 self._document['desc']['params']["sourceRatioX"]
-        yshift = (self._document['desc']['params']["TopoYmax"] - self._document['desc']['params']["TopoYmin"]) * \
-                 self._document['desc']['params']["sourceRatioY"]
+            updated_params.update(TopoFile="'TOPO'")
 
-        ifmc = InputForModelsCreator(self.dirPath) # was os.path.dirname(__file__)
-        ifmc.setParamsMap(self._document['desc']['params'])
+        if stations is not None:
+            updated_params.update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
+        xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
+
+        yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
+
+        ifmc = InputForModelsCreator(self.dirPath) # was os.path.dupdated_paramsirname(__file__)
+        ifmc.setParamsMap(updated_params)
         ifmc.setTemplate('%s_%s' % (self.modelName, self.version))
 
         if self.to_database:
-            docList = self.getSimulationsDocuments(type=self.LSM_RUN_TYPE,params=self._document['desc']['params'],version=self.version)
+            docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+                                                   params=updated_params,
+                                                   version=self.version)
+
             if len(docList)==0:
-                doc = self.addSimulationsDocument(
-                                            type=self.LSM_RUN_TYPE,
+                doc = self.toolkit.addSimulationsDocument(
+                                            type=self.doctype_simulation,
                                             resource='None',
                                             dataFormat='None',
-                                            desc=dict(params=self._document['desc']['params'],
+                                            desc=dict(params=updated_params,
                                                       version=self.version,
-                                                      datetimeFormat=self.datetimeFormat
+                                                      datetimeFormat=self.datetimeFormat,
+                                                      templateName = self.templateName
                                                       )
                                             )
 
                 saveDir = os.path.join(saveDir, str(doc.id))
                 if self.to_xarray:
                     doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
-                    doc['dataFormat'] = 'netcdf_xarray'
+                    doc['dataFormat'] = datatypes.NETCDF_XARRAY
                 else:
                     doc['resource'] = os.path.join(saveDir)
-                    doc['dataFormat'] = 'string'
+                    doc['dataFormat'] = datatypes.STRING
                 doc.save()
             elif not overwrite:
                     return docList[0].getData()
@@ -166,10 +167,14 @@ class LSMTemplate(Project):
 
         if stations is not None:
             stations = stations.rename(columns={self.timeColumn:"datetime"})
-            onlyStations = stations.drop(columns=["datetime",self.uColumn,self.directionColumn])
+            onlyStations = stations.drop(columns=["datetime",self.uColumn,
+                                                  self.directionColumn])
+
             stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
+
             stationsXarray = stations.set_index([self.xColumn, self.yColumn, "datetime"]).drop(columns=self.stationColumn).to_xarray()
             resampled = stationsXarray.resample(datetime="5Min").interpolate()
+
             stations = resampled.to_dataframe().reset_index()
             stations = stations.set_index([self.xColumn,self.yColumn]).join(onlyStations.set_index([self.xColumn,self.yColumn])).reset_index().dropna()
 
@@ -206,7 +211,7 @@ class LSMTemplate(Project):
 
             L = []
             i = 0
-            for xray in LagrangianReader.toNetcdf(basefiles=results_full_path,datetimeFormat=self.datetimeFormat):
+            for xray in self._toNetcdf(basefiles=results_full_path, datetimeFormat=self.datetimeFormat):
                 L.append(xray)
 
                 if len(L) == 100:  # args.chunk:
@@ -231,7 +236,10 @@ class LSMTemplate(Project):
 
 
             finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
-            return finalxarray
+
+            return nonDBMetadataFrame(finalxarray,**updated_params)
+        else:
+            return None
 
     def getLSMRuns(self,**query):
         """
@@ -239,5 +247,145 @@ class LSMTemplate(Project):
         :param query:
         :return:
         """
-        docList = self.getSimulationsDocuments(type=self.LSM_RUN_TYPE,**query)
+        docList = self.getSimulationsDocuments(type=self.doctype_simulation,
+                                               templateName = self.templateName,
+                                               **query)
+
         return [SingleSimulation(doc) for doc in docList]
+
+
+    def _toNetcdf(basefiles, addzero=True, datetimeFormat="timestamp"):
+        """
+            Converts the data to netcdf.
+            The dosage are converted to s/m**3 instead of min/m**3.
+
+            Parameters
+            ----------
+            basefiles: str
+                Path to the directory with the netcdf files
+
+            addZero: bool
+                if true, adds a 0 file at the begining of the files (with time shift 0)
+
+        """
+
+        # outfilename = name
+        filenameList = []
+        times = []
+        for infilename in glob.glob(os.path.join("%s*" % basefiles)):
+            filenameList.append(infilename)
+            times.append(float(infilename.split("_")[-1]))
+
+        print("Processing the files")
+        print(basefiles)
+        print([x for x in glob.glob(os.path.join("%s*" % basefiles))])
+        # Sort according to time.
+        combined = sorted([x for x in zip(filenameList, times)], key=lambda x: x[1])
+        dt = None
+
+        for (i, curData) in enumerate(combined):
+            print("\t... reading %s" % curData[0])
+            cur = pandas.read_csv(curData[0], delim_whitespace=True,
+                                  names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
+
+            cur['time'] = curData[1]
+
+            if dt is None:
+                dt = cur.iloc[0]['time'] * s
+
+            cur['Dosage'] *= (s / m ** 3).asNumber(min / m ** 3)
+            xray = cur.sort_values(['time', 'x', 'y', 'z']).set_index(['time', 'x', 'y', 'z']).to_xarray()
+            if datetimeFormat == "timestamp":
+                datetime = pandas.to_datetime("1-1-2016 12:00") + pandas.to_timedelta(xray.time.values, 's')
+            elif datetimeFormat == "seconds":
+                datetime = xray.time.values
+
+            # finalxarray.to_netcdf(os.path.join(topath,name,"%s_%s.nc" % (outfilename, str(cur['time'].iloc[0]).replace(".", "_"))) )
+
+            if (i == 0) and addzero:
+                if datetimeFormat == "timestamp":
+                    zdatetime = [pandas.to_datetime("1-1-2016 12:00")]
+                elif datetimeFormat == "seconds":
+                    zdatetime = [0]
+
+                finalxarray = xarray.DataArray(numpy.zeros(xray['Dosage'].values.shape), \
+                                               coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': zdatetime},
+                                               dims=['datetime', 'y', 'x', 'z']).to_dataset(name='Dosage')
+
+                yield finalxarray
+            # finalxarray.to_netcdf(os.path.join(topath,name,"%s_0_0.nc" % outfilename) )
+
+            finalxarray = xarray.DataArray(xray['Dosage'].values, \
+                                           coords={'x': xray.x, 'y': xray.y, 'z': xray.z, 'datetime': datetime},
+                                           dims=['datetime', 'y', 'x', 'z']).to_dataset(name='Dosage')
+
+            yield finalxarray
+
+    def getSimulations(self, **query):
+        """
+        get a list of SingleSimulation objects that fulfill the query
+
+        Parameters
+        ---------
+        templateName : str
+            The name of the template of the simulation
+
+        query: parameters
+            Parameters for the query
+
+        Returns
+        -------
+            Simulation object
+        """
+
+        docList = self.getDocuments(type=self.doctype_simulation,
+                                    templateName=self.templateName,
+                                    **query)
+        return [SingleSimulation(doc) for doc in docList]
+
+    def getSimulationByID(self,id):
+        """
+        get a simulation by document id
+
+        :param id:
+        :return:
+        """
+        return SingleSimulation(self.getDocumentByID(id))
+
+    def listSimulations(self,templateName, wideFormat=False, **query):
+        """
+            List the Simulation parameters that fulfil the query
+        :param query:
+        :return:
+        """
+
+        docList = self.getDocuments(type=self.doctype_simulation,
+                                    templateName=self.templateName
+                                    **query)
+        descList = [doc.desc.copy() for doc in docList]
+
+        for (i, desc) in enumerate(descList):
+            desc.update({'id':docList[i].id})
+
+        params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
+        params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
+
+        desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
+        df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+
+        new_df_list = []
+
+        for df in df_list:
+            id = df['id'][0]
+            new_df = df.copy().drop(columns=['id']).melt()
+            new_df.index = [id]*len(new_df)
+            new_df_list.append(new_df)
+
+        try:
+            df = pandas.concat(new_df_list)
+            if wideFormat:
+                return df.pivot(columns='variable', values='value')
+            else:
+                return df
+        except ValueError:
+            raise FileNotFoundError('No simulations found')

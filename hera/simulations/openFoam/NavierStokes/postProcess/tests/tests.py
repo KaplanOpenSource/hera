@@ -1,5 +1,5 @@
 import paraview.simple as pvsimple
-from ...preProcess.pvOpenFOAMBase import paraviewOpenFOAM
+from hera.simulations.openfoam.NavierStokes.preProcess.pvOpenFOAMBase import paraviewOpenFOAM
 import numpy
 
 class tests():
