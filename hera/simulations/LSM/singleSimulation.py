@@ -1,23 +1,11 @@
 import os
 import xarray
 import numpy
+import os
 from unum.units import *
 
 from ..utils import toUnum,toNumber
 
-# def toVTK(self, data, outputdir, name, fields):
-#     from pyevtk.hl import gridToVTK
-#
-#     for ii, tt in enumerate(data.datetime):
-#         curdata = data.sel(datetime=tt)
-#         outputpath = os.path.join(outputdir, "%s_%s" % (name, ii))
-#         fieldsmap = dict([(key, curdata[key].values) for key in fields])
-#
-#         gridToVTK(outputpath, \
-#                   curdata.x.values, \
-#                   curdata.y.values, \
-#                   curdata.z.values, \
-#                   pointData=fieldsmap)
 
 class SingleSimulation(object):
     _finalxarray = None
@@ -32,20 +20,7 @@ class SingleSimulation(object):
         return self._document['desc']['version']
 
     def __init__(self, resource):
-        if type(resource) is str:
-            # pattern = os.path.join(resource, '*.nc')
-            #
-            # filenameList = []
-            # times = []
-            # for infilename in glob.glob(pattern):
-            #     filenameList.append(infilename)
-            #     timepart = float(".".join(infilename.split(".")[0].split("_")[-2:]))
-            #     times.append(timepart)
-            #
-            # # Sort according to time.
-            # combined = sorted([x for x in zip(filenameList, times)], key=lambda x: x[1])
-            #
-            # self._xray = xarray.open_mfdataset([x[0] for x in combined])
+        if isinstance(resource,str):
             self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
         else:
             self._document = resource
@@ -139,3 +114,17 @@ class SingleSimulation(object):
             The concentration at the requested point and time
         """
         return self.getConcentration(Q=Q, time_units=time_units, q_units=q_units)['C'].interp(x=x, y=y, datetime=datetime).values[0]
+
+    # def toVTK(self, data, outputdir, name, fields):
+    #     from pyevtk.hl import gridToVTK
+    #
+    #     for ii, tt in enumerate(data.datetime):
+    #         curdata = data.sel(datetime=tt)
+    #         outputpath = os.path.join(outputdir, "%s_%s" % (name, ii))
+    #         fieldsmap = dict([(key, curdata[key].values) for key in fields])
+    #
+    #         gridToVTK(outputpath, \
+    #                   curdata.x.values, \
+    #                   curdata.y.values, \
+    #                   curdata.z.values, \
+    #                   pointData=fieldsmap)

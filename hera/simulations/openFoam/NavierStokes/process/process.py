@@ -1,6 +1,6 @@
-from .... import datalayer
-from .... import GIS
-from ... import WRF
+from hera import datalayer
+from hera import GIS
+from hera.simulations import WRF
 import os
 import pandas
 import numpy

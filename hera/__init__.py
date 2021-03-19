@@ -17,7 +17,7 @@ if version==3:
 
     #from .risk import riskassessment
 
-#from .simulations import openfoam
+#from .simulations import openFoam
 
 import logging.config
 

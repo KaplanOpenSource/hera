@@ -69,9 +69,6 @@ class abstractToolkit(project):
     def toolkitName(self):
         return self._toolkitname
 
-
-
-
     def __init__(self,toolkitName,projectName,FilesDirectory=None):
         """
             Initializes a new toolkit.
@@ -130,7 +127,7 @@ class abstractToolkit(project):
         doc.desc.update(kwargs)
         doc.save()
 
-    def getDataSourceList(self,asPandas=True):
+    def getDataSourceList(self,asPandas=True,**filters):
         """
             Return the list of all data sources and their versions that are related to this toolkit
 
@@ -139,12 +136,16 @@ class abstractToolkit(project):
             asPandas: bool
                 If true, convert to pandas.
 
+            filters: parameters
+                Additional parameters to query the templates
+
         Returns
         -------
             list of dicts or pandas
         """
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
-                                                toolkit=self.toolkitName)
+                                                toolkit=self.toolkitName,
+                                                **filters)
 
         ret = []
         for doc in docList:
@@ -204,6 +205,10 @@ class abstractToolkit(project):
 
         if len(docList) ==0:
             ret =  None
+
+        elif len(docList) ==1:
+            ret = docList[0]
+
         elif len(docList)>1:
             versionsList =[ doc['desc']['version'] for doc in docList]
             latestVersion = numpy.max(versionsList,axis=0)
@@ -242,12 +247,26 @@ class abstractToolkit(project):
             The type is always TOOLKIT_DATASOURCE_TYPE.
             The toolkit name is added to the description.
 
-        :param dataSourceName:
-        :param version:
-        :param resource:
-        :param dataFormat:
-        :param kwargs:
-        :return:
+        Parameters
+        ----------
+        dataSourceName: str
+                The name of the data source
+
+        version: tuple (of int)
+                A 3-tuple of the version
+
+        resource: str
+                The resource
+
+        dataFormat: str
+                A string of a datatypes.
+
+        kwargs: dict
+                The parameters
+
+        Returns
+        -------
+            The document of the datasource.
         """
 
         kwargs[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
