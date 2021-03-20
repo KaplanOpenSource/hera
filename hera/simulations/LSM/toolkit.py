@@ -2,9 +2,7 @@ import pandas
 import json
 import os
 
-from .singleSimulation import SingleSimulation
 from .template import LSMTemplate
-
 from itertools import product
 from ... import datalayer
 from ... import toolkit

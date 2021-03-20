@@ -25,12 +25,6 @@ distributions with different mean and std.
 
 .. parsed-literal::
 
-    WARNING:root:FreeCAD not Found, cannot convert to STL
-
-
-.. parsed-literal::
-
-    You must install python-wrf to use this package 
               x         y
     0 -2.326348  0.026652
     1 -2.279351  0.029698
@@ -345,7 +339,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "5fc9f8ca80f706afb9b5a58d"
+            "$oid": "60559c548aea221228453c7b"
         },
         "dataFormat": "parquet",
         "desc": {

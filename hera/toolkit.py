@@ -2,6 +2,7 @@ from .datalayer import project,datatypes
 import os
 import pandas
 import numpy
+import pydoc
 
 TOOLKIT_DATASOURCE_TYPE = "ToolkitDataSource"
 TOOLKIT_TOOLKITNAME_FIELD       = "toolkit"
@@ -13,6 +14,42 @@ TOOLKIT_SAVEMODE_ONLYFILE = "File"
 TOOLKIT_SAVEMODE_ONLYFILE_REPLACE = "File_overwrite"
 TOOLKIT_SAVEMODE_FILEANDDB = "DB"
 TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
+
+
+class toolkitHome:
+
+    GIS_BUILDINGS = "GIS_Buildings"
+    GIS_IMAGE= "GIS_Image"
+    GIS_TOPOGRAPHY = "GIS_Topography"
+    GIS_DEMOGRAPHY = "GIS_Demography"
+    GIS_SHAPES     = "GIS_Shapes"
+
+    _toolkits = None
+
+    def __init__(self):
+        self._toolkits = dict(
+            GIS_Buildings = dict(cls = "hera.measurements.GIS.locations.buildings.BuildingsToolkit",
+                                 desc=None),
+            GIS_Image = dict(cls = "hera.measurements.GIS.locations.image.ImageToolkit",
+                                 desc=None),
+            GIS_Topography = dict(cls = "hera.measurements.GIS.locations.topography.TopographyToolkit",
+                                 desc=None),
+
+            GIS_Demography = dict(cls = "hera.measurements.GIS.demography.TopographyToolkit",
+                                 desc=None),
+
+
+            GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",
+                                 desc=None),
+
+
+
+
+        )
+
+
+
+
 
 
 
