@@ -2,7 +2,7 @@ import os
 from .singleSimulation import SingleSimulation
 from ...datalayer import nonDBMetadataFrame,datatypes
 from itertools import product
-
+import glob
 from ..utils.inputForModelsCreation import InputForModelsCreator
 import xarray
 import pandas

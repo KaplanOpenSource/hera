@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pyhera's documentation!
+Welcome to Hera's documentation!
 ##################################
 
 Overview
@@ -18,6 +18,7 @@ provides tools that help to load, analysis and presentations for specific data t
 
 
 .. image:: Hera-Layers.png
+
 
 
 

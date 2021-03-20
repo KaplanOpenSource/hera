@@ -16,7 +16,7 @@ from ....simulations.utils import coordinateHandler
 from ....datalayer import datatypes
 
 
-class abstractLocationToolkit(abstractLocation.AbstractLocationToolkit):
+class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
 
 
     _stlFactory = None

@@ -4,7 +4,7 @@ from hera.simulations import WRF
 import os
 import pandas
 import numpy
-import geopandas
+
 
 class process():
 
