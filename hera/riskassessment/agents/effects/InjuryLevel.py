@@ -2,7 +2,7 @@ import geopandas
 import pandas
 import numpy 
 
-from ....simulations.utils.matplotlibCountour import toGeopandas
+from hera.utils.matplotlibCountour import toGeopandas
 from ....utils import tounum
 
 from unum.units import *

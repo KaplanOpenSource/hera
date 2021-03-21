@@ -71,7 +71,7 @@ class ShapesToolKit(toolkit.abstractToolkit):
         elif isinstance(fileNameOrData,geopandas.geodataframe):
             data = fileNameOrData
         else:
-            raise ValueError(f"fileNameOrData must be a filename, geoJSON str or geoPandas.geodataframa, got type {type(fileNameOrData}")
+            raise ValueError(f"fileNameOrData must be a filename, geoJSON str or geoPandas.geodataframa, got type {type(fileNameOrData)}")
 
         doc = None
 

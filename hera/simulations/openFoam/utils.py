@@ -8,7 +8,7 @@ p = project.Project("openFoamdata")
 
 def centersToPandas(skipend, filepath='C', skiphead = 22, saveToTxt=False, fileName="CellCenters.txt"):
     """
-        Extract pandas from openfoam cell centers file.
+        Extract pandas from openFoam cell centers file.
 
         It is also possible to save it to  a new txt file
 
