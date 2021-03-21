@@ -21,6 +21,7 @@ if version==3:
 
 import logging.config
 
+
 with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
      log_conf_str = logconfile.read().replace("\n","")
      log_conf = json.loads(log_conf_str.replace("{herapath}",os.path.dirname(__file__)))
@@ -35,10 +36,15 @@ logging.Logger.execution = execution
 logging.config.dictConfig(log_conf)
 
 
+#from .toolkit import ToolkitHome
+#toolkitHome =ToolkitHome()
+
+
 
 """
 Next Version
 
+    - Changing the structure of the toolkits. 
     - Fixing the imports to be lighter
     - Some other changes to make the risk assessment procedure work.  
     - Updating the AgentsHome according to the existing agents description

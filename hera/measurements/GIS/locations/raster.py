@@ -5,7 +5,7 @@ import os
 from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from ....datalayer import datatypes, nonDBMetadataFrame
 
-class ImageToolkit(abstractLocation.AbstractLocationToolkit):
+class RasterToolkit(abstractLocation.AbstractLocationToolkit):
     """
         A class to handle an image that represents a location.
 
@@ -33,6 +33,7 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
 
         Parameters
         ----------
+
         fileNameOrData: str
                 If str , the datafile to load
                 If other objects - convert the
@@ -73,6 +74,7 @@ class ImageToolkit(abstractLocation.AbstractLocationToolkit):
 
         Returns
         -------
+
             The doc (DB document or nonDB document).
         """
 
