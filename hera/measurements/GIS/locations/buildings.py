@@ -84,9 +84,9 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
                 a path to the output file.
 
             saveMode: str
-                if None, does not add to the DB.
-                if toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
-                if toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
+                - None, does not add to the DB.
+                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
+                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
 
             Returns
             -------

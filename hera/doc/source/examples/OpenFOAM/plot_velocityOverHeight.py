@@ -14,7 +14,7 @@ Plot the velocity over height.
 #
 # The data may be loaded from the database, as demonstrated below.
 
-from hera.simulations.openfoam.NavierStokes.postProcess.meshUtilities.datalayer import datalayer
+from hera.simulations.openfoam.NavierStokes.postProcess import datalayer
 OFdatalayer = datalayer(projectName="Documentation")
 #data = datalayer.getDocuments(filter="Slice1")[0].getData().compute()
 

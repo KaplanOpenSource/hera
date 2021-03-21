@@ -176,7 +176,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             cmd = f"ogr2ogr -clipsrc {points['minX']} {points['minY']} {points['maxX']} {points['maxY']} {outputFileName} {inputData}"
             self.logger.execution(f"Clipping the file: {cmd}")
             os.system(cmd)
-        except as e:
+        except Exception as e:
             self.logger.error(f"General error cutting the file {e}.")
             raise RuntimeError(f"Error clipping the file {inputData}. Exception {e}")
 
