@@ -1,4 +1,4 @@
-from .datalayer import project,datatypes
+from .datalayer import Project,datatypes
 import os
 import pandas
 import numpy
@@ -16,13 +16,14 @@ TOOLKIT_SAVEMODE_FILEANDDB = "DB"
 TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
 
-class toolkitHome:
+class ToolkitHome:
 
-    GIS_BUILDINGS = "GIS_Buildings"
-    GIS_IMAGE= "GIS_Image"
+    GIS_BUILDINGS  = "GIS_Buildings"
+    GIS_RASTER     = "GIS_Raster"
     GIS_TOPOGRAPHY = "GIS_Topography"
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
+    RISKASSESSMENT = "RiskAssessment"
 
     _toolkits = None
 
@@ -30,30 +31,46 @@ class toolkitHome:
         self._toolkits = dict(
             GIS_Buildings = dict(cls = "hera.measurements.GIS.locations.buildings.BuildingsToolkit",
                                  desc=None),
-            GIS_Image = dict(cls = "hera.measurements.GIS.locations.image.ImageToolkit",
+            GIS_Raster = dict(cls = "hera.measurements.GIS.locations.raster.RasterToolkit",
                                  desc=None),
             GIS_Topography = dict(cls = "hera.measurements.GIS.locations.topography.TopographyToolkit",
                                  desc=None),
 
             GIS_Demography = dict(cls = "hera.measurements.GIS.demography.TopographyToolkit",
                                  desc=None),
-
-
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",
                                  desc=None),
-
-
-
-
+            RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",
+                                 desc=None),
+            LSM            =dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",
+                                 desc=None)
         )
 
 
+    def getToolkit(self,projectName,**kwargs):
+        """
+            Returns a toolkit for the requested project.
+
+        Parameters
+        -----------
+        projectName: str
+            The name of the project
+
+        kwargs: dict
+            The parameters for the toolkit.
+            See the specific dtoolkit documentation for further details.
+
+        Returns
+        -------
+            The tookit
+        """
+        pass
 
 
 
 
 
-class abstractToolkit(project):
+class abstractToolkit(Project):
     """
         A base class for Toolkits.
 
@@ -91,19 +108,35 @@ class abstractToolkit(project):
 
     @property
     def FilesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
         return self._FilesDirectory
 
 
     @property
     def presentation(self):
+        """
+            Access to the presentation layer
+        :return:
+        """
         return self._presentation
 
     @property
     def analysis(self):
+        """
+            Access to the analysis layer
+        :return:
+        """
         return self._analysis
 
     @property
     def toolkitName(self):
+        """
+            The name of the toolkit name
+        :return:
+        """
         return self._toolkitname
 
     def __init__(self,toolkitName,projectName,FilesDirectory=None):

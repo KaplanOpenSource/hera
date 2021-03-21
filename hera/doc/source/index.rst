@@ -20,70 +20,14 @@ provides tools that help to load, analysis and presentations for specific data t
 .. image:: Hera-Layers.png
 
 
-
-
-Datalayer
-   Tools to stome the metadata (data that describes the data itself) of each piece of data as a document in the database.
-   A general layer that helps to manage the metadata records.
-               It can be used directly through other layers.
-
-Cache Caching data after long computation.
-
-Measurements
-   Provide tools to manage data that originates from measurements.
-
-   Contains two groups of tools
-
-   - GIS
-         Manages GIS data and has the following tools:
-         - buildings
-            Manages GIS layer of buildings. Allows slicing and performing calculations of
-            the porosity and conversion to STL.
-
-         - image
-            Manages Images of locations. Saves the image with its dimensions.
-
-         - shape
-            Manages spatial polygons and data.
-
-         - topography
-            Manages the topography. Slicing areas from the global database (such as BNTL),
-            computing heights, and converting to STL.
-
-   - Meteorological
-      Manages meteorological data, provide tools to analyze:
-      - High frequency data
-         This refers to the raw data from the devices.
-         Currently we have implemented:
-
-         - Sonic data
-               Analyze and calculate turbulence properties of raw sonic data (20-30Hz).
-               Loads data from several formats.
-
-         - Temerature data
-               Analyze and calculate raw data from temperature measurements (1Hz).
-
-
-      - Low frequency data
-            Usually data that was processes and averaged to several minutes.
-            Loads data from several formats.
-
-Simulations
-   Manages and analyzes data that originates from simulations.
-
-   Contains several tools:
-
-       - OpenFOAM
-               Manage openFOAM simulations.
-
-       - LSM
-            Manage and run Lagrangian stochastic models.
+The hera package has two parts.
+ - :ref:`Data layer <datalayerPage>`: The datalayer provides interface to store the metadata (data that describes the data itself)
+               of each piece of data as a document in the database
 
 
 
-Risk assessment
-   Provides tools to perform risk assessment. That is project the concentration and estimate the consquences
-   on the health of the population.
+ - :ref:`Toolkit <toolkitPage>`: Interfaces to manage different types of data.
+
 
 Installing & setup
 ==================
@@ -91,13 +35,13 @@ Installing & setup
 We currently recommend using the package as a development package.
 You must have MongoDB installed.
 
-# 1. Download the package from the git repository.
+1. Download the package from the git repository.
 
 ::
 
      git clone [path to repository] path-to-save/pyhera
 
-# 2. Add the path to the to the PYTHONPATH.
+2. Add the path to the to the PYTHONPATH.
 
 ::
 
@@ -105,7 +49,7 @@ You must have MongoDB installed.
 
    we recommend to add it to the .bashrc.
 
-#3. Create a configuration file in $HOME/.pyhera
+3. Create a configuration file in $HOME/.pyhera
 
 .. literalinclude:: examples/configfile/config.json
 
@@ -123,9 +67,7 @@ Usage and API
    :caption: Contents:
 
    datalayer
-   measurements
-   simulations
-   riskassessment
+   toolkit
    instructions_for_dev
    how_to
    auto_examples/index
