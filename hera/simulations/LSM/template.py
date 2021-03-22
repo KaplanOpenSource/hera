@@ -38,7 +38,7 @@ class LSMTemplate(Project):
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self, saveDir, to_xarray=True, to_database=False,forceKeep=False,datetimeFormat="timestamp",topography=None, stations=None,
+    def run(self, saveDir, to_xarray=True, to_database=False,forceKeep=False,datetimeFormat="timestamp",depositionRates=None,topography=None, stations=None,
                 stationColumn="station",xColumn="x",yColumn="y",uColumn="u",directionColumn="direction",timeColumn="datetime",**kwargs):
         """
         Execute the LSM simulation
@@ -77,6 +77,13 @@ class LSMTemplate(Project):
             self._document['desc']['params'].update(TopoFile="'TOPO'",flat=".FALSE.")
         if stations is not None:
             self._document['desc']['params'].update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
+        if depositionRates is None:
+            self._document['desc']['params'].update(n_vdep=0)
+        else:
+            if type(depositionRates) != list:
+                depositionRates = [depositionRates,depositionRates]
+            self._document['desc']['params'].update(n_vdep=len(depositionRates))
+
         xshift = (self._document['desc']['params']["TopoXmax"] - self._document['desc']['params']["TopoXmin"]) * \
                  self._document['desc']['params']["sourceRatioX"]
         yshift = (self._document['desc']['params']["TopoYmax"] - self._document['desc']['params']["TopoYmin"]) * \
@@ -118,6 +125,12 @@ class LSMTemplate(Project):
         if topography is not None:
             with open("TOPO","w") as topofile:
                 topofile.write(topography)
+        if depositionRates is not None:
+            depositionsFile = ""
+            for rate in depositionRates:
+                depositionsFile += f"{rate}\n"
+            with open("INPUT_VDEP","w") as newDepositionFile:
+                newDepositionFile.write(depositionsFile)
             # make stations files
         if stations is not None:
             stations = stations.rename(columns={timeColumn:"datetime"})
