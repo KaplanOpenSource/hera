@@ -43,8 +43,7 @@ toolkitHome =ToolkitHome()
 from unum import Unum
 from unum.units import *
 
-atm   = Unum.unit('atm',1.01325*bar,'atmosphere')
-mbar  = Unum.unit('mbar',bar/1000,'millibar')
+from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
 
 mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
 torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
