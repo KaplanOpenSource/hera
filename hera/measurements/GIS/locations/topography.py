@@ -9,6 +9,9 @@ import os
 import requests
 from scipy.interpolate import griddata
 from shapely.geometry import LineString
+from .... import toolkit
+import xarray
+import dask
 
 from .import abstractLocation
 from ....simulations.utils import coordinateHandler
@@ -18,8 +21,9 @@ from ....datalayer import datatypes
 
 class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
 
-
     _stlFactory = None
+    _srtmBounds = None
+    _toolkitname = None
 
     @property
     def doctype(self):
@@ -29,12 +33,59 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
     def stlFactory(self):
         return self._stlFactory
 
+    @property
+    def srtmBounds(self):
+        return self._srtmBounds
+
+    @property
+    def toolkitname(self):
+        return self._toolkitname
+
     def __init__(self, projectName, FilesDirectory=""):
-
-        super().__init__(projectName=projectName,FilesDirectory=FilesDirectory,toolkitName="Topography")
+        toolkitName = "Topography"
+        super().__init__(projectName=projectName,FilesDirectory=FilesDirectory,toolkitName=toolkitName)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
-
+        self._toolkitname = toolkitName
         self._stlFactory = stlFactory()
+        srtmDocs = self.getMeasurementsDocumentsAsDict(name="SRTM")
+        self._srtmBounds = []
+        if type(srtmDocs)==dict:
+            for doc in srtmDocs["documents"]:
+                self._srtmBounds.append(doc["desc"]["Bounds"])
+
+    def makeRegion_SRTM(self, points,outputFileName,**kwargs):
+
+        availableBounds = {}
+        for bounds in self.srtmBounds:
+            if points[0] >= bounds[0] and points[0] <= bounds[2] and points[2] >= bounds[0] and points[2] <= bounds[2] and points[1] >= bounds[1] and points[1] <= bounds[3] and points[3] >= bounds[1] and points[3] <= bounds[3]:
+                availableBounds["Bounds"] = bounds
+                break
+        if len(availableBounds)>0:
+            FileName = f"{outputFileName}.parquet"
+            import pdb
+            pdb.set_trace()
+            allData = self.getMeasurementsDocuments(name="SRTM",type=toolkit.TOOLKIT_DATASOURCE_TYPE, **availableBounds)[0].getData()
+            dataArray = allData.read(1)
+            xs = numpy.linspace(allData.bounds.left,allData.bounds.right,dataArray.shape[1])
+            ys = numpy.linspace(allData.bounds.top,allData.bounds.bottom,dataArray.shape[0])
+            xmin = numpy.where(xs>points[0])[0].min()
+            ymin = numpy.where(ys<points[1])[0].min()
+            xmax = numpy.where(xs<points[2])[0].max()
+            ymax = numpy.where(ys>points[3])[0].max()
+            xColumn = self.getConfig()["xColumn"] if "xColumn" in self.getConfig().keys() else "x"
+            yColumn = self.getConfig()["yColumn"] if "yColumn" in self.getConfig().keys() else "y"
+            heightColumn = self.getConfig()["heightColumn"] if "heightColumn" in self.getConfig().keys() else "height"
+            data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["yWGS84","xWGS84"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe(heightColumn).reset_index()
+            gdf = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data["xWGS84"], data["yWGS84"]))
+            gdf.crs = {"init": "epsg:4326"}
+            gdf = gdf.to_crs({"init": "epsg:2039"})
+            gdf[xColumn] = gdf.geometry.x
+            gdf[yColumn] = gdf.geometry.y
+            data = dask.dataframe.from_pandas(gdf.drop(columns="geometry"),npartitions=1)
+            data.to_parquet(FileName,compression="GZIP")
+        else:
+            raise KeyError("Couldn't find SRTM files which include the requested points!")
+        return
 
     def getHeight(self, latitude, longitude):
 
@@ -80,7 +131,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
             raise KeyError("The point is outside Isreal.")
 
         ds = gdal.Open(fheight)
-        myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+        myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
         myarray[myarray < -1000] = 0
         gt = ds.GetGeoTransform()
         rastery = (longitude - gt[0]) / gt[1]

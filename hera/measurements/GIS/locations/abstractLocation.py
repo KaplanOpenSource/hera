@@ -161,25 +161,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             doc  = self.getDatasourceDocument(datasourceName=regionName,**additional_data)
             if (doc is not None) and (saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
                 raise ValueError(f"{regionName} with parameters {additional_data} already exists for project {self.projectName} in toolkit {self.toolkitName}")
-
-        if isinstance(points,list):
-            points = dict(minX= points[0], minY=points[1], maxX=points[2] , maxY=points[3])
-        elif isinstance(points,dict):
-            for field in ["minX","minY","maxX","maxY"]:
-                if field not in points:
-                    raise ValueError(f"points dict must have the following fields: minX,minY,maxX,maxY")
-        elif isinstance(points,geopandas.geodataframe):
-            bounds = points.unary_union.bounds
-            points = dict(minX=bounds[0], minY=bounds[1], maxX=bounds[2], maxY=bounds[3])
-
-        try:
-            cmd = f"ogr2ogr -clipsrc {points['minX']} {points['minY']} {points['maxX']} {points['maxY']} {outputFileName} {inputData}"
-            self.logger.execution(f"Clipping the file: {cmd}")
-            os.system(cmd)
-        except Exception as e:
-            self.logger.error(f"General error cutting the file {e}.")
-            raise RuntimeError(f"Error clipping the file {inputData}. Exception {e}")
-
+        getattr(self,f"makeRegion_{dataSourceOrFile}")(points=points,inputData=inputData,outputFileName=outputFileName)
 
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if doc is None:
@@ -206,6 +188,26 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                 doc.save()
 
         return outputFileName if doc is None else doc
+
+    def makeRegion_BNTL(self,points,inputData,outputFileName):
+
+        if isinstance(points,list):
+            points = dict(minX= points[0], minY=points[1], maxX=points[2] , maxY=points[3])
+        elif isinstance(points,dict):
+            for field in ["minX","minY","maxX","maxY"]:
+                if field not in points:
+                    raise ValueError(f"points dict must have the following fields: minX,minY,maxX,maxY")
+        elif isinstance(points,geopandas.geodataframe):
+            bounds = points.unary_union.bounds
+            points = dict(minX=bounds[0], minY=bounds[1], maxX=bounds[2], maxY=bounds[3])
+
+        try:
+            cmd = f"ogr2ogr -clipsrc {points['minX']} {points['minY']} {points['maxX']} {points['maxY']} {outputFileName} {inputData}"
+            self.logger.execution(f"Clipping the file: {cmd}")
+            os.system(cmd)
+        except Exception as e:
+            self.logger.error(f"General error cutting the file {e}.")
+            raise RuntimeError(f"Error clipping the file {inputData}. Exception {e}")
 
     def makeRegionByShapeName(self, shapeNameOrArea, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,regionName=None, dataSourceOrFile=None, dataSourceVersion=None, additional_data=dict()):
         """
