@@ -50,7 +50,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                 The version of the source.
                 if None, and dataSourceOrData is a datasource name (i.e a str) then use the latest version.
         """
-        self.logger.info(f"Toolkit {toolkitName} in project {projectName} - Initializing")
+        #self.logger.info(f"Toolkit {toolkitName} in project {projectName} - Initializing")
         super().__init__(projectName=projectName,toolkitName=toolkitName,FilesDirectory=FilesDirectory)
 
         if FilesDirectory is None:
@@ -139,8 +139,8 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         """
         doc = None
-        self.logger.info(f"Project {self.projectName}, Toolkit {self.toolkitName}: Start")
-        if os.path.exists(dataSourceOrFile):
+        #self.logger.info(f"Project {self.projectName}, Toolkit {self.toolkitName}: Start")
+        if dataSourceOrFile is not None and os.path.exists(dataSourceOrFile):
             self.logger.execution(f"Using existing file {dataSourceOrFile}")
             inputData = dataSourceOrFile
         else:
@@ -150,7 +150,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         outputFileName = os.path.join(self.FilesDirectory, regionName)
 
-        if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILE,toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+        if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
             if os.path.exists(outputFileName):
                 raise ValueError(f"The outputfile {outputFileName} exists. Either remove it or run a saveMode that ends with _REPLACE")
 
