@@ -36,8 +36,8 @@ logging.Logger.execution = execution
 logging.config.dictConfig(log_conf)
 
 
-#from .toolkit import ToolkitHome
-#toolkitHome =ToolkitHome()
+from .toolkit import ToolkitHome
+toolkitHome =ToolkitHome()
 
 
 

@@ -4,7 +4,16 @@
 Buildings
 =========
 
+Usage
+-----
 
+
+.. toctree::
+    :maxdepth: 3
+    :caption: Contents:
+
+    Buildings.arrangingData
+    Buildings.ConvexPolygons
 
 
 API

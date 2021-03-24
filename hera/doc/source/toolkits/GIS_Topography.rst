@@ -3,7 +3,15 @@
 Topography
 ==========
 
+Usage
+-----
 
+
+.. toctree::
+    :maxdepth: 3
+    :caption: Contents:
+
+    Topography.arrangingData
 
 API
 ---

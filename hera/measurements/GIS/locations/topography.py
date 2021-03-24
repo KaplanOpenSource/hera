@@ -31,7 +31,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
 
     def __init__(self, projectName, FilesDirectory=""):
 
-        super().__init__(projectName=projectName,FilesDirectory=FilesDirectory,toolkitName="topography")
+        super().__init__(projectName=projectName,FilesDirectory=FilesDirectory,toolkitName="Topography")
         self._analysis = analysis(projectName=projectName, dataLayer=self)
 
         self._stlFactory = stlFactory()
