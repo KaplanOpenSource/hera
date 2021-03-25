@@ -100,6 +100,7 @@ class abstractToolkit(Project):
 
     """
     _toolkitname = None
+    _projectName = None
 
     _analysis = None # holds the analysis layer.
     _presentation = None # holds the presentation layer
@@ -139,6 +140,14 @@ class abstractToolkit(Project):
         """
         return self._toolkitname
 
+    @property
+    def projectName(self):
+        """
+            The name of the project
+        :return:
+        """
+        return self._projectName
+
     def __init__(self,toolkitName,projectName,FilesDirectory=None):
         """
             Initializes a new toolkit.
@@ -157,6 +166,7 @@ class abstractToolkit(Project):
         """
         super().__init__(projectName=projectName)
         self._toolkitname = toolkitName
+        self._projectName = projectName
         self._FilesDirectory = os.path.abspath("." if FilesDirectory is None else FilesDirectory)
 
     def _getConfigDocument(self):
@@ -167,13 +177,13 @@ class abstractToolkit(Project):
         :return: dict
                 The configuration of the toolkit.
         """
-        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")
+        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")["documents"]
         if len(documents) == 0:
             self.addCacheDocument(type=f"{self.projectName}__{self.toolkitName}__config__",
                                   resource="",
                                   dataFormat=datatypes.STRING,
-                                  desc={})
-
+                                  desc={"toolkitName":self.toolkitName})
+        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")["documents"]
         return documents[0]
 
     def getConfig(self):
@@ -187,7 +197,7 @@ class abstractToolkit(Project):
                 The configuration of the toolkit.
         """
         doc = self._getConfigDocument()
-        return doc.desc
+        return doc["desc"]
 
     def setConfig(self, **kwargs):
         """

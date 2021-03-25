@@ -62,8 +62,6 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
                 break
         if len(availableBounds)>0:
             FileName = f"{outputFileName}.parquet"
-            import pdb
-            pdb.set_trace()
             allData = self.getMeasurementsDocuments(name="SRTM",type=toolkit.TOOLKIT_DATASOURCE_TYPE, **availableBounds)[0].getData()
             dataArray = allData.read(1)
             xs = numpy.linspace(allData.bounds.left,allData.bounds.right,dataArray.shape[1])
