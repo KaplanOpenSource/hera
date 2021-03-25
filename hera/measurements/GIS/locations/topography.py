@@ -200,7 +200,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
             region = self.getRegionByName(regionNameOrData)
             if region is None:
                 region = geopandas.read_file(io.StringIO(regionNameOrData))
-        elif isinstance(regionNameOrData,geopandas.geodataframe):
+        elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame):
             region = regionNameOrData
         else:
             raise ValueError(f"The regionNameOrData must be region name, geoJSON str or geodataframe")
