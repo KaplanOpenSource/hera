@@ -12,6 +12,7 @@ Usage
     :caption: Contents:
 
     Topography.arrangingData
+    Topography.formatConversions
 
 API
 ---
