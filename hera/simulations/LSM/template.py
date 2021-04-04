@@ -7,6 +7,7 @@ from ..utils.inputForModelsCreation import InputForModelsCreator
 import xarray
 import pandas
 import numpy
+from unum.units import *
 
 class LSMTemplate:
     _document = None
@@ -47,6 +48,7 @@ class LSMTemplate:
         self.uColumn        = "u"
         self.directionColumn= "direction"
         self.timeColumn     = "datetime"
+        self.stationColumn = "station"
 
 
     @property
@@ -60,14 +62,10 @@ class LSMTemplate:
     @property
     def version(self):
         return self._document['desc']['version']
-
-    @property
-    def modelName(self):
-        return self._document['desc']['modelName']
     
     @property
     def templateName(self):
-        return self._document['desc']['templateName']
+        return self._document['desc']['name']
 
     @property
     def modelFolder(self):
@@ -110,7 +108,8 @@ class LSMTemplate:
 
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
-            print("setting homogeneous wind")
+            if stations is None:
+                print("setting homogeneous wind")
         else:
             updated_params.update(TopoFile="'TOPO'")
 
@@ -122,7 +121,7 @@ class LSMTemplate:
 
         ifmc = InputForModelsCreator(self.dirPath) # was os.path.dupdated_paramsirname(__file__)
         ifmc.setParamsMap(updated_params)
-        ifmc.setTemplate('%s_%s' % (self.modelName, self.version))
+        ifmc.setTemplate('LSM_%s' % (self.version))
 
         if self.to_database:
             docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
@@ -254,7 +253,7 @@ class LSMTemplate:
         return [SingleSimulation(doc) for doc in docList]
 
 
-    def _toNetcdf(basefiles, addzero=True, datetimeFormat="timestamp"):
+    def _toNetcdf(self, basefiles, addzero=True, datetimeFormat="timestamp"):
         """
             Converts the data to netcdf.
             The dosage are converted to s/m**3 instead of min/m**3.

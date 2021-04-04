@@ -125,7 +125,7 @@ class LSMToolkit(toolkit.abstractToolkit):
                 If to_xarray is true,
                 Determine wehter to keep the original files.
 
-                If False, removes the Lagrnagian files.
+                If False, removes the Lagrangian files.
                 defaultL False
 
         Returns
@@ -158,20 +158,21 @@ class LSMToolkit(toolkit.abstractToolkit):
         :return:
         """
         docList = self.getDatasourceDocumentsList(**query)
+        if len(docList) > 0:
+            descList = [doc.desc.copy() for doc in docList]
+            for (i, desc) in enumerate(descList):
+                desc.update({'id':docList[i].id})
+                desc.update({'projectName': docList[i].projectName})
 
-        descList = [doc.desc.copy() for doc in docList]
-        for (i, desc) in enumerate(descList):
-            desc.update({'id':docList[i].id})
-            desc.update({'projectName': docList[i].projectName})
-
-        params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
-        params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
-        desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
-        df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
-
-        ret = pandas.concat(df_list,ignore_index=True,sort=False)
-        if not wideFormat:
-            ret = ret.melt()
+            params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
+            params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
+            desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
+            df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
+            ret = pandas.concat(df_list,ignore_index=True,sort=False)
+            if not wideFormat:
+                ret = ret.melt()
+        else:
+            ret = []
         return ret
 
 

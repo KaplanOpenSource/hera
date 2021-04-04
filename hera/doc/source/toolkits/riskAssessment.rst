@@ -4,6 +4,15 @@ Risk assessment
 ===============
 
 
+Usage
+-----
+
+.. toctree::
+    :maxdepth: 3
+    :caption: Contents:
+
+    riskAssessment.effectCalculation
+    riskAssessment.ProtectionPolicies
 
 
 API
