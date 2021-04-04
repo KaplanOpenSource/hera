@@ -13,6 +13,7 @@ from .... import toolkit
 import xarray
 import dask
 from numpy import array, sqrt
+import pandas
 
 from .import abstractLocation
 from ....simulations.utils import coordinateHandler
@@ -196,10 +197,11 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
             region = self.getRegionByName(regionNameOrData)
             if region is None:
                 region = geopandas.read_file(io.StringIO(regionNameOrData))
-        elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame):
+        elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame) or isinstance(regionNameOrData,pandas.core.frame.DataFrame) or \
+                                                                                 isinstance(regionNameOrData,dask.dataframe.core.DataFrame):
             region = regionNameOrData
         else:
-            raise ValueError(f"The regionNameOrData must be region name, geoJSON str or geodataframe")
+            raise ValueError(f"The regionNameOrData must be region name, geoJSON, geodataframe, or pandas or dask dataframes.")
 
         stlstr = self.stlFactory.vectorToSTL(region,dxdy=dxdy)
 
@@ -284,7 +286,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
         else:
             raise ValueError("regionNameOrData must be wither region name in the DB, geoJSON string or a geopandas.geodataframe")
 
-        rasterized = self.stlFactory.rasterize(data,dxdy=dxdy)
+        rasterized = self.stlFactory.rasterizeGeopandas(data, dxdy=dxdy)
 
         if numpy.ma.is_masked(rasterized['height']):
             nans = rasterized['height'].mask
@@ -447,7 +449,7 @@ class stlFactory:
         facet_str += 'endfacet\n'
         return facet_str
 
-    def rasterize(self,gpandas, dxdy=50):
+    def rasterizeGeopandas(self, gpandas, dxdy=50):
         """
             Convert the height-contour in geopandas to raster (regular mesh)
 
@@ -624,13 +626,42 @@ class stlFactory:
         -------
             string of the STL
         """
-
-        rasterMap = self.rasterize(gpandas,dxdy=dxdy)
+        if isinstance(gpandas, geopandas.geodataframe.GeoDataFrame):
+            rasterMap = self.rasterizeGeopandas(gpandas, dxdy=dxdy)
+        elif isinstance(gpandas, pandas.core.frame.DataFrame) or isinstance(gpandas, dask.dataframe.core.DataFrame):
+            rasterMap = self.rasterizePandas(gpandas,dxdy=dxdy)
         return self.rasterToSTL(grid_x=rasterMap['x'],
-                                grid_y=rasterMap['y'],
-                                grid_z=rasterMap['height'],
-                                solidName=solidName)
+                                    grid_y=rasterMap['y'],
+                                    grid_z=rasterMap['height'],
+                                    solidName=solidName)
 
+    def rasterizePandas(self, gpandas, dxdy=50.,xColumn="x",yColumn="y", heightColumn="height"):
+        """
+            Gets a shape file of topography.
+            each contour line has property 'height'.
+            Converts it to equigrid xy mesh and then build the STL.
+        """
+
+        # 1. Convert contour map to regular height map.
+        # 1.1 get boundaries
+        xmin = points[0]
+        xmax = points[2]
+
+        ymin = points[1]
+        ymax = points[3]
+
+        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
+        # 1.2 build the mesh.
+        grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
+        # 2. Get the points from the geom
+        Nx = int(((xmax - xmin) / dxdy))
+        Ny = int(((ymax - ymin) / dxdy))
+        grid_z2 = coordinateHandler.regularizeTimeSteps(data=gpandas, fieldList=[heightColumn],
+                                              coord1=xColumn,
+                                              coord2=yColumn,
+                                              n=(Nx, Ny), addSurface=False, toPandas=False)[0][heightColumn]
+        grid_z2 = self._organizeGrid(grid_z2)
+        return {"x":grid_x,"y":grid_y,"height":grid_z2}
 
     def _organizeGrid(self, grid):
 
