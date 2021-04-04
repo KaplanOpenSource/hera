@@ -1,4 +1,5 @@
-from .agents.Agents import Agent,RiskToolkit
+from .agents.Agents import Agent
+from .riskToolkit import RiskToolkit
 from .protectionpolicy.ProtectionPolicy import  ProtectionPolicy
 from .agents.effects.thresholdGeoDataFrame import thresholdGeoDataFrame
 

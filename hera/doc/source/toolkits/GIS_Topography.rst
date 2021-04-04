@@ -13,6 +13,7 @@ Usage
 
     Topography.arrangingData
     Topography.formatConversions
+    Topography.meshUtilities
 
 API
 ---

@@ -1,4 +1,5 @@
 from unum.units import *
+from unum import Unum
 
 
 def toUnum(x,unit):

@@ -3,6 +3,8 @@ import os
 from ..toolkit import abstractToolkit,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from ..datalayer import datatypes, nonDBMetadataFrame
 from .agents.Agents import Agent
+from .presentation.casualtiesFigs import casualtiesPlot
+from .protectionpolicy.ProtectionPolicy import ProtectionPolicy
 
 
 class RiskToolkit(abstractToolkit):
@@ -12,9 +14,21 @@ class RiskToolkit(abstractToolkit):
         Supports retrieval from the DB and initializing from a descriptor.
 
     """
+    _presentation = None
+    _protectionPolicy = None
+
+    @property
+    def ProtectionPolicy(self):
+        return self._protectionPolicy
+
+    @property
+    def presentation(self):
+        return self._presentation
 
     def __init__(self, projectName):
         super().__init__(projectName=projectName, toolkitName="RiskAssessment")
+        self._presentation = casualtiesPlot()
+        self._protectionPolicy = ProtectionPolicy
 
     def getAgent(self, nameOrDesc):
         """
@@ -79,7 +93,7 @@ class RiskToolkit(abstractToolkit):
         """
         agentDescription['name'] = name
         agentDescription['version'] = version
-        self.loadData(agentDescription,saveMode=saveMode)
+        return self.loadData(agentDescription,saveMode=saveMode)
 
     def loadData(self, fileNameOrData, saveMode=TOOLKIT_SAVEMODE_FILEANDDB):
         """
@@ -126,7 +140,7 @@ class RiskToolkit(abstractToolkit):
         agentDoc = self.getDatasourceDocument(datasourceName=name,version=version)
 
         if agentDoc is None:
-            self.addDataSource(name, resource=json.dumps(agentDescription), dataFormat=datatypes.JSON_DICT, version=version, **agentDescription)
+            self.addDataSource(name, resource=json.dumps(agentDescription), dataFormat=datatypes.JSON_DICT, **agentDescription)
 
         elif saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
             raise ValueError(f"Agent {name} (version {agentDoc.desc.get('version',None)} in the database.")
@@ -135,7 +149,4 @@ class RiskToolkit(abstractToolkit):
             agentDoc.resource = agentDescription
             agentDoc.desc['version']  = version
             agentDoc.save()
-
         return nonDBMetadataFrame(agentDescription) if agentDoc is None else agentDoc
-
-

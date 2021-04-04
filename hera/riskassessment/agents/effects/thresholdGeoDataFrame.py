@@ -7,7 +7,7 @@ from unum.units import *
 #from .... import toMeteorologicalAngle,toMathematicalAngle
 from hera.measurements import GIS
 from hera.measurements.GIS.demography import DemographyToolkit as demoDatalayer
-pop = demoDatalayer(projectName="Demography", databaseNameList=None, useAll=False,publicProjectName="Demography")
+pop = demoDatalayer(projectName="Demography")
 toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
 toMathematicalAngle  = toMeteorologicalAngle
 
@@ -60,8 +60,8 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 				if projectedValue is None: 
 					continue
 				projectedValue["meteorological_angle"] 		= metangle
-				projectedValue["mathematical_angle_rad"] 	= numpy.deg2rad(toMatematicalAngle(metangle))
-				projectedValue["mathematical_angle"] 		= toMatematicalAngle(metangle)
+				projectedValue["mathematical_angle_rad"] 	= numpy.deg2rad(toMathematicalAngle(metangle))
+				projectedValue["mathematical_angle"] 		= toMathematicalAngle(metangle)
 				radList.append(projectedValue)
 			ret = pandas.concat(retList) 
 
@@ -97,7 +97,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 			for indx,row in data.iterrows():
 				curpoly = shiftedPolygons.loc[indx]
 				if curpoly.is_valid:
-					res     = pop.projectPolygonOnPopulation(Data=demog_data,Shape=curpoly, populationTypes=population)
+					res     = pop.analysis.calculatePopulationInPolygon(dataSourceOrData=demog_data,shapeNameOrData=curpoly, populationTypes=population)
 					if len(res) > 0:
 						for popu in population:
 							res['effected%s' % popu] = res[popu]*row.percentEffected

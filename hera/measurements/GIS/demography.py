@@ -20,6 +20,7 @@ class DemographyToolkit(toolkit.abstractToolkit):
 
     _shapes = None
     _buildings = None
+    _analysis = None
 
     @property
     def buildings(self):
@@ -29,6 +30,9 @@ class DemographyToolkit(toolkit.abstractToolkit):
     def shapes(self):
         return self._shapes
 
+    @property
+    def analysis(self):
+        return self._analysis
 
     @property
     def populationTypes(self):
@@ -49,11 +53,12 @@ class DemographyToolkit(toolkit.abstractToolkit):
             geoDataFrame: Use this as the demography data. See documentation of the structure of the demographic dataframe.
 
         dataSourceVersion : tuple of integers
-            If sepefied load this version of the data.
+            If specified load this version of the data.
 
         """
         self._projectName = projectName
         super().__init__(projectName=projectName,toolkitName="Demography")
+        self._analysis = analysis(self)
 
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
@@ -200,7 +205,7 @@ class analysis:
             raise ValueError("Must specify regionName if saveMode is set to save data")
 
         if isinstance(dataSourceOrData, str):
-            Data = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
+            Data = self.datalayer.getDatasourceData(dataSourceOrData, dataSourceVersion)
             if Data is None:
                 Data = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:
@@ -211,14 +216,16 @@ class analysis:
 
             if polydoc is None:
                 polydoc = geopandas.read_file(io.StringIO(polydoc))
-
+        elif isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
+            polydoc = shapeNameOrData
+        else:
+            poly = shapeNameOrData
+        if isinstance(shapeNameOrData, str) or isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
             if convex:
                 polys = self.datalayer.buildings.analysis.ConvexPolygons(polydoc)
                 poly = polys.loc[polys.area == polys.area.max()].geometry[0]
             else:
                 poly = polydoc.unary_union
-        else:
-            poly = shapeNameOrData
 
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
 
@@ -237,7 +244,7 @@ class analysis:
 
             fullname = os.path.join(self.datalayer.FilesDirectory,filename)
             newData.to_file(fullname)
-            if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB
+            if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
 
                 desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.name}
                 desc.update(**metadata)
@@ -301,7 +308,7 @@ class analysis:
             poly = shapeNameOrData
 
         if isinstance(dataSourceOrData,str):
-            demography = self.datalayer.getDataSourceData(dataSourceOrData,dataSourceVersion)
+            demography = self.datalayer.getDatasourceData(dataSourceOrData,dataSourceVersion)
             if demography is None:
                 demography = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:
