@@ -277,10 +277,12 @@ class abstractToolkit(Project):
         -------
                 The document of the source. (None if not found)
         """
+        if datasourceName is not None:
+            filters["name"] = datasourceName
+        if version is not None:
+            filters["version"] = version
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
-                                                name=datasourceName,
-                                                toolkit=self.toolkitName,
-                                                version=version, **filters)
+                                                toolkit=self.toolkitName, **filters)
 
         if len(docList) ==0:
             ret =  None
@@ -290,7 +292,7 @@ class abstractToolkit(Project):
 
         elif len(docList)>1:
             versionsList =[ doc['desc']['version'] for doc in docList]
-            latestVersion = numpy.max(versionsList,axis=0)
+            latestVersion = max(versionsList)
             docList = [doc for doc in docList if doc['desc']['version']==latestVersion]
             ret =docList[0]
         return ret
