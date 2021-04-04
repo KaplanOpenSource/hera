@@ -644,11 +644,11 @@ class stlFactory:
 
         # 1. Convert contour map to regular height map.
         # 1.1 get boundaries
-        xmin = points[0]
-        xmax = points[2]
+        xmin = gpandas[xColumn].min()
+        xmax = gpandas[xColumn].max()
 
-        ymin = points[1]
-        ymax = points[3]
+        ymin = gpandas[yColumn].min()
+        ymax = gpandas[yColumn].max()
 
         print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
         # 1.2 build the mesh.
@@ -661,7 +661,7 @@ class stlFactory:
                                               coord2=yColumn,
                                               n=(Nx, Ny), addSurface=False, toPandas=False)[0][heightColumn]
         grid_z2 = self._organizeGrid(grid_z2)
-        return {"x":grid_x,"y":grid_y,"height":grid_z2}
+        return {"x":grid_x,"y":grid_y,"height":grid_z2.values}
 
     def _organizeGrid(self, grid):
 
