@@ -149,7 +149,6 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             inputData    = resourceDoc.resource
 
         outputFileName = os.path.join(self.FilesDirectory, regionName)
-
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
             if os.path.exists(outputFileName):
                 raise ValueError(f"The outputfile {outputFileName} exists. Either remove it or run a saveMode that ends with _REPLACE")
@@ -161,7 +160,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             doc  = self.getDatasourceDocument(datasourceName=regionName,**additional_data)
             if (doc is not None) and (saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
                 raise ValueError(f"{regionName} with parameters {additional_data} already exists for project {self.projectName} in toolkit {self.toolkitName}")
-        getattr(self,f"makeRegion_{dataSourceOrFile}")(points=points,inputData=inputData,outputFileName=outputFileName)
+        getattr(self,f"makeRegion_{inputData.split('.')[-1]}")(points=points,inputData=inputData,outputFileName=outputFileName)
 
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if doc is None:
@@ -189,7 +188,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         return outputFileName if doc is None else doc
 
-    def makeRegion_BNTL(self,points,inputData,outputFileName):
+    def makeRegion_shp(self,points,inputData,outputFileName):
 
         if isinstance(points,list):
             points = dict(minX= points[0], minY=points[1], maxX=points[2] , maxY=points[3])
@@ -197,7 +196,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             for field in ["minX","minY","maxX","maxY"]:
                 if field not in points:
                     raise ValueError(f"points dict must have the following fields: minX,minY,maxX,maxY")
-        elif isinstance(points,geopandas.geodataframe):
+        elif isinstance(points,geopandas.geodataframe.GeoDataFrame):
             bounds = points.unary_union.bounds
             points = dict(minX=bounds[0], minY=bounds[1], maxX=bounds[2], maxY=bounds[3])
 

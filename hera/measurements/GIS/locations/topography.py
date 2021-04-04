@@ -54,7 +54,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
             for doc in srtmDocs["documents"]:
                 self._srtmBounds.append(doc["desc"]["Bounds"])
 
-    def makeRegion_SRTM(self, points,outputFileName,**kwargs):
+    def makeRegion_tif(self, points,outputFileName,**kwargs):
 
         availableBounds = {}
         for bounds in self.srtmBounds:
@@ -276,7 +276,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
         """
 
         if isinstance(regionNameOrData,str):
-            data = self.getDatasourceData(datatypes=regionNameOrData,**filters)
+            data = self.getDatasourceData(datasourceName=regionNameOrData,**filters)
             if data is None:
                 data = geopandas.read_file(io.StringIO(regionNameOrData))
         elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame):
