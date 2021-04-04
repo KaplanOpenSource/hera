@@ -12,6 +12,7 @@ from shapely.geometry import LineString
 from .... import toolkit
 import xarray
 import dask
+from numpy import array, sqrt
 
 from .import abstractLocation
 from ....simulations.utils import coordinateHandler
@@ -85,14 +86,9 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
             raise KeyError("Couldn't find SRTM files which include the requested points!")
         return
 
-    def getHeight(self, latitude, longitude):
+    def getHeight(self, latitude, longitude, source):
 
-        try:
-            height = self.__getattribute__("getHeight_%s" % self.getConfig()["heightSource"])(longitude=longitude,latitude=latitude)
-        except AttributeError:
-            print("The height source is not known.")
-
-        return height
+        return getattr(self, f"getHeight_{source}")(longitude=longitude,latitude=latitude)
 
     def getHeight_mapquest(self, latitude, longitude):
         resp = requests.get(
@@ -105,7 +101,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
 
     def getHeight_USGS(self, latitude, longitude):
 
-        path = self.getMeasurementsDocuments(type="Height",**self.getConfig())[0].getData()
+        path = self.getMeasurementsDocuments(name="USGS")[0].getData()
 
         if latitude > 29 and latitude < 30 and longitude > 34 and longitude < 35:
             fheight = r'%s/N29E034.hgt' % path
@@ -253,6 +249,8 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
                     regionDoc.resource = fullfileNames
                     regionDoc.desc = additionalData
                     regionDoc.save()
+        else:
+            regionDoc = None
 
 
         return stlstr if regionDoc is None else regionDoc
@@ -281,7 +279,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
             data = self.getDatasourceData(datatypes=regionNameOrData,**filters)
             if data is None:
                 data = geopandas.read_file(io.StringIO(regionNameOrData))
-        elif isinstance(regionNameOrData,geopandas.geodataframe):
+        elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame):
             data = regionNameOrData
         else:
             raise ValueError("regionNameOrData must be wither region name in the DB, geoJSON string or a geopandas.geodataframe")
@@ -479,8 +477,10 @@ class stlFactory:
         """
         # 1. Convert contour map to regular height map.
         # 1.1 get boundaries
-        xmin,ymin,xmax,ymax = gpandas.bounds
-
+        xmin = gpandas.bounds.min()["minx"]
+        ymin = gpandas.bounds.min()["miny"]
+        xmax = gpandas.bounds.max()["maxx"]
+        ymax = gpandas.bounds.max()["maxy"]
         #print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
         # 1.2 build the mesh.
         grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]

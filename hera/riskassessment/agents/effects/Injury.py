@@ -71,7 +71,7 @@ class Injury(object):
 
 	@property
 	def levelNames(self): 
-		return [x.toolkitName for x in self._levels]
+		return [x.name for x in self._levels]
 
 	def __getitem__(self,name):
 		return self._levelsmap[name]
