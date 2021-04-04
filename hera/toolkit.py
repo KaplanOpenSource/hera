@@ -249,7 +249,6 @@ class abstractToolkit(Project):
         """
         queryDict = {"type": TOOLKIT_DATASOURCE_TYPE,
                      TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName}
-
         queryDict.update(**kwargs)
         return self.getMeasurementsDocuments(**queryDict)
 

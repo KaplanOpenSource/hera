@@ -216,7 +216,7 @@ class abstractAction(object):
 
 	@classmethod 
 	def getAction(cls,actionID,policy,name,params): 
-		actionCLS = pydoc.locate("pyriskassessment.protectionpolicy.ProtectionPolicy.Action%s" % name.title())
+		actionCLS = pydoc.locate("hera.riskassessment.protectionpolicy.ProtectionPolicy.Action%s" % name.title())
 		return actionCLS(actionID,policy,**params)
 
 
