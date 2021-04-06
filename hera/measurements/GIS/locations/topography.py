@@ -383,7 +383,7 @@ class analysis():
         self._datalayer = dataLayer
 
 
-    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,savePandas=False,addToDB=False,file=None,fillna=0,**kwargs):
+    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,file=None,fillna=0,**kwargs):
         """
         adds a column of height from ground for a dataframe which describes a mesh.
         params:
@@ -411,12 +411,30 @@ class analysis():
         data["ground"]=ground
         data["height"] = data[coord3] - data["ground"]
         data.loc[data.height < 0, "height"] = 0
-        if savePandas:
-            file = os.path.join(self.datalayer.FilesDirectory,"cellData.parquet") if file is None else file
+        if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
+
+            file = os.path.join(self.datalayer.FilesDirectory, "cellData.parquet") if file is None else file
+
+            if os.path.exists(file) and saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                                                              abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+                raise FileExistsError(f"The output file {file} exists")
+
             data.to_parquet(file, compression="gzip")
-            if addToDB:
-                self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
-                                   type="cellData", desc=dict(resolution=resolution,**kwargs))
+
+
+            if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                            abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+
+                regionDoc = self.datalayer.getCacheDcouments(resource=file, dataFormat="parquet",type="cellData", desc=dict(resolution=resolution,**kwargs))
+
+                if len(regionDoc) >0 and saveMode==abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"{file} already exists in the DB")
+                else:
+                    self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
+                                                    type="cellData", desc=dict(resolution=resolution, **kwargs))
 
         return data
 
@@ -650,7 +668,6 @@ class stlFactory:
         ymin = gpandas[yColumn].min()
         ymax = gpandas[yColumn].max()
 
-        print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
         # 1.2 build the mesh.
         grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
         # 2. Get the points from the geom

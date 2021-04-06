@@ -1,11 +1,11 @@
 import numpy
 import pandas
 
-class sourcesFactory():
+class sourcesFactoryTool():
 
     @property
     def sourcesList(self):
-        keys = sourcesFactory.__dict__.keys()
+        keys = sourcesFactoryTool.__dict__.keys()
         sourcelist = []
         for key in keys:
             if "makeSource" in key:

@@ -7,20 +7,25 @@ import numpy
 from unum.units import *
 from ....utils import tounum, tonumber
 
-from ....measurements.GIS.locations import topography
+from ....measurements.GIS.locations.topography import TopographyToolkit
 
 from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
 
 from .... import toolkit
 
-from .sourcesFactory import sourcesFactory
+from .sourcesFactoryTool import sourcesFactoryTool
 
 class OFLSMToolkit(toolkit.abstractToolkit):
 
     _casePath = None
     _cloudName = None
     _sources = None
+    _topography = None
+
+    @property
+    def cloudName(self):
+        return self._cloudName
 
     @property
     def sources(self):
@@ -34,7 +39,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def casePath(self,newPath):
         self._casePath = newPath
 
-    def __init__(self, projectName, casePath):
+    @property
+    def topography(self):
+        return self._topography
+
+    def __init__(self, projectName, casePath, cloudName = "kinematicCloud"):
         """
         Parameters
         ----------
@@ -46,8 +55,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         """
         super().__init__(projectName=projectName,toolkitName="OF_LSM")
         self._casePath = casePath
-        self._sources = sourcesFactory()
-
+        self._sources = sourcesFactoryTool()
+        self._topography = TopographyToolkit(projectName)
+        self._cloudName = cloudName
 
     def extractFile(self,path,time,names,skiphead=20,skipend=4,vector=True):
         """
@@ -246,7 +256,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         with open(os.path.join(self.casePath,"constant",fileName),"w") as writeFile:
             writeFile.write(string)
 
-    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,savePandas=False, addToDB=False,fillna=0):
+    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE,fillna=0):
         """
         makes a file with the height of each cell.
         params:
@@ -257,12 +267,12 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         savePandas = Boolian, whether to save the dataframe
         addToDB = Boolian, whether to add the dataframe to the DB
         """
-        documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
-            cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+            cellData = self.topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
                                                      file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                     savePandas=savePandas,addToDB=addToDB,fillna=fillna)
+                                                     saveMode=saveMode,fillna=fillna)
         else:
             cellData = documents[0].getData(usePandas=True)
         f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
@@ -291,7 +301,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
 
-    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",savePandas=False, addToDB=False,flat=False,resolution=10):
+    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE,resolution=10):
         """
         makes a file with the shear velocity in each cell.
         params:
@@ -303,16 +313,13 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         addToDB = Boolian, whether to add the dataframe to the DB
         """
 
-        documents = topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
 
         if len(documents)==0:
             cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
-            if flat:
-                cellData["height"] = cellData["z"]
-            else:
-                cellData = topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+            cellData = self.topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
                                                          file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                         savePandas=savePandas,addToDB=addToDB)
+                                                         saveMode=saveMode)
         else:
             cellData = documents[0].getData(usePandas=True)
 

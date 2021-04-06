@@ -30,7 +30,7 @@ class RiskToolkit(abstractToolkit):
         self._presentation = casualtiesPlot()
         self._protectionPolicy = ProtectionPolicy
 
-    def getAgent(self, nameOrDesc):
+    def getAgent(self, nameOrDesc, version=None):
         """
             Initialize the agents.
 
@@ -56,7 +56,7 @@ class RiskToolkit(abstractToolkit):
         :return:
         """
         if isinstance(nameOrDesc, str):
-            descriptor = self.getDatasourceData(nameOrDesc)
+            descriptor = self.getDatasourceData(nameOrDesc,version=version)
             if descriptor is None:
                 raise ValueError(f"Agent {nameOrDesc} is not found. Load it with hera-risk-agent load")
 
@@ -143,7 +143,7 @@ class RiskToolkit(abstractToolkit):
             self.addDataSource(name, resource=json.dumps(agentDescription), dataFormat=datatypes.JSON_DICT, **agentDescription)
 
         elif saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
-            raise ValueError(f"Agent {name} (version {agentDoc.desc.get('version',None)} in the database.")
+            raise ValueError(f"Agent {name} version {agentDoc.desc.get('version',None)} in the database.")
 
         else:
             agentDoc.resource = agentDescription
