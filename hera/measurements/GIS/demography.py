@@ -1,94 +1,135 @@
 import geopandas
-from .locations.shapes import datalayer as shapeDatalayer
-from ...datalayer import project
-from .locations.buildings import datalayer as buildingsDatalayer
-import shapely
+import io
+import os
+from ... import toolkit
+from ...datalayer import datatypes,nonDBMetadataFrame
+from .shapes import ShapesToolKit
+from .locations.buildings import BuildingsToolkit
 
-class datalayer(project.ProjectMultiDBPublic):
+from ...toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
-    _publicProjectName = None
-    _projectName = None
+
+
+class DemographyToolkit(toolkit.abstractToolkit):
+    """
+        A toolkit to manage demography data
+
+    """
+
+    _populationTypes = None # A dictionary with the names of the population types.
+
+    _shapes = None
+    _buildings = None
     _analysis = None
-    _Data = None
+
+    @property
+    def buildings(self):
+        return self._buildings
+
+    @property
+    def shapes(self):
+        return self._shapes
 
     @property
     def analysis(self):
         return self._analysis
 
     @property
-    def publicProjectName(self):
-        return self._publicProjectName
+    def populationTypes(self):
+        return self._populationTypes
 
-    def __init__(self, projectName,publicProjectName="Demography",databaseNameList=None, useAll=False,):
+    def __init__(self, projectName, FilesDirectory=None):
+        """
+            Initializes the demography tool.
+
+        Parameters
+        ----------
+        projectName: str
+            The project name
+
+        SourceOrData: str or geopandas or None.
+            None:   Try to load the default data source. If does not exist, set data to None.
+            str:    The name of the source in the DB that will be used as a data.
+            geoDataFrame: Use this as the demography data. See documentation of the structure of the demographic dataframe.
+
+        dataSourceVersion : tuple of integers
+            If specified load this version of the data.
+
+        """
         self._projectName = projectName
-        self._publicProjectName = publicProjectName
-        super().__init__(projectName=projectName, publicProjectName=publicProjectName,
-                         databaseNameList=databaseNameList, useAll=useAll)
-        self.setConfig()
-        self._analysis = analysis(projectName=projectName, dataLayer=self)
-        datalist = self.getMeasurementsDocuments(source=self.getConfig()["source"])
-        if len(datalist) > 0:
-            self._Data = datalist[0].getData()
+        super().__init__(projectName=projectName,toolkitName="Demography")
+        self._analysis = analysis(self)
+
+        self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
+                           "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
+
+        self._shapes    = ShapesToolKit(projectName=projectName)
+        self._buildings = BuildingsToolkit(projectName=projectName)
+
+        if FilesDirectory is None:
+            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
+            self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
+            self.logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self._Data = None
+            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
+            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
+            self._FilesDirectory = FilesDirectory
 
-    def setConfig(self, Source="Lamas", units="WGS84", populationTypes = None, dbName=None, **kwargs):
+
+    def setDefaultDirectory(self,fileDirectory,create=True):
         """
-        Create a config documnet or updates an existing config document.
+            Set the default directory for the project.
+
+        Parameters
+        ----------
+        fileDirectory: str
+                The path to save the regions in.
+                The directory is created if create flag is true (and directory does not exist).
+
+        create: bool
+            If false and directory does not exist, raise a NotADirectoryError exception.
+
+        Returns
+        -------
+            str, the path.
         """
-        populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
-                           "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"} if populationTypes is None else populationTypes
+        fllpath = os.path.abspath(fileDirectory)
 
-        super().setConfig(source=Source,units=units,populationTypes=populationTypes, dbName=dbName, **kwargs)
+        if not os.path.exists(fllpath):
+            if create:
+                self.logger.execution(f"Directory {fllpath} does not exist. create")
+                os.system(f"mkdir -p {fllpath}")
+            else:
+                raise NotADirectoryError(f"{fllpath} is not a directory, and create is False.")
 
-        datalist = self.getMeasurementsDocuments(source=Source)
+        self.setConfig("filesDirectory",fllpath)
 
-        if len(datalist) > 0:
-            self._Data = datalist[0].getData()
-        else:
-            self._Data = None
 
     def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
-        """
-        Finds the population in a polygon.
-        Params:
-            Shape: The polygon, either a shapely polygon or a name of a saved geometry in the database.
-            populationTypes: A string or a list of strings with options from config/population or column names
-                             from the data.
-        """
+        import warnings
+        warnings.warn("Depracted in Version 2.0.0+. Use analysis.calculatePopulationInPolygon",
+                      category=DeprecationWarning,
+                      stacklevel=2)
+        self.analysis.calculatePopulationInPolygon(Shape=Shape, projectName=projectName, populationTypes=populationTypes, Data=Data)
 
-        Data = self._Data if Data is None else Data
-        if type(Shape) == str:
-            sDatalayer = shapeDatalayer(projectName=projectName, databaseNameList=self._databaseNameList, useAll=self._useAll)
-            poly = sDatalayer.getShape(Shape)
-            if poly is None:
-                documents = sDatalayer.getMeasurementsDocuments(CutName=Shape)
-                if len(documents) == 0:
-                    raise KeyError("Shape %s was not found" % Shape)
-                else:
-                    points = documents[0].asDict()["desc"]["points"]
-                    poly = shapely.geometry.Polygon([[points[0],points[1]],
-                                            [points[0],points[3]],
-                                            [points[2],points[3]],
-                                            [points[2],points[1]]])
-        else:
-            poly = Shape
-        if type(populationTypes) == str:
-            populationTypes = [populationTypes]
-        res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
-        intersection_poly = res_intersect_poly["geometry"].intersection(poly)
-        res_intersection = geopandas.GeoDataFrame.from_dict(
-            {"geometry": intersection_poly.geometry,
-             "areaFraction": intersection_poly.area/res_intersect_poly.area})
-        for populationType in populationTypes:
-            if "populationTypes" in self.getConfig():
-                if populationType in self.getConfig()["populationTypes"]:
-                    populationType = self.getConfig()["populationTypes"][populationType]
-            res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
+    @property
+    def populationTypes(self):
+        return self._populationTypes
 
-        return res_intersection
 
-class analysis():
+    @property
+    def FilesDirectory(self):
+        return self._FilesDirectory
+
+
+    def loadData(self):
+        pass
+
+
+class analysis:
+    """
+        Analysis of the demography toolkit.
+    """
 
     _datalayer = None
 
@@ -96,50 +137,199 @@ class analysis():
     def datalayer(self):
         return self._datalayer
 
-    def __init__(self, projectName, dataLayer=None, databaseNameList=None, useAll=False,
-                 publicProjectName="Demography", Source="Lamas"):
+    def __init__(self, dataLayer):
+        self._datalayer = dataLayer
 
-        self._datalayer = datalayer(projectName=projectName, publicProjectName=publicProjectName,
-                         databaseNameList=databaseNameList, useAll=useAll, Source=Source) if datalayer is None else dataLayer
-
-    def populateNewArea(self, Shape, projectName, populationTypes=None, convex=True,save=False, addToDB=False, path=None, name=None, Data=None, **kwargs):
+    def createNewArea(self,
+                      shapeNameOrData,
+                      dataSourceOrData,
+                      dataSourceVersion=None,
+                      populationTypes=None,
+                      convex=True,
+                      saveMode=TOOLKIT_SAVEMODE_NOSAVE,
+                      regionName=None, metadata=dict()):
         """
-        make a geodataframe with a selected polygon as the geometry, and the sum of the population in the polygons that intersect it as its population.
-        """
+            Make a geoDataFrame with a polygon as the geometry,
+            and the sum of the population in the polygons that intersect it as its population.
 
-        Data = self.datalayer._Data if Data is None else Data
-        if type(Shape) == str:
-            sDatalayer = shapeDatalayer(projectName=projectName, databaseNameList=self.datalayer._databaseNameList, useAll=self.datalayer._useAll)
-            poly = sDatalayer.getShape(Shape)
-            if poly is None:
-                documents = sDatalayer.getMeasurementsDocuments(CutName=Shape)
-                if len(documents) == 0:
-                    raise KeyError("Shape %s was not found" % Shape)
-                else:
-                    if convex:
-                        polys = buildingsDatalayer(projectName=projectName).analysis.ConvexPolygons(documents[0].getData())
-                        poly = polys.loc[polys.area==polys.area.max()].geometry[0]
-                    else:
-                        poly = documents[0].getData().unary_union
+
+            If saveMode is set to save to file (with or without DB) the regionName
+            is used as the file name.
+
+
+        Parameters
+        -----------
+        shapeNameOrData: str, geopandas
+            A shape name, geopandas dataframe, geoJSON str
+
+        dataSourceOrData: str, geopandas
+            A demography data source name, a geoJSON (shapes with the population) or geopandas.dataframe
+
+        dataSourceVersion: 3-tuple of int
+            A version of the demography data source
+
+        convex: bool
+
+
+        saveMode: str
+                Can be either:
+
+                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
+                                                  raise exception if file exists.
+
+                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
+                                                  Replace the file if it exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
+                                                    Raise exception if the entry exists.
+
+                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
+                                                    Replace the entry in the DB if it exists.
+
+
+        regionName: str
+            optional. If saved to the DB, use this as a region.
+        metadata: dict
+            Metadata to be saved to the DB if neeeded.
+
+        Returns
+        -------
+            Document with the new data
+        """
+        if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
+                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                        TOOLKIT_SAVEMODE_FILEANDDB,
+                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE] and regionName is None:
+            raise ValueError("Must specify regionName if saveMode is set to save data")
+
+        if isinstance(dataSourceOrData, str):
+            Data = self.datalayer.getDatasourceData(dataSourceOrData, dataSourceVersion)
+            if Data is None:
+                Data = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:
-            poly = Shape
+            Data = dataSourceOrData
+
+        if isinstance(shapeNameOrData, str):
+            polydoc = self.datalayer.shapes.getShape(shapeNameOrData)
+
+            if polydoc is None:
+                polydoc = geopandas.read_file(io.StringIO(polydoc))
+        elif isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
+            polydoc = shapeNameOrData
+        else:
+            poly = shapeNameOrData
+        if isinstance(shapeNameOrData, str) or isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
+            if convex:
+                polys = self.datalayer.buildings.analysis.ConvexPolygons(polydoc)
+                poly = polys.loc[polys.area == polys.area.max()].geometry[0]
+            else:
+                poly = polydoc.unary_union
+
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
-        populationTypes = self.datalayer.getConfig()["populationTypes"].values() if populationTypes is None else populationTypes
 
         newData = geopandas.GeoDataFrame.from_dict([{"geometry": poly}])
-        for populationType in populationTypes:
-            newData[populationType] = res_intersect_poly.sum()[populationType]
 
-        if save:
-            if path is None:
-                raise KeyError("Select a path for the new file")
-            newData.to_file(path)
-            if addToDB:
-                if name is None:
-                    if type(Shape) == str:
-                        name = Shape
-                    else:
-                        raise KeyError("Select a name for the new area")
-                self.datalayer.addMeasurementsDocument(desc=(dict(name=name, **kwargs)),
-                                                   resource=path, type="Demography", dataFormat="geopandas")
-        return newData
+        populationTypes = self.datalayer.populationTypes if populationTypes is None else populationTypes
+        for populationType in populationTypes:
+            if populationType in res_intersect_poly:
+                newData[populationType] = res_intersect_poly.sum()[populationType]
+
+
+        doc = None
+        if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
+
+            filename = regionName if "." in regionName else f"{regionName}.shp"
+
+            fullname = os.path.join(self.datalayer.FilesDirectory,filename)
+            newData.to_file(fullname)
+            if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+
+                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.name}
+                desc.update(**metadata)
+                doc = self.datalayer.addCacheDocument(desc=desc,
+                                                resource=fullname,
+                                                type=toolkit.TOOLKIT_DATASOURCE_TYPE,
+                                                dataFormat=datatypes.GEOPANDAS)
+
+
+        return nonDBMetadataFrame(newData) if doc is None else doc
+
+    def calculatePopulationInPolygon(self,
+                                     shapeNameOrData,
+                                     dataSourceOrData,
+                                     dataSourceVersion=None,
+                                    populationTypes=None):
+        """
+            Finds the population in a polygon.
+
+        Parameters:
+        -----------
+
+            shapeNameOrData: str, shapely.Polygon, geopandas
+                    The polygon to calculate the poulation in.
+
+                    Can be either:
+                        - the polygon itself (shapely.Polygon)
+                        - shape name in the DB (str)
+                        - geoJSON (str)
+                        - geopandas.
+
+            dataSourceOrData: str or geopandas
+                    The demographic data.
+
+                    Can be either:
+                        - demography data source name
+                        - geoJSON (str)
+                        - geopandas
+
+
+            dataSourceVersion: 3-tuple of int
+                    If dataSourceOrData is demography data source name
+                    then dataSourceVersion is a possible version.
+
+            populationTypes: str or list of str
+                    Additional population columns that will be calculated.
+
+        Returns
+        -------
+            geopandas
+            The intersection of the demography and the polygon.
+
+        """
+
+
+        if isinstance(shapeNameOrData,str):
+            poly = self.datalayer.shapes.getShape(shapeNameOrData)
+            if poly is None:
+                poly = geopandas.read_file(io.StringIO(shapeNameOrData))
+        else:
+            poly = shapeNameOrData
+
+        if isinstance(dataSourceOrData,str):
+            demography = self.datalayer.getDatasourceData(dataSourceOrData,dataSourceVersion)
+            if demography is None:
+                demography = geopandas.read_file(io.StringIO(dataSourceOrData))
+        else:
+            demography = dataSourceOrData
+
+        populationTypes = self.datalayer.populationTypes if populationTypes is None else populationTypes
+
+        if isinstance(populationTypes,str):
+            populationTypes = [populationTypes]
+
+        res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
+        intersection_poly = res_intersect_poly["geometry"].intersection(poly)
+
+        res_intersection = geopandas.GeoDataFrame.from_dict(
+            {"geometry": intersection_poly.geometry,
+             "areaFraction": intersection_poly.area / res_intersect_poly.area})
+
+        for populationType in populationTypes:
+            populationType = self.datalayer.populationTypes.get(populationType,populationType)
+            if populationType in res_intersect_poly:
+                res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
+
+        return res_intersection
+

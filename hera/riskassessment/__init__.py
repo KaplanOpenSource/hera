@@ -1,4 +1,5 @@
-from .agents.Agents import Agent,AgentHome
+from .agents.Agents import Agent
+from .riskToolkit import RiskToolkit
 from .protectionpolicy.ProtectionPolicy import  ProtectionPolicy
 from .agents.effects.thresholdGeoDataFrame import thresholdGeoDataFrame
 
@@ -8,6 +9,6 @@ from .presentation.casualtiesFigs import casualtiesPlot
 
 
 
-AgentHome       = AgentHome("")
+AgentHome       = RiskToolkit("")
 casualtiesPlots = casualtiesPlot()
 

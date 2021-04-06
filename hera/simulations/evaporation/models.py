@@ -1,5 +1,5 @@
 from ...datalayer import project
-from ...riskassessment import AgentHome
+from ...riskassessment import RiskToolkit
 from ..utils import toNumber, toUnum
 from unum.units import *
 import numpy
@@ -48,7 +48,7 @@ class evaporationModels(object):
 
     @agent.setter
     def agent(self,newAgent):
-        self._agent = AgentHome.getAgent(newAgent)
+        self._agent = RiskToolkit.getAgent(newAgent)
 
     @property
     def Mair(self):
@@ -68,7 +68,7 @@ class evaporationModels(object):
 
     def __init__(self,agent, evaporationModel="US",dinamicViscocityModel="powerLaw",molecularDiffusionModel="FSG"):
 
-        self._agent=AgentHome.getAgent(agent)
+        self._agent=RiskToolkit.getAgent(agent)
         self._Mair = 28.967
         self._Vair = 20.1
         self._molecularDiffusionModel = molecularDiffusionModel

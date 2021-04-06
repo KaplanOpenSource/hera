@@ -6,7 +6,9 @@ import geopandas
 import matplotlib.image as mpimg
 import sys
 import pickle
+import io
 import rasterio
+
 version = sys.version_info[0]
 if version == 3:
     from json import JSONDecodeError
@@ -21,6 +23,7 @@ class datatypes:
     NETCDF_XARRAY = "netcdf_xarray"
     JSON_DICT = "JSON_dict"
     JSON_PANDAS = "JSON_pandas"
+    JSON_GEOPANDAS = "JSON_geopandas"
     GEOPANDAS  = "geopandas"
     PARQUET    =  "parquet"
     IMAGE = "image"
@@ -208,6 +211,13 @@ class DataHandler_JSON_pandas(object):
         else:
             df = dask.dataframe.read_json(resource)
 
+        return df
+
+
+class DataHandler_JSON_geopandas(object):
+    @staticmethod
+    def getData(resource):
+        df = geopandas.read_file(io.StringIO(resource))
         return df
 
 
