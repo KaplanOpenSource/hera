@@ -11,7 +11,7 @@ Usage
     :maxdepth: 3
     :caption: Contents:
 
-    Demography.manageAreas
+    Demography/manageAreas
 
 
 API
