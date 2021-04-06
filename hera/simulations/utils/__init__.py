@@ -1,5 +1,6 @@
-from unum import Unum
+<<<<<<< HEAD
 from unum.units import *
+from unum import Unum
 
 
 def toUnum(x,unit):
@@ -11,19 +12,20 @@ def toNumber(x,unit):
 
 ########################## Units for the model.
 
-atm   = Unum.unit('atm',1.01325*bar,'atmosphere')
-mbar  = Unum.unit('mbar',bar/1000,'millibar')
-
-mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
-torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
-
-dyne  = Unum.unit('dyne',1e-5*N,'dyne')
-poise = Unum.unit('poise',g/cm/s,'poise')
-cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+# atm   = Unum.unit('atm',1.01325*bar,'atmosphere')
+# mbar  = Unum.unit('mbar',bar/1000,'millibar')
+#
+# mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
+# torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
+#
+# dyne  = Unum.unit('dyne',1e-5*N,'dyne')
+# poise = Unum.unit('poise',g/cm/s,'poise')
+# cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+=======
+>>>>>>> a9b9fdfc3fab24820a8e8702ea485bf68fbbcab8
 
 ####
 
-from .matplotlibCountour import toGeopandas
 from .coordinateHandler import coordinateHandler
 coordinateHandler = coordinateHandler()
 
