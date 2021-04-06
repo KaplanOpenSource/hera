@@ -1,4 +1,4 @@
-__version__ = '1.1.2'
+__version__ = '2.0.0'
 
 import sys
 import os
@@ -8,18 +8,19 @@ import json
 version = sys.version_info[0]
 if version==3:
     from .measurements import meteorology as meteo
-    from .measurements import GIS
+#    from .measurements import GIS
 
 
-    from .simulations import WRF
-    from .simulations import LSM
-    from .simulations import interpolations
+#    from .simulations import WRF
+#    from .simulations import LSM
+#    from .simulations import interpolations
 
     #from .risk import riskassessment
 
-from .simulations import openfoam
+#from .simulations import openFoam
 
 import logging.config
+
 
 with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
      log_conf_str = logconfile.read().replace("\n","")
@@ -32,17 +33,41 @@ def execution(self, message, *args, **kws):
     self.log(EXECUTION, message, *args, **kws)
 
 logging.Logger.execution = execution
-
 logging.config.dictConfig(log_conf)
 
 
+from .toolkit import ToolkitHome
+toolkitHome =ToolkitHome()
 
-from .utils.angle import toMathematicalAngle,toMeteorlogicalAngle
-from .utils.unum import  tonumber,tounum
+########################## Units for the model.
+from unum import Unum
+from unum.units import *
 
+atm   = Unum.unit('atm',1.01325*bar,'atmosphere')
+mbar  = Unum.unit('mbar',bar/1000,'millibar')
+
+mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
+torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
+
+dyne  = Unum.unit('dyne',1e-5*N,'dyne')
+poise = Unum.unit('poise',g/cm/s,'poise')
+cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 
 """
+Next Version
+    - Fixing the commit
+    - Changing the structure of the toolkits. 
+    - Fixing the imports to be lighter
+    - Some other changes to make the risk assessment procedure work.  
+    - Updating the AgentsHome according to the existing agents description
+    - changed wind_speed to horizontal_wind_speed in the turbulence calculator. 
+
+ 1.1.3
+------
+   - Updates of the documentation. 
+   - Minor refactoring of the utils. 
+
  1.1.2
 ------
   - Changes to the intepolations in the simulations module. 

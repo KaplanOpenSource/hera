@@ -1,19 +1,17 @@
-import numpy
 import geopandas
 import pandas
 import numpy 
-import os 
-import json 
 
-from hera.simulations.utils.matplotlibCountour import toGeopandas
-from ... import dosage,tounum,tonumber
+from hera.utils.matplotlibCountour import toGeopandas
+from ....utils import tounum
+
 from unum.units import *
 from unum import Unum
 
 import matplotlib.pyplot as plt 
 from scipy.stats import lognorm
 
-
+dosage = mg/m**3
 
 class InjuryLevel(object): 
 	"""
@@ -80,8 +78,7 @@ class InjuryLevel(object):
 		for tt in timeList: 
 			concField = valueField.sel(**{time:tt}) if timesel else valueField
 
-			ret = self._getGeopandas(concField,x,y,**parameters)
-
+			ret = self._getGeopandas(concField,x,y,field,**parameters)
 			if not ret.empty:
 
 				ret = ret[ret.area > 1]   # 1 m**2. 
@@ -191,7 +188,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		percent = lognorm.ppf(Percent,self.sigma/a,scale=self.TL_50.asNumber(dosage)/a)*a
 		return percent
 
-	def _getGeopandas(self,concentrationField,x,y,**parameters):
+	def _getGeopandas(self,concentrationField,x,y,field,**parameters):
 		"""
 			Return the correct geopandas of the  Injury level
 			higher_severity
@@ -205,7 +202,9 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		if self._parameters.get("higher_severity",None) is not None:
 			HigherToxicLoads = self._parameters["higher_severity"].getToxicLoad(defaultLevels)
 			ToxicLoads = numpy.unique(numpy.sort(numpy.concatenate([ToxicLoads,HigherToxicLoads])))
-		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
+		concentrationField = concentrationField.to_dataframe().reset_index()
+		#CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
+		CS = plt.tricontour(concentrationField[x], concentrationField[y], concentrationField[field], levels=ToxicLoads)
 		if numpy.max(CS.levels) < numpy.min(ToxicLoads): 
 			ret = geopandas.GeoDataFrame()
 		else:
@@ -229,7 +228,7 @@ class InjuryLevelThreshold(InjuryLevel):
 
 		thr = eval(parameters["threshold"])
 
-		parameters["threshold"] = thr if isinstance(thr,Unum) else tounum(eval(parameters["threshold"]),actualunit) 
+		parameters["threshold"] = thr if isinstance(thr,Unum) else tounum(eval(parameters["threshold"]),actualunit)
 
 		super(InjuryLevelThreshold,self).__init__(name,calculator,units=actualunit,**parameters)
 

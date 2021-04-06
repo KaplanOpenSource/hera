@@ -117,6 +117,8 @@ class Project(loggedObject):
         self._simulations   = Simulations_Collection(user=databaseName)
         self._all           =   AbstractCollection(user=databaseName)
 
+
+
     def getMetadata(self):
         """
         Returns a pandas dataframe which contains all the description of all ot the documents in the current project.
@@ -127,43 +129,250 @@ class Project(loggedObject):
         return pandas.DataFrame(descList)
 
     def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
+        """
+            Querying the DB for measurements documents and return the results as a list of dict
+
+        Parameters
+        ----------
+
+
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
+
+        kwargs: parameters
+            Filters for the query
+
+        Returns
+        -------
+            List of dicts
+        """
         return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+        """
+            Query measurements documents.
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        --------
+            List of documents.
+        """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+            Adds a new measurment document.
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        -------
+            The new document
+        """
         return self.measurements.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
 
     def deleteMeasurementsDocuments(self, **kwargs):
+        """
+            Delete the measurements documents that fit the query.
+
+        Parameters
+        -----------
+        kwargs: query dicts.
+
+        Returns
+        -------
+            The list of documents that was deleted.
+        """
         return self.measurements.deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getSimulationsDocumentsAsDict(self, with_id=False, **kwargs):
+        """
+            Querying the DB for simulation documents and return the results as a list of dict
+
+        Parameters
+        ----------
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
+
+        kwargs: parameters
+            Filters for the query
+
+        Returns
+        -------
+            List of dicts
+        """
+
         return self.simulations.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getSimulationsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Query simulation documents.
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        --------
+            List of documents.
+        """
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                 **desc)
 
     def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+            Adds a new simulations document.
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        -------
+            The new document
+        """
         return self.simulations.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                desc=desc)
 
     def deleteSimulationsDocuments(self, **kwargs):
+        """
+            Delete the simulations documents that fit the query.
+
+        Parameters
+        -----------
+        kwargs: query dicts.
+
+        Returns
+        -------
+            The list of documents that was deleted.
+        """
+
         return self.simulations.deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getCacheDocumentsAsDict(self,  with_id=False, **kwargs):
+        """
+            Querying the DB for cache documents and return the results as a list of dict
+
+        Parameters
+        ----------
+
+
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
+
+        kwargs: parameters
+            Filters for the query
+
+        Returns
+        -------
+            List of dicts
+        """
+
         return self.cache.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Querying the DB for cache documents and return the results as a list of dict
+
+        Parameters
+        ----------
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
+
+        kwargs: parameters
+            Filters for the query
+
+        Returns
+        -------
+            List of dicts
+        """
+
         return self.cache.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                        **desc)
 
     def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+            Adds a new cache document.
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        -------
+            The new document
+        """
         return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                       desc=desc)
 
     def deleteCacheDocuments(self, **kwargs):
+        """
+            Delete the cache documents that fit the query.
+
+        Parameters
+        -----------
+        kwargs: query dicts.
+
+        Returns
+        -------
+            The list of documents that was deleted.
+        """
+
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
 
