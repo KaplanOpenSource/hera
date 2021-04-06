@@ -1,0 +1,61 @@
+&DomainParms
+nml_TopoFile= {{ TopoFile }},
+nml_is_TOPO_zero={{ flat }}, ! flat terrain
+nml_topo_xmin={{ TopoXmin }},
+nml_topo_xmax={{ TopoXmax }},
+nml_topo_ymin={{ TopoYmin }},
+nml_topo_ymax={{ TopoYmax }},
+nml_topo_nx={{ TopoXn }},
+nml_topo_ny={{ TopoYn }}
+/
+&CaseStudyParms
+nml_trial_number = 3,
+nml_release_number = 3,
+!     ###### Domain Relative Source Location ######
+nml_t_release={{ releaseTime }}
+nml_source_x_ratio ={{ sourceRatioX }},
+nml_source_y_ratio ={{ sourceRatioY }},
+nml_is_line_source=.true.,
+nml_line_source_height={{ releaseHeight }}
+nml_line_source_res=3
+nml_par3D = {{particles3D}},
+nml_wind3D = {{wind3D}},
+/
+&StatParms
+nml_StationsFile={{StationsFile}},
+/
+&FlowParms
+nml_dt_WindAveUpdate = 300.0, !sec
+!     ###### IF CONSTANT WIND FIELD ######
+nml_is_const_wind={{homogeneousWind}},
+nml_const_wind_sp={{ windSpeed }}, !m/s
+nml_const_wind_dir={{ windDir }}., !Meteo
+nml_is_user_input_inverion=.true.,
+nml_user_h_inversion={{ inversionHeight }},
+!     ###### FLOW/TURB CHARAC ######
+
+nml_stability ="neutral",
+nml_is_diagStressMat=.false.,
+nml_TurbType="G",
+
+nml_c0 = 3.0
+/
+&LSMParms
+nml_dt = 1,
+nml_savedt = {{ savedt }},
+nml_tmn = {{ duration }}, !minutes
+nml_npar = {{ nParticles }}.,
+nml_is_user_input_conc_ta=.TRUE.,
+mnl_conc_Ntax={{ savedx }},
+mnl_conc_Ntay={{ savedy }},
+mnl_conc_Ntaz={{ savedz }},
+!     ###### OUTPUT LOCATION ######
+nml_file_conc_path="tozaot/machsan/",
+!     ###### DEPOSITION (Use nml_n_vdep=0 for no deposition) ######
+nml_n_vdep={{ n_vdep }}, !-Ddeposition
+nml_vdep=1,
+nml_file_vdep="INPUT_VDEP" ! if distribution of sizes reads from here
+/
+
+
+
