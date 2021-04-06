@@ -25,6 +25,8 @@ class ToolkitHome:
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
 
+    OF_LSM         =  "OF_LSM"
+
     _toolkits = None
 
     def __init__(self):
@@ -43,11 +45,12 @@ class ToolkitHome:
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",
                                  desc=None),
             LSM            =dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",
-                                 desc=None)
+                                 desc=None),
+            OF_LSM          =dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit")
         )
 
 
-    def getToolkit(self,projectName,**kwargs):
+    def getToolkit(self,toolkitName,projectName,**kwargs):
         """
             Returns a toolkit for the requested project.
 
@@ -64,7 +67,12 @@ class ToolkitHome:
         -------
             The tookit
         """
-        pass
+        if toolkitName not in self._toolkits.keys():
+            raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
+
+        clsName = self._toolkits[toolkitName]['cls']
+        tookit = pydoc.locate(clsName)(projectName,**kwargs)
+        return tookit
 
 
 
@@ -143,7 +151,8 @@ class abstractToolkit(Project):
         """
             Initializes a new toolkit.
 
-        Params
+        Parameters
+        ----------
 
         toolkitName: str
             The name of the toolkit
@@ -164,7 +173,10 @@ class abstractToolkit(Project):
         Returns the document of the config.
         If there is no config document, return empty dictionary.
 
-        :return: dict
+        Returns
+        -------
+
+         dict
                 The configuration of the toolkit.
         """
         documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")
