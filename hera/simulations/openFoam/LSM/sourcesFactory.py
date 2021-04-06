@@ -4,15 +4,15 @@ import pandas
 class sourcesFactory():
 
     @property
-    def sourcesList(self):
-        keys = sourcesFactory.__dict__.keys()
-        sourcelist = []
-        for key in keys:
-            if "makeSource" in key:
-                sourcelist.append(key.replace("makeSource_",""))
-        return sourcelist
+    def sourcesTypeList(self):
+        return [x.split("_")[1] for x in dir(self) if "makeSource" in x]
 
     def getSource(self, x, y, z, nParticles,type="Point",**kwargs):
+
+        slist = self.sourcesTypeList
+        if type not in slist:
+            raise ValueError(f"The type must be [{','.join(slist)}]. Got {type} instead")
+
         return getattr(self, f"makeSource_{type}")(x, y, z, nParticles, **kwargs)
 
     def makeSource_Point(self,x,y,z,nParticles,**kwargs):
@@ -68,7 +68,7 @@ class sourcesFactory():
             ys.append(y-xdist[i]*numpy.sin(rotateAngle)+ydist[i]*numpy.cos(rotateAngle))
         return pandas.DataFrame({"x":xs,"y":ys,"z":[z for i in range(nParticles)]})
 
-    def makeSource_HyperRectangle(self,x,y,z,nParticles,lengthX,lengthY,lengthZ,rotateAngle=0,**kwargs):
+    def makeSource_Cube(self,x,y,z,nParticles,lengthX,lengthY,lengthZ,rotateAngle=0,**kwargs):
 
         xdist = numpy.random.uniform(-lengthX/2,lengthX/2,nParticles)
         ydist = numpy.random.uniform(-lengthY/2,lengthY/2, nParticles)
