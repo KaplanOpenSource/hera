@@ -2,7 +2,8 @@
 
 
 Buildings
-=========
+=======
+
 
 Usage
 -----
@@ -12,8 +13,8 @@ Usage
     :maxdepth: 3
     :caption: Contents:
 
-    Buildings.arrangingData
-    Buildings.ConvexPolygons
+    Buildings/arrangingData
+    Buildings/ConvexPolygons
 
 
 API

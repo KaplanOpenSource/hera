@@ -11,9 +11,9 @@ Usage
     :maxdepth: 3
     :caption: Contents:
 
-    LSM.loadTemplate
-    LSM.runSimulation
-    LSM.getSimulationResults
+    LSM/loadTemplate
+    LSM/runSimulation
+    LSM/getSimulationResults
 
 API
 ---

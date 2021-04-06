@@ -18,11 +18,11 @@
 # -- Project information -----------------------------------------------------
 
 project = 'pyhera'
-copyright = '2019, Eden'
+copyright = '2019'
 author = 'Eden Nitsan, Yehuda Arav, Ofir Blumer, David Giguzin'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '2.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -33,6 +33,7 @@ release = '1.0.1'
 extensions = ['sphinx.ext.autodoc',
 	      'nbsphinx',
 	      'numpydoc',
+		  'sphinx.ext.mathjax',
 		  'sphinx.ext.autosectionlabel'
 	     ]
 

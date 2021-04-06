@@ -11,8 +11,8 @@ Usage
     :maxdepth: 3
     :caption: Contents:
 
-    riskAssessment.effectCalculation
-    riskAssessment.ProtectionPolicies
+    riskAssessment/effectCalculation
+    riskAssessment/ProtectionPolicies
 
 
 API
