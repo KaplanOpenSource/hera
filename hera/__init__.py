@@ -55,7 +55,8 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 
 """
-Next Version
+2.0.0
+-----
     - Fixing the commit
     - Changing the structure of the toolkits. 
     - Fixing the imports to be lighter
