@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from unum.units import *
 from unum import Unum
 
@@ -20,6 +21,8 @@ def toNumber(x,unit):
 # dyne  = Unum.unit('dyne',1e-5*N,'dyne')
 # poise = Unum.unit('poise',g/cm/s,'poise')
 # cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+=======
+>>>>>>> a9b9fdfc3fab24820a8e8702ea485bf68fbbcab8
 
 ####
 
