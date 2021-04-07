@@ -1,8 +1,6 @@
 import geopandas
 import io
-from descartes import PolygonPatch
-from matplotlib.collections import PatchCollection
-
+import pandas
 import matplotlib.pyplot as plt
 from ... import toolkit
 
@@ -96,9 +94,9 @@ class ShapesToolKit(toolkit.abstractToolkit):
                             desc = additionalData
                         )
             else:
-                    doc['resource'] = data.to_json()
-                    doc.desc = additionalData
-                    doc.save()
+                doc['resource'] = data.to_json()
+                doc.desc = additionalData
+                doc.save()
 
         return nonDBMetadataFrame(data) if doc is None else doc
 
@@ -132,7 +130,7 @@ class presentation():
         self._datalayer = dataLayer
 
 
-    def plot(self, regionNameOrData, ax=None,**patchParams):
+    def plot(self, regionNameOrData, ax=None,**plotParams):
         """
         Plots saved geometry shapes.
 
@@ -155,7 +153,7 @@ class presentation():
             shapesDoc = self.datalayer.getShape(regionNameOrData)
 
             if shapesDoc is None:
-                shapes = geopandas.read_file(io.StringIO(regionNameOrData))
+                shapes = geopandas.GeoDataFrame.from_features(pandas.read_json(regionNameOrData)["features"])
             else:
                 shapes = shapesDoc.getData()
         elif isinstance(regionNameOrData,geopandas.geodataframe):
@@ -163,9 +161,5 @@ class presentation():
         else:
             raise ValueError("must supply a region name, the geoJSON str or a geopandas")
 
-        patches = []
-        for pol in shapes:
-            patches.append(PolygonPatch(pol,**patchParams))
-
-        ax.add_collection(PatchCollection(patches, match_original=True))
+        shapes.plot(ax=ax, **plotParams)
         return ax
