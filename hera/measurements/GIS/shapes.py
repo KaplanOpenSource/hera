@@ -17,7 +17,7 @@ class ShapesToolKit(toolkit.abstractToolkit):
 
     @property
     def doctype(self):
-        return f"{self.name}_GeoJSON"
+        return f"{self.toolkitName}_GeoJSON"
 
 
 
@@ -68,7 +68,7 @@ class ShapesToolKit(toolkit.abstractToolkit):
             else:
 
                 data = geopandas.read_file(io.StringIO(fileNameOrData))
-        elif isinstance(fileNameOrData,geopandas.geodataframe):
+        elif isinstance(fileNameOrData,geopandas.geodataframe.GeoDataFrame):
             data = fileNameOrData
         else:
             raise ValueError(f"fileNameOrData must be a filename, geoJSON str or geoPandas.geodataframa, got type {type(fileNameOrData)}")
