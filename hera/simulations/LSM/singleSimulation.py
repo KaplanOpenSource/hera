@@ -48,21 +48,21 @@ class SingleSimulation(object):
         self._finalxarray: xarray
             The calculated dosage in 'Dosage' key
         """
-        if 'dt' not in self._finalxarray.attrs.keys():
-            if type(self._finalxarray.datetime.diff('datetime')[0].values.item())==float:
-                dt_minutes = self._finalxarray.datetime.diff('datetime')[0].values.item()*s #temporary solution!!!!!
-            else:
-                dt_minutes = (self._finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
-            self._finalxarray.attrs['dt'] = toUnum(dt_minutes, time_units)
-            self._finalxarray.attrs['Q']  = toUnum(Q, q_units)
-            self._finalxarray.attrs['C']  = toUnum(1, q_units/ m ** 3)
+        finalxarray = self._finalxarray.copy()
+        if type(finalxarray.datetime.diff('datetime')[0].values.item())==float:
+            dt_minutes = finalxarray.datetime.diff('datetime')[0].values.item()*s #temporary solution!!!!!
+        else:
+            dt_minutes = (finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
+        finalxarray.attrs['dt'] = toUnum(dt_minutes, time_units)
+        finalxarray.attrs['Q']  = toUnum(Q, q_units)
+        finalxarray.attrs['C']  = toUnum(1, q_units/ m ** 3)
 
-            Qfactor = toNumber(self._finalxarray.attrs['Q'] * min / m ** 3,
-                               q_units * time_units / m ** 3)
+        Qfactor = toNumber(finalxarray.attrs['Q'] * min / m ** 3,
+                           q_units * time_units / m ** 3)
 
-            self._finalxarray['Dosage']   = Qfactor*self._finalxarray['Dosage']
+        finalxarray['Dosage']   = Qfactor*finalxarray['Dosage']
 
-        return self._finalxarray.copy()
+        return finalxarray
 
     def getConcentration(self, Q=1*kg, time_units=min, q_units=mg):
         """
@@ -84,14 +84,14 @@ class SingleSimulation(object):
         dDosage: xarray
             The calculated concentration in 'C' key
         """
-        if 'dt' not in self._finalxarray.attrs.keys():
-            self.getDosage(Q=Q, time_units=time_units, q_units=q_units)
 
-        dDosage = self._finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})
-        dDosage['C'] = dDosage['dDosage'] / self._finalxarray.attrs['dt'].asNumber()
-        dDosage.attrs = self._finalxarray.attrs
+        finalxarray = self.getDosage(Q=Q, time_units=time_units, q_units=q_units)
 
-        return dDosage.copy()
+        dDosage = finalxarray['Dosage'].diff('datetime').to_dataset().rename({'Dosage': 'dDosage'})
+        dDosage['C'] = dDosage['dDosage'] / finalxarray.attrs['dt'].asNumber()
+        dDosage.attrs = finalxarray.attrs
+
+        return dDosage
 
     def getConcentrationAtPoint(self, x, y, datetime, Q=1*kg, time_units=min, q_units=mg):
         """
