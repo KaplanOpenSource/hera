@@ -4,6 +4,7 @@ import io
 from .... import toolkit
 import geopandas
 from ..shapes import ShapesToolKit
+import pandas
 
 
 TOOLKIT_LOCATION_REGIONNAME = "regionName"
@@ -161,14 +162,13 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             if (doc is not None) and (saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
                 raise ValueError(f"{regionName} with parameters {additional_data} already exists for project {self.projectName} in toolkit {self.toolkitName}")
         getattr(self,f"makeRegion_{inputData.split('.')[-1]}")(points=points,inputData=inputData,outputFileName=outputFileName)
-
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if doc is None:
                 # Adding to the DB.
                 self.logger.execution(f"Adding {regionName} to the DB in a new record")
                 additional_data[toolkit.TOOLKIT_DATASOURCE_NAME] = regionName
-                additional_data[toolkit.TOOLKIT_LOCATION_REGIONNAME] = regionName
-                additional_data[toolkit.TOOLKIT_LOCATION_POINTS] = points
+                additional_data[TOOLKIT_LOCATION_REGIONNAME] = regionName
+                additional_data[TOOLKIT_LOCATION_POINTS] = points
                 additional_data[toolkit.TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
 
                 self.addDataSource(dataSourceName=regionName,
@@ -199,7 +199,6 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         elif isinstance(points,geopandas.geodataframe.GeoDataFrame):
             bounds = points.unary_union.bounds
             points = dict(minX=bounds[0], minY=bounds[1], maxX=bounds[2], maxY=bounds[3])
-
         try:
             cmd = f"ogr2ogr -clipsrc {points['minX']} {points['minY']} {points['maxX']} {points['maxY']} {outputFileName} {inputData}"
             self.logger.execution(f"Clipping the file: {cmd}")
@@ -257,7 +256,9 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         if isinstance(shapeNameOrArea, str):
             points = ShapesToolKit(projectName=self.projectName).getShape(shapeNameOrArea)
             if points is None:
-                points = geopandas.read_file(io.StringIO(shapeNameOrArea))
+                points = geopandas.GeoDataFrame.from_features(pandas.read_json(shapeNameOrArea)["features"])
+            else:
+                points = points.getData()
 
         return self.makeRegion(points=points,
                                 regionName=regionName,
@@ -265,6 +266,8 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                                 dataSourceOrFile=dataSourceOrFile,
                                 dataSourceVersion=dataSourceVersion,
                                 additional_data=additional_data)
+
+
 
 
     def getRegionDocumentByPoints(self,point):
@@ -279,11 +282,19 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         -------
             list with documents that the contain the point
         """
-        docList = self.getRegionDocuments()
+        if isinstance(point, list) or isinstance(point, tuple):
+            point = geometry.Point(point)
+        elif isinstance(point, geometry.Point):
+            pass
+        else:
+            raise TypeError("point should be list, tuple or shapely.geometry.Point")
+        docList = self.getDatasourceDocumentsList()
 
         ret = []
         for doc in docList:
-            pol = geometry.Polygon(*doc.desc[TOOLKIT_LOCATION_POINTS])
+            points = doc.desc[TOOLKIT_LOCATION_POINTS]
+            pol = geometry.Polygon([[points["minX"],points["minY"]],[points["minX"],points["maxY"]],[points["maxX"],points["maxY"]],
+                                    [points["maxX"],points["minY"]],[points["minX"],points["minY"]]])
             if pol.contains(point):
                 ret.append(doc)
 
@@ -326,7 +337,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         :return:
         """
-        return [doc.desc[toolkit.TOOLKIT_LOCATION_REGIONNAME] for doc in self.getRegionDocuments()]
+        return [doc.desc[TOOLKIT_LOCATION_REGIONNAME] for doc in self.getDatasourceDocumentsList()]
 
 
 

@@ -290,12 +290,11 @@ class abstractToolkit(Project):
                 The document of the source. (None if not found)
         """
         if datasourceName is not None:
-            filters["name"] = datasourceName
+            filters[TOOLKIT_DATASOURCE_NAME] = datasourceName
         if version is not None:
-            filters["version"] = version
+            filters[TOOLKIT_DATASOURCE_VERSION] = version
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 toolkit=self.toolkitName, **filters)
-
         if len(docList) ==0:
             ret =  None
 
@@ -333,6 +332,7 @@ class abstractToolkit(Project):
         """
 
         doc = self.getDatasourceDocument(datasourceName=datasourceName, version=version,**filters)
+
         return None if doc is None else doc.getData()
 
     def addDataSource(self,dataSourceName,resource,dataFormat,version=None,**kwargs):

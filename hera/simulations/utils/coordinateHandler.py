@@ -71,7 +71,6 @@ class coordinateHandler(object):
         grid_1, grid_2 = numpy.mgrid[numpy.min(c1min):numpy.max(c1max):complex(n[0]), \
                          numpy.min(c2min):numpy.max(c2max):complex(n[1])]
         points = numpy.vstack([data[coord1], data[coord2]]).T
-
         C1 = grid_1[:, 0]
         C2 = grid_2[0, :]
 
