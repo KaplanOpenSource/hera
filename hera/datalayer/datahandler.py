@@ -217,7 +217,7 @@ class DataHandler_JSON_pandas(object):
 class DataHandler_JSON_geopandas(object):
     @staticmethod
     def getData(resource):
-        df = geopandas.read_file(io.StringIO(resource))
+        df = geopandas.GeoDataFrame.from_features(pandas.read_json(resource)["features"])
         return df
 
 

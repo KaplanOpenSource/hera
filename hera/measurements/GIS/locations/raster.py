@@ -15,7 +15,7 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
 
     @property
     def doctype(self):
-        return f"{self.name}_PNG"
+        return f"{self.toolkitName}_PNG"
 
 
     def __init__(self, projectName,FilesDirectory=None):
@@ -40,14 +40,14 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
 
         extents: dict or list
             if list:
-                [xmin, xmax, ymin, ymax]
+                [minX, maxX, minY, maxY]
 
             if dict:
                 the dictionary with the keys:
-                    - xmin
-                    - xmax
-                    - ymin
-                    - ymax
+                    - minX
+                    - maxX
+                    - minY
+                    - maxY
 
 
         saveMode: str
@@ -114,20 +114,20 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
                     raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
 
                 if isinstance(extents, dict):
-                    extentList = [extents['xmin'], extents['xmax'], extents['ymin'], extents['ymax']]
+                    extentList = [extents['minX'], extents['maxX'], extents['minY'], extents['maxY']]
                 elif isinstance(extents, list):
                     extentList = extents
                 else:
                     raise ValueError(
-                        "extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=) ")
+                        "extents is either a list(minX, maxX, minY, maxY) or dict(minX=, maxX=, minY=, maxY=) ")
 
                 additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
                                        abstractLocation.toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
                                        abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
-                                       "xmin": extentList[0],
-                                       "xmax": extentList[1],
-                                       "ymin": extentList[2],
-                                       "ymax": extentList[3]
+                                       "minX": extentList[0],
+                                       "maxX": extentList[1],
+                                       "minY": extentList[2],
+                                       "maxY": extentList[3]
                                        })
 
                 if doc is None:
@@ -185,7 +185,7 @@ class presentation:
         """
         if isinstance(imageNameOrData,str):
             doc = self.datalayer.getImage(imageNameOrData)
-            extents = [doc.desc['xmin'], doc.desc['xmax'], doc.desc['ymin'], doc.desc['ymax']]
+            extents = [doc.desc['minX'], doc.desc['maxX'], doc.desc['minY'], doc.desc['maxY']]
             image = doc.getData()
         else:
             image = imageNameOrData
@@ -193,11 +193,11 @@ class presentation:
                     raise ValueError("extents must be supplied if imageNameOrData is image")
 
             if isinstance(extents, dict):
-                extents = [extents['xmin'], extents['xmax'], extents['ymin'], extents['ymax']]
+                extents = [extents['minX'], extents['maxX'], extents['minY'], extents['maxY']]
             elif isinstance(extents, list):
                 extents = extents
             else:
-                raise ValueError("extents is either a list(xmin, xmax, ymin, ymax) or dict(xmin=, xmax=, ymin=, ymax=)")
+                raise ValueError("extents is either a list(minX, maxX, minY, maxY) or dict(minX=, maxX=, minY=, maxY=)")
 
 
         if ax is None:
