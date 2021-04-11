@@ -55,6 +55,11 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 
 """
+Next version
+    - Example for the toolkits raster 
+    - fixed bug in the get concentration of the LSM
+
+
 2.0.0
 -----
     - Fixing the commit
