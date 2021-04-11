@@ -162,6 +162,12 @@ class LSMTemplate:
         if topography is not None:
             with open("TOPO","w") as topofile:
                 topofile.write(topography)
+        if depositionRates is not None:
+            depositionsFile = ""
+            for rate in depositionRates:
+                depositionsFile += f"{rate}\n"
+            with open("INPUT_VDEP","w") as newDepositionFile:
+                newDepositionFile.write(depositionsFile)
             # make stations files
 
         if stations is not None:

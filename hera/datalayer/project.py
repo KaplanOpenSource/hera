@@ -517,7 +517,7 @@ class ProjectMultiDB(loggedObject):
                 desc = documents["documents"][0]["desc"]
         return desc
 
-    def setConfig(self, config, dbName=None):
+    def setConfig(self, dbName=None,**kwargs):
         """
         Create a config documnet or updates an existing config document.
         """
@@ -530,9 +530,12 @@ class ProjectMultiDB(loggedObject):
                     dbName = self._databaseNameList[1] if dbName is None else dbName
             else:
                 dbName = self._databaseNameList[0] if dbName is None else dbName
-            self.addCacheDocument(type="__config__", desc=config, users=[dbName])
+            self.addCacheDocument(type="__config__", desc=dict(**kwargs), users=[dbName])
         else:
-            documents[0].update(desc=config)
+            config = {}
+            for key in kwargs.keys():
+                config[f"desc__{key}"] = kwargs[key]
+            documents[0].update(**config)
 
     def getMetadata(self):
         """

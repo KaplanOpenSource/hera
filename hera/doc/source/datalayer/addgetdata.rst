@@ -51,7 +51,7 @@ First, we create the file name that we we want to save to.
 
 .. parsed-literal::
 
-    The current file directory is /home/yehuda/Development/Hera/hera/doc/source
+    The current file directory is /ibdata/yehudaa/Development/pyhera/hera/doc/source
 
 
 It is very important to save the **absolute path** (using
@@ -72,6 +72,17 @@ can be any other format.
     dataset1.to_parquet(dataset1File,engine='fastparquet',compression='GZIP')
     dataset2.to_parquet(dataset2File,engine='fastparquet',compression='GZIP')
     dataset3.to_parquet(dataset3File,engine='fastparquet',compression='GZIP')
+
+
+.. parsed-literal::
+
+    /raid/opt/anaconda3/envs/Math-21-02/lib/python3.8/site-packages/fastparquet/encoding.py:222: NumbaDeprecationWarning: [1mThe 'numba.jitclass' decorator has moved to 'numba.experimental.jitclass' to better reflect the experimental nature of the functionality. Please update your imports to accommodate this change and see http://numba.pydata.org/numba-doc/latest/reference/deprecation.html#change-of-jitclass-location for the time frame.[0m
+      Numpy8 = numba.jitclass(spec8)(NumpyIO)
+    /raid/opt/anaconda3/envs/Math-21-02/lib/python3.8/site-packages/fastparquet/encoding.py:224: NumbaDeprecationWarning: [1mThe 'numba.jitclass' decorator has moved to 'numba.experimental.jitclass' to better reflect the experimental nature of the functionality. Please update your imports to accommodate this change and see http://numba.pydata.org/numba-doc/latest/reference/deprecation.html#change-of-jitclass-location for the time frame.[0m
+      Numpy32 = numba.jitclass(spec32)(NumpyIO)
+    /raid/opt/anaconda3/envs/Math-21-02/lib/python3.8/site-packages/fastparquet/dataframe.py:5: FutureWarning: pandas.core.index is deprecated and will be removed in a future version.  The public classes are available in the top-level namespace.
+      from pandas.core.index import CategoricalIndex, RangeIndex, Index, MultiIndex
+
 
 When we save the data to the database we need to specify the project
 name that the record is related to. we use
@@ -339,7 +350,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "6055ed6dd93c7ba37c72d9ef"
+            "$oid": "606c6c54de5cb0829c358101"
         },
         "dataFormat": "parquet",
         "desc": {
@@ -347,7 +358,7 @@ The following will delete one record
             "scale": 0.5
         },
         "projectName": "ExampleProject",
-        "resource": "/home/yehuda/Development/Hera/hera/doc/source/dataset3.parquet",
+        "resource": "/ibdata/yehudaa/Development/pyhera/hera/doc/source/dataset3.parquet",
         "type": "Distribution"
     }
 
