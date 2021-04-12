@@ -1,4 +1,4 @@
-__version__ = '2.0.0'
+__version__ = '2.0.1'
 
 import sys
 import os
@@ -56,12 +56,15 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 """
 
+Next Version 
+============
 Next next examples gallery for the risk assessment  
 
-Next version
+2.0.1
+-----
     - Example for the toolkits raster 
     - fixed bug in the get concentration of the LSM
-
+    - Updating the documentaiton 
 
 2.0.0
 -----
