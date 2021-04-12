@@ -95,7 +95,7 @@ class RiskToolkit(abstractToolkit):
         agentDescription['version'] = version
         return self.loadData(agentDescription,saveMode=saveMode)
 
-    def loadData(self, fileNameOrData, saveMode=TOOLKIT_SAVEMODE_FILEANDDB):
+    def loadData(self, fileNameOrData, saveMode=TOOLKIT_SAVEMODE_FILEANDDB,**kwargs):
         """
             Abstract loading a data from file. Manages the parsing of the
             datafile.
@@ -146,7 +146,7 @@ class RiskToolkit(abstractToolkit):
             raise ValueError(f"Agent {name} version {agentDoc.desc.get('version',None)} in the database.")
 
         else:
-            agentDoc.resource = agentDescription
+            agentDoc.resource = json.dumps(agentDescription)
             agentDoc.desc['version']  = version
             agentDoc.save()
         return nonDBMetadataFrame(agentDescription) if agentDoc is None else agentDoc

@@ -231,7 +231,8 @@ class analysis:
 
         newData = geopandas.GeoDataFrame.from_dict([{"geometry": poly}])
 
-        populationTypes = self.datalayer.populationTypes if populationTypes is None else populationTypes
+        populationTypes = list(self.datalayer.populationTypes.values()) if populationTypes is None else populationTypes
+
         for populationType in populationTypes:
             if populationType in res_intersect_poly:
                 newData[populationType] = res_intersect_poly.sum()[populationType]
