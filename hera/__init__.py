@@ -1,4 +1,4 @@
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 
 import sys
 import os
@@ -58,7 +58,12 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 Next Version 
 ============
-Next next examples gallery for the risk assessment  
+
+
+2.0.2
+-----
+    - Examples gallery for the risk assessment  
+    - Fixing the pvServerRun 
 
 2.0.1
 -----
