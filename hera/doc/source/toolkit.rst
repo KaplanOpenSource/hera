@@ -31,7 +31,8 @@ Getting a toolkit
 .. code-block:: python
 
     projectName = "The-Project-Name"
-    newtoolkit  = toolkitHome.get(projectName=projectName,
+    newtoolkit  = toolkitHome.get(toolkitName=toolkit-name,
+                                   projectName=projectName,
                                   ... extra toolkit specific parameters ...)
 
 
@@ -46,6 +47,8 @@ Listing toolkits
 |Toolkit                                     |    Usage                                   |
 +============================================+============================================+
 |:ref:`Buildings <BuildingsPage>`            |    Manages building shapes (vector data)   |
++--------------------------------------------+--------------------------------------------+
+|:ref:`Shapes   <ShapesPage>`                |    Manages location shapes (vector data)   |
 +--------------------------------------------+--------------------------------------------+
 |:ref:`Raster <RasterPage>`                  |    Manages Raster of geogrpaphic places    |
 +--------------------------------------------+--------------------------------------------+

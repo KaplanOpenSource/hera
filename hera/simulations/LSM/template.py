@@ -8,6 +8,7 @@ import xarray
 import pandas
 import numpy
 from unum.units import *
+from ... import toolkit
 
 class LSMTemplate:
     _document = None
@@ -65,13 +66,13 @@ class LSMTemplate:
     
     @property
     def templateName(self):
-        return self._document['desc']['name']
+        return self._document['desc']['datasourceName']
 
     @property
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self,topography=None, stations=None,overwrite=False,params=dict(),**descriptor):
+    def run(self,topography=None, stations=None,overwrite=False,params=dict(),depositionRates=None, saveMode=None,**descriptor):
         """
         Execute the LSM simulation
 
@@ -122,34 +123,30 @@ class LSMTemplate:
         ifmc = InputForModelsCreator(self.dirPath) # was os.path.dupdated_paramsirname(__file__)
         ifmc.setParamsMap(updated_params)
         ifmc.setTemplate('LSM_%s' % (self.version))
+        docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+                                                       version=self.version,**updated_params)
+        if len(docList) == 0:
+            doc = self.toolkit.addSimulationsDocument(
+                type=self.doctype_simulation,
+                resource='None',
+                dataFormat='None',
+                desc=dict(version=self.version,
+                          datetimeFormat=self.datetimeFormat,
+                          templateName=self.templateName,
+                          **updated_params)
+            )
 
-        if self.to_database:
-            docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
-                                                   params=updated_params,
-                                                   version=self.version)
-
-            if len(docList)==0:
-                doc = self.toolkit.addSimulationsDocument(
-                                            type=self.doctype_simulation,
-                                            resource='None',
-                                            dataFormat='None',
-                                            desc=dict(params=updated_params,
-                                                      version=self.version,
-                                                      datetimeFormat=self.datetimeFormat,
-                                                      templateName = self.templateName
-                                                      )
-                                            )
-
-                saveDir = os.path.join(saveDir, str(doc.id))
-                if self.to_xarray:
-                    doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
-                    doc['dataFormat'] = datatypes.NETCDF_XARRAY
-                else:
-                    doc['resource'] = os.path.join(saveDir)
-                    doc['dataFormat'] = datatypes.STRING
-                doc.save()
-            elif not overwrite:
-                    return docList[0].getData()
+            saveDir = os.path.join(saveDir, str(doc.id))
+            if self.to_xarray:
+                doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
+                doc['dataFormat'] = datatypes.NETCDF_XARRAY
+            else:
+                doc['resource'] = os.path.join(saveDir)
+                doc['dataFormat'] = datatypes.STRING
+            doc.save()
+        elif saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+            raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
+                             f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB} in order to replace it.")
 
         ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)

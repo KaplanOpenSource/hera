@@ -18,11 +18,11 @@
 # -- Project information -----------------------------------------------------
 
 project = 'pyhera'
-copyright = '2019, Eden'
+copyright = '2019'
 author = 'Eden Nitsan, Yehuda Arav, Ofir Blumer, David Giguzin'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '2.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -33,18 +33,19 @@ release = '1.0.1'
 extensions = ['sphinx.ext.autodoc',
 	      'nbsphinx',
 	      'numpydoc',
+		  'sphinx.ext.mathjax',
 		  'sphinx.ext.autosectionlabel'
 	     ]
 
-# extensions = ['sphinx.ext.autodoc',
-# 	      'sphinx_gallery.gen_gallery',
-# 	      'nbsphinx',
-# 	      'numpydoc'
-# 	     ]
+extensions = ['sphinx.ext.autodoc',
+	      'sphinx_gallery.gen_gallery',
+	      'nbsphinx',
+	      'numpydoc'
+	     ]
 
-# sphinx_gallery_conf = {'examples_dirs': 'examples',   # path to your example scripts
-# 		       'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
-# 		      }
+sphinx_gallery_conf = {'examples_dirs': 'examples',   # path to your example scripts
+		       'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+		      }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
