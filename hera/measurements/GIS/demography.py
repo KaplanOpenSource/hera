@@ -230,7 +230,7 @@ class analysis:
         res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
 
         newData = geopandas.GeoDataFrame.from_dict([{"geometry": poly}])
-
+        newData.crs = Data.crs
         populationTypes = list(self.datalayer.populationTypes.values()) if populationTypes is None else populationTypes
 
         for populationType in populationTypes:
