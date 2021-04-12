@@ -33,6 +33,7 @@ Usage
 
     riskAssessment/effectCalculation
     riskAssessment/ProtectionPolicies
+    riskAssessment/minimalRiskAssessmentProject
 
 
 API
