@@ -38,7 +38,7 @@ class ToolkitHome:
             GIS_Topography = dict(cls = "hera.measurements.GIS.locations.topography.TopographyToolkit",
                                  desc=None),
 
-            GIS_Demography = dict(cls = "hera.measurements.GIS.demography.TopographyToolkit",
+            GIS_Demography = dict(cls = "hera.measurements.GIS.demography.DemographyToolkit",
                                  desc=None),
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",
                                  desc=None),
@@ -295,6 +295,7 @@ class abstractToolkit(Project):
             filters[TOOLKIT_DATASOURCE_VERSION] = version
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 toolkit=self.toolkitName, **filters)
+
         if len(docList) ==0:
             ret =  None
 
