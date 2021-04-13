@@ -60,7 +60,7 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 Next Version 
 ============
     - Adding some things to the openFOAM package. 
-        
+    - allow the project to specify the logger name.         
 
 2.0.2
 -----
