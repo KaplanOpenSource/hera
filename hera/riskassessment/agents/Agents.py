@@ -1,12 +1,11 @@
 from unum.units import *
 from .effects import  injuryfactory
-from ...utils import tonumber,tounum
-
-from ...datalayer import ProjectMultiDBPublic
-
+from ...simulations.utils import toNumber,toUnum
+import numpy
 
 
-class Agent(ProjectMultiDBPublic):
+
+class Agent:
 
 	_effects = None 
 
@@ -40,30 +39,33 @@ class Agent(ProjectMultiDBPublic):
 		for effectname,effectconfig in self._agentconfig["effects"].items():
 			self._effects[effectname] = injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
 
-	def __init__(self,name, projectName="AgentsCollection"):
+
+	def __init__(self,descriptor):
 		"""
-			Reads the agent json. 
-			The name of the agent is the configuration file. 
+			Constructor of the Agent project.
+
+			Initializes an agent.
+
+
+		Parameters
+		-----------
+		descriptor: JSON
+			A JSON object (dict) that holds all the information on the agent.
 
 			{
-				"effectParameters" : { 
-					TenBergeCoefficient and ect. 
+				"name" : [the name of the agent],
+				"effectParameters" : {
+					TenBergeCoefficient and ect.
 				},
-				"effects": { 
-					"effect name" : { effect data (+ injury levels) } 
-					
+				"effects": {
+					"effect name" : { effect data (+ injury levels) }
+
 
 				}
 			}
+
 		"""
-		super().__init__(projectName=projectName,publicProjectName="AgentsCollection")
-
-
-		configList = self.getMeasurementsDocuments(type='Agent',name=name)
-		if len(configList)==0:
-			raise ValueError(f"Agent {name} is not found. Load it with hera-risk-agent load")
-
-		self._agentconfig = configList.desc['agentConfig']
+		self._agentconfig = descriptor
 		self._effectParameters = self._agentconfig.get("effectParameters",{})
 
 		self._effects = {}
@@ -74,29 +76,6 @@ class Agent(ProjectMultiDBPublic):
 
 		self._physicalproperties = PhysicalPropeties(self._agentconfig)
 
-
-	def loadAgent(self,name,agentDescription,public=True):
-		"""
-			Adds the agent to the DB. Either to the public or to the local DB.
-
-		:param name: str
-				Agent name
-		:param agentDescription: dict
-				The agent description
-
-		:return:
-				None
-		"""
-
-		agentDescription['name'] = name
-
-		destDB = "public" if public else None
-
-		self.addMeasurementsDocument(resource="",
-									 type="Agent",
-									 dataFormat="string",
-									 users=destDB ,
-									 desc=agentDescription)
 
 
 
@@ -118,15 +97,21 @@ class PhysicalPropeties(object):
 	def _densityConst(self):
 		return self._params["densityConstants"]
 
+	@property
+	def _vaporConst(self):
+		return self._params["vaporPressure"]
 
 	@property
 	def molecularWeight(self):
 		return self._molecularWeight
 
+	@property
+	def molecularVolume(self):
+		return self._params["molecularVolume"]
+
 	@molecularWeight.setter
 	def molecularWeight(self,value):
-		self._molecularWeight = tounum(eval(value),g/mol)
-
+		self._molecularWeight = toUnum(eval(value),g/mol)
 
 	@property
 	def sorptionCoefficient(self):
@@ -134,7 +119,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
-		self._sorptionCoefficient = tounum(eval(value),cm/s)
+		self._sorptionCoefficient = toUnum(eval(value),cm/s)
 
 	@property
 	def spreadFactor(self):
@@ -163,7 +148,7 @@ class PhysicalPropeties(object):
 		:return:
 			The vapor saturation as Unum.
 		"""
-		temperature = tonumber(temperature,celsius)
+		temperature = toNumber(temperature,celsius)
 		MW = self.getMolecularWeight().asNumber(g/mol)
 
 		a,b,c,d = self._volatilityConst
@@ -183,10 +168,22 @@ class PhysicalPropeties(object):
 			:return:
 				The density as Unum
 		"""
-		temperature = tonumber(temperature,celsius)
+		temperature = toNumber(temperature,celsius)
 		a,b,c = self._densityConst
 
 		return (a-b*(temperature-c))*g/cm**3
+
+	def vaporPressure(self, temperature):
+		temperature = toNumber(temperature, K)
+		A = self._vaporConst["A"]
+		B = self._vaporConst["B"]
+		C = self._vaporConst["C"]
+		D = self._vaporConst["D"] if "D" in self._vaporConst.keys() else 0
+		E = self._vaporConst["E"] if "E" in self._vaporConst.keys() else 0
+		F = self._vaporConst["F"] if "F" in self._vaporConst.keys() else 0
+		units = self._vaporConst["units"]
+		return toNumber((10 ** (A - B / (temperature - C) + D * numpy.log10(
+			temperature) + E * temperature + F * temperature ** 2)) * units, bar)
 
 
 	def __init__(self,configJSON):
@@ -194,8 +191,8 @@ class PhysicalPropeties(object):
 		if "physicalProperties" in configJSON:
 			self._params 		 = configJSON["physicalProperties"]
 			self.molecularWeight = self._params["molecularWeight"]
-			self.sorptionCoefficient = self._params["sorptionCoefficient"]
-			self.spreadFactor    = self._params["spreadFactor"]
+			self.sorptionCoefficient = self._params["sorptionCoefficient"] if "sorptionCoefficient" in self._params.keys() else "1"
+			self.spreadFactor    = self._params["spreadFactor"] if "spreadFactor" in self._params.keys() else "1"
 	
 
 
