@@ -30,8 +30,6 @@ class paraviewOpenFOAM(object):
     _readerName = None  # the name of the reader in the vtk pipeline.
 
 
-    DECOMPOSED_CASE    = "Decomposed Case"
-    RECONSTRUCTED_CASE = "Reconstructed Case"
 
     @property
     def reader(self):
@@ -284,20 +282,35 @@ class paraviewOpenFOAM(object):
             data.to_netcdf(curfilename)
             blockID += 1
 
+        def checkIfExist(self,dataChunk,blockID,JSONbaseName):
+
+            filterList = [k for k in dataChunk.keys()]
+            blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
+            for filtername in filterList:
+                curfilename = os.path.join(self.netcdfdir, "%s_%s_%s.nc" % (JSONbaseName, filtername, blockfrmt))
+                if os.path.exists(curfilename):
+                    if not overWrite:
+                        raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
 
 
         self._outfile = readername if outfile is None else outfile
 
+        timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
         if not os.path.isdir(self.netcdfdir):
             os.makedirs(self.netcdfdir)
 
         blockDig = max(5,numpy.ceil(numpy.log10(len(timelist))) + 1)
-
         blockID = 0
 
         L = []
+        checkExist=0
 
         for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
+
+            if checkExist==0:
+                checkExist =1
+                checkIfExist(self, xray, blockID, JSONbaseName)
+
 
             L.append(xray)
             if len(L) == tsBlockNum:
@@ -310,8 +323,10 @@ class paraviewOpenFOAM(object):
                     writeList(L,blockID,blockDig,JSONbaseName,overWrite)
                 L = []
                 blockID += 1
+                checkExist = 0
 
         if len(L)>0:
+            checkIfExist(self, xray, blockID, JSONbaseName)
             if isinstance(L[0],dict):
                 filterList = [k for k in L[0].keys()]
                 for filtername in filterList:
@@ -335,6 +350,7 @@ class paraviewOpenFOAM(object):
         if not os.path.isdir(self.hdfdir):
             os.makedirs(self.hdfdir)
 
+        timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
         blockDig=numpy.ceil(numpy.log10(len(timelist)))+1
         blockID = 0
         L = []

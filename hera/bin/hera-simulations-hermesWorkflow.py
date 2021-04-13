@@ -38,7 +38,7 @@ class argsHandler(Project):
             doc=self.addSimulationsDocument(resource=newTemplate['workflow']['nodes']['Parameters']['GUI']["WebGui"]["formData"]['caseDirectory'],
                                        dataFormat='string',
                                        type=self.templateDocType,
-                                       desc=dict(OF_Workflow=newTemplate)) #desc=dict(OF_Workflow=newTemplate
+                                       desc=dict(OF_workflow=newTemplate)) #desc=dict(OF_workflow=newTemplate
             print(doc.id)
             newPath=os.path.join(newTemplate['workflow']['nodes']['Parameters']['GUI']["WebGui"]["formData"]['caseDirectory'],str(doc.id))
             #newPath=os.path.join(newTemplate['CaseDirectory'],str(doc.id))
@@ -60,7 +60,7 @@ class argsHandler(Project):
                     self.logger.warning(f"no template parameter json file in {sourceFolder}")
             self.logger.info("updating template to the DB")
             doc.resource=newPath
-            doc.desc['OF_Workflow']=newTemplate
+            doc.desc['OF_workflow']=newTemplate
             doc.save()
             self.logger.info("workflow parameters updated and saved to DB")
 

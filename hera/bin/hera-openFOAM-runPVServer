@@ -1,2 +1,2 @@
-hera-openfoam-serverFoamJob -parallel -screen -wait pvserver
+hera-openFOAM-serverFoamJob -parallel -screen -wait pvserver
 

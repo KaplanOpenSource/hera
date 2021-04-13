@@ -128,6 +128,9 @@ class Project(loggedObject):
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
 
+    def getDocumentByID(self,id):
+        return self._all.getDocumentByID(id)
+
     def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
         return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
@@ -269,7 +272,7 @@ class ProjectMultiDB(loggedObject):
         return  projectName
 
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False):
+    def __init__(self, projectName, databaseNameList=None, useAll=False,loggerName=None):
         """
             Initialize the project.
 
@@ -286,6 +289,7 @@ class ProjectMultiDB(loggedObject):
 
 
         """
+        super().__init__(loggerName=loggerName)
         self._projectName = projectName
         self._databaseNameList = numpy.atleast_1d(databaseNameList)
         self._useAll = useAll

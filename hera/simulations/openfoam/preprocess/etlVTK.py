@@ -70,19 +70,23 @@ def load_netcdf(Tree, filterName, filterPipe, metadata, pipelines, path, name, p
     if 'downstream' in filterProps.keys():
         del (filterProps['downstream'])
 
+    #
+    # docList=datalayer.Simulations.getDocuments(type='HermesOpenFOAM',HermesOpenFOAM
+    #                                            projectName=projectName,
+    #                                            resource=path)
 
-    docList=datalayer.Simulations.getDocuments(type='HermesOpenFOAM',
-                                               projectName=projectName,
-                                               resource=path)
+    # OF_workflow = docList[0].desc['OF_workflow']
 
-    OF_WorkFlow = docList[0].desc['OF_Workflow']
+    doc_id=os.path.split(path)[-1]
+    docList=datalayer.Simulations.getDocumentByID(doc_id)
+    OF_workflow = docList.desc['OF_workflow']
     
     datalayer.Simulations.addDocument(projectName=projectName,
                                       desc=dict(filter=filterName,
                                                 pipeline=pipelines,
                                                 pipline_metadata=metadata,
                                                 filterpipeline=piplelineTree,
-                                                OF_WorkFlow=OF_WorkFlow
+                                                OF_workflow=OF_workflow
                                                 ),
                                       type="OFsimulation",
                                       resource=glob.glob(os.path.join(path, name,"netcdf","%s_%s*.nc" %(JSONName, filterName))),

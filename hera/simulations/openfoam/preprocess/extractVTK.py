@@ -4,6 +4,8 @@ import json
 from pvOpenFOAMBase import paraviewOpenFOAM
 import paraview.simple as pvsimple
 
+from . import RECONSTRUCTED_CASE,DECOMPOSED_CASE
+
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).
     It also holds the metadata.
@@ -52,7 +54,7 @@ class VTKpipeline(object):
     def pvOFBase(self):
         return self._pvOFBase
 
-    def __init__(self, name, pipelineJSON, casePath, caseType='Decomposed Case', servername=None):
+    def __init__(self, name, pipelineJSON, casePath, caseType=DECOMPOSED_CASE, servername=None):
         """
             Initializes a VTK pipeline.
 
@@ -105,7 +107,6 @@ class VTKpipeline(object):
         reader = pvsimple.FindSource(source)
         filterWrite = {}
         self._buildFilterLayer(father=reader, structureJson=self._VTKpipelineJSON["pipelines"], filterWrite=filterWrite)
-        
         # Now execute the pipeline.
         timelist = self._VTKpipelineJSON["metadata"].get("timelist", "None")
         if (timelist == "None"):
@@ -113,12 +114,13 @@ class VTKpipeline(object):
 
         elif isinstance(timelist, str) or isinstance(timelist, unicode):
             # a bit of parsing.
-            BandA = [0, 1e6]
+            readerTL = reader.TimestepValues
+            BandA = [readerTL[0], readerTL[-1]]
 
             for i, val in enumerate(timelist.split(":")):
                 BandA[i] = BandA[i] if len(val) == 0 else float(val)
 
-            tl = pandas.Series(reader.TimestepValues)
+            tl = pandas.Series(readerTL)
             timelist = tl[tl.between(*BandA)].values
 
         # else just take it from the json (it should be a list).
@@ -222,5 +224,5 @@ class VTKpipeline(object):
     # R = pipelineFactory_JSON().getPipeline("VTKPipe.json")
     # with open('test.json') as json_file:
     #     data = json.load(json_file)
-    # vtkpipe = VTKpipeline(name="test", pipelineJSON=data, casePath="/home/ofir/Projects/openFoamUsage/askervein", caseType="Reconstructed Case")
+    # vtkpipe = VTKpipeline(name="test", pipelineJSON=data, casePath="/home/ofir/Projects/openFoamUsage/askervein", caseType=RECONSTRUCTED_CASE)
     # vtkpipe.execute("mainReader")

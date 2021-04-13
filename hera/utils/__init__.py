@@ -1,5 +1,8 @@
 import logging
-from unum import Unum
+try:
+    from unum import Unum
+except:
+    print('cannot import unum package')
 
 def andClause(excludeFields=[], **kwargs):
 
