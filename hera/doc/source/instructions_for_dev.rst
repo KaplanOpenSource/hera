@@ -1,7 +1,6 @@
 Instructions for developers
 ###########################
 
-
 Synchronize intermediate version
 ================================
 

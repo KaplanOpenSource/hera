@@ -50,7 +50,7 @@ class CalculatorTenBerge(AbstractCalculator):
 		super().__init__(breathingRate=breathingRate)
 		self.n 	   = tenbergeCoefficient
 
-	def calculate(self,concentrationField,field,breathingRate=10*L/min,time="datetime"): 
+	def calculate(self,concentrationField,field,breathingRate=10*L/min,time="datetime"):
 		breathingRatio = (breathingRate/self.injuryBreathingRate).asNumber()
 		CunitConversion = concentrationField.attrs[field].asNumber(mg/m**3)
 		return ((concentrationField[field]*CunitConversion)**self.n).cumsum(dim=time)*concentrationField.dt.asNumber(min)*breathingRatio

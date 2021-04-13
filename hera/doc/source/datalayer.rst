@@ -1,3 +1,5 @@
+.. _datalayerPage:
+
 Datalayer
 *********
 
@@ -25,6 +27,8 @@ The datalayer also includes a command line interface to load, remove and move da
 
 Setup
 =====
+
+
 
 The library uses a connection to the databse that is defined in the path
 ~/.pyhera/config.json. The structure of the config.json is

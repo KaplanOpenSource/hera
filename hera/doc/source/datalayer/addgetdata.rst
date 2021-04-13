@@ -25,11 +25,6 @@ distributions with different mean and std.
 
 .. parsed-literal::
 
-    WARNING:root:FreeCAD not Found, cannot convert to STL
-
-
-.. parsed-literal::
-
               x         y
     0 -2.326348  0.026652
     1 -2.279351  0.029698
@@ -77,6 +72,17 @@ can be any other format.
     dataset1.to_parquet(dataset1File,engine='fastparquet',compression='GZIP')
     dataset2.to_parquet(dataset2File,engine='fastparquet',compression='GZIP')
     dataset3.to_parquet(dataset3File,engine='fastparquet',compression='GZIP')
+
+
+.. parsed-literal::
+
+    /raid/opt/anaconda3/envs/Math-21-02/lib/python3.8/site-packages/fastparquet/encoding.py:222: NumbaDeprecationWarning: [1mThe 'numba.jitclass' decorator has moved to 'numba.experimental.jitclass' to better reflect the experimental nature of the functionality. Please update your imports to accommodate this change and see http://numba.pydata.org/numba-doc/latest/reference/deprecation.html#change-of-jitclass-location for the time frame.[0m
+      Numpy8 = numba.jitclass(spec8)(NumpyIO)
+    /raid/opt/anaconda3/envs/Math-21-02/lib/python3.8/site-packages/fastparquet/encoding.py:224: NumbaDeprecationWarning: [1mThe 'numba.jitclass' decorator has moved to 'numba.experimental.jitclass' to better reflect the experimental nature of the functionality. Please update your imports to accommodate this change and see http://numba.pydata.org/numba-doc/latest/reference/deprecation.html#change-of-jitclass-location for the time frame.[0m
+      Numpy32 = numba.jitclass(spec32)(NumpyIO)
+    /raid/opt/anaconda3/envs/Math-21-02/lib/python3.8/site-packages/fastparquet/dataframe.py:5: FutureWarning: pandas.core.index is deprecated and will be removed in a future version.  The public classes are available in the top-level namespace.
+      from pandas.core.index import CategoricalIndex, RangeIndex, Index, MultiIndex
+
 
 When we save the data to the database we need to specify the project
 name that the record is related to. we use
@@ -193,57 +199,7 @@ Now, we will extract the data.
     2  -2.232354  0.033020
     3  -2.185357  0.036632
     4  -2.138360  0.040550
-    5  -2.091363  0.044787
-    6  -2.044366  0.049358
-    7  -1.997369  0.054276
-    8  -1.950372  0.059551
-    9  -1.903376  0.065196
-    10 -1.856379  0.071218
-    11 -1.809382  0.077625
-    12 -1.762385  0.084421
-    13 -1.715388  0.091610
-    14 -1.668391  0.099192
-    15 -1.621394  0.107164
-    16 -1.574397  0.115521
-    17 -1.527400  0.124256
-    18 -1.480403  0.133356
-    19 -1.433406  0.142806
-    20 -1.386409  0.152590
-    21 -1.339412  0.162683
-    22 -1.292415  0.173062
-    23 -1.245419  0.183696
-    24 -1.198422  0.194554
-    25 -1.151425  0.205599
-    26 -1.104428  0.216792
-    27 -1.057431  0.228089
-    28 -1.010434  0.239446
-    29 -0.963437  0.250814
     ..       ...       ...
-    70  0.963437  0.250814
-    71  1.010434  0.239446
-    72  1.057431  0.228089
-    73  1.104428  0.216792
-    74  1.151425  0.205599
-    75  1.198422  0.194554
-    76  1.245419  0.183696
-    77  1.292415  0.173062
-    78  1.339412  0.162683
-    79  1.386409  0.152590
-    80  1.433406  0.142806
-    81  1.480403  0.133356
-    82  1.527400  0.124256
-    83  1.574397  0.115521
-    84  1.621394  0.107164
-    85  1.668391  0.099192
-    86  1.715388  0.091610
-    87  1.762385  0.084421
-    88  1.809382  0.077625
-    89  1.856379  0.071218
-    90  1.903376  0.065196
-    91  1.950372  0.059551
-    92  1.997369  0.054276
-    93  2.044366  0.049358
-    94  2.091363  0.044787
     95  2.138360  0.040550
     96  2.185357  0.036632
     97  2.232354  0.033020
@@ -302,57 +258,7 @@ resource attribute.
     2  -2.232354  0.066040
     3  -2.185357  0.073264
     4  -2.138360  0.081099
-    5  -2.091363  0.089574
-    6  -2.044366  0.098716
-    7  -1.997369  0.108551
-    8  -1.950372  0.119103
-    9  -1.903376  0.130392
-    10 -1.856379  0.142436
-    11 -1.809382  0.155249
-    12 -1.762385  0.168842
-    13 -1.715388  0.183220
-    14 -1.668391  0.198383
-    15 -1.621394  0.214327
-    16 -1.574397  0.231042
-    17 -1.527400  0.248511
-    18 -1.480403  0.266711
-    19 -1.433406  0.285613
-    20 -1.386409  0.305179
-    21 -1.339412  0.325366
-    22 -1.292415  0.346123
-    23 -1.245419  0.367392
-    24 -1.198422  0.389108
-    25 -1.151425  0.411198
-    26 -1.104428  0.433583
-    27 -1.057431  0.456178
-    28 -1.010434  0.478892
-    29 -0.963437  0.501628
     ..       ...       ...
-    70  0.963437  0.501628
-    71  1.010434  0.478892
-    72  1.057431  0.456178
-    73  1.104428  0.433583
-    74  1.151425  0.411198
-    75  1.198422  0.389108
-    76  1.245419  0.367392
-    77  1.292415  0.346123
-    78  1.339412  0.325366
-    79  1.386409  0.305179
-    80  1.433406  0.285613
-    81  1.480403  0.266711
-    82  1.527400  0.248511
-    83  1.574397  0.231042
-    84  1.621394  0.214327
-    85  1.668391  0.198383
-    86  1.715388  0.183220
-    87  1.762385  0.168842
-    88  1.809382  0.155249
-    89  1.856379  0.142436
-    90  1.903376  0.130392
-    91  1.950372  0.119103
-    92  1.997369  0.108551
-    93  2.044366  0.098716
-    94  2.091363  0.089574
     95  2.138360  0.081099
     96  2.185357  0.073264
     97  2.232354  0.066040
@@ -444,7 +350,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "5f9527f84fde6232dbb04e67"
+            "$oid": "606c6c54de5cb0829c358101"
         },
         "dataFormat": "parquet",
         "desc": {
