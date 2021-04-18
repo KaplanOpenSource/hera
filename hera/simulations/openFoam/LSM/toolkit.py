@@ -53,6 +53,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def topography(self):
         return self._topography
 
+    @property
     def cloudName(self):
         return self._cloudName
 
@@ -127,18 +128,22 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
             if vector:
                 for rcrdListItem in [[x for x in x.split(" ") if x != ""] for x in
-                          [x.replace("(", "") for x in vals[2:-1].split(")")]]:
+                          [x.replace("{(", "") for x in vals[2:-1].split(")}")]]:
                     if len(rcrdListItem) == 0:
                         continue
                     else:
                         record = dict([(name,float(y)) for name,y in zip(columnNames,rcrdListItem)])
                         data.append(record)
             else:
-                for rcrdListItem in vals[2:-2].split(" "):
+                for rcrdListItem in vals[2:-2].replace("{", "").split(" "):
                     record = {columnNames[0]:float(rcrdListItem)}
                     data.append(record)
 
             newData = pandas.DataFrame(data)
+        else:
+            if vector:
+                newData[columnNames[0]] = newData[columnNames[0]].str[1:]
+                newData[columnNames[2]] = newData[columnNames[2]].str[:-1]
 
         return newData.astype(float)
 
@@ -154,48 +159,39 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_y'] = []
             columnsDict['U_z'] = []
 
-
-
-        newData = pandas.DataFrame(columnsDict)
         self.logger.execution(f"Processing {timeName}")
-        try:
 
+        self.logger.info(f"reading {timeName}")
+        #newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalSigmaPositions", ['x', 'y', 'z'])
+        newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalPositions", ['x', 'y', 'z'])
 
-            self.logger.info(f"reading {timeName}")
-            newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalSigmaPositions", ['x', 'y', 'z'])
+        dataID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origId", ['id'],vector=False)
+        newData['id'] = dataID['id'].astype(numpy.int64)
 
-            dataID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origId", ['id'],vector=False)
-            newData['id'] = dataID['id'].astype(np.int64)
+        dataprocID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origProcId", ['procId'],vector=False)
+        newData['procId'] = dataprocID['procId'].astype(numpy.int64)
 
-            dataprocID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origProcId", ['procId'],vector=False)
-            newData['procId'] = dataprocID['procId'].astype(np.int64)
+        newData = newData.ffill().assign(globalID = 1000000000*newData.procId+newData.id)
 
-            newData = newData.ffill().assign(globalID = 1000000000*newData.procId+newData.id)
+        if withVelocity:
+            dataU = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/U", ['U_x', 'U_y', 'U_z'])
+            for col in ['U_x', 'U_y', 'U_z']:
+                newData[col] = dataU[col]
 
-            if withVelocity:
-                dataU = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/U", ['U_x', 'U_y', 'U_z'])
-                for col in ['U_x', 'U_y', 'U_z']:
-                    newData[col] = dataU[col]
+        if withReleaseTimes:
+            dataM = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/age", ['age'], vector=False)
+            #newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
 
-            if withReleaseTimes:
-                dataM = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/age", ['age'], vector=False)
-                #newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
+        if withMass:
+            dataM = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/mass", ['mass'], vector=False)
+            try:
+                newData["mass"] = dataM["mass"]
+            except:
+                newData = newData.compute()
+                newData["mass"] = dataM["mass"]
 
-            if withMass:
-                dataM = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/mass", ['mass'], vector=False)
-                try:
-                    newData["mass"] = dataM["mass"]
-                except:
-                    newData = newData.compute()
-                    newData["mass"] = dataM["mass"]
-
-        except:
-            pass
-            #self.logger.warn(f"Cannot read time {timeName}")
-
-
-        theTime = os.path.split(timeName)[-1]
-        newData['time'] = float(theTime)
+        #theTime = os.path.split(timeName)[-1]
+        newData['time'] = float(timeName)
         return newData
 
 
@@ -549,7 +545,7 @@ class Analysis:
         """
 
         if nParticles is None:
-            with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
+            with open(os.path.join(self._datalayer.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
                 Lines = readFile.readlines()
             try:
                 nParticles=int(Lines[15])
@@ -575,21 +571,23 @@ class Analysis:
                 Q = tonumber(tounum(Q, Qunits), Qunits)
             except:
                 Q = tonumber(tounum(Q, Qunits), Qunits / timeUnits)
-        documents = self.getSimulationsDocuments(type="openFoamLSMrun",
-                                                casePath=self.casePath, cloudName=self.cloudName,
+        documents = self._datalayer.getSimulationsDocuments(type="openFoamLSMrun",
+                                                casePath=self._datalayer.casePath, cloudName=self._datalayer.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                       dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
 
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime,withMass=OFmass)
+                data = self._datalayer._readRecord(time, withMass=OFmass)
+                for t in range(time+1, time + dt):
+                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass))
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
-                data["height"] = (data["height"] / dz).astype(int) * dz + dz / 2
+                data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
                 data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
                 if OFmass:
-                    data = data.groupby(["x","y","height","time"]).sum()
+                    data = data.groupby(["x","y","z","time"]).sum()
                     data["mass"] = data["mass"] * tonumber(tounum(1*kg, Qunits), Qunits)
                     data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
@@ -599,22 +597,22 @@ class Analysis:
                         data["Q"] = Q
                     data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
                     data = data.drop(columns="Q")
-                    data = data.groupby(["x","y","height","time"]).sum()
+                    data = data.groupby(["x","y","z","time"]).sum()
                 data["Concentration"] = data["Dosage"] / dt
-                datalist.append(data.compute())
+                datalist.append(data)
                 print(f"Finished times {time} to {time+dt}")
             data = pandas.concat(datalist).reset_index()
 
             if OFmass:
                 Q = data.loc[data.time==data.time.min()].mass.sum()/dt
-                print(f"Q = {toUnum(Q,Qunits)} (extracted from the simulation itself)")
+                print(f"Q = {tounum(Q,Qunits)} (extracted from the simulation itself)")
             if save:
                 cur = os.getcwd()
-                file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
+                file = os.path.join(cur,f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
                 data.to_parquet(file, compression="GZIP")
                 if addToDB:
-                    self.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
-                                                desc=dict(casePath=self.casePath, cloudName=self.cloudName,
+                    self._datalayer.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
+                                                desc=dict(casePath=self._datalayer.casePath, cloudName=self._datalayer.cloudName,
                                                           startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                           dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs))
         else:

@@ -114,6 +114,11 @@ class LSMTemplate:
         else:
             updated_params.update(TopoFile="'TOPO'")
 
+        if depositionRates is not None:
+            if not isinstance(depositionRates,list):
+                depositionRates = [depositionRates,depositionRates]
+            updated_params.update(n_vdep=len(depositionRates))
+
         if stations is not None:
             updated_params.update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
@@ -205,9 +210,11 @@ class LSMTemplate:
                 newStationFile.write(allStationsFile)
 
         # run the model.
-        os.system('./a.out')
+        #os.system('./a.out')
         if self.to_xarray:
-            results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[self._document['desc']['params']["particles3D"]])
+            results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[updated_params["particles3D"]])
+            import pdb
+            pdb.set_trace()
             netcdf_output = os.path.join(saveDir, "netcdf")
             os.makedirs(netcdf_output, exist_ok=True)
 
@@ -291,7 +298,8 @@ class LSMTemplate:
                                   names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
-
+            import pdb
+            pdb.set_trace()
             if dt is None:
                 dt = cur.iloc[0]['time'] * s
 
