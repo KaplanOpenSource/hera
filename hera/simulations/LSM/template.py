@@ -130,6 +130,7 @@ class LSMTemplate:
         ifmc.setTemplate('LSM_%s' % (self.version))
         docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                                        version=self.version,**updated_params)
+
         if len(docList) == 0:
             doc = self.toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
@@ -210,11 +211,9 @@ class LSMTemplate:
                 newStationFile.write(allStationsFile)
 
         # run the model.
-        #os.system('./a.out')
+        os.system('./a.out')
         if self.to_xarray:
             results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[updated_params["particles3D"]])
-            import pdb
-            pdb.set_trace()
             netcdf_output = os.path.join(saveDir, "netcdf")
             os.makedirs(netcdf_output, exist_ok=True)
 
@@ -298,8 +297,6 @@ class LSMTemplate:
                                   names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
-            import pdb
-            pdb.set_trace()
             if dt is None:
                 dt = cur.iloc[0]['time'] * s
 

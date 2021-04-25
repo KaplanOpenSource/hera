@@ -147,7 +147,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         return newData.astype(float)
 
-    def _readRecord(self,timeName,withVelocity=False,withReleaseTimes=False,withMass=False):
+    def _readRecord(self,timeName,withVelocity=False,withReleaseTimes=False,withMass=False, withID=True):
 
         columnsDict=dict(x=[],y=[],z=[],id=[],procId=[])
         if withMass:
@@ -164,14 +164,14 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self.logger.info(f"reading {timeName}")
         #newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalSigmaPositions", ['x', 'y', 'z'])
         newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalPositions", ['x', 'y', 'z'])
+        if withID:
+            dataID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origId", ['id'],vector=False)
+            newData['id'] = dataID['id'].astype(numpy.int64)
 
-        dataID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origId", ['id'],vector=False)
-        newData['id'] = dataID['id'].astype(numpy.int64)
+            dataprocID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origProcId", ['procId'],vector=False)
+            newData['procId'] = dataprocID['procId'].astype(numpy.int64)
 
-        dataprocID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origProcId", ['procId'],vector=False)
-        newData['procId'] = dataprocID['procId'].astype(numpy.int64)
-
-        newData = newData.ffill().assign(globalID = 1000000000*newData.procId+newData.id)
+            newData = newData.ffill().assign(globalID = 1000000000*newData.procId+newData.id)
 
         if withVelocity:
             dataU = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/U", ['U_x', 'U_y', 'U_z'])
@@ -523,7 +523,7 @@ class Analysis:
         self._datalayer = datalayer
 
     def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
+                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None,withID=False, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -579,9 +579,9 @@ class Analysis:
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self._datalayer._readRecord(time, withMass=OFmass)
+                data = self._datalayer._readRecord(time, withMass=OFmass,withID=withID)
                 for t in range(time+1, time + dt):
-                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass))
+                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass,withID=withID))
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
                 data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
