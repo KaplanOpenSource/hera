@@ -122,8 +122,10 @@ class LSMTemplate:
 
         if stations is not None:
             updated_params.update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
-        if canopy is not None:
-            updated_params.update(canopy=".True.")
+        if canopy is None:
+            updated_params.update(canopy=".FALSE.")
+        else:
+            updated_params.update(canopy=".TRUE.")
 
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
 
