@@ -47,6 +47,7 @@ class LSMTemplate:
         self.xColumn        = "x"
         self.yColumn        = "y"
         self.uColumn        = "u"
+        self.hColumn        = "h"
         self.directionColumn= "direction"
         self.timeColumn     = "datetime"
         self.stationColumn = "station"
@@ -72,7 +73,7 @@ class LSMTemplate:
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self,topography=None, stations=None,overwrite=False,params=dict(),depositionRates=None, saveMode=None,**descriptor):
+    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=None,**descriptor):
         """
         Execute the LSM simulation
 
@@ -121,6 +122,9 @@ class LSMTemplate:
 
         if stations is not None:
             updated_params.update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
+        if canopy is not None:
+            updated_params.update(canopy=".True.")
+
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
 
         yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
@@ -177,6 +181,8 @@ class LSMTemplate:
             stations = stations.rename(columns={self.timeColumn:"datetime"})
             onlyStations = stations.drop(columns=["datetime",self.uColumn,
                                                   self.directionColumn])
+            if self.hColumn in onlyStations.columns:
+                onlyStations = onlyStations.drop(columns=self.hColumn)
 
             stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
 
@@ -209,7 +215,18 @@ class LSMTemplate:
                     j += 1
             with open("STATIONS","w") as newStationFile:
                 newStationFile.write(allStationsFile)
-
+        if canopy is not None:
+            with open("canopy_properties.txt","w") as newCanopyFile:
+                newCanopyFile.write(canopy)
+            if (topography is not None or stations is not None):
+                if self.hColumn not in stations.columns:
+                    raise KeyError("Height column is missing in the stations dataframe")
+                else:
+                    hStations = ""
+                    for h in stations.drop_duplicates(self.stationColumn)[self.hColumn]:
+                        hStations += f"{h} "
+                    with open("h_stations.txt", "w") as newStationFile:
+                        newStationFile.write(hStations)
         # run the model.
         os.system('./a.out')
         if self.to_xarray:
