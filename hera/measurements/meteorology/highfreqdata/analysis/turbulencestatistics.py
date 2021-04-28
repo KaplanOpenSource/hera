@@ -897,10 +897,6 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         return self
 
-    # ====================================================================
-    #								Private
-    # ====================================================================
-
     def _ClassifyStability(self, L):
         """
             According to 1/L categories:
@@ -914,6 +910,8 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         # For Z_0=1 (Irwin1979 Table 1)
         ret = 0
         if L is None:
+            return "No Stability"
+        if numpy.isnan(L):
             return "No Stability"
         if 1. / L < -.0875:
             ret = "very unstable"  # very un stable (A)
@@ -1101,10 +1099,11 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         else:
             raise("mode must be either MeanDir or 3dMeanDir")
 
-        self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
-                                self.Identifier["start"]) & (ubar_data.index < self.Identifier["end"])]
-        self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
-        self._CalculatedParams.append(["u_mag" + title_additions,{}])
+        if "u_mag" not in self.TemporaryData.columns:
+            self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
+                                    self.Identifier["start"]) & (ubar_data.index < self.Identifier["end"])]
+            self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
+            self._CalculatedParams.append(["u_mag" + title_additions,{}])
         return self
 
     def StrucFun_eps(self, tau_range = None, ubar_data = None, u_bar = "u_bar", v_bar = "v_bar", w_bar = "w_bar",
@@ -1221,9 +1220,10 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
                                                         .resample(self.SamplingWindow).mean()
                 self._CalculatedParams.append([col_names[tau],{}])
 
-        self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
-        self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
-        self._CalculatedParams.append(["u_mag" + title_additions,{}])
+        if "u_mag" not in self.TemporaryData.columns:
+            self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
+            self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
+            self._CalculatedParams.append(["u_mag" + title_additions,{}])
 
         return self
 
