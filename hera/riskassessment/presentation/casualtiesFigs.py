@@ -54,7 +54,6 @@ class casualtiesPlot(object):
 			fig = plt.gcf()
 			ax  = fig.add_subplot(*ax,polar=True)
 
-
 		if cycler is None:
 			if weights is None:
 				cycler  = plt.cycler(width=[0.18]*len(severityList))
