@@ -72,3 +72,13 @@ x_coordinate = 264500
 y_coordinate = 766750
 ax, retProj = risk.presentation.plotCasualtiesRose(results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
                                                    mathematical_angles=windAngles, severityList=["Light","Severe"])
+
+#######################
+# One may create different subplots using the ax parameter. This parameter is a list of integers.
+# The first value defines the number of rows, the second the number of column, the third the index of the subplot.
+
+ax, retProj = risk.presentation.plotCasualtiesRose(results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
+                                                   mathematical_angles=windAngles, severityList=["Light"],ax=[1,2,1])
+
+ax2, retProj = risk.presentation.plotCasualtiesRose(results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
+                                                   mathematical_angles=windAngles, severityList=["Severe"],ax=[1,2,2])

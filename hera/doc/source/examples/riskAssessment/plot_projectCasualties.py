@@ -84,9 +84,24 @@ riskAreas = Agent.RegularPopulation.calculate(Concentration, "C", isel={"datetim
 windAngle = 0
 x_coordinate = 263500
 y_coordinate = 766750
-ax, retProj = risk.presentation.plotCasualtiesProjection(results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
-                                             mathematical_angle=windAngle, severityList=["Light","Severe"],
-                                                            cycler=plt.cycler(fc=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(ec=['black']))
+ax, retProj = risk.presentation.plotCasualtiesProjection(
+    results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
+    mathematical_angle=windAngle, severityList=["Light","Severe"],
+    cycler=plt.cycler(fc=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(ec=['black']))
+x,y = KatsrinCityOnly.geometry[0].exterior.xy
+ax.plot(x,y,color="black")
+ax.scatter(x_coordinate,y_coordinate,marker="*",color="red")
+
+#######################
+# For several wind directions on the same plot, one may iterate over a list of directions.
+
+windAngles = [30,-30]
+fig, ax = plt.subplots()
+for windAngle in windAngles:
+    ax, retProj = risk.presentation.plotCasualtiesProjection(
+        results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
+        mathematical_angle=windAngle, severityList=["Light","Severe"], ax=ax,
+        cycler=plt.cycler(fc=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(ec=['black']))
 x,y = KatsrinCityOnly.geometry[0].exterior.xy
 ax.plot(x,y,color="black")
 ax.scatter(x_coordinate,y_coordinate,marker="*",color="red")

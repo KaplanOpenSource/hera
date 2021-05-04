@@ -45,6 +45,7 @@ from unum.units import *
 
 from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
 
+atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
 mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
 torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
 
