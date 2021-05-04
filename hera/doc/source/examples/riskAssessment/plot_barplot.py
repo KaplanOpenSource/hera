@@ -76,10 +76,11 @@ x_coordinate = 263500
 y_coordinate = 766750
 datalist = []
 Qs = [10*kg,20*kg]
+policyNames = ["NoProtection","OpenRooms"]
 indoor = dict(name="indoor",params=dict(turnover=15*min,enter="30s",stay="10min"))
 for Q in Qs:
     Concentration = simulation.getConcentration(Q=Q)
-    for protectionPolicy, policyName in zip([None, indoor],["NoProtection","OpenRooms"]):
+    for protectionPolicy, policyName in zip([None, indoor],policyNames):
         if protectionPolicy is not None:
             Concentration = risk.ProtectionPolicy(actionList=protectionPolicy).compute(Concentration).squeeze().compute()
         riskAreas = Agent.RegularPopulation.calculate(Concentration, "C", isel={"datetime":-1})
@@ -91,7 +92,7 @@ for Q in Qs:
 data = pandas.concat(datalist)
 
 #######################
-# Finally, we will plot the bar plot of the data, seperated by severity level, mass and protection policy,
+# Now, we will plot the bar plot of the data, seperated by severity level, mass and protection policy.
 
 x = "Protection"
 hue = "Q"
@@ -107,3 +108,14 @@ for p in ax.patches[2:4]:
     ax.text(p.get_x()+p.get_width()/2-0.055, p.get_height()+6,f"{Qs[1].asNumber()} kg",fontsize=8)
 ax.set_xlabel("Protection")
 ax.set_ylabel("Number of casualties")
+
+#######################
+# Finally, we may save the figure. In our example we will use the examined variables values in the name.
+
+figName = "compareVariables"
+for policyName in policyNames:
+    figName += f"_{policyName}"
+for Q in Qs:
+    figName += f"_{Q.asNumber()}_kg"
+figName += ".png"
+# plt.savefig(figName)
