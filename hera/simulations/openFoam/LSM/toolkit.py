@@ -162,8 +162,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self.logger.execution(f"Processing {timeName}")
 
         self.logger.info(f"reading {timeName}")
-        #newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalSigmaPositions", ['x', 'y', 'z'])
-        newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalPositions", ['x', 'y', 'z'])
+        newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalSigmaPositions", ['x', 'y', 'z'])
         if withID:
             dataID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origId", ['id'],vector=False)
             newData['id'] = dataID['id'].astype(numpy.int64)
@@ -361,7 +360,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  "    object      kinematicCloudPositions;\n}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
                  f"{nParticles}\n(\n"
-        source = self.sources.getSource(x=x,y=y,z=z,nParticles=nParticles,type=type,**kwargs)
+        source = self.sourcesFactory.getSource(x=x,y=y,z=z,nParticles=nParticles,type=type,**kwargs)
         for i in range(nParticles):
             string += f"({source.loc[i].x} {source.loc[i].y} {source.loc[i].z})\n"
         string += ")\n"
@@ -494,11 +493,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
                 newFileString = ""
                 data = data.reset_index()
-                if savePandas:
-                    data.to_parquet(os.path.join(self.casePath, f"{fileName}_{time}.parquet"), compression="gzip")
-                    if addToDB:
-                        self.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
-                                           type="ustar", desc={"casePath": self.casePath, "time": time})
+                # if savePandas:
+                #     data.to_parquet(os.path.join(self.casePath, f"{fileName}_{time}.parquet"), compression="gzip")
+                #     if addToDB:
+                #         self.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
+                #                            type="ustar", desc={"casePath": self.casePath, "time": time})
             else:
                 data = documents[0].getData(usePandas=True)
             for i in range(cellStart):
@@ -522,7 +521,7 @@ class Analysis:
     def __init__(self,datalayer):
         self._datalayer = datalayer
 
-    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
+    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s, loc=None,
                          Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None,withID=False, **kwargs):
         """
         Calculates the concentration of dispersed particles.
@@ -587,8 +586,13 @@ class Analysis:
                 data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
                 data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
                 if OFmass:
-                    data = data.groupby(["x","y","z","time"]).sum()
+                    data = data.groupby(["x","y","z","time"]).sum().reset_index()
+
                     data["mass"] = data["mass"] * tonumber(tounum(1*kg, Qunits), Qunits)
+                    if time==startTime:
+                        Qinsim = data.mass.sum() / dt
+                        Qratio = Q / Qinsim
+                    data["mass"] = data["mass"] * Qratio
                     data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
                     if type(Q)==list:
@@ -597,15 +601,13 @@ class Analysis:
                         data["Q"] = Q
                     data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
                     data = data.drop(columns="Q")
-                    data = data.groupby(["x","y","z","time"]).sum()
+                    data = data.groupby(["x","y","z","time"]).sum().reset_index()
+                if loc is not None:
+                    data = data.loc[data[loc[0]]==loc[1]]
                 data["Concentration"] = data["Dosage"] / dt
                 datalist.append(data)
                 print(f"Finished times {time} to {time+dt}")
             data = pandas.concat(datalist).reset_index()
-
-            if OFmass:
-                Q = data.loc[data.time==data.time.min()].mass.sum()/dt
-                print(f"Q = {tounum(Q,Qunits)} (extracted from the simulation itself)")
             if save:
                 cur = os.getcwd()
                 file = os.path.join(cur,f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
