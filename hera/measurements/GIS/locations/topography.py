@@ -251,6 +251,8 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
                     regionDoc.resource = fullfileNames
                     regionDoc.desc = additionalData
                     regionDoc.save()
+            else:
+                regionDoc = None
         else:
             regionDoc = None
 
