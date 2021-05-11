@@ -144,7 +144,7 @@ class RawdataAnalysis:
         """
 
 
-        identifier = {'projectName': self.project.getProjectName(),
+        identifier = {'projectName': self.project.projectName,
                       'samplingWindow': samplingWindow,
                       'station': None,
                       'instrument': None,
