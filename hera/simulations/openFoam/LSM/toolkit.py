@@ -147,7 +147,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         return newData.astype(float)
 
-    def _readRecord(self,timeName,withVelocity=False,withReleaseTimes=False,withMass=False, withID=True):
+    def _readRecord(self,timeName,withVelocity=False,withReleaseTimes=False,withMass=False, withID=True,sigmaCoordinates=True):
 
         columnsDict=dict(x=[],y=[],z=[],id=[],procId=[])
         if withMass:
@@ -162,7 +162,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self.logger.execution(f"Processing {timeName}")
 
         self.logger.info(f"reading {timeName}")
-        newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/globalSigmaPositions", ['x', 'y', 'z'])
+        positionsFile = "globalSigmaPositions" if sigmaCoordinates else "globalPositions"
+        newData = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/{positionsFile}", ['x', 'y', 'z'])
         if withID:
             dataID  = self._extractFile(f"{self.casePath}/{timeName}/lagrangian/{self.cloudName}/origId", ['id'],vector=False)
             newData['id'] = dataID['id'].astype(numpy.int64)
@@ -521,7 +522,7 @@ class Analysis:
     def __init__(self,datalayer):
         self._datalayer = datalayer
 
-    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s, loc=None,
+    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s, loc=None, sigmaCoordinates=True,
                          Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None,withID=False, **kwargs):
         """
         Calculates the concentration of dispersed particles.
@@ -578,9 +579,9 @@ class Analysis:
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self._datalayer._readRecord(time, withMass=OFmass,withID=withID)
+                data = self._datalayer._readRecord(time, withMass=OFmass,withID=withID,sigmaCoordinates=sigmaCoordinates)
                 for t in range(time+1, time + dt):
-                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass,withID=withID))
+                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass,withID=withID,sigmaCoordinates=sigmaCoordinates))
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
                 data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
