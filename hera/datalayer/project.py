@@ -98,6 +98,10 @@ class Project(loggedObject):
         """
         return self._simulations
 
+    @property
+    def projectName(self):
+        return self._projectName
+
     def __init__(self, projectName, databaseName=None):
         """
             Initialize the project.
