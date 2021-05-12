@@ -59,6 +59,7 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 Next Version 
 ============
+    - Adding 'dict' data format to the datalayer. In this format, the data is stored as the dictionary in the resource.  
     - Adding some things to the openFOAM package. 
     - allow the project to specify the logger name.         
 

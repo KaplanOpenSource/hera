@@ -2,8 +2,180 @@ import os
 import glob
 import struct
 import pandas
+import json
 import dask.dataframe as dd
 
+
+class Parser_OldStyleMetaDataParquet():
+
+    def __init__(self):
+
+        pass
+
+
+    def parse(self, pathToData):
+
+        """
+
+        This format has 2 meta data files:
+
+            * metadata.json - holds the information on all the stations and devices in the campaign.
+            * campaignDescription.json - holds the path to the parquet files of the campaign.
+
+
+        This function changes the format of the JSON to the new format
+        that is easier to load to the Database.
+
+        Parameters
+        -----------
+        pathToData: str
+                The path to the directory that holds the meta data files.
+
+        Returns
+        -------
+
+            A map of:
+
+                Stations: { the metadata for the stations } (JSON, or pandas)
+                Devices: [ A list of the metadata of each device, remember to add the folder name of the parquet  (the resource). ].
+
+        """
+
+        MDpath = os.path.join(pathToData,'metadata.json')
+        with open(MDpath) as f:
+            metadata = json.load(f)
+
+        Descriptionpath = os.path.join(pathToData, 'campaignDescription.json')
+        with open(Descriptionpath) as f:
+            descriptionData = json.load(f)
+
+
+        metadataNew= self.getExperimentDict(metadata,descriptionData)
+
+        Experiment=dict()
+
+        Experiment[descriptionData['campaignName']]=dict(Stations=descriptionData['stationLocations'],
+                                                     devices=metadataNew['devices'],
+                                                     trials=metadataNew['trials'],
+                                                     assets=metadataNew['assets'])
+
+        return Experiment
+
+    def getExperimentDict(self,metadata,descriptionData):
+        """
+            creates a dictionary from trials and devices data.
+
+        parameters
+        ----------
+
+        Returns
+        -------
+        expDict
+            the resulted dictionary
+        """
+
+        devicesList,trialsList, assetsDict = self._getLists(metadata,descriptionData)
+
+        # expDict=dict()
+        expDict=dict(trials  = trialsList,
+                     devices = devicesList,
+                     assets = assetsDict)
+
+        return expDict
+
+
+    def _getLists(self,metadata,descriptionData):
+
+        """
+            creates a devices and trials list from metadata.
+
+        parameters
+        ----------
+
+        Returns
+        -------
+        devicesList
+            the devices list data
+        trialsList
+            the trials list data
+        """
+
+        trialsList = []
+        devicesList = []
+        assetsDict=dict()
+
+        stationsData = pandas.DataFrame.from_dict(descriptionData['stationLocations'])\
+            .reset_index()\
+            .rename(columns={"index": "station_name"})
+
+        trialName = 'measurement1'
+        trialSet  = 'measurement'
+
+        devicePropertiesDict = dict()
+        trialPropertiesDict = dict()
+
+        count_Sonic = 0
+        count_TRH = 0
+
+        for stn in metadata['stations'].keys():
+            stnmd = metadata['stations'][stn]
+            stndata = stationsData.query("station_name==@stn")
+
+            entityList = []
+            typeList = []
+
+            for i,inst in enumerate(stnmd['instruments'].keys()):
+
+                for devHgt in stnmd['instruments'][inst]:
+
+                    if inst == 'Sonic':
+                        count_Sonic += 1
+                    if inst == 'TRH':
+                        count_TRH += 1
+                    counter=eval(f'count_{inst}')
+                    deviceName= f'{inst}_{counter}'
+                    deviceDataPath=os.path.join(descriptionData['pathToData'],stn,inst,devHgt)
+
+                    entityList.append(deviceName)
+                    typeList.append(inst)
+
+
+                    deviceDesignDict = dict(name=deviceName,
+                                            deviceLocation=stn,
+                                            deviceCoords=[stndata['lat'].item(), stndata['lon'].item()],
+                                            deviceHeight=devHgt)
+
+
+                    devicesList.append(dict(deviceName=deviceName,
+                                            deviceType=inst,
+                                            properties=devicePropertiesDict,
+                                            trials=dict(name=trialName,
+                                                        design=deviceDesignDict,
+                                                        deploy=deviceDesignDict),
+                                            deviceDataPath=deviceDataPath
+                                            )
+                                       )
+
+            assetTrialDict = dict()
+            assetTrialDict[trialName] = dict(entities=entityList,
+                                                 types=typeList)
+
+            assetsDict[stn]=dict(name=stn,
+                                 codeName=stndata['station_code'].item(),
+                                 properties=dict(coords=[stndata['lat'].item(), stndata['lon'].item()],
+                                                 avgAreaBuildingsHgt=stnmd['averagedHeight'],
+                                                 buildingHgt=stnmd['buildingHeight']),
+                                 trials=assetTrialDict)
+
+
+        trialsList.append(dict(trialSet=trialSet,
+                               trialName=trialName,
+                               properties = dict(
+                                   trialStnProps=trialPropertiesDict)
+                               )
+                          )
+
+        return devicesList, trialsList, assetsDict
 
 class Parser_CampbellBinary(object):
     _lut = None
@@ -100,10 +272,8 @@ class Parser_TOA5(object):
         pass
 
 
-#############################################################
 
-
-
+############################## Private ###############################
 class CampbellBinaryInterface(object):
     _file = None
     _binData = None

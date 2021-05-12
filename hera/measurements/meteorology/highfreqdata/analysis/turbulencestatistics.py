@@ -10,9 +10,9 @@ from .abstractcalculator import AbstractCalculator
 class singlePointTurbulenceStatistics(AbstractCalculator):
     _isMissingData = False
 
-    def __init__(self, rawData, metadata, identifier, isMissingData=False):
+    def __init__(self, rawData, metadata, isMissingData=False):
         self._isMissingData = isMissingData
-        super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata, identifier=identifier)
+        super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata)
 
     def fluctuations(self, inMemory=None):
         """
@@ -826,10 +826,10 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if 'zOverL' not in self._TemporaryData.columns:
             self.MOLength()
 
-            H = int(self.Identifier['buildingHeight'])
-            instrumentHeight = int(self.Identifier['height'])
+            H = int(self.metaData['buildingHeight'])
+            instrumentHeight = int(self.metaData['height'])
             # averagedHeight = H  # see warning.
-            averagedHeight = int(self.Identifier['averagedHeight'])
+            averagedHeight = int(self.metaData['averagedHeight'])
             effectivez = instrumentHeight + H - 0.7 * averagedHeight
             zOverL = effectivez / self._TemporaryData['L']
             self._TemporaryData['zOverL'] = zOverL
@@ -978,11 +978,11 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         # Extracting the supplied direction data of ui,uj:
         dir1_data_new = dir1_data[[u_dir1,v_dir1,w_dir1]]\
                        .rename(columns = {u_dir1: "u_dir1", v_dir1: "v_dir1", w_dir1: "w_dir1"})\
-                       .loc[(dir1_data.index >= self.Identifier["start"]) & (dir1_data.index < self.Identifier["end"])]
+                       .loc[(dir1_data.index >= self.metaData["start"]) & (dir1_data.index < self.metaData["end"])]
 
         dir2_data_new = dir2_data[[u_dir2, v_dir2, w_dir2]] \
             .rename(columns={u_dir2: "u_dir2", v_dir2: "v_dir2", w_dir2: "w_dir2"}) \
-            .loc[(dir2_data.index >= self.Identifier["start"]) & (dir2_data.index < self.Identifier["end"])]
+            .loc[(dir2_data.index >= self.metaData["start"]) & (dir2_data.index < self.metaData["end"])]
 
         # Computing the magnitude of the direction vectors and normalizing them:
         dir1_data_new["dir1_mag"] = (dir1_data_new["u_dir1"] ** 2 + dir1_data_new["v_dir1"] ** 2 + dir1_data_new["w_dir1"] ** 2) ** 0.5
@@ -1102,7 +1102,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             raise("mode must be either MeanDir or 3dMeanDir")
 
         self._TemporaryData["u_mag" + title_additions] = ((ubar_data[u_bar] ** 2 + ubar_data[v_bar] ** 2 + ubar_data[w_bar] ** 2) ** 0.5).loc[(ubar_data.index >=
-                                self.Identifier["start"]) & (ubar_data.index < self.Identifier["end"])]
+                                                                                                                                               self.metaData["start"]) & (ubar_data.index < self.metaData["end"])]
         self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
         self._CalculatedParams.append(["u_mag" + title_additions,{}])
         return self
@@ -1185,7 +1185,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         # Extracting the supplied mean velocity data:
         dir_data = ubar_data[[u_bar,v_bar,w_bar]].rename(columns={u_bar: "u_dir", v_bar: "v_dir", w_bar: "w_dir"}).loc[
-            (ubar_data.index >=self.Identifier["start"]) & (ubar_data.index < self.Identifier["end"])]
+            (ubar_data.index >= self.metaData["start"]) & (ubar_data.index < self.metaData["end"])]
 
         # Computing the velocity magnitude and normalizing the velocity vectors:
         dir_data["u_mag"] = (dir_data["u_dir"] ** 2 + dir_data["v_dir"] ** 2 + dir_data["w_dir"] ** 2) ** 0.5
