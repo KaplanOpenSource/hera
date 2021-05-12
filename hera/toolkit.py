@@ -50,7 +50,7 @@ class ToolkitHome:
         )
 
 
-    def getToolkit(self,toolkitName,projectName,**kwargs):
+    def getToolkit(self,toolkitName,projectName,FilesDirectory=None,**kwargs):
         """
             Returns a toolkit for the requested project.
 
@@ -58,6 +58,11 @@ class ToolkitHome:
         -----------
         projectName: str
             The name of the project
+
+
+        FilesDirectory: str
+            The directory to save file (if necessary).
+            If None, use the current directory.
 
         kwargs: dict
             The parameters for the toolkit.
@@ -71,7 +76,7 @@ class ToolkitHome:
             raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
 
         clsName = self._toolkits[toolkitName]['cls']
-        tookit = pydoc.locate(clsName)(projectName,**kwargs)
+        tookit = pydoc.locate(clsName)(projectName,FilesDirectory=FilesDirectory,**kwargs)
         return tookit
 
 
@@ -242,7 +247,7 @@ class abstractToolkit(Project):
         ret = []
         for doc in docList:
             ret.append(dict(datasourceName=doc.desc[TOOLKIT_DATASOURCE_NAME],
-                            version=f"({','.join(doc.desc[TOOLKIT_DATASOURCE_VERSION])}",
+                            version=  str(doc.desc[TOOLKIT_DATASOURCE_VERSION]),
                             toolkit = doc.desc['toolkit'],
                             dataFormat=doc['dataFormat'],
                             resource=doc['resource']
