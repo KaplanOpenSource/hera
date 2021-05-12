@@ -199,7 +199,7 @@ class experimentToolKit(toolkit.abstractToolkit):
         return self.getDataSourceTable()
 
     def getExperiment(self,experimentName):
-        return experiment(self.projectName,experimentName=experimentName)
+        return experimentDataLayer(self.projectName, experimentName=experimentName)
 
     def keys(self):
         return [x for x in self.getExperimentsMap()]
@@ -221,7 +221,7 @@ class experimentToolKit(toolkit.abstractToolkit):
         return self.getExperiment(item)
 
 
-class experiment(datalayer.Project):
+class experimentDataLayer(datalayer.Project):
 
     def __init__(self, projectName, experimentName):
 
