@@ -80,7 +80,6 @@ class experimentToolKit(toolkit.abstractToolkit):
             if not (L) or (L and overWrite):
                 delList=self.deleteDataSourceDocuments(datasourceName=experiment)
 
-
                 for delDoc in delList:
 
                     self.logger.info("deleted experiment document:")
@@ -119,7 +118,8 @@ class experimentToolKit(toolkit.abstractToolkit):
                 if not (os.path.exists(path)):
                     raise FileNotFoundError("Wrong folder path")
                 else:
-                    print(f'{path} path to {entity} data from {entityDict["trials"]["deploy"]["deviceLocation"]} is O.K')
+
+                    print(f'{path} path to {entity} data  is O.K')
 
                 L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES, deviceName=entity)
 
@@ -223,6 +223,10 @@ class experimentToolKit(toolkit.abstractToolkit):
 
 class experimentDataLayer(datalayer.Project):
 
+    DOCTYPE_ASSETS = 'AssetsData'
+    DOCTYPE_DEVICES = 'DevicesData'
+
+
     def __init__(self, projectName, experimentName):
 
         super().__init__(projectName=projectName)
@@ -230,13 +234,13 @@ class experimentDataLayer(datalayer.Project):
         self.experimentName = experimentName
 
 
-    def getAssetsList(self):
+    def getAssetsMap(self):
         L = self.getMeasurementsDocuments(type=self.DOCTYPE_ASSETS)
         return L[0].getData()
 
     def getAssetsTable(self):
         Table=[]
-        for Asset,assetdata in self.getAssetsList().items():
+        for Asset,assetdata in self.getAssetsMap().items():
             table=pandas.json_normalize(assetdata)
             Table.append(table)
 
@@ -246,7 +250,7 @@ class experimentDataLayer(datalayer.Project):
     def getDevices(self):
 
         devicesDict=dict()
-        L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES, campaign=self.experimentName)
+        L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES, experiment=self.experimentName)
         for device in L:
             d=dict(device.desc)
             key=d['deviceName']
