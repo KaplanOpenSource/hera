@@ -79,7 +79,7 @@ class AbstractCollection(object):
         return self._metadataCol.objects(**query)
 
     def _getAllValueByKey(self, key, **query):
-        return [doc[key] for doc in self.getDocuments(projectName=None, **query)]
+        return list(set([doc[key] for doc in self.getDocuments(projectName=None, **query)]))
 
     def getProjectList(self):
         return self._getAllValueByKey(key='projectName')
@@ -150,10 +150,17 @@ class AbstractCollection(object):
 
         Returns
         -------
+        list
+
+        dictionary with the data that was removed.
 
         """
+        deletedDocs = []
         for doc in self.getDocuments(projectName=projectName, **query):
+            deletedDocs.append(doc.asDict(with_id=True))
             doc.delete()
+
+        return deletedDocs
 
     def deleteDocumentByID(self, id):
         """
@@ -166,11 +173,19 @@ class AbstractCollection(object):
 
         Returns
         -------
+        dict.
+
+        The record that was deleted.
 
         """
+
+
+
         doc = self.getDocumentByID(id=id)
+        deletedDoc = doc.asDict(with_id=True)
         doc.delete()
-        return doc
+
+        return deletedDoc
 
     def getData(self, projectName, usePandas=None, **kwargs):
         """
@@ -187,9 +202,9 @@ class AbstractCollection(object):
                       'use getDocuments to get documents and use getData of the document object' ,DeprecationWarning)
         docList = self.getDocuments(projectName=projectName, **kwargs)
         if usePandas is None:
-            return [doc.getData() for doc in docList]
+            return [doc.getDocFromDB() for doc in docList]
         else:
-            return [doc.getData(usePandas=usePandas) for doc in docList]
+            return [doc.getDocFromDB(usePandas=usePandas) for doc in docList]
 
 
 class Measurements_Collection(AbstractCollection):

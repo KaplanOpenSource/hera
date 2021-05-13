@@ -5,6 +5,10 @@ import json
 import geopandas
 import matplotlib.image as mpimg
 import sys
+import pickle
+import io
+import rasterio
+
 version = sys.version_info[0]
 if version == 3:
     from json import JSONDecodeError
@@ -19,9 +23,12 @@ class datatypes:
     NETCDF_XARRAY = "netcdf_xarray"
     JSON_DICT = "JSON_dict"
     JSON_PANDAS = "JSON_pandas"
+    JSON_GEOPANDAS = "JSON_geopandas"
     GEOPANDAS  = "geopandas"
     PARQUET    =  "parquet"
     IMAGE = "image"
+    PICKLE = "pickle"
+
 
 def getHandler(type):
     return globals()['DataHandler_%s' % type]
@@ -207,6 +214,13 @@ class DataHandler_JSON_pandas(object):
         return df
 
 
+class DataHandler_JSON_geopandas(object):
+    @staticmethod
+    def getData(resource):
+        df = geopandas.GeoDataFrame.from_features(pandas.read_json(resource)["features"])
+        return df
+
+
 class DataHandler_geopandas(object):
     @staticmethod
     def getData(resource):
@@ -234,8 +248,8 @@ class DataHandler_parquet(object):
         -------
         dask.Dataframe or pandas.DataFrame
         """
-        df = dask.dataframe.read_parquet(resource)
 
+        df = dask.dataframe.read_parquet(resource)
         if usePandas:
             df = df.compute()
 
@@ -261,3 +275,44 @@ class DataHandler_image(object):
         img = mpimg.imread(resource)
 
         return img
+
+
+class DataHandler_pickle(object):
+
+    @staticmethod
+    def getData(resource):
+        """
+        Loads an pickled object using the resource.
+
+        Parameters
+        ----------
+        resource : str
+            The path to the pickled object
+
+        Returns
+        -------
+        img
+        """
+        obj = pickle.load(resource)
+
+        return obj
+
+class DataHandler_tif(object):
+
+    @staticmethod
+    def getData(resource):
+        """
+        Loads an pickled object using the resource.
+
+        Parameters
+        ----------
+        resource : str
+            The path to the pickled object
+
+        Returns
+        -------
+        img
+        """
+        obj = rasterio.open(resource)
+
+        return obj

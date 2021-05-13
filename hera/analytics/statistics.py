@@ -9,22 +9,30 @@ def calcDist2d(x, y, data=None, bins=20, normalization="max_normalized"):
 
     Parameters
     ----------
-    data : Pandas of the data.
+    data : Pandas
+            the data.
+
     x: str or numpy array or series
+
     y: str or numpy array or series
+
     bins: number of bins for hist2d.
+
     normalization:  the normalization method: density or y_normalized or max_normalized
 
         max_normalized - normalize the data by the maximal value of the histogram to make 1 the maximum value.
-        y_normalized - normalize the data by group of x values to make the data proportional to the rest of the group values.
-        density- ???
+        y_normalized   - normalize the data by group of x values to make the data proportional to the rest of the group values.
+        density        - normalize the data by the dXdY of the data. assume the data is equidistant.
 
 
     Returns
     -------
-    x_mid- The bin center along the x axis
-    , y_mid-The bin center along the y axis
-     M.T- transpose of the 2D histogram
+    tuple with 3 values:
+    (x_mid,y_mid,M.T)
+
+     x_mid: The bin center along the x axis.
+     y_mid: The bin center along the y axis.
+     M.T:   Transpose of the 2D histogram.
     """
 
     tmpfig = plt.figure()
@@ -38,7 +46,6 @@ def calcDist2d(x, y, data=None, bins=20, normalization="max_normalized"):
     else:
         xdata = x;
         ydata = y;
-
 
     M, x_vals, y_vals, _ = plt.hist2d(xdata, ydata, bins=bins)
     plt.close(tmpfig)
