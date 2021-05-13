@@ -149,9 +149,9 @@ class Parser_OldStyleMetaDataParquet():
                     devicesList.append(dict(deviceName=deviceName,
                                             deviceType=inst,
                                             properties=devicePropertiesDict,
-                                            trials=dict(name=trialName,
-                                                        design=deviceDesignDict,
-                                                        deploy=deviceDesignDict),
+                                            trials={trialName : dict(design=deviceDesignDict,
+                                                                     deploy=deviceDesignDict)
+                                                   },
                                             deviceDataPath=deviceDataPath
                                             )
                                        )
