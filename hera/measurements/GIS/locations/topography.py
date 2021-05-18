@@ -404,12 +404,21 @@ class analysis():
         ny = int((groundData[coord2].max() - groundData[coord2].min()) / resolution)
         xarrayGround = coordinateHandler.regularizeTimeSteps(data=groundData, fieldList=[coord3],coord1=coord1, coord2=coord2, n=(nx,ny), addSurface=False, toPandas=False)[0]
         ground = []
+        valuesDict = {}
         for i in range(len(data)):
             x = data.loc[i][coord1]
             y = data.loc[i][coord2]
-            ground.append(float(xarrayGround.interp(**{coord1:x,coord2:y}).fillna(fillna)[coord3]))
+            if x not in valuesDict.keys():
+                valuesDict[x] = {}
+            if y in valuesDict[x].keys():
+                ground.append(valuesDict[x][y])
+            else:
+                val = float(xarrayGround.interp(**{coord1:x,coord2:y}).fillna(fillna)[coord3])
+                ground.append(val)
+                valuesDict[x][y] = val
             if i > 9999 and i % 10000 == 0:
-                print(i)
+                print(f"Finished calculation for {i} cells")
+
         data["ground"]=ground
         data["height"] = data[coord3] - data["ground"]
         data.loc[data.height < 0, "height"] = 0

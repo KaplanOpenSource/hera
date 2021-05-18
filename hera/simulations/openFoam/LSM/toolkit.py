@@ -480,11 +480,21 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 fillD = xarrayD[dColumn].mean()
                 unearground = []
                 ds = []
+                valuesDict = {}
                 for i in range(len(data)):
                     x = data.loc[i].x
                     y = data.loc[i].y
-                    unearground.append(float(xarrayU.interp(x= x, y= y).fillna(fillU).U))
-                    ds.append(float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn]))
+                    if x not in valuesDict.keys():
+                        valuesDict[x] = {}
+                    if y in valuesDict[x].keys():
+                        unearground.append(valuesDict[x][y]["u"])
+                        ds.append(valuesDict[x][y]["d"])
+                    else:
+                        valuesDict[x][y] = {}
+                        uVal = float(xarrayU.interp(x= x, y= y).fillna(fillU).U)
+                        dVal = float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn])
+                        valuesDict[x][y]["u"] = uVal
+                        valuesDict[x][y]["d"] = dVal
                     if i > 9999 and i % 10000 == 0:
                         print(i)
                 data["UnearGround"] = unearground
