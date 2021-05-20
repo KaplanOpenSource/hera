@@ -23,7 +23,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
         -
 
         TODO:
-            Complete the other parsers from the older versions.
+            Complete the other parsers_old from the older versions.
 
     """
 
@@ -47,7 +47,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
         """
         self.logger.info("Init Low frequency data")
 
-        super().__init__(projectName=projectName,toolkitName="lowfreqmeteorology")
+        super().__init__(projectName=projectName,toolkitName="lowFreqMeteorology")
 
         self._analysis = analysis(self)
         self._presentation = presenation(self,self.analysis)
@@ -97,7 +97,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
         parser: str
             The name of the parser to use
 
-            current parsers available:
+            current parsers_old available:
                 - IMS
 
         additional_data: dictdata to store in the DB metadata.
@@ -113,7 +113,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
         if isinstance(fileNameOrData,str):
             pathToData = os.path.abspath(fileNameOrData)
             className = ".".join(__class__.__module__.split(".")[:-1])
-            parserPath = f"{className}.parsers.Parser_{parser}"
+            parserPath = f"{className}.parsers_old.Parser_{parser}"
             parserCls = pydoc.locate(parserPath)
             parser = parserCls()
 
@@ -185,14 +185,14 @@ class lowFreqToolKit(toolkit.abstractToolkit):
 
     def parserList(self):
         """
-            Return the list of parsers.
+            Return the list of parsers_old.
 
         Returns
         -------
             list of str
         """
         className = ".".join(__class__.__module__.split(".")[:-1])
-        parserPath = f"{className}.parsers"
+        parserPath = f"{className}.parsers_old"
         mod = pydoc.locate(parserPath)
         return [x.split("_")[1] for x in dir(mod) if x.startswith("Parser_")]
 

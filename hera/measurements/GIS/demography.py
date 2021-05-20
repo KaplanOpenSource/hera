@@ -8,8 +8,6 @@ from .locations.buildings import BuildingsToolkit
 
 from ...toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
-
-
 class DemographyToolkit(toolkit.abstractToolkit):
     """
         A toolkit to manage demography data

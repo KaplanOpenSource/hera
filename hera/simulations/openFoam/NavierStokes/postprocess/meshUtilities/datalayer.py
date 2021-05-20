@@ -1,4 +1,4 @@
-from hera.datalayer import project
+from .....datalayer import project
 from .analysis import analysis
 from .presentation import presentation
 import os
@@ -17,7 +17,7 @@ class datalayer(project.ProjectMultiDBPublic):
     def analysis(self):
         return self._analysis
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="postProcess"):
+    def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="postprocess"):
 
         self._projectName = projectName
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
