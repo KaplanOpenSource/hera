@@ -57,7 +57,9 @@ class Parser_OldStyleMetaDataParquet():
         Experiment[descriptionData['campaignName']]=dict(Stations=descriptionData['stationLocations'],
                                                      devices=metadataNew['devices'],
                                                      trials=metadataNew['trials'],
-                                                     assets=metadataNew['assets'])
+                                                     assets=metadataNew['assets'],
+                                                    toolkitHandler=descriptionData['toolkitHandler'])
+
 
         return Experiment
 

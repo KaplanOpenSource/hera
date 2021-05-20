@@ -5,6 +5,7 @@ import os
 import pydoc
 import pandas
 import dask
+import sys
 
 
 
@@ -69,7 +70,6 @@ class experimentToolKit(toolkit.abstractToolkit):
 
         # adds to the db.  (with self.addMeasurementDocument).
 
-
         for experiment, experimentData in experimentMetadata.items():
 
             D = experimentData['devices']
@@ -87,7 +87,9 @@ class experimentToolKit(toolkit.abstractToolkit):
 
                 self.addDataSource(dataSourceName=experiment,
                                    resource=experimentData.get('properties',{}),
-                                   dataFormat=datalayer.datatypes.DICT)
+                                   dataFormat=datalayer.datatypes.DICT,
+                                   handlerPath=fileNameOrData,
+                                   handlerClass=experimentData['toolkitHandler'])
 
             # create the assets
             L = self.getMeasurementsDocuments(type=self.DOCTYPE_ASSETS,
@@ -121,12 +123,15 @@ class experimentToolKit(toolkit.abstractToolkit):
 
                     print(f'{path} path to {entity} data  is O.K')
 
-                L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES, deviceName=entity)
+                L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES,
+                                                  deviceName=entity,
+                                                  experiment=experiment)
 
                 if not (L) or (L and overWrite):
 
                     delList = self.deleteMeasurementsDocuments(type=self.DOCTYPE_DEVICES,
-                                                               deviceName=entity)
+                                                               deviceName=entity,
+                                                               experiment=experiment)
                     for deldoc in delList:
                         print("delete devices document")
                         print(json.dumps(deldoc, indent=4, sort_keys=True))
@@ -199,7 +204,30 @@ class experimentToolKit(toolkit.abstractToolkit):
         return self.getDataSourceTable()
 
     def getExperiment(self,experimentName):
-        return experimentDataLayer(self.projectName, experimentName=experimentName)
+
+        try:
+            L = self.getDatasourceDocument(datasourceName=experimentName)
+            path=L.desc['handlerPath']
+            sys.path.append(path)
+
+            toolkit=L.desc['handlerClass']
+            toolkitCls=pydoc.locate(toolkit)
+            return toolkitCls(experimentDataLayer)
+
+        except:
+            return experimentDataLayer(self.projectName, experimentName=experimentName)
+
+
+        # get the experiment data source.
+        # get the experiemt path from data source
+        # add it to the python path (sys.path.append)
+        # get the handler class name
+        # get the handler with pydoc.
+
+        # if anything fails:
+        #       return the experimentDataLayer
+
+        # return experimentDataLayer(self.projectName, experimentName=experimentName)
 
     def keys(self):
         return [x for x in self.getExperimentsMap()]
@@ -235,7 +263,8 @@ class experimentDataLayer(datalayer.Project):
 
 
     def getAssetsMap(self):
-        L = self.getMeasurementsDocuments(type=self.DOCTYPE_ASSETS)
+        L = self.getMeasurementsDocuments(type=self.DOCTYPE_ASSETS,
+                                          experiment=self.experimentName)
         return L[0].getData()
 
     def getAssetsTable(self):
@@ -250,7 +279,8 @@ class experimentDataLayer(datalayer.Project):
     def getDevices(self):
 
         devicesDict=dict()
-        L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES, experiment=self.experimentName)
+        L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES,
+                                          experiment=self.experimentName)
         for device in L:
             d=dict(device.desc)
             key=d['deviceName']
@@ -271,17 +301,18 @@ class experimentDataLayer(datalayer.Project):
         return pandas.concat((Table))
 
 
-    def getDevicesDocument(self):
+    def getDevicesDocument(self,deviceName,**kwargs):
+        """
 
+        deviceName:
+        :param kwargs:
+        :return:
+        """
+        self.getMeasurementsDocuments()
         pass
 
-    def getDevicesDocumnt(self):
 
-        pass
 
-    def getAssetsList(self):
-
-        pass
 
 class analysis():
 
