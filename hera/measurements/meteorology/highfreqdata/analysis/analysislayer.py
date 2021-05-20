@@ -74,7 +74,7 @@ class RawdataAnalysis:
                       }
         identifier.update(kwargs)
 
-        if isinstance(deviceNameOrData,pandas.DataFrame) or isinstance(deviceNameOrData,dask.dataframe):
+        if isinstance(deviceNameOrData,pandas.DataFrame) or isinstance(deviceNameOrData,dask.dataframe.DataFrame):
 
             rawData=deviceNameOrData
 
