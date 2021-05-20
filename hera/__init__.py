@@ -59,8 +59,10 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 Next Version 
 ============
 
-    - Fixed some bugs in the OF-LSM reading files. 
-
+     
+    - of-lsm toolkit:
+        * Fixed some bugs in the OF-LSM reading files.
+        * Changed getSource to makeSource
 
 2.0.2
 -----
