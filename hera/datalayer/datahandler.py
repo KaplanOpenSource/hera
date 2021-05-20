@@ -28,6 +28,7 @@ class datatypes:
     PARQUET    =  "parquet"
     IMAGE = "image"
     PICKLE = "pickle"
+    DICT   = "dict"
 
 
 def getHandler(type):
@@ -296,6 +297,25 @@ class DataHandler_pickle(object):
         obj = pickle.load(resource)
 
         return obj
+
+class DataHandler_dict(object):
+
+    @staticmethod
+    def getData(resource):
+        """
+        The resource is a dict.
+
+        Parameters
+        ----------
+        resource : dict
+            The resrouce
+
+        Returns
+        -------
+        dict
+        """
+        return dict(resource)
+
 
 class DataHandler_tif(object):
 

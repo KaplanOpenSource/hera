@@ -112,7 +112,7 @@ class riskAreaAlgorithm_Sweep(object):
 
 	def _doCalculation(self,releaseLoc,params):
 		effectIsopleths = params["effectIsopleths"]
-		projected = effectIsopleths.project(params["demog"],releaseLoc,mathematical_angle=params["rotate_angle"])
+		projected = effectIsopleths.datalayer(params["demog"], releaseLoc, mathematical_angle=params["rotate_angle"])
 		if projected is not None:
 			data = projected.groupby(["severity", "datetime"]).sum().reset_index()[['severity', 'datetime', params["valueColumn"]]]
 			data['x'] = releaseLoc[0]

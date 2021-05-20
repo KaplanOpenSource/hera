@@ -3,10 +3,10 @@ import xarray
 import os
 import dask
 
-class openfoam_Datalayer():
+class openfoam_Datalayer(object):
 
 
-    def getDocfromfile(self,path,dataFormat='xarray',**kwargs):
+    def getDocFromFile(self,path,dataFormat='xarray',**kwargs):
         if dataFormat=='xarray':
             dataFormat='netcdf_xarray'
             data= xarray.open_mfdataset(os.path.join(path,'*.nc'), combine='by_coords')
@@ -22,6 +22,13 @@ class openfoam_Datalayer():
 
 
 
-    def getfromdb(self):
+    def getDocFromDB(self):
 
         pass
+
+    def getNodeList(self,doc):
+        try:
+            nodeList=doc.desc['OF_workflow']['workflow']['nodeList']
+            return list(nodeList)
+        except:
+            print(f"doc is from type {doc.type} and does not have 'OF_workflow' key")

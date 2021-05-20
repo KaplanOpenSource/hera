@@ -5,17 +5,16 @@ from .....  import datalayer
 
 class AbstractCalculator(object):
     _RawData = None
-    _Metadata = None
+    _metadata = None
     _DataType = None
     _TemporaryData = None
-    _Identifier = None
     _CalculatedParams = None
     _AllCalculatedParams = None
     _InMemoryAvgRef = None
     _Karman = 0.4
     _saveProperties = {'dataFormat': None}
 
-    def __init__(self, rawData, metadata, identifier):
+    def __init__(self, rawData, metadata):
         if type(rawData) == pandas.DataFrame:
             self._DataType = 'pandas'
         elif type(rawData) == dask.dataframe.core.DataFrame:
@@ -24,9 +23,8 @@ class AbstractCalculator(object):
             raise ValueError("'rawData' type must be 'pandas.DataFrame' or 'dask.dataframe.core.DataFrame'.\nGot '%s'." % type(rawData))
 
         self._RawData = rawData
-        self._Metadata = metadata
+        self._metadata = metadata
         self._TemporaryData = pandas.DataFrame()
-        self._Identifier = identifier
         self._CalculatedParams = []
         self._AllCalculatedParams = []
         self._joinmethod = "left"
@@ -39,21 +37,18 @@ class AbstractCalculator(object):
     def RawData(self):
         return self._RawData
 
-    @property
-    def Metadata(self):
-        return self._Metadata
 
     @property
     def TemporaryData(self):
         return self._TemporaryData
 
     @property
-    def Identifier(self):
-        return self._Identifier
+    def metaData(self):
+        return self._metadata
 
     @property
     def SamplingWindow(self):
-        return self._Identifier['samplingWindow']
+        return self._metadata['samplingWindow']
 
     @property
     def Karman(self):
@@ -114,8 +109,8 @@ class AbstractCalculator(object):
     def _compute_from_db_and_save(self):
         query = self._query()
         docExist = list(
-            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
-                                         end__gt=self.Identifier['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.metaData['end'],
+                                         end__gt=self.metaData['start'], **query))
 
 
         if docExist:
@@ -129,8 +124,8 @@ class AbstractCalculator(object):
         query = self._query()
 
         docExist = list(
-            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.Identifier['end'],
-                                         end__gt=self.Identifier['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.metaData['end'],
+                                         end__gt=self.metaData['start'], **query))
 
         if docExist:
             df = docExist[-1].getDocFromDB(usePandas=True)[[x[0] for x in self._CalculatedParams]]
@@ -147,13 +142,13 @@ class AbstractCalculator(object):
         self._compute()
 
     def _query(self):
-        query = dict(projectName=self.Identifier['projectName'],
-                     start=self.Identifier['start'],
-                     end=self.Identifier['end'],
+        query = dict(projectName=self.metaData['projectName'],
+                     start=self.metaData['start'],
+                     end=self.metaData['end'],
                      samplingWindow=self.SamplingWindow,
-                     station=self.Identifier['station'],
-                     instrument=self.Identifier['instrument'],
-                     height=self.Identifier['height']
+                     station=self.metaData['station'],
+                     instrument=self.metaData['instrument'],
+                     height=self.metaData['height']
                      )
         return query
 
@@ -166,8 +161,8 @@ class AbstractCalculator(object):
             doc['dataFormat'] = self._saveProperties['dataFormat']
             doc['type'] = 'meteorology'
             doc['desc'] = query
-            doc['desc']['start'] = self.Identifier['start']
-            doc['desc']['end'] = self.Identifier['end']
+            doc['desc']['start'] = self.metaData['start']
+            doc['desc']['end'] = self.metaData['end']
             doc['desc']['samplingWindow'] = self.SamplingWindow
             doc['desc']['params'] = params
             doc['resource'] = getSaveData(data=self._InMemoryAvgRef, **self._saveProperties)

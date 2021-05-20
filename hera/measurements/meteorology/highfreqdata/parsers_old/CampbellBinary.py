@@ -5,7 +5,7 @@ import pandas
 import dask.dataframe as dd
 
 
-class Parser_CampbellBinary(object):
+class Parser(object):
     _lut = None
     _dataContent = None # The array of the data.
     _basenum = None
@@ -90,18 +90,6 @@ class Parser_CampbellBinary(object):
             recordIndex += 1
 
         return ts, cbi.columnsNames, retVal
-
-class Parser_TOA5(object):
-
-    def __init__(self):
-        pass
-
-    def parse(self, file):
-        pass
-
-
-#############################################################
-
 
 
 class CampbellBinaryInterface(object):
