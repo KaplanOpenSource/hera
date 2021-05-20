@@ -5,9 +5,9 @@ class sourcesFactoryTool():
 
     @property
     def sourcesTypeList(self):
-        return [x.split("_")[1] for x in dir(self) if "makeSource" in x]
+        return [x.split("_")[1] for x in dir(self) if "makeSource" in x and "_" in x]
 
-    def getSource(self, x, y, z, nParticles,type="Point",**kwargs):
+    def makeSource(self, x, y, z, nParticles, type="Point", **kwargs):
 
         slist = self.sourcesTypeList
         if type not in slist:

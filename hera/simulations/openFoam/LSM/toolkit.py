@@ -26,13 +26,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     _sources = None
     _topography = None
 
-
     _parallelCase = None
-
-    @property
-    def analysis(self):
-        return self._analysis
-
 
     @property
     def sourcesFactory(self):
@@ -51,7 +45,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def parallelCase(self, value):
         self._parallelCase = value
 
-    def __init__(self, projectName,FilesDirectory=None,parallelCase=False):
+    def __init__(self, projectName,casePath=None,FilesDirectory=None,parallelCase=False,cloudName = "kinematicCloud"):
         """
         Parameters
         ----------
@@ -66,6 +60,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self._parallelCase = parallelCase
         self._topography = TopographyToolkit(projectName)
         self._analysis = Analysis(self)
+
+        self._casePath = os.getcwd() if casePath is None else os.path.abspath(casePath)
+        self._cloudName = cloudName
 
     def _extractFile(self, path, columnNames, vector=True):
         """
@@ -115,9 +112,16 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data = []
 
             if vector:
-                for rcrdListTuple  in vals.split("(")[2:]:
-                    record = dict([(name,float(y)) for name,y in zip(columnNames,rcrdListTuple.split(")")[0].split(" "))])
-                    data.append(record)
+
+                if "{" in vals:
+                    inputs = vals.split("{")
+                    repeat = int(inputs[0])
+                    valuesList = inputs[1][inputs[1].find("(")+1:inputs[1].find(")")]
+                    data = dict([(colname,[float(x)]*repeat) for colname,x in zip(columnNames,valuesList.split(" "))])
+                else:
+                    for rcrdListTuple  in vals.split("(")[2:]:
+                        record = dict([(name,float(y)) for name,y in zip(columnNames,rcrdListTuple.split(")")[0].split(" "))])
+                        data.append(record)
             else:
 
                 if "{" in vals:
@@ -149,10 +153,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_y'] = []
             columnsDict['U_z'] = []
 
-        newData = pandas.DataFrame(columnsDict)
+        newData = pandas.DataFrame(columnsDict,dtype=numpy.float64)
         try:
-
             newData = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"globalSigmaPositions"), ['x', 'y', 'z'])
+            for fld in ['x','y','z']:
+                newData[fld] = newData[fld].astype(numpy.float64)
 
             dataID  = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"origId"), ['id'], vector=False)
             newData['id'] = dataID['id'].astype(numpy.float64)
@@ -187,13 +192,12 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     newData = newData.compute()
                     newData["mass"] = dataM["mass"]
 
-            self.logger.debug(newData.dtypes)
         except:
-            pass
-            #self.logger.warn(f"Cannot read time {timeName}")
+            self.logger.debug(f"No data at time {timeName}")
 
         theTime = os.path.split(timeName)[-1]
         newData['time'] = float(theTime)
+        self.logger.debug(f"The output is {newData}")
         return newData
 
 
@@ -223,21 +227,20 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             None
         """
         for times,timedata in data.groupby("time"):
-            with open(os.path.join(outputdirectory,f"{filename}_{times}.csv"),"w") as outputfile:
+            with open(os.path.join(outputdirectory,f"{filename}_{str(times).replace('.','_')}.csv"),"w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
 
 
     def loadData(self,
-               casePath=None,
                times = None,
                saveMode=toolkit.TOOLKIT_SAVEMODE_NOSAVE,
                withVelocity=False,
                withReleaseTimes=False,
                withMass=False,
                releaseTime=0,
-               cloudName = "kinematicCloud",
-                **kwargs):
+               cloudName="kinematicCloud",
+               **kwargs):
         """
             Extracts results of an LSM run.
 
@@ -302,8 +305,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             raise ValueError(f"saveMode must be one of [{optins}]. Got {saveMode}")
 
 
-        self._casePath = os.getcwd() if casePath is None else os.path.abspath(casePath)
-        self._cloudName = cloudName
         self.logger.info(f"Loading data for case {self._casePath} with cloud name {self._cloudName}")
 
         finalFileName = os.path.abspath(os.path.join(self.FilesDirectory,f"{cloudName}Data.parquet"))
@@ -326,9 +327,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
 
             timeList = sorted([x for x in os.listdir(os.path.join(self._casePath, processorList[0])) if (os.path.isdir(os.path.join(self._casePath, processorList[0],x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],key=lambda x: int(x))
-
-            self.logger.debug("The time list: ")
-            self.logger.debug(timeList)
 
             data = dataframe.from_delayed([delayed(loader)(os.path.join(processorName,timeName)) for processorName,timeName in product(processorList,timeList)])
             self.logger.debug(data.compute())
@@ -408,7 +406,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  "    object      kinematicCloudPositions;\n}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
                  f"{nParticles}\n(\n"
-        source = self.sources.getSource(x=x,y=y,z=z,nParticles=nParticles,type=type,**kwargs)
+        source = self.sourcesFactory.makeSource(x=x, y=y, z=z, nParticles=nParticles, type=type, **kwargs)
         for i in range(nParticles):
             string += f"({source.loc[i].x} {source.loc[i].y} {source.loc[i].z})\n"
         string += ")\n"
