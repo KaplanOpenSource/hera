@@ -92,15 +92,16 @@ def windProfile(cellData, LambdaGrid,stations):
     for variableList, name in zip([Uh,hc,ll,dd,zz0,U2h,theta],["Uh","hc","ll","dd","zz0","U2h","theta"]):
         cellData[name] = variableList
     cellData["Umag"] = 0
-    cellData.loc[(cellData.z<cellData.hc),"Umag"]= cellData.loc[cellData.z<cellData.hc].Uh * numpy.exp(
-                                                            beta * (cellData.loc[cellData.z<cellData.hc].z -
-                                                            cellData.loc[cellData.z<cellData.hc].hc) /cellData.loc[cellData.z<cellData.hc].ll)
-    cellData.loc[cellData.z>cellData.hc].loc[(cellData.z<2*cellData.hc),"Umag"]= (1.0 * cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].Uh * beta / 0.4) * \
+
+    cellData.loc[(cellData.z<2*cellData.hc),"Umag"]= (1.0 * cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].Uh * beta / 0.4) * \
                                                                                 numpy.log(
                                                                    1.0 * (cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].z -
                                                                           cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].hc +
                                                                           cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].dd) /
                                                                           cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].zz0)
+    cellData.loc[(cellData.z<cellData.hc),"Umag"]= cellData.loc[cellData.z<cellData.hc].Uh * numpy.exp(
+                                                            beta * (cellData.loc[cellData.z<cellData.hc].z -
+                                                            cellData.loc[cellData.z<cellData.hc].hc) /cellData.loc[cellData.z<cellData.hc].ll)
     cellData.loc[(cellData.z > 2*cellData.hc), "Umag"] = cellData.loc[cellData.z>2*cellData.hc].U2h
 
     cellData["U_x"] = numpy.cos(cellData.theta) * cellData.Umag
