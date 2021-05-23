@@ -315,10 +315,9 @@ class abstractToolkit(Project):
             filters[TOOLKIT_DATASOURCE_VERSION] = version
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 toolkit=self.toolkitName, **filters)
-        import pdb
-        pdb.set_trace()
+
         if len(docList) ==0:
-            ret =  []
+            ret =  None
 
         elif len(docList) ==1:
             ret = docList[0]
