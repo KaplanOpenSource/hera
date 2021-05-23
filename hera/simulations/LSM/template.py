@@ -47,6 +47,7 @@ class LSMTemplate:
         self.xColumn        = "x"
         self.yColumn        = "y"
         self.uColumn        = "u"
+        self.hColumn        = "h"
         self.directionColumn= "direction"
         self.timeColumn     = "datetime"
         self.stationColumn = "station"
@@ -72,7 +73,7 @@ class LSMTemplate:
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self,topography=None, stations=None,overwrite=False,params=dict(),depositionRates=None, saveMode=None,**descriptor):
+    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=None,**descriptor):
         """
         Execute the LSM simulation
 
@@ -114,8 +115,18 @@ class LSMTemplate:
         else:
             updated_params.update(TopoFile="'TOPO'")
 
+        if depositionRates is not None:
+            if not isinstance(depositionRates,list):
+                depositionRates = [depositionRates,depositionRates]
+            updated_params.update(n_vdep=len(depositionRates))
+
         if stations is not None:
             updated_params.update(homogeneousWind=".FALSE.",StationsFile="'STATIONS'")
+        if canopy is None:
+            updated_params.update(canopy=".FALSE.")
+        else:
+            updated_params.update(canopy=".TRUE.")
+
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
 
         yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
@@ -125,6 +136,7 @@ class LSMTemplate:
         ifmc.setTemplate('LSM_%s' % (self.version))
         docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                                        version=self.version,**updated_params)
+
         if len(docList) == 0:
             doc = self.toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
@@ -171,6 +183,8 @@ class LSMTemplate:
             stations = stations.rename(columns={self.timeColumn:"datetime"})
             onlyStations = stations.drop(columns=["datetime",self.uColumn,
                                                   self.directionColumn])
+            if self.hColumn in onlyStations.columns:
+                onlyStations = onlyStations.drop(columns=self.hColumn)
 
             stations[self.stationColumn] = stations[self.xColumn].astype(str) + stations[self.yColumn].astype(str)
 
@@ -203,11 +217,22 @@ class LSMTemplate:
                     j += 1
             with open("STATIONS","w") as newStationFile:
                 newStationFile.write(allStationsFile)
-
+        if canopy is not None:
+            with open("canopy_properties.txt","w") as newCanopyFile:
+                newCanopyFile.write(canopy)
+            if (topography is not None or stations is not None):
+                if self.hColumn not in stations.columns:
+                    raise KeyError("Height column is missing in the stations dataframe")
+                else:
+                    hStations = ""
+                    for h in stations.drop_duplicates(self.stationColumn)[self.hColumn]:
+                        hStations += f"{h} "
+                    with open("h_stations.txt", "w") as newStationFile:
+                        newStationFile.write(hStations)
         # run the model.
         os.system('./a.out')
         if self.to_xarray:
-            results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[self._document['desc']['params']["particles3D"]])
+            results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[updated_params["particles3D"]])
             netcdf_output = os.path.join(saveDir, "netcdf")
             os.makedirs(netcdf_output, exist_ok=True)
 
@@ -291,7 +316,6 @@ class LSMTemplate:
                                   names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
-
             if dt is None:
                 dt = cur.iloc[0]['time'] * s
 

@@ -15,7 +15,7 @@ nml_release_number = 3,
 nml_t_release=1.0
 nml_source_x_ratio =0.1,
 nml_source_y_ratio =0.5,
-nml_is_line_source=.true.,
+nml_is_line_source=.FALSE.,
 nml_line_source_height=5
 nml_line_source_res=3
 nml_par3D = .FALSE.,
@@ -28,6 +28,7 @@ nml_StationsFile='STATIONS',
 nml_dt_WindAveUpdate = 300.0, !sec
 !     ###### IF CONSTANT WIND FIELD ######
 nml_is_const_wind=.FALSE.,
+nml_is_canopy=,
 nml_const_wind_sp=2, !m/s
 nml_const_wind_dir=270., !Meteo
 nml_is_user_input_inverion=.true.,
