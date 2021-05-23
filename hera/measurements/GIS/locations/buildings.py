@@ -8,6 +8,7 @@ from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKI
 
 
 from ....datalayer import datatypes,nonDBMetadataFrame
+from ..urbanArea.field import field
 
 try:
     from freecad import app as FreeCAD
@@ -371,7 +372,7 @@ class analysis():
                   Save the geoPandas to excel file('output_lambda.xlsx')
 
         """
-        from ..UrbanArea.field import field
+
 
         if isinstance(regionNameOrData,str):
             data = self.datalayer.getRegions(regionNameOrData).getData()
