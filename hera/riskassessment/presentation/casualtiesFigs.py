@@ -1,5 +1,11 @@
 import numpy 
 import matplotlib.pyplot as plt
+import mpl_toolkits.axisartist.floating_axes as floating_axes
+import mpl_toolkits.axisartist.angle_helper as angle_helper
+from matplotlib.projections import PolarAxes
+from mpl_toolkits.axisartist.grid_finder import (FixedLocator, MaxNLocator,
+                                                 DictFormatter)
+
 import pandas
 from ...utils import toMeteorologicalAngle,toMathematicalAngle, toAzimuthAngle
 
@@ -22,7 +28,8 @@ class casualtiesPlot(object):
 						   legend=True,
 						   weights=None,
 						   cycler=None,
-						   coordsTickConvertor=toAzimuthAngle):
+						   coordsTickConvertor=toAzimuthAngle,
+						   windDistribution=None):
 		"""
 			plots the total valueColumn in a radial bars according to the severity.
 
@@ -50,10 +57,11 @@ class casualtiesPlot(object):
 		if (ax is None):
 			fig = plt.gcf()
 			ax = fig.add_subplot(111,polar=True)
+			axloc = [111]
 		elif isinstance(ax,list):
 			fig = plt.gcf()
+			axloc = [*ax]
 			ax  = fig.add_subplot(*ax,polar=True)
-
 
 		if cycler is None:
 			if weights is None:
@@ -74,6 +82,56 @@ class casualtiesPlot(object):
 
 			ax.bar(pivotedData["angle"],pivotedData[severity],label=severity,bottom=bottom,**plotprops)
 			bottom += pivotedData[severity]
+		pivotedData["total"] = 0
+		for severity in severityList:
+			pivotedData["total"] += pivotedData[severity]
+		if windDistribution is not None:
+			windDist = windDistribution.copy()
+			ax.set_ylim(0,pivotedData["total"].max()*2)
+			ax.set_yticks([int(i*pivotedData["total"].max()/3) for i in range(4)])
+			maxDist = 100.
+			windDist["distribution"] = windDist["distribution"] / maxDist + 2.
+			windDist["angle"] = 2.5*numpy.pi- windDist["angle"]*numpy.pi/180
+
+			tr = PolarAxes.PolarTransform()
+
+			angle_ticks = [(0, ""),
+						   (.25 * numpy.pi, ""),
+						   (.5 * numpy.pi, ""),
+						   (.75 * numpy.pi, ""),
+						   (1. * numpy.pi, ""),
+						   (1.25 * numpy.pi, ""),
+						   (1.5 * numpy.pi, ""),
+						   (1.75 * numpy.pi, "")]
+
+			grid_locator1 = FixedLocator([v for v, s in angle_ticks])
+			tick_formatter1 = DictFormatter(dict(angle_ticks))
+
+			radius_ticks = [(2., ''),
+							(2.25, '%i %%' % (maxDist / 4.)),
+							(2.5, '%i %%' % (maxDist / 2.)),
+							(2.75, '%i %%' % (3*maxDist / 4.)),
+							(3.0, '')]
+
+			grid_locator2 = FixedLocator([v for v, s in radius_ticks])
+			tick_formatter2 = DictFormatter(dict(radius_ticks))
+
+			grid_helper = floating_axes.GridHelperCurveLinear(tr,
+															  extremes=(2. * numpy.pi, 0, 3, 2),
+															  grid_locator1=grid_locator1,
+															  grid_locator2=grid_locator2,
+															  tick_formatter1=tick_formatter1,
+															  tick_formatter2=tick_formatter2)
+
+			ax1 = floating_axes.FloatingSubplot(fig, *axloc, grid_helper=grid_helper)
+			fig.add_subplot(ax1)
+
+			aux_ax = ax1.get_aux_axes(tr)
+
+			aux_ax.patch = ax1.patch
+			ax1.patch.zorder = 0.9
+
+			aux_ax.plot(windDist["angle"], windDist["distribution"])
 
 		# setting meteorology angles.
 		metlist = ["$%d^o$" % coordsTickConvertor(x) for x in numpy.linspace(0,360,9)]
