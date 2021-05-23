@@ -31,8 +31,6 @@ class field(object):
     _GridBuildingHeightArray = list()
     _ErrorBLD  = list()
 
-
-
     def __init__(self, buildings, rez, wind, directory, Frame=None):
         self._buildingsGrid = []
         self._GridMedianHeight = []
