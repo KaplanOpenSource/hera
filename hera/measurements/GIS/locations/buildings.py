@@ -359,6 +359,29 @@ class analysis():
 
         return gpd
 
+    def LambdaGrid(self, regionNameOrData,wind,rez):
+        """
+         Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
+
+         Parameter:
+                   buildings: str or GeoDataframe of rectangular area of the buildings layer of BNTL.
+                   wind: The meteorological wind direction.
+                   rez: The cell's resolution of the average lambda grid(output).
+         Return:  geoPandas of lambda grid
+                  Save the geoPandas to excel file('output_lambda.xlsx')
+
+        """
+        from ..UrbanArea.field import field
+
+        if isinstance(regionNameOrData,str):
+            data = self.datalayer.getRegions(regionNameOrData).getData()
+        else:
+            data = regionNameOrData
+
+        nf = field(data, rez, wind, self.datalayer.FilesDirectory)
+        lambdaGrid = nf.getLambdaGrid()
+        #nf.dataToExcel('output_lambda')
+        return lambdaGrid
 
 #     def createSynthetic(self, stlpath, domainx, domainy, buildingx, buildingy, buildingz, gap):
 #         """
