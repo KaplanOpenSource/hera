@@ -206,7 +206,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         return "LSMRuns"
 
 
-    def to_paraview_CSV(self,data,outputdirectory,filename):
+    def to_paraview_CSV(self,data,outputdirectory,filename,timeFactor=1):
         """
             Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
             In paraview, each timestep is a different file.
@@ -219,6 +219,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         outputdirectory: str
             The directory to write the files in
 
+        timeFactor : int
+            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
+
         filename: str
             The filename to write.
 
@@ -227,7 +230,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             None
         """
         for times,timedata in data.groupby("time"):
-            with open(os.path.join(outputdirectory,f"{filename}_{str(times).replace('.','_')}.csv"),"w") as outputfile:
+            with open(os.path.join(outputdirectory,f"{filename}_{str(int(timeFactor*times)).replace('.','_')}.csv"),"w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
 
