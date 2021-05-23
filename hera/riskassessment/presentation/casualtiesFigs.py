@@ -47,7 +47,7 @@ class casualtiesPlot(object):
 		rotate_angles 	= mathematical_angles if meteorological_angles is None else [toMathematicalAngle(meteorological_angle) for meteorological_angle in meteorological_angles]
 		projectedData = []
 		for angle in rotate_angles:
-			injuryareas = results.datalayer(area, loc=loc, mathematical_angle=angle)
+			injuryareas = results.project(area, loc=loc, mathematical_angle=angle)
 			injuryareas = injuryareas.groupby("severity")[effectedPopulation].sum().reset_index()
 			injuryareas["angle"] = angle
 			projectedData.append(injuryareas)
@@ -180,7 +180,7 @@ class casualtiesPlot(object):
 			raise ValueError("Must supply meteorology or mathematical angle")
 
 		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMathematicalAngle(meteorological_angle)
-		retProj		= results.datalayer(area, loc, mathematical_angle=rotate_angle)
+		retProj		= results.project(area, loc, mathematical_angle=rotate_angle)
 		projected  	= retProj.dissolve("severity")
 
 		boundarycycler = plt.cycler(color=plt.rcParams['axes.prop_cycle'].by_key()['color']) if boundarycycler is None else boundarycycler		 		
