@@ -212,7 +212,7 @@ class experimentToolKit(toolkit.abstractToolkit):
 
             toolkit=L.desc['handlerClass']
             toolkitCls=pydoc.locate(toolkit)
-            return toolkitCls(experimentDataLayer)
+            return toolkitCls(self.projectName)
 
         except:
             return experimentDataLayer(self.projectName, experimentName=experimentName)

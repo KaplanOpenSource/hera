@@ -56,6 +56,9 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 
 """
+    
+    - experiment: 
+        Fixed the dynamic load of the experiment.  
 
 2.1.0
 -----
