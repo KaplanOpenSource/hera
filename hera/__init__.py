@@ -1,4 +1,4 @@
-__version__ = '2.0.2'
+__version__ = '2.1.0'
 
 import sys
 import os
@@ -57,16 +57,27 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 """
 
-Next Version 
-============
+2.1.0
+-----
      
-    - of-lsm toolkit:
-        * Fixed some bugs in the OF-LSM reading files.
-        * Changed getSource to makeSource
-    - Adding 'dict' data format to the datalayer. In this format, the data is stored as the dictionary in the resource.  
-    - Adding some things to the openFOAM package. 
-    - allow the project to specify the logger name.         
-
+    - GIS
+        Topography: 
+                - Add height. Adds the topography height to a regular data. 
+                              The topography is interpolated from pandas (with xarray).   
+              
+    - openFOAM : 
+            NavierStokes
+                - Adding Canopy profile.
+                
+            LSM:
+                - Updating Ustar/Hmix 
+                - Fixed some bugs in the OF-LSM reading files.
+                - Changed getSource to makeSource
+               
+    - datalayer:
+        - project to specify the logger name.         
+        - adding 'dict' data format to store dict as a resource. 
+    
 2.0.2
 -----
     - Examples gallery for the risk assessment  
