@@ -23,7 +23,7 @@ class ToolkitHome:
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
-
+    LSM            = "LSM"
     OF_LSM         =  "OF_LSM"
 
     METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
