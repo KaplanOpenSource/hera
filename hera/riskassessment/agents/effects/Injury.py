@@ -42,14 +42,14 @@ class InjuryFactory(object):
 		except KeyError: 
                         raise ValueError("Calculator not defined")
 
-		calculatorCLS = pydoc.locate("pyriskassessment.agents.effects.Calculator.Calculator%s" % calcType)
+		calculatorCLS = pydoc.locate("hera.riskassessment.agents.effects.Calculator.Calculator%s" % calcType)
 		calculator    = calculatorCLS(**calcParam,**additionalparameters)
 
-		injuryCLS = pydoc.locate("pyriskassessment.agents.effects.Injury.Injury%s" % injuryType) 
+		injuryCLS = pydoc.locate("hera.riskassessment.agents.effects.Injury.Injury%s" % injuryType)
 		
 		if injuryCLS is None: 
 			
-			injuryExists  = ",".join([x[6:] for x in dir(pydoc.locate("pyriskassessment.agents.effects.Injury")) if x.startswith("Injury")])
+			injuryExists  = ",".join([x[6:] for x in dir(pydoc.locate("hera.riskassessment.agents.effects.Injury")) if x.startswith("Injury")])
 
 			raise NotImplementedError("The injury %s is not defined. Injuries found: %s  " % (injuryType,injuryExists))
 
@@ -71,7 +71,7 @@ class Injury(object):
 
 	@property
 	def levelNames(self): 
-		return [x.name for x in self._levels]
+		return [x.toolkitName for x in self._levels]
 
 	def __getitem__(self,name):
 		return self._levelsmap[name]
@@ -99,7 +99,7 @@ class Injury(object):
 		if (injuryType is None):
 			raise ValueError("InjuryLevel type is nor defined")
 
-		injuryCLS = pydoc.locate("pyriskassessment.agents.effects.InjuryLevel.InjuryLevel%s" % injuryType)
+		injuryCLS = pydoc.locate("hera.riskassessment.agents.effects.InjuryLevel.InjuryLevel%s" % injuryType)
 		self._levelsmap = {}
 		self._levels = []
 		levelNames = cfgJSON.get("levels")
@@ -109,7 +109,7 @@ class Injury(object):
 
 		for lvl in levelNames:
 			try:
-				lvlparams = cfgJSON["parameters"][lvl]
+				lvlparams = cfgJSON["parameters"][lvl].copy()
 			except KeyError:
 				raise ValueError("parameters for level %s not found !" % lvl)
 
@@ -175,7 +175,7 @@ class Injury(object):
 			if data is not None: 
 				retList.append(data)
 
-		ret = self._postCalculate(retList,time) 
+		ret = self._postCalculate(retList,time)
 		return thresholdGeoDataFrame(ret)
 
 	def calculateRaw(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*L/min,**parameters):
@@ -246,7 +246,7 @@ class InjuryThreshold(Injury):
 		return ret 
 
 
-class ExponentialThreshold(Injury): 
+class InjuryExponential(Injury):
 
 	def _postCalculate(self,retList,time): 
 		"""

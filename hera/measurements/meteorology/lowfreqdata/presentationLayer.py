@@ -9,11 +9,54 @@ from itertools import product
 from hera.measurements.meteorology.analysis import calcHourlyDist
 from hera.measurements.meteorology.analysis import seasonsdict
 
+
+
+class presenation:
+
+    _datalayer = None
+    _analysis  = None
+
+    _seasonalPlots =None
+    _dailyPlots = None
+
+    @property
+    def seasonalPlots(self):
+        return self._seasonalPlots
+
+    @property
+    def dailyPlots(self):
+        return self._dailyPlots
+
+
+    @property
+    def analysis(self):
+        return self._analysis
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+
+
+    def __init__(self,dataLayer,analysis):
+        self._datalayer = dataLayer
+        self._analysis = analysis
+
+        self._seasonalPlots = SeasonalPlots(self)
+        self._dailyPlots    = DailyPlots(self)
+
+
 class Plots(object):
     """
     This class holds the definitions for plots
     in the low frequency.
     """
+
+    _presentation = None
+
+    @property
+    def presenatation(self):
+        return self._presentation
 
     _contourvalsdict = None
     _plotfieldaxfuncdict =None
@@ -21,7 +64,9 @@ class Plots(object):
     _labelsdict=None
     _scatterdict=None
 
-    def __init__(self):
+    def __init__(self,presentation):
+
+        self._presentation = presenation
 
         self._contourvalsdict=dict(under_value=0.1,
                                    contourskip=2,
@@ -136,9 +181,10 @@ class Plots(object):
 class SeasonalPlots(Plots):
 
 
-    def __init__(self):
 
-        super().__init__()
+    def __init__(self,presentation):
+
+        super().__init__(presentation)
 
     def plotProbContourf_bySeason(self,
                                   data,
@@ -248,12 +294,12 @@ class DailyPlots(Plots):
 
     _linedict=None
 
-    def __init__(self):
+    def __init__(self,presentation):
 
-        super().__init__()
+        super().__init__(presentation)
 
         self._linedict=dict(zorder=4,
-                            color='magenta',
+                            #color='magenta',
                             linestyle='-',
                             linewidth=3
                             # size=0.5,
@@ -539,9 +585,4 @@ class DailyPlots(Plots):
             plt.colorbar(ax=ax, ticks=countourf_levels)
 
         return CS,CFS,ax
-
-
-
-seasonplots = SeasonalPlots()
-dailyplots  = DailyPlots()
 

@@ -25,6 +25,20 @@ class LowFrequencyAbstractParser:
         self._station_column = station_column
         self._time_coloumn = time_column
 
+    def filterStationName(self,stationName):
+        """
+            Remove the digits and the ' ' in station name
+
+        Parameters
+        -----------
+        stationName: str
+            the station name
+
+        Returns
+        ------
+            The filtered station name
+        """
+        return "".join([x for x in stationName if not x.isdigit()]).strip().replace(' ', '_')
 
 class Parser_JSONIMS(LowFrequencyAbstractParser):
     """
@@ -32,9 +46,46 @@ class Parser_JSONIMS(LowFrequencyAbstractParser):
     """
     _removelist = None
 
+    _HebRenameDict = None
+    _hebStnRenameDict = None
+
+    @property
+    def hebColumns(self):
+        return self._HebRenameDict
+
+    @property
+    def hebStation(self):
+        return self._hebStnRenameDict
+
     def __init__(self):
         super().__init__('stn_name','time_obs')
         self._removelist = ['BET DAGAN RAD', 'SEDE BOQER UNI', 'BEER SHEVA UNI']
+
+        self._HebRenameDict = {"שם תחנה": 'Station_name',
+                           "תאריך": "Date",
+                           "שעה- LST": "Time_(LST)",
+                           "טמפרטורה(C°)": "Temperature_(°C)",
+                           "טמפרטורת מקסימום(C°)": "Maximum_Temperature_(°C)",
+                           "טמפרטורת מינימום(C°)": "Minimum_Temperature_(°C)",
+                           "טמפרטורה ליד הקרקע(C°)": "Ground_Temperature_(°C)",
+                           "לחות יחסית(%)": "Relative_humidity_(%)",
+                           "לחץ בגובה התחנה(hPa)": "Pressure_at_station_height_(hPa)",
+                           "קרינה גלובלית(W/m²)": "Global_radiation_(W/m²)",
+                           "קרינה ישירה(W/m²)": "Direct Radiation_(W/m²)",
+                           "קרינה מפוזרת(W/m²)": "scattered radiation_(W/m²)",
+                           'כמות גשם(מ"מ)': "Rain_(mm)",
+                           "מהירות הרוח(m/s)": "wind_speed_(m/s)",
+                           "כיוון הרוח(מעלות)": "wind_direction_(deg)",
+                           "סטיית התקן של כיוון הרוח(מעלות)": "wind_direction_std_(deg)",
+                           "מהירות המשב העליון(m/s)": "upper_gust_(m/s)",
+                           "כיוון המשב העליון(מעלות)": "upper_gust_direction_(deg)",
+                           'מהירות רוח דקתית מקסימלית(m/s)': "maximum_wind_1minute(m/s)",
+                           "מהירות רוח 10 דקתית מקסימלית(m/s)": "maximum_wind_10minute(m/s)",
+                           "זמן סיום 10 הדקות המקסימליות()": "maximum_wind_10minute_time"
+
+                           }
+        self._hebStnRenameDict = {'בית דגן                                           ': "Bet_Dagan"}
+
 
     def _process_HebName(self, Station):
         HebName = Station.Stn_name_Heb.item()
@@ -140,20 +191,15 @@ class Parser_JSONIMS(LowFrequencyAbstractParser):
         df[time_column] = pandas.to_datetime(df[time_column])
         df = df.set_index(time_column)
 
-        stations = [x for x in df[station_column].unique() if x not in self._removelist]
-
-        metadata_dict = dict()
-        for station in stations:
-            filtered_stnname = "".join(filter(lambda x: not x.isdigit(), station)).strip()
-            metadata_dict.setdefault(station, self._createMD(metadatafile, filtered_stnname, **metadata))
-
         # Remove problematic stations
-        df = df.query('%s in @stations' % station_column)
+        RemovedStations = self._removelist
+        df = df.query('%s not in @RemovedStations' % station_column)
 
         loaded_dask = dd.from_pandas(df, npartitions=1)
-        return loaded_dask, metadata_dict
+        return loaded_dask
 
-    def _createMD(self, metadatafile, StationName, **metadata):
+
+    def getMetadata(self, metadatafile, StationName, **metadata):
         columns_dict = dict(BP='Barometric pressure[hPa]',
                             DiffR='Scattered radiation[W/m^2]',
                             Grad='Global radiation[W/m^2]',
@@ -180,7 +226,7 @@ class Parser_JSONIMS(LowFrequencyAbstractParser):
 
         if metadatafile is not None:
 
-            F = ['HebName', 'ITM_E', 'ITM_N', 'LAT_deg', 'LON_deg', 'MASL', 'Station_Open_date', 'Rain_instrument',
+            fieldList = ['HebName', 'ITM_E', 'ITM_N', 'LAT_deg', 'LON_deg', 'MASL', 'Station_Open_date', 'Rain_instrument',
                  'Temperature_instrument', 'Wind_instrument', 'Humidity_instrument', 'Pressure_instrument',
                  'Radiation_instrument', 'Screen_Model', 'InstLoc_AnemometeLoc', 'Anemometer_h', 'comments'
                  ]
@@ -195,7 +241,7 @@ class Parser_JSONIMS(LowFrequencyAbstractParser):
 
             station = MD.query("Stn_name_Eng==@StationName")
 
-            for x in F:
+            for x in fieldList:
                 updator = getattr(self, "_process_%s" % x)
                 vals[x] = updator(station)
 

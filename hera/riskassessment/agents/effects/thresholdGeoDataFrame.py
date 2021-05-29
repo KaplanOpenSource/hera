@@ -2,11 +2,14 @@ import numpy
 import collections
 import pandas
 import geopandas 
-import pydoc
+
 from unum.units import *
-from ... import toMeteorologicalAngle,toMatematicalAngle
-from hera import GIS
-pop = GIS.population(projectName=None)
+#from .... import toMeteorologicalAngle,toMathematicalAngle
+from hera.measurements import GIS
+from hera.measurements.GIS.demography import DemographyToolkit as demoDatalayer
+pop = demoDatalayer(projectName="Demography", databaseNameList=None, useAll=False,publicProjectName="Demography")
+toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 
 class thresholdGeoDataFrame(geopandas.GeoDataFrame): 
 
@@ -26,7 +29,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 	def _shiftPolygons(self,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon"):
 		self = self.set_geometry(geometry)
 
-		rotate_angle = mathematical_angle if meteorological_angle is None else toMatematicalAngle(meteorological_angle)
+		rotate_angle = mathematical_angle if meteorological_angle is None else toMathematicalAngle(meteorological_angle)
 
 		if (rotate_angle is None):
 			raise ValueError("either met_angle or math_angle should be provided") 			
@@ -90,18 +93,18 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 
 		retList = []
 		population = [population] if type(population)==str else population
-
 		for ((severity,timestamp),data) in self.groupby(["severity","datetime"]):
 			for indx,row in data.iterrows():
 				curpoly = shiftedPolygons.loc[indx]
-				res     = pop.projectPolygonOnPopulation(data=demog_data,Geometry=curpoly, populationTypes=population, usePopulationDict=False)
-				if len(res) > 0:
-					for popu in population:
-						res['effected%s' % popu] = res[popu]*row.percentEffected
-					res['percentEffected']  = row.percentEffected
-					res['ToxicLoad']        = row.ToxicLoad
-					res['severity'] = severity 
-					res['datetime'] = timestamp 
-					retList.append(res) 
+				if curpoly.is_valid:
+					res     = pop.projectPolygonOnPopulation(Data=demog_data,Shape=curpoly, populationTypes=population)
+					if len(res) > 0:
+						for popu in population:
+							res['effected%s' % popu] = res[popu]*row.percentEffected
+						res['percentEffected']  = row.percentEffected
+						res['ToxicLoad']        = row.ToxicLoad
+						res['severity'] = severity
+						res['datetime'] = timestamp
+						retList.append(res)
 
 		return None if len(retList) ==0 else pandas.concat(retList)

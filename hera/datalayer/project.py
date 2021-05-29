@@ -125,7 +125,9 @@ class Project(loggedObject):
         self._simulations   = Simulations_Collection(user=databaseName)
         self._all           =   AbstractCollection(user=databaseName)
 
-    def getMetadata(self)->pandas.DataFrame:
+
+
+    def getMetadata(self):
         """
         Return the description of all ot the documents in the current project.
         It assumes that description is a key-value format (does not support more complex structures).
@@ -136,221 +138,208 @@ class Project(loggedObject):
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
 
-    def getMeasurementsDocumentsAsDict(self, with_id:bool=False, **kwargs):
+    def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
         """
-        Return the metadata of the Measurements as a list of Dict
-
-        Parameters
-        -----------
-        with_id: bool
-            If true, add the id of the document to the map.
-
-        kwargs: key-value
-            Filters to query the database.
-
-        Returns
-        -------
-            List
-            A list of dict with the description of the project.
-        """
-        return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
-
-    def getMeasurementsDocuments(self,  resource:str=None, dataFormat:str=None, type:str=None, **desc):
-        """
-            Return a list of measurements. Allow filtering with queries.
-
-            Each results is list of :class:`.document.metadataDocument.MetadataFrame`.
-
+            Querying the DB for measurements documents and return the results as a list of dict
 
         Parameters
         ----------
-        resource: str, optional
 
-        dataFormat: str, optional
-        type: str, optional
 
-        desc: key-value
-            A key-value list for the filtering of the documents.
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
 
+        kwargs: parameters
+            Filters for the query
 
         Returns
         -------
-            A list of :class:`.document.metadataDocument.MetadataFrame`.
+            List of dicts
+        """
+        return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
+    def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+        """
+            Query measurements documents.
 
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        --------
+            List of documents.
         """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
-            Add a measurements document.
+            Adds a new measurment document.
 
         Parameters
-        -----------
-
+        ----------
         resource: str
-            The link to the resource.
+            query by resource, optional.
 
         dataFormat: str
-            The format of the data. Current known format are detailed in ::class:`.datatypes.datatypes`
+            query by data format, optional.
 
         type: str
-            The type of the document. A general field to help the filter.
+            query by type
 
         desc: dict
-            The description of the metadata.
+            query by the measurement document
 
         Returns
         -------
-            :class:`.document.metadataDocument.MetadataFrame`.
-
+            The new document
         """
         return self.measurements.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
 
     def deleteMeasurementsDocuments(self, **kwargs):
         """
-            Delete all the measurements documents that fulfill the criteria.
-            This will **not** delete the resource from the disk.
-
+            Delete the measurements documents that fit the query.
 
         Parameters
-        ----------
-        kwargs: key-value
-            The filters.
+        -----------
+        kwargs: query dicts.
 
         Returns
         -------
-            The documents that were deleted.
+            The list of documents that was deleted.
         """
         return self.measurements.deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getSimulationsDocumentsAsDict(self, with_id=False, **kwargs):
         """
-            Get the simulation document as a  a list of dictionary.
-            The keys are the fields of the :class:`.document.metadataDocument.MetadataFrame` object.
+            Querying the DB for simulation documents and return the results as a list of dict
 
         Parameters
-        -----------
-        with_id: bool
-            if True return the id of the document.
+        ----------
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
 
-        kwargs: key-value
-            The filters
+        kwargs: parameters
+            Filters for the query
 
         Returns
         -------
-            A list of dict.
+            List of dicts
         """
+
         return self.simulations.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getSimulationsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         """
-            Get the simulations documents as a list of :class:`.document.metadataDocument.MetadataFrame` object.
+            Query simulation documents.
 
         Parameters
         ----------
         resource: str
-                The resource (path to the data file or the data itself).
-        dataFormat: str
-                The format of the data. Taken from ::class:`..datatypes.datatypes`.
-        type: str
-            An additional field that aids in filtering the data.
+            query by resource, optional.
 
-        desc: key-valye
-            The metadata of the document.
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
 
         Returns
-        -------
-            list of :class:`.document.metadataDocument.MetadataFrame` object.
-
+        --------
+            List of documents.
         """
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                 **desc)
 
     def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
-            Add a simulation document.
+            Adds a new simulations document.
 
         Parameters
-        -----------
-
+        ----------
         resource: str
-            The link to the resource.
+            query by resource, optional.
 
         dataFormat: str
-            The format of the data. Current known format are detailed in ::class:`.datatypes.datatypes`
+            query by data format, optional.
 
         type: str
-            The type of the document. A general field to help the filter.
+            query by type
 
         desc: dict
-            The description of the metadata.
+            query by the measurement document
 
         Returns
         -------
-            :class:`.document.metadataDocument.MetadataFrame`.
-
+            The new document
         """
         return self.simulations.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                desc=desc)
 
     def deleteSimulationsDocuments(self, **kwargs):
         """
-            Delete all the measurements documents that fulfill the criteria.
-            This will **not** delete the resource from the disk.
-
+            Delete the simulations documents that fit the query.
 
         Parameters
-        ----------
-        kwargs: key-value
-            The filters.
+        -----------
+        kwargs: query dicts.
 
         Returns
         -------
-            The documents that were deleted.
+            The list of documents that was deleted.
         """
+
         return self.simulations.deleteDocuments(projectName=self._projectName, **kwargs)
 
     def getCacheDocumentsAsDict(self,  with_id=False, **kwargs):
         """
-            Get the cache document as a  a list of dictionary.
-            The keys are the fields of the :class:`.document.metadataDocument.MetadataFrame` object.
+            Querying the DB for cache documents and return the results as a list of dict
 
         Parameters
-        -----------
-        with_id: bool
-            if True return the id of the document.
+        ----------
 
-        kwargs: key-value
-            The filters
+
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
+
+        kwargs: parameters
+            Filters for the query
 
         Returns
         -------
-            A list of dict.
+            List of dicts
         """
 
         return self.cache.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
     def getCacheDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         """
-            Get the cache documents as a list of :class:`.document.metadataDocument.MetadataFrame` object.
+            Querying the DB for cache documents and return the results as a list of dict
 
         Parameters
         ----------
-        resource: str
-                The resource (path to the data file or the data itself).
-        dataFormat: str
-                The format of the data. Taken from ::class:`..datatypes.datatypes`.
-        type: str
-            An additional field that aids in filtering the data.
+        with_id : bool, optional, default False
+            rather or not should the 'id' key be in the documents.
 
-        desc: key-valye
-            The metadata of the document.
+        kwargs: parameters
+            Filters for the query
 
         Returns
         -------
-            list of :class:`.document.metadataDocument.MetadataFrame` object.
-
+            List of dicts
         """
 
         return self.cache.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
@@ -358,46 +347,40 @@ class Project(loggedObject):
 
     def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
-            Add a cache document.
+            Adds a new cache document.
 
         Parameters
-        -----------
-
+        ----------
         resource: str
-            The link to the resource.
+            query by resource, optional.
 
         dataFormat: str
-            The format of the data. Current known format are detailed in ::class:`.datatypes.datatypes`
+            query by data format, optional.
 
         type: str
-            The type of the document. A general field to help the filter.
+            query by type
 
         desc: dict
-            The description of the metadata.
+            query by the measurement document
 
         Returns
         -------
-            :class:`.document.metadataDocument.MetadataFrame`.
-
+            The new document
         """
-
         return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                       desc=desc)
 
     def deleteCacheDocuments(self, **kwargs):
         """
-            Delete all the cache documents that fulfill the criteria.
-            This will **not** delete the resource from the disk.
-
+            Delete the cache documents that fit the query.
 
         Parameters
-        ----------
-        kwargs: key-value
-            The filters.
+        -----------
+        kwargs: query dicts.
 
         Returns
         -------
-            The documents that were deleted.
+            The list of documents that was deleted.
         """
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)

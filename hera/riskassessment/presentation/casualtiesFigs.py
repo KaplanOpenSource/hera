@@ -1,6 +1,8 @@
 import numpy 
 import matplotlib.pyplot as plt 
-from ....utils import toMeteorologicalAngle,toMatematicalAngle,toAzimuthAngle
+#from ...utils import toMeteorologicalAngle,toMathematicalAngle
+toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 from descartes import PolygonPatch 
 
 class casualtiesPlot(object): 
@@ -8,63 +10,63 @@ class casualtiesPlot(object):
 	"""
 		A class for plotting the different plots related to the casualties. 
 	"""
-	def plotCasualtiesRose(self,
-				projectedData,
-				severityList,
-				ax=None,
-				angleColumn="mathematical_angle_rad",
-				legend=True,
-				weights=None,
-				cycler=None,
-				coordsTickConvertor=toAzimuthAngle):
-		"""
-			plots the total valueColumn in a radial bars according to the severity.  
-
-			*param: :data: a pandas like with the columns :severity and [valueColumn],[angleColumn]. 
-				:severityList:   The list of severity values to plot. 
-				:valueColumn: the value to plot. 
-				:angleColumn: the column that holds the angle. 
-					      the angle is a mathematical angle. 	
-				:weights:     a list or a scalar to determine the width of the columns. 
-				:cycler: a plt cycler for plotting properties per severity
-		"""
-		
-		pivotedData = projectedData.dissolve(by=["severity",angleColumn],aggfunc='sum').reset_index().pivot(angleColumn,'severity','effectedPopulation').reset_index().fillna(0)
-		if (ax is None): 
-			fig = plt.gcf()
-			ax = fig.add_subplot(111,polar=True) 
-		elif isinstance(ax,list): 
-			fig = plt.gcf()
-			ax  = fig.add_subplot(*ax,polar=True) 
-
-
-		if cycler is None: 
-			if weights is None: 
-				cycler  = plt.cycler(width=[0.18]*len(severityList))
-			else: 
-				cycler  = plt.cycler(width=[weights]*len(severityList))
-		else: 			
-			if "width" not in cycler.keys:
-				if weights is None: 
-					cycler  += plt.cycler(width=[0.18]*len(severityList))
-				else: 
-					cycler  += plt.cycler(width=[weights]*len(severityList))
-
-		bottom = numpy.zeros(pivotedData.shape[0])
-		for severity,plotprops in zip(severityList,cycler):
-			if severity not in pivotedData.columns:
-				continue
-
-			ax.bar(pivotedData[angleColumn],pivotedData[severity],label=severity,bottom=bottom,**plotprops)
-			bottom += pivotedData[severity]
-		
-		# setting meteorology angles.
-		metlist = ["$%d^o$" % coordsTickConvertor(x) for x in numpy.linspace(0,360,9)]
-		ax.set_xticklabels(metlist)
-
-		if legend: 
-			plt.legend()
-		return ax
+	# def plotCasualtiesRose(self,
+	# 			projectedData,
+	# 			severityList,
+	# 			ax=None,
+	# 			angleColumn="mathematical_angle_rad",
+	# 			legend=True,
+	# 			weights=None,
+	# 			cycler=None,
+	# 			coordsTickConvertor=toAzimuthAngle):
+	# 	"""
+	# 		plots the total valueColumn in a radial bars according to the severity.
+	#
+	# 		*param: :data: a pandas like with the columns :severity and [valueColumn],[angleColumn].
+	# 			:severityList:   The list of severity values to plot.
+	# 			:valueColumn: the value to plot.
+	# 			:angleColumn: the column that holds the angle.
+	# 				      the angle is a mathematical angle.
+	# 			:weights:     a list or a scalar to determine the width of the columns.
+	# 			:cycler: a plt cycler for plotting properties per severity
+	# 	"""
+	#
+	# 	pivotedData = projectedData.dissolve(by=["severity",angleColumn],aggfunc='sum').reset_index().pivot(angleColumn,'severity','effectedPopulation').reset_index().fillna(0)
+	# 	if (ax is None):
+	# 		fig = plt.gcf()
+	# 		ax = fig.add_subplot(111,polar=True)
+	# 	elif isinstance(ax,list):
+	# 		fig = plt.gcf()
+	# 		ax  = fig.add_subplot(*ax,polar=True)
+	#
+	#
+	# 	if cycler is None:
+	# 		if weights is None:
+	# 			cycler  = plt.cycler(width=[0.18]*len(severityList))
+	# 		else:
+	# 			cycler  = plt.cycler(width=[weights]*len(severityList))
+	# 	else:
+	# 		if "width" not in cycler.keys:
+	# 			if weights is None:
+	# 				cycler  += plt.cycler(width=[0.18]*len(severityList))
+	# 			else:
+	# 				cycler  += plt.cycler(width=[weights]*len(severityList))
+	#
+	# 	bottom = numpy.zeros(pivotedData.shape[0])
+	# 	for severity,plotprops in zip(severityList,cycler):
+	# 		if severity not in pivotedData.columns:
+	# 			continue
+	#
+	# 		ax.bar(pivotedData[angleColumn],pivotedData[severity],label=severity,bottom=bottom,**plotprops)
+	# 		bottom += pivotedData[severity]
+	#
+	# 	# setting meteorology angles.
+	# 	metlist = ["$%d^o$" % coordsTickConvertor(x) for x in numpy.linspace(0,360,9)]
+	# 	ax.set_xticklabels(metlist)
+	#
+	# 	if legend:
+	# 		plt.legend()
+	# 	return ax
 
 	def plotCasualtiesProjection(self,
 				     results,
@@ -104,7 +106,7 @@ class casualtiesPlot(object):
 		if ((meteorological_angle is None) and (mathematical_angle is None)): 
 			raise ValueError("Must supply meteorology or mathematical angle")
 
-		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMatematicalAngle(meteorological_angle)
+		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMathematicalAngle(meteorological_angle)
 		retProj		= results.project(area,loc,mathematical_angle=rotate_angle)
 		projected  	= retProj.dissolve("severity")
 
@@ -115,7 +117,7 @@ class casualtiesPlot(object):
 		for severity,prop,lineprop in zip(severityList,cycler,boundarycycler):
 			if severity not in projected.index:
 				continue
-			if projected.loc[severity].geometry.type == 'GeometryCollection': 
+			if projected.loc[severity].geometry.type == 'GeometryCollection' or projected.loc[severity].geometry.type == 'MultiPolygon':
 				for pol in projected.loc[severity].geometry:
 					if pol.type == 'LineString':
 						ax.plot(*pol.xy,**lineprop)
@@ -123,11 +125,12 @@ class casualtiesPlot(object):
 						ax.add_patch(PolygonPatch(pol,**prop) )
 			else:
 				ax.add_patch(PolygonPatch(projected.loc[severity].geometry,**prop) )
-		
+
 		for ((severity,severitydata),prop) in zip(results.shiftLocationAndAngle(loc,mathematical_angle=rotate_angle,geometry="TotalPolygon")
 								 .query("severity in %s" % numpy.atleast_1d(plumSeverity))
 								 .groupby("severity"),
 							  boundarycycler):
+
 			plt.plot(*severitydata.TotalPolygon.convex_hull.unary_union.exterior.xy,**prop)
 
 		return ax,retProj
