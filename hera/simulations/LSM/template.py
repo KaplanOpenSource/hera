@@ -83,7 +83,7 @@ class LSMTemplate:
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=None,**descriptor):
+    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,**descriptor):
         """
         Execute the LSM simulation
 
@@ -153,7 +153,13 @@ class LSMTemplate:
                                                        templateName=self.templateName,
                                                        version=self.version,**updated_params)
         print(f"Found {docList}")
-        if len(docList) == 0:
+        if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+            if len(docList) == 0:
+                if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
+                                     f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
+                if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
+                    docList[0].delete()
             doc = self.toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
                 resource='None',
@@ -172,11 +178,15 @@ class LSMTemplate:
                 doc['resource'] = os.path.join(saveDir)
                 doc['dataFormat'] = datatypes.STRING
             doc.save()
-        elif saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-            raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
-                             f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB} in order to replace it.")
 
         print(f"The saveDir is {saveDir}")
+
+        if os.path.exists(os.path.join(saveDir,"netcdf")):
+            if saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE:
+                raise ValueError(f"The outputfile {os.path.join(saveDir,'netcdf')} exists. Either remove it or run a saveMode that ends with _REPLACE")
+            elif saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE:
+                os.system(f"rm -r {os.path.join(saveDir,'netcdf')}")
+
         ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)
 
@@ -280,8 +290,8 @@ class LSMTemplate:
                 allfiles = os.path.join(machsanPath ,"*")
                 os.system(f"rm {allfiles}")
 
-
-            finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
+            if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
+                finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
 
             return nonDBMetadataFrame(finalxarray,**updated_params)
         else:

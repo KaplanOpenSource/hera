@@ -242,8 +242,13 @@ class LSMToolkit(toolkit.abstractToolkit):
                 if key in query.keys():
                     query[key] = query[key].asNumber(unit)
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **query)
-
-        return [SingleSimulation(doc) for doc in docList]
+        retList = []
+        for doc in docList:
+            try:
+                retList.append(SingleSimulation(doc))
+            except:
+                print(f"Warning: could not find data with the following document: {doc.asDict()}")
+        return
 
     def listSimulations(self, wideFormat=False, **query):
         """
