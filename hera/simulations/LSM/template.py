@@ -22,6 +22,10 @@ class LSMTemplate:
 
     _config =None
 
+    STABILITY_NEUTRAL = "neutral"
+    STABILITY_STABLE = "stable"
+    STABILITY_UNSTABLE = "unstable"
+
     @property
     def toolkit(self):
         return self._toolkit

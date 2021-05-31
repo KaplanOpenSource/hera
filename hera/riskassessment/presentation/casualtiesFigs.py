@@ -29,7 +29,9 @@ class casualtiesPlot(object):
 						   weights=None,
 						   cycler=None,
 						   coordsTickConvertor=toAzimuthAngle,
-						   windDistribution=None):
+						   windDistribution=None,
+						   windTicks=None,
+						   plotType="plot"):
 		"""
 			plots the total valueColumn in a radial bars according to the severity.
 
@@ -87,9 +89,10 @@ class casualtiesPlot(object):
 			pivotedData["total"] += pivotedData[severity]
 		if windDistribution is not None:
 			windDist = windDistribution.copy()
+			windTicks = [25,50,75,100] if windTicks is None else sorted(windTicks)
 			ax.set_ylim(0,pivotedData["total"].max()*2)
 			ax.set_yticks([int(i*pivotedData["total"].max()/3) for i in range(4)])
-			maxDist = 100.
+			maxDist = windTicks[-1]
 			windDist["distribution"] = windDist["distribution"] / maxDist + 2.
 			windDist["angle"] = 2.5*numpy.pi- windDist["angle"]*numpy.pi/180
 
@@ -107,11 +110,10 @@ class casualtiesPlot(object):
 			grid_locator1 = FixedLocator([v for v, s in angle_ticks])
 			tick_formatter1 = DictFormatter(dict(angle_ticks))
 
-			radius_ticks = [(2., ''),
-							(2.25, '%i %%' % (maxDist / 4.)),
-							(2.5, '%i %%' % (maxDist / 2.)),
-							(2.75, '%i %%' % (3*maxDist / 4.)),
-							(3.0, '')]
+			radius_ticks = [(2., '')]
+			for tick in windTicks[:-1]:
+				radius_ticks.append((2+tick/maxDist, '%i %%' % (tick)))
+
 
 			grid_locator2 = FixedLocator([v for v, s in radius_ticks])
 			tick_formatter2 = DictFormatter(dict(radius_ticks))
@@ -131,7 +133,7 @@ class casualtiesPlot(object):
 			aux_ax.patch = ax1.patch
 			ax1.patch.zorder = 0.9
 
-			aux_ax.plot(windDist["angle"], windDist["distribution"])
+			getattr(aux_ax,plotType)(windDist["angle"], windDist["distribution"])
 
 		# setting meteorology angles.
 		metlist = ["$%d^o$" % coordsTickConvertor(x) for x in numpy.linspace(0,360,9)]
