@@ -2,11 +2,12 @@ import pandas
 import json
 import os
 
-from .template import LSMTemplate
+from .template import LSMTemplate,meterKeys,minuteKeys,secondKeys,velocityKeys
 from itertools import product
 from ... import datalayer
 from ... import toolkit
 from .singleSimulation import SingleSimulation
+from unum.units import *
 
 class LSMToolkit(toolkit.abstractToolkit):
     """
@@ -236,7 +237,10 @@ class LSMToolkit(toolkit.abstractToolkit):
         :param query:
         :return:
         """
-
+        for keys, unit in zip([minuteKeys, meterKeys, secondKeys, velocityKeys], [min, m, s, m / s]):
+            for key in keys:
+                if key in query.keys():
+                    query[key] = query[key].asNumber(unit)
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **query)
 
         return [SingleSimulation(doc) for doc in docList]
