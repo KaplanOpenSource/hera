@@ -80,14 +80,20 @@ riskAreas = Agent.RegularPopulation.calculate(Concentration, "C", isel={"datetim
 
 #######################
 # Now, we will plot the areas in which we get casualties on top of the city polygon.
-# The release point is indicated by a red star
+# The release point is indicated by a red star.
+# The boundaries of the areas of the cloud for each severity may be plotted, using the parameter plumSeverity.
+# We will plot the boundaries of the area in which the toxic load may cause light injuries.
+#
+# In the next examples we work with mathematical angles, and therefore ue the parameter mathematical_angle.
+# If we would want to work with meteorological angles, the windAngle value would have to be assigned to the parameter
+# meteorological_angle.
 
 windAngle = 0
 x_coordinate = 263500
 y_coordinate = 766750
 ax, retProj = risk.presentation.plotCasualtiesProjection(
     results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
-    mathematical_angle=windAngle, severityList=["Light","Severe"],
+    mathematical_angle=windAngle, severityList=["Light","Severe"], plumSeverity=["Light"],
     cycler=plt.cycler(fc=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(ec=['black']))
 x,y = KatsrinCityOnly.geometry[0].exterior.xy
 ax.plot(x,y,color="black")
