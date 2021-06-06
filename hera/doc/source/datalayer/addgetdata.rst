@@ -25,12 +25,6 @@ distributions with different mean and std.
 
 .. parsed-literal::
 
-    /raid/opt/anaconda3/envs/Math-20-05/lib/python3.6/site-packages/dask/dataframe/utils.py:14: FutureWarning: pandas.util.testing is deprecated. Use the functions in the public API at pandas.testing instead.
-      import pandas.util.testing as tm
-
-
-.. parsed-literal::
-
               x         y
     0 -2.326348  0.026652
     1 -2.279351  0.029698

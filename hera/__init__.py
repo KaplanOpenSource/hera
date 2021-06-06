@@ -29,6 +29,7 @@ with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config')
 EXECUTION = 15
 logging.addLevelName(EXECUTION, 'EXECUTION')
 
+
 def execution(self, message, *args, **kws):
     self.log(EXECUTION, message, *args, **kws)
 
@@ -58,7 +59,9 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 Next Version 
 ============
-
+    - Adding 'dict' data format to the datalayer. In this format, the data is stored as the dictionary in the resource.  
+    - Adding some things to the openFOAM package. 
+    - allow the project to specify the logger name.         
 
 2.0.2
 -----

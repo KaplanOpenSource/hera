@@ -88,6 +88,10 @@ class Project(loggedObject):
         return self._all
 
     @property
+    def projectName(self):
+        return self._projectName
+
+    @property
     def simulations(self):
         """
             Access the simulation type documents.
@@ -98,11 +102,7 @@ class Project(loggedObject):
         """
         return self._simulations
 
-    @property
-    def projectName(self):
-        return self._projectName
-
-    def __init__(self, projectName, databaseName=None):
+    def __init__(self, projectName, databaseName=None,loggerName=None):
         """
             Initialize the project.
 
@@ -112,8 +112,10 @@ class Project(loggedObject):
         :param databaseName: str
                 the name of the database to use. If None, use the default database (the name of the current databaseName).
 
+        :param loggerName: str
+                Determine the name of the logger. if None, use the classpath of the current class.
         """
-        super().__init__()
+        super().__init__(loggerName=loggerName)
         self._projectName = projectName
 
         self._measurements  = Measurements_Collection(user=databaseName)
@@ -131,6 +133,9 @@ class Project(loggedObject):
         """
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
+
+    def getDocumentByID(self,id):
+        return self._all.getDocumentByID(id)
 
     def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
         """
@@ -480,7 +485,7 @@ class ProjectMultiDB(loggedObject):
         return  projectName
 
 
-    def __init__(self, projectName, databaseNameList=None, useAll=False):
+    def __init__(self, projectName, databaseNameList=None, useAll=False,loggerName=None):
         """
             Initialize the project.
 
@@ -497,6 +502,7 @@ class ProjectMultiDB(loggedObject):
 
 
         """
+        super().__init__(loggerName=loggerName)
         self._projectName = projectName
         self._databaseNameList = numpy.atleast_1d(databaseNameList)
         self._useAll = useAll
