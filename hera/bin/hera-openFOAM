@@ -14,7 +14,7 @@ if version == 2:
 
 VTKOutput_folder='VTKOutput'
 
-def load_handler(arguments):
+def load_handler(args):
 
     """
             This function handles the loading of the OpenFoam runs to the database.
@@ -25,7 +25,7 @@ def load_handler(arguments):
         Parameters
         ----------
 
-        arguments : a positional list pased by the user:
+        args : a positional list pased by the user:
             arguments[0] - the path to the pipeline json file
             arguments[1] - the path to the main directory of the execute resulted files, as the metadata 'datadir' in the json file
             arguments[2] - the name given to the output folder (and to the hdf files if selected)
@@ -34,9 +34,8 @@ def load_handler(arguments):
 
     """
 
-    JSONpath = arguments[0]
-    projectName = arguments[1]
-
+    JSONpath = args.args[0]
+    projectName = args.args[1]
     JSONbaseName = os.path.splitext(os.path.basename(JSONpath))[0]
 
     with open(JSONpath) as json_file:
@@ -53,13 +52,13 @@ def load_handler(arguments):
         recurseNode(Tree,node,pipelines[node],metadata,pipelines, path=path,name=VTKOutput_folder,projectName=projectName,JSONName=JSONbaseName)
 
     #   Delete hdf directory
-    if args.keepHDF:
+    if not args.keepHDF:
         print("deleting HDF files")
         shutil.rmtree("%s/%s/hdf" % (path, VTKOutput_folder), ignore_errors=True)
         shutil.rmtree("%s/%s/meta.json" % (path, VTKOutput_folder), ignore_errors=True)
 
 
-def executePipeline_handler(arguments):
+def executePipeline_handler(args):
 
     """
             This function handles the execution of the pipeline.
@@ -67,7 +66,7 @@ def executePipeline_handler(arguments):
         Parameters
         ----------
 
-        arguments : a positional list pased by the user:
+        args : a positional list pased by the user:
             arguments[0] - the path to the pipeline json file
             arguments[1] - the name which will be given to the output folder and to the hdf files
             arguments[2] - the path to the directory of the openFOAM project contains the results
@@ -77,30 +76,67 @@ def executePipeline_handler(arguments):
 
     """
 
-    JSONpath = arguments[0]
+    JSONpath = args.args[0]
     JSONbaseName= os.path.splitext(os.path.basename(JSONpath))[0]
 
     with open(JSONpath) as json_file:
         data = json.load(json_file)
 
     casePath = data["metadata"].get("CaseDirectory", "None")
-    tsBlockNum = int(arguments[1]) if len(arguments) > 1 else 100
-    caseType = arguments[2] if len(arguments) > 2 else "Decomposed Case"
-    servername = arguments[3] if len(arguments) > 3 else None
-    overWrite=args.Del
-    vtkpipe = openfoam.VTKpipeline(name=VTKOutput_folder, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=servername)
-    vtkpipe.execute("mainReader", tsBlockNum=tsBlockNum, JSONName=JSONbaseName, overWrite=overWrite)
+    caseType = DECOMPOSED_CASE if args.parallelCase else RECONSTRUCTED_CASE
+
+    vtkpipe = openfoam.VTKpipeline(name=VTKOutput_folder, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=args.serverName)
+    vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, JSONName=JSONbaseName, overWrite=args.overwrite)
 
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', nargs=1, type=str)
-    parser.add_argument('args', nargs='*', type=str)
-    parser.add_argument('-keepHDF', action='store_false')
-    parser.add_argument('-Del', action='store_true')
+    subparsers = parser.add_subparsers(help='sub-command help')
 
+    parser_load = subparsers.add_parser('load', help='load help')
+    parser_executePipeline = subparsers.add_parser('executePipeline', help='executePipeline help')
+
+    ##### Load parameters
+    parser_load.add_argument('args',
+                             nargs='*',
+                             type=str,
+                             help='[JSON file name] [ProjectName]')
+
+    parser_load.add_argument('-keepHDF',
+                             action='store_true',
+                             default=False,
+                             help='If keepHDF does not remove the old HDF files')
+
+    parser_load.set_defaults(func=load_handler)
+
+    ##### executePipeline parameters
+    parser_executePipeline.add_argument('args',
+                                        nargs='*',
+                                        type=str,
+                                        help='[path to JSON]')
+
+    parser_executePipeline.add_argument('-parallelCase',
+                                        action='store_true',
+                                        default=False,
+                                        help='If exists, reads the decomposed case')
+
+    parser_executePipeline.add_argument('-serverName',
+                                        type=str,
+                                        default=None,
+                                        help='If exists, uses the paraview server')
+
+    parser_executePipeline.add_argument('-timeStepsInPartition',
+                                        type=int,
+                                        default=100,
+                                        help='The number of time steps in each HDF/NetCDF File')
+
+    parser_executePipeline.add_argument('-overwrite',
+                                        action='store_true',
+                                        default=False,
+                                        help='If exists, write over the existing files.')
+
+    parser_executePipeline.set_defaults(func=executePipeline_handler)
+
+    ############################## arg parse
     args = parser.parse_args()
-
-    commands = ["load"]
-
-    globals()['%s_handler' % args.command[0]](args.args)
+    args.func(args)
