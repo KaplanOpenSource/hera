@@ -15,7 +15,6 @@ TOOLKIT_SAVEMODE_ONLYFILE_REPLACE = "File_overwrite"
 TOOLKIT_SAVEMODE_FILEANDDB = "DB"
 TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
-
 class ToolkitHome:
 
     GIS_BUILDINGS  = "GIS_Buildings"
@@ -27,13 +26,17 @@ class ToolkitHome:
 
     OF_LSM         =  "OF_LSM"
 
+    METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
+
+    EXPERIMENT = "experiment"
+
     _toolkits = None
 
     def __init__(self):
         self._toolkits = dict(
-            GIS_Buildings = dict(cls = "hera.measurements.GIS.locations.buildings.BuildingsToolkit",
+            GIS_Buildings  = dict(cls = "hera.measurements.GIS.locations.buildings.BuildingsToolkit",
                                  desc=None),
-            GIS_Raster = dict(cls = "hera.measurements.GIS.locations.raster.RasterToolkit",
+            GIS_Raster     = dict(cls = "hera.measurements.GIS.locations.raster.RasterToolkit",
                                  desc=None),
             GIS_Topography = dict(cls = "hera.measurements.GIS.locations.topography.TopographyToolkit",
                                  desc=None),
@@ -44,9 +47,13 @@ class ToolkitHome:
                                  desc=None),
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",
                                  desc=None),
-            LSM            =dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",
+            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",
                                  desc=None),
-            OF_LSM          =dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit")
+            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
+
+            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
+
+            experiment =dict(cls="hera.measurements.experiment.experiment.experimentToolKit")
         )
 
 
@@ -61,7 +68,7 @@ class ToolkitHome:
 
         kwargs: dict
             The parameters for the toolkit.
-            See the specific dtoolkit documentation for further details.
+            See the specific toolkit documentation for further details.
 
         Returns
         -------
@@ -69,7 +76,6 @@ class ToolkitHome:
         """
         if toolkitName not in self._toolkits.keys():
             raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
-
         clsName = self._toolkits[toolkitName]['cls']
         tookit = pydoc.locate(clsName)(projectName,**kwargs)
         return tookit
@@ -219,7 +225,7 @@ class abstractToolkit(Project):
         doc.desc.update(kwargs)
         doc.save()
 
-    def getDataSourceList(self,asPandas=True,**filters):
+    def getDataSourceMap(self,**filters):
         """
             Return the list of all data sources and their versions that are related to this toolkit
 
@@ -242,14 +248,23 @@ class abstractToolkit(Project):
         ret = []
         for doc in docList:
             ret.append(dict(datasourceName=doc.desc[TOOLKIT_DATASOURCE_NAME],
-                            version=f"({','.join(doc.desc[TOOLKIT_DATASOURCE_VERSION])}",
+                            version=str(doc.desc[TOOLKIT_DATASOURCE_VERSION]), # =f"({','.join(doc.desc[TOOLKIT_DATASOURCE_VERSION])}",
                             toolkit = doc.desc['toolkit'],
                             dataFormat=doc['dataFormat'],
                             resource=doc['resource']
                             )
                        )
+        return ret
 
-        return pandas.DataFrame(ret) if asPandas else ret
+    def getDataSourceTable(self, **filters):
+
+        Table = []
+        for sourceMap in self.getDataSourceMap(**filters):
+            table = pandas.json_normalize(sourceMap)
+            Table.append(table)
+
+        return pandas.concat((Table))
+
 
     def getDatasourceDocumentsList(self, **kwargs):
         """
@@ -297,7 +312,7 @@ class abstractToolkit(Project):
                                                 toolkit=self.toolkitName, **filters)
 
         if len(docList) ==0:
-            ret =  None
+            ret =  []
 
         elif len(docList) ==1:
             ret = docList[0]
@@ -336,7 +351,7 @@ class abstractToolkit(Project):
 
         return None if doc is None else doc.getData()
 
-    def addDataSource(self,dataSourceName,resource,dataFormat,version=None,**kwargs):
+    def addDataSource(self,dataSourceName,resource,dataFormat,version=(0,0,1),**kwargs):
         """
             Adds a resource to the toolkit.
             The type is always TOOLKIT_DATASOURCE_TYPE.
@@ -373,6 +388,10 @@ class abstractToolkit(Project):
                                      dataFormat=dataFormat,
                                      desc=kwargs)
         return doc
+
+    def deleteDataSourceDocuments(self,**filters):
+
+        return self.deleteMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,**filters)
 
     def loadData(self,fileNameOrData,saveMode,**kwargs):
         """

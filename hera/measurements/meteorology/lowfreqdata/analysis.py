@@ -11,7 +11,7 @@ AUTUMN = 'Autumn'
 seasonsdict = {    WINTER : dict(months=[12,1,2],strmonths='[DJF]'),
                    SPRING : dict(months=[3,4,5],strmonths='[MAM]'),
                    SUMMER : dict(months=[6,7,8],strmonths='[JJA]'),
-                   AUTUMN : dict(months=[9,10,11],strmonths='[SOM]')}
+                   AUTUMN : dict(months=[9,10,11],strmonths='[SON]')}
 
 
 
