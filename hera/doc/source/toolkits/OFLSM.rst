@@ -1,4 +1,4 @@
-.. _LSMPage:
+.. _OFLSMPage:
 
 openFOAM Lagrangian Stochastic Model
 ===========================

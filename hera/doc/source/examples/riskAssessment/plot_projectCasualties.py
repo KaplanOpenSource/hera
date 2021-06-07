@@ -125,6 +125,29 @@ pandas.plotting.table(ax,tableData,loc="top")
 plt.subplots_adjust(top=0.8)
 
 #######################
+# The plot results may also be plotted over an image.
+# Here we will load an image and plot is unsing the raster tool.
+
+toolkitName = "GIS_Raster"
+raster  = toolkitHome.getToolkit(projectName=projectName,toolkitName=toolkitName)
+
+location = "Katsrin"
+extents = {"minX":259600, "minY":762000, "maxX":269600, "maxY":772000}
+loadedData = raster.loadData(fileNameOrData="Katsrin.png", extents = extents, saveMode="DB_overwrite", regionName=location, additionalData=dict(units="ITM"))
+
+
+fig, ax = plt.subplots()
+for windAngle in windAngles:
+    ax, retProj = risk.presentation.plotCasualtiesProjection(
+        results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
+        mathematical_angle=windAngle, severityList=["Light","Severe"], ax=ax,
+        cycler=plt.cycler(fc=plt.rcParams['axes.prop_cycle'].by_key()['color'])*plt.cycler(ec=['black']))
+    retProj["windDirection"] = windAngle
+    calculatedData.append(retProj)
+raster.presentation.plot(imageNameOrData=location,ax=ax)
+ax.plot(x,y,color="black")
+ax.scatter(x_coordinate,y_coordinate,marker="*",color="red")
+#######################
 # Finally, we may save the figure. In our example we will use the used parameters in the name.
 
 figName = f"projectedCasualties_releasePoint{x_coordinate}_{y_coordinate}_windDir_{windAngle}.png"
