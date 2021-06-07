@@ -149,3 +149,21 @@ class coordinateHandler(object):
         if toPandas:
             ret = ret.to_dataframe()
         return ret
+
+    def combineXarrays(self,xarrayList,dims=["x","y","z","datetime"]):
+        """
+        Adds the values of a list of xarrays in merged dimensions, interpolates values if needed
+        """
+
+        dimDict = {}
+        mergedForCoords = xarray.merge(xarrayList[:2],compat="override")
+        for dim in dims:
+            dimDict[dim] = mergedForCoords[dim]
+        firstInNewCoords = xarrayList[0].squeeze().interp(**dimDict).fillna(0)
+        secondInNewCoords = xarrayList[1].squeeze().interp(**dimDict).fillna(0)
+
+        newArray = firstInNewCoords + secondInNewCoords
+        if len(xarrayList)>2:
+            newList = [newArray] + xarrayList[2:]
+            newArray = self.combineXarrays(xarrayList=newList,dims=dims)
+        return newArray

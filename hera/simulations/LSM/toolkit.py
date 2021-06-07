@@ -8,6 +8,8 @@ from ... import datalayer
 from ... import toolkit
 from .singleSimulation import SingleSimulation
 from unum.units import *
+from ..utils.coordinateHandler import coordinateHandler
+
 
 class LSMToolkit(toolkit.abstractToolkit):
     """
@@ -27,7 +29,11 @@ class LSMToolkit(toolkit.abstractToolkit):
     _to_xarray = None
     _to_database = None
     _forceKeep = None
+    _analysis = None
 
+    @property
+    def analysis(self):
+        return self._analysis
     @property
     def to_xarray(self):
         return self._to_xarray
@@ -93,7 +99,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         self.to_xarray = to_xarray
         self.to_database = to_database
         self.forceKeep = forceKeep
-
+        self._analysis = analysis(self)
 
     def getTemplates(self, **query):
         """
@@ -278,3 +284,23 @@ class LSMToolkit(toolkit.abstractToolkit):
                 return df
         except ValueError:
             raise FileNotFoundError('No simulations found')
+
+class analysis:
+    """
+        Analysis of the demography toolkit.
+    """
+
+    _datalayer = None
+    _coordinateHandler = None
+
+    @property
+    def coordinateHandler(self):
+        return self._coordinateHandler
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, dataLayer):
+        self._datalayer = dataLayer
+        self._coordinateHandler = coordinateHandler()
