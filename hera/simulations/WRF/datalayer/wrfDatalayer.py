@@ -5,7 +5,7 @@ except ImportError:
     print("You must install python-wrf to use this package ")
 
 import pandas
-import geopandas
+#import geopandas
 try:
     from netCDF4 import Dataset
 except ImportError:
