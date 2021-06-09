@@ -1,23 +1,8 @@
 __version__ = '2.1.0'
 
-import sys
 import os
 import json
 
-## Load modules if it is python 3.
-version = sys.version_info[0]
-if version==3:
-    from .measurements import meteorology as meteo
-#    from .measurements import GIS
-
-
-#    from .simulations import WRF
-#    from .simulations import LSM
-#    from .simulations import interpolations
-
-    #from .risk import riskassessment
-
-#from .simulations import openFoam
 
 import logging.config
 
@@ -44,7 +29,7 @@ toolkitHome =ToolkitHome()
 from unum import Unum
 from unum.units import *
 
-from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
+from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit,tounum
 
 atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
 mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
