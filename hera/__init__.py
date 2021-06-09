@@ -1,4 +1,4 @@
-__version__ = '2.1.0'
+__version__ = '2.1.1'
 
 import os
 import json
@@ -26,24 +26,36 @@ from .toolkit import ToolkitHome
 toolkitHome =ToolkitHome()
 
 ########################## Units for the model.
-from unum import Unum
+from unum import Unum,NameConflictError
 from unum.units import *
+
 
 from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit,tounum
 
-atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
-mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
-torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
+try:
+    atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
+    mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
+    torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
 
-dyne  = Unum.unit('dyne',1e-5*N,'dyne')
-poise = Unum.unit('poise',g/cm/s,'poise')
-cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
-
+    dyne  = Unum.unit('dyne',1e-5*N,'dyne')
+    poise = Unum.unit('poise',g/cm/s,'poise')
+    cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+except NameConflictError:
+    pass
 
 """
+
+buildings:
+     - refactoring the code
+
+OF-LSM:
+     - fixed small bug in reading points
+
+Topography:
+     - Removed extra code    
     
-    - experiment: 
-        Fixed the dynamic load of the experiment.  
+Experiment: 
+     -   Fixed the dynamic load of the experiment.  
 
 2.1.0
 -----
