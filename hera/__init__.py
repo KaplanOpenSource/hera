@@ -1,23 +1,8 @@
-__version__ = '2.0.2'
+__version__ = '2.1.1'
 
-import sys
 import os
 import json
 
-## Load modules if it is python 3.
-version = sys.version_info[0]
-if version==3:
-    from .measurements import meteorology as meteo
-#    from .measurements import GIS
-
-
-#    from .simulations import WRF
-#    from .simulations import LSM
-#    from .simulations import interpolations
-
-    #from .risk import riskassessment
-
-#from .simulations import openFoam
 
 import logging.config
 
@@ -41,32 +26,58 @@ from .toolkit import ToolkitHome
 toolkitHome =ToolkitHome()
 
 ########################## Units for the model.
-from unum import Unum
+from unum import Unum,NameConflictError
 from unum.units import *
 
-atm   = Unum.unit('atm',1.01325*bar,'atmosphere')
-mbar  = Unum.unit('mbar',bar/1000,'millibar')
 
-mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
-torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
+from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit,tounum
 
-dyne  = Unum.unit('dyne',1e-5*N,'dyne')
-poise = Unum.unit('poise',g/cm/s,'poise')
-cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+try:
+    atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
+    mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
+    torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
 
+    dyne  = Unum.unit('dyne',1e-5*N,'dyne')
+    poise = Unum.unit('poise',g/cm/s,'poise')
+    cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+except NameConflictError:
+    pass
 
 """
 
-Next Version 
-============
-     
-    - of-lsm toolkit:
-        * Fixed some bugs in the OF-LSM reading files.
-        * Changed getSource to makeSource
-    - Adding 'dict' data format to the datalayer. In this format, the data is stored as the dictionary in the resource.  
-    - Adding some things to the openFOAM package. 
-    - allow the project to specify the logger name.         
+buildings:
+     - refactoring the code
 
+OF-LSM:
+     - fixed small bug in reading points
+
+Topography:
+     - Removed extra code    
+    
+Experiment: 
+     -   Fixed the dynamic load of the experiment.  
+
+2.1.0
+-----
+     
+    - GIS
+        Topography: 
+                - Add height. Adds the topography height to a regular data. 
+                              The topography is interpolated from pandas (with xarray).   
+              
+    - openFOAM : 
+            NavierStokes
+                - Adding Canopy profile.
+                
+            LSM:
+                - Updating Ustar/Hmix 
+                - Fixed some bugs in the OF-LSM reading files.
+                - Changed getSource to makeSource
+               
+    - datalayer:
+        - project to specify the logger name.         
+        - adding 'dict' data format to store dict as a resource. 
+    
 2.0.2
 -----
     - Examples gallery for the risk assessment  

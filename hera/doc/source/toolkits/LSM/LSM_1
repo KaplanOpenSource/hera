@@ -15,7 +15,7 @@ nml_release_number = 3,
 nml_t_release={{ releaseTime }}
 nml_source_x_ratio ={{ sourceRatioX }},
 nml_source_y_ratio ={{ sourceRatioY }},
-nml_is_line_source=.true.,
+nml_is_line_source={{ lineSource }},
 nml_line_source_height={{ releaseHeight }}
 nml_line_source_res=3
 nml_par3D = {{particles3D}},
@@ -28,6 +28,7 @@ nml_StationsFile={{StationsFile}},
 nml_dt_WindAveUpdate = 300.0, !sec
 !     ###### IF CONSTANT WIND FIELD ######
 nml_is_const_wind={{homogeneousWind}},
+nml_is_canopy={{canopy}},
 nml_const_wind_sp={{ windSpeed }}, !m/s
 nml_const_wind_dir={{ windDir }}., !Meteo
 nml_is_user_input_inverion=.true.,
