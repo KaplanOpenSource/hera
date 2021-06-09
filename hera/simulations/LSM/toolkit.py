@@ -238,6 +238,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         """
 
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **query)
+
         return [SingleSimulation(doc) for doc in docList]
 
     def listSimulations(self, wideFormat=False, **query):
