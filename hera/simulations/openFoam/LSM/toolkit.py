@@ -7,7 +7,7 @@ from dask.delayed import delayed
 from dask import dataframe
 
 from unum.units import *
-from ....utils import tounum, tonumber
+from .... import tounum, tonumber
 
 from ....measurements.GIS.locations.topography import TopographyToolkit
 
@@ -26,16 +26,37 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     _sources = None
     _topography = None
 
+
     _parallelCase = None
+
+    @property
+    def analysis(self):
+        return self._analysis
+
 
     @property
     def sourcesFactory(self):
         return self._sourcesFactory
 
     @property
+    def casePath(self):
+        return self._casePath
+
+    @casePath.setter
+    def casePath(self,newPath):
+        self._casePath = newPath
+
+    @property
     def topography(self):
         return self._topography
 
+    @property
+    def cloudName(self):
+        return self._cloudName
+
+    @cloudName.setter
+    def cloudName(self, value):
+        self._cloudName = str(value)
 
     @property
     def parallelCase(self):
@@ -45,7 +66,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def parallelCase(self, value):
         self._parallelCase = value
 
-    def __init__(self, projectName,casePath=None,FilesDirectory=None,parallelCase=False,cloudName = "kinematicCloud"):
+    def __init__(self, projectName, casePath=None,cloudName="kinematicCloud",FilesDirectory=None,parallelCase=False):
         """
         Parameters
         ----------
@@ -56,13 +77,12 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             The name of the cloud, in which the particles' properties are saved.
         """
         super().__init__(projectName=projectName,toolkitName="OF_LSM",FilesDirectory=FilesDirectory)
+        self._casePath = os.getcwd() if casePath is None  else os.path.abspath(casePath)
         self._sourcesFactory = sourcesFactoryTool()
+        self._cloudName = cloudName
         self._parallelCase = parallelCase
         self._topography = TopographyToolkit(projectName)
         self._analysis = Analysis(self)
-
-        self._casePath = os.getcwd() if casePath is None else os.path.abspath(casePath)
-        self._cloudName = cloudName
 
     def _extractFile(self, path, columnNames, vector=True):
         """
@@ -112,28 +132,29 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data = []
 
             if vector:
-
                 if "{" in vals:
                     inputs = vals.split("{")
                     repeat = int(inputs[0])
-                    valuesList = inputs[1][inputs[1].find("(")+1:inputs[1].find(")")]
-                    data = dict([(colname,[float(x)]*repeat) for colname,x in zip(columnNames,valuesList.split(" "))])
+                    valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
+                    data = dict(
+                        [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
                 else:
-                    for rcrdListTuple  in vals.split("(")[2:]:
-                        record = dict([(name,float(y)) for name,y in zip(columnNames,rcrdListTuple.split(")")[0].split(" "))])
+                    for rcrdListTuple in vals.split("(")[2:]:
+                        record = dict(
+                            [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
                         data.append(record)
             else:
 
                 if "{" in vals:
                     inputs = vals.split("{")
                     repeat = int(inputs[0])
-                    value  = float(inputs[1].split("}")[0])
-                    data = [{columnNames[0] : value} for x in range(repeat)]
+                    value = float(inputs[1].split("}")[0])
+                    data = [{columnNames[0]: value} for x in range(repeat)]
 
                 else:
-                    valuesList =vals.split("(")[1]
+                    valuesList = vals.split("(")[1]
                     for rcrdListItem in valuesList.split(" "):
-                        record = {columnNames[0]:float(rcrdListItem.split(")")[0])}
+                        record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
                         data.append(record)
 
             newData = pandas.DataFrame(data)
@@ -206,7 +227,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         return "LSMRuns"
 
 
-    def to_paraview_CSV(self,data,outputdirectory,filename):
+    def to_paraview_CSV(self,data,outputdirectory,filename,timeFactor=1):
         """
             Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
             In paraview, each timestep is a different file.
@@ -219,6 +240,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         outputdirectory: str
             The directory to write the files in
 
+        timeFactor : int
+            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
+
         filename: str
             The filename to write.
 
@@ -227,7 +251,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             None
         """
         for times,timedata in data.groupby("time"):
-            with open(os.path.join(outputdirectory,f"{filename}_{str(times).replace('.','_')}.csv"),"w") as outputfile:
+            with open(os.path.join(outputdirectory,f"{filename}_{str(int(timeFactor*times)).replace('.','_')}.csv"),"w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
 
@@ -246,10 +270,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         Parameters
         -----------
-
-            casePath : str
-                The path to the data.
-                If None, use the current directory.
 
             times: list
                  a list of time steps to extract.
@@ -278,16 +298,12 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     True: extract the particles' velocities in addition to their positions.
                     Default is False.
 
-            cloudName : str
-                    The name fhe particle cloud to load.
-
             **kwargs:
                 Any additional parameters to add to the description in the DB.
         Returns
         --------
             document of the data.
         """
-
 
         if saveMode not in [toolkit.TOOLKIT_SAVEMODE_NOSAVE,
                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
@@ -305,9 +321,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             raise ValueError(f"saveMode must be one of [{optins}]. Got {saveMode}")
 
 
-        self.logger.info(f"Loading data for case {self._casePath} with cloud name {self._cloudName}")
-
-        finalFileName = os.path.abspath(os.path.join(self.FilesDirectory,f"{cloudName}Data.parquet"))
+        finalFileName = os.path.abspath(os.path.join(self.FilesDirectory,f"{self.cloudName}Data.parquet"))
 
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,toolkit.TOOLKIT_SAVEMODE_FILEANDDB] and os.path.exists(finalFileName):
                 raise FileExistsError(f"saveMode was set to no replace and file {finalFileName} already exists")
@@ -319,24 +333,27 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         if self.parallelCase:
 
-            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(self._casePath, "processor*"))]
-            self.logger.debug("Processor list: ")
-            self.logger.debug(processorList)
+            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(self.casePath,"processor*"))]
             if len(processorList) == 0:
                 raise ValueError(f"There are no processor* directories in the case. Is it parallel?")
 
 
-            timeList = sorted([x for x in os.listdir(os.path.join(self._casePath, processorList[0])) if (os.path.isdir(os.path.join(self._casePath, processorList[0],x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],key=lambda x: int(x))
+            cwd  = os.path.join(self.casePath,processorList[0])
+            timeList = sorted([x for x in os.listdir(cwd) if (os.path.isdir(os.path.join(cwd,x))
+                                                              and x.isdigit()
+                                                              and (not x.startswith("processor")
+                                                                and x not in ["constant", "system", "rootCase", 'VTK']))],
+                              key=lambda x: int(x))
 
             data = dataframe.from_delayed([delayed(loader)(os.path.join(processorName,timeName)) for processorName,timeName in product(processorList,timeList)])
-            self.logger.debug(data.compute())
         else:
 
-            timeList = sorted([x for x in os.listdir(self._casePath) if (
+            timeList = sorted([x for x in os.listdir(self.casePath) if (
                                 os.path.isdir(x) and
                                 x.isdigit() and
                                 (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                               key=lambda x: int(x))
+
 
             data = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
 
@@ -350,7 +367,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data.to_parquet(finalFileName, compression="GZIP")
 
             if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-                doc = self.getSimulationsDocuments(type=self.doctype, casePath=self._casePath, cloudName=self._cloudName)
+                doc = self.getSimulationsDocuments(type=self.doctype,casePath=self.casePath,cloudName=self.cloudName)
 
                 if doc is not None and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise FileExistsError(f"Data already in the DB. save mode is set to no replace")
@@ -358,12 +375,12 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     self.addSimulationsDocument(resource=finalFileName,
                                                 dataFormat=toolkit.datatypes.PARQUET,
                                                 type=self.doctype,
-                                                desc=dict(casePath=self._casePath, cloudName=self._cloudName, **kwargs))
+                                                desc=dict(casePath=self.casePath,cloudName=self.cloudName,**kwargs))
                 else:
                     doc.resource = finalFileName
                     doc.save()
         else:
-            doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self._casePath, cloudName=self._cloudName)
+            doc = nonDBMetadataFrame(data=data,type=self.doctype,casePath=self.casePath,cloudName=self.cloudName)
 
         return doc
 
@@ -410,7 +427,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         for i in range(nParticles):
             string += f"({source.loc[i].x} {source.loc[i].y} {source.loc[i].z})\n"
         string += ")\n"
-        with open(os.path.join(self._casePath, "constant", fileName), "w") as writeFile:
+        with open(os.path.join(self.casePath,"constant",fileName),"w") as writeFile:
             writeFile.write(string)
 
     def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE,fillna=0):
@@ -424,18 +441,18 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         savePandas = Boolean, whether to save the dataframe
         addToDB = Boolean, whether to add the dataframe to the DB
         """
-        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution, casePath=self._casePath)
+        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
         if len(documents)==0:
-            cellData, groundData = getCellDataAndGroundData(casePath=self._casePath, ground=ground)
-            cellData = self.topography.analysis.addHeight(data=cellData, groundData=groundData, resolution=resolution,
-                                                          file=os.path.join(self._casePath, f"{fileName}.parquet"), casePath=self._casePath,
-                                                          saveMode=saveMode, fillna=fillna)
+            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
+            cellData = self.topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+                                                     file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
+                                                     saveMode=saveMode,fillna=fillna)
         else:
             cellData = documents[0].getData(usePandas=True)
-        f = open(os.path.join(self._casePath, "0", "cellCenters"), "r")
+        f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
         lines = f.readlines()
         f.close()
-        fboundary = open(os.path.join(self._casePath, "0", "Hmix"), "r")
+        fboundary = open(os.path.join(self.casePath, "0", "Hmix"), "r")
         boundarylines = fboundary.readlines()
         fboundary.close()
         for i in range(len(lines)):
@@ -455,7 +472,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         for i in range(boundaryLine, len(boundarylines)):
             newFileString += boundarylines[i]
         for time in times:
-            with open(os.path.join(self._casePath, str(time), fileName), "w") as newFile:
+            with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
 
     def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE,resolution=10):
@@ -470,23 +487,23 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         addToDB = Boolian, whether to add the dataframe to the DB
         """
 
-        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution, casePath=self._casePath)
+        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
 
         if len(documents)==0:
-            cellData, groundData = getCellDataAndGroundData(casePath=self._casePath, ground=ground)
-            cellData = self.topography.analysis.addHeight(data=cellData, groundData=groundData, resolution=resolution,
-                                                          file=os.path.join(self._casePath, f"{fileName}.parquet"), casePath=self._casePath,
-                                                          saveMode=saveMode)
+            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
+            cellData = self.topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
+                                                         file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
+                                                         saveMode=saveMode)
         else:
             cellData = documents[0].getData(usePandas=True)
 
         for time in times:
-            documents = self.getCacheDocuments(type="ustar", casePath=self._casePath, time=time)
+            documents = self.getCacheDocuments(type="ustar",casePath=self.casePath,time=time)
 
-            f = open(os.path.join(self._casePath, str(time), "U"), "r")
+            f = open(os.path.join(self.casePath, str(time), "U"), "r")
             lines = f.readlines()
             f.close()
-            fboundary = open(os.path.join(self._casePath, str(time), "Hmix"), "r")
+            fboundary = open(os.path.join(self.casePath, str(time), "Hmix"), "r")
             boundarylines = fboundary.readlines()
             fboundary.close()
 
@@ -499,7 +516,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     break
 
             if len(documents) == 0:
-                Ufield = pandas.read_csv(os.path.join(self._casePath, str(time), "U"), skiprows=cellStart,
+                Ufield = pandas.read_csv(os.path.join(self.casePath, str(time), "U"), skiprows=cellStart,
                                          skipfooter=len(lines) - (cellStart + nCells),
                                          engine='python',
                                          header=None,
@@ -525,11 +542,21 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 fillD = xarrayD[dColumn].mean()
                 unearground = []
                 ds = []
+                valuesDict = {}
                 for i in range(len(data)):
                     x = data.loc[i].x
                     y = data.loc[i].y
-                    unearground.append(float(xarrayU.interp(x= x, y= y).fillna(fillU).U))
-                    ds.append(float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn]))
+                    if x not in valuesDict.keys():
+                        valuesDict[x] = {}
+                    if y in valuesDict[x].keys():
+                        unearground.append(valuesDict[x][y]["u"])
+                        ds.append(valuesDict[x][y]["d"])
+                    else:
+                        valuesDict[x][y] = {}
+                        uVal = float(xarrayU.interp(x= x, y= y).fillna(fillU).U)
+                        dVal = float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn])
+                        valuesDict[x][y]["u"] = uVal
+                        valuesDict[x][y]["d"] = dVal
                     if i > 9999 and i % 10000 == 0:
                         print(i)
                 data["UnearGround"] = unearground
@@ -539,11 +566,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
                 newFileString = ""
                 data = data.reset_index()
-                if savePandas:
-                    data.to_parquet(os.path.join(self._casePath, f"{fileName}_{time}.parquet"), compression="gzip")
-                    if addToDB:
-                        self.addCacheDocument(resource=os.path.join(self._casePath, f"{fileName}.parquet"), dataFormat="parquet",
-                                              type="ustar", desc={"casePath": self._casePath, "time": time})
+                # if savePandas:
+                #     data.to_parquet(os.path.join(self.casePath, f"{fileName}_{time}.parquet"), compression="gzip")
+                #     if addToDB:
+                #         self.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
+                #                            type="ustar", desc={"casePath": self.casePath, "time": time})
             else:
                 data = documents[0].getData(usePandas=True)
             for i in range(cellStart):
@@ -555,7 +582,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             for i in range(boundaryLine, len(boundarylines)):
                 newFileString += boundarylines[i]
 
-            with open(os.path.join(self._casePath, str(time), fileName), "w") as newFile:
+            with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
             print("wrote time ", time)
 
@@ -567,8 +594,8 @@ class Analysis:
     def __init__(self,datalayer):
         self._datalayer = datalayer
 
-    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None, **kwargs):
+    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s, loc=None, sigmaCoordinates=True,
+                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None,withID=False, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -590,7 +617,7 @@ class Analysis:
         """
 
         if nParticles is None:
-            with open(os.path.join(self.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
+            with open(os.path.join(self._datalayer.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
                 Lines = readFile.readlines()
             try:
                 nParticles=int(Lines[15])
@@ -616,22 +643,29 @@ class Analysis:
                 Q = tonumber(tounum(Q, Qunits), Qunits)
             except:
                 Q = tonumber(tounum(Q, Qunits), Qunits / timeUnits)
-        documents = self.getSimulationsDocuments(type="openFoamLSMrun",
-                                                casePath=self.casePath, cloudName=self.cloudName,
+        documents = self._datalayer.getSimulationsDocuments(type="openFoamLSMrun",
+                                                casePath=self._datalayer.casePath, cloudName=self._datalayer.cloudName,
                                                       startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                       dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
 
         if len(documents)==0:
             datalist = []
             for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self.extractRunResult(times=[t for t in range(time, time + dt)], withReleaseTimes=withReleaseTimes,releaseTime=releaseTime,withMass=OFmass)
+                data = self._datalayer._readRecord(time, withMass=OFmass,withID=withID,sigmaCoordinates=sigmaCoordinates)
+                for t in range(time+1, time + dt):
+                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass,withID=withID,sigmaCoordinates=sigmaCoordinates))
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
-                data["height"] = (data["height"] / dz).astype(int) * dz + dz / 2
+                data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
                 data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
                 if OFmass:
-                    data = data.groupby(["x","y","height","time"]).sum()
+                    data = data.groupby(["x","y","z","time"]).sum().reset_index()
+
                     data["mass"] = data["mass"] * tonumber(tounum(1*kg, Qunits), Qunits)
+                    if time==startTime:
+                        Qinsim = data.mass.sum() / dt
+                        Qratio = Q / Qinsim
+                    data["mass"] = data["mass"] * Qratio
                     data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
                     if type(Q)==list:
@@ -640,22 +674,20 @@ class Analysis:
                         data["Q"] = Q
                     data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
                     data = data.drop(columns="Q")
-                    data = data.groupby(["x","y","height","time"]).sum()
+                    data = data.groupby(["x","y","z","time"]).sum().reset_index()
+                if loc is not None:
+                    data = data.loc[data[loc[0]]==loc[1]]
                 data["Concentration"] = data["Dosage"] / dt
-                datalist.append(data.compute())
+                datalist.append(data)
                 print(f"Finished times {time} to {time+dt}")
             data = pandas.concat(datalist).reset_index()
-
-            if OFmass:
-                Q = data.loc[data.time==data.time.min()].mass.sum()/dt
-                print(f"Q = {tounum(Q,Qunits)} (extracted from the simulation itself)")
             if save:
                 cur = os.getcwd()
-                file = os.path.join(cur,f"{self.cloudName}Concentration.parquet") if file is None else file
+                file = os.path.join(cur,f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
                 data.to_parquet(file, compression="GZIP")
                 if addToDB:
-                    self.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
-                                                desc=dict(casePath=self.casePath, cloudName=self.cloudName,
+                    self._datalayer.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
+                                                desc=dict(casePath=self._datalayer.casePath, cloudName=self._datalayer.cloudName,
                                                           startTime=startTime, endTime=endTime, Q=Q, dx=dx,
                                                           dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs))
         else:
