@@ -9,7 +9,7 @@ import numpy as np
 import pandas
 import pandas as pd
 import shapely.wkt
-from hera.measurements.GIS.locations.buildings.building import Building as bld
+from .building import Building as bld
 from shapely.geometry import box, Polygon
 
 
@@ -97,8 +97,6 @@ class analysis():
                   Save the geoPandas to excel file('output_lambda.xlsx')
 
         """
-
-
         if isinstance(regionNameOrData,str):
             data = self.datalayer.getRegions(regionNameOrData).getData()
         else:
@@ -115,8 +113,6 @@ class field(object):
     A class to calculate lambda F+P of a domain by creating grid cells from
     the domain and calculate the average lambda F+P and average buildings height of each cell.
     """
-
-
     _buildings = None
     _buildingsGrid = list()
     _lambdaGrid = list()
@@ -407,7 +403,8 @@ class Blocks(object):
     def _GetBlocks(self):
         for x in self._BuildIndexList():
             yield x
-# Creates a dictionary of
+
+    # Creates a dictionary of
     def _BuildIndexList(self):
         listOfDicts = []
         enum = lambda L: [x for x in enumerate(L)]

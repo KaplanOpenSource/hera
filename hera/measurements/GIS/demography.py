@@ -3,9 +3,7 @@ import io
 import os
 from ... import toolkit
 from ...datalayer import datatypes,nonDBMetadataFrame
-from .shapes import ShapesToolKit
-from .locations.buildings import BuildingsToolkit
-
+from ... import toolkitHome
 from ...toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
 class DemographyToolkit(toolkit.abstractToolkit):
@@ -61,8 +59,8 @@ class DemographyToolkit(toolkit.abstractToolkit):
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
 
-        self._shapes    = ShapesToolKit(projectName=projectName)
-        self._buildings = BuildingsToolkit(projectName=projectName)
+        self._shapes    = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_SHAPES,projectName=projectName)
+        self._buildings = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=projectName)
 
         if FilesDirectory is None:
             self.logger.execution("Directory is not given, tries to load from default or using the current directory")
