@@ -25,7 +25,7 @@ class RiskToolkit(abstractToolkit):
     def presentation(self):
         return self._presentation
 
-    def __init__(self, projectName):
+    def __init__(self, projectName,**kwargs):
         super().__init__(projectName=projectName, toolkitName="RiskAssessment")
         self._presentation = casualtiesPlot()
         self._protectionPolicy = ProtectionPolicy
