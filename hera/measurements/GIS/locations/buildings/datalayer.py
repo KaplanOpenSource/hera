@@ -1,13 +1,11 @@
 import os
 import logging
 import geopandas
-from hera.measurements.GIS.locations import abstractLocation
+from .. import abstractLocation
 from .analysis import analysis
 
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-
-
-from hera.datalayer import datatypes,nonDBMetadataFrame
+from .....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from .....datalayer import datatypes,nonDBMetadataFrame
 
 try:
     from freecad import app as FreeCAD
