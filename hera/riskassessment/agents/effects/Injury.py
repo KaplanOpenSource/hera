@@ -1,5 +1,5 @@
 import pandas
-import geopandas 
+import json
 import pydoc
 from unum.units import *
 from .thresholdGeoDataFrame import thresholdGeoDataFrame 
@@ -211,6 +211,18 @@ class Injury(object):
 		ret = data.merge(diff,left_index=True,right_index=True)		
 				
 		return ret 
+
+
+	def toJSON(self):
+		ret = dict()
+		#ret['name']  = self._name
+		ret['levels'] = dict([(lvl.name,lvl.toJSON()) for lvl in self.levels])
+		ret['calculator'] = self._calculator.toJSON()
+		return ret
+
+	def __str__(self):
+		json.dumps(self.toJSON(),indent=4)
+
 
 
 
