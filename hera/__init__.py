@@ -1,23 +1,8 @@
-__version__ = '2.1.0'
+__version__ = '2.1.2'
 
-import sys
 import os
 import json
 
-## Load modules if it is python 3.
-version = sys.version_info[0]
-if version==3:
-    from .measurements import meteorology as meteo
-#    from .measurements import GIS
-
-
-#    from .simulations import WRF
-#    from .simulations import LSM
-#    from .simulations import interpolations
-
-    #from .risk import riskassessment
-
-#from .simulations import openFoam
 
 import logging.config
 
@@ -41,21 +26,45 @@ from .toolkit import ToolkitHome
 toolkitHome =ToolkitHome()
 
 ########################## Units for the model.
-from unum import Unum
+from unum import Unum,NameConflictError
 from unum.units import *
 
-from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
 
-atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
-mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
-torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
+from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit,tounum
 
-dyne  = Unum.unit('dyne',1e-5*N,'dyne')
-poise = Unum.unit('poise',g/cm/s,'poise')
-cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+try:
+    atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
+    mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
+    torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
 
+    dyne  = Unum.unit('dyne',1e-5*N,'dyne')
+    poise = Unum.unit('poise',g/cm/s,'poise')
+    cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
+except NameConflictError:
+    pass
 
 """
+
+2.1.2
+-----
+   - Fixing some bugs in the previous version 
+   - Added printing to formatted text of an agent. 
+
+2.1.1
+-----
+
+
+buildings:
+     - refactoring the code
+
+OF-LSM:
+     - fixed small bug in reading points
+
+Topography:
+     - Removed extra code    
+    
+Experiment: 
+     -   Fixed the dynamic load of the experiment.  
 
 2.1.0
 -----
