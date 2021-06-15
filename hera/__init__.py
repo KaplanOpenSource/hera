@@ -1,4 +1,4 @@
-__version__ = '2.1.1'
+__version__ = '2.1.2'
 
 import os
 import json
@@ -44,6 +44,15 @@ except NameConflictError:
     pass
 
 """
+
+2.1.2
+-----
+   - Fixing some bugs in the previous version 
+   - Added printing to formatted text of an agent. 
+
+2.1.1
+-----
+
 
 buildings:
      - refactoring the code

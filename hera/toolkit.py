@@ -34,7 +34,7 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
-            GIS_Buildings  = dict(cls = "hera.measurements.GIS.locations.buildings.BuildingsToolkit",
+            GIS_Buildings  = dict(cls = "hera.measurements.GIS.locations.buildings.datalayer.BuildingsToolkit",
                                  desc=None),
             GIS_Raster     = dict(cls = "hera.measurements.GIS.locations.raster.RasterToolkit",
                                  desc=None),
@@ -84,8 +84,6 @@ class ToolkitHome:
         clsName = self._toolkits[toolkitName]['cls']
         tookit = pydoc.locate(clsName)(projectName,FilesDirectory=FilesDirectory,**kwargs)
         return tookit
-
-
 
 
 
@@ -315,10 +313,9 @@ class abstractToolkit(Project):
             filters[TOOLKIT_DATASOURCE_VERSION] = version
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 toolkit=self.toolkitName, **filters)
-        import pdb
-        pdb.set_trace()
+
         if len(docList) ==0:
-            ret =  []
+            ret =  None
 
         elif len(docList) ==1:
             ret = docList[0]
