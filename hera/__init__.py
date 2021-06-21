@@ -30,7 +30,7 @@ from unum import Unum,NameConflictError
 from unum.units import *
 
 
-from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit,tounum
+from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
 
 try:
     atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
