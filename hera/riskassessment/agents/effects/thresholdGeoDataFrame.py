@@ -4,13 +4,12 @@ import pandas
 import geopandas 
 
 from unum.units import *
-from ....utils import toMeteorologicalAngle,toMathematicalAngle
-
-
+#from .... import toMeteorologicalAngle,toMathematicalAngle
+from hera.measurements import GIS
 from hera.measurements.GIS.demography import DemographyToolkit as demoDatalayer
-pop = demoDatalayer(projectName="Demography") # used only for the analysis layer, which is static.
-
-
+pop = demoDatalayer(projectName="Demography")
+toMeteorologicalAngle = lambda mathematical_angle: (270 - mathematical_angle) if ((270 - mathematical_angle) >= 0) else (630 - mathematical_angle)
+toMathematicalAngle  = toMeteorologicalAngle
 
 class thresholdGeoDataFrame(geopandas.GeoDataFrame): 
 
@@ -87,7 +86,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 
 		localcrs = {"init":"epsg:2039"} # itm
 
-		demog_data = demographic
+		demog_data = GISResources.loadResource(**demographic) if not issubclass(type(demographic),geopandas.GeoDataFrame) else demographic
 		demog_data = demog_data.to_crs(localcrs) # convert to itm. It is in m**2. 
 
 		shiftedPolygons = self._shiftPolygons(loc=loc,meteorological_angle=meteorological_angle,mathematical_angle=mathematical_angle,geometry=geometry)
