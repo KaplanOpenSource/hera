@@ -9,7 +9,7 @@ import numpy as np
 import pandas
 import pandas as pd
 import shapely.wkt
-from .building import Building as bld
+# from .building import Building as bld
 from shapely.geometry import box, Polygon
 
 
@@ -464,51 +464,51 @@ class Block:
         self._block = box
         self.BLDG_HT = box['BLDG_HT']
 
-
-    def LambdaF(self, MeteoAngle ,TotalArea=None):
-        """
-        # Calculate average lambda F of a block
-        """
-        bldHeightToReduce = 0
-        if self._block.empty:
-            return 0
-        Map_A_f = 0
-        i = 0
-        j = 0
-        indexes = self._block['BLDG_HT'].index
-        self._numberOfBld = len(indexes)
-
-        for i in indexes:
-            if (self._block['FTYPE'][i] == 16) or (self._block['FTYPE'][i] == 14):
-                bldHeightToReduce = self.updateNAbuilding(bldHeightToReduce, i)
-            else:
-                    bldHeight = self._block['BLDG_HT'][i]
-                    if bldHeight < 2:
-                        bldHeight = self._block['HI_PNT_Z'][i]-self._block['HT_LAND'][i]
-                        if bldHeight < 2:
-                            self.updateErrorBuilding(i)
-                            j = j + 1
-                            continue
-                        else:
-                            self._block.at[i,'BLDG_HT'] = bldHeight
-
-                    if self._block.geometry[i].geom_type == 'MultiPolygon':
-                        for poly in self._block.geometry[i]:
-                            building = bld(Polygon(poly),bldHeight)
-                            Map_A_f = Map_A_f + building.A_f2(MeteoAngle)
-                    else:
-                        building = bld(self._block.geometry[i], bldHeight)
-                        Map_A_f = Map_A_f + building.A_f2(MeteoAngle)
-
-            j = j+1
-
-        if TotalArea == None:
-            bounds = self._block.total_bounds
-            TotalArea = ((bounds[2] - bounds[0])) * ((bounds[3] - bounds[1]))
-
-        self.lambda_f = Map_A_f / TotalArea
-        self._totalBldHeight = self._block['BLDG_HT'].sum() - bldHeightToReduce
-        return self.lambda_f
+    #
+    # def LambdaF(self, MeteoAngle ,TotalArea=None):
+    #     """
+    #     # Calculate average lambda F of a block
+    #     """
+    #     bldHeightToReduce = 0
+    #     if self._block.empty:
+    #         return 0
+    #     Map_A_f = 0
+    #     i = 0
+    #     j = 0
+    #     indexes = self._block['BLDG_HT'].index
+    #     self._numberOfBld = len(indexes)
+    #
+    #     for i in indexes:
+    #         if (self._block['FTYPE'][i] == 16) or (self._block['FTYPE'][i] == 14):
+    #             bldHeightToReduce = self.updateNAbuilding(bldHeightToReduce, i)
+    #         else:
+    #                 bldHeight = self._block['BLDG_HT'][i]
+    #                 if bldHeight < 2:
+    #                     bldHeight = self._block['HI_PNT_Z'][i]-self._block['HT_LAND'][i]
+    #                     if bldHeight < 2:
+    #                         self.updateErrorBuilding(i)
+    #                         j = j + 1
+    #                         continue
+    #                     else:
+    #                         self._block.at[i,'BLDG_HT'] = bldHeight
+    #
+    #                 if self._block.geometry[i].geom_type == 'MultiPolygon':
+    #                     for poly in self._block.geometry[i]:
+    #                         building = bld(Polygon(poly),bldHeight)
+    #                         Map_A_f = Map_A_f + building.A_f2(MeteoAngle)
+    #                 else:
+    #                     building = bld(self._block.geometry[i], bldHeight)
+    #                     Map_A_f = Map_A_f + building.A_f2(MeteoAngle)
+    #
+    #         j = j+1
+    #
+    #     if TotalArea == None:
+    #         bounds = self._block.total_bounds
+    #         TotalArea = ((bounds[2] - bounds[0])) * ((bounds[3] - bounds[1]))
+    #
+    #     self.lambda_f = Map_A_f / TotalArea
+    #     self._totalBldHeight = self._block['BLDG_HT'].sum() - bldHeightToReduce
+    #     return self.lambda_f
 
     def updateErrorBuilding(self, index):
         """
