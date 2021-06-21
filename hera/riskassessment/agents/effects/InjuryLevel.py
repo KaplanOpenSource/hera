@@ -1,7 +1,6 @@
 import geopandas
 import pandas
-import numpy
-import json
+import numpy 
 
 from hera.utils.matplotlibCountour import toGeopandas
 from ....utils import tounit
@@ -122,18 +121,6 @@ class InjuryLevel(object):
 		raise NotImplementedError("abstract function")
 
 
-
-	def toJSON(self):
-		return dict(name=self.name,
-					units=str(self.units))
-
-
-	def __str__(self):
-		json.dumps(self.toJSON(),indent=4)
-
-
-
-
 # ******************************************************
 
 class InjuryLevelLognormal10DoseResponse(InjuryLevel): 
@@ -224,13 +211,6 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 			ret = toGeopandas(CS)
 		return ret
 
-	def toJSON(self):
-		ret = super().toJSON()
-		ret['type'] = 'logNormalBase10'
-		ret['TL_50'] = str(self.TL_50)
-		ret['sigma'] = str(self.sigma)
-		return ret
-
 
 ################################################################################################
 
@@ -270,12 +250,6 @@ class InjuryLevelThreshold(InjuryLevel):
 			ret = toGeopandas(CS)
 		return ret
 
-	def toJSON(self):
-		ret = super().toJSON()
-		ret['type'] = 'threshold'
-		ret['threshold'] = str(self.threshold)
-		return ret
-
 ################################################################################################
 
 class InjuryLevelExponential(InjuryLevel): 
@@ -308,14 +282,6 @@ class InjuryLevelExponential(InjuryLevel):
 			ret = toGeopandas(CS)
 
 		return ret
-
-
-	def toJSON(self):
-		ret = super().toJSON()
-		ret['type'] = 'exponential'
-		ret['k'] = str(self.k)
-		return ret
-
 
 
 

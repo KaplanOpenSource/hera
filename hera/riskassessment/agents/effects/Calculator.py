@@ -1,5 +1,5 @@
-import json
 import pandas
+import xarray 
 from unum.units import *
 
 class AbstractCalculator(object): 
@@ -15,13 +15,6 @@ class AbstractCalculator(object):
 
 	def __init__(self,breathingRate=10*L/min): 
 		self._injury_breathingRate=breathingRate
-
-
-	def toJSON(self):
-		return dict(breathingRate=str(self.injuryBreathingRate))
-
-	def __str__(self):
-		return json.dumps(self.toJSON())
 
 class CalculatorHaber(AbstractCalculator): 
 	"""
@@ -40,11 +33,6 @@ class CalculatorHaber(AbstractCalculator):
 		breathingRatio = (breathingRate/self.injuryBreathingRate).asNumber()
 		CunitConversion = concentrationField.attrs[field].asNumber(mg/m**3)
 		return concentrationField[field].cumsum(dim=time)*concentrationField.dt.asNumber(min)*breathingRatio*CunitConversion
-
-	def toJSON(self):
-		ret = super().toJSON()
-		ret['type'] = 'haber'
-		return ret
 
 
 class CalculatorTenBerge(AbstractCalculator): 
@@ -75,11 +63,7 @@ class CalculatorTenBerge(AbstractCalculator):
 		TL     = ((pfield[C]* CunitConversion) ** self.n).cumsum() * dt.asNumber(min) * breathingRatio
 		return pandas.merge(pandasField,TL.to_frame("ToxicLoad"),left_on=time,right_index=True)
 
-	def toJSON(self):
-		ret = super().toJSON()
-		ret['type'] = 'tenBerge'
-		ret['n'] = str(self.n)
-		return ret
+
 
 class CalculatorMaxConcentration(AbstractCalculator): 
 	
@@ -97,7 +81,3 @@ class CalculatorMaxConcentration(AbstractCalculator):
 		CunitConversion = concentrationField.attrs[field].asNumber(mg/m**3)
 		return concentrationField[field].chunk(chunks={time: int(3*itemstep)}).rolling(**samplingparam).mean().max(dim=time)*breathingRatio*CunitConversion
 
-	def toJSON(self):
-		ret = super().toJSON()
-		ret['type'] = 'maxConcentrations'
-		return ret
