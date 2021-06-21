@@ -1,4 +1,4 @@
-__version__ = '2.1.2'
+__version__ = '2.1.3'
 
 import os
 import json
@@ -44,6 +44,10 @@ except NameConflictError:
     pass
 
 """
+
+2.1.3
+-----
+    - Few corrections of the documentation and some minor bugs. 
 
 2.1.2
 -----
