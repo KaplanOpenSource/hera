@@ -13,9 +13,13 @@ def ConvertJSONtoConf(JSON):
         elif isinstance(value,list):
             ret[key] = value
         else:
-            try:
-                ret[key] = eval(str(value))
-            except:
+
+            if "'" in str(value):
                 ret[key] = value
+            else:
+                try:
+                    ret[key] = eval(str(value))
+                except:
+                    ret[key] = value
 
     return ret
