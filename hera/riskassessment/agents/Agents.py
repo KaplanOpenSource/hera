@@ -2,7 +2,6 @@ from unum.units import *
 from .effects import  injuryfactory
 from ...simulations.utils import toNumber,toUnum
 import numpy
-import json
 
 
 
@@ -12,8 +11,7 @@ class Agent:
 
 	_effectsParameters = None 
 
-	@property
-	def effectNames(self):
+	def effects(self):
 		return [x for x in self._effects.keys()]
 
 	def  __getitem__(self,name): 
@@ -40,11 +38,6 @@ class Agent:
 		self._effectParameters["tenbergeCoefficient"] = float(value)
 		for effectname,effectconfig in self._agentconfig["effects"].items():
 			self._effects[effectname] = injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
-
-
-	@property
-	def name(self):
-	    return self._agentconfig['name']
 
 
 	def __init__(self,descriptor):
@@ -82,21 +75,6 @@ class Agent:
 		self.__dict__.update(self._effects)
 
 		self._physicalproperties = PhysicalPropeties(self._agentconfig)
-
-
-	def toJSON(self):
-		ret = dict(name=self.name,
-				   physicalProperties=self.physicalproperties.toJSON(),
-				   effect={})
-
-		for effect in self.effectNames:
-			ret['effect'][effect] = self[effect].toJSON()
-
-		return ret
-
-
-	def __str__(self):
-		return json.dumps(self.toJSON(),indent=4)
 
 
 
@@ -217,6 +195,4 @@ class PhysicalPropeties(object):
 			self.spreadFactor    = self._params["spreadFactor"] if "spreadFactor" in self._params.keys() else "1"
 	
 
-	def toJSON(self):
-		return self._params
 
