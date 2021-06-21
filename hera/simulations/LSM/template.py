@@ -152,9 +152,10 @@ class LSMTemplate:
         docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                                        templateName=self.templateName,
                                                        version=self.version,**updated_params)
+
         print(f"Found {docList}")
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-            if len(docList) == 0:
+            if len(docList) > 0:
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
                                      f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")

@@ -254,7 +254,8 @@ class LSMToolkit(toolkit.abstractToolkit):
                 retList.append(SingleSimulation(doc))
             except:
                 print(f"Warning: could not find data with the following document: {doc.asDict()}")
-        return
+
+        return retList
 
     def listSimulations(self, wideFormat=False, **query):
         """

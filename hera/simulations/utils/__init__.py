@@ -25,4 +25,3 @@ except NameConflictError:
 
 ####
 
-from .matplotlibCountour import toGeopandas
