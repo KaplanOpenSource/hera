@@ -1,13 +1,11 @@
 import os
 import logging
-import pandas
 import geopandas
-from . import abstractLocation
+from .. import abstractLocation
+from .analysis import analysis
 
-from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-
-
-from ....datalayer import datatypes,nonDBMetadataFrame
+from .....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from .....datalayer import datatypes,nonDBMetadataFrame
 
 try:
     from freecad import app as FreeCAD
@@ -285,103 +283,6 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
                     doc.save()
 
         return nonDBMetadataFrame(data) if doc is None else doc
-
-
-class analysis():
-
-    _datalayer = None
-
-    @property
-    def datalayer(self):
-        return self._datalayer
-
-    def __init__(self, dataLayer):
-
-        self._datalayer = dataLayer
-
-
-    def ConvexPolygons(self, regionNameOrData, buffer=100):
-        """
-            Returns convex polygons of groups of buildings.
-
-        Parameters
-        ----------
-        :param data: str or geopandas DataFrame.
-                The data to get the convex of.
-
-        :param buffer:
-
-        Returns
-        -------
-
-        """
-        if isinstance(regionNameOrData,str):
-            data = self.getRegions(regionNameOrData).getData()
-        else:
-            data = regionNameOrData
-
-        data = data.reset_index().buffer(buffer)
-        indicelist = [[0]]
-        for i in range(1, len(data)):
-            found = False
-            for g in range(len(indicelist)):
-                for n in indicelist[g]:
-                    if data[i].intersection(data[n]).is_empty:
-                        continue
-                    else:
-                        indicelist[g].append(i)
-                        found = True
-                        break
-                if found:
-                    break
-                if g == len(indicelist) - 1:
-                    indicelist.append([i])
-
-        geo = data.loc[indicelist[0]].unary_union.convex_hull
-        gpd = geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])
-        for indice in indicelist[1:]:
-            geo = data.loc[indice].unary_union.convex_hull
-            gpd = pandas.concat([gpd, geopandas.GeoDataFrame.from_dict([{"geometry": geo, "area": geo.area}])])
-
-        gpd = gpd.sort_values(by="area", ascending=False).reset_index()
-        found = False
-        for i in range(len(gpd)):
-            for j in range(i + 1, len(gpd)):
-                if gpd.loc[i].geometry.intersection(gpd.loc[j].geometry).is_empty:
-                    continue
-                else:
-                    found = True
-                    break
-            if found:
-                break
-        if found:
-            gpd = self.ConvexPolygons(gpd, buffer=1)
-
-        return gpd
-
-    def LambdaGrid(self, regionNameOrData,wind,rez):
-        """
-         Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
-
-         Parameter:
-                   buildings: str or GeoDataframe of rectangular area of the buildings layer of BNTL.
-                   wind: The meteorological wind direction.
-                   rez: The cell's resolution of the average lambda grid(output).
-         Return:  geoPandas of lambda grid
-                  Save the geoPandas to excel file('output_lambda.xlsx')
-
-        """
-        from ..UrbanArea.field import field
-
-        if isinstance(regionNameOrData,str):
-            data = self.datalayer.getRegions(regionNameOrData).getData()
-        else:
-            data = regionNameOrData
-
-        nf = field(data, rez, wind, self.datalayer.FilesDirectory)
-        lambdaGrid = nf.getLambdaGrid()
-        #nf.dataToExcel('output_lambda')
-        return lambdaGrid
 
 #     def createSynthetic(self, stlpath, domainx, domainy, buildingx, buildingy, buildingz, gap):
 #         """

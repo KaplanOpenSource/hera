@@ -7,7 +7,7 @@ from dask.delayed import delayed
 from dask import dataframe
 
 from unum.units import *
-from ....utils import tounum, tonumber
+from .... import tounum, tonumber
 
 from ....measurements.GIS.locations.topography import TopographyToolkit
 
@@ -337,10 +337,12 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             if len(processorList) == 0:
                 raise ValueError(f"There are no processor* directories in the case. Is it parallel?")
 
-            timeList = sorted([x for x in os.listdir(os.path.join(self.casePath,processorList[0])) if (
-                    os.path.isdir(x) and
-                    x.isdigit() and
-                    (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+
+            cwd  = os.path.join(self.casePath,processorList[0])
+            timeList = sorted([x for x in os.listdir(cwd) if (os.path.isdir(os.path.join(cwd,x))
+                                                              and x.isdigit()
+                                                              and (not x.startswith("processor")
+                                                                and x not in ["constant", "system", "rootCase", 'VTK']))],
                               key=lambda x: int(x))
 
             data = dataframe.from_delayed([delayed(loader)(os.path.join(processorName,timeName)) for processorName,timeName in product(processorList,timeList)])
