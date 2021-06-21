@@ -72,6 +72,15 @@ riskAreas = Agent.RegularPopulation.calculate(Concentration, "C", isel={"datetim
 # The wind distribution may also be plotted around the rose.
 # It is induced as a dataframe with the angles and the probabilities.
 # For example, we will generate a sinusoidal distribution.
+# The ticks of the probabilities may be chosen; the default is 25,50,75 and 100 percents.
+# Notice that the heighest probability isn't ticked in the graph, and instead is used as a limit value.
+# For example, we will limit our probabilities to 40 percents.
+# In addition, the type of plot may be changed. Available plot types are those of matplotlib.pyplot.
+# The default is "plot" for a line plot; "bar" may be given, for instance, for a bar plot.
+#
+# In the next examples we work with mathematical angles, and therefore ue the parameter mathematical_angles.
+# If we would want to work with meteorological angles, the windAngle value would have to be assigned to the parameter
+# meteorological_angles.
 
 angles = [360/50*i for i in range(50)]
 distributions = [100*(numpy.sin(angle*3* numpy.pi/180.)+1)/(2*numpy.pi) for angle in angles]
@@ -81,7 +90,8 @@ x_coordinate = 264500
 y_coordinate = 766750
 ax, retProj = risk.presentation.plotCasualtiesRose(
     results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
-    mathematical_angles=windAngles, severityList=["Light","Severe"],windDistribution=windDist)
+    mathematical_angles=windAngles, severityList=["Light","Severe"],windDistribution=windDist,
+    windTicks=[10,20,30,40],plotType="plot")
 #######################
 # The retProj object is a dataframe that holds the numbers of injuries for each wind direction and severity.
 # It may be used for making tables of the results.

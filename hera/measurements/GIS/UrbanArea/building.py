@@ -10,19 +10,27 @@ from shapely.geometry import Polygon
 from shapely.geometry import LineString
 
 
+
 class Building(gpd.GeoDataFrame):
 
     polygon = None
     bldHeight = 0
 
+
+
     def __init__(self, _polygon,_bldHeight ):
         self.polygon = _polygon
         self.bldHeight = _bldHeight
+
+
+
 
     def PlotBuilding(self):
         g = gpd.GeoSeries([self.polygon])
         gdf = gpd.GeoDataFrame(geometry=g)
         gdf.plot()
+
+
 
     def A_f2(self,MeteoAngle):
         A_f = 0

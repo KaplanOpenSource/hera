@@ -9,12 +9,22 @@ import pandas
 import numpy
 from unum.units import *
 from ... import toolkit
+from ... utils.ConvertJSONtoConf import ConvertJSONtoConf
+
+meterKeys = ["TopoXmin","TopoXmax","TopoYmin","TopoYmax","releaseHeight","inversionHeight","savedx","savedy","savedz"]
+secondKeys = ["releaseDuration","savedt"]
+minuteKeys = ["duration"]
+velocityKeys = ["windSpeed"]
 
 class LSMTemplate:
     _document = None
     _toolkit = None
 
     _config =None
+
+    STABILITY_NEUTRAL = "neutral"
+    STABILITY_STABLE = "stable"
+    STABILITY_UNSTABLE = "unstable"
 
     @property
     def toolkit(self):
@@ -106,7 +116,12 @@ class LSMTemplate:
         updated_params = dict(self._document['desc']['params'])
         updated_params.update(params)
         updated_params.update(descriptor)
+        updated_params = ConvertJSONtoConf(updated_params)
+        for keys, unit in zip([minuteKeys,meterKeys,secondKeys,velocityKeys],[min,m,s,m/s]):
+            for key in keys:
+                updated_params[key] = updated_params[key].asNumber(unit)
 
+        print(updated_params)
 
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
@@ -135,9 +150,16 @@ class LSMTemplate:
         ifmc.setParamsMap(updated_params)
         ifmc.setTemplate('LSM_%s' % (self.version))
         docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+                                                       templateName=self.templateName,
                                                        version=self.version,**updated_params)
-
-        if len(docList) == 0:
+        print(f"Found {docList}")
+        if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+            if len(docList) == 0:
+                if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                    raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
+                                     f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
+                if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
+                    docList[0].delete()
             doc = self.toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
                 resource='None',
@@ -156,9 +178,14 @@ class LSMTemplate:
                 doc['resource'] = os.path.join(saveDir)
                 doc['dataFormat'] = datatypes.STRING
             doc.save()
-        elif saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-            raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
-                             f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB} in order to replace it.")
+
+        print(f"The saveDir is {saveDir}")
+
+        if os.path.exists(os.path.join(saveDir,"netcdf")):
+            if saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE:
+                raise ValueError(f"The outputfile {os.path.join(saveDir,'netcdf')} exists. Either remove it or run a saveMode that ends with _REPLACE")
+            elif saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE:
+                os.system(f"rm -r {os.path.join(saveDir,'netcdf')}")
 
         ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)
@@ -229,6 +256,8 @@ class LSMTemplate:
                         hStations += f"{h} "
                     with open("h_stations.txt", "w") as newStationFile:
                         newStationFile.write(hStations)
+
+        print("Running the model")
         # run the model.
         os.system('./a.out')
         if self.to_xarray:
@@ -261,8 +290,8 @@ class LSMTemplate:
                 allfiles = os.path.join(machsanPath ,"*")
                 os.system(f"rm {allfiles}")
 
-
-            finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
+            if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
+                finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
 
             return nonDBMetadataFrame(finalxarray,**updated_params)
         else:

@@ -2,11 +2,14 @@ import pandas
 import json
 import os
 
-from .template import LSMTemplate
+from .template import LSMTemplate,meterKeys,minuteKeys,secondKeys,velocityKeys
 from itertools import product
 from ... import datalayer
 from ... import toolkit
 from .singleSimulation import SingleSimulation
+from unum.units import *
+from ..utils.coordinateHandler import coordinateHandler
+
 
 class LSMToolkit(toolkit.abstractToolkit):
     """
@@ -26,7 +29,11 @@ class LSMToolkit(toolkit.abstractToolkit):
     _to_xarray = None
     _to_database = None
     _forceKeep = None
+    _analysis = None
 
+    @property
+    def analysis(self):
+        return self._analysis
     @property
     def to_xarray(self):
         return self._to_xarray
@@ -92,7 +99,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         self.to_xarray = to_xarray
         self.to_database = to_database
         self.forceKeep = forceKeep
-
+        self._analysis = analysis(self)
 
     def getTemplates(self, **query):
         """
@@ -236,10 +243,18 @@ class LSMToolkit(toolkit.abstractToolkit):
         :param query:
         :return:
         """
-
+        for keys, unit in zip([minuteKeys, meterKeys, secondKeys, velocityKeys], [min, m, s, m / s]):
+            for key in keys:
+                if key in query.keys():
+                    query[key] = query[key].asNumber(unit)
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **query)
-
-        return [SingleSimulation(doc) for doc in docList]
+        retList = []
+        for doc in docList:
+            try:
+                retList.append(SingleSimulation(doc))
+            except:
+                print(f"Warning: could not find data with the following document: {doc.asDict()}")
+        return
 
     def listSimulations(self, wideFormat=False, **query):
         """
@@ -269,3 +284,23 @@ class LSMToolkit(toolkit.abstractToolkit):
                 return df
         except ValueError:
             raise FileNotFoundError('No simulations found')
+
+class analysis:
+    """
+        Analysis of the demography toolkit.
+    """
+
+    _datalayer = None
+    _coordinateHandler = None
+
+    @property
+    def coordinateHandler(self):
+        return self._coordinateHandler
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, dataLayer):
+        self._datalayer = dataLayer
+        self._coordinateHandler = coordinateHandler()
