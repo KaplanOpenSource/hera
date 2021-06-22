@@ -7,10 +7,7 @@ plot single contourf
 from hera.measurements.meteorology.lowfreqdata import lowfreqDataLayer,dailyplots
 import seaborn # import for documentation purose
 seaborn.set() # for documentation purose
-import os # import for documentation purose
 import matplotlib.pyplot as plt
-
-from hera.measurements.meteorology.lowfreqdata.analysis import seasonsdict
 
 ###############################################################################
 # First, we read data from the data base:

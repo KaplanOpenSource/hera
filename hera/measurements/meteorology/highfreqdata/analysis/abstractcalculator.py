@@ -12,16 +12,22 @@ class AbstractCalculator(object):
     _AllCalculatedParams = None
     _InMemoryAvgRef = None
     _Karman = 0.4
-    _saveProperties = {'dataFormat': None}
+    _saveProperties = None
 
+<<<<<<< HEAD
     def __init__(self, rawData, metadata):
         if type(rawData) == pandas.DataFrame:
+=======
+    def __init__(self, rawData, metadata, identifier):
+        if isinstance(rawData,pandas.DataFrame):
+>>>>>>> c8d9ea77f73852c66b87efa24554ffa2b9b9e543
             self._DataType = 'pandas'
-        elif type(rawData) == dask.dataframe.core.DataFrame:
+        elif isinstance(rawData,dask.dataframe.core.DataFrame):
             self._DataType = 'dask'
         else:
             raise ValueError("'rawData' type must be 'pandas.DataFrame' or 'dask.dataframe.core.DataFrame'.\nGot '%s'." % type(rawData))
 
+        self._saveProperties = {'dataFormat': 'parquet'}
         self._RawData = rawData
         self._metadata = metadata
         self._TemporaryData = pandas.DataFrame()
@@ -58,10 +64,28 @@ class AbstractCalculator(object):
         """
         Setting the parameters for handling the saving part.
 
-        :param dataFormat: The format to save the data to.
-        :param kwargs: Other arguments required for saving the data to the specific dataFormat.
-        :return:
+        Parameters
+        ----------
+
+        dataFormat: str
+            The format to save the data to.
+            can be:
+                * HDF
+                * parquet    (default).
+                * JSON_pandas
+
+
+        kwargs:
+            Other arguments required for saving the data to the specific dataFormat.
+
+        Return
+        ------
+            None
+
         """
+        if dataFormat not in ['parquet','HDF','JSON_pandas']:
+            raise ValueError(f"dataFormat must be parquet, HDF or JSON_pandas: not {dataFormat}")
+
         self._saveProperties['dataFormat'] = dataFormat
         self._saveProperties.update(kwargs)
 
@@ -97,6 +121,20 @@ class AbstractCalculator(object):
         self._updateInMemoryAvgRef(df)
 
     def compute(self, mode='not_from_db_and_not_save'):
+        """
+            Computes all the calculations that were requested.
+
+            Allows storing the data as a cache in the database.
+
+        Parameters
+        -----------
+
+        mode: str
+
+        :return:
+            dask.dataFrame or pandas.dataFrame
+        """
+
         if self._TemporaryData.columns.empty:
             raise ValueError("Parameters have not been calculated yet.")
 
