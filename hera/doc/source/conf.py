@@ -40,7 +40,8 @@ extensions = ['sphinx.ext.autodoc',
 extensions = ['sphinx.ext.autodoc',
 	      'sphinx_gallery.gen_gallery',
 	      'nbsphinx',
-	      'numpydoc'
+	      'numpydoc',
+		  'sphinx.ext.autosectionlabel'
 	     ]
 
 sphinx_gallery_conf = {'examples_dirs': 'examples',   # path to your example scripts

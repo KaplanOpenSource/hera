@@ -1,4 +1,4 @@
-Measurments
+measurments
 ===========
 
 This layer manages data that originates from measurements.

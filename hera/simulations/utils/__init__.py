@@ -1,4 +1,3 @@
-from unum import Unum
 from unum.units import *
 from unum import NameConflictError
 

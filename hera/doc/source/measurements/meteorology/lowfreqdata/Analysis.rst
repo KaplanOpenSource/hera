@@ -12,7 +12,7 @@ First, we get the data
 .. code:: ipython3
 
     stationName = 'BET DAGAN'
-    from hera.measurements.meteorology import lowfreqdata 
+    from hera.measurements.meteorology import lowfreqdata
     datadb = lowfreqdata.lowfreqDataLayer.getStationDataFromDB(StationName=stationName)
 
 

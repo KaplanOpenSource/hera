@@ -2,6 +2,20 @@
 DataLayer API
 *************
 
+
+Document definition
+###################
+
+
+.. autoclass:: hera.datalayer.document.metadataDocument.MetadataFrame
+    :members:
+    :undoc-members:
+
+
+.. autoclass:: hera.datalayer.document.metadataDocument.nonDBMetadata
+    :members:
+    :undoc-members:
+
 Collection
 ##########
 
@@ -22,19 +36,6 @@ Collection
     :undoc-members:
 
 
-Document definition
-###################
-
-
-.. autoclass:: hera.datalayer.document.metadataDocument.MetadataFrame
-    :members:
-    :undoc-members:
-
-
-.. autoclass:: hera.datalayer.document.metadataDocument.nonDBMetadata
-    :members:
-    :undoc-members:
-
 
 Project
 ########
@@ -50,8 +51,8 @@ ProjectMultiDB
     :members:
     :undoc-members:
 
-ProjectMultiDB
-##############
+ProjectMultiDBPublic
+####################
 
 .. autoclass:: hera.datalayer.project.ProjectMultiDBPublic
     :members:
