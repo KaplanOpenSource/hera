@@ -97,6 +97,8 @@ class Project(loggedObject):
     def projectName(self):
         return self._projectName
 
+
+    @property
     def simulations(self) -> Simulations_Collection:
         """
             Access the simulation type documents.
