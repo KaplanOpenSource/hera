@@ -28,9 +28,9 @@ class errorCalculation():
         return NMSE
 
 
-    def calculateFAC2(self,data, modelColumn='model', measureColumn='measure'):
+    def calculateFAC(self,data, relation=2, modelColumn='model', measureColumn='measure'):
         """
-        Calculates the FAC2 criteria.
+        Calculates the FAC criteria.
 
         :param data: pandas of the model and raw data together.
         :param modelColumn: The name of the model's data column.
@@ -39,7 +39,7 @@ class errorCalculation():
         """
 
         model_over_measure = data[modelColumn]/data[measureColumn]
-        FAC2 = model_over_measure.apply(lambda x: 0.5<x<2).sum()/model_over_measure.count()
+        FAC2 = model_over_measure.apply(lambda x: 1/relation<x<relation).sum()/model_over_measure.count()
         return FAC2
 
 
@@ -67,7 +67,7 @@ class errorCalculation():
         :return: float R.
         """
 
-        R = ((data[modelColumn]-data[modelColumn].mean())*(data[measureColumn]-data[measureColumn].mean())).mean()/(data[modelColumn].std()*data[measureColumn].std())**0.5
+        R = ((data[modelColumn]-data[modelColumn].mean())*(data[measureColumn]-data[measureColumn].mean())).mean()/(data[modelColumn].std()*data[measureColumn].std())
         return R
 
 
