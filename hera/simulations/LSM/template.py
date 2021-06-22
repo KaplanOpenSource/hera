@@ -120,7 +120,7 @@ class LSMTemplate:
             if stations is None:
                 print("setting homogeneous wind")
         else:
-            updated_params.update(TopoFile="'TOPO'")
+            updated_params.update(TopoFile="'TOPO'",flat=".FALSE.")
 
         if depositionRates is not None:
             if not isinstance(depositionRates,list):
