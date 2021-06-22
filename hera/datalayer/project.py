@@ -543,6 +543,9 @@ class ProjectMultiDB(loggedObject):
         self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
         self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
 
+        databaseNameList: str,list
+                the name of the database to use.
+                If None, use the default database (the name of the current user).
 
     def getConfig(self):
         """
@@ -578,6 +581,49 @@ class ProjectMultiDB(loggedObject):
             for key in kwargs.keys():
                 config[f"desc__{key}"] = kwargs[key]
             documents[0].update(**config)
+
+        """
+        super().__init__()
+        self._projectName = projectName
+        self._databaseNameList = numpy.atleast_1d(databaseNameList)
+        self._useAll = useAll
+        self._measurements  = dict([(user,Measurements_Collection(user=user)) for user in self._databaseNameList])
+        self._cache         = dict([(user,Cache_Collection(user=user)) for user in self._databaseNameList])
+        self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
+        self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
+
+
+    def getConfig(self):
+        """
+        Returns the config document's description.
+        If there is no config document, return None.
+        """
+        documents = self.getCacheDocumentsAsDict(type="__config__")
+        if len(documents) == 0:
+            raise KeyError("There is no config document.")
+        else:
+            if type(documents)==list:
+                desc = documents[0]["documents"][0]["desc"]
+            else:
+                desc = documents["documents"][0]["desc"]
+        return desc
+
+    def setConfig(self, config, dbName=None):
+        """
+        Create a config documnet or updates an existing config document.
+        """
+        documents = self.getCacheDocuments(type="__config__", user=dbName)
+        if len(documents) == 0:
+            if self._databaseNameList[0] == "public" or self._databaseNameList[0] == "Public":
+                if len(self._databaseNameList) == 1:
+                    raise KeyError("Can't set config document in public, choose aditional user/s.")
+                else:
+                    dbName = self._databaseNameList[1] if dbName is None else dbName
+            else:
+                dbName = self._databaseNameList[0] if dbName is None else dbName
+            self.addCacheDocument(type="__config__", desc=config, users=[dbName])
+        else:
+            documents[0].update(desc=config)
 
     def getMetadata(self):
         """
