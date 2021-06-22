@@ -578,7 +578,7 @@ class ProjectMultiDB(loggedObject):
                 config[f"desc__{key}"] = kwargs[key]
             documents[0].update(**config)
 
-        """
+
         super().__init__()
         self._projectName = projectName
         self._databaseNameList = numpy.atleast_1d(databaseNameList)
