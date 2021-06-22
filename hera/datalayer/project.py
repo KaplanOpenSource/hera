@@ -543,10 +543,6 @@ class ProjectMultiDB(loggedObject):
         self._simulations   = dict([(user,Simulations_Collection(user=user)) for user in self._databaseNameList])
         self._all           = dict([(user,AbstractCollection(user=user)) for user in self._databaseNameList])
 
-        databaseNameList: str,list
-                the name of the database to use.
-                If None, use the default database (the name of the current user).
-
     def getConfig(self):
         """
         Returns the config document's description.
