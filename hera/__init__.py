@@ -1,4 +1,4 @@
-__version__ = '2.1.4'
+__version__ = '2.2.0'
 
 import os
 import json
@@ -44,6 +44,15 @@ except NameConflictError:
     pass
 
 """
+2.2.0
+-----
+    - removed the simulation.util.toUnum and toNumber. Use util tounit and tonumber. 
+    - Extended the GIS.location.raster to save the image locally only if it is not a local image. 
+    - Added the TOOLKIT save modes to the toolkit home. 
+    - measurements.demography was extended to allow loading an existing demography shp file. 
+    
+      
+
 2.1.4
 -----
     - Removing the big files from the history. 

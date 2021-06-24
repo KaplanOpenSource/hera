@@ -119,6 +119,7 @@ class LSMTemplate:
         updated_params = ConvertJSONtoConf(updated_params)
         for keys, unit in zip([minuteKeys,meterKeys,secondKeys,velocityKeys],[min,m,s,m/s]):
             for key in keys:
+                print(key,updated_params[key])
                 updated_params[key] = updated_params[key].asNumber(unit)
 
         print(updated_params)

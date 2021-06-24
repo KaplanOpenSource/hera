@@ -2,7 +2,7 @@ import pandas
 import numpy
 from unum.units import *
 from ..gaussian.Meteorology import StandardMeteorolgyConstant
-from ..utils import toUnum,toNumber
+from ..utils import tounit,tonumber
 from pyriskassessment.agents.Agents import Agent
 from unum import Unum
 
@@ -105,13 +105,13 @@ class MonaghanConstantConditions(object):
         evaporation_nc[2] = (sorption_p+self.P0) / ((sorption_p+p1)*self.MASSRATIO) # equivalent to variable nc2 in the code of Hezi, but not multiplied by the droplet radius.
         evaporation_nc[3] = evaporation_nc[2]*evaporation_nc[1] # equivalent to variable nc3 in the code of Hezi
 
-        evaporation = [Unum.coerceToUnum(x).asNumber() for x in evaporation]
-        evaporation_nc = [Unum.coerceToUnum(x) for x in evaporation_nc]
+        evaporation = [Unum.coercetounit(x).asNumber() for x in evaporation]
+        evaporation_nc = [Unum.coercetounit(x) for x in evaporation_nc]
 
         ret = numpy.zeros(len(timelist))
 
-        sstime  = (2*toUnum(dropletRadius,um)*evaporation_nc[3]).asNumber(s)
-        tau     = (2 * toUnum(dropletRadius, um) * evaporation_nc[1]).asNumber(s)
+        sstime  = (2*tounit(dropletRadius,um)*evaporation_nc[3]).asNumber(s)
+        tau     = (2 * tounit(dropletRadius, um) * evaporation_nc[1]).asNumber(s)
 
         sstime_timedelta = pandas.to_timedelta(sstime,"s")
         tau_timedelta = pandas.to_timedelta(tau, "s")

@@ -6,7 +6,7 @@ except ImportError:
 	print("wrong scipy, can't solve the system")
 
 from unum.units import *
-from ..utils import toUnum,toNumber
+from ..utils import tounit,tonumber
 from scipy.optimize import root
 from scipy.constants import g as gconst
 from .Meteorology import meteorologyFactory
@@ -51,7 +51,7 @@ class FallingNonEvaporatingDroplets(object):
         except:
                 raise ValueError("Must be a 3 tuple. ")
 
-        self._position=[toUnum(x,m) for x in value]
+        self._position=[tounit(x,m) for x in value]
 
     @property
     def cloudSigma(self):
@@ -65,7 +65,7 @@ class FallingNonEvaporatingDroplets(object):
         except:
             raise ValueError("Must be a 3 tuple. ")
 
-        self._cloudSigma = [toUnum(x, m) for x in value]
+        self._cloudSigma = [tounit(x, m) for x in value]
 
     @property
     def cloudSigmaX(self):
@@ -84,7 +84,7 @@ class FallingNonEvaporatingDroplets(object):
         return self._cloudQ
     @Q.setter
     def Q(self,value):
-        self._cloudQ = toUnum(value,kg)
+        self._cloudQ = tounit(value,kg)
 
     @property
     def particleMass(self):
@@ -112,7 +112,7 @@ class FallingNonEvaporatingDroplets(object):
 
     @particleDiameter.setter
     def particleDiameter(self,value):
-        self._particleDiameter = toUnum(value,um)
+        self._particleDiameter = tounit(value,um)
         self.__setParticleMass()
 
     @property
@@ -121,7 +121,7 @@ class FallingNonEvaporatingDroplets(object):
 
     @rho_p.setter
     def rho_p(self, value):
-        self._rho_p = toUnum(value, g / cm ** 3)
+        self._rho_p = tounit(value, g / cm ** 3)
         self.__setParticleMass()
 
     @property 
@@ -315,7 +315,7 @@ class FallingNonEvaporatingDroplets(object):
 
     def _VTFunc(self,Vt,height=None):
 
-        height = toUnum(height if height is not None else self.z,m)
+        height = tounit(height if height is not None else self.z,m)
 
 
         rho_air = self.meteorology.getAirDensity(height)
@@ -393,10 +393,10 @@ class FallingNonEvaporatingDroplets(object):
         x, yc, z, dist, u_p, w_p = y
 
         z = numpy.max(z,0)
-        z = toUnum(z,m)
+        z = tounit(z,m)
 
-        u_p = toUnum(u_p,m/s)
-        w_p = toUnum(w_p, m / s)
+        u_p = tounit(u_p,m/s)
+        w_p = tounit(w_p, m / s)
 
         try:
             U = self.meteorology.getWindVeclocity(z)
