@@ -11,11 +11,6 @@ from unum.units import *
 from ... import toolkit
 from ... utils.ConvertJSONtoConf import ConvertJSONtoConf
 
-meterKeys = ["TopoXmin","TopoXmax","TopoYmin","TopoYmax","releaseHeight","inversionHeight","savedx","savedy","savedz"]
-secondKeys = ["releaseDuration","savedt"]
-minuteKeys = ["duration"]
-velocityKeys = ["windSpeed"]
-
 class LSMTemplate:
     _document = None
     _toolkit = None
@@ -117,11 +112,9 @@ class LSMTemplate:
         updated_params.update(params)
         updated_params.update(descriptor)
         updated_params = ConvertJSONtoConf(updated_params)
-        for keys, unit in zip([minuteKeys,meterKeys,secondKeys,velocityKeys],[min,m,s,m/s]):
+        for keys, unit in zip([updated_params["minuteKeys"],updated_params["meterKeys"],updated_params["secondKeys"],updated_params["velocityKeys"]],[min,m,s,m/s]):
             for key in keys:
                 updated_params[key] = updated_params[key].asNumber(unit)
-
-        print(updated_params)
 
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
