@@ -25,7 +25,8 @@ class LSMToolkit(toolkit.abstractToolkit):
 
 
     """
-
+    TRUE = ".TRUE."
+    FALSE = ".FALSE."
     _to_xarray = None
     _to_database = None
     _forceKeep = None
@@ -145,7 +146,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         doc = self.getDatasourceDocument(datasourceName=templateName,version=templateVersion)
         return LSMTemplate(doc,self)
 
-    def listTemplates(self, wideFormat=False, **query):
+    def listTemplates(self, withParams = False, wideFormat=False, **query):
         """
             :ist the template parameters that fulfil the query
         :param query:
@@ -163,8 +164,11 @@ class LSMToolkit(toolkit.abstractToolkit):
             desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
             df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
             ret = pandas.concat(df_list,ignore_index=True,sort=False)
-            if not wideFormat:
-                ret = ret.melt()
+            if withParams:
+                if not wideFormat:
+                    ret = ret.melt()
+            else:
+                ret = pandas.DataFrame({"template":ret.template, "version":ret.version})
         else:
             ret = []
         return ret

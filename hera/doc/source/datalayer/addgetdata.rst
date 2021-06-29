@@ -51,7 +51,7 @@ First, we create the file name that we we want to save to.
 
 .. parsed-literal::
 
-    The current file directory is /ibdata/yehudaa/Development/pyhera/hera/doc/source
+    The current file directory is /raid/users/ofir/Development/pyhera/hera/doc/source
 
 
 It is very important to save the **absolute path** (using
@@ -350,7 +350,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "60aa0a1a948abc390a1d44fa"
+            "$oid": "60d1737ae1043a8b7f3a5b0e"
         },
         "dataFormat": "parquet",
         "desc": {
@@ -358,7 +358,7 @@ The following will delete one record
             "scale": 0.5
         },
         "projectName": "ExampleProject",
-        "resource": "/ibdata/yehudaa/Development/pyhera/hera/doc/source/dataset3.parquet",
+        "resource": "/raid/users/ofir/Development/pyhera/hera/doc/source/dataset3.parquet",
         "type": "Distribution"
     }
 
