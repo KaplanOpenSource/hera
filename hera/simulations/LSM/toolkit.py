@@ -2,7 +2,7 @@ import pandas
 import json
 import os
 
-from .template import LSMTemplate,meterKeys,minuteKeys,secondKeys,velocityKeys
+from .template import LSMTemplate
 from itertools import product
 from ... import datalayer
 from ... import toolkit
@@ -241,12 +241,17 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         return LSMTemplate(doc,self)
 
-    def getSimulations(self, **query):
+    def getSimulations(self,unitsTemplateVersion="v4-general", **query):
         """
         get a list of SingleSimulation objects that fulfill the query
         :param query:
         :return:
         """
+        template = self.getTemplateByName(unitsTemplateVersion)
+        minuteKeys = template._document['desc']['params']["minuteKeys"]
+        meterKeys = template._document['desc']['params']["meterKeys"]
+        secondKeys = template._document['desc']['params']["secondKeys"]
+        velocityKeys = template._document['desc']['params']["velocityKeys"]
         for keys, unit in zip([minuteKeys, meterKeys, secondKeys, velocityKeys], [min, m, s, m / s]):
             for key in keys:
                 if key in query.keys():
