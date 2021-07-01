@@ -2,7 +2,7 @@ from unum.units import *
 import pandas
 import numpy
 from scipy.stats import lognorm
-from ..utils import toUnum,toNumber
+from ..utils import tounit,tonumber
 from .FallingNonEvaporatingDroplets import FallingNonEvaporatingDroplets
 
 class FixedPositionDropletsCloud(object):
@@ -64,14 +64,14 @@ class FixedPositionDropletsCloud(object):
 
     def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="StandardMeteorolgyConstant", **kwargs):
 
-        rv = lognorm(numpy.log(geometricstd), scale=toNumber(mmd, m))
+        rv = lognorm(numpy.log(geometricstd), scale=tonumber(mmd, m))
         lower = rv.ppf(1e-4)
         upper = rv.ppf(1-1e-4)
 
         interval = numpy.logspace(numpy.log(lower),numpy.log(upper),clouds,base=numpy.e)
         dh = numpy.diff(numpy.log(interval))[0]
 
-        massFractionVector = numpy.diff(rv.cdf(interval))*toNumber(Q,kg)
+        massFractionVector = numpy.diff(rv.cdf(interval))*tonumber(Q,kg)
         diameterVector     = numpy.exp(numpy.log(interval[:-1])+dh/2.)  # [m]
 
         for dropletDiam,dropletQ in zip(diameterVector,massFractionVector):
@@ -111,6 +111,6 @@ class LinePositionDropletsCloud(FixedPositionDropletsCloud):
         self._dropletList = []
 
         qCloud = Q/linepositions
-        for Ypos in numpy.linspace(0,toNumber(linelength,m),linepositions):
-            curpos = (position[0],toUnum(Ypos,m),position[2])
+        for Ypos in numpy.linspace(0,tonumber(linelength,m),linepositions):
+            curpos = (position[0],tounit(Ypos,m),position[2])
             self._initDropletPosition(mmd, geometricstd, curpos, qCloud, clouds=clouds,meteorologyname=meteorologyname, **kwargs)

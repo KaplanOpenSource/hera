@@ -1,6 +1,6 @@
 from ...datalayer import project
 from ...riskassessment import AgentHome
-from ..utils import toNumber, toUnum
+from ..utils import tonumber, tounit
 from unum.units import *
 import numpy
 
@@ -77,10 +77,10 @@ class depositionModels(object):
         self._depositionModel = depositionModel
         self._ustar = ustar
         self._density = density
-        self._temperature = toNumber(toUnum(temperature,K),K)
+        self._temperature = tonumber(tounit(temperature,K),K)
         self._surface = surface if type(surface)==dict else p.getCacheDocuments(type="surface",surface=surface)[0].asDict()["desc"]
-        self._diameter = toNumber(toUnum(diameter,m),m)
-        self._heatFlux = toNumber(toUnum(heatFlux, W/(m**2)), W/(m**2))
+        self._diameter = tonumber(tounit(diameter,m),m)
+        self._heatFlux = tonumber(tounit(heatFlux, W/(m**2)), W/(m**2))
 
     def depositionRate(self):
         return getattr(self, f"depositionRate_{self._depositionModel}")()

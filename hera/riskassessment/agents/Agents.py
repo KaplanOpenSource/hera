@@ -1,6 +1,6 @@
 from unum.units import *
 from .effects import  injuryfactory
-from ...simulations.utils import toNumber,toUnum
+from ...utils import tonumber,tounit
 import numpy
 import json
 
@@ -133,7 +133,7 @@ class PhysicalPropeties(object):
 
 	@molecularWeight.setter
 	def molecularWeight(self,value):
-		self._molecularWeight = toUnum(eval(value),g/mol)
+		self._molecularWeight = tounit(eval(value),g/mol)
 
 	@property
 	def sorptionCoefficient(self):
@@ -141,7 +141,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
-		self._sorptionCoefficient = toUnum(eval(value),cm/s)
+		self._sorptionCoefficient = tounit(eval(value),cm/s)
 
 	@property
 	def spreadFactor(self):
@@ -170,7 +170,7 @@ class PhysicalPropeties(object):
 		:return:
 			The vapor saturation as Unum.
 		"""
-		temperature = toNumber(temperature,celsius)
+		temperature = tonumber(temperature,celsius)
 		MW = self.getMolecularWeight().asNumber(g/mol)
 
 		a,b,c,d = self._volatilityConst
@@ -190,13 +190,13 @@ class PhysicalPropeties(object):
 			:return:
 				The density as Unum
 		"""
-		temperature = toNumber(temperature,celsius)
+		temperature = tonumber(temperature,celsius)
 		a,b,c = self._densityConst
 
 		return (a-b*(temperature-c))*g/cm**3
 
 	def vaporPressure(self, temperature):
-		temperature = toNumber(temperature, K)
+		temperature = tonumber(temperature, K)
 		A = self._vaporConst["A"]
 		B = self._vaporConst["B"]
 		C = self._vaporConst["C"]
@@ -204,7 +204,7 @@ class PhysicalPropeties(object):
 		E = self._vaporConst["E"] if "E" in self._vaporConst.keys() else 0
 		F = self._vaporConst["F"] if "F" in self._vaporConst.keys() else 0
 		units = self._vaporConst["units"]
-		return toNumber((10 ** (A - B / (temperature - C) + D * numpy.log10(
+		return tonumber((10 ** (A - B / (temperature - C) + D * numpy.log10(
 			temperature) + E * temperature + F * temperature ** 2)) * units, bar)
 
 
