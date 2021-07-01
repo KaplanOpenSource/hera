@@ -1,6 +1,6 @@
 import os
 from .singleSimulation import SingleSimulation
-from ...datalayer import nonDBMetadataFrame,datatypes
+from ...datalayer import datatypes
 from itertools import product
 import glob
 from ..utils.inputForModelsCreation import InputForModelsCreator
@@ -10,11 +10,6 @@ import numpy
 from unum.units import *
 from ... import toolkit
 from ... utils.ConvertJSONtoConf import ConvertJSONtoConf
-
-meterKeys = ["TopoXmin","TopoXmax","TopoYmin","TopoYmax","releaseHeight","inversionHeight","savedx","savedy","savedz"]
-secondKeys = ["releaseDuration","savedt"]
-minuteKeys = ["duration"]
-velocityKeys = ["windSpeed"]
 
 class LSMTemplate:
     _document = None
@@ -27,7 +22,7 @@ class LSMTemplate:
     STABILITY_UNSTABLE = "unstable"
 
     @property
-    def toolkit(self):
+    def Toolkit(self):
         return self._toolkit
 
     @property
@@ -83,7 +78,7 @@ class LSMTemplate:
     def modelFolder(self):
         return self._document['desc']['modelFolder']
 
-    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=None,**descriptor):
+    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,simulationName=None,**descriptor):
         """
         Execute the LSM simulation
 
@@ -109,7 +104,7 @@ class LSMTemplate:
 
         """
         fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
-        saveDir = os.path.abspath(self.toolkit.FilesDirectory)
+        saveDir = os.path.abspath(self.Toolkit.FilesDirectory)
 
         # create the input file.
 
@@ -117,12 +112,9 @@ class LSMTemplate:
         updated_params.update(params)
         updated_params.update(descriptor)
         updated_params = ConvertJSONtoConf(updated_params)
-        for keys, unit in zip([minuteKeys,meterKeys,secondKeys,velocityKeys],[min,m,s,m/s]):
+        for keys, unit in zip([updated_params["minuteKeys"],updated_params["meterKeys"],updated_params["secondKeys"],updated_params["velocityKeys"]],[min,m,s,m/s]):
             for key in keys:
-                print(key,updated_params[key])
                 updated_params[key] = updated_params[key].asNumber(unit)
-
-        print(updated_params)
 
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
@@ -143,6 +135,9 @@ class LSMTemplate:
         else:
             updated_params.update(canopy=".TRUE.")
 
+        if simulationName is not None:
+            updated_params.update(simulationName=simulationName)
+
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
 
         yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
@@ -150,7 +145,7 @@ class LSMTemplate:
         ifmc = InputForModelsCreator(self.dirPath) # was os.path.dupdated_paramsirname(__file__)
         ifmc.setParamsMap(updated_params)
         ifmc.setTemplate('LSM_%s' % (self.version))
-        docList = self.toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+        docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                                        templateName=self.templateName,
                                                        version=self.version,**updated_params)
 
@@ -162,7 +157,7 @@ class LSMTemplate:
                                      f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
                     docList[0].delete()
-            doc = self.toolkit.addSimulationsDocument(
+            doc = self.Toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
                 resource='None',
                 dataFormat='None',
@@ -180,7 +175,9 @@ class LSMTemplate:
                 doc['resource'] = os.path.join(saveDir)
                 doc['dataFormat'] = datatypes.STRING
             doc.save()
-
+        else:
+            if simulationName is not None:
+                saveDir = os.path.join(saveDir, simulationName)
         print(f"The saveDir is {saveDir}")
 
         if os.path.exists(os.path.join(saveDir,"netcdf")):
@@ -291,11 +288,10 @@ class LSMTemplate:
                 machsanPath = os.path.dirname(results_full_path)
                 allfiles = os.path.join(machsanPath ,"*")
                 os.system(f"rm {allfiles}")
-
             if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
                 finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
 
-            return nonDBMetadataFrame(finalxarray,**updated_params)
+            return SingleSimulation(netcdf_output)
         else:
             return None
 

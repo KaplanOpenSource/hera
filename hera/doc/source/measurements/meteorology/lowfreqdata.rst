@@ -6,14 +6,15 @@ averaged over several minutes.
 
 
 
-Parsing data and loading to the DB
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Accessing data
+^^^^^^^^^^^^^^^^
 
 .. include:: lowfreqdata/lowfreqdata.rst
 
 
 Analysis
-^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 .. include:: lowfreqdata/Analysis.rst
 
