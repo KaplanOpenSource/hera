@@ -1,4 +1,4 @@
-__version__ = '2.2.0'
+__version__ = '2.3.0'
 
 import os
 import json
@@ -44,6 +44,17 @@ except NameConflictError:
     pass
 
 """
+2.3.0
+-----
+    - Added Ofir version
+    - LSM:
+        * Added simulation name to each run. 
+        * template.run returns a single simulation
+        * Added TRUE, FALSE constants.   
+
+    - Removed some last toNumber (some remain in the Gaussian toolkit). 
+    - Removed the ProjectMultiDB. and MultiDBPublic. 
+
 2.2.0
 -----
     - removed the simulation.util.toUnum and toNumber. Use util tounit and tonumber. 
