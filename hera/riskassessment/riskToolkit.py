@@ -1,6 +1,6 @@
 import json
 import os
-from ..toolkit import abstractToolkit,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from ..toolkit import abstractToolkit,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,TOOLKIT_SAVEMODE_NOSAVE
 from ..datalayer import datatypes, nonDBMetadataFrame
 from .agents.Agents import Agent
 from .presentation.casualtiesFigs import casualtiesPlot

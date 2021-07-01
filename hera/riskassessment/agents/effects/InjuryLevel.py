@@ -79,7 +79,7 @@ class InjuryLevel(object):
 		for tt in timeList: 
 			concField = valueField.sel(**{time:tt}) if timesel else valueField
 
-			ret = self._getGeopandas(concField,x,y,field,**parameters)
+			ret = self._getGeopandas(concField,x,y,**parameters)
 			if not ret.empty:
 
 				ret = ret[ret.area > 1]   # 1 m**2. 
@@ -115,7 +115,7 @@ class InjuryLevel(object):
 		return self.calculator.calculate(concentrationField,field,breathingRate=breathingRate,time=time).sel(**sel).isel(**isel).compute()
 
 
-	def _getGeopandas(self,concentrationField,field,x,y,**parameters):
+	def _getGeopandas(self,concentrationField,x,y,**parameters):
 		"""
 			Return the correct geopandas of the  Injury level 
 		"""
@@ -201,7 +201,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		percent = lognorm.ppf(Percent,self.sigma/a,scale=self.TL_50.asNumber(dosage)/a)*a
 		return percent
 
-	def _getGeopandas(self,concentrationField,x,y,field,**parameters):
+	def _getGeopandas(self,concentrationField,x,y,**parameters):
 		"""
 			Return the correct geopandas of the  Injury level
 			higher_severity
@@ -217,7 +217,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 			ToxicLoads = numpy.unique(numpy.sort(numpy.concatenate([ToxicLoads,HigherToxicLoads])))
 		concentrationField = concentrationField.to_dataframe().reset_index()
 		#CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
-		CS = plt.tricontour(concentrationField[x], concentrationField[y], concentrationField[field], levels=ToxicLoads)
+		CS = plt.tricontour(concentrationField[x], concentrationField[y], concentrationField, levels=ToxicLoads)
 		if numpy.max(CS.levels) < numpy.min(ToxicLoads): 
 			ret = geopandas.GeoDataFrame()
 		else:

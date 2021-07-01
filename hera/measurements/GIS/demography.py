@@ -53,7 +53,7 @@ class DemographyToolkit(toolkit.abstractToolkit):
 
         """
         self._projectName = projectName
-        super().__init__(projectName=projectName,toolkitName="Demography")
+        super().__init__(projectName=projectName,toolkitName="Demography",FilesDirectory=FilesDirectory)
         self._analysis = analysis(self)
 
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
@@ -62,14 +62,6 @@ class DemographyToolkit(toolkit.abstractToolkit):
         self._shapes    = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_SHAPES,projectName=projectName)
         self._buildings = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=projectName)
 
-        if FilesDirectory is None:
-            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
-            self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            self.logger.execution(f"Using {self._FilesDirectory}")
-        else:
-            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
-            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
-            self._FilesDirectory = FilesDirectory
 
 
     def setDefaultDirectory(self,fileDirectory,create=True):
@@ -118,8 +110,33 @@ class DemographyToolkit(toolkit.abstractToolkit):
         return self._FilesDirectory
 
 
-    def loadData(self):
-        pass
+    def loadData(self,regionaName,dataOrFileName,version=(0,0,1),metadata=dict()):
+        """
+            Loading an demographic data to the DB
+
+            Currently only an existing shp files/geojson files and replaces
+
+            TODO:
+                - Should be extended in the future to get a string and save it.
+                - Extend to different save modes (i.e just save a file or warn if already exists).
+
+        Parameters
+        ----------
+        regionaName: str
+                The name of the region
+        dataOrFileName: str
+                Currently only a file name
+        version: list
+                A list of number to state the version of the data.
+        metadata:
+                any additional
+        :return:
+        """
+        doc = self.getDatasourceDocument(regionaName,version=version)
+        if doc is not None:
+            doc.delete()
+
+        self.addDataSource(dataSourceName=regionaName,resource=dataOrFileName,dataFormat=datatypes.GEOPANDAS,**metadata)
 
 
 class analysis:
@@ -243,7 +260,7 @@ class analysis:
             newData.to_file(fullname)
             if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
 
-                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.name}
+                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName}
                 desc.update(**metadata)
                 doc = self.datalayer.addCacheDocument(desc=desc,
                                                 resource=fullname,
