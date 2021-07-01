@@ -16,7 +16,7 @@ download file from https://ims.data.gov.il/ims/7
 
 .. parsed-literal::
 
-    You must install python-wrf to use this package
+    You must install python-wrf to use this package 
 
 
 Loading the data from the file. We use the default IMS-JSON foramat.

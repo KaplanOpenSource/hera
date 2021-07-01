@@ -4,7 +4,7 @@ import numpy
 import os
 from unum.units import *
 
-from ..utils import toUnum,toNumber
+from ...utils import tounit,tonumber
 
 
 class SingleSimulation(object):
@@ -53,11 +53,11 @@ class SingleSimulation(object):
             dt_minutes = finalxarray.datetime.diff('datetime')[0].values.item()*s #temporary solution!!!!!
         else:
             dt_minutes = (finalxarray.datetime.diff('datetime')[0].values / numpy.timedelta64(1, 'm')) * min
-        finalxarray.attrs['dt'] = toUnum(dt_minutes, time_units)
-        finalxarray.attrs['Q']  = toUnum(Q, q_units)
-        finalxarray.attrs['C']  = toUnum(1, q_units/ m ** 3)
+        finalxarray.attrs['dt'] = tounit(dt_minutes, time_units)
+        finalxarray.attrs['Q']  = tounit(Q, q_units)
+        finalxarray.attrs['C']  = tounit(1, q_units/ m ** 3)
 
-        Qfactor = toNumber(finalxarray.attrs['Q'] * min / m ** 3,
+        Qfactor = tonumber(finalxarray.attrs['Q'] * min / m ** 3,
                            q_units * time_units / m ** 3)
 
         finalxarray['Dosage']   = Qfactor*finalxarray['Dosage']
