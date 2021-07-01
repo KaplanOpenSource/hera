@@ -405,7 +405,7 @@ class LSMTemplate:
         """
         return SingleSimulation(self.getDocumentByID(id))
 
-    def listSimulations(self,templateName, wideFormat=False, **query):
+    def getSimulationsList(self, **query):
         """
             List the Simulation parameters that fulfil the query
         :param query:
@@ -426,19 +426,24 @@ class LSMTemplate:
         desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
         df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
 
+        return df_list
+
+    def getSimulationsTable(self,**query):
+
+        df_list = self.getSimulationsList(**query)
+
         new_df_list = []
 
-        for df in df_list:
-            id = df['id'][0]
-            new_df = df.copy().drop(columns=['id']).melt()
-            new_df.index = [id]*len(new_df)
-            new_df_list.append(new_df)
-
         try:
-            df = pandas.concat(new_df_list)
-            if wideFormat:
+            for df in df_list:
+                id = df['id'][0]
+                new_df = df.copy().drop(columns=['id']).melt()
+                new_df.index = [id]*len(new_df)
+                new_df_list.append(new_df)
+
+
+                df = pandas.concat(new_df_list)
+
                 return df.pivot(columns='variable', values='value')
-            else:
-                return df
         except ValueError:
             raise FileNotFoundError('No simulations found')

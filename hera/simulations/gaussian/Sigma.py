@@ -1,6 +1,6 @@
 import pandas
 import numpy
-from ..utils import toUnum,toNumber
+from ..utils import toUnum,tonumber
 from unum.units import *
 
 
