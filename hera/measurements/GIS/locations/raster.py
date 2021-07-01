@@ -78,11 +78,10 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
             The doc (DB document or nonDB document).
         """
 
+        localSave = True
         if isinstance(fileNameOrData,str):
-
-
             if os.path.exists(os.path.abspath(fileNameOrData)):
-
+                localSave = False
                 regionName = os.path.basename(fileNameOrData).split(".")[0] if regionName is None else regionName
                 data = mpimg.imread(os.path.abspath(fileNameOrData))
             else:
@@ -105,7 +104,11 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
                 if os.path.exists(outputFileName):
                     raise FileExistsError(f"{outputFileName} exists in project {self.projectName}")
 
-            mpimg.imsave(outputFileName,data)
+            if localSave:
+                resource= outputFileName
+                mpimg.imsave(outputFileName,data)
+            else:
+                resource = fileNameOrData
 
             if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
@@ -133,13 +136,13 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
                 if doc is None:
                     self.addCacheDocument(
                         type = self.doctype,
-                        resource=outputFileName,
+                        resource=resource,
                         dataFormat=datatypes.IMAGE,
                         desc = additionalData
                     )
 
                 else:
-                    doc['resource'] = outputFileName
+                    doc['resource'] = resource
                     doc.desc = additionalData
                     doc.save()
 
@@ -168,7 +171,7 @@ class presentation:
     def __init__(self,dataLayer):
         self._datalayer = dataLayer
 
-    def plot(self, imageNameOrData,extents=None, ax=None):
+    def plot(self, imageNameOrData,extents=None, ax=None,**filters):
         """
             Plot the image
 
@@ -184,7 +187,7 @@ class presentation:
             return the ax of the figure.
         """
         if isinstance(imageNameOrData,str):
-            doc = self.datalayer.getImage(imageNameOrData)
+            doc = self.datalayer.getImage(imageNameOrData,**filters)
             extents = [doc.desc['minX'], doc.desc['maxX'], doc.desc['minY'], doc.desc['maxY']]
             image = doc.getData()
         else:

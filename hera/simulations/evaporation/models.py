@@ -1,6 +1,6 @@
 from ...datalayer import project
 from ...riskassessment import RiskToolkit
-from ..utils import toNumber, toUnum
+from ..utils import tonumber, tounit
 from unum.units import *
 import numpy
 
@@ -82,7 +82,7 @@ class evaporationModels(object):
             self._Vagent = None
 
     def molecularDiffusion(self,temperature):
-        temperature = toNumber(temperature, K)
+        temperature = tonumber(temperature, K)
         return getattr(self,f"molecularDiffusion_{self._molecularDiffusionModel}")(temperature)
 
     def molecularDiffusion_FSG(self,temperature):
@@ -92,7 +92,7 @@ class evaporationModels(object):
         return 0.00000000409*(temperature**1.9)*numpy.sqrt(1/self.Mair+1/self.Magent)/numpy.cbrt(self.Magent)
 
     def dynamicViscocityAir(self,temperature):
-        temperature = toNumber(temperature, K)
+        temperature = tonumber(temperature, K)
         return getattr(self,f"dynamicViscocityAir_{self._dinamicViscocityModel}")(temperature)
 
     def dynamicViscocityAir_powerLaw(self,temperature):
@@ -107,12 +107,12 @@ class evaporationModels(object):
         return self.dynamicViscocityAir(temperature=temperature)/(density*self.molecularDiffusion(temperature))
 
     def flux(self,diameter,velocity,temperature,units=g/(m**2*s)):
-        return toUnum(getattr(self, f"flux_{self._evaporationModel}")(diameter,velocity,temperature)*g/(m**2*s),units)
+        return tounit(getattr(self, f"flux_{self._evaporationModel}")(diameter,velocity,temperature)*g/(m**2*s),units)
 
     def flux_US(self, diameter,velocity,temperature):
-        temperature = toNumber(temperature, K)
-        diameter = toNumber(diameter, m)
-        velocity = toNumber(velocity,m/s)
+        temperature = tonumber(temperature, K)
+        diameter = tonumber(diameter, m)
+        velocity = tonumber(velocity,m/s)
         Re = self.Reynolds(diameter=diameter,velocity=velocity,temperature=temperature)
         Sc = self.Schmidt(temperature=temperature)
         Km = 0.664*(Re**(-0.5))*(Sc**(-2/3))*velocity if Re<=20000 else 0.0366*(Re**(-0.2))*(Sc**(-2/3))*velocity

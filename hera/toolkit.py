@@ -17,6 +17,14 @@ TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
 class ToolkitHome:
 
+    ############### Duplicates of the above for comfortability
+    TOOLKIT_SAVEMODE_NOSAVE = None
+    TOOLKIT_SAVEMODE_ONLYFILE = "File"
+    TOOLKIT_SAVEMODE_ONLYFILE_REPLACE = "File_overwrite"
+    TOOLKIT_SAVEMODE_FILEANDDB = "DB"
+    TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
+    ############################################################
+
     GIS_BUILDINGS  = "GIS_Buildings"
     GIS_RASTER     = "GIS_Raster"
     GIS_TOPOGRAPHY = "GIS_Topography"
@@ -82,6 +90,8 @@ class ToolkitHome:
         if toolkitName not in self._toolkits.keys():
             raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
         clsName = self._toolkits[toolkitName]['cls']
+
+
 
         tookit = pydoc.locate(clsName)(projectName,FilesDirectory=FilesDirectory,**kwargs)
         return tookit
@@ -186,7 +196,16 @@ class abstractToolkit(Project):
         super().__init__(projectName=projectName)
         self._toolkitname = toolkitName
         self._projectName = projectName
-        self._FilesDirectory = os.path.abspath("." if FilesDirectory is None else FilesDirectory)
+
+        if FilesDirectory is None:
+            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
+            self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
+            self.logger.execution(f"Using {self._FilesDirectory}")
+        else:
+            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
+            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
+            self._FilesDirectory = FilesDirectory
+
 
     def _getConfigDocument(self):
         """
