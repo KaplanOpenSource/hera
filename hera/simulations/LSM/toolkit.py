@@ -114,7 +114,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         docList = self.getDatasourceDocumentsList(**query)
         return [LSMTemplate(doc,self) for doc in docList]
 
-    def getTemplateByName(self,templateName,templateVersion=None,to_xarray=True,to_database=False,forceKeep=False):
+    def getTemplateByName(self,templateName,templateVersion=None):
         """
             Retrieve the template by its name.
 
@@ -146,9 +146,9 @@ class LSMToolkit(toolkit.abstractToolkit):
         doc = self.getDatasourceDocument(datasourceName=templateName,version=templateVersion)
         return LSMTemplate(doc,self)
 
-    def listTemplates(self, withParams = False, wideFormat=False, **query):
+    def getTemplatesTable(self, **query):
         """
-            :ist the template parameters that fulfil the query
+            :list the template parameters that fulfil the query
         :param query:
         :return:
         """
@@ -160,17 +160,11 @@ class LSMToolkit(toolkit.abstractToolkit):
                 desc.update({'projectName': docList[i].projectName})
 
             params_df_list = [pandas.DataFrame(desc.pop('params'), index=[0]) for desc in descList]
-            params_df_list = [df.rename(columns=dict([(x,"params__%s"%x) for x in df.columns])) for df in params_df_list]
             desc_df_list = [pandas.DataFrame(desc, index=[0]) for desc in descList]
             df_list = [desc.join(params) for (desc,params) in product(desc_df_list, params_df_list)]
             ret = pandas.concat(df_list,ignore_index=True,sort=False)
-            if withParams:
-                if not wideFormat:
-                    ret = ret.melt()
-            else:
-                ret = pandas.DataFrame({"template":ret.template, "version":ret.version})
         else:
-            ret = []
+            ret = pandas.DataFrame()
         return ret
 
 
@@ -266,7 +260,7 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         return retList
 
-    def listSimulations(self, wideFormat=False, **query):
+    def getSimulationsList(self, wideFormat=False, **query):
         """
             List the Simulation parameters that fulfil the query
         :param query:
