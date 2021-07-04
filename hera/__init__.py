@@ -44,6 +44,13 @@ except NameConflictError:
     pass
 
 """
+
+2.3.1
+-----
+    LSM: 
+        - template.run - change directory back to its location. 
+        - 
+
 2.3.0
 -----
     - Added Ofir version
