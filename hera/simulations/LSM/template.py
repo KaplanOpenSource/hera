@@ -193,6 +193,9 @@ class LSMTemplate:
         # write to file.
         ifmc.render(os.path.join(saveDir, 'INPUT'))
 
+        cur_dir = os.getcwd()
+    
+
         os.chdir(saveDir)
         if topography is not None:
             with open("TOPO","w") as topofile:
@@ -259,6 +262,7 @@ class LSMTemplate:
         print("Running the model")
         # run the model.
         os.system('./a.out')
+        os.chdir(cur_dir)
         if self.to_xarray:
             results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[updated_params["particles3D"]])
             netcdf_output = os.path.join(saveDir, "netcdf")
