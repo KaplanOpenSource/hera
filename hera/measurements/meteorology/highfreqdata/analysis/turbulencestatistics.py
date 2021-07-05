@@ -49,13 +49,8 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             avg = avg.rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
 
             avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
-            avg['wind_dir_bar'] = (2*numpy.pi+avg['wind_dir_bar'])%(2*numpy.pi)
             avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
-
-            if self._DataType=='pandas':
-                avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x)
-            else:
-                avg['wind_dir_bar'] = avg['wind_dir_bar'].apply(lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
+            avg['wind_dir_bar'] = (90 - avg['wind_dir_bar']) % 360
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
@@ -69,14 +64,9 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
                 self._RawData = self._RawData.ffill()
 
             self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
-            self._RawData['wind_dir'] = (2 * numpy.pi + self._RawData['wind_dir']) % (2 * numpy.pi)
             self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
-            if self._DataType == 'pandas':
-                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(
-                    lambda x: 270 - x if 270 - x >= 0 else 630 - x)
-            else:
-                self._RawData['wind_dir'] = self._RawData['wind_dir'].apply(
-                    lambda x: 270 - x if 270 - x >= 0 else 630 - x, meta=(None, 'float64'))
+            self._RawData['wind_dir'] = (90 - self._RawData['wind_dir']) % 360
+
 
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
             self._RawData['vp'] = self._RawData['v'] - self._RawData['v_bar']
@@ -145,7 +135,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         if 'sigmaH' not in self._TemporaryData.columns:
             self.sigma()
-            sigmaH = 0.5*numpy.hypot(self._TemporaryData['sigmaU'], self._TemporaryData['sigmaW'])
+            sigmaH = 0.5*numpy.hypot(self._TemporaryData['sigmaU'], self._TemporaryData['sigmaV'])
             self._TemporaryData['sigmaH'] = sigmaH
             self._CalculatedParams.append(['sigmaH',{}])
 
@@ -364,6 +354,31 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         return self
 
+    def secondMoments(self, inMemory=None):
+        """
+
+
+        Parameters
+        ----------
+        inMemory : boolean
+            Default value is None.
+
+        Returns
+        -------
+        singlePointTurbulenceStatistics
+            The object himself.
+        """
+
+        if self._InMemoryAvgRef is None:
+            self._InMemoryAvgRef = inMemory
+
+        moments_list = ["uu","uv","uw","uT","vv","vw","vT","ww","wT","TT"]
+
+        for moment in moments_list:
+            getattr(self, moment)(inMemory= inMemory)
+
+        return self
+
     def uu(self, inMemory=None):
         """
         Calculates the mean of u'*u'.
@@ -445,6 +460,90 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
                 ww = (self._RawData['wp'] * self._RawData['wp']).resample(self.SamplingWindow).mean()
             self._TemporaryData['ww'] = ww
             self._CalculatedParams.append(['ww',{}])
+
+        return self
+
+    def TT(self, inMemory=None):
+        """
+        Calculates the mean of T'*T'.
+
+        Parameters
+        ----------
+        inMemory : boolean
+            Default value is None.
+
+        Returns
+        -------
+        singlePointTurbulenceStatistics
+            The object himself.
+        """
+        if self._InMemoryAvgRef is None:
+            self._InMemoryAvgRef = inMemory
+
+        if 'TT' not in self._TemporaryData.columns:
+            self.fluctuations()
+            if self.SamplingWindow is None:
+                TT = (self._RawData['Tp'] * self._RawData['Tp']).mean()
+            else:
+                TT = (self._RawData['Tp'] * self._RawData['Tp']).resample(self.SamplingWindow).mean()
+            self._TemporaryData['TT'] = TT
+            self._CalculatedParams.append(['TT',{}])
+
+        return self
+
+    def uT(self, inMemory=None):
+        """
+        Calculates the mean of u'*T'.
+
+        Parameters
+        ----------
+        inMemory : boolean
+            Default value is None.
+
+        Returns
+        -------
+        singlePointTurbulenceStatistics
+            The object himself.
+        """
+        if self._InMemoryAvgRef is None:
+            self._InMemoryAvgRef = inMemory
+
+        if 'uT' not in self._TemporaryData.columns:
+            self.fluctuations()
+            if self. SamplingWindow is None:
+                uT = (self._RawData['up'] * self._RawData['Tp']).mean()
+            else:
+                uT = (self._RawData['up'] * self._RawData['Tp']).resample(self.SamplingWindow).mean()
+            self._TemporaryData['uT'] = uT
+            self._CalculatedParams.append(['uT',{}])
+
+        return self
+
+    def vT(self, inMemory=None):
+        """
+        Calculates the mean of v'*T'.
+
+        Parameters
+        ----------
+        inMemory : boolean
+            Default value is None.
+
+        Returns
+        -------
+        singlePointTurbulenceStatistics
+            The object himself.
+        """
+        if self._InMemoryAvgRef is None:
+            self._InMemoryAvgRef = inMemory
+
+        if 'vT' not in self._TemporaryData.columns:
+            self.fluctuations()
+            if self. SamplingWindow is None:
+                vT = (self._RawData['vp'] * self._RawData['Tp']).mean()
+            else:
+                vT = (self._RawData['vp'] * self._RawData['Tp']).resample(self.SamplingWindow).mean()
+            self._TemporaryData['vT'] = vT
+            self._CalculatedParams.append(['vT',{}])
 
         return self
 
@@ -744,9 +843,10 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         return self
 
-    def MOLength(self, inMemory=None):
+    def MOLength_Sonic(self, inMemory=None):
         """
-        Calculates the Monin-Obukhov length.
+        Calculates the Monin-Obukhov length. The mean temperature used is the one calculated from the Sonic raw data
+        (less accurate than using TRH).
 
         Parameters
         ----------
@@ -761,16 +861,16 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'L' not in self._TemporaryData.columns:
+        if 'L_Sonic' not in self._TemporaryData.columns:
             self.wT().Ustar()
             L = -(self._TemporaryData['T_bar']+273.15) * self._TemporaryData['Ustar'] ** 3 / (
                         self.Karman * g * self._TemporaryData['wT'])
-            self._TemporaryData['L'] = L
-            self._CalculatedParams.append(['L',{}])
+            self._TemporaryData['L_Sonic'] = L
+            self._CalculatedParams.append(['L_Sonic',{}])
 
         return self
 
-    def zoL(self, zmd, inMemory=None):
+    def zoL_Sonic(self, zmd, inMemory=None):
         """
 
         Parameters
@@ -791,19 +891,19 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         i = 1
 
-        while 'zoL%s' % i in self._TemporaryData.columns:
-            if ['zoL%s' % i, {'zmd': zmd}] in self._AllCalculatedParams:
+        while 'zoL_Sonic%s' % i in self._TemporaryData.columns:
+            if ['zoL_Sonic%s' % i, {'zmd': zmd}] in self._AllCalculatedParams:
                 return self
             i += 1
 
-        self.MOLength()
-        zoL = zmd / self._TemporaryData['L']
-        self._TemporaryData['zoL%s' % i] = zoL
-        self._CalculatedParams.append(['zoL%s' % i, {'zmd': zmd}])
+        self.MOLength_Sonic()
+        zoL = zmd / self._TemporaryData['L_Sonic']
+        self._TemporaryData['zoL_Sonic%s' % i] = zoL
+        self._CalculatedParams.append(['zoL_Sonic%s' % i, {'zmd': zmd}])
 
         return self
 
-    def zOverL(self, inMemory=None):
+    def zOverL_Sonic(self, inMemory=None):
         """
 
         Parameters
@@ -819,25 +919,20 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        import warnings
-        warnings.warn(
-            "Remember that we use the 'buildingHeight' property as the averaged height. Correct by adding this field to the properties")
-
-        if 'zOverL' not in self._TemporaryData.columns:
-            self.MOLength()
+        if 'zOverL_Sonic' not in self._TemporaryData.columns:
+            self.MOLength_Sonic()
 
             H = int(self.metaData['buildingHeight'])
             instrumentHeight = int(self.metaData['height'])
-            # averagedHeight = H  # see warning.
             averagedHeight = int(self.metaData['averagedHeight'])
             effectivez = instrumentHeight + H - 0.7 * averagedHeight
-            zOverL = effectivez / self._TemporaryData['L']
-            self._TemporaryData['zOverL'] = zOverL
-            self._CalculatedParams.append(['zOverL',{}])
+            zOverL = effectivez / self._TemporaryData['L_Sonic']
+            self._TemporaryData['zOverL_Sonic'] = zOverL
+            self._CalculatedParams.append(['zOverL_Sonic',{}])
 
         return self
 
-    def Lminus1_masked(self, inMemory=None):
+    def Lminus1_masked_Sonic(self, inMemory=None):
         """
 
         Parameters
@@ -853,17 +948,17 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'Lminus1_masked' not in self._TemporaryData.columns:
-            self.MOLength()
+        if 'Lminus1_masked_Sonic' not in self._TemporaryData.columns:
+            self.MOLength_Sonic()
             mask = ((numpy.abs(self._TemporaryData['wT']) > 0.05) & (numpy.abs(self._TemporaryData['Ustar']) > 0.15))
             maskedData = self._TemporaryData[mask]
             Lminus1_masked = -self.Karman * (g / maskedData['T_bar']) * maskedData['wT'] / maskedData['Ustar'] ** 3
-            self._TemporaryData['Lminus1_masked'] = Lminus1_masked
-            self._CalculatedParams.append('Lminus1_masked')
+            self._TemporaryData['Lminus1_masked_Sonic'] = Lminus1_masked
+            self._CalculatedParams.append('Lminus1_masked_Sonic')
 
         return self
 
-    def StabilityMOLength(self, inMemory=None):
+    def StabilityMOLength_Sonic(self, inMemory=None):
         """
         Calculates the MOlength stability.
 
@@ -880,20 +975,12 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
-        if 'StabilityMOLength' not in self._TemporaryData.columns:
-            self.MOLength()
-            stability = self._TemporaryData['L'].apply(self._ClassifyStability) if self._DataType is 'pandas' \
-                else self._TemporaryData['L'].apply(self._ClassifyStability, meta='str')
-            self._TemporaryData['StabilityMOLength'] = stability
-
-            # Now drop all the fields in which wT <= 0.01 or Ustar <= 0.01
-            # dropMethod = lambda x: x['StabilityMOLength'] if (numpy.abs(x['wT']) > 0.01) and (x['Ustar'] > 0.01) else None
-            #dropMethod = lambda x: x['StabilityMOLength'] if (x['Ustar'] > 0.15) else None
-            #dropMethod = lambda x: x['StabilityMOLength'] if (x['Ustar'] > 0.01) else None
-            # self._TemporaryData['StabilityMOLength'] = self._TemporaryData.apply(dropMethod,
-            #                                                                      axis=1) if self._DataType is 'pandas' \
-            #     else self._TemporaryData.apply(dropMethod, meta='str', axis=1)
-            self._CalculatedParams.append(['StabilityMOLength',{}])
+        if 'StabilityMOLength_Sonic' not in self._TemporaryData.columns:
+            self.MOLength_Sonic()
+            stability = self._TemporaryData['L_Sonic'].apply(self._ClassifyStability) if self._DataType is 'pandas' \
+                else self._TemporaryData['L_Sonic'].apply(self._ClassifyStability, meta='str')
+            self._TemporaryData['StabilityMOLength_Sonic'] = stability
+            self._CalculatedParams.append(['StabilityMOLength_Sonic',{}])
 
         return self
 
@@ -1106,44 +1193,6 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             self._CalculatedParams.append(["u_mag" + title_additions,{}])
         return self
 
-    def StrucFun_eps(self, tau_range = None, ubar_data = None, u_bar = "u_bar", v_bar = "v_bar", w_bar = "w_bar",
-                     mode = "MeanDir", title_additions = "", rmin = 0, rmax = 10, inMemory = None):
-        """
-
-        :param tau_range: date
-               date
-        :param ubar_data:
-        :param u_bar:
-        :param v_bar:
-        :param w_bar:
-        :param mode:
-        :param title_additions:
-        :param rmin:
-        :param rmax:
-        :param inMemory:
-        :return:
-        """
-
-        self.StrucFun(tau_range = tau_range, ubar_data = ubar_data, u_bar = u_bar, v_bar = v_bar, w_bar = w_bar,
-                     mode = mode, title_additions = title_additions)
-
-        a = 0.52
-        col_names = {tau:"D11" + title_additions + "_" + str(tau) + "s" for tau in tau_range}
-        data = self._TemporaryData[list(col_names.values()) + ["u_mag" + title_additions]].compute()
-        # estimations = pandas.DataFrame(index=self._TemporaryData.index.compute(), columns = col_names.values())
-        estimations = pandas.DataFrame(index=data.index, columns=col_names.values())
-        for tau in tau_range:
-            data_temp = ((a * data[col_names[tau]]) ** (3 / 2)) / (tau * data["u_mag" + title_additions])
-            mask = (tau * data["u_mag" + title_additions] < rmax) & (tau * data["u_mag" + title_additions] > rmin)
-            # estimations[col_names[tau]] = ((((a * self._TemporaryData[col_names[tau]]) ** (3 / 2)) / (tau * self._TemporaryData["u_mag"])).compute())\
-            #     .loc[((tau * self._TemporaryData["u_mag" + title_additions] < rmax) & (tau * self._TemporaryData["u_mag" + title_additions] > rmin)).compute()]
-            estimations[col_names[tau]] = data_temp.loc[mask]
-
-        self._TemporaryData["eps_D11"] = estimations.mean(axis=1)
-        self._CalculatedParams.append(["eps_D11",{}])
-
-        return self
-
     def ThirdStrucFun(self, tau_range = None, ubar_data = None, u_bar = "u_bar", v_bar = "v_bar", w_bar = "w_bar",
                      title_additions = "", inMemory = None):
 
@@ -1224,25 +1273,6 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             self._TemporaryData["u_mag" + title_additions] = dir_data["u_mag"]
             self._TemporaryData["u_mag" + title_additions] = self._TemporaryData["u_mag" + title_additions].ffill()
             self._CalculatedParams.append(["u_mag" + title_additions,{}])
-
-        return self
-
-    def ThirdStrucFun_eps(self, tau_range = None, ubar_data = None, u_bar = "u_bar", v_bar = "v_bar", w_bar = "w_bar",
-                      title_additions = "", rmin = 0, rmax = 10, inMemory = None):
-
-        self.ThirdStrucFun(tau_range = tau_range, ubar_data = ubar_data, u_bar = u_bar, v_bar = v_bar, w_bar = w_bar,
-                     title_additions = title_additions)
-
-        col_names = {tau:"D111" + title_additions + "_" + str(tau) + "s" for tau in tau_range}
-        data = self._TemporaryData[list(col_names.values()) + ["u_mag" + title_additions]].compute()
-        estimations = pandas.DataFrame(index=data.index, columns=col_names.values())
-        for tau in tau_range:
-            data_temp = 1.25 * data[col_names[tau]] / (tau * data["u_mag" + title_additions])
-            mask = (tau * data["u_mag" + title_additions] < rmax) & (tau * data["u_mag" + title_additions] > rmin)
-            estimations[col_names[tau]] = data_temp.loc[mask]
-
-        self._TemporaryData["eps_D111"] = estimations.mean(axis=1)
-        self._CalculatedParams.append(["eps_D111",{}])
 
         return self
 
