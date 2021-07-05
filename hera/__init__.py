@@ -57,6 +57,14 @@ cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 
 """
 
+Mattya changes (measurements.meteorology.highfreqdata):
+    - Added an AveragingCalculator class to deal with TRH data
+    - Major revision of MeanDataCalculator
+    - Added a few new functions to singlePointTurbulenceStatistics
+    - Renamed Monin-Obukhov length related quantities in singlePointTurbulenceStatistics to make it apparent that 
+        they are calculated only from Sonic raw data
+
+
 Next Version 
 ============
     - Adding 'dict' data format to the datalayer. In this format, the data is stored as the dictionary in the resource.  
