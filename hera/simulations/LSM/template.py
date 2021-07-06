@@ -112,9 +112,8 @@ class LSMTemplate:
         updated_params.update(params)
         updated_params.update(descriptor)
         updated_params = ConvertJSONtoConf(updated_params)
-        for keys, unit in zip([updated_params["minuteKeys"],updated_params["meterKeys"],updated_params["secondKeys"],updated_params["velocityKeys"]],[min,m,s,m/s]):
-            for key in keys:
-                updated_params[key] = updated_params[key].asNumber(unit)
+        for key in self._document['desc']["units"].keys():
+            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
 
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
@@ -134,9 +133,6 @@ class LSMTemplate:
             updated_params.update(canopy=".FALSE.")
         else:
             updated_params.update(canopy=".TRUE.")
-
-        if simulationName is not None:
-            updated_params.update(simulationName=simulationName)
 
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
 
@@ -164,7 +160,8 @@ class LSMTemplate:
                 desc=dict(version=self.version,
                           datetimeFormat=self.datetimeFormat,
                           templateName=self.templateName,
-                          **updated_params)
+                          simulationName=simulationName,
+                          params=updated_params)
             )
 
             saveDir = os.path.join(saveDir, str(doc.id))

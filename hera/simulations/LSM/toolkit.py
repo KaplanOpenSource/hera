@@ -241,22 +241,25 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         return LSMTemplate(doc,self)
 
-    def getSimulations(self,unitsTemplateVersion="v4-general", **query):
+    def getSimulations(self,simulationName=None,unitsTemplateVersion="v4-general", **query):
         """
         get a list of SingleSimulation objects that fulfill the query
         :param query:
         :return:
         """
         template = self.getTemplateByName(unitsTemplateVersion)
-        minuteKeys = template._document['desc']['params']["minuteKeys"]
-        meterKeys = template._document['desc']['params']["meterKeys"]
-        secondKeys = template._document['desc']['params']["secondKeys"]
-        velocityKeys = template._document['desc']['params']["velocityKeys"]
-        for keys, unit in zip([minuteKeys, meterKeys, secondKeys, velocityKeys], [min, m, s, m / s]):
-            for key in keys:
-                if key in query.keys():
-                    query[key] = query[key].asNumber(unit)
-        docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **query)
+
+        for key in template._document['desc']["units"].keys():
+            if key in query.keys():
+                query[key] = query[key].asNumber(eval(template._document['desc']["units"][key]))
+        queryWithParams = {}
+        for key in query.keys():
+            queryWithParams[f"params__{key}"] = query[key]
+
+        if simulationName is not None:
+            queryWithParams["simulationName"] = simulationName
+
+        docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **queryWithParams)
         retList = []
         for doc in docList:
             try:
