@@ -50,6 +50,11 @@ class casualtiesPlot(object):
 		projectedData = []
 		for angle in rotate_angles:
 			injuryareas = results.project(area, loc=loc, mathematical_angle=angle)
+
+			if injuryareas is None:
+				print(f"{angle} does not have casualties.")
+				continue
+
 			injuryareas = injuryareas.groupby("severity")[effectedPopulation].sum().reset_index()
 			injuryareas["angle"] = angle
 			projectedData.append(injuryareas)
@@ -183,6 +188,10 @@ class casualtiesPlot(object):
 
 		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMathematicalAngle(meteorological_angle)
 		retProj		= results.project(area, loc, mathematical_angle=rotate_angle)
+
+		if retProj is None:
+			raise ValueError("There are no casualties in this parameters set. ")
+
 		projected  	= retProj.dissolve("severity")
 
 		boundarycycler = plt.cycler(color=plt.rcParams['axes.prop_cycle'].by_key()['color']) if boundarycycler is None else boundarycycler		 		
