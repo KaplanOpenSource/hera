@@ -45,11 +45,9 @@ except NameConflictError:
 
 """
 
-2.3.1
------
     LSM: 
         - template.run - change directory back to its location. 
-        - 
+        - presentation layer - raise exception/print if there are no casualties in that direction.     
 
 2.3.0
 -----
