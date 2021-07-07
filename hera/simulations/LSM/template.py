@@ -112,9 +112,8 @@ class LSMTemplate:
         updated_params.update(params)
         updated_params.update(descriptor)
         updated_params = ConvertJSONtoConf(updated_params)
-        for keys, unit in zip([updated_params["minuteKeys"],updated_params["meterKeys"],updated_params["secondKeys"],updated_params["velocityKeys"]],[min,m,s,m/s]):
-            for key in keys:
-                updated_params[key] = updated_params[key].asNumber(unit)
+        for key in self._document['desc']["units"].keys():
+            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
 
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
@@ -134,9 +133,6 @@ class LSMTemplate:
             updated_params.update(canopy=".FALSE.")
         else:
             updated_params.update(canopy=".TRUE.")
-
-        if simulationName is not None:
-            updated_params.update(simulationName=simulationName)
 
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
 
@@ -164,7 +160,8 @@ class LSMTemplate:
                 desc=dict(version=self.version,
                           datetimeFormat=self.datetimeFormat,
                           templateName=self.templateName,
-                          **updated_params)
+                          simulationName=simulationName,
+                          params=updated_params)
             )
 
             saveDir = os.path.join(saveDir, str(doc.id))
@@ -192,6 +189,9 @@ class LSMTemplate:
         os.system('cp -rf %s %s' % (os.path.join(self.modelFolder, '*'), saveDir))
         # write to file.
         ifmc.render(os.path.join(saveDir, 'INPUT'))
+
+        cur_dir = os.getcwd()
+    
 
         os.chdir(saveDir)
         if topography is not None:
@@ -259,6 +259,7 @@ class LSMTemplate:
         print("Running the model")
         # run the model.
         os.system('./a.out')
+        os.chdir(cur_dir)
         if self.to_xarray:
             results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[updated_params["particles3D"]])
             netcdf_output = os.path.join(saveDir, "netcdf")
