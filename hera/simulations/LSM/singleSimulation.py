@@ -20,8 +20,12 @@ class SingleSimulation(object):
         return self._document['desc']['version']
 
     def __init__(self, resource):
+
         if isinstance(resource,str):
-            self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
+            try:
+                self._finalxarray = xarray.open_mfdataset(os.path.join(resource, '*.nc'), combine='by_coords')
+            except OSError:
+                self._finalxarray = xarray.open_mfdataset(os.path.join(resource,"netcdf", '*.nc'), combine='by_coords')
         else:
             self._document = resource
             self._finalxarray = resource.getData()
