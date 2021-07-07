@@ -56,7 +56,7 @@ class casualtiesPlot(object):
 				continue
 
 			injuryareas = injuryareas.groupby("severity")[effectedPopulation].sum().reset_index()
-			injuryareas["angle"] = angle
+			injuryareas["angle"] = angle*numpy.pi/180
 			projectedData.append(injuryareas)
 		projectedData = pandas.concat(projectedData)
 
@@ -146,6 +146,7 @@ class casualtiesPlot(object):
 
 		if legend:
 			plt.legend()
+		pivotedData["angle"] = pivotedData["angle"]*180/numpy.pi
 		return ax, pivotedData
 
 	def plotCasualtiesProjection(self,
