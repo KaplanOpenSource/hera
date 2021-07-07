@@ -1,4 +1,4 @@
-__version__ = '2.3.0'
+__version__ = '2.3.1'
 
 import os
 import json
@@ -45,9 +45,17 @@ except NameConflictError:
 
 """
 
+2.3.1
+-----
+
     LSM: 
-        - template.run - change directory back to its location. 
-        - presentation layer - raise exception/print if there are no casualties in that direction.     
+        - template.run - change directory back to its location.
+                       - changes the params of a template back to a separate branch. 
+                       - changes the units of the parameters in the template to be more generic. 
+                        
+        - presentation layer - raise exception/print if there are no casualties in that direction.
+                             - Fixed the rose to be with the right directions. 
+                                 
 
 2.3.0
 -----
