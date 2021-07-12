@@ -252,16 +252,6 @@ class PresentationLayer(object):
             :return:
             """
 
-        # kwargs_used_fields = ["axis", "fig", "bins", "levels"]
-        # queryfield = [x for x in kwargs.key() if x not in kwargs_used_fields]
-        # querystr = " and ".join(["{fieldname}=={fieldvalue}".format(fieldname=fieldname, fieldvalue=kwargs[fieldname]) for fieldname in queryfield])
-        #
-        # month_data = data.assign(year=data.index.year) \
-        #     .assign(month=data.index.month) \
-        #     .assign(day=data.index.day) \
-        #     .assign(hour=data.index.hour) \
-        #     .query(querystr)
-
         if axis is None:
             fig, axis = plt.subplots()
         else:
@@ -308,10 +298,6 @@ class PresentationLayer(object):
                       markersize=0.3)
 
         if not func_dict is None:
-            # z = np.arange(min(xdata) - 1, max(xdata) + 1, 0.01)
-            # for fun in func_dict:
-            #     axis.plot(z, np.array([func_dict[fun][0](zi) for zi in z]),
-            #              label=func_dict[fun][1])
             z1 = np.append(np.arange(min(xdata) - 1, 0, 0.01), -0.00001)
             z2 = np.arange(0.00001, max(xdata) + 1, 0.01)
             zorders = np.linspace(3, 4, len(func_dict), endpoint=False)

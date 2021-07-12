@@ -135,7 +135,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
         if 'sigmaH' not in self._TemporaryData.columns:
             self.sigma()
-            sigmaH = 0.5*numpy.hypot(self._TemporaryData['sigmaU'], self._TemporaryData['sigmaV'])
+            sigmaH = numpy.hypot(self._TemporaryData['sigmaU'], self._TemporaryData['sigmaV']) / numpy.sqrt(2)
             self._TemporaryData['sigmaH'] = sigmaH
             self._CalculatedParams.append(['sigmaH',{}])
 

@@ -39,6 +39,70 @@ class MeanDataCalculator:
 
         self.MeanData = self.MeanData[self.metaData["start"]:self.metaData["end"]]
 
+    def thresholds(self, threshold_list, inplace = False):
+        """
+
+        :param threshold_list: Format - [("u_bar","lt",20), ... , (field,preposition,bound)]
+        :param inplace:
+        :return:
+        """
+
+        mask = pandas.Series(data = True, index = self.MeanData.index)
+        for cut in threshold_list:
+            if cut[1] == "lt":
+                mask = mask & (self.MeanData[cut[0]] < cut[2])
+            elif cut[1] == "lte":
+                mask = mask & (self.MeanData[cut[0]] <= cut[2])
+            elif cut[1] == "gt":
+                mask = mask & (self.MeanData[cut[0]] > cut[2])
+            elif cut[1] == "gte":
+                mask = mask & (self.MeanData[cut[0]] >= cut[2])
+            elif cut[1] == "abs_lt":
+                mask = mask & (abs(self.MeanData[cut[0]]) < cut[2])
+            elif cut[1] == "abs_lte":
+                mask = mask & (abs(self.MeanData[cut[0]]) <= cut[2])
+            elif cut[1] == "abs_gt":
+                mask = mask & (abs(self.MeanData[cut[0]]) > cut[2])
+            elif cut[1] == "abs_gte":
+                mask = mask & (abs(self.MeanData[cut[0]]) >= cut[2])
+            elif cut[1] == "eq":
+                mask = mask & (self.MeanData[cut[0]] == cut[2])
+            elif cut[1] == "neq":
+                mask = mask & (self.MeanData[cut[0]] != cut[2])
+
+        data_cut = self.MeanData.loc[mask]
+
+        if inplace:
+            self.MeanData = data_cut
+            return self
+        else:
+            return data_cut
+
+    def hour(self):
+
+        if "hour" not in self.MeanData.columns:
+            self.MeanData["hour"] = self.MeanData.index.hour
+
+        return self
+
+    def timeWithinDay(self):
+
+        if "timeWithinDay" not in self.MeanData.columns:
+            self.MeanData["timeWithinDay"] = self.MeanData.index.hour + self.MeanData.index.minute / 60 + \
+                                             self.MeanData.index.second / 3600
+
+        return self
+
+    def horizontalSpeed(self):
+
+        if 'horizontal_speed_bar' not in self.MeanData.columns:
+            self.MeanData['horizontal_speed_bar'] = numpy.hypot(self.MeanData['u_bar'], self.MeanData['v_bar'])
+
+        return self
+
+    def _UV_to_SpdDir(self,U, V):
+        return (U ** 2 + V ** 2) ** 0.5, (-np.degrees(np.arctan2(V, U)) + 90) % 360
+
     def alignedStress(self):
 
         if "uu_aligned" not in self.MeanData.columns:
@@ -79,7 +143,7 @@ class MeanDataCalculator:
 
         if 'sigmaH' not in self.MeanData.columns:
             self.sigma()
-            self.MeanData['sigmaH'] = 0.5*numpy.hypot(self.MeanData['sigmaU'], self.MeanData['sigmaV'])
+            self.MeanData['sigmaH'] = numpy.hypot(self.MeanData['sigmaU'], self.MeanData['sigmaV']) / numpy.sqrt(2)
 
         return self
 
@@ -126,16 +190,6 @@ class MeanDataCalculator:
 
         return self
 
-    def horizontalSpeed(self):
-
-        if 'horizontal_speed_bar' not in self.MeanData.columns:
-            self.MeanData['horizontal_speed_bar'] = numpy.hypot(self.MeanData['u_bar'], self.MeanData['v_bar'])
-
-        return self
-
-    def _UV_to_SpdDir(self,U, V):
-        return (U ** 2 + V ** 2) ** 0.5, (-np.degrees(np.arctan2(V, U)) + 90) % 360
-
     def sigmaHOverWindSpeed(self):
 
         if 'sigmaHOverWindSpeed' not in self.MeanData.columns:
@@ -151,6 +205,14 @@ class MeanDataCalculator:
             self.sigma()
             self.horizontalSpeed()
             self.MeanData['sigmaWOverWindSpeed'] = self.MeanData['sigmaW']/self.MeanData['horizontal_speed_bar']
+
+        return self
+
+    def absWOverSigmaW(self):
+
+        if "absWOverSigmaW" not in self.MeanData.columns:
+            self.sigma()
+            self.MeanData["absWOverSigmaW"] = abs(self.MeanData["w_bar"]) / self.MeanData["sigmaW"]
 
         return self
 
@@ -194,7 +256,7 @@ class MeanDataCalculator:
 
         if 'L' not in self.MeanData.columns:
             self.Ustar()
-            L = -(self.MeanData['TRH_bar']+273.15) * self.MeanData['Ustar'] ** 3 / (
+            L = -(self.MeanData['TC_T_bar']+273.15) * self.MeanData['Ustar'] ** 3 / (
                         self._Karman * g * self.MeanData['wT'])
             self.MeanData['L'] = L
 
