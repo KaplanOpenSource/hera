@@ -117,3 +117,28 @@ class analysis:
 
         return calcDist2d(x=x,y=y,bins=bins,normalization=normalization)
 
+    def _calculateCov(self, data, data_resampled, x, y, SamplingWindow):
+
+        data_resampled[x + y] = data[x + y].resample(SamplingWindow).mean() + \
+                              (data[x + "_bar"] * data[y + "_bar"]).resample(SamplingWindow).mean() \
+                              - data_resampled[x + "_bar"] * data_resampled[y + "_bar"]
+
+        return self
+
+    def resampleSecondMoments(self, data, SamplingWindow, fieldsFirstMoments, fieldsSecondMoments):
+        """
+
+        :param data:
+        :param samplingWindow:
+        :param fieldsFirstMoments:
+        :param fieldsSecondMoments:
+        :return:
+        """
+
+        data_resampled = data[fieldsFirstMoments].resample(SamplingWindow).mean()
+
+        for i in range(len(fieldsSecondMoments)):
+            for j in range(i, len(fieldsSecondMoments)):
+                self._calculateCov(data, data_resampled, fieldsSecondMoments[i], fieldsSecondMoments[j], SamplingWindow)
+
+        return data_resampled
