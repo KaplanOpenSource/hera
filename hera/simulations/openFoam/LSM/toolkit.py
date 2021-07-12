@@ -584,6 +584,39 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 newFile.write(newFileString)
             print("wrote time ", time)
 
+    def createRootCaseMeshLink(self,rootCase):
+        """
+            Creates the directories for run (currently only parallel).
+
+            For each processorXX in the rootCase:
+
+                    1. Copy the timestep
+
+            If parallel, create all the processor** and link it.
+
+        :param rootCase:
+        :param parallel:
+        :return:
+        """
+        for fl in glob.glob(os.path.join(rootCase, "processor*")):
+            print(fl)
+            fullpath = os.path.join(os.path.abspath(fl), lastTS)
+
+            proc = os.path.split(fl)[-1]
+            destination = os.path.join(os.path.abspath(proc), "3600")
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            os.system(f"cp {fullpath} {destination} -rT")
+
+            fullpath = os.path.abspath(os.path.join(fl, "constant", "polyMesh"))
+            destination = os.path.join(os.path.abspath(proc), "constant", "polyMesh")
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            os.system(f"ln -s {fullpath} {destination}")
+
+            # link the root dir .
+            curdir =os.path.abspath(os.path.join("rootCase",os.path.basename(fl)))
+            targetdir = os.path.abspath(os.path.join(fl,"rootCase"))
+            os.system(f"ln -s {curdir} {targetdir} ")
+
 
 class Analysis:
 
