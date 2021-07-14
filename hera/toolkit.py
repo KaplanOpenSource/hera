@@ -35,6 +35,7 @@ class ToolkitHome:
     OF_LSM         =  "OF_LSM"
 
     METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
+    METEOROLOGY_LOWFREQ = "MeteoLowFreq"
 
     EXPERIMENT = "experiment"
 
@@ -60,6 +61,8 @@ class ToolkitHome:
             OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
 
             MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
+
+            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
 
             experiment =dict(cls="hera.measurements.experiment.experiment.experimentToolKit")
         )
