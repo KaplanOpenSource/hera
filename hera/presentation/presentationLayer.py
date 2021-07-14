@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
-
 class PresentationLayer(object):
 
     def _calculate_hist(self,data,x,y,bins,normalization="density"):
@@ -230,7 +229,7 @@ class PresentationLayer(object):
 
     def plot_scatter_func(self, x, y, data=None, func_dict=None, func_range = None, axis=None, ax_props=None,
                           SelfCorrelation=None, bar_intervals=None, bar_positions=None, percentiles=None, threshold=0,
-                          divider=None, combined=None, **kwargs):
+                          divider=None, markersize=0.3, combined=None, **kwargs):
         """
             :param x:
             :param y:
@@ -291,11 +290,11 @@ class PresentationLayer(object):
                                   lower_perc[bar_positions > divider], alpha=0.4, zorder=4)
 
         if combined or (bar_intervals is None):
-            axis.plot(xdata, ydata, zorder=2, linestyle='', marker='o', color="k", markersize=0.3)
+            axis.plot(xdata, ydata, zorder=2, linestyle='', marker='o', color="k", markersize=markersize)
 
         if SelfCorrelation:
             axis.plot(np.array(xdata), np.array(ydata)[::-1], zorder=1, linestyle='', marker='o', color="maroon",
-                      markersize=0.3)
+                      markersize=markersize)
 
         if not func_dict is None:
             if func_range is None:
