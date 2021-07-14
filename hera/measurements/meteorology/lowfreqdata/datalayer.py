@@ -45,9 +45,8 @@ class lowFreqToolKit(toolkit.abstractToolkit):
         projectName: str
                 The project name
         """
-        self.logger.info("Init Low frequency data")
-
         super().__init__(projectName=projectName,toolkitName="lowFreqMeteorology")
+        self.logger.info("Init Low frequency data")
 
         self._analysis = analysis(self)
         self._presentation = presenation(self,self.analysis)
