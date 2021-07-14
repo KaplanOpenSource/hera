@@ -7,7 +7,7 @@ from dask.delayed import delayed
 from dask import dataframe
 
 from unum.units import *
-from ....utils import tounum, tonumber
+from ....utils import tounit, tonumber
 
 from ....measurements.GIS.locations.topography import TopographyToolkit
 
@@ -19,20 +19,18 @@ from .... import toolkit
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
-class OFLSMToolkit(toolkit.abstractToolkit):
 
+class OFLSMToolkit(toolkit.abstractToolkit):
     _casePath = None
     _cloudName = None
     _sources = None
     _topography = None
-
 
     _parallelCase = None
 
     @property
     def analysis(self):
         return self._analysis
-
 
     @property
     def sourcesFactory(self):
@@ -43,7 +41,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         return self._casePath
 
     @casePath.setter
-    def casePath(self,newPath):
+    def casePath(self, newPath):
         self._casePath = newPath
 
     @property
@@ -66,7 +64,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def parallelCase(self, value):
         self._parallelCase = value
 
-    def __init__(self, projectName, casePath=None,cloudName="kinematicCloud",FilesDirectory=None,parallelCase=False):
+    def __init__(self, projectName, casePath=None, cloudName="kinematicCloud", FilesDirectory=None, parallelCase=False):
         """
         Parameters
         ----------
@@ -76,8 +74,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         cloudName: str,
             The name of the cloud, in which the particles' properties are saved.
         """
-        super().__init__(projectName=projectName,toolkitName="OF_LSM",FilesDirectory=FilesDirectory)
-        self._casePath = os.getcwd() if casePath is None  else os.path.abspath(casePath)
+        super().__init__(projectName=projectName, toolkitName="OF_LSM", FilesDirectory=FilesDirectory)
+        self._casePath = os.getcwd() if casePath is None else os.path.abspath(casePath)
         self._sourcesFactory = sourcesFactoryTool()
         self._cloudName = cloudName
         self._parallelCase = parallelCase
@@ -108,23 +106,23 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         skiphead = 20
         skipend = 4
 
-        cnvrt = lambda x: float(x.replace("(","").replace(")",""))
-        cnvrtDict = dict([(x,cnvrt) for x in columnNames])
+        cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
+        cnvrtDict = dict([(x, cnvrt) for x in columnNames])
 
         try:
             newData = pandas.read_csv(path,
-                                              skiprows=skiphead,
-                                              skipfooter=skipend,
-                                              engine='python',
-                                              header=None,
-                                              delim_whitespace=True,
-                                              converters=cnvrtDict,
-                                              names=columnNames)
+                                      skiprows=skiphead,
+                                      skipfooter=skipend,
+                                      engine='python',
+                                      header=None,
+                                      delim_whitespace=True,
+                                      converters=cnvrtDict,
+                                      names=columnNames)
         except ValueError:
             self.logger.execute(f"{path} is not a cvs, going to a specialized parser")
             newData = []
 
-        if len(newData)==0:
+        if len(newData) == 0:
             file = open(path, "r")
             lines = file.readlines()
             file.close()
@@ -161,10 +159,10 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         return newData.astype(float)
 
-    def _readRecord(self,timeName,withVelocity=False,withReleaseTimes=False,withMass=False):
+    def _readRecord(self, timeName,casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
         self.logger.debug(f"Starting the read record with timeName {timeName}")
 
-        columnsDict=dict(x=[],y=[],z=[],id=[],procId=[],globalID=[],globalX=[],globalY=[],globalZ=[])
+        columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
         if withMass:
             columnsDict['mass'] = []
         if withReleaseTimes:
@@ -174,39 +172,46 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_y'] = []
             columnsDict['U_z'] = []
 
-        newData = pandas.DataFrame(columnsDict,dtype=numpy.float64)
+        newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
         try:
-            newData = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"globalSigmaPositions"), ['x', 'y', 'z'])
-            for fld in ['x','y','z']:
+            newData = self._extractFile(
+                os.path.join(casePath, timeName, "lagrangian", self._cloudName, "globalSigmaPositions"),
+                ['x', 'y', 'z'])
+            for fld in ['x', 'y', 'z']:
                 newData[fld] = newData[fld].astype(numpy.float64)
 
-            dataID  = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"origId"), ['id'], vector=False)
+            dataID = self._extractFile(os.path.join(casePath, timeName, "lagrangian", self._cloudName, "origId"),
+                                       ['id'], vector=False)
             newData['id'] = dataID['id'].astype(numpy.float64)
 
-            dataprocID  = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"origProcId"), ['procId'], vector=False)
+            dataprocID = self._extractFile(
+                os.path.join(casePath, timeName, "lagrangian", self._cloudName, "origProcId"), ['procId'],
+                vector=False)
             newData['procId'] = dataprocID['procId'].astype(numpy.float64)
 
-            newData = newData.ffill().assign(globalID = 1000000000*newData.procId+newData.id)
+            newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
 
             dataGlobal = self._extractFile(
-                os.path.join(self._casePath, timeName, "lagrangian", self._cloudName, "globalPositions"),['globalX', 'globalY', 'globalZ'])
+                os.path.join(casePath, timeName, "lagrangian", self._cloudName, "globalPositions"),
+                ['globalX', 'globalY', 'globalZ'])
 
             for col in ['globalX', 'globalY', 'globalZ']:
                 newData[col] = dataGlobal[col].astype(numpy.float64)
 
-
-
             if withVelocity:
-                dataU = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"U"), ['U_x', 'U_y', 'U_z'])
+                dataU = self._extractFile(os.path.join(casePath, timeName, "lagrangian", self._cloudName, "U"),
+                                          ['U_x', 'U_y', 'U_z'])
                 for col in ['U_x', 'U_y', 'U_z']:
                     newData[col] = dataU[col]
 
             if withReleaseTimes:
-                dataM = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"age"), ['age'], vector=False)
-                #newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
+                dataM = self._extractFile(os.path.join(self._casePath, timeName, "lagrangian", self._cloudName, "age"),
+                                          ['age'], vector=False)
+                # newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
 
             if withMass:
-                dataM = self._extractFile(os.path.join(self._casePath,timeName,"lagrangian",self._cloudName,"mass"), ['mass'], vector=False)
+                dataM = self._extractFile(os.path.join(casePath, timeName, "lagrangian", self._cloudName, "mass"),
+                                          ['mass'], vector=False)
                 try:
                     newData["mass"] = dataM["mass"]
                 except:
@@ -221,13 +226,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self.logger.debug(f"The output is {newData}")
         return newData
 
-
     @property
     def doctype(self):
         return "LSMRuns"
 
-
-    def to_paraview_CSV(self,data,outputdirectory,filename,timeFactor=1):
+    def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """
             Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
             In paraview, each timestep is a different file.
@@ -250,21 +253,21 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         -------
             None
         """
-        for times,timedata in data.groupby("time"):
-            with open(os.path.join(outputdirectory,f"{filename}_{str(int(timeFactor*times)).replace('.','_')}.csv"),"w") as outputfile:
+        for times, timedata in data.groupby("time"):
+            with open(os.path.join(outputdirectory, f"{filename}_{str(int(timeFactor * times)).replace('.', '_')}.csv"),
+                      "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-
-
     def loadData(self,
-               times = None,
-               saveMode=toolkit.TOOLKIT_SAVEMODE_NOSAVE,
-               withVelocity=False,
-               withReleaseTimes=False,
-               withMass=False,
-               releaseTime=0,
-               cloudName="kinematicCloud",
-               **kwargs):
+                 times=None,
+                 saveMode=toolkit.TOOLKIT_SAVEMODE_NOSAVE,
+                 withVelocity=False,
+                 withReleaseTimes=False,
+                 withMass=False,
+                 releaseTime=0,
+                 cloudName="kinematicCloud",
+                 casePath=None,
+                 **kwargs):
         """
             Extracts results of an LSM run.
 
@@ -312,60 +315,62 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                             toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
                             ]:
             optins = ",".join([toolkit.TOOLKIT_SAVEMODE_NOSAVE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                            toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-                            ])
+                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                               toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                               toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+                               ])
 
             raise ValueError(f"saveMode must be one of [{optins}]. Got {saveMode}")
 
+        finalCasePath = self.casePath if casePath is None else os.path.abspath(casePath)
 
-        finalFileName = os.path.abspath(os.path.join(self.FilesDirectory,f"{self.cloudName}Data.parquet"))
+        finalFileName = os.path.abspath(os.path.join(self.FilesDirectory, f"{self.cloudName}Data.parquet"))
 
-        if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,toolkit.TOOLKIT_SAVEMODE_FILEANDDB] and os.path.exists(finalFileName):
-                raise FileExistsError(f"saveMode was set to no replace and file {finalFileName} already exists")
+        if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE, toolkit.TOOLKIT_SAVEMODE_FILEANDDB] and os.path.exists(
+                finalFileName):
+            raise FileExistsError(f"saveMode was set to no replace and file {finalFileName} already exists")
 
         loader = lambda timeName: self._readRecord(timeName,
+                                                   casePath=finalCasePath,
                                                    withVelocity=withVelocity,
                                                    withReleaseTimes=withReleaseTimes,
                                                    withMass=withMass)
 
         if self.parallelCase:
 
-            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(self.casePath,"processor*"))]
+            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
             if len(processorList) == 0:
-                raise ValueError(f"There are no processor* directories in the case. Is it parallel?")
+                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
 
-            timeList = sorted([x for x in os.listdir(os.path.join(self.casePath,processorList[0])) if (
+            timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                    os.path.isdir(os.path.join(finalCasePath, processorList[0],x)) and
+                    x.isdigit() and
+                    (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                              key=lambda x: int(x))
+
+            data = dataframe.from_delayed(
+                [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
+                 product(processorList, timeList)])
+        else:
+
+            timeList = sorted([x for x in os.listdir(finalCasePath) if (
                     os.path.isdir(x) and
                     x.isdigit() and
                     (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                               key=lambda x: int(x))
 
-            data = dataframe.from_delayed([delayed(loader)(os.path.join(processorName,timeName)) for processorName,timeName in product(processorList,timeList)])
-        else:
-
-            timeList = sorted([x for x in os.listdir(self.casePath) if (
-                                os.path.isdir(x) and
-                                x.isdigit() and
-                                (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                              key=lambda x: int(x))
-
-
             data = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
-
 
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
                         toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
                         toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
                         toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
-
             data.to_parquet(finalFileName, compression="GZIP")
 
-            if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-                doc = self.getSimulationsDocuments(type=self.doctype,casePath=self.casePath,cloudName=self.cloudName)
+            if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB, toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+                doc = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
 
                 if doc is not None and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise FileExistsError(f"Data already in the DB. save mode is set to no replace")
@@ -373,17 +378,16 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     self.addSimulationsDocument(resource=finalFileName,
                                                 dataFormat=toolkit.datatypes.PARQUET,
                                                 type=self.doctype,
-                                                desc=dict(casePath=self.casePath,cloudName=self.cloudName,**kwargs))
+                                                desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
                 else:
                     doc.resource = finalFileName
                     doc.save()
         else:
-            doc = nonDBMetadataFrame(data=data,type=self.doctype,casePath=self.casePath,cloudName=self.cloudName)
+            doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
 
         return doc
 
-
-    def makeSource(self, x, y, z, nParticles,type="Point",fileName="kinematicCloudPositions",**kwargs):
+    def makeSource(self, x, y, z, nParticles, type="Point", fileName="kinematicCloudPositions", **kwargs):
         """
             Writes a source position files.
             Saves the file to the constant directory of the case.
@@ -420,15 +424,16 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       vectorField;\n" \
                  "    object      kinematicCloudPositions;\n}\n" \
                  "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
-                 f"{nParticles}\n(\n"
+            f"{nParticles}\n(\n"
         source = self.sourcesFactory.makeSource(x=x, y=y, z=z, nParticles=nParticles, type=type, **kwargs)
         for i in range(nParticles):
             string += f"({source.loc[i].x} {source.loc[i].y} {source.loc[i].z})\n"
         string += ")\n"
-        with open(os.path.join(self.casePath,"constant",fileName),"w") as writeFile:
+        with open(os.path.join(self.casePath, "constant", fileName), "w") as writeFile:
             writeFile.write(string)
 
-    def makeCellHeights(self,times, ground="ground", fileName="cellHeights", resolution=10,saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE,fillna=0):
+    def makeCellHeights(self, times, ground="ground", fileName="cellHeights", resolution=10,
+                        saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, fillna=0):
         """
         makes a file with the height of each cell.
         params:
@@ -439,12 +444,13 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         savePandas = Boolean, whether to save the dataframe
         addToDB = Boolean, whether to add the dataframe to the DB
         """
-        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
-        if len(documents)==0:
-            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
-            cellData = self.topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
-                                                     file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                     saveMode=saveMode,fillna=fillna)
+        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution, casePath=self.casePath)
+        if len(documents) == 0:
+            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath, ground=ground)
+            cellData = self.topography.analysis.addHeight(data=cellData, groundData=groundData, resolution=resolution,
+                                                          file=os.path.join(self.casePath, f"{fileName}.parquet"),
+                                                          casePath=self.casePath,
+                                                          saveMode=saveMode, fillna=fillna)
         else:
             cellData = documents[0].getData(usePandas=True)
         f = open(os.path.join(self.casePath, "0", "cellCenters"), "r")
@@ -473,7 +479,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
                 newFile.write(newFileString)
 
-    def makeUstar(self, times, fileName="ustar", ground="ground",heightLimits=[1,2], dField=None, dColumn="D",saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE,resolution=10):
+    def makeUstar(self, times, fileName="ustar", ground="ground", heightLimits=[1, 2], dField=None, dColumn="D",
+                  saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, resolution=10):
         """
         makes a file with the shear velocity in each cell.
         params:
@@ -485,18 +492,19 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         addToDB = Boolian, whether to add the dataframe to the DB
         """
 
-        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution,casePath=self.casePath)
+        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution, casePath=self.casePath)
 
-        if len(documents)==0:
-            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath,ground=ground)
-            cellData = self.topography.analysis.addHeight(data=cellData,groundData=groundData,resolution=resolution,
-                                                         file=os.path.join(self.casePath, f"{fileName}.parquet"),casePath=self.casePath,
-                                                         saveMode=saveMode)
+        if len(documents) == 0:
+            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath, ground=ground)
+            cellData = self.topography.analysis.addHeight(data=cellData, groundData=groundData, resolution=resolution,
+                                                          file=os.path.join(self.casePath, f"{fileName}.parquet"),
+                                                          casePath=self.casePath,
+                                                          saveMode=saveMode)
         else:
             cellData = documents[0].getData(usePandas=True)
 
         for time in times:
-            documents = self.getCacheDocuments(type="ustar",casePath=self.casePath,time=time)
+            documents = self.getCacheDocuments(type="ustar", casePath=self.casePath, time=time)
 
             f = open(os.path.join(self.casePath, str(time), "U"), "r")
             lines = f.readlines()
@@ -527,15 +535,18 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 data = cellData.join(Ufield)
                 nx = int((data["x"].max() - data["x"].min()) / resolution)
                 ny = int((data["y"].max() - data["y"].min()) / resolution)
-                xarrayU = coordinateHandler.regularizeTimeSteps(data=data.loc[data.height < heightLimits[1]].loc[data.height > heightLimits[0]]
-                                                                .drop_duplicates(["x", "y"]), n=(nx,ny),
-                                                                fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
+                xarrayU = coordinateHandler.regularizeTimeSteps(
+                    data=data.loc[data.height < heightLimits[1]].loc[data.height > heightLimits[0]]
+                        .drop_duplicates(["x", "y"]), n=(nx, ny),
+                    fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
                 if dField is None:
-                    xarrayD = xarray.zeros_like(xarrayU).rename({"U":dColumn})
+                    xarrayD = xarray.zeros_like(xarrayU).rename({"U": dColumn})
                 else:
-                    xarrayD = coordinateHandler.regularizeTimeSteps(data=dField, n=(nx,ny),coord1Lim=(data["x"].min(), data["x"].max()),
-                                                                   coord2Lim=(data["y"].min(), data["y"].max()),
-                                                                   fieldList=[dColumn], coord2="y", addSurface=False, toPandas=False)[0]
+                    xarrayD = coordinateHandler.regularizeTimeSteps(data=dField, n=(nx, ny),
+                                                                    coord1Lim=(data["x"].min(), data["x"].max()),
+                                                                    coord2Lim=(data["y"].min(), data["y"].max()),
+                                                                    fieldList=[dColumn], coord2="y", addSurface=False,
+                                                                    toPandas=False)[0]
                 fillU = xarrayU.U.mean()
                 fillD = xarrayD[dColumn].mean()
                 unearground = []
@@ -551,8 +562,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                         ds.append(valuesDict[x][y]["d"])
                     else:
                         valuesDict[x][y] = {}
-                        uVal = float(xarrayU.interp(x= x, y= y).fillna(fillU).U)
-                        dVal = float(xarrayD.interp(x= x, y= y).fillna(fillD)[dColumn])
+                        uVal = float(xarrayU.interp(x=x, y=y).fillna(fillU).U)
+                        dVal = float(xarrayD.interp(x=x, y=y).fillna(fillD)[dColumn])
                         valuesDict[x][y]["u"] = uVal
                         valuesDict[x][y]["d"] = dVal
                     if i > 9999 and i % 10000 == 0:
@@ -560,7 +571,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 data["UnearGround"] = unearground
                 data[dColumn] = ds
                 data.loc[data["UnearGround"] < 1.5, "UnearGround"] = 1.5
-                data["ustar"] = data["UnearGround"] * 0.4 / numpy.log((0.5*(heightLimits[1]+heightLimits[0])-data[dColumn])/(0.15))
+                data["ustar"] = data["UnearGround"] * 0.4 / numpy.log(
+                    (0.5 * (heightLimits[1] + heightLimits[0]) - data[dColumn]) / (0.15))
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
                 newFileString = ""
                 data = data.reset_index()
@@ -584,7 +596,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 newFile.write(newFileString)
             print("wrote time ", time)
 
-    def createRootCaseMeshLink(self,rootCase):
+    def createRootCaseMeshLink(self, rootCase):
         """
             Creates the directories for run (currently only parallel).
 
@@ -613,20 +625,21 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             os.system(f"ln -s {fullpath} {destination}")
 
             # link the root dir .
-            curdir =os.path.abspath(os.path.join("rootCase",os.path.basename(fl)))
-            targetdir = os.path.abspath(os.path.join(fl,"rootCase"))
+            curdir = os.path.abspath(os.path.join("rootCase", os.path.basename(fl)))
+            targetdir = os.path.abspath(os.path.join(fl, "rootCase"))
             os.system(f"ln -s {curdir} {targetdir} ")
 
 
 class Analysis:
-
     _datalayer = None
 
-    def __init__(self,datalayer):
+    def __init__(self, datalayer):
         self._datalayer = datalayer
 
-    def getConcentration(self, endTime, startTime=1, Q=1*kg, dx=10 * m, dy=10 * m, dz =10 * m, dt =10 * s, loc=None, sigmaCoordinates=True,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,releaseTime=0, nParticles=None,withID=False, **kwargs):
+    def getConcentration(self, endTime, startTime=1, Q=1 * kg, dx=10 * m, dy=10 * m, dz=10 * m, dt=10 * s, loc=None,
+                         sigmaCoordinates=True,
+                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,
+                         releaseTime=0, nParticles=None, withID=False, **kwargs):
         """
         Calculates the concentration of dispersed particles.
         parmas:
@@ -648,81 +661,84 @@ class Analysis:
         """
 
         if nParticles is None:
-            with open(os.path.join(self._datalayer.casePath,"constant","kinematicCloudPositions"),"r") as readFile:
+            with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
                 Lines = readFile.readlines()
             try:
-                nParticles=int(Lines[15])
+                nParticles = int(Lines[15])
             except:
                 raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
-        dx = tonumber(tounum(dx, lengthUnits), lengthUnits)
-        dy = tonumber(tounum(dy, lengthUnits), lengthUnits)
-        dz = tonumber(tounum(dz, lengthUnits), lengthUnits)
-        dt = int(tonumber(tounum(dt, timeUnits), timeUnits))
+        dx = tonumber(tounit(dx, lengthUnits), lengthUnits)
+        dy = tonumber(tounit(dy, lengthUnits), lengthUnits)
+        dz = tonumber(tounit(dz, lengthUnits), lengthUnits)
+        dt = int(tonumber(tounit(dt, timeUnits), timeUnits))
         withReleaseTimes = False
         if type(Q) == list:
             if len(Q) != endTime - startTime + 1:
                 raise KeyError("Number of values in Q must be equal to the number of time steps!")
             try:
-                Q = [tonumber(tounum(q, Qunits), Qunits) for q in Q]
+                Q = [tonumber(tounit(q, Qunits), Qunits) for q in Q]
             except:
-                Q = [tonumber(tounum(q, Qunits), Qunits / timeUnits) for q in Q]
+                Q = [tonumber(tounit(q, Qunits), Qunits / timeUnits) for q in Q]
             releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
             dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
             withReleaseTimes = True
         else:
             try:
-                Q = tonumber(tounum(Q, Qunits), Qunits)
+                Q = tonumber(tounit(Q, Qunits), Qunits)
             except:
-                Q = tonumber(tounum(Q, Qunits), Qunits / timeUnits)
+                Q = tonumber(tounit(Q, Qunits), Qunits / timeUnits)
         documents = self._datalayer.getSimulationsDocuments(type="openFoamLSMrun",
-                                                casePath=self._datalayer.casePath, cloudName=self._datalayer.cloudName,
-                                                      startTime=startTime, endTime=endTime, Q=Q, dx=dx,
-                                                      dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs)
+                                                            casePath=self._datalayer.casePath,
+                                                            cloudName=self._datalayer.cloudName,
+                                                            startTime=startTime, endTime=endTime, Q=Q, dx=dx,
+                                                            dy=dy, dz=dz, dt=dt, nParticles=nParticles, **kwargs)
 
-        if len(documents)==0:
+        if len(documents) == 0:
             datalist = []
-            for time in [startTime + dt * i for i in range(int((endTime-startTime) / dt))]:
-                data = self._datalayer._readRecord(time, withMass=OFmass,withID=withID,sigmaCoordinates=sigmaCoordinates)
-                for t in range(time+1, time + dt):
-                    data = data.append(self._datalayer._readRecord(t,withMass=OFmass,withID=withID,sigmaCoordinates=sigmaCoordinates))
+            for time in [startTime + dt * i for i in range(int((endTime - startTime) / dt))]:
+                data = self._datalayer._readRecord(time, withMass=OFmass, withID=withID,
+                                                   sigmaCoordinates=sigmaCoordinates)
+                for t in range(time + 1, time + dt):
+                    data = data.append(self._datalayer._readRecord(t, withMass=OFmass, withID=withID,
+                                                                   sigmaCoordinates=sigmaCoordinates))
                 data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
                 data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
                 data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
-                data["time"] = ((data["time"]-1) / dt).astype(int) * dt + dt
+                data["time"] = ((data["time"] - 1) / dt).astype(int) * dt + dt
                 if OFmass:
-                    data = data.groupby(["x","y","z","time"]).sum().reset_index()
+                    data = data.groupby(["x", "y", "z", "time"]).sum().reset_index()
 
-                    data["mass"] = data["mass"] * tonumber(tounum(1*kg, Qunits), Qunits)
-                    if time==startTime:
+                    data["mass"] = data["mass"] * tonumber(tounit(1 * kg, Qunits), Qunits)
+                    if time == startTime:
                         Qinsim = data.mass.sum() / dt
                         Qratio = Q / Qinsim
                     data["mass"] = data["mass"] * Qratio
                     data["Dosage"] = data["mass"] / (dx * dy * dz)
                 else:
-                    if type(Q)==list:
+                    if type(Q) == list:
                         data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
                     else:
                         data["Q"] = Q
                     data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
                     data = data.drop(columns="Q")
-                    data = data.groupby(["x","y","z","time"]).sum().reset_index()
+                    data = data.groupby(["x", "y", "z", "time"]).sum().reset_index()
                 if loc is not None:
-                    data = data.loc[data[loc[0]]==loc[1]]
+                    data = data.loc[data[loc[0]] == loc[1]]
                 data["Concentration"] = data["Dosage"] / dt
                 datalist.append(data)
-                print(f"Finished times {time} to {time+dt}")
+                print(f"Finished times {time} to {time + dt}")
             data = pandas.concat(datalist).reset_index()
             if save:
                 cur = os.getcwd()
-                file = os.path.join(cur,f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
+                file = os.path.join(cur, f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
                 data.to_parquet(file, compression="GZIP")
                 if addToDB:
                     self._datalayer.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
-                                                desc=dict(casePath=self._datalayer.casePath, cloudName=self._datalayer.cloudName,
-                                                          startTime=startTime, endTime=endTime, Q=Q, dx=dx,
-                                                          dy=dy, dz=dz, dt=dt,nParticles=nParticles, **kwargs))
+                                                           desc=dict(casePath=self._datalayer.casePath,
+                                                                     cloudName=self._datalayer.cloudName,
+                                                                     startTime=startTime, endTime=endTime, Q=Q, dx=dx,
+                                                                     dy=dy, dz=dz, dt=dt, nParticles=nParticles,
+                                                                     **kwargs))
         else:
             data = documents[0].getData(usePandas=True)
         return data
-
-
