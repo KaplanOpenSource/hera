@@ -1,4 +1,4 @@
-__version__ = '2.3.1'
+__version__ = '2.4.0'
 
 import os
 import json
@@ -43,10 +43,18 @@ try:
 except NameConflictError:
     pass
 
+
 """
 
-2.3.1
+2.4.0
 -----
+
+   -measurements.meteorology.highfreqdata:
+    - Added an AveragingCalculator class to deal with TRH data
+    - Major revision of MeanDataCalculator
+    - Added a few new functions to singlePointTurbulenceStatistics
+    - Renamed Monin-Obukhov length related quantities in singlePointTurbulenceStatistics to make it apparent that 
+        they are calculated only from Sonic raw data
 
     LSM: 
         - template.run - change directory back to its location.
