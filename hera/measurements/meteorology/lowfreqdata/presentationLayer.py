@@ -6,7 +6,6 @@ import seaborn
 import dask.dataframe
 from itertools import product
 
-from .analysis import calcHourlyDist
 from .analysis import seasonsdict
 
 
