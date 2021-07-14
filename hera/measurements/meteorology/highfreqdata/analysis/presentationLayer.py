@@ -230,7 +230,7 @@ class PresentationLayer(object):
 
     def plot_scatter_func(self, x, y, data=None, func_dict=None, func_range = None, axis=None, ax_props=None,
                           SelfCorrelation=None, bar_intervals=None, bar_positions=None, percentiles=None, threshold=0,
-                          markersize = 0.3, divider=None, combined=None, **kwargs):
+                          divider=None, markersize=0.3, combined=None, **kwargs):
         """
             :param x:
             :param y:
@@ -251,16 +251,6 @@ class PresentationLayer(object):
 
             :return:
             """
-
-        # kwargs_used_fields = ["axis", "fig", "bins", "levels"]
-        # queryfield = [x for x in kwargs.key() if x not in kwargs_used_fields]
-        # querystr = " and ".join(["{fieldname}=={fieldvalue}".format(fieldname=fieldname, fieldvalue=kwargs[fieldname]) for fieldname in queryfield])
-        #
-        # month_data = data.assign(year=data.index.year) \
-        #     .assign(month=data.index.month) \
-        #     .assign(day=data.index.day) \
-        #     .assign(hour=data.index.hour) \
-        #     .query(querystr)
 
         if axis is None:
             fig, axis = plt.subplots()
@@ -308,8 +298,12 @@ class PresentationLayer(object):
                       markersize=markersize)
 
         if not func_dict is None:
+            if func_range is None:
+                func_range = np.arange(min(xdata) - 1, max(xdata) + 1, 0.01)
+
             zorders = np.linspace(3, 4, len(func_dict), endpoint=False)
             zorders_index = len(func_dict) - 1
+
             for fun in func_dict:
                 axis.plot(func_range, np.array([func_dict[fun][0](zi) for zi in func_range]),
                                   label=func_dict[fun][1], zorder=zorders[zorders_index])
