@@ -5,7 +5,11 @@ import sys
 import glob
 import shutil
 import os
-
+from distutils.dir_util import copy_tree
+try:
+    from hera import toolkitHome
+except ImportError:
+    print("Hera not found, cannot create sources")
 
 def prepareflowForDispersion(args):
     """
@@ -48,7 +52,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      {dimension};
+dimensions      {dimensions};
 
 boundaryField
 {
@@ -74,27 +78,41 @@ boundaryField
         request = float(args.useTimestep)
         uts = TS[min(range(len(TS)), key=lambda i: abs(float(TS[i]) - request))]
 
-    print(f"Using time {uts}")
+    fromTime = args.fromTimestep
 
-    dest_time = args.toTimestep
+    print(f"Using Time step {uts} for Steady state")
 
     if len(args.args) == 2:
         # Copy
-        dest = args.args[1]
-        os.makedirs(args.args[1],exist_ok=True)
+        dest = os.path.abspath(args.args[1])
+        os.makedirs(dest,exist_ok=True)
 
         # copy constant, 0 and system.
         print(f"Process general {orig} directory --> {dest}")
-        for general in ["constant","system","0"]:
-            orig_general = os.path.join(orig,general)
-            dest_general = os.path.join(dest,general)
-            shutil.copytree(orig_general, dest_general)
+        for general in ["constant", "system", "0"]:
+            orig_general = os.path.join(orig, general)
+            dest_general = os.path.join(dest, general)
+            if os.path.exists(dest_general):
+                copy_tree(orig_general, dest_general)
+            else:
+                shutil.copytree(orig_general, dest_general)
 
         for proc in glob.glob(os.path.join(orig,"processor*")):
-            print(f"Process {proc}")
-            orig_proc = os.path.join(proc,str(uts))
-            dest_proc = os.path.join(dest,os.path.basename(proc),dest_time)
-            shutil.copytree(orig_proc,dest_proc)
+            for dest_time in [fromTime, args.toTimestep]:
+                print(f"time {dest_time}/Process {proc}")
+                orig_proc = os.path.join(proc,str(uts))
+                dest_proc = os.path.join(dest,os.path.basename(proc),dest_time)
+                shutil.copytree(orig_proc,dest_proc)
+
+                # Now writing the Hmix and ustar.
+                with open(os.path.join(dest_proc,"Hmix"),'w') as HmixFile:
+                    Hmix = baseOFFile.replace("{fieldName}","Hmix").replace("{dimensions}","[0 1 0 0 0 0 0]")
+                    HmixFile.write(Hmix)
+
+                with open(os.path.join(dest_proc,"ustar"),'w') as ustarFile:
+                    ustar = baseOFFile.replace("{fieldName}","ustar").replace("{dimensions}","[0 1 -1 0 0 0 0]")
+                    ustarFile.write(ustar)
+
 
             if args.copyMesh:
                 orig_constant = os.path.join(proc,"constant")
@@ -106,29 +124,93 @@ boundaryField
                 os.makedirs(os.path.dirname(destination), exist_ok=True)
                 os.system(f"ln -s {fullpath} {destination}")
 
-            # Now writing the Hmix and ustar.
-            with open(os.path.join(dest_proc,"Hmix"),'w') as HmixFile:
-                Hmix = baseOFFile.replace("{fieldName}","Hmix").replace("{dimensions}","[0 1 0 0 0 0 0]")
-                HmixFile.write(Hmix)
+            # We should look into it more closly, why parallel case doesn't recognize the time steps of the
+            # processors. For now, just create these directories in the main root as well.
+            for dest_time in [fromTime, args.toTimestep]:
+                os.makedirs(os.path.join(dest,dest_time),exist_ok=True)
 
-            with open(os.path.join(dest_proc,"ustar"),'w') as ustarFile:
-                ustar = baseOFFile.replace("{fieldName}","ustar").replace("{dimensions}","[0 1 -1 0 0 0 0]")
-                ustarFile.write(ustar)
 
 
     else:
         print("Not implemented yet")
 
+def prepareDispersionCase(args):
+    """
+        Prepares the dispersion case:
+
+         * Copies a template to the new directory,
+         * Sets up references to the root directory.
+
+
+         Assumes the root directory is parallel.
+
+
+    :param args:
+             - args : a list :
+                Location:
+                   0 : The name of the dispersion template
+                   1 : The name of the new dispersion case.
+                   2 : The name of the root case.
+    :return:
+    """
+
+    if len(args.args) < 3:
+        raise ValueError("Must supply template dir, case dir and rootCase dir")
+
+    template = args.args[0]
+    case     = os.path.abspath(args.args[1])
+    flowCase = os.path.abspath(args.args[2])
+
+    shutil.copytree(template,case)
+    for proc in glob.glob(os.path.join(flowCase,"processor*")):
+        fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
+        destination = os.path.join(case, os.path.basename(proc), "constant", "polyMesh")
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        os.system(f"ln -s {fullpath} {destination}")
+        os.system(f"ln -s {os.path.abspath(proc)} {os.path.join(case, os.path.basename(proc))}/rootCase")
+
+        # create the 0 directory in all processors.
+        os.makedirs(os.path.join(case, os.path.basename(proc), '0'), exist_ok=True)
+
+    # linking the decpomposePar dict from the root.
+    root_decomposePar = os.path.abspath(os.path.join(flowCase,"system","decomposeParDict"))
+    decompose_dest    = os.path.abspath(os.path.join(case,"system"))
+    os.system(f"ln -s {root_decomposePar} {decompose_dest}")
+
+    # linking the rootCase in the root directory of the dispersion case.
+    os.system(f"ln -s {flowCase} {os.path.join(case,'rootCase')}")
+
+    # create the 0 directory in the root.
+    os.makedirs(os.path.join(case,'0'),exist_ok=True)
+
+
+def makeSourceCylinder(args):
+
+    center = args.center
+    params = dict(x=center[0],
+                  y=center[1],
+                  z=center[2],
+                  radius = args.radius,
+                  height = args.height,
+                  nParticles=args.particles
+                  )
+    case   = os.path.abspath(args.case[0])
+
+    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
+
+    LSMtoolkit.makeSource(type="Cylinder", **params)
 
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    parser_flowForDispersion = subparsers.add_parser('flowForDispersion', help='load help')
-    #parser_executePipeline = subparsers.add_parser('prepareDisperions', help='executePipeline help')
+    parser_flowForDispersion = subparsers.add_parser('flowFieldDispersionSteadyState', help='load help')
+    parser_prepareDisperionCase = subparsers.add_parser('prepareDispersionCase', help='executePipeline help')
+    parser_makeSourceCylinder = subparsers.add_parser('makeSourceCylinder', help='executePipeline help')
 
-    ##### Load parameters
+
+    ##### Prepare flow
     parser_flowForDispersion.add_argument('args',
                              nargs='*',
                              type=str,
@@ -136,10 +218,33 @@ if __name__ =="__main__":
 
     parser_flowForDispersion.add_argument('--useTimestep',type=str,dest="useTimestep",default=None)
     parser_flowForDispersion.add_argument('--toTimestep', type=str,dest="toTimestep",required=True, default=None)
+    parser_flowForDispersion.add_argument('--fromTimestep', type=str, dest="fromTimestep", default="0")
     parser_flowForDispersion.add_argument('--copyMesh', dest="copyMesh", default=False,action="store_true")
 
     parser_flowForDispersion.set_defaults(func=prepareflowForDispersion)
 
+
+    #### Prepare dispersion
+    parser_prepareDisperionCase.add_argument('args',
+                             nargs='*',
+                             type=str,
+                             help='[Template] [newdirectory] [rootCase]')
+
+    parser_prepareDisperionCase.set_defaults(func=prepareDispersionCase)
+
+    ############################ Source
+    ########## Cylinder
+
+    parser_makeSourceCylinder.add_argument('case',
+                             nargs=1,
+                             type=str,
+                             help='[dispersion case dir]')
+    parser_makeSourceCylinder.add_argument('--radius', dest="radius", required=True,type=float)
+    parser_makeSourceCylinder.add_argument('--center',nargs=3, dest="center",type=float, required=True)
+    parser_makeSourceCylinder.add_argument('--height', dest="height", required=True,type=float)
+    parser_makeSourceCylinder.add_argument('--particles', dest="particles", required=True,type=int)
+    parser_makeSourceCylinder.set_defaults(func=makeSourceCylinder)
     ############################## arg parse
     args = parser.parse_args()
+    print(args)
     args.func(args)
