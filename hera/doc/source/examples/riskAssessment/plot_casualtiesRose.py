@@ -75,6 +75,8 @@ riskAreas = Agent.RegularPopulation.calculate(Concentration, "C", isel={"datetim
 # The ticks of the probabilities may be chosen; the default is 25,50,75 and 100 percents.
 # Notice that the heighest probability isn't ticked in the graph, and instead is used as a limit value.
 # For example, we will limit our probabilities to 40 percents.
+# The ticks of the casualties quantities may be determined using matplotlib's ax.set_yticks.
+#
 # In addition, the type of plot may be changed. Available plot types are those of matplotlib.pyplot.
 # The default is "plot" for a line plot; "bar" may be given, for instance, for a bar plot.
 #
@@ -92,6 +94,7 @@ ax, retProj = risk.presentation.plotCasualtiesRose(
     results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
     mathematical_angles=windAngles, severityList=["Light","Severe"],windDistribution=windDist,
     windTicks=[10,20,30,40],plotType="plot")
+ax.set_yticks([50,100,150])
 #######################
 # The retProj object is a dataframe that holds the numbers of injuries for each wind direction and severity.
 # It may be used for making tables of the results.
@@ -104,7 +107,6 @@ ax, retProjLight = risk.presentation.plotCasualtiesRose(results=riskAreas,area=K
 
 ax2, retProjSevere = risk.presentation.plotCasualtiesRose(results=riskAreas,area=KatsrinCityOnly,loc=[x_coordinate,y_coordinate],
                                                    mathematical_angles=windAngles, severityList=["Severe"],ax=[1,2,2],windDistribution=windDist)
-
 #######################
 # Finally, we may save the figure. In our example we will use the used parameters in the name.
 
