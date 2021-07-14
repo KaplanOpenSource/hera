@@ -6,8 +6,8 @@ import seaborn
 import dask.dataframe
 from itertools import product
 
-from hera.measurements.meteorology.analysis import calcHourlyDist
-from hera.measurements.meteorology.analysis import seasonsdict
+from .analysis import calcHourlyDist
+from .analysis import seasonsdict
 
 
 
