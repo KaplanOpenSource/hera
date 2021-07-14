@@ -1,7 +1,11 @@
 import numpy
 import pandas
+import dask
+import copy
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
+from .turbulencestatistics import singlePointTurbulenceStatistics
+from .....utils.filter_immediate import Filter
 
 class AveragingCalculator(AbstractCalculator):
     def __init__(self, rawData, metadata):
@@ -14,8 +18,8 @@ class AveragingCalculator(AbstractCalculator):
 
 
 class MeanDataCalculator:
-    def __init__(self, TurbCalc = None, compute_mode_turb = 'not_from_db_and_not_save', AverageCalc = None,
-                 compute_mode_AverageCalc = None, data = None):
+    def __init__(self, TurbCalcOrData = None, compute_mode_turb = 'not_from_db_and_not_save', AverageCalcOrData = None,
+                 compute_mode_AverageCalc = None, **metadata):
         """
 
         :param query_fields:
@@ -28,16 +32,37 @@ class MeanDataCalculator:
 
         self._Karman = 0.4
 
-        self.TurbCalc = TurbCalc
-        self.AverageCalc = AverageCalc
+        if type(TurbCalcOrData) == pandas:
+            self.metaData = copy.deepcopy(metadata)
+            self.MeanData = TurbCalcOrData.copy()
+        elif type(TurbCalcOrData) == dask:
+            self.metaData = copy.deepcopy(metadata)
+            self.MeanData = TurbCalcOrData[self.metaData["start"]:self.metaData["end"]].compute()
+        elif type(TurbCalcOrData) == singlePointTurbulenceStatistics:
+            self.TurbCalc = TurbCalcOrData
+            self.metaData = copy.deepcopy(self.TurbCalc.metaData)
+            self.metaData.update(copy.deepcopy(metadata))
+            self.MeanData = self.TurbCalc.secondMoments().compute(mode=compute_mode_turb)
+        else:
+            raise ValueError("TurbCalcOrData must be either a singlePointTurbulenceStatistics instance or a pandas/dask dataframe")
 
-        self.metaData = self.TurbCalc.metaData
+        if type(AverageCalcOrData) == pandas:
+            AverageData = AverageCalcOrData
+        elif type(AverageCalcOrData) == dask:
+            AverageData = AverageCalcOrData[self.metaData["start"]:self.metaData["end"]].compute()
+        elif type(AverageCalcOrData) == AveragingCalculator:
+            AverageData = AverageCalcOrData.compute(mode=compute_mode_AverageCalc)
+        elif AverageCalcOrData is None:
+            AverageData = None
+        else:
+            raise ValueError(
+                "AverageCalcOrData must be either a singlePointTurbulenceStatistics instance or a pandas/dask dataframe")
 
-        self.MeanData = self.TurbCalc.secondMoments().compute(mode = compute_mode_turb)
-        AverageData = self.AverageCalc.compute(mode = compute_mode_AverageCalc)
-        self.MeanData = self.MeanData.join(AverageData)
+        if AverageData is not None:
+            self.MeanData = self.MeanData.join(AverageData)
 
-        self.MeanData = self.MeanData[self.metaData["start"]:self.metaData["end"]]
+        self.MeanData = self.MeanData.loc[(self.MeanData.index >= self.metaData["start"]) &
+                                          (self.MeanData.index < self.metaData["end"])]
 
     def thresholds(self, threshold_list, inplace = False):
         """
@@ -47,36 +72,29 @@ class MeanDataCalculator:
         :return:
         """
 
-        mask = pandas.Series(data = True, index = self.MeanData.index)
-        for cut in threshold_list:
-            if cut[1] == "lt":
-                mask = mask & (self.MeanData[cut[0]] < cut[2])
-            elif cut[1] == "lte":
-                mask = mask & (self.MeanData[cut[0]] <= cut[2])
-            elif cut[1] == "gt":
-                mask = mask & (self.MeanData[cut[0]] > cut[2])
-            elif cut[1] == "gte":
-                mask = mask & (self.MeanData[cut[0]] >= cut[2])
-            elif cut[1] == "abs_lt":
-                mask = mask & (abs(self.MeanData[cut[0]]) < cut[2])
-            elif cut[1] == "abs_lte":
-                mask = mask & (abs(self.MeanData[cut[0]]) <= cut[2])
-            elif cut[1] == "abs_gt":
-                mask = mask & (abs(self.MeanData[cut[0]]) > cut[2])
-            elif cut[1] == "abs_gte":
-                mask = mask & (abs(self.MeanData[cut[0]]) >= cut[2])
-            elif cut[1] == "eq":
-                mask = mask & (self.MeanData[cut[0]] == cut[2])
-            elif cut[1] == "neq":
-                mask = mask & (self.MeanData[cut[0]] != cut[2])
+        filter_obj = Filter(data = self.MeanData, inplace = True)
 
-        data_cut = self.MeanData.loc[mask]
+        for cut in threshold_list:
+            filter_obj.threshold(column = cut[0], preposition= cut[1], bound= cut[2])
 
         if inplace:
-            self.MeanData = data_cut
+            self.MeanData = filter_obj.data
             return self
         else:
-            return data_cut
+            return MeanDataCalculator(filter_obj.data, **self.metaData)
+
+    def filterDates(self, start, end, inplace = False):
+
+        filter_obj = Filter(data = self.MeanData, inplace = True)
+
+        filter_obj.outsideInterval(lower_bound = start, upper_bound = end)
+
+        if inplace:
+            self.MeanData = filter_obj.data
+            return self
+        else:
+            return MeanDataCalculator(filter_obj.data, **self.metaData)
+
 
     def hour(self):
 
@@ -101,7 +119,7 @@ class MeanDataCalculator:
         return self
 
     def _UV_to_SpdDir(self,U, V):
-        return (U ** 2 + V ** 2) ** 0.5, (-np.degrees(np.arctan2(V, U)) + 90) % 360
+        return (U ** 2 + V ** 2) ** 0.5, (-numpy.degrees(numpy.arctan2(V, U)) + 90) % 360
 
     def alignedStress(self):
 
@@ -284,16 +302,21 @@ class MeanDataCalculator:
     #
     #     return self
 
-    def zOverL(self):
+    def effectivez(self):
 
-        if 'zOverL' not in self.MeanData.columns:
-            self.MOLength()
-
+        if "effectivez" not in self.metaData.keys():
             H = int(self.metaData['buildingHeight'])
             instrumentHeight = int(self.metaData['height'])
             averagedHeight = int(self.metaData['averagedHeight'])
-            effectivez = instrumentHeight + H - 0.7 * averagedHeight
-            self.MeanData['zOverL'] = effectivez / self.MeanData['L']
+            self.metaData["effectivez"] = instrumentHeight + H - 0.7 * averagedHeight
+
+        return self
+
+    def zOverL(self):
+
+        if 'zOverL' not in self.MeanData.columns:
+            self.MOLength().effectivez()
+            self.MeanData['zOverL'] = self.metaData["effectivez"] / self.MeanData['L']
 
         return self
 
@@ -339,27 +362,27 @@ class MeanDataCalculator:
 
     def _eig(series):
         if series["uu"] + series["vv"] + series["ww"] == 0:
-            eig_ser = pd.Series(data=np.nan, index=["lambda_1", "lambda_2", "lambda_3"])
+            eig_ser = pandas.Series(data=numpy.nan, index=["lambda_1", "lambda_2", "lambda_3"])
         else:
-            A = np.array([[series["uu"], series["uv"], series["uw"]], [series["uv"], series["vv"], series["vw"]],
+            A = numpy.array([[series["uu"], series["uv"], series["uw"]], [series["uv"], series["vv"], series["vw"]],
                           [series["uw"], series["vw"], series["ww"]]]) / (
-                            series["uu"] + series["vv"] + series["ww"]) - np.identity(3) / 3
-            if np.isnan(A).any():
-                eig_ser = pd.Series(data=np.nan, index=["lambda_1", "lambda_2", "lambda_3"])
+                            series["uu"] + series["vv"] + series["ww"]) - numpy.identity(3) / 3
+            if numpy.isnan(A).any():
+                eig_ser = pandas.Series(data=numpy.nan, index=["lambda_1", "lambda_2", "lambda_3"])
             else:
-                eig_ser = pd.Series(data=list(np.linalg.eigvalsh(A))[::-1], index=["lambda_1", "lambda_2", "lambda_3"])
+                eig_ser = pandas.Series(data=list(numpy.linalg.eigvalsh(A))[::-1], index=["lambda_1", "lambda_2", "lambda_3"])
         return eig_ser
 
     def anisotropyEigs(self):
 
         if "lambda_1" not in self.MeanData.columns:
-            eig_data = self.MeanData.apply(eig, axis=1)
+            eig_data = self.MeanData.apply(self._eig, axis=1)
             for col in eig_data.columns:
                 self.MeanData[col] = eig_data[col]
 
             self.MeanData["x_B"] = self.MeanData["lambda_1"] - self.MeanData["lambda_2"] + 3 / 2 * self.MeanData[
                 "lambda_3"] + 1 / 2
-            self.MeanData["y_B"] = np.sqrt(3) / 2 * (3 * self.MeanData["lambda_3"] + 1)
+            self.MeanData["y_B"] = numpy.sqrt(3) / 2 * (3 * self.MeanData["lambda_3"] + 1)
 
         return self
 
@@ -370,13 +393,13 @@ class MeanDataCalculator:
 
             self.MeanData["isotropy_cat"] = "non-pure"
             self.MeanData.loc[(self.MeanData["x_B"] <= 0.35) & (
-                        self.MeanData["y_B"] <= -1 / np.sqrt(3) * self.MeanData["x_B"] + 7 / 30 * np.sqrt(
+                        self.MeanData["y_B"] <= -1 / numpy.sqrt(3) * self.MeanData["x_B"] + 7 / 30 * numpy.sqrt(
                     3)), "isotropy_cat"] = "2-component axisymmetric"
-            self.MeanData.loc[(self.MeanData["y_B"] >= -1 / np.sqrt(3) * self.MeanData["x_B"] + 13 / 30 * np.sqrt(3)) & (
-                        self.MeanData["y_B"] >= 1 / np.sqrt(3) * self.MeanData["x_B"] + 1 / 10 * np.sqrt(
+            self.MeanData.loc[(self.MeanData["y_B"] >= -1 / numpy.sqrt(3) * self.MeanData["x_B"] + 13 / 30 * numpy.sqrt(3)) & (
+                        self.MeanData["y_B"] >= 1 / numpy.sqrt(3) * self.MeanData["x_B"] + 1 / 10 * numpy.sqrt(
                     3)), "isotropy_cat"] = "isotropic"
             self.MeanData.loc[(self.MeanData["x_B"] >= 0.65) & (
-                        self.MeanData["y_B"] <= 1 / np.sqrt(3) * self.MeanData["x_B"] - 1 / 10 * np.sqrt(
+                        self.MeanData["y_B"] <= 1 / numpy.sqrt(3) * self.MeanData["x_B"] - 1 / 10 * numpy.sqrt(
                     3)), "isotropy_cat"] = "1-component"
 
         return self

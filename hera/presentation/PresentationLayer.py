@@ -228,9 +228,9 @@ class PresentationLayer(object):
                 getattr(axis, func)(**ax_props[func])
 
 
-    def plot_scatter_func(self, x, y, data=None, func_dict=None, axis=None, ax_props=None, SelfCorrelation=None,
-                          bar_intervals=None, bar_positions=None, percentiles=None, threshold=0, divider=None,
-                          combined=None, **kwargs):
+    def plot_scatter_func(self, x, y, data=None, func_dict=None, func_range = None, axis=None, ax_props=None,
+                          SelfCorrelation=None, bar_intervals=None, bar_positions=None, percentiles=None, threshold=0,
+                          divider=None, combined=None, **kwargs):
         """
             :param x:
             :param y:
@@ -298,15 +298,15 @@ class PresentationLayer(object):
                       markersize=0.3)
 
         if not func_dict is None:
-            z1 = np.append(np.arange(min(xdata) - 1, 0, 0.01), -0.00001)
-            z2 = np.arange(0.00001, max(xdata) + 1, 0.01)
+            if func_range is None:
+                func_range = np.arange(min(xdata) - 1, max(xdata) + 1, 0.01)
+
             zorders = np.linspace(3, 4, len(func_dict), endpoint=False)
             zorders_index = len(func_dict) - 1
+
             for fun in func_dict:
-                lines = axis.plot(z1, np.array([func_dict[fun][0](zi) for zi in z1]),
+                axis.plot(func_range, np.array([func_dict[fun][0](zi) for zi in func_range]),
                                   label=func_dict[fun][1], zorder=zorders[zorders_index])
-                axis.plot(z2, np.array([func_dict[fun][0](zi) for zi in z2]), color=lines[0].get_color(),
-                          zorder=zorders[zorders_index])
                 zorders_index = zorders_index - 1
 
         if not ax_props is None:
