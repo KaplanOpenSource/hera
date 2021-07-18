@@ -162,6 +162,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def _readRecord(self, timeName,casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
         self.logger.debug(f"Starting the read record with timeName {timeName}")
 
+
+
         columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
         if withMass:
             columnsDict['mass'] = []
@@ -173,6 +175,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_z'] = []
 
         newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
+
+
+
         try:
             newData = self._extractFile(
                 os.path.join(casePath, timeName, "lagrangian", self._cloudName, "globalSigmaPositions"),
