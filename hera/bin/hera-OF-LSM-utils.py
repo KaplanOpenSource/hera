@@ -85,7 +85,10 @@ boundaryField
     if len(args.args) == 2:
         # Copy
         dest = os.path.abspath(args.args[1])
-        os.makedirs(dest,exist_ok=True)
+        try:
+            os.makedirs(dest,exist_ok=args.overwrite)
+        except FileExistsError:
+            raise FileExistsError("The case already exists, use --overwrite ")
 
         # copy constant, 0 and system.
         print(f"Process general {orig} directory --> {dest}")
@@ -220,6 +223,7 @@ if __name__ =="__main__":
     parser_flowForDispersion.add_argument('--toTimestep', type=str,dest="toTimestep",required=True, default=None)
     parser_flowForDispersion.add_argument('--fromTimestep', type=str, dest="fromTimestep", default="0")
     parser_flowForDispersion.add_argument('--copyMesh', dest="copyMesh", default=False,action="store_true")
+    parser_flowForDispersion.add_argument('--overwrite', dest="overwrite", default=False,action="store_true",help="Overwrite directory if exists")
 
     parser_flowForDispersion.set_defaults(func=prepareflowForDispersion)
 
