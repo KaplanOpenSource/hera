@@ -3,11 +3,10 @@ import dask
 import pydoc
 import os
 import json
-from ....datalayer import ProjectMultiDBPublic
 from .analysis.analysislayer import RawdataAnalysis
 from hera import datalayer
 
-
+from ....datalayer import Project
 from .... import toolkit
 
 class HighFreqToolKit(toolkit.abstractToolkit):
@@ -19,6 +18,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         - CampbellBinary
         - TOA5 (not implemented yet)
 
+
         TODO:
             Complete the other parsers from the older versions.
 
@@ -27,7 +27,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
     DOCTYPE_STATIONS = 'StationsData'
     DOCTYPE_MEASUREMENTS = 'MeasurementsData'
 
-    def __init__(self, projectName,campaignName=None):
+    def __init__(self, projectName,campaignName=None,FilesDirectory=None):
         """
             Initializes a datalayer for the highfreqdata data.
 
@@ -38,7 +38,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         projectName: str
                 The project name
         """
-        super().__init__(projectName=projectName,toolkitName="highFreqMeteorology")
+        super().__init__(projectName=projectName,toolkitName="highFreqMeteorology",FilesDirectory=FilesDirectory)
         self.logger.info("Init High frequency data")
         self.campaignName = campaignName
         self._analysis = RawdataAnalysis(self)
@@ -258,7 +258,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
 
 
 
-class RawData(ProjectMultiDBPublic):
+class RawData(Project):
 
     _dataType = None
 
