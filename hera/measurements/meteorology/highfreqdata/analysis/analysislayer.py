@@ -153,7 +153,8 @@ class RawdataAnalysis:
 
         return calculator
 
-    def MeanDataCalculator(self, TurbCalc, compute_mode_turb = 'not_from_db_and_not_save', AverageCalc = None,
-                           compute_mode_AverageCalc = None):
+    def MeanDataCalculator(self, TurbCalcOrData = None, compute_mode_turb = 'not_from_db_and_not_save',
+                           AverageCalcOrData = None, compute_mode_AverageCalc = None, **metadata):
 
-        return MeanDataCalculator(TurbCalc, compute_mode_turb, AverageCalc, compute_mode_AverageCalc)
+        return MeanDataCalculator(TurbCalcOrData, compute_mode_turb, AverageCalcOrData, compute_mode_AverageCalc,
+                                  **metadata)
