@@ -20,6 +20,8 @@ from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
 
+from evtk.hl import pointsToVTK,structuredToVTK
+
 class OFLSMToolkit(toolkit.abstractToolkit):
     _casePath = None
     _cloudName = None
@@ -160,9 +162,9 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         return newData.astype(float)
 
     def _readRecord(self, timeName,casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
-        self.logger.debug(f"Starting the read record with timeName {timeName}")
+        #self.logger.debug(f"Starting the read record with timeName {timeName}")
 
-
+        return dict(a="1")
 
         columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
         if withMass:
@@ -234,34 +236,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     @property
     def doctype(self):
         return "LSMRuns"
-
-    def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
-        """
-            Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
-            In paraview, each timestep is a different file.
-
-        Parameters
-        -----------
-        data: dask.dataframe or pandas.dataframe
-            The data to present
-
-        outputdirectory: str
-            The directory to write the files in
-
-        timeFactor : int
-            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
-
-        filename: str
-            The filename to write.
-
-        Returns
-        -------
-            None
-        """
-        for times, timedata in data.groupby("time"):
-            with open(os.path.join(outputdirectory, f"{filename}_{str(int(timeFactor * times)).replace('.', '_')}.csv"),
-                      "w") as outputfile:
-                outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
     def loadData(self,
                  times=None,
@@ -633,6 +607,110 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             curdir = os.path.abspath(os.path.join("rootCase", os.path.basename(fl)))
             targetdir = os.path.abspath(os.path.join(fl, "rootCase"))
             os.system(f"ln -s {curdir} {targetdir} ")
+
+
+    def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
+        """
+            Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
+            In paraview, each timestep is a different file.
+
+        Parameters
+        -----------
+        data: dask.dataframe or pandas.dataframe
+            The data to present
+
+        outputdirectory: str
+            The directory to write the files in
+
+        timeFactor : int
+            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
+
+        filename: str
+            The filename to write.
+
+        Returns
+        -------
+            None
+        """
+        for times, timedata in data.groupby("time"):
+            with open(os.path.join(outputdirectory, f"{filename}_{str(int(timeFactor * times)).replace('.', '_')}.csv"),
+                      "w") as outputfile:
+                outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
+
+
+    def toUnstrcucturedVTK(self,data,outputdirectory,filename,timeNameOutput=True):
+        """
+            Writes the data as a VTK vtu file.
+
+
+
+        :param data: panas.Dataframe.
+                The data in a dataframe of pandas.
+        :param outputdirectory:
+        :param filename: str
+                    The filename
+        :param timeNameOutput: bool
+                    If true, use the time as the suffix to the filename. Else, use running number.
+        :return:
+        """
+        namePath = os.path.join(outputdirectory,filename)
+        os.makedirs(outputdirectory,exist_ok=True)
+
+        for indx,(timeName,timeData) in enumerate(data.groupby("time")):
+
+            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+
+            data = dict(mass = timeData.mass.values)
+            x = timeData.globalX.values
+            y = timeData.globalY.values
+            z = timeData.globalZ.values
+            pointsToVTK(finalFile,x,y,z,data)
+
+    def toStructuredVTK(self,data,outputdirectory,filename,extents,timeNameOutput=True,dxdydz=0.25):
+        """
+            Converts the data to structured grid, and calcualtes the cocnentration
+
+            ** for now, the ppm is of SF6.
+
+        :param data:
+        :param outputdirectory:
+        :param filename:
+        :param timeNameOutput: bool
+                    Use the time or sequence for the output file name.
+        :param extents: dict
+                    with keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+        :param dxdydz: float
+                    The mesh steps.
+
+        :return:
+        """
+        x_full = numpy.arange(extents['xmin'],extents['xmax'],dxdydz)
+        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
+        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
+
+        namePath = os.path.join(outputdirectory, filename)
+        os.makedirs(outputdirectory, exist_ok=True)
+        dH = dxdydz**3
+
+        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+
+            fulldata = xarray.DataArray(coords=dict(xI=x_full,yI=y_full,zI=z_full),dims=['xI','yI','zI']).fillna(0)
+
+            print(f"\t Processing {timeName}")
+            Mass = timeData.assign(xI=dxdydz * (timeData.globalX // dxdydz),yI=dxdydz * (timeData.globalY // dxdydz),zI=dxdydz * (timeData.globalZ // dxdydz)).groupby(["xI", "yI", "zI", "time"])['mass'].sum().to_xarray().squeeze().fillna(0) / dH
+
+            # assign the timestep into the large mesh
+            fulldata.loc[dict(xI=Mass.xI,yI=Mass.yI,zI=Mass.zI)] = Mass
+
+            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+
+            X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
+
+            C = numpy.ascontiguousarray(fulldata.transpose("yI","xI","zI").values)
+
+            data = dict(C_kg_m3=C,ppm=C*160000) # 1kg/m**3=160000ppm
+            structuredToVTK(finalFile, X, Y, Z, pointData=data)
+
 
 
 class Analysis:
