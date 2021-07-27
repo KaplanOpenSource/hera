@@ -5,7 +5,9 @@ from ..datalayer import datatypes, nonDBMetadataFrame
 from .agents.Agents import Agent
 from .presentation.casualtiesFigs import casualtiesPlot
 from .protectionpolicy.ProtectionPolicy import ProtectionPolicy
-
+from ..simulations.LSM.toolkit import LSMToolkit
+import geopandas
+from unum.units import *
 
 class RiskToolkit(abstractToolkit):
     """
@@ -16,6 +18,11 @@ class RiskToolkit(abstractToolkit):
     """
     _presentation = None
     _protectionPolicy = None
+    _analysis = None
+
+    @property
+    def analysis(self):
+        return self._analysis
 
     @property
     def ProtectionPolicy(self):
@@ -29,6 +36,7 @@ class RiskToolkit(abstractToolkit):
         super().__init__(projectName=projectName, FilesDirectory=FilesDirectory,toolkitName="RiskAssessment")
         self._presentation = casualtiesPlot()
         self._protectionPolicy = ProtectionPolicy
+        self._analysis = analysis(self)
 
     def getAgent(self, nameOrDesc, version=None):
         """
@@ -150,3 +158,53 @@ class RiskToolkit(abstractToolkit):
             agentDoc.desc['version']  = version
             agentDoc.save()
         return nonDBMetadataFrame(agentDescription) if agentDoc is None else agentDoc
+
+class analysis():
+
+    _datalayer = None
+    _LSM = None
+
+    @property
+    def LSM(self):
+        return self._LSM
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, dataLayer):
+        self._datalayer = dataLayer
+        self._LSM = LSMToolkit(projectName=self.datalayer.projectName)
+
+    def getRiskAreas(self, tenbergeCoefficient, levels,Q=1*kg,protectionPolicy=None,LSMfile=None, **LSMparams):
+        """
+        returns the bounds and polygons of risk areas from dispersion of agents with different Ten Berge
+        coefficients and hazardous levels.
+        params:
+            Q = the total mass of dispersed particles; default is 1 kg
+            tenbergeCoefficients = a list of Ten Berge coefficients, or a single value.
+            levels = a list of levels for which the risk areas are calculated, should be equal in length to tenbergeCoefficients
+        """
+        levels = levels if isinstance(levels, list) else [levels]
+        lsmSim = self.LSM.getSimulations(**LSMparams)[0] if LSMfile is None else self.LSM.singleSimulation(LSMfile)
+        Concentration = lsmSim.getConcentration(Q=Q).isel(z=0)
+        if protectionPolicy is not None:
+            Concentration = self.datalayer.ProtectionPolicy(protectionPolicy).compute(Concentration)
+        description = {"effectParameters": {"tenbergeCoefficient": tenbergeCoefficient},
+                       "effects": {"RegularPopulation": {"type": "Lognormal10",
+                       "calculator": {"TenBerge": {"breathingRate": 10}},
+                       "parameters": {"type": "Lognormal10DoseResponse",
+                        "levels": ["Severe"],"parameters": {"Severe": {"TL_50": 10,"sigma": 0.5}}}}}}
+        dumbAgent = self.datalayer.getAgent(description)
+        boundsList = []
+        polygonList = []
+        for level in levels:
+            ToxicLoad = dumbAgent.RegularPopulation.calculateRaw(Concentration,"C",isel={"datetime":-1})
+            ToxicLoad = ToxicLoad.to_dataframe().reset_index()
+            ToxicLoad = ToxicLoad.loc[ToxicLoad.C>=level]
+            data = geopandas.geodataframe.GeoDataFrame(ToxicLoad, geometry=geopandas.points_from_xy(ToxicLoad.x, ToxicLoad.y))
+            boundsList.append(data.unary_union.bounds)
+            polygonList.append(data.unary_union.convex_hull)
+
+        return geopandas.geodataframe.GeoDataFrame({"tenBergCoefficient":tenbergeCoefficient, "level":levels, "bounds":boundsList, "geometry":polygonList})
+
