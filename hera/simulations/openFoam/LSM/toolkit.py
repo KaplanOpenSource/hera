@@ -659,7 +659,6 @@ class Analysis:
         addToDB = a boolian parameter, to choose whether to save the data. default is True. It is used only if save is True.
         **kwargs = any additional parameters to add to the description in the DB.
         """
-
         if nParticles is None:
             with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
                 Lines = readFile.readlines()
