@@ -107,7 +107,6 @@ class LSMTemplate:
         saveDir = os.path.abspath(self.Toolkit.FilesDirectory)
 
         # create the input file.
-
         updated_params = dict(self._document['desc']['params'])
         updated_params.update(params)
         updated_params.update(descriptor)
@@ -143,7 +142,7 @@ class LSMTemplate:
         ifmc.setTemplate('LSM_%s' % (self.version))
         docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                                        templateName=self.templateName,
-                                                       version=self.version,**updated_params)
+                                                       version=self.version,params=updated_params)
 
         print(f"Found {docList}")
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
@@ -152,7 +151,7 @@ class LSMTemplate:
                     raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
                                      f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
-                    docList[0].delete()
+                    docList.delete()
             doc = self.Toolkit.addSimulationsDocument(
                 type=self.doctype_simulation,
                 resource='None',
