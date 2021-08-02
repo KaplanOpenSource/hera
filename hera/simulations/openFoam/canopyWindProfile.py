@@ -89,11 +89,13 @@ def windProfile(cellData, LambdaGrid,stations):
                 newVal = float(lambdaXarray.interp(**{"x": x, "y": y}).fillna(0)[name])
                 variableList.append(newVal)
                 valuesDict[x][y][name] = newVal
+        if i%5000==0 and i>=5000:
+            print(f"finished {i} steps")
     for variableList, name in zip([Uh,hc,ll,dd,zz0,U2h,theta],["Uh","hc","ll","dd","zz0","U2h","theta"]):
         cellData[name] = variableList
     cellData["Umag"] = 0
 
-    cellData.loc[(cellData.z<2*cellData.hc),"Umag"]= (1.0 * cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].Uh * beta / 0.4) * \
+    cellData.loc[(cellData.z<2*cellData.hc),"Umag"]= (cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].Uh * beta / 0.4) * \
                                                                                 numpy.log(
                                                                    1.0 * (cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].z -
                                                                           cellData.loc[cellData.z>cellData.hc].loc[cellData.z<2*cellData.hc].hc +
