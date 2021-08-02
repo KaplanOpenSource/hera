@@ -824,3 +824,51 @@ class Analysis:
         else:
             data = documents[0].getData(usePandas=True)
         return data
+
+    def getMassFromLog(self,logFile,solver="StochasticLagrangianSolver"):
+
+        count = 0
+        times = []
+        names = []
+        actions = []
+        mass = []
+        parcels = []
+
+        def addToLists(time,name,action,m,parcel):
+            times.append(time)
+            names.append(name)
+            actions.append(action)
+            mass.append(m)
+            parcels.append(parcel)
+
+        with open(logFile, "r") as readFile:
+            Lines = readFile.readlines()
+
+        for line in Lines:
+            count += 1
+            if "Exec" in line and solver in line:
+                count += 2
+                break
+
+        while "End" not in Lines[count]:
+            if "Time" in Lines[count]:
+                time = float(Lines[count].split()[-1])
+                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
+                    count += 1
+                count += 1
+                while "ExecutionTime" not in Lines[count]:
+                    if "Parcel fate" in Lines[count]:
+                        name = Lines[count].split()[-1]
+                        count += 1
+                        addToLists(time=time,name=name,action="escape",parcel=float(Lines[count].split()[-2][:-1]),m=float(Lines[count].split()[-1]))
+                        count += 1
+                        addToLists(time=time,name=name,action="stick",parcel=float(Lines[count].split()[-2][:-1]),m=float(Lines[count].split()[-1]))
+                    elif ":\n" in Lines[count]:
+                        name = Lines[count].split()[0][:-1]
+                        count += 1
+                        parcel = float(Lines[count].split()[-1])
+                        count += 1
+                        addToLists(time=time,name=name,action="release",parcel=parcel,m=float(Lines[count].split()[-1]))
+                    count += 1
+            count += 1
+        return pandas.DataFrame({"time":times,"cloudName":self._datalayer.cloudName,"name":names,"action":actions,"parcels":parcels,"mass":mass})
