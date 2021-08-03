@@ -166,7 +166,7 @@ class ProtectionPolicy(object):
 		self._data.attrs = data.attrs
 		self._data["outdoor_0"] = data[C]
 		self._data[self.finalname] = data[C]
-		self._data.attrs[0] = { "type" : "outdoor"}
+		self._data.attrs["0"] = { "type" : "outdoor"}
 		for action in self._actionList: 
 			action.compute()
 
@@ -299,12 +299,12 @@ class ActionIndoor(abstractAction):
 
 		actionTimeList = data.datetime.to_series()[data[self.policy.datetimename].to_series().between(abegin,aend)]
 		data[self.policy.finalname] = Cin.where(data[self.policy.datetimename].isin(actionTimeList),Cout)
-		data.attrs[self.actionid] = { "type" : self.actiontype,"actionid": self.actionid,"name" : self.name,\
+		data.attrs[str(self.actionid)] = { "type" : self.actiontype,"actionid": self.actionid,"name" : self.name,\
 						      "params" : {
 								"alpha" : self.alpha,
 								"turnover":self.turnover,
 								"begin" : abegin,
-								"end"   : aend 
+								"end"   : aend
 								},"outputs" : [self.name]
 						       }
 
@@ -381,11 +381,11 @@ class ActionMasks(abstractAction):
 
 		actionTimeList = data.datetime.to_series()[data[self.policy.datetimename].to_series().between(abegin,aend)]
 		data[self.policy.finalname] = data[self.name].where(data[self.policy.datetimename].isin(actionTimeList),Cno_mask)
-		data.attrs[self.actionid] = { "type" : self.actiontype,"actionid": self.actionid,"name" : self.name,\
+		data.attrs[str(self.actionid)] = { "type" : self.actiontype,"actionid": self.actionid,"name" : self.name,\
 						      "params" : {
 								"protectionFactor" : self._protectionFactor,
 								"begin" : abegin,
-								"end"   : aend 
+								"end"   : aend
 								},"outputs" : [self.name]
 						       }
 	

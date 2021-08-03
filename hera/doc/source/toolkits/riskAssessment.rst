@@ -34,6 +34,7 @@ Usage
     riskAssessment/effectCalculation
     riskAssessment/ProtectionPolicies
     riskAssessment/minimalRiskAssessmentProject
+    riskAssessment/ExampleOfRiskAssessment1
 
 
 API
