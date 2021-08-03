@@ -7,7 +7,7 @@ from dask.delayed import delayed
 from dask import dataframe
 
 from unum.units import *
-from ....utils import tounit, tonumber
+from hera.datalayer import datatypes
 
 from ....measurements.GIS.locations.topography import TopographyToolkit
 
@@ -15,12 +15,11 @@ from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
 from ....datalayer import nonDBMetadataFrame
 from .... import toolkit
-
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
+from evtk.hl import pointsToVTK, structuredToVTK
 
-from evtk.hl import pointsToVTK,structuredToVTK
 
 class OFLSMToolkit(toolkit.abstractToolkit):
     _casePath = None
@@ -29,6 +28,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     _topography = None
 
     _parallelCase = None
+    _analysis= None
 
     @property
     def analysis(self):
@@ -161,8 +161,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         return newData.astype(float)
 
-    def _readRecord(self, timeName,casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
-        #self.logger.debug(f"Starting the read record with timeName {timeName}")
+    def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
+        # self.logger.debug(f"Starting the read record with timeName {timeName}")
 
         return dict(a="1")
 
@@ -177,8 +177,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_z'] = []
 
         newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
-
-
 
         try:
             newData = self._extractFile(
@@ -323,7 +321,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                 raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
 
             timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                    os.path.isdir(os.path.join(finalCasePath, processorList[0],x)) and
+                    os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
                     x.isdigit() and
                     (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                               key=lambda x: int(x))
@@ -608,7 +606,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             targetdir = os.path.abspath(os.path.join(fl, "rootCase"))
             os.system(f"ln -s {curdir} {targetdir} ")
 
-
     def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """
             Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
@@ -637,8 +634,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-
-    def toUnstrcucturedVTK(self,data,outputdirectory,filename,timeNameOutput=True):
+    def toUnstrcucturedVTK(self, data, outputdirectory, filename, timeNameOutput=True):
         """
             Writes the data as a VTK vtu file.
 
@@ -653,20 +649,19 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     If true, use the time as the suffix to the filename. Else, use running number.
         :return:
         """
-        namePath = os.path.join(outputdirectory,filename)
-        os.makedirs(outputdirectory,exist_ok=True)
+        namePath = os.path.join(outputdirectory, filename)
+        os.makedirs(outputdirectory, exist_ok=True)
 
-        for indx,(timeName,timeData) in enumerate(data.groupby("time")):
-
+        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
             finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
 
-            data = dict(mass = timeData.mass.values)
+            data = dict(mass=timeData.mass.values)
             x = timeData.globalX.values
             y = timeData.globalY.values
             z = timeData.globalZ.values
-            pointsToVTK(finalFile,x,y,z,data)
+            pointsToVTK(finalFile, x, y, z, data)
 
-    def toStructuredVTK(self,data,outputdirectory,filename,extents,timeNameOutput=True,dxdydz=0.25):
+    def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):
         """
             Converts the data to structured grid, and calcualtes the cocnentration
 
@@ -684,144 +679,422 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         :return:
         """
-        x_full = numpy.arange(extents['xmin'],extents['xmax'],dxdydz)
-        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
-        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
-
         namePath = os.path.join(outputdirectory, filename)
         os.makedirs(outputdirectory, exist_ok=True)
-        dH = dxdydz**3
 
         for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-
-            fulldata = xarray.DataArray(coords=dict(xI=x_full,yI=y_full,zI=z_full),dims=['xI','yI','zI']).fillna(0)
-
-            print(f"\t Processing {timeName}")
-            Mass = timeData.assign(xI=dxdydz * (timeData.globalX // dxdydz),yI=dxdydz * (timeData.globalY // dxdydz),zI=dxdydz * (timeData.globalZ // dxdydz)).groupby(["xI", "yI", "zI", "time"])['mass'].sum().to_xarray().squeeze().fillna(0) / dH
-
-            # assign the timestep into the large mesh
-            fulldata.loc[dict(xI=Mass.xI,yI=Mass.yI,zI=Mass.zI)] = Mass
+            # assign the timestep into the large mesh of that time step.
+            fulldata = self.analysis.calcConcentrationTimeStepFullMesh(timeData, extents, dxdydz=dxdydz)
 
             finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
 
             X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
 
-            C = numpy.ascontiguousarray(fulldata.transpose("yI","xI","zI").values)
+            C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
 
-            data = dict(C_kg_m3=C,ppm=C*160000) # 1kg/m**3=160000ppm
+            data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
 
 
-
 class Analysis:
+    DOCTYPE_CONCENTRATION = "xarray_concentration"
+    DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
+
     _datalayer = None
+
+    @property
+    def datalayer(self):
+        return self._datalayer
 
     def __init__(self, datalayer):
         self._datalayer = datalayer
 
-    def getConcentration(self, endTime, startTime=1, Q=1 * kg, dx=10 * m, dy=10 * m, dz=10 * m, dt=10 * s, loc=None,
-                         sigmaCoordinates=True,
-                         Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,
-                         releaseTime=0, nParticles=None, withID=False, **kwargs):
+
+    def calcConcentrationPointWise(self,data,dxdydz,xfield="globalX", yfield="globalY",zfield="globalZ"):
         """
-        Calculates the concentration of dispersed particles.
-        parmas:
-        nParticles = The total number of particles induced to the system at all times.
-        endTime = The final time step to read.
-        startTime = The first time step to read. The default is 1.
-        Q = The total mass of particles induced to the system. The default is 1 kg.
-        dx = The distance between grid points of the concentration field in the x direction. The default is 10 meters.
-        dy = The distance between grid points of the concentration field in the y direction. The default is 10 meters.
-        dz = The distance between grid points of the concentration field in the z direction. The default is 10 meters.
-        dt = The time measure between grid points of the concentration field. The default is 10 seconds.
-        Qunits = The mass units of the concentration in the final dataframe. The default is mg.
-        lengthUnits = The length units of the concentration in the final dataframe. The default is meter.
-        timeUnits = The time units of the time steps in the final dataframe. The default is second.
-        file = a name for a file, in which the data is saved. Default is "Concentration.parquet", in the current working directory.
-        save = a boolian parameter, to choose whether to save the data. default is False.
-        addToDB = a boolian parameter, to choose whether to save the data. default is True. It is used only if save is True.
-        **kwargs = any additional parameters to add to the description in the DB.
+            Calculates the concentration in cells from point data.
+
+            The mass of each particle is given in the mass fields.
+
+            Note that it is a multi index dask that cannot be saved as is to parquet.
+
+        :param data: parquet/dask
+            The particle location data in time.
+
+        :param dxdydz: float
+                The size of the cell
+
+        :param xfield: str
+                The name of the X coordinate
+
+        :param yfield: str
+                The name of the Y coordinate
+
+        :param zfield: str
+                The name of the Z coordinate
+        :return: dask.
+
+
         """
 
-        if nParticles is None:
-            with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
-                Lines = readFile.readlines()
-            try:
-                nParticles = int(Lines[15])
-            except:
-                raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
-        dx = tonumber(tounit(dx, lengthUnits), lengthUnits)
-        dy = tonumber(tounit(dy, lengthUnits), lengthUnits)
-        dz = tonumber(tounit(dz, lengthUnits), lengthUnits)
-        dt = int(tonumber(tounit(dt, timeUnits), timeUnits))
-        withReleaseTimes = False
-        if type(Q) == list:
-            if len(Q) != endTime - startTime + 1:
-                raise KeyError("Number of values in Q must be equal to the number of time steps!")
-            try:
-                Q = [tonumber(tounit(q, Qunits), Qunits) for q in Q]
-            except:
-                Q = [tonumber(tounit(q, Qunits), Qunits / timeUnits) for q in Q]
-            releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
-            dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
-            withReleaseTimes = True
-        else:
-            try:
-                Q = tonumber(tounit(Q, Qunits), Qunits)
-            except:
-                Q = tonumber(tounit(Q, Qunits), Qunits / timeUnits)
-        documents = self._datalayer.getSimulationsDocuments(type="openFoamLSMrun",
-                                                            casePath=self._datalayer.casePath,
-                                                            cloudName=self._datalayer.cloudName,
-                                                            startTime=startTime, endTime=endTime, Q=Q, dx=dx,
-                                                            dy=dy, dz=dz, dt=dt, nParticles=nParticles, **kwargs)
+        dH = dxdydz ** 3
+        return data.assign(xI=dxdydz * (data[xfield] // dxdydz),
+                           yI=dxdydz * (data[yfield] // dxdydz),
+                           zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])['mass'].sum().to_frame("C") / dH
 
-        if len(documents) == 0:
-            datalist = []
-            for time in [startTime + dt * i for i in range(int((endTime - startTime) / dt))]:
-                data = self._datalayer._readRecord(time, withMass=OFmass, withID=withID,
-                                                   sigmaCoordinates=sigmaCoordinates)
-                for t in range(time + 1, time + dt):
-                    data = data.append(self._datalayer._readRecord(t, withMass=OFmass, withID=withID,
-                                                                   sigmaCoordinates=sigmaCoordinates))
-                data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
-                data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
-                data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
-                data["time"] = ((data["time"] - 1) / dt).astype(int) * dt + dt
-                if OFmass:
-                    data = data.groupby(["x", "y", "z", "time"]).sum().reset_index()
+    def calcDocumentConcentrationPointWise(self,dataDocument,dxdydz,xfield="globalX", yfield="globalY",zfield="globalZ",overwrite=False,saveAsDask=False,**metadata):
+        """
+            Calculates the concentration from the cells where particles exists.
 
-                    data["mass"] = data["mass"] * tonumber(tounit(1 * kg, Qunits), Qunits)
-                    if time == startTime:
-                        Qinsim = data.mass.sum() / dt
-                        Qratio = Q / Qinsim
-                    data["mass"] = data["mass"] * Qratio
-                    data["Dosage"] = data["mass"] / (dx * dy * dz)
-                else:
-                    if type(Q) == list:
-                        data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
-                    else:
-                        data["Q"] = Q
-                    data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
-                    data = data.drop(columns="Q")
-                    data = data.groupby(["x", "y", "z", "time"]).sum().reset_index()
-                if loc is not None:
-                    data = data.loc[data[loc[0]] == loc[1]]
-                data["Concentration"] = data["Dosage"] / dt
-                datalist.append(data)
-                print(f"Finished times {time} to {time + dt}")
-            data = pandas.concat(datalist).reset_index()
-            if save:
-                cur = os.getcwd()
-                file = os.path.join(cur, f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
-                data.to_parquet(file, compression="GZIP")
-                if addToDB:
-                    self._datalayer.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
-                                                           desc=dict(casePath=self._datalayer.casePath,
-                                                                     cloudName=self._datalayer.cloudName,
-                                                                     startTime=startTime, endTime=endTime, Q=Q, dx=dx,
-                                                                     dy=dy, dz=dz, dt=dt, nParticles=nParticles,
-                                                                     **kwargs))
+        :param dataDocument: hera.MetadataDocument
+                The document with the particles.
+
+        :param dxdydz: float
+                The size of the cell
+
+        :param xfield: str
+                The name of the X coordinate
+
+        :param yfield: str
+                The name of the Y coordinate
+
+        :param zfield: str
+                The name of the Z coordinate
+
+        :param overwrite: bool
+                If true, recalculates.
+
+        :param saveAsDask: bool
+                If true, reset the index because dask cannot read multi index (the result ofthe concentration is multi index with time and x,y,z)
+
+        :param metadata:
+                Any additional parameters to add to the cache.
+        :return:
+                Document
+        """
+        simID = str(dataDocument.id)
+
+        docList = self.datalayer.getCacheDocuments(simID=simID,dxdydz=dxdydz,**metadata)
+        if len(docList)==0 or overwrite:
+
+            data = dataDocument.getData()
+            C = self.calcConcentrationPointWise(data, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
+
+            if saveAsDask:
+                C = C.compute().reset_index(level=['xI','yI','zI'])
+
+            if len(docList)==0:
+                desc = dict(simID=simID,dxdydz=dxdydz)
+                desc.update(metadata)
+
+                doc = self.datalayer.addCacheDocument(dataFormat = datatypes.PARQUET,
+                                                       type=self.DOCTYPE_CONCENTRATION_POINTWISE,
+                                                       resource="",
+                                                       desc=desc)
+
+                outputDirectory = os.path.join(self.datalayer.FilesDirectory,str(doc.id))
+                os.makedirs(outputDirectory,exist_ok=True)
+
+                finalFileName = os.path.join(outputDirectory,"concentration.parquet")
+                doc.resource  = finalFileName
+                doc.save()
+
+            else:
+                doc = docList[0]
+                finalFileName = doc.resource
+
+            C.to_parquet(finalFileName, compression="GZIP")
+            ret = doc
+
         else:
-            data = documents[0].getData(usePandas=True)
-        return data
+            ret = docList[0]
+        return ret
+
+
+    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",zfield="globalZ"):
+        """
+            Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
+
+            Embed in a larget timestep.
+
+        Parameters
+        -----------
+
+        datimeDatata: pandas dataframe.
+            The data to convert. Takes only one time step at a time (for multiple time steps use iterConcentationField)
+
+        extents: dict
+            The domain in which the concentation will be calculated.
+            has keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+
+        dxdydz: float
+                    The mesh steps.
+
+        dxdydz: float
+                    The size of a mesh unit (that will be created for the concentration).
+
+        xfield: str
+                The column name of the x coordinates.
+
+        yfield: str
+            The column name of the y coordinates.
+
+        zfield: str
+            The column name of the z coordinates.
+
+
+        Returns
+        --------
+
+            Xarray.dataframe
+        """
+        x_full = numpy.arange(extents['xmin'], extents['xmax'], dxdydz)
+        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
+        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
+
+        dH = dxdydz ** 3
+
+        fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
+        fulldata.name="C"
+
+        C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
+                            zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                'mass'].sum().to_xarray().squeeze().fillna(0) / dH
+
+        # assign the timestep into the large mesh
+        fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
+        fulldata.attrs['units'] = "1*kg/m**3"
+
+
+        return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]),axis=-1)
+
+    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="globalX", yfield="globalY", zfield="globalZ", overwrite=False, **metadata):
+        """
+            Calculates the eulerian concentration field for each timestep in the data.
+            The data is stored as a nc file on the disk.
+
+            The concentrations are embeded in a global mesh (defined in the extents field).
+
+            The metadata files are added to the d
+
+
+        Parameters
+        ----------
+        dataDocument: hera document.
+                The data to parse into timesteps and save as xarray.
+
+        dxdydz: float
+                    The mesh steps.
+
+        dxdydz: float
+                    The size of a mesh unit (that will be created for the concentration).
+
+
+
+        xfield: str
+                The column name of the x coordinates.
+
+        yfield: str
+            The column name of the y coordinates.
+
+        zfield: str
+            The column name of the z coordinates.
+
+        overwrite: bool
+            If True, recalcluats the data.
+
+        **metadata: the parameters to add to the document.
+        :return:
+            The document of the xarray concentration s
+        """
+        dataID = str(dataDocument.id)
+        docList = self.datalayer.getCacheDocuments(dataID=dataID,extents=extents,dxdydz=dxdydz,type=self.DOCTYPE_CONCENTRATION,**metadata)
+
+        if len(docList) == 0 or overwrite:
+
+            if len(docList) == 0:
+
+                mdata = dict(extents=extents, dxdydz=dxdydz,dataID=dataID)
+                mdata.update(**metadata)
+                xryDoc = self.datalayer.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
+                                                         resource="",
+                                                         type=self.DOCTYPE_CONCENTRATION,
+                                                         desc=mdata)
+
+                xryDoc.resource = os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id), "Concentrations*.nc")
+                xryDoc.save()
+            else:
+                xryDoc = docList[0]
+
+                files = glob.glob(xryDoc.resource)
+                for f in files:
+                    try:
+                        os.remove(f)
+                    except OSError as e:
+                        print("Error: %s : %s" % (f, e.strerror))
+
+            data = dataDocument.getData()  # dask.
+
+            os.makedirs(os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id)),exist_ok=True)
+
+            for partitionID,partition in enumerate(data.partitions):
+                L = []
+                for timeName,timeData in partition.compute().reset_index().groupby("time"):
+                    print(f"{partitionID}: {timeName}")
+                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
+                    L.append(xry)
+
+                pxry = xarray.concat(L,dim="time")
+
+                outFile_Final = os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id),
+                                             f"Concentrations{partitionID}.nc")
+                pxry.transpose("yI", "xI", "zI","time ").to_dataset(name="C").to_netcdf(outFile_Final)
+
+        else:
+            xryDoc = docList[0]
+
+        return xryDoc
+
+
+    def getConcentrationField(self, dataDocument,returnFirst=True, **metadata):
+        """
+            Returns a list of concentration fields that is related to this simulation (with the metadata that is provided).
+
+            Return None if simulation is not found.
+
+        Parameters
+        ----------
+        dataDocument: datalayer.metadatadocument
+
+        returnFirst: bool
+            If true, returns only the first simulation and None if none was found.
+            Ff false returns a list (might be empty).
+
+        metadata: any metadata that is needed
+
+        Returns
+        -------
+            The document of the concentrations (or none).
+
+        """
+        dataID = str(dataDocument.id)
+        docList = self.datalayer.getCacheDocuments(dataID=dataID,type=self.DOCTYPE_CONCENTRATION,**metadata)
+
+        if returnFirst:
+            if len(docList) > 0:
+                return docList[0]
+            else:
+                return None
+
+        else:
+            return docList
+
+
+
+
+# def getConcentration(self, endTime, startTime=1, Q=1 * kg, dx=10 * m, dy=10 * m, dz=10 * m, dt=10 * s, loc=None,
+#                      sigmaCoordinates=True,
+#                      Qunits=mg, lengthUnits=m, timeUnits=s, OFmass=False, save=False, addToDB=True, file=None,
+#                      releaseTime=0, nParticles=None, withID=False, **kwargs):
+#     """
+#     Calculates the concentration of dispersed particles.
+#     parmas:
+#     nParticles = The total number of particles induced to the system at all times.
+#     endTime = The final time step to read.
+#     startTime = The first time step to read. The default is 1.
+#     Q = The total mass of particles induced to the system. The default is 1 kg.
+#     dx = The distance between grid points of the concentration field in the x direction. The default is 10 meters.
+#     dy = The distance between grid points of the concentration field in the y direction. The default is 10 meters.
+#     dz = The distance between grid points of the concentration field in the z direction. The default is 10 meters.
+#     dt = The time measure between grid points of the concentration field. The default is 10 seconds.
+#     Qunits = The mass units of the concentration in the final dataframe. The default is mg.
+#     lengthUnits = The length units of the concentration in the final dataframe. The default is meter.
+#     timeUnits = The time units of the time steps in the final dataframe. The default is second.
+#     file = a name for a file, in which the data is saved. Default is "Concentration.parquet", in the current working directory.
+#     save = a boolian parameter, to choose whether to save the data. default is False.
+#     addToDB = a boolian parameter, to choose whether to save the data. default is True. It is used only if save is True.
+#     **kwargs = any additional parameters to add to the description in the DB.
+#     """
+#
+#     if nParticles is None:
+#         with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
+#             Lines = readFile.readlines()
+#         try:
+#             nParticles = int(Lines[15])
+#         except:
+#             raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
+#     dx = tonumber(tounit(dx, lengthUnits), lengthUnits)
+#     dy = tonumber(tounit(dy, lengthUnits), lengthUnits)
+#     dz = tonumber(tounit(dz, lengthUnits), lengthUnits)
+#     dt = int(tonumber(tounit(dt, timeUnits), timeUnits))
+#     withReleaseTimes = False
+#     if type(Q) == list:
+#         if len(Q) != endTime - startTime + 1:
+#             raise KeyError("Number of values in Q must be equal to the number of time steps!")
+#         try:
+#             Q = [tonumber(tounit(q, Qunits), Qunits) for q in Q]
+#         except:
+#             Q = [tonumber(tounit(q, Qunits), Qunits / timeUnits) for q in Q]
+#         releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
+#         dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
+#         withReleaseTimes = True
+#     else:
+#         try:
+#             Q = tonumber(tounit(Q, Qunits), Qunits)
+#         except:
+#             Q = tonumber(tounit(Q, Qunits), Qunits / timeUnits)
+#     documents = self._datalayer.getSimulationsDocuments(type="openFoamLSMrun",
+#                                                         casePath=self._datalayer.casePath,
+#                                                         cloudName=self._datalayer.cloudName,
+#                                                         startTime=startTime, endTime=endTime, Q=Q, dx=dx,
+#                                                         dy=dy, dz=dz, dt=dt, nParticles=nParticles, **kwargs)
+#
+#     if len(documents) == 0:
+#         datalist = []
+#         for time in [startTime + dt * i for i in range(int((endTime - startTime) / dt))]:
+#             data = self._datalayer._readRecord(time, withMass=OFmass, withID=withID,
+#                                                sigmaCoordinates=sigmaCoordinates)
+#             for t in range(time + 1, time + dt):
+#                 data = data.append(self._datalayer._readRecord(t, withMass=OFmass, withID=withID,
+#                                                                sigmaCoordinates=sigmaCoordinates))
+#             data["x"] = (data["x"] / dx).astype(int) * dx + dx / 2
+#             data["y"] = (data["y"] / dy).astype(int) * dy + dy / 2
+#             data["z"] = (data["z"] / dz).astype(int) * dz + dz / 2
+#             data["time"] = ((data["time"] - 1) / dt).astype(int) * dt + dt
+#             if OFmass:
+#                 data = data.groupby(["x", "y", "z", "time"]).sum().reset_index()
+#
+#                 data["mass"] = data["mass"] * tonumber(tounit(1 * kg, Qunits), Qunits)
+#                 if time == startTime:
+#                     Qinsim = data.mass.sum() / dt
+#                     Qratio = Q / Qinsim
+#                 data["mass"] = data["mass"] * Qratio
+#                 data["Dosage"] = data["mass"] / (dx * dy * dz)
+#             else:
+#                 if type(Q) == list:
+#                     data = data.set_index("releaseTime").join(dataQ.set_index("releaseTime")).reset_index()
+#                 else:
+#                     data["Q"] = Q
+#                 data["Dosage"] = data["Q"] / (nParticles * dx * dy * dz)
+#                 data = data.drop(columns="Q")
+#                 data = data.groupby(["x", "y", "z", "time"]).sum().reset_index()
+#             if loc is not None:
+#                 data = data.loc[data[loc[0]] == loc[1]]
+#             data["Concentration"] = data["Dosage"] / dt
+#             datalist.append(data)
+#             print(f"Finished times {time} to {time + dt}")
+#         data = pandas.concat(datalist).reset_index()
+#         if save:
+#             cur = os.getcwd()
+#             file = os.path.join(cur, f"{self._datalayer.cloudName}Concentration.parquet") if file is None else file
+#             data.to_parquet(file, compression="GZIP")
+#             if addToDB:
+#                 self._datalayer.addSimulationsDocument(resource=file, dataFormat="parquet", type="openFoamLSMrun",
+#                                                        desc=dict(casePath=self._datalayer.casePath,
+#                                                                  cloudName=self._datalayer.cloudName,
+#                                                                  startTime=startTime, endTime=endTime, Q=Q, dx=dx,
+#                                                                  dy=dy, dz=dz, dt=dt, nParticles=nParticles,
+#                                                                  **kwargs))
+#     else:
+#         data = documents[0].getData(usePandas=True)
+#     return data
