@@ -21,6 +21,8 @@ from itertools import product
 from evtk.hl import pointsToVTK, structuredToVTK
 
 
+from evtk.hl import pointsToVTK,structuredToVTK
+
 class OFLSMToolkit(toolkit.abstractToolkit):
     _casePath = None
     _cloudName = None
@@ -161,8 +163,13 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         return newData.astype(float)
 
+<<<<<<< HEAD
     def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
         # self.logger.debug(f"Starting the read record with timeName {timeName}")
+=======
+    def _readRecord(self, timeName,casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
+        #self.logger.debug(f"Starting the read record with timeName {timeName}")
+>>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
 
         return dict(a="1")
 
@@ -178,6 +185,11 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
         try:
             newData = self._extractFile(
                 os.path.join(casePath, timeName, "lagrangian", self._cloudName, "globalSigmaPositions"),
@@ -696,6 +708,110 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
 
 
+    def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
+        """
+            Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
+            In paraview, each timestep is a different file.
+
+        Parameters
+        -----------
+        data: dask.dataframe or pandas.dataframe
+            The data to present
+
+        outputdirectory: str
+            The directory to write the files in
+
+        timeFactor : int
+            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
+
+        filename: str
+            The filename to write.
+
+        Returns
+        -------
+            None
+        """
+        for times, timedata in data.groupby("time"):
+            with open(os.path.join(outputdirectory, f"{filename}_{str(int(timeFactor * times)).replace('.', '_')}.csv"),
+                      "w") as outputfile:
+                outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
+
+
+    def toUnstrcucturedVTK(self,data,outputdirectory,filename,timeNameOutput=True):
+        """
+            Writes the data as a VTK vtu file.
+
+
+
+        :param data: panas.Dataframe.
+                The data in a dataframe of pandas.
+        :param outputdirectory:
+        :param filename: str
+                    The filename
+        :param timeNameOutput: bool
+                    If true, use the time as the suffix to the filename. Else, use running number.
+        :return:
+        """
+        namePath = os.path.join(outputdirectory,filename)
+        os.makedirs(outputdirectory,exist_ok=True)
+
+        for indx,(timeName,timeData) in enumerate(data.groupby("time")):
+
+            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+
+            data = dict(mass = timeData.mass.values)
+            x = timeData.globalX.values
+            y = timeData.globalY.values
+            z = timeData.globalZ.values
+            pointsToVTK(finalFile,x,y,z,data)
+
+    def toStructuredVTK(self,data,outputdirectory,filename,extents,timeNameOutput=True,dxdydz=0.25):
+        """
+            Converts the data to structured grid, and calcualtes the cocnentration
+
+            ** for now, the ppm is of SF6.
+
+        :param data:
+        :param outputdirectory:
+        :param filename:
+        :param timeNameOutput: bool
+                    Use the time or sequence for the output file name.
+        :param extents: dict
+                    with keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+        :param dxdydz: float
+                    The mesh steps.
+
+        :return:
+        """
+        x_full = numpy.arange(extents['xmin'],extents['xmax'],dxdydz)
+        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
+        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
+
+        namePath = os.path.join(outputdirectory, filename)
+        os.makedirs(outputdirectory, exist_ok=True)
+        dH = dxdydz**3
+
+        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+
+            fulldata = xarray.DataArray(coords=dict(xI=x_full,yI=y_full,zI=z_full),dims=['xI','yI','zI']).fillna(0)
+
+            print(f"\t Processing {timeName}")
+            Mass = timeData.assign(xI=dxdydz * (timeData.globalX // dxdydz),yI=dxdydz * (timeData.globalY // dxdydz),zI=dxdydz * (timeData.globalZ // dxdydz)).groupby(["xI", "yI", "zI", "time"])['mass'].sum().to_xarray().squeeze().fillna(0) / dH
+
+            # assign the timestep into the large mesh
+            fulldata.loc[dict(xI=Mass.xI,yI=Mass.yI,zI=Mass.zI)] = Mass
+
+            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+
+            X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
+
+            C = numpy.ascontiguousarray(fulldata.transpose("yI","xI","zI").values)
+
+            data = dict(C_kg_m3=C,ppm=C*160000) # 1kg/m**3=160000ppm
+            structuredToVTK(finalFile, X, Y, Z, pointData=data)
+
+
+
 class Analysis:
     DOCTYPE_CONCENTRATION = "xarray_concentration"
     DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
@@ -744,6 +860,7 @@ class Analysis:
 
     def calcDocumentConcentrationPointWise(self,dataDocument,dxdydz,xfield="globalX", yfield="globalY",zfield="globalZ",overwrite=False,saveAsDask=False,**metadata):
         """
+<<<<<<< HEAD
             Calculates the concentration from the cells where particles exists.
 
         :param dataDocument: hera.MetadataDocument
@@ -806,6 +923,30 @@ class Analysis:
             C.to_parquet(finalFileName, compression="GZIP")
             ret = doc
 
+=======
+        if nParticles is None:
+            with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
+                Lines = readFile.readlines()
+            try:
+                nParticles = int(Lines[15])
+            except:
+                raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
+        dx = tonumber(tounit(dx, lengthUnits), lengthUnits)
+        dy = tonumber(tounit(dy, lengthUnits), lengthUnits)
+        dz = tonumber(tounit(dz, lengthUnits), lengthUnits)
+        dt = int(tonumber(tounit(dt, timeUnits), timeUnits))
+        withReleaseTimes = False
+        if type(Q) == list:
+            if len(Q) != endTime - startTime + 1:
+                raise KeyError("Number of values in Q must be equal to the number of time steps!")
+            try:
+                Q = [tonumber(tounit(q, Qunits), Qunits) for q in Q]
+            except:
+                Q = [tonumber(tounit(q, Qunits), Qunits / timeUnits) for q in Q]
+            releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
+            dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
+            withReleaseTimes = True
+>>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
         else:
             ret = docList[0]
         return ret
@@ -987,6 +1128,7 @@ class Analysis:
                 return None
 
         else:
+<<<<<<< HEAD
             return docList
 
 
@@ -1098,3 +1240,55 @@ class Analysis:
 #     else:
 #         data = documents[0].getData(usePandas=True)
 #     return data
+=======
+            data = documents[0].getData(usePandas=True)
+        return data
+
+    def getMassFromLog(self,logFile,solver="StochasticLagrangianSolver"):
+
+        count = 0
+        times = []
+        names = []
+        actions = []
+        mass = []
+        parcels = []
+
+        def addToLists(time,name,action,m,parcel):
+            times.append(time)
+            names.append(name)
+            actions.append(action)
+            mass.append(m)
+            parcels.append(parcel)
+
+        with open(logFile, "r") as readFile:
+            Lines = readFile.readlines()
+
+        for line in Lines:
+            count += 1
+            if "Exec" in line and solver in line:
+                count += 2
+                break
+
+        while "End" not in Lines[count]:
+            if "Time" in Lines[count]:
+                time = float(Lines[count].split()[-1])
+                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
+                    count += 1
+                count += 1
+                while "ExecutionTime" not in Lines[count]:
+                    if "Parcel fate" in Lines[count]:
+                        name = Lines[count].split()[-1]
+                        count += 1
+                        addToLists(time=time,name=name,action="escape",parcel=float(Lines[count].split()[-2][:-1]),m=float(Lines[count].split()[-1]))
+                        count += 1
+                        addToLists(time=time,name=name,action="stick",parcel=float(Lines[count].split()[-2][:-1]),m=float(Lines[count].split()[-1]))
+                    elif ":\n" in Lines[count]:
+                        name = Lines[count].split()[0][:-1]
+                        count += 1
+                        parcel = float(Lines[count].split()[-1])
+                        count += 1
+                        addToLists(time=time,name=name,action="release",parcel=parcel,m=float(Lines[count].split()[-1]))
+                    count += 1
+            count += 1
+        return pandas.DataFrame({"time":times,"cloudName":self._datalayer.cloudName,"name":names,"action":actions,"parcels":parcels,"mass":mass})
+>>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
