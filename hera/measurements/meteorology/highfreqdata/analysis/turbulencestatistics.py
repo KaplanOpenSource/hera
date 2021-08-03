@@ -331,7 +331,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
     def uStarOverWindSpeed(self, inMemory=None):
         """
 
-
+uStarOverWindSpeed
         Parameters
         ----------
         inMemory : boolean

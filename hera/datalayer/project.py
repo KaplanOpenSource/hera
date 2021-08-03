@@ -395,3 +395,34 @@ class Project(loggedObject):
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
+
+    # def getMeasuredDocumentByID(self,rcrdID):
+    #     """
+    #         Return the document with the request ID.
+    #     :param rcrdID: str
+    #             The record index.
+    #     :return:
+    #         document.
+    #     """
+    #     return self.measurements.getDocumentByID(rcrdID)
+    #
+    # def getSimulationsDocumentByID(self,rcrdID):
+    #     """
+    #         Return the document with the request ID.
+    #     :param rcrdID: str
+    #             The record index.
+    #     :return:
+    #         document.
+    #     """
+    #     return self.simulations.getDocumentByID(rcrdID)
+    #
+    #
+    # def getCacheDocumentByID(self,rcrdID):
+    #     """
+    #         Return the document with the request ID.
+    #     :param rcrdID: str
+    #             The record index.
+    #     :return:
+    #         document.
+    #     """
+    #     return self.cache.getDocumentByID(rcrdID)
