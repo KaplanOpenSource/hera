@@ -145,20 +145,23 @@ class DataHandler_HDF(object):
 class DataHandler_netcdf_xarray(object):
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,**kwargs):
         """
-        Loads netcdf file into xarray.
+        Loads netcdf file into xarray using the open_mfdataset.
 
         Parameters
         ----------
         resource : str
             Path to the netcdf file.
 
+        kwargs:
+            parameters to the xarray.open_mfdataset function
+
         Returns
         -------
         xarray
         """
-        df = xarray.open_mfdataset(resource, combine='by_coords')
+        df = xarray.open_mfdataset(resource, combine='by_coords',**kwargs)
 
         return df
 
@@ -249,10 +252,13 @@ class DataHandler_parquet(object):
         -------
         dask.Dataframe or pandas.DataFrame
         """
-
-        df = dask.dataframe.read_parquet(resource)
-        if usePandas:
-            df = df.compute()
+        try:
+            df = dask.dataframe.read_parquet(resource)
+            if usePandas:
+                df = df.compute()
+        except ValueError:
+            # dask cannot read parquet with multi index. so we try to load it with pandas.
+            df = pandas.read_parquet(resource)
 
         return df
 

@@ -46,6 +46,12 @@ except NameConflictError:
 
 """
 
+Datalayer
+---------
+
+- Project: Added get<simulation/cache/measurements>DocumentByID to the interface. 
+
+
 2.4.0
 -----
 
