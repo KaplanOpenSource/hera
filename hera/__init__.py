@@ -46,6 +46,10 @@ except NameConflictError:
 
 """
 
+ LSM - small fixes to handle parameters without units. 
+ Riskassessment - Changing the computation of the risk areas back to contour from tricontour. 
+ 
+
 2.4.1 
 ------
 

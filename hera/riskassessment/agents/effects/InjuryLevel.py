@@ -215,9 +215,14 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		if self._parameters.get("higher_severity",None) is not None:
 			HigherToxicLoads = self._parameters["higher_severity"].getToxicLoad(defaultLevels)
 			ToxicLoads = numpy.unique(numpy.sort(numpy.concatenate([ToxicLoads,HigherToxicLoads])))
-		concentrationField = concentrationField.to_dataframe().reset_index()
-		#CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
-		CS = plt.tricontour(concentrationField[x], concentrationField[y], concentrationField, levels=ToxicLoads)
+
+		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=ToxicLoads)
+
+		# Changes by ofir... not clear yet when the original fails....
+		#concentrationField = concentrationField.to_dataframe().reset_index()
+		#CS = plt.tricontour(concentrationField[x], concentrationField[y], concentrationField, levels=ToxicLoads) This line has bug because
+		#	concentrationField is panas and we have to select the right column.
+
 		if numpy.max(CS.levels) < numpy.min(ToxicLoads): 
 			ret = geopandas.GeoDataFrame()
 		else:
