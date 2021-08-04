@@ -297,18 +297,6 @@ class LSMTemplate:
         else:
             return None
 
-    def getLSMRuns(self,**query):
-        """
-        get a list of SingleSimulation objects that fulfill the query
-        :param query:
-        :return:
-        """
-        docList = self.getSimulationsDocuments(type=self.doctype_simulation,
-                                               templateName = self.templateName,
-                                               **query)
-
-        return [SingleSimulation(doc) for doc in docList]
-
 
     def _toNetcdf(self, basefiles, addzero=True, datetimeFormat="timestamp"):
         """
@@ -395,7 +383,9 @@ class LSMTemplate:
 
         updated_params = ConvertJSONtoConf(query)
         for key in updated_params.keys():
-            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
+            unt = self._document['desc']["units"].get(key,None)
+            if unt is not None:
+                updated_params[key] = updated_params[key].asNumber(eval(unt))
 
         newqery = dictToMongoQuery(updated_params,prefix="params")
 
