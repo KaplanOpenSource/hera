@@ -1,4 +1,4 @@
-__version__ = '2.4.0'
+__version__ = '2.4.1'
 
 import os
 import json
@@ -45,6 +45,14 @@ except NameConflictError:
 
 
 """
+
+2.4.1 
+------
+
+    LSM
+    ----
+    
+    - Fixed some bugs in getSimulation and getSimulationTable
 
 Datalayer
 ---------

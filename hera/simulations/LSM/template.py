@@ -10,6 +10,8 @@ import numpy
 from unum.units import *
 from ... import toolkit
 from ... utils.ConvertJSONtoConf import ConvertJSONtoConf
+from ... utils import dictToMongoQuery
+
 
 class LSMTemplate:
     _document = None
@@ -391,9 +393,15 @@ class LSMTemplate:
             Simulation object
         """
 
-        docList = self.getDocuments(type=self.doctype_simulation,
+        updated_params = ConvertJSONtoConf(query)
+        for key in updated_params.keys():
+            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
+
+        newqery = dictToMongoQuery(updated_params,prefix="params")
+
+        docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                     templateName=self.templateName,
-                                    **query)
+                                    **newqery)
         return [SingleSimulation(doc) for doc in docList]
 
     def getSimulationByID(self,id):
@@ -405,16 +413,23 @@ class LSMTemplate:
         """
         return SingleSimulation(self.getDocumentByID(id))
 
-    def getSimulationsList(self, **query):
+    def _getSimulationsList(self, **query):
         """
             List the Simulation parameters that fulfil the query
         :param query:
         :return:
         """
 
-        docList = self.getDocuments(type=self.doctype_simulation,
-                                    templateName=self.templateName
-                                    **query)
+        updated_params = ConvertJSONtoConf(query)
+        for key in updated_params.keys():
+            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
+
+        newqery = dictToMongoQuery(updated_params,prefix="params")
+
+
+        docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
+                                    templateName=self.templateName,
+                                    **newqery)
         descList = [doc.desc.copy() for doc in docList]
 
         for (i, desc) in enumerate(descList):
@@ -430,7 +445,7 @@ class LSMTemplate:
 
     def getSimulationsTable(self,**query):
 
-        df_list = self.getSimulationsList(**query)
+        df_list = self._getSimulationsList(**query)
 
         new_df_list = []
 
@@ -439,11 +454,11 @@ class LSMTemplate:
                 id = df['id'][0]
                 new_df = df.copy().drop(columns=['id']).melt()
                 new_df.index = [id]*len(new_df)
-                new_df_list.append(new_df)
+                new_df_list.append(new_df.pivot(columns='variable', values='value'))
 
 
-                df = pandas.concat(new_df_list)
+            df = pandas.concat(new_df_list)
 
-                return df.pivot(columns='variable', values='value')
+            return df
         except ValueError:
             raise FileNotFoundError('No simulations found')
