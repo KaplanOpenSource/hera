@@ -1,6 +1,6 @@
 import pandas
 import numpy
-from ..utils import toUnum,tonumber
+from ...utils import tounit,tonumber
 from unum.units import *
 
 
@@ -29,7 +29,7 @@ class BriggsRural(object):
 
     def getSigma(self,x,stability):
 
-        x = numpy.array([toUnum(y,m).asNumber() for y in numpy.atleast_1d(x)])
+        x = numpy.array([tounit(y,m).asNumber() for y in numpy.atleast_1d(x)])
         Ax, Bx, Cx = self._coeffX.loc[stability][['A','B','C']]
         Az, Bz, Cz = self._coeffZ.loc[stability][['A', 'B', 'C']]
 

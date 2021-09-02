@@ -46,8 +46,19 @@ except NameConflictError:
 
 """
 
- LSM - small fixes to handle parameters without units. 
- Riskassessment - Changing the computation of the risk areas back to contour from tricontour. 
+ Util 
+ ----
+ 
+    Adding special units and fixing the multiple load problem. 
+    
+ Simulations
+ -----------
+    LSM - small fixes to handle parameters without units.
+    Gaussian - Fixing the toolkit of large droplets 
+ 
+ Riskassessment 
+ --------------
+    Changing the computation of the risk areas back to contour from tricontour. 
  
 
 2.4.1 

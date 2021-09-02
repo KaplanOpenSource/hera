@@ -6,7 +6,7 @@ except ImportError:
 	print("wrong scipy, can't solve the system")
 
 from unum.units import *
-from ..utils import tounit,tonumber
+from ...utils import tounit,tonumber
 from scipy.optimize import root
 from scipy.constants import g as gconst
 from .Meteorology import meteorologyFactory
@@ -158,7 +158,13 @@ class FallingNonEvaporatingDroplets(object):
             return
         self._particleMass = (1 / 6. * self.rho_p * numpy.pi * self.particleDiameter ** 3).asUnit(kg)
 
-    def __init__(self,particleDiameter,Q=1*kg,position=(0*m,0*m,0*m),meteorologyName="StandardMeteorolgyConstant",**kwargs):
+    def __init__(self,
+                 particleDiameter,
+                 Q=1*kg,
+                 position=(0*m,0*m,0*m),
+                 met_kwargs={},
+                 meteorologyName="StandardMeteorolgyConstant",
+                 **kwargs):
         """
             Initializes the particle cloud.
             Currently initialized to point source.
@@ -186,6 +192,8 @@ class FallingNonEvaporatingDroplets(object):
         :param meteorology:
                 The name meteorology class to use
 
+        met_kwargs : the parameters or the meteorology.
+
 	:param dispersionType: 
 		The dispersion is a plume or a puff.
 		
@@ -209,7 +217,7 @@ class FallingNonEvaporatingDroplets(object):
                 * rho_l : The density of the liquid.
         """
         cloudSigma = (0 * m, 0 * m, 0 * m)
-        self._meteorology = meteorologyFactory.getMeteorology(meteorologyName,**kwargs)
+        self._meteorology = meteorologyFactory.getMeteorology(meteorologyName,**met_kwargs)
 
         dragCoeffFunc   = kwargs.get("dragCoeffFunc","Haugen")
         self._dragfunc = getattr(self,"_DragCoefficient_%s" % dragCoeffFunc.title())
