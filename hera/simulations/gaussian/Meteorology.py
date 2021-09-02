@@ -1,8 +1,10 @@
 import pandas
 import numpy
-from ..utils import *
-import pydoc
+from unum.units import *
+from ...utils.unum import *
+from ...utils import tounit,tonumber
 from ..gaussian import Meteorology as metmodule
+
 
 class StandardMeteorolgyConstant(object):
     """
@@ -25,7 +27,7 @@ class StandardMeteorolgyConstant(object):
 
     @ustar.setter
     def ustar(self,value):
-        self._ustar = toUnum(value,m/s)
+        self._ustar = tounit(value,m/s)
 
 
     @property
@@ -34,7 +36,7 @@ class StandardMeteorolgyConstant(object):
 
     @refHeight.setter
     def refHeight(self,value):
-        self._refHeight = toUnum(value,m)
+        self._refHeight = tounit(value,m)
 
 
     @property
@@ -47,7 +49,7 @@ class StandardMeteorolgyConstant(object):
 
     @u10.setter
     def u10(self,value):
-        self._u_refHeight = toUnum(value,m/s)
+        self._u_refHeight = tounit(value,m/s)
         self._refHeight = 10
 
     @property
@@ -56,7 +58,7 @@ class StandardMeteorolgyConstant(object):
 
     @u_refHeight.setter
     def u_refHeight(self,value):
-        self._u_refHeight = toUnum(value,m/s)
+        self._u_refHeight = tounit(value,m/s)
 
     @property
     def stability(self):
@@ -79,7 +81,7 @@ class StandardMeteorolgyConstant(object):
 
     @z0.setter
     def z0(self,value):
-        self._z0 = toUnum(value,m)
+        self._z0 = tounit(value,m)
         self._setPvalues()
 
     @property
@@ -88,7 +90,7 @@ class StandardMeteorolgyConstant(object):
 
     @temperature.setter
     def temperature(self,value):
-        self._temperature = toUnum(value,celsius)
+        self._temperature = tounit(value,K)
 
     @property
     def skinSurfaceTemperature(self):
@@ -96,7 +98,7 @@ class StandardMeteorolgyConstant(object):
 
     @skinSurfaceTemperature.setter
     def skinSurfaceTemperature(self,value):
-        self._skinSurfaceTemperature = toUnum(value, celsius)
+        self._skinSurfaceTemperature = tounit(value, K)
 
 
 
@@ -164,7 +166,7 @@ class StandardMeteorolgyConstant(object):
         :return:
             The air pressure at mmHg units.
         """
-        height = toUnum(height,m)
+        height = tounit(height,m)
 
         return 760.*numpy.exp(-1.186e-4*height.asNumber(m))*mmHg
 
@@ -191,7 +193,7 @@ class StandardMeteorolgyConstant(object):
         :return:
             air temperature at C.
         """
-        return self._temperature - 6.5e-3*toNumber(height,m)*celsius
+        return self._temperature - 6.5e-3*tonumber(height,m)*celsius
 
 
     def getAirDensity(self,height):
@@ -262,11 +264,42 @@ class StandardMeteorolgyConstant(object):
         :return:
             The wind velocity at the requested height.
         """
-        height = toNumber(height,m)
-        refHeight = toNumber(self.refHeight,m)
+        height = tonumber(height,m)
+        refHeight = tonumber(self.refHeight,m)
         height = numpy.min([numpy.max([height,0]),300])
 
         return self.u_refHeight*(height/refHeight)**self.wind_p
+
+
+class StandardMeteorolgyConstant_logNormal(StandardMeteorolgyConstant):
+
+    def getWindVeclocity(self,height):
+        """
+            Return the wind velocity defined as:
+            \begin{equation}
+                    u(z) = u_{x [m]}\cdot log(\frac{height [m]}{z_0 [m]}\right)
+            \end{equation}
+
+            where pconst is calculated with getPvalues.
+
+        :param height:
+                default units [m]
+        :return:
+            The wind velocity at the requested height.
+        """
+
+        z0     = tonumber(self.z0,m)
+        height = tonumber(height,m)
+        height = numpy.min([numpy.max([height, 0]), 300])
+        refHeight = tonumber(self.refHeight,m)
+        ustar_over_kappa = self.u_refHeight/numpy.log(refHeight/z0)
+
+        if (height<=z0):
+            u = 0*m/s
+        else:
+            u = ustar_over_kappa*numpy.log(height/z0)
+
+        return u
 
 
 
