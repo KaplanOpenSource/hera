@@ -55,7 +55,8 @@ except NameConflictError:
  -----------
     LSM - small fixes to handle parameters without units.
     Gaussian - Fixing the toolkit of large droplets 
- 
+             - Adding a constant meteorology
+             
  Riskassessment 
  --------------
     Changing the computation of the risk areas back to contour from tricontour. 

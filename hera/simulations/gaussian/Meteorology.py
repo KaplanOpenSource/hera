@@ -301,6 +301,18 @@ class StandardMeteorolgyConstant_logNormal(StandardMeteorolgyConstant):
 
         return u
 
+class StandardMeteorolgyConstant_uniformWind(StandardMeteorolgyConstant):
+
+    def getWindVeclocity(self,height):
+        """
+            Constant wind
+        :param height:
+                default units [m]
+        :return:
+            The wind velocity at the requested height.
+        """
+        return self.u_refHeight
+
 
 
 class MeteorologyProfile(StandardMeteorolgyConstant):
