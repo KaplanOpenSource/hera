@@ -70,7 +70,11 @@ class RawdataAnalysis:
                       'buildingHeight':buildingHeight,
                       'averagedHeight':averagedHeight,
                       'start': start,
-                      'end': end
+                      'end': end,
+                      "isMissingData":isMissingData,
+                      "filters":None,
+                      "dataSource1":None,
+                      "dataSource2":None
                       }
         identifier.update(kwargs)
 
@@ -82,7 +86,7 @@ class RawdataAnalysis:
             raise ValueError("deviceNameOrData must be a dask/pandas dataframe")
 
 
-        return singlePointTurbulenceStatistics(rawData = rawData, metadata=identifier, isMissingData=isMissingData)
+        return singlePointTurbulenceStatistics(rawData = rawData, metadata=identifier)
 
     def AveragingCalculator(self,
                                         deviceNameOrData,
@@ -140,7 +144,10 @@ class RawdataAnalysis:
                       'buildingHeight':buildingHeight,
                       'averagedHeight':averagedHeight,
                       'start': start,
-                      'end': end
+                      'end': end,
+                      "filters": None,
+                      "dataSource1": None,
+                      "dataSource2": None
                       }
         identifier.update(kwargs)
 
@@ -153,7 +160,8 @@ class RawdataAnalysis:
 
         return calculator
 
-    def MeanDataCalculator(self, TurbCalc, compute_mode_turb = 'not_from_db_and_not_save', AverageCalc = None,
-                           compute_mode_AverageCalc = None):
+    def MeanDataCalculator(self, TurbCalcOrData = None, compute_mode_turb = 'not_from_db_and_not_save',
+                           AverageCalcOrData = None, compute_mode_AverageCalc = None, **metadata):
 
-        return MeanDataCalculator(TurbCalc, compute_mode_turb, AverageCalc, compute_mode_AverageCalc)
+        return MeanDataCalculator(TurbCalcOrData, compute_mode_turb, AverageCalcOrData, compute_mode_AverageCalc,
+                                  **metadata)

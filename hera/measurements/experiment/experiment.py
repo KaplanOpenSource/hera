@@ -214,7 +214,8 @@ class experimentToolKit(toolkit.abstractToolkit):
             toolkitCls=pydoc.locate(toolkit)
             return toolkitCls(self.projectName)
 
-        except:
+        except ImportError as e:
+            print(f"Cannot load the specific experiment handler, falling to the default one. The exception is {e}")
             return experimentDataLayer(self.projectName, experimentName=experimentName)
 
 
