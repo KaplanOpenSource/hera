@@ -21,8 +21,6 @@ from itertools import product
 from evtk.hl import pointsToVTK, structuredToVTK
 
 
-from evtk.hl import pointsToVTK,structuredToVTK
-
 class OFLSMToolkit(toolkit.abstractToolkit):
     _casePath = None
     _cloudName = None
@@ -30,7 +28,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     _topography = None
 
     _parallelCase = None
-    _analysis= None
+    _analysis = None
 
     @property
     def analysis(self):
@@ -163,15 +161,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         return newData.astype(float)
 
-<<<<<<< HEAD
     def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
-        # self.logger.debug(f"Starting the read record with timeName {timeName}")
-=======
-    def _readRecord(self, timeName,casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
-        #self.logger.debug(f"Starting the read record with timeName {timeName}")
->>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
-
-        return dict(a="1")
 
         columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
         if withMass:
@@ -184,12 +174,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             columnsDict['U_z'] = []
 
         newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
         try:
             newData = self._extractFile(
                 os.path.join(casePath, timeName, "lagrangian", self._cloudName, "globalSigmaPositions"),
@@ -707,7 +691,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
 
-
     def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """
             Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
@@ -736,8 +719,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-
-    def toUnstrcucturedVTK(self,data,outputdirectory,filename,timeNameOutput=True):
+    def toUnstrcucturedVTK(self, data, outputdirectory, filename, timeNameOutput=True):
         """
             Writes the data as a VTK vtu file.
 
@@ -752,20 +734,19 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                     If true, use the time as the suffix to the filename. Else, use running number.
         :return:
         """
-        namePath = os.path.join(outputdirectory,filename)
-        os.makedirs(outputdirectory,exist_ok=True)
+        namePath = os.path.join(outputdirectory, filename)
+        os.makedirs(outputdirectory, exist_ok=True)
 
-        for indx,(timeName,timeData) in enumerate(data.groupby("time")):
-
+        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
             finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
 
-            data = dict(mass = timeData.mass.values)
+            data = dict(mass=timeData.mass.values)
             x = timeData.globalX.values
             y = timeData.globalY.values
             z = timeData.globalZ.values
-            pointsToVTK(finalFile,x,y,z,data)
+            pointsToVTK(finalFile, x, y, z, data)
 
-    def toStructuredVTK(self,data,outputdirectory,filename,extents,timeNameOutput=True,dxdydz=0.25):
+    def toStructuredVTK(self, data, outputdirectory, filename, extents, timeNameOutput=True, dxdydz=0.25):
         """
             Converts the data to structured grid, and calcualtes the cocnentration
 
@@ -783,33 +764,33 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
         :return:
         """
-        x_full = numpy.arange(extents['xmin'],extents['xmax'],dxdydz)
+        x_full = numpy.arange(extents['xmin'], extents['xmax'], dxdydz)
         y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
         z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
 
         namePath = os.path.join(outputdirectory, filename)
         os.makedirs(outputdirectory, exist_ok=True)
-        dH = dxdydz**3
+        dH = dxdydz ** 3
 
         for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-
-            fulldata = xarray.DataArray(coords=dict(xI=x_full,yI=y_full,zI=z_full),dims=['xI','yI','zI']).fillna(0)
+            fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
 
             print(f"\t Processing {timeName}")
-            Mass = timeData.assign(xI=dxdydz * (timeData.globalX // dxdydz),yI=dxdydz * (timeData.globalY // dxdydz),zI=dxdydz * (timeData.globalZ // dxdydz)).groupby(["xI", "yI", "zI", "time"])['mass'].sum().to_xarray().squeeze().fillna(0) / dH
+            Mass = timeData.assign(xI=dxdydz * (timeData.globalX // dxdydz), yI=dxdydz * (timeData.globalY // dxdydz),
+                                   zI=dxdydz * (timeData.globalZ // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                       'mass'].sum().to_xarray().squeeze().fillna(0) / dH
 
             # assign the timestep into the large mesh
-            fulldata.loc[dict(xI=Mass.xI,yI=Mass.yI,zI=Mass.zI)] = Mass
+            fulldata.loc[dict(xI=Mass.xI, yI=Mass.yI, zI=Mass.zI)] = Mass
 
             finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
 
             X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
 
-            C = numpy.ascontiguousarray(fulldata.transpose("yI","xI","zI").values)
+            C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
 
-            data = dict(C_kg_m3=C,ppm=C*160000) # 1kg/m**3=160000ppm
+            data = dict(C_kg_m3=C, ppm=C * 160000)  # 1kg/m**3=160000ppm
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
-
 
 
 class Analysis:
@@ -825,8 +806,7 @@ class Analysis:
     def __init__(self, datalayer):
         self._datalayer = datalayer
 
-
-    def calcConcentrationPointWise(self,data,dxdydz,xfield="globalX", yfield="globalY",zfield="globalZ"):
+    def calcConcentrationPointWise(self, data, dxdydz, xfield="globalX", yfield="globalY", zfield="globalZ"):
         """
             Calculates the concentration in cells from point data.
 
@@ -856,12 +836,13 @@ class Analysis:
         dH = dxdydz ** 3
         return data.assign(xI=dxdydz * (data[xfield] // dxdydz),
                            yI=dxdydz * (data[yfield] // dxdydz),
-                           zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])['mass'].sum().to_frame("C") / dH
+                           zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                   'mass'].sum().to_frame("C") / dH
 
-    def calcDocumentConcentrationPointWise(self,dataDocument,dxdydz,xfield="globalX", yfield="globalY",zfield="globalZ",overwrite=False,saveAsDask=False,**metadata):
+    def calcDocumentConcentrationPointWise(self, dataDocument, dxdydz, xfield="globalX", yfield="globalY",
+                                           zfield="globalZ", overwrite=False, saveAsDask=False,simulationID=None, **metadata):
         """
-<<<<<<< HEAD
-            Calculates the concentration from the cells where particles exists.
+           Calculates the concentration from the cells where particles exists.
 
         :param dataDocument: hera.MetadataDocument
                 The document with the particles.
@@ -884,36 +865,40 @@ class Analysis:
         :param saveAsDask: bool
                 If true, reset the index because dask cannot read multi index (the result ofthe concentration is multi index with time and x,y,z)
 
+        :param simulationID: str
+                If not None, use this str instead of the docmentID. used in cases where the
+                cache was transferred from another DB.
+
         :param metadata:
                 Any additional parameters to add to the cache.
         :return:
                 Document
         """
-        simID = str(dataDocument.id)
+        simID = str(dataDocument.id) if simulationID is None else simulationID
 
-        docList = self.datalayer.getCacheDocuments(simID=simID,dxdydz=dxdydz,**metadata)
-        if len(docList)==0 or overwrite:
+        docList = self.datalayer.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
+        if len(docList) == 0 or overwrite:
 
             data = dataDocument.getData()
             C = self.calcConcentrationPointWise(data, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
 
             if saveAsDask:
-                C = C.compute().reset_index(level=['xI','yI','zI'])
+                C = C.compute().reset_index(level=['xI', 'yI', 'zI'])
 
-            if len(docList)==0:
-                desc = dict(simID=simID,dxdydz=dxdydz)
+            if len(docList) == 0:
+                desc = dict(simID=simID, dxdydz=dxdydz)
                 desc.update(metadata)
 
-                doc = self.datalayer.addCacheDocument(dataFormat = datatypes.PARQUET,
-                                                       type=self.DOCTYPE_CONCENTRATION_POINTWISE,
-                                                       resource="",
-                                                       desc=desc)
+                doc = self.datalayer.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                                      type=self.DOCTYPE_CONCENTRATION_POINTWISE,
+                                                      resource="",
+                                                      desc=desc)
 
-                outputDirectory = os.path.join(self.datalayer.FilesDirectory,str(doc.id))
-                os.makedirs(outputDirectory,exist_ok=True)
+                outputDirectory = os.path.join(self.datalayer.FilesDirectory, str(doc.id))
+                os.makedirs(outputDirectory, exist_ok=True)
 
-                finalFileName = os.path.join(outputDirectory,"concentration.parquet")
-                doc.resource  = finalFileName
+                finalFileName = os.path.join(outputDirectory, "concentration.parquet")
+                doc.resource = finalFileName
                 doc.save()
 
             else:
@@ -923,36 +908,11 @@ class Analysis:
             C.to_parquet(finalFileName, compression="GZIP")
             ret = doc
 
-=======
-        if nParticles is None:
-            with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
-                Lines = readFile.readlines()
-            try:
-                nParticles = int(Lines[15])
-            except:
-                raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
-        dx = tonumber(tounit(dx, lengthUnits), lengthUnits)
-        dy = tonumber(tounit(dy, lengthUnits), lengthUnits)
-        dz = tonumber(tounit(dz, lengthUnits), lengthUnits)
-        dt = int(tonumber(tounit(dt, timeUnits), timeUnits))
-        withReleaseTimes = False
-        if type(Q) == list:
-            if len(Q) != endTime - startTime + 1:
-                raise KeyError("Number of values in Q must be equal to the number of time steps!")
-            try:
-                Q = [tonumber(tounit(q, Qunits), Qunits) for q in Q]
-            except:
-                Q = [tonumber(tounit(q, Qunits), Qunits / timeUnits) for q in Q]
-            releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
-            dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
-            withReleaseTimes = True
->>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
-        else:
-            ret = docList[0]
-        return ret
 
 
-    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",zfield="globalZ"):
+
+    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",
+                                          zfield="globalZ"):
         """
             Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
 
@@ -996,7 +956,7 @@ class Analysis:
         dH = dxdydz ** 3
 
         fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
-        fulldata.name="C"
+        fulldata.name = "C"
 
         C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
                             zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
@@ -1006,10 +966,11 @@ class Analysis:
         fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
         fulldata.attrs['units'] = "1*kg/m**3"
 
+        return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
 
-        return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]),axis=-1)
 
-    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="globalX", yfield="globalY", zfield="globalZ", overwrite=False, **metadata):
+    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="globalX", yfield="globalY",
+                                       zfield="globalZ", overwrite=False,simulationID=None, **metadata):
         """
             Calculates the eulerian concentration field for each timestep in the data.
             The data is stored as a nc file on the disk.
@@ -1044,18 +1005,26 @@ class Analysis:
         overwrite: bool
             If True, recalcluats the data.
 
+        simulationID: str
+            If not None, use this str instead of the docmentID. used in cases where the
+            cache was transferred from another DB.
+
         **metadata: the parameters to add to the document.
+
         :return:
             The document of the xarray concentration s
         """
-        dataID = str(dataDocument.id)
-        docList = self.datalayer.getCacheDocuments(dataID=dataID,extents=extents,dxdydz=dxdydz,type=self.DOCTYPE_CONCENTRATION,**metadata)
+
+        dataID = str(dataDocument.id) if simulationID is None else simulationID
+
+        docList = self.datalayer.getCacheDocuments(dataID=dataID, extents=extents, dxdydz=dxdydz,
+                                                   type=self.DOCTYPE_CONCENTRATION, **metadata)
 
         if len(docList) == 0 or overwrite:
 
             if len(docList) == 0:
 
-                mdata = dict(extents=extents, dxdydz=dxdydz,dataID=dataID)
+                mdata = dict(extents=extents, dxdydz=dxdydz, dataID=dataID)
                 mdata.update(**metadata)
                 xryDoc = self.datalayer.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
                                                          resource="",
@@ -1076,20 +1045,21 @@ class Analysis:
 
             data = dataDocument.getData()  # dask.
 
-            os.makedirs(os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id)),exist_ok=True)
+            os.makedirs(os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id)), exist_ok=True)
 
-            for partitionID,partition in enumerate(data.partitions):
+            for partitionID, partition in enumerate(data.partitions):
                 L = []
-                for timeName,timeData in partition.compute().reset_index().groupby("time"):
+                for timeName, timeData in partition.compute().reset_index().groupby("time"):
                     print(f"{partitionID}: {timeName}")
-                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
+                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz, xfield=xfield,
+                                                                 yfield=yfield, zfield=zfield)
                     L.append(xry)
 
-                pxry = xarray.concat(L,dim="time")
+                pxry = xarray.concat(L, dim="time")
 
                 outFile_Final = os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id),
                                              f"Concentrations{partitionID}.nc")
-                pxry.transpose("yI", "xI", "zI","time ").to_dataset(name="C").to_netcdf(outFile_Final)
+                pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
 
         else:
             xryDoc = docList[0]
@@ -1097,7 +1067,7 @@ class Analysis:
         return xryDoc
 
 
-    def getConcentrationField(self, dataDocument,returnFirst=True, **metadata):
+    def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
         """
             Returns a list of concentration fields that is related to this simulation (with the metadata that is provided).
 
@@ -1109,7 +1079,7 @@ class Analysis:
 
         returnFirst: bool
             If true, returns only the first simulation and None if none was found.
-            Ff false returns a list (might be empty).
+            If false returns a list (might be empty).
 
         metadata: any metadata that is needed
 
@@ -1119,20 +1089,99 @@ class Analysis:
 
         """
         dataID = str(dataDocument.id)
-        docList = self.datalayer.getCacheDocuments(dataID=dataID,type=self.DOCTYPE_CONCENTRATION,**metadata)
+        docList = self.datalayer.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
 
         if returnFirst:
             if len(docList) > 0:
-                return docList[0]
+                data = docList[0]
             else:
-                return None
+                data =  None
 
         else:
-<<<<<<< HEAD
-            return docList
+            data = docList[0].getData(usePandas=True)
+
+        return data
+
+
+    def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
+        count = 0
+        times = []
+        names = []
+        actions = []
+        mass = []
+        parcels = []
+
+        def addToLists(time, name, action, m, parcel):
+            times.append(time)
+            names.append(name)
+            actions.append(action)
+            mass.append(m)
+            parcels.append(parcel)
+
+        with open(logFile, "r") as readFile:
+            Lines = readFile.readlines()
+
+        for line in Lines:
+            count += 1
+            if "Exec" in line and solver in line:
+                count += 2
+                break
+
+        while "End" not in Lines[count]:
+            if "Time" in Lines[count]:
+                time = float(Lines[count].split()[-1])
+                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
+                    count += 1
+                count += 1
+                while "ExecutionTime" not in Lines[count]:
+                    if "Parcel fate" in Lines[count]:
+                        name = Lines[count].split()[-1]
+                        count += 1
+                        addToLists(time=time, name=name, action="escape", parcel=float(Lines[count].split()[-2][:-1]),
+                                   m=float(Lines[count].split()[-1]))
+                        count += 1
+                        addToLists(time=time, name=name, action="stick", parcel=float(Lines[count].split()[-2][:-1]),
+                                   m=float(Lines[count].split()[-1]))
+                    elif ":\n" in Lines[count]:
+                        name = Lines[count].split()[0][:-1]
+                        count += 1
+                        parcel = float(Lines[count].split()[-1])
+                        count += 1
+                        addToLists(time=time, name=name, action="release", parcel=parcel, m=float(Lines[count].split()[-1]))
+                    count += 1
+            count += 1
+        return pandas.DataFrame(
+            {"time": times, "cloudName": self._datalayer.cloudName, "name": names, "action": actions, "parcels": parcels,
+             "mass": mass})
 
 
 
+    # if nParticles is None:
+    #     with open(os.path.join(self._datalayer.casePath, "constant", "kinematicCloudPositions"), "r") as readFile:
+    #         Lines = readFile.readlines()
+    #     try:
+    #         nParticles = int(Lines[15])
+    #     except:
+    #         raise KeyError("Couldn't find number of particles; please deliver it as nParticles")
+    # dx = tonumber(tounit(dx, lengthUnits), lengthUnits)
+    # dy = tonumber(tounit(dy, lengthUnits), lengthUnits)
+    # dz = tonumber(tounit(dz, lengthUnits), lengthUnits)
+    # dt = int(tonumber(tounit(dt, timeUnits), timeUnits))
+    # withReleaseTimes = False
+    # if type(Q) == list:
+    #     if len(Q) != endTime - startTime + 1:
+    #         raise KeyError("Number of values in Q must be equal to the number of time steps!")
+    #     try:
+    #         Q = [tonumber(tounit(q, Qunits), Qunits) for q in Q]
+    #     except:
+    #         Q = [tonumber(tounit(q, Qunits), Qunits / timeUnits) for q in Q]
+    #     releaseTimes = [releaseTime + i for i in range(int(endTime - startTime + 1))]
+    #     dataQ = pandas.DataFrame({"releaseTime": releaseTimes, "Q": Q})
+    #     withReleaseTimes = True
+    # >> >> >> > b93a269457823c4df742d72432c6c1732678bbfb
+    # else:
+    # ret = docList[0]
+    # return ret
 
 # def getConcentration(self, endTime, startTime=1, Q=1 * kg, dx=10 * m, dy=10 * m, dz=10 * m, dt=10 * s, loc=None,
 #                      sigmaCoordinates=True,
@@ -1240,55 +1289,3 @@ class Analysis:
 #     else:
 #         data = documents[0].getData(usePandas=True)
 #     return data
-=======
-            data = documents[0].getData(usePandas=True)
-        return data
-
-    def getMassFromLog(self,logFile,solver="StochasticLagrangianSolver"):
-
-        count = 0
-        times = []
-        names = []
-        actions = []
-        mass = []
-        parcels = []
-
-        def addToLists(time,name,action,m,parcel):
-            times.append(time)
-            names.append(name)
-            actions.append(action)
-            mass.append(m)
-            parcels.append(parcel)
-
-        with open(logFile, "r") as readFile:
-            Lines = readFile.readlines()
-
-        for line in Lines:
-            count += 1
-            if "Exec" in line and solver in line:
-                count += 2
-                break
-
-        while "End" not in Lines[count]:
-            if "Time" in Lines[count]:
-                time = float(Lines[count].split()[-1])
-                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
-                    count += 1
-                count += 1
-                while "ExecutionTime" not in Lines[count]:
-                    if "Parcel fate" in Lines[count]:
-                        name = Lines[count].split()[-1]
-                        count += 1
-                        addToLists(time=time,name=name,action="escape",parcel=float(Lines[count].split()[-2][:-1]),m=float(Lines[count].split()[-1]))
-                        count += 1
-                        addToLists(time=time,name=name,action="stick",parcel=float(Lines[count].split()[-2][:-1]),m=float(Lines[count].split()[-1]))
-                    elif ":\n" in Lines[count]:
-                        name = Lines[count].split()[0][:-1]
-                        count += 1
-                        parcel = float(Lines[count].split()[-1])
-                        count += 1
-                        addToLists(time=time,name=name,action="release",parcel=parcel,m=float(Lines[count].split()[-1]))
-                    count += 1
-            count += 1
-        return pandas.DataFrame({"time":times,"cloudName":self._datalayer.cloudName,"name":names,"action":actions,"parcels":parcels,"mass":mass})
->>>>>>> b93a269457823c4df742d72432c6c1732678bbfb
