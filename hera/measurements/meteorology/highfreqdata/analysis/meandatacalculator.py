@@ -1,7 +1,7 @@
 import numpy
 import pandas
 import dask
-import copy
+from copy import deepcopy
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
 from .turbulencestatistics import singlePointTurbulenceStatistics
@@ -33,15 +33,15 @@ class MeanDataCalculator:
         self._Karman = 0.4
 
         if type(TurbCalcOrData) == pandas:
-            self.metaData = copy.deepcopy(metadata)
+            self.metaData = deepcopy(metadata)
             self.MeanData = TurbCalcOrData.copy()
         elif type(TurbCalcOrData) == dask:
-            self.metaData = copy.deepcopy(metadata)
+            self.metaData = deepcopy(metadata)
             self.MeanData = TurbCalcOrData[self.metaData["start"]:self.metaData["end"]].compute()
         elif type(TurbCalcOrData) == singlePointTurbulenceStatistics:
             self.TurbCalc = TurbCalcOrData
-            self.metaData = copy.deepcopy(self.TurbCalc.metaData)
-            self.metaData.update(copy.deepcopy(metadata))
+            self.metaData = deepcopy(self.TurbCalc.metaData)
+            self.metaData.update(deepcopy(metadata))
             self.MeanData = self.TurbCalc.secondMoments().compute(mode=compute_mode_turb)
         else:
             raise ValueError("TurbCalcOrData must be either a singlePointTurbulenceStatistics instance or a pandas/dask dataframe")
