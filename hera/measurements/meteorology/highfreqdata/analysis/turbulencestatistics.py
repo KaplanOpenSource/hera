@@ -10,9 +10,12 @@ from .abstractcalculator import AbstractCalculator
 class singlePointTurbulenceStatistics(AbstractCalculator):
     _isMissingData = False
 
-    def __init__(self, rawData, metadata, isMissingData=False):
-        self._isMissingData = isMissingData
+    def __init__(self, rawData, metadata):
         super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata)
+
+    @property
+    def isMissingData(self):
+        return self.metaData["isMissingData"]
 
     def fluctuations(self, inMemory=None):
         """
