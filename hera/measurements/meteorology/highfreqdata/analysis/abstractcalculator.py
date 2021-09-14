@@ -1,5 +1,6 @@
 import dask.dataframe.core
 import pandas
+from copy import deepcopy
 from .....  import datalayer
 
 
@@ -80,7 +81,6 @@ class AbstractCalculator(object):
 
         if self._DataType == 'dask':
             try:
-                # with diag.ProgressBar():
                 df = self._TemporaryData[[x[0] for x in self._CalculatedParams]].compute()
             except ValueError as valueError:
                 errorMessage = """A value error occurred while computing the data.
@@ -108,10 +108,13 @@ class AbstractCalculator(object):
         return self._InMemoryAvgRef
 
     def _compute_from_db_and_save(self):
-        query = self._query()
+        query = deepcopy(self.metaData)
+        query.pop("projectName")
+        query.pop("start")
+        query.pop("end")
         docExist = list(
-            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.metaData['end'],
-                                         end__gt=self.metaData['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lte=self.metaData['end'],
+                                         end__gte=self.metaData['start'], **query))
 
 
         if docExist:
@@ -119,14 +122,17 @@ class AbstractCalculator(object):
             self._updateInMemoryAvgRef(df)
         else:
             self._compute()
-            self._save_to_db(self._AllCalculatedParams, query)
+            self._save_to_db(self._AllCalculatedParams)
 
     def _compute_from_db_and_not_save(self):
-        query = self._query()
+        query = deepcopy(self.metaData)
+        query.pop("start")
+        query.pop("end")
+        query.pop("projectName")
 
         docExist = list(
-            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lt=self.metaData['end'],
-                                         end__gt=self.metaData['start'], **query))
+            datalayer.Cache.getDocuments(params__all=self._AllCalculatedParams, start__lte=self.metaData['end'],
+                                         end__gte=self.metaData['start'], **query))
 
         if docExist:
             df = docExist[-1].getDocFromDB(usePandas=True)[[x[0] for x in self._CalculatedParams]]
@@ -135,36 +141,22 @@ class AbstractCalculator(object):
             self._compute()
 
     def _compute_not_from_db_and_save(self):
-        query = self._query()
         self._compute()
-        self._save_to_db(self._AllCalculatedParams, query)
+        self._save_to_db(self._AllCalculatedParams)
 
     def _compute_not_from_db_and_not_save(self):
         self._compute()
 
-    def _query(self):
-        query = dict(projectName=self.metaData['projectName'],
-                     start=self.metaData['start'],
-                     end=self.metaData['end'],
-                     samplingWindow=self.SamplingWindow,
-                     station=self.metaData['station'],
-                     instrument=self.metaData['instrument'],
-                     height=self.metaData['height']
-                     )
-        return query
-
-    def _save_to_db(self, params, query):
+    def _save_to_db(self, params):
         if self._saveProperties['dataFormat'] is None:
             raise AttributeError('No save properties are set. Please use set_saveProperties function')
         else:
             doc = {}
-            doc['projectName'] = query.pop('projectName')
+            desc = deepcopy(self.metaData)
+            doc['projectName'] = desc.pop('projectName')
             doc['dataFormat'] = self._saveProperties['dataFormat']
             doc['type'] = 'meteorology'
-            doc['desc'] = query
-            doc['desc']['start'] = self.metaData['start']
-            doc['desc']['end'] = self.metaData['end']
-            doc['desc']['samplingWindow'] = self.SamplingWindow
+            doc['desc'] = desc
             doc['desc']['params'] = params
             doc['resource'] = getSaveData(data=self._InMemoryAvgRef, **self._saveProperties)
             datalayer.Cache.addDocument(**doc)

@@ -70,7 +70,11 @@ class RawdataAnalysis:
                       'buildingHeight':buildingHeight,
                       'averagedHeight':averagedHeight,
                       'start': start,
-                      'end': end
+                      'end': end,
+                      "isMissingData":isMissingData,
+                      "filters":None,
+                      "dataSource1":None,
+                      "dataSource2":None
                       }
         identifier.update(kwargs)
 
@@ -82,7 +86,7 @@ class RawdataAnalysis:
             raise ValueError("deviceNameOrData must be a dask/pandas dataframe")
 
 
-        return singlePointTurbulenceStatistics(rawData = rawData, metadata=identifier, isMissingData=isMissingData)
+        return singlePointTurbulenceStatistics(rawData = rawData, metadata=identifier)
 
     def AveragingCalculator(self,
                                         deviceNameOrData,
@@ -140,7 +144,10 @@ class RawdataAnalysis:
                       'buildingHeight':buildingHeight,
                       'averagedHeight':averagedHeight,
                       'start': start,
-                      'end': end
+                      'end': end,
+                      "filters": None,
+                      "dataSource1": None,
+                      "dataSource2": None
                       }
         identifier.update(kwargs)
 
