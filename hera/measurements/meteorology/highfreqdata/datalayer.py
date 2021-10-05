@@ -74,7 +74,6 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         :return:
         """
 
-
         if self.campaignName is None:
             print('go to experimet loadData')
             pass
@@ -88,8 +87,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         overWrite = kwargs.get("overWrite",False)
 
         ExperimentMetadata = parser.parse(pathToData=pathToData)
-        import pdb
-        pdb.set_trace()
+
         # gets the meta data and adds to the DB.
         # A dictionary with the following:
         #

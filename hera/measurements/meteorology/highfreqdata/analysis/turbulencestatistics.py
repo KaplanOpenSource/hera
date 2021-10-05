@@ -980,7 +980,7 @@ uStarOverWindSpeed
 
         if 'StabilityMOLength_Sonic' not in self._TemporaryData.columns:
             self.MOLength_Sonic()
-            stability = self._TemporaryData['L_Sonic'].apply(self._ClassifyStability) if self._DataType is 'pandas' \
+            stability = self._TemporaryData['L_Sonic'].apply(self._ClassifyStability) if self._DataType == 'pandas' \
                 else self._TemporaryData['L_Sonic'].apply(self._ClassifyStability, meta='str')
             self._TemporaryData['StabilityMOLength_Sonic'] = stability
             self._CalculatedParams.append(['StabilityMOLength_Sonic',{}])
