@@ -159,6 +159,9 @@ class AbstractCalculator(object):
             doc['desc'] = desc
             doc['desc']['params'] = params
             doc['resource'] = getSaveData(data=self._InMemoryAvgRef, **self._saveProperties)
+
+
+
             datalayer.Cache.addDocument(**doc)
 
 

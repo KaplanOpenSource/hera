@@ -161,6 +161,8 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             doc  = self.getDatasourceDocument(datasourceName=regionName,**additional_data)
             if (doc is not None) and (saveMode==toolkit.TOOLKIT_SAVEMODE_FILEANDDB):
                 raise ValueError(f"{regionName} with parameters {additional_data} already exists for project {self.projectName} in toolkit {self.toolkitName}")
+
+        # Cutting the make region.
         getattr(self,f"makeRegion_{inputData.split('.')[-1]}")(points=points,inputData=inputData,outputFileName=outputFileName)
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if doc is None:
