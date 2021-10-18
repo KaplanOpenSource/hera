@@ -4,13 +4,52 @@ import os
 import glob
 from dask.delayed import delayed
 from dask import dataframe
-from itertools import product
+from itertools import product,islice
+from io import StringIO
 
 
-
-def extractFile(path, columnNames, vector=True):
+def extractFieldFile(path, columnNames, **kwargs):
     """
-        Extracts data from a csv file.
+        Extract data from openFOAM field file.
+
+        The difference brom list file is that field files has boundary conditions as
+        well, and so we must read from the file their length.
+
+
+    :param path:
+    :param columnNames:
+    **kwargs:
+        Adds this result to the pandas as column.
+    :return:
+        pandas.
+    """
+
+    # 1. find the number of points in the file.
+    L = []
+    with open(path, "r") as thefile:
+        lines = thefile.readline()
+        try:
+            lineCount = int(lines)
+        except ValueError:
+            lineCount = None
+
+        while lineCount is None:
+            lines = thefile.readline()
+            try:
+                lineCount = int(lines)
+            except ValueError:
+                lineCount = None
+
+        for line in islice(thefile, 1, lineCount+1):
+          L.append(line.replace("(","").replace(")",""))
+
+    return pandas.read_csv(StringIO("".join(L)),names=columnNames,sep=" ").assign(**kwargs)
+
+def extractFile(path, columnNames, vector=True, skiphead = 20,skipend = 4):
+    """
+        Extracts data from a openFOAM list file.
+
+        list files has no boundary and so, we can just skip head and end.
 
     Parameters
     ----------
@@ -29,8 +68,6 @@ def extractFile(path, columnNames, vector=True):
     -------
         Pandas with the data.
     """
-    skiphead = 20
-    skipend = 4
 
     cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
     cnvrtDict = dict([(x, cnvrt) for x in columnNames])
@@ -48,9 +85,9 @@ def extractFile(path, columnNames, vector=True):
         newData = []
 
     if len(newData) == 0:
-        file = open(path, "r")
-        lines = file.readlines()
-        file.close()
+        with open(path, "r") as thefile:
+            lines = thefile.readlines()
+
         vals = lines[17]
         data = []
 
@@ -85,8 +122,8 @@ def extractFile(path, columnNames, vector=True):
     return newData.astype(float)
 
 
-def readRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
-               cloudName="kinematicCloud"):
+def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
+                         cloudName="kinematicCloud"):
 
     print(f"Processing {timeName}")
 
@@ -155,13 +192,12 @@ def readRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, w
     return newData
 
 
-def loadDataParallel(casePath,
-             times=None,
-             parallelCase=True,
-             withVelocity=False,
-             withReleaseTimes=False,
-             withMass=False,
-             cloudName="kinematicCloud"):
+def loadLagrangianDataParallel(casePath,
+                               parallelCase=True,
+                               withVelocity=False,
+                               withReleaseTimes=False,
+                               withMass=False,
+                               cloudName="kinematicCloud"):
     """
         Extracts results of an LSM run.
 
@@ -185,12 +221,12 @@ def loadDataParallel(casePath,
         document of the data.
     """
     finalCasePath = os.path.abspath(casePath)
-    loader = lambda timeName: readRecord(timeName,
-                                         casePath=finalCasePath,
-                                         withVelocity=withVelocity,
-                                         withReleaseTimes=withReleaseTimes,
-                                         withMass=withMass,
-                                         cloudName=cloudName)
+    loader = lambda timeName: readLagrangianRecord(timeName,
+                                                   casePath=finalCasePath,
+                                                   withVelocity=withVelocity,
+                                                   withReleaseTimes=withReleaseTimes,
+                                                   withMass=withMass,
+                                                   cloudName=cloudName)
 
     if parallelCase:
 
@@ -216,5 +252,75 @@ def loadDataParallel(casePath,
                           key=lambda x: int(x))
 
         data = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+
+    return data
+
+
+
+def loadEulerianDataParallel(casePath,
+                             fieldName,
+                             columnNames,
+                             times=None,
+                             parallelCase=True):
+    """
+        Extracts a field to the disk from the requested times.
+        If None, then reads from all the time steps.
+        Reads only the internal field (and not the boundaries).
+
+        If read in parallel, then add the processorto the output columns.
+
+
+    Parameters
+    -----------
+
+        times: list
+             a list of time steps to extract.
+             If None, it extracts all time steps in the casePath.
+        file: str
+            The name for a file, in which the data is saved. Default is "<cloud name>_data.parquet", in the current working directory.
+
+        withVelocity: bool
+                True: extract the particles' velocities in addition to their positions.
+                Default is False.
+
+        **kwargs:
+            Any additional parameters to add to the description in the DB.
+    Returns
+    --------
+        document of the data.
+    """
+    finalCasePath = os.path.abspath(casePath)
+
+
+    if parallelCase:
+        processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
+        if len(processorList) == 0:
+            raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
+
+        if times is None:
+            timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                    os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                    x.isdigit() and
+                    (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                              key=lambda x: int(x))
+        else:
+            timeList = numpy.atleast_1d(times)
+
+        data = dataframe.from_delayed(
+            [delayed(extractFieldFile)(os.path.join(processorName, str(timeName),fieldName),columnNames=columnNames,time=timeName,processor=int(processorName[9:])) for processorName, timeName in
+             product(processorList, timeList)])
+    else:
+
+        if times is None:
+            timeList = sorted([x for x in os.listdir(finalCasePath) if (
+                    os.path.isdir(x) and
+                    x.isdigit() and
+                    (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                              key=lambda x: int(x))
+        else:
+            timeList = numpy.atleast_1d(times)
+
+        data = dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(str(timeName),fieldName),
+                                                                 columnNames = columnNames,time=timeName) for timeName in timeList])
 
     return data

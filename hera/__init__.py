@@ -53,6 +53,11 @@ except NameConflictError:
     
  Simulations
  -----------
+    
+    OpenFoam - 
+        * Build a toolkit that unifies the access to NS and LSM  
+        * Build a reader for the eulerian data, either decomposed or composed cases.   
+ 
     LSM - small fixes to handle parameters without units.
     Gaussian - Fixing the toolkit of large droplets 
              - Adding a constant meteorology
