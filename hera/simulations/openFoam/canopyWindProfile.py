@@ -5,6 +5,7 @@ from ... import toolkit
 import os
 
 class preProcess(toolkit.abstractToolkit):
+
     def __init__(self, projectName, FilesDirectory=None):
         """
             Initializes an abstract location toolkit.
