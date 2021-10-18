@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import os
-from hera.simulations.openFoam.LSM import readDaskParallel
+from hera.simulations.openFoam import readDaskParallel
 import argparse
 
 if __name__=="__main__":
@@ -16,10 +16,10 @@ if __name__=="__main__":
     from dask.distributed import Client
     client = Client(n_workers=args.workers)
 
-    data = readDaskParallel.loadDataParallel(withVelocity=False,
-                                             withReleaseTimes=False,
-                                             withMass=True,
-                                             casePath=args.caseDir[0]).set_index("time").repartition(npartitions=20)
+    data = readDaskParallel.loadLagrangianDataParallel(withVelocity=False,
+                                                       withReleaseTimes=False,
+                                                       withMass=True,
+                                                       casePath=args.caseDir[0]).set_index("time").repartition(npartitions=20)
 
 
     outpath = os.path.abspath(args.outputdir[0])
