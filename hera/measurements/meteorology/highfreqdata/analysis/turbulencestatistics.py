@@ -8,7 +8,6 @@ from .abstractcalculator import AbstractCalculator
 
 
 class singlePointTurbulenceStatistics(AbstractCalculator):
-    _isMissingData = False
 
     def __init__(self, rawData, metadata):
         super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata)
@@ -35,7 +34,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'up' not in self._RawData.columns:
-            avg = self._RawData
+            avg = self._RawData[['u','v','w','T']]
             if self.SamplingWindow is None:
                 avg = avg.mean()
                 if self._DataType == 'pandas':
@@ -57,7 +56,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
-            if self._isMissingData:
+            if self.isMissingData:
                 self._RawData = self._RawData.merge(avg, how='outer', left_index=True, right_index=True)
                 self._RawData = self._RawData.dropna(how='all')
                 self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar', 'wind_dir_bar']] = self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar', 'wind_dir_bar']].ffill()
