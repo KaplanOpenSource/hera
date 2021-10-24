@@ -6,7 +6,7 @@ import os
 
 class preProcess(toolkit.abstractToolkit):
 
-    def __init__(self, projectName, FilesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
         """
             Initializes an abstract location toolkit.
 
@@ -15,7 +15,7 @@ class preProcess(toolkit.abstractToolkit):
         projectName: str
             The project Name that the toolkit is initialized on
 
-        FilesDirectory: str or None
+        filesDirectory: str or None
                 The path to save a regions files when they are created.
 
                 if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.
@@ -24,16 +24,16 @@ class preProcess(toolkit.abstractToolkit):
                 exist, then use the current directory.
         """
 
-        super().__init__(projectName=projectName,FilesDirectory=FilesDirectory,toolkitName="OFpreProcess")
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName="OFpreProcess")
 
-        if FilesDirectory is None:
+        if filesDirectory is None:
             self.logger.execution("Directory is not given, tries to load from default or using the current directory")
             self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
             self.logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
-            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
-            self._FilesDirectory = FilesDirectory
+            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
+            self._FilesDirectory = filesDirectory
 
     def windProfile(self, cellData, LambdaGrid,stations,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,file=None,**kwargs):
 

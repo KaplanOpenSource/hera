@@ -27,7 +27,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
     DOCTYPE_STATIONS = 'StationsData'
     DOCTYPE_MEASUREMENTS = 'MeasurementsData'
 
-    def __init__(self, projectName,campaignName=None,FilesDirectory=None):
+    def __init__(self, projectName, campaignName=None, filesDirectory=None):
         """
             Initializes a datalayer for the highfreqdata data.
 
@@ -38,7 +38,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         projectName: str
                 The project name
         """
-        super().__init__(projectName=projectName,toolkitName="highFreqMeteorology",FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName, toolkitName="highFreqMeteorology", filesDirectory=filesDirectory)
         self.logger.info("Init High frequency data")
         self.campaignName = campaignName
         self._analysis = RawdataAnalysis(self)

@@ -50,9 +50,9 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
         self._LandHeightColumns = value
 
 
-    def __init__(self, projectName, FilesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
 
-        super().__init__(projectName=projectName,toolkitName="Buildings",FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory)
         self._analysis = analysis(dataLayer=self)
 
         self._BuildingHeightColumn = "BLDG_HT"

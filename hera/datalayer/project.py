@@ -1,8 +1,5 @@
 import pandas
-import getpass
-import numpy
-from . import getDBNamesFromJSON
-from hera.utils.loggedObject import loggedObject
+from hera.utils.logging.loggedObject import loggedObject
 
 
 from .collection import AbstractCollection,\

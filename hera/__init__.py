@@ -4,57 +4,32 @@ import os
 import json
 
 
-import logging.config
-
-
-with open(os.path.join(os.path.dirname(__file__),'logging','heraLogging.config'),'r') as logconfile:
-     log_conf_str = logconfile.read().replace("\n","")
-     log_conf = json.loads(log_conf_str.replace("{herapath}",os.path.dirname(__file__)))
-
-EXECUTION = 15
-logging.addLevelName(EXECUTION, 'EXECUTION')
-
-
-def execution(self, message, *args, **kws):
-    self.log(EXECUTION, message, *args, **kws)
-
-logging.Logger.execution = execution
-logging.config.dictConfig(log_conf)
-
-
 from .toolkit import ToolkitHome
 toolkitHome =ToolkitHome()
 
-########################## Units for the model.
-from unum import Unum,NameConflictError
-from unum.units import *
+# Setup the units for the model
+# The project name is not imporant becuase logging is universal for user.
+loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 
-from .utils import toMathematicalAngle,toMeteorologicalAngle,tonumber,tounit
-
-try:
-    atm = Unum.unit('atm',Pa*101325.,'atm = 101325 pascal')
-    mmHg  = Unum.unit('mmHg',atm/760.,'mmHg = 1 torr')
-    torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
-
-    dyne  = Unum.unit('dyne',1e-5*N,'dyne')
-    poise = Unum.unit('poise',g/cm/s,'poise')
-    cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
-except NameConflictError:
-    pass
 
 
 """
 
+ 
+
  Util 
  ----
  
-    Adding special units and fixing the multiple load problem. 
+    - Adding special units and fixing the multiple load problem under the unum 
+    - Adding logging toolkit to handle the local logs. 
+             + Changed the default logging directory to .pyhera/log. 
+     
     
  Simulations
  -----------
     
-    OpenFoam - 
+    OpenFoam  
         * Build a toolkit that unifies the access to NS and LSM  
         * Build a reader for the eulerian data, either decomposed or composed cases.   
  
