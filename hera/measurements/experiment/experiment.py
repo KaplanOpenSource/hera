@@ -14,9 +14,9 @@ class experimentToolKit(toolkit.abstractToolkit):
     DOCTYPE_ASSETS = 'AssetsData'
     DOCTYPE_DEVICES = 'DevicesData'
 
-    def __init__(self,projectName,FilesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
 
-        super().__init__(projectName=projectName, toolkitName="experimentData",FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName, toolkitName="experimentData", filesDirectory=filesDirectory)
         self.logger.info("Init experiment toolkit")
 
     def loadData(self, fileNameOrData, parser, saveMode=None, **kwargs):

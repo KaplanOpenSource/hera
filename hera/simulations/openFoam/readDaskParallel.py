@@ -291,7 +291,6 @@ def loadEulerianDataParallel(casePath,
     """
     finalCasePath = os.path.abspath(casePath)
 
-
     if parallelCase:
         processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
         if len(processorList) == 0:
@@ -307,8 +306,10 @@ def loadEulerianDataParallel(casePath,
             timeList = numpy.atleast_1d(times)
 
         data = dataframe.from_delayed(
-            [delayed(extractFieldFile)(os.path.join(processorName, str(timeName),fieldName),columnNames=columnNames,time=timeName,processor=int(processorName[9:])) for processorName, timeName in
-             product(processorList, timeList)])
+            [delayed(extractFieldFile)(os.path.join(finalCasePath,processorName, str(timeName),fieldName),
+                                       columnNames=columnNames,
+                                       time=timeName,
+                                       processor=int(processorName[9:])) for processorName, timeName in product(processorList, timeList)])
     else:
 
         if times is None:
@@ -320,7 +321,7 @@ def loadEulerianDataParallel(casePath,
         else:
             timeList = numpy.atleast_1d(times)
 
-        data = dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(str(timeName),fieldName),
+        data = dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(finalCasePath,str(timeName),fieldName),
                                                                  columnNames = columnNames,time=timeName) for timeName in timeList])
 
     return data

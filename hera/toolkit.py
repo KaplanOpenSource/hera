@@ -33,6 +33,7 @@ class ToolkitHome:
     RISKASSESSMENT = "RiskAssessment"
     LSM            = "LSM"
     OF_LSM         =  "OF_LSM"
+    OPENFOAM       = "OpenFOAM"
 
     METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
     METEOROLOGY_LOWFREQ = "MeteoLowFreq"
@@ -43,6 +44,9 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
+
+            Logging        = dict(cls = "hera.utils.logging.toolkit.loggingToolkit"),
+
             GIS_Buildings  = dict(cls = "hera.measurements.GIS.locations.buildings.datalayer.BuildingsToolkit",
                                  desc=None),
             GIS_Raster     = dict(cls = "hera.measurements.GIS.locations.raster.RasterToolkit",
@@ -64,7 +68,9 @@ class ToolkitHome:
 
             MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
 
-            experiment =dict(cls="hera.measurements.experiment.experiment.experimentToolKit")
+            experiment =dict(cls="hera.measurements.experiment.experiment.experimentToolKit"),
+
+            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
         )
 
 
@@ -94,7 +100,7 @@ class ToolkitHome:
             raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
         clsName = self._toolkits[toolkitName]['cls']
 
-        tookit = pydoc.locate(clsName)(projectName,FilesDirectory=FilesDirectory,**kwargs)
+        tookit = pydoc.locate(clsName)(projectName,filesDirectory=FilesDirectory,**kwargs)
         return tookit
 
 
@@ -144,6 +150,14 @@ class abstractToolkit(Project):
         """
         return self._FilesDirectory
 
+    @property
+    def filesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
 
     @property
     def presentation(self):
@@ -177,7 +191,7 @@ class abstractToolkit(Project):
         """
         return self._projectName
 
-    def __init__(self,toolkitName,projectName,FilesDirectory=None):
+    def __init__(self, toolkitName, projectName, filesDirectory=None):
         """
             Initializes a new toolkit.
 
@@ -190,7 +204,7 @@ class abstractToolkit(Project):
         projectName: str
             The project that the toolkit works in.
 
-        FilesDirectory: str
+        filesDirectory: str
             The directory to save datasource
 
         """
@@ -198,14 +212,14 @@ class abstractToolkit(Project):
         self._toolkitname = toolkitName
         self._projectName = projectName
 
-        if FilesDirectory is None:
+        if filesDirectory is None:
             self.logger.execution("Directory is not given, tries to load from default or using the current directory")
             self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
             self.logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
-            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
-            self._FilesDirectory = FilesDirectory
+            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
+            self._FilesDirectory = filesDirectory
 
 
     def _getConfigDocument(self):

@@ -34,7 +34,7 @@ class DemographyToolkit(toolkit.abstractToolkit):
     def populationTypes(self):
         return self._populationTypes
 
-    def __init__(self, projectName, FilesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
         """
             Initializes the demography tool.
 
@@ -53,7 +53,7 @@ class DemographyToolkit(toolkit.abstractToolkit):
 
         """
         self._projectName = projectName
-        super().__init__(projectName=projectName,toolkitName="Demography",FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName, toolkitName="Demography", filesDirectory=filesDirectory)
         self._analysis = analysis(self)
 
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",

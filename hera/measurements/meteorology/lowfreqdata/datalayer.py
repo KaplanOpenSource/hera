@@ -33,7 +33,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
 
     STATIONNAME = 'StationName'
 
-    def __init__(self, projectName,FilesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
         """
             Initializes a datalayer for the lowfreqdata data.
 
@@ -45,7 +45,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
         projectName: str
                 The project name
         """
-        super().__init__(projectName=projectName,toolkitName="lowFreqMeteorology",FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName, toolkitName="lowFreqMeteorology", filesDirectory=filesDirectory)
         self.logger.info("Init Low frequency data")
 
         self._analysis = analysis(self)

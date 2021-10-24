@@ -24,7 +24,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
 
 
-    def __init__(self, projectName, toolkitName, FilesDirectory=None):
+    def __init__(self, projectName, toolkitName, filesDirectory=None):
         """
             Initializes an abstract location toolkit.
 
@@ -35,7 +35,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         toolkitName: str
             the specific toolkit, getting from the child.
 
-        FilesDirectory: str or None
+        filesDirectory: str or None
                 The path to save a regions files when they are created.
 
                 if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.
@@ -52,16 +52,16 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                 if None, and dataSourceOrData is a datasource name (i.e a str) then use the latest version.
         """
         #self.logger.info(f"Toolkit {toolkitName} in project {projectName} - Initializing")
-        super().__init__(projectName=projectName,toolkitName=toolkitName,FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory)
 
-        if FilesDirectory is None:
+        if filesDirectory is None:
             self.logger.execution("Directory is not given, tries to load from default or using the current directory")
             self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
             self.logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(FilesDirectory)}. Creating if does not exist")
-            os.system("mkdir -p %s" % os.path.abspath(FilesDirectory))
-            self._FilesDirectory = FilesDirectory
+            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
+            self._FilesDirectory = filesDirectory
 
         self.logger.info(f"Toolkit {toolkitName} in project {projectName} - Done")
 

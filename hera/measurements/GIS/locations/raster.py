@@ -18,11 +18,11 @@ class RasterToolkit(abstractLocation.AbstractLocationToolkit):
         return f"{self.toolkitName}_PNG"
 
 
-    def __init__(self, projectName,FilesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
 
         super().__init__(projectName=projectName,
                          toolkitName="Image",
-                         FilesDirectory=FilesDirectory)
+                         filesDirectory=filesDirectory)
 
         self._presentation = presentation(dataLayer=self)
 
