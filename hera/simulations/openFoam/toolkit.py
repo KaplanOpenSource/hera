@@ -1,5 +1,4 @@
 from ...toolkit import abstractToolkit
-from .readDaskParallel import loadEulerianDataParallel
 import pandas
 import xarray
 import numpy
@@ -19,6 +18,48 @@ class OFToolkit(abstractToolkit):
 
     def __init__(self, projectName, filesDirectory=None, toolkitName="OFToolkit"):
         super().__init__(toolkitName=toolkitName, projectName=projectName, filesDirectory=filesDirectory)
+
+
+    def getFieldDimensions(self,fieldName):
+        """
+            Return the dimensions of the field.
+
+            For now, we assume that the flow is incompressible.
+
+        Parameters
+        ----------
+        fieldName : str
+            The field name
+
+        Returns
+        -------
+            str
+
+        """
+        dimensions = dict(U="[ 0 1 -1 0 0 0 0 ]",
+                          p="[ 0 2 -2 0 0 0 0 ]",
+                          epsilon="[ 0 2 -3 0 0 0 0 ]",
+                          f="[0 0 -1 0 0 0 0]",
+                          k="[0 2 -2 0 0 0 0]",
+                          nut="[0 2 -1 0 0 0 0]")
+
+        return dimensions[fieldName]
+
+
+
+    def processorList(self,caseDirectory):
+        """
+            Returns the list of processors directories in the case
+        Parameters
+        ----------
+        caseDirectory : str
+            Path to the directory.
+
+        Returns
+        -------
+
+        """
+        return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
@@ -48,7 +89,7 @@ class OFToolkit(abstractToolkit):
         """
 
         # 1. Run the postProcess utility to set the cell centers
-        self.logger.info(f"Getting mesh for case {caseDirectory}.")
+        self.logger.info(f"Start. case {caseDirectory}.")
 
 
         useParallel= False
@@ -67,76 +108,9 @@ class OFToolkit(abstractToolkit):
 
         os.system(cmd)
 
+        self.logger.info(f"End")
+
         return loadEulerianDataParallel(caseDirectory,fieldName="C",columnNames=['x','y','z'],times=time,parallelCase=useParallel)
-
-
-
-    def updateInternalDataFromPandas(self,caseDirectory,time,fileName,data,parallel=True,cols=None,isField=True):
-        """
-            Updates the field internal data to the input.
-            Should **not** update the boundaries data.
-
-            use cols to write the data.
-
-            If parallel is true, and there is a decomposed case, write the data to the different processors.
-            In that case, the series must have processorNumber and index columns. Otherwise, only index columns is required.
-
-            The new data is written to the disk
-
-        Paramaters
-        ----------
-        caseDirectory: str
-                The path of the case
-        time: str
-                The time to update.
-
-        fileName: str
-                The field name
-        data: pandas
-                The data to update. Must include the column index (for composed cases) and processorName/index for decomposed cases.
-
-        cols : list
-                The list of columns to write (and their order).
-
-        parallel: bool
-                If true, check if there is a decomposed case
-
-        isField: bool
-
-        Determine whether the fileName we update is a field (i.e with boundary conditions) or a list (i.e without).
-
-                If true:
-                    check if file exists and if it does use its boundary conditions.
-                    if file does not exist, add the general boundary conditions with zerGradient for all possible boundary conditions.
-
-        Returns
-        -------
-            String with the new data. if parallel, a dict with the processor number as key and the
-            value as the data.
-
-        """
-
-
-        if parallel:
-            procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
-
-
-
-
-        else:
-            fullFileName = os.path.join(caseDirectory, time, fileName)
-
-
-        if os.path.exists(fullFileName):
-
-
-
-
-        else:
-            # create a new file.
-            newFileStr = self._getHeader()
-
-
 
 
 
@@ -152,36 +126,72 @@ class OFToolkit(abstractToolkit):
         pass
 
 
-    ##############################
 
+    def writeEmptyFieldFile(self,caseDirectory,time,fieldName,parallel=False,dimensions=None):
+        """
+            Writes an empty field file to the target case directory/time. If parallel, then write it in
+            every time directory.
 
+        Parameters
+        ----------
+        caseDirectory : str
+            The case directory
+        time  : str,int
+            The time to write to.
 
+        fieldName : str
+            The field name
 
-    def _getHeader(self):
+        parallel:  bool
+            If true, use parallel case. (write to every processor*/time directory)
 
-        return """
+        dimensions : str
+            If None, take from the default of the field.
+
+        Returns
+        -------
+
+        """
+
+        fileStr = """
 /*--------------------------------*- C++ -*----------------------------------*\
- =========                 |                                                 
- \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           
-  \    /   O peration     | Version:  dev                                   
-   \  /    A nd           | Web:      www.OpenFOAM.org                      
-    \/     M anipulation  |                                                 
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  7
+     \\/     M anipulation  |
 \*---------------------------------------------------------------------------*/
 FoamFile
-{    
+{
     version     2.0;
     format      ascii;
-    class       vectorField;
-    object      kinematicCloudPositions;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [ 0 1 -1 0 0 0 0 ];
+
+internalField   uniform {value};
+
+boundaryField
+{
+    "proc.*"
+    {
+        type            processor;
+    }
+
+}
+
+
+// ************************************************************************* //
 """
 
-    def _pandasToFoamFormat(self,data,columns=None):
+class Field:
+    """
+        Represent a single
+    """
 
-        D = data if columns is None else data[columns]
 
-        newStr = f"{str(data.shape[0])}\n"
-        newStr += "(\n"
-        newStr += "\n".join([f"({x})" for x in D.to_csv(sep=' ', header=False, index=False).split("\n")[:-1]])
-        newStr += ")"
-        return newStr
+
