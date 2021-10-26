@@ -1,9 +1,0 @@
-2020-11-09 15:39:29 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 337500 of 1687500
-2020-11-09 15:39:32 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 506250 of 1687500
-2020-11-09 15:39:35 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 675000 of 1687500
-2020-11-09 15:39:38 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 843750 of 1687500
-2020-11-09 15:39:40 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 1012500 of 1687500
-2020-11-09 15:39:43 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 1181250 of 1687500
-2020-11-09 15:39:46 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 1350000 of 1687500
-2020-11-09 15:39:49 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer processing node 1518750 of 1687500
-2020-11-09 15:39:52 __init__.py/execution(30) EXECUTION simulations.openfoam.preprocess.sponge.spongeLayer Processing sponge top finished
