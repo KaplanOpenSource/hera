@@ -46,6 +46,9 @@ except NameConflictError:
 
 """
 
+    - Building new GIS toolkit . 
+        - Depracating the cut of a region. 
+
 2.4.1 
 ------
 

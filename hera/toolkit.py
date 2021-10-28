@@ -1,4 +1,5 @@
-from .datalayer import Project,datatypes
+from hera.datalayer.project import Project
+from hera.datalayer.datahandler import datatypes
 import os
 import pandas
 import numpy
@@ -43,14 +44,16 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
-            GIS_Buildings  = dict(cls = "hera.measurements.GIS.locations.buildings.datalayer.BuildingsToolkit",
+            GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",
+                               desc=None),
+            GIS_Buildings  = dict(cls = "hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit",
                                  desc=None),
-            GIS_Raster     = dict(cls = "hera.measurements.GIS.locations.raster.RasterToolkit",
+            GIS_Raster     = dict(cls = "hera.measurements.GIS.raster.toolkit.RasterToolkit",
                                  desc=None),
-            GIS_Topography = dict(cls = "hera.measurements.GIS.locations.topography.TopographyToolkit",
+            GIS_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",
                                  desc=None),
 
-            GIS_Demography = dict(cls = "hera.measurements.GIS.demography.DemographyToolkit",
+            GIS_Demography = dict(cls = "hera.measurements.GIS.vector.demography.DemographyToolkit",
                                  desc=None),
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",
                                  desc=None),
@@ -131,7 +134,7 @@ class abstractToolkit(Project):
 
     """
     _toolkitname = None
-    _projectName = None
+
 
     _analysis = None # holds the analysis layer.
     _presentation = None # holds the presentation layer
@@ -171,13 +174,6 @@ class abstractToolkit(Project):
         """
         return self._toolkitname
 
-    @property
-    def projectName(self):
-        """
-            The name of the project
-        :return:
-        """
-        return self._projectName
 
     def __init__(self,toolkitName,projectName,FilesDirectory=None):
         """
