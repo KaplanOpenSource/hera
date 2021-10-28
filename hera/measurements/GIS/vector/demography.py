@@ -1,12 +1,13 @@
 import geopandas
 import io
 import os
-from ... import toolkit
-from ...datalayer import datatypes,nonDBMetadataFrame
-from ... import toolkitHome
-from ...toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from hera import toolkit
+from hera.measurements.GIS.vector import toolkit
+from hera.datalayer import datatypes,nonDBMetadataFrame
+from hera import toolkitHome
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
-class DemographyToolkit(toolkit.abstractToolkit):
+class DemographyToolkit(toolkit.VectorToolkit):
     """
         A toolkit to manage demography data
 

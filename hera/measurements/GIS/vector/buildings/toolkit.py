@@ -1,13 +1,12 @@
 import os
 import logging
-import pandas
-import geopandas
-from .. import abstractLocation
-from .analysis import analysis
-from .....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+import geopandas as gps
+from hera.measurements.GIS.vector import toolkit
+from hera.measurements.GIS.vector.buildings.analysis import analysis
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
 
-from .....datalayer import datatypes,nonDBMetadataFrame
+from hera.datalayer import datatypes,nonDBMetadataFrame
 
 try:
     from freecad import app as FreeCAD
@@ -17,7 +16,7 @@ except ImportError as e:
     logging.warning("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
 
 
-class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
+class BuildingsToolkit(toolkit.VectorToolkit):
     """
         Toolkit to manage the buildings.
 
@@ -190,98 +189,20 @@ class BuildingsToolkit(abstractLocation.AbstractLocationToolkit):
             The document of the STL.
         """
         desc = {
-                abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
+                "vector":regionNameSTL,
                 "type" : self.doctype
                 }
         docList = self.getCacheDocuments(**desc)
         return None if len(docList)==0 else docList[0]
 
+if __name__ == "__main__":
 
-    def loadData(self, fileNameOrData, saveMode=TOOLKIT_SAVEMODE_NOSAVE, regionName=None, additionalData=dict()):
-        """
-            Loading a data from file and possibly saves to the DB.
-            Manages the parsing of the datafile.
+    bt = BuildingsToolkit('test4')
+    bt.addRegion([177933,663923,187933,673923], 'new9',crs = 2039)
+    # lis = vt.getRegionNameList()
+    #reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
+    #data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
+    #lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
+    lm = bt._analysis.LambdaOfDomain(270, 200, exteriorBlockNameOrData='new9', crs=2039)
+    p=1
 
-        Parameters
-        ----------
-        fileNameOrData: str
-                If str , the datafile to load
-                If other objects - convert the
-
-        saveMode: str
-                Can be either:
-
-                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
-                                                  raise exception if file exists.
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
-                                                  Replace the file if it exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
-                                                    Raise exception if the entry exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
-                                                    Replace the entry in the DB if it exists.
-
-
-
-        regionName: str
-            optional name for the datasource.
-
-        additionalData: dict
-             additional metadata if adding to the DB
-
-
-        Returns
-        -------
-            Document with the data
-
-        """
-
-        if isinstance(fileNameOrData,str):
-            if os.path.exists(os.path.abspath(fileNameOrData)):
-                regionName = os.path.basename(fileNameOrData).split(".")[0] if regionName is None else regionName
-                data = geopandas.read_file(fileNameOrData)
-            else:
-                raise FileNotFoundError(f"The {fileNameOrData} does not exist.")
-
-        else:
-            data = fileNameOrData
-
-        doc = None
-
-        if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
-                        TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-                        TOOLKIT_SAVEMODE_FILEANDDB,
-                        TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-
-            outputFileName = os.path.join(self.FilesDirectory, f"{regionName}.shp")
-
-            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_ONLYFILE]:
-                if os.path.exists(outputFileName):
-                    raise FileExistsError(f"{outputFileName} exists in project {self.projectName}")
-
-            data.to_file(outputFileName)
-
-            if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-
-                doc = self.getDatasourceData(regionName)
-                if doc is not None and saveMode==TOOLKIT_SAVEMODE_FILEANDDB:
-                    raise ValueError(f"{regionName} exists in DB for project {self.projectName}")
-
-                additionalData[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] =  regionName
-
-                if doc is None:
-                    doc = self.addDataSource(dataSourceName=regionName,
-                                               resource=outputFileName,
-                                               dataFormat=datatypes.GEOPANDAS,
-                                               **additionalData)
-
-                else:
-                    doc['resource'] = outputFileName
-                    doc.desc = additionalData
-                    doc.save()
-
-        return nonDBMetadataFrame(data) if doc is None else doc

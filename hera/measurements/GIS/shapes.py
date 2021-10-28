@@ -17,8 +17,6 @@ class ShapesToolKit(toolkit.abstractToolkit):
     def doctype(self):
         return f"{self.toolkitName}_GeoJSON"
 
-
-
     def __init__(self, projectName,FilesDirectory=None):
 
         super().__init__(projectName=projectName,
@@ -100,7 +98,6 @@ class ShapesToolKit(toolkit.abstractToolkit):
                 doc.save()
 
         return nonDBMetadataFrame(data) if doc is None else doc
-
 
     def getShape(self, regionName):
         """

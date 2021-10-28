@@ -1,7 +1,7 @@
 import pandas
 import getpass
 import numpy
-from . import getDBNamesFromJSON
+from hera.datalayer.document import getDBNamesFromJSON
 from hera.utils.loggedObject import loggedObject
 
 
@@ -131,8 +131,6 @@ class Project(loggedObject):
         self._cache      = Cache_Collection(user=databaseName)
         self._simulations   = Simulations_Collection(user=databaseName)
         self._all           =   AbstractCollection(user=databaseName)
-
-
 
     def getMetadata(self):
         """

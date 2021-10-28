@@ -6,10 +6,9 @@ import numpy
 from dask.delayed import delayed
 from dask import dataframe
 
-from unum.units import *
 from hera.datalayer import datatypes
 
-from ....measurements.GIS.locations.topography import TopographyToolkit
+from hera.measurements.GIS.vector.locations.topography import TopographyToolkit
 
 from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
@@ -17,9 +16,6 @@ from ....datalayer import nonDBMetadataFrame
 from .... import toolkit
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
-
-from evtk.hl import pointsToVTK, structuredToVTK
-
 
 from evtk.hl import pointsToVTK,structuredToVTK
 
