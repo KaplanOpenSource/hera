@@ -10,7 +10,6 @@ TOOLKIT_VECTOR_REGIONNAME = "regionName"
 
 class VectorToolkit(toolkit.abstractToolkit):
 
-
     def __init__(self, projectName, toolkitName = 'VectorToolkit', FilesDirectory=None):
         """
             Initializes vector data toolkit.
@@ -81,7 +80,7 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         else:
             raise ValueError(f" regionData paremeter must be: GeoDataFrame/GeoJSON/list/Polygon")
-            return
+
 
         if crs is not None:
             try:
@@ -125,7 +124,7 @@ class VectorToolkit(toolkit.abstractToolkit):
         self.addCacheDocument(resource = data, dataFormat=datatypes.GEOPANDAS, desc=desc)
 
 
-    def cutRegionFromSource(self,shapeDataOrName,dataSourceName = None, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
+    def cutRegionFromSource(self,shapeDataOrName,dataSourceName , isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
         """
 
         Parameters
@@ -149,11 +148,16 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         dct = dict(bbox=shape) if isBounds else dict(mask=shape)
 
-        qry = {toolkit.TOOLKIT_DATASOURCE_NAME: dataSourceName,
-               toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
+        if isinstance(dataSourceName, str):
 
-        doc = self.getDatasourceDocument(datasourceName=dataSourceName)
-        return None if doc is None else doc.getData(**dct)
+            doc = self.getDatasourceDocument(datasourceName=dataSourceName)
+            if doc is None:
+                sourceList = self.getDataSourceTable()['datasourceName'].str.cat()
+                raise ValueError(f"The Data sources available in the project are: " + sourceList)
+            else:
+                return doc.getData(**dct)
+
+
 
     def getRegionNameList(self):
         """

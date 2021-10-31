@@ -199,10 +199,11 @@ if __name__ == "__main__":
 
     bt = BuildingsToolkit('test4')
     bt.addRegion([177933,663923,187933,673923], 'new9',crs = 2039)
+    reg =[177933,663923,187933,673923]
     # lis = vt.getRegionNameList()
     #reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
     #data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
     #lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
-    lm = bt._analysis.LambdaOfDomain(270, 200, exteriorBlockNameOrData='new9', crs=2039)
+    lm = bt._analysis.LambdaOfDomain(270, 200, exteriorBlockNameOrData=reg, crs=2039)
     p=1
 

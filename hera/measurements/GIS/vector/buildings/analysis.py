@@ -82,7 +82,7 @@ class analysis():
 
         return gpd
 
-    def LambdaOfDomain(self, wind,resolution,buildingsDataSourceNameOrData = None, exteriorBlockNameOrData = None, crs = None):
+    def LambdaOfDomain(self, wind,resolution,buildingsDataSourceNameOrData = None,exteriorBlockNameOrData = None, crs = None):
         """
         Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
 
@@ -92,6 +92,9 @@ class analysis():
               The meteorological wind direction.
         resolution: int
                     The size of the block in meter.
+        newDataSourceName: string
+                    If buildingsDataSourceNameOrData is Data, check if the newDataSourceName is not None and save buildingsDataSourceNameOrData
+                    as dataSource in project by the name newDataSourceName
 
         buildingsDataSourceNameOrData: str or GeoDataframe
         exteriorBlockNameOrData: GeoDataFrame,str,list,polygon
@@ -102,9 +105,10 @@ class analysis():
         """
 
         extent = None
+        data = None
 
         if buildingsDataSourceNameOrData is not None:
-            data = None
+
             if isinstance(buildingsDataSourceNameOrData,str):
 
                 data = self._datalayer.getDatasourceData(buildingsDataSourceNameOrData)
@@ -112,13 +116,16 @@ class analysis():
                     data = geopandas.read_file(io.StringIO(buildingsDataSourceNameOrData))
             else:
                 data = buildingsDataSourceNameOrData
-            if isinstance(data, gpd.GeoDataFrame):
-                extent = gpd.GeoDataFrame({'geometry': [box(*(data.total_bounds))]},crs=data.crs)
-            else:
-                raise ValueError(f" buildingsDataSource must be GeoDataFrame ")
+                if isinstance(data, gpd.GeoDataFrame):
+                    if data.crs is None:
+                        if crs is None:
+                            raise ValueError(f" You must provide the crs parameter of buildingsDataSourceNameOrData ")
+                        else:
+                            data.crs = crs
+                else:
+                    raise ValueError(f" buildingsDataSource must be GeoDataFrame ")
 
-
-        elif exteriorBlockNameOrData is not None:
+        if exteriorBlockNameOrData is not None:
 
             if  isinstance(exteriorBlockNameOrData,str):
                     extent = self._datalayer.getRegionData(exteriorBlockNameOrData)
@@ -126,16 +133,27 @@ class analysis():
                     extent = self._datalayer._setGeoPandasFromRegionData(exteriorBlockNameOrData)
 
             if isinstance(extent, gpd.GeoDataFrame):
-                crs = extent.crs
-                extent = gpd.GeoDataFrame({'geometry': [box(*(extent.total_bounds))]},crs=extent.crs)
+                if extent.crs is not None:
+                    crs = extent.crs
+                elif crs is None:
+                    raise ValueError(f" You must provide the crs parameter of exteriorBlockNameOrData ")
+
+                extent = gpd.GeoDataFrame({'geometry': [box(*(extent.total_bounds))]},crs=crs)
 
             else:
                 raise ValueError(f" exteriorBlockNameOrData must be: GeoDataFrame/GeoJSON/list/Polygon/string")
 
+        if data is not None and extent is not None:
+            data = self._datalayer.cutRegionFromSource(extent, dataSourceName=data, crs=crs)
 
-            data = self._datalayer.cutRegionFromSource(extent, crs=crs)
+        elif extent is not None:
+                data = self._datalayer.cutRegionFromSource(extent,dataSourceName="BNTL")
 
+        elif data is not None:
+            extent = gpd.GeoDataFrame({'geometry': [box(*(data.total_bounds))]}, crs=data.crs)
 
+        else:
+            raise ValueError(f" You must provide one or more of the followng parameters: buildingsDataSourceNameOrData ,exteriorBlockNameOrData ")
 
         domainLambda = Blocks(level=0, df=extent, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=wind)
 
@@ -288,7 +306,7 @@ class Blocks(object):
         OnebuildingsBlock = Blocks(level=0, df=boxToIntersect, size=200)  # buildings,box
         OnebuildingsBlock._Buildings = buildings
         OnebuildingsBlock._ExteriorBlock = extent
-        OnebuildingsBlock._blockArea = boxToIntersect.area
+        OnebuildingsBlock._blockArea = extent.area
 
         return OnebuildingsBlock
 
@@ -322,7 +340,7 @@ class Blocks(object):
 
         lambdaP = Map_A_p / self._blockArea
         if (Map_A_p != 0):
-            hc = sum_area_mltp_h / Map_A_p
+            self._hc = sum_area_mltp_h / Map_A_p
 
         return lambdaP
 
@@ -405,7 +423,7 @@ class Blocks(object):
             listOfBuildingsBlock.append(self.initBuildingsBlock(blockDict))
             currentDict['lambdaF'].append(listOfBuildingsBlock[i]._LambdaF(windDirection=windDirection))
             currentDict['lambdaP'].append(listOfBuildingsBlock[i]._LambdaP())
-            currentDict['hc'].append(listOfBuildingsBlock[i].getHc())
+            currentDict['hc'].append(listOfBuildingsBlock[i].getHc()) # The calculation of HC is done at LambdaP function
             currentDict['geometry'].append(listOfBuildingsBlock[i]._ExteriorBlock)
 
 
