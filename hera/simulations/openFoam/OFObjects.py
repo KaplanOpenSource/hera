@@ -3,7 +3,7 @@ import numpy
 import os
 import glob
 from dask.delayed import delayed
-from dask import dataframe
+import dask
 from itertools import product,islice
 from io import StringIO
 
@@ -31,18 +31,22 @@ class ofObjectHome:
             OFField.
 
         """
-        incompressible = dict(U=dict(dimensions="[ 0 1 -1 0 0 0 0 ]",componentNames=['u','v','w']),
+        incompressibleDict = dict(U=dict(dimensions="[ 0 1 -1 0 0 0 0 ]",componentNames=['u','v','w']),
                               p=dict(dimensions="[ 0 2 -2 0 0 0 0 ]",componentNames=None),
                               epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]",componentNames=None),
                               nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]",componentNames=None),
                               k  =dict(dimensions="[ 0 2 -2 0 0 0 0 ]",componentNames=None),
                               )
 
-        compressible = dict()
+        compressibleDict = dict()
 
-        objs = {True : compressible,False : incompressible}
+        objs = {True : compressibleDict,
+                False : incompressibleDict}
 
-        objData = objs[compressible][fieldName]
+        try:
+            objData = objs[compressible][fieldName]
+        except KeyError:
+            raise KeyError(f"Field {fieldName} not Found. Existing fields are: {','.join(objs[compressible].keys())}")
 
         return OFField(name=fieldName,dimensions=objData['dimensions'],componentNames=objData['componentNames'])
 
@@ -99,7 +103,7 @@ class ofObjectHome:
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dataframe.from_delayed(
+            data = dask.dataframe.from_delayed(
                 [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
                  product(processorList, timeList[1:])])
         else:
@@ -113,7 +117,7 @@ class ofObjectHome:
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+            data = dask.dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
 
         return data
 
@@ -181,8 +185,6 @@ class OFObject:
         data: pandas.DataFrame
             The data to convert
 
-        columnNames: list
-            The columns to use. If None, use all the columns of the data.
 
         Returns
         -------
@@ -215,12 +217,11 @@ object      kinematicCloudPositions;
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     """
 
-    def write(self,caseDirectory,time,data,fileName=None,parallel=True):
+    def write(self,caseDirectory,time,data,fileName=None,parallel=False):
         """
             Updates the field internal data to the input.
             Should **not** update the boundaries data.
 
-            use cols to write the data.
 
             If parallel is true, and there is a decomposed case, write the data to the different processors.
             In that case, the series must have processorNumber and index columns. Otherwise, only index columns is required.
@@ -241,9 +242,6 @@ object      kinematicCloudPositions;
         data: pandas
                 The data to update. Must include the column index (for composed cases) and processorName/index for decomposed cases.
 
-        cols : list
-                The list of columns to write (and their order).
-
         parallel: bool
                 If true, check if there is a decomposed case
 
@@ -256,23 +254,34 @@ object      kinematicCloudPositions;
         fileName = self.name if fileName is None else fileName
 
         if parallel:
+
             # Check if pandas support multicolumns.
             if 'processor' not in data:
                 raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
 
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
-            dataProcessorList =data.processor.unique().compute()
+            if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe):
+                dataProcessorList = data.processor.unique()
+                if isinstance(data,dask.dataframe):
+                    dataProcessorList = dataProcessorList.compute()
 
-            if len(dataProcessorList) != len(procPaths):
-                errStr = f"Processor on disk and the data provided have mismatch in processor count. Disk: {len(procPaths)} ; Data {len(dataProcessorList)}"
-                raise ValueError(errStr)
+                if len(dataProcessorList) != len(procPaths):
+                    errStr = f"Processor on disk and the data provided have mismatch in processor count. Disk: {len(procPaths)} ; Data {len(dataProcessorList)}"
+                    raise ValueError(errStr)
 
-            for processor in dataProcessorList:
+            for processorName in procPaths:
 
-                procData = data.query("processor == @processor").compute()
+                procID = int(processorName[9:])
 
-                fullFileName = os.path.join(caseDirectory,f"processor{processor}" ,time, fileName)
+                if isinstance(data, pandas.DataFrame) or isinstance(data, dask.dataframe):
+                    procData = data.query("processor == @procID")
+                    if isinstance(data, dask.dataframe):
+                        procData = procData.compute()
+                    else:
+                        procData = data
+
+                fullFileName = os.path.join(caseDirectory,processorName ,time, fileName)
 
                 if os.path.exists(fullFileName):
                     self._updateExisting(filename=fullFileName,data=procData)
@@ -280,12 +289,12 @@ object      kinematicCloudPositions;
                     self._writeNew(filename=fullFileName,data=procData)
 
         else:
-            fullFileName = os.path.join(caseDirectory, time, fileName)
+            fullFileName = os.path.join(caseDirectory, str(time), fileName)
 
             if os.path.exists(fullFileName):
-                self._updateExisting(filename=fullFileName, data=data, columnNames=self.columnNames)
+                self._updateExisting(filename=fullFileName, data=data)
             else:
-                self._writeNew(filename=fullFileName, data=data, columnNames=self.columnNames)
+                self._writeNew(filename=fullFileName, data=data)
 
     def _updateExisting(self, filename, data):
         raise NotImplementedError("Implemented specifically for field or list")
@@ -412,15 +421,14 @@ class OFField(OFObject):
         data: pandas
             The data to write (we assume it is in the right order.
 
-        columnNames: list
-            The list of columns to write.
-            If None, use all columns in pandas.
-
         Returns
         -------
             None
         """
-        columnNames = [x for x in data.columns if (x!='processor' and x!='time') ] if self.columnNames is None else self.columnNames
+        if isinstance(data,(pandas.DataFrame,dask.dataframe.DataFrame)):
+            columnNames = [x for x in data.columns if (x!='processor' and x!='time') ] if self.componentNames is None else self.componentNames
+        else:
+            columnNames = None
 
         filecontentStr = ""
 
@@ -431,28 +439,30 @@ class OFField(OFObject):
                 if firstToken != "internalField":
                     filecontentStr += inline
                 else:
-                    filecontentStr += "internalField   nonuniform List<vector>\n"
 
-                    if len(columnNames) > 1:
-                        # vector
-                        filecontentStr += self.pandasToFoamFormat(data, columnNames)
+                    if columnNames is None:
+                        filecontentStr += f"internalField   uniform {data};\n"
                     else:
-                        # scalar
-                        if isinstance(data, pandas.Series):
-                            filecontentStr += "\n".join(data)
+                        filecontentStr += "internalField   nonuniform List<vector>\n"
+
+                        if len(columnNames) > 1:
+                            # vector
+                            filecontentStr += self.pandasToFoamFormat(data, columnNames)
                         else:
-                            filecontentStr += "\n".join(data[columnNames])
+                            # scalar
+                            if isinstance(data, pandas.Series):
+                                filecontentStr += "\n".join(data)
+                            else:
+                                filecontentStr += "\n".join(data[columnNames])
 
-                    filecontentStr += "\n"
-                    # Skip internal field until the boundaryField.
-                    firstTokenInner = ""
-                    while firstTokenInner != 'boundaryField':
-                        inline = inFile.readline()
-                        firstTokenInner = inline.split(" ")[0].strip()
-                        if not inline:
-                            break
-
-                    filecontentStr += 'boundaryField\n'
+                        filecontentStr += "\n"
+                        # Skip internal field until the boundaryField.
+                        firstTokenInner = ""
+                        while firstTokenInner != 'boundaryField':
+                            inline = inFile.readline()
+                            firstTokenInner = inline.split(" ")[0].strip()
+                            if not inline:
+                                break
 
             with open(filename, 'w') as outFile:
                 outFile.write(filecontentStr)
@@ -467,41 +477,41 @@ class OFField(OFObject):
         ----------
         filename : str
                 The full file name
-        data: pandas.Dataframe or pandas.Series
+        data: pandas.Dataframe or pandas.Series or number.
                 The data to inject
         dimensions: str
                 The dimensions of the variable.
                 Here just accept OF full format. i.e. [0 1 0 0 0 0 1]  ..
 
-        columnNames: list
-                The columns to use
-                if None, use all columns. d
-
         Returns
         -------
 
         """
-        if isinstance(data,pandas.Series):
-            columnNames = ['demo']
-        else:
-            columnNames = [x for x in data.columns if
-                           (x != 'processor' and x != 'time')] if self.columnNames is None else self.columnNames
 
-        fileStrContent = self.getHeader()
-
+        fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
-        fileStrContent += "internalField   nonuniform List<vector>\n"
 
-        if len(columnNames) > 1:
-            # vector
-            fileStrContent += self.pandasToFoamFormat(data,columnNames)
-
+        if isinstance(data,float) or isinstance(data,int):
+            fileStrContent += f"internalField  uniform {data};\n"
         else:
-            # scalar
-            if isinstance(data, pandas.Series):
-                fileStrContent +=  "\n".join(data)
+            fileStrContent += "internalField   nonuniform List<vector>\n"
+
+            if isinstance(data,pandas.Series):
+                componentNames = ['demo']
             else:
-                fileStrContent += "\n".join(data[columnNames])
+                componentNames = [x for x in data.columns if
+                               (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
+
+            if len(componentNames) > 1:
+                # vector
+                fileStrContent += self.pandasToFoamFormat(data,componentNames)
+
+            else:
+                # scalar
+                if isinstance(data, pandas.Series):
+                    fileStrContent +=  "\n".join(data)
+                else:
+                    fileStrContent += "\n".join(data[componentNames])
 
         fileStrContent += """
     boundaryField
@@ -516,7 +526,6 @@ class OFField(OFObject):
             outfile.write(fileStrContent)
 
         return fileStrContent
-
 
 
 class OFList(OFObject):
