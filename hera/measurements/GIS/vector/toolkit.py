@@ -1,15 +1,9 @@
-from shapely import geometry
-import os
 import io
 from hera import toolkit
 import geopandas as gp
-from hera.measurements.GIS.shapes import ShapesToolKit
-import json
-import geojson
-import pandas
 from shapely.geometry import Polygon, box
 from hera.datalayer.datahandler import datatypes
-from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
+
 
 TOOLKIT_VECTOR_REGIONNAME = "regionName"
 
@@ -153,10 +147,7 @@ class VectorToolkit(toolkit.abstractToolkit):
         else:
             shape = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
 
-        if isBounds == False:
-            dct = {'mask':shape}
-        else:
-            dct = {'bbox':shape}
+        dct = dict(bbox=shape) if isBounds else dict(mask=shape)
 
         qry = {toolkit.TOOLKIT_DATASOURCE_NAME: dataSourceName,
                toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
