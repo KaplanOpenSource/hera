@@ -43,6 +43,9 @@ loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
     Changing the computation of the risk areas back to contour from tricontour. 
  
 
+    - Building new GIS toolkit . 
+        - Depracating the cut of a region. 
+
 2.4.1 
 ------
 

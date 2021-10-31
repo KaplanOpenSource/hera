@@ -53,7 +53,7 @@ class MetadataFrame(object):
         -------
             object according to the datahandler. 
         """
-        return getHandler(self.dataFormat).getData(self.resource, **kwargs)
+        return getHandler(self.dataFormat).getData(self.resource,self.desc, **kwargs)
 
 
 class nonDBMetadataFrame(object):

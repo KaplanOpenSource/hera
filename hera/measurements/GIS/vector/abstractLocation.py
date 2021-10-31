@@ -1,10 +1,12 @@
 from shapely import geometry
 import os
 import io
-from .... import toolkit
+from hera import toolkit
 import geopandas
-from ..shapes import ShapesToolKit
+from hera.measurements.GIS.shapes import ShapesToolKit
 import pandas
+import geojson
+
 
 
 TOOLKIT_LOCATION_REGIONNAME = "regionName"
@@ -269,9 +271,6 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                                 dataSourceVersion=dataSourceVersion,
                                 additional_data=additional_data)
 
-
-
-
     def getRegionDocumentByPoints(self,point):
         """
 
@@ -312,7 +311,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                     The name of the region
         Returns
         -------
-            Return the locations with the region anme
+            Return the vectorData with the region anme
         """
 
         return self.getDatasourceDocument(regionName)
@@ -327,7 +326,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                     The name of the region
         Returns
         -------
-            Return the locations with the region anme
+            Return the vectorData with the region anme
         """
 
         return self.getDatasourceData(regionName)
