@@ -91,7 +91,8 @@ class analysis():
         wind: float
               The meteorological wind direction.
         resolution: int
-                    The block size in grid
+                    The size of the block in meter.
+
         buildingsDataSourceNameOrData: str or GeoDataframe
         exteriorBlockNameOrData: GeoDataFrame,str,list,polygon
 
@@ -115,7 +116,7 @@ class analysis():
                 extent = gpd.GeoDataFrame({'geometry': [box(*(data.total_bounds))]},crs=data.crs)
             else:
                 raise ValueError(f" buildingsDataSource must be GeoDataFrame ")
-                return
+
 
         elif exteriorBlockNameOrData is not None:
 
@@ -130,7 +131,7 @@ class analysis():
 
             else:
                 raise ValueError(f" exteriorBlockNameOrData must be: GeoDataFrame/GeoJSON/list/Polygon/string")
-                return
+
 
             data = self._datalayer.cutRegionFromSource(extent, crs=crs)
 
@@ -286,7 +287,7 @@ class Blocks(object):
         buildings = gpd.overlay(self._Buildings, boxToIntersect, how='intersection')
         OnebuildingsBlock = Blocks(level=0, df=boxToIntersect, size=200)  # buildings,box
         OnebuildingsBlock._Buildings = buildings
-        OnebuildingsBlock._ExteriorBlock = boxToIntersect
+        OnebuildingsBlock._ExteriorBlock = extent
         OnebuildingsBlock._blockArea = boxToIntersect.area
 
         return OnebuildingsBlock
@@ -396,17 +397,17 @@ class Blocks(object):
         """
         listOfBuildingsBlock = []
         self._Buildings = buildings
-        currentDict = {'lambdaP': [], 'lambdaF': [], 'hc': [], 'geometry': []}
-        i = 0
+        currentDict = {'lambdaP': [], 'lambdaF':[], 'hc': [], 'geometry': []}
 
-        for blockDict in self._GetBlocks():
+
+        for i,blockDict in enumerate( self._GetBlocks()):
             # currentPandas = pandas.DataFrame.from_dict(blockDict)
             listOfBuildingsBlock.append(self.initBuildingsBlock(blockDict))
             currentDict['lambdaF'].append(listOfBuildingsBlock[i]._LambdaF(windDirection=windDirection))
             currentDict['lambdaP'].append(listOfBuildingsBlock[i]._LambdaP())
             currentDict['hc'].append(listOfBuildingsBlock[i].getHc())
             currentDict['geometry'].append(listOfBuildingsBlock[i]._ExteriorBlock)
-            i = i + 1
+
 
         df = pd.DataFrame.from_dict(currentDict, orient='columns')
         return gpd.GeoDataFrame(df, geometry=df['geometry'])
