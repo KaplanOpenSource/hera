@@ -31,7 +31,8 @@ loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
     
     OpenFoam  
         * Build a toolkit that unifies the access to NS and LSM  
-        * Build a reader for the eulerian data, either decomposed or composed cases.   
+        * Build a reader for the eulerian data, either decomposed or composed cases.
+        * New interface to write and read OF fields (eulerian or lagrangian).    
  
     LSM - small fixes to handle parameters without units.
     Gaussian - Fixing the toolkit of large droplets 
