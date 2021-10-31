@@ -9,19 +9,19 @@ import os
 import requests
 from scipy.interpolate import griddata
 from shapely.geometry import LineString
-from .... import toolkit
+from hera import toolkit
 import xarray
 import dask
 from numpy import array, sqrt
 import pandas
 
-from .import abstractLocation
-from ....simulations.utils import coordinateHandler
+from hera.measurements.GIS.vector import toolkit
+from hera.simulations.utils import coordinateHandler
 
-from ....datalayer import datatypes
+from hera.datalayer import datatypes
 
 
-class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
+class TopographyToolkit(toolkit.VectorToolkit):
 
     _stlFactory = None
     _srtmBounds = None
@@ -194,7 +194,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
         """
 
         if isinstance(regionNameOrData,str):
-            region = self.getRegionByName(regionNameOrData)
+            region = self.getDatasourceData(regionName)
             if region is None:
                 region = geopandas.read_file(io.StringIO(regionNameOrData))
         elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame) or isinstance(regionNameOrData,pandas.core.frame.DataFrame) or \
@@ -228,7 +228,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
 
                 regionDoc = self.getSTL(regionNameOrData)
 
-                if regionDoc is not None and saveMode==abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                if regionDoc is not None and saveMode== abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{regionNameOrData} already exists in the DB")
 
                 xmin, ymin, xmax, ymax = region.bounds
@@ -366,12 +366,7 @@ class TopographyToolkit(abstractLocation.AbstractLocationToolkit):
                 }
         return [x.desc[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] for x in self.getCacheDocuments(**desc)]
 
-    def loadData(self):
-        """
-         BUILD
-        :return:
-        """
-        pass
+
 
 class analysis():
 
@@ -385,7 +380,7 @@ class analysis():
         self._datalayer = dataLayer
 
 
-    def addHeight(self,data,groundData,coord1="x",coord2="y",coord3="z",resolution=10,saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,file=None,fillna=0,**kwargs):
+    def addHeight(self, data, groundData, coord1="x", coord2="y", coord3="z", resolution=10, saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE, file=None, fillna=0, **kwargs):
         """
         adds a column of height from ground for a dataframe which describes a mesh.
         params:
@@ -430,7 +425,7 @@ class analysis():
             file = os.path.join(self.datalayer.FilesDirectory, "cellData.parquet") if file is None else file
 
             if os.path.exists(file) and saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                                                              abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+                                                     abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
                 raise FileExistsError(f"The output file {file} exists")
 
             data.to_parquet(file, compression="gzip")
@@ -441,7 +436,7 @@ class analysis():
 
                 regionDoc = self.datalayer.getCacheDcouments(resource=file, dataFormat="parquet",type="cellData", desc=dict(resolution=resolution,**kwargs))
 
-                if len(regionDoc) >0 and saveMode==abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                if len(regionDoc) >0 and saveMode== abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{file} already exists in the DB")
                 else:
                     self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
@@ -634,7 +629,6 @@ class stlFactory:
 
         stl_str += f"endsolid {solidName}\n"
         return stl_str
-
 
     def vectorToSTL(self,gpandas,dxdy=50,solidName="Topography"):
         """

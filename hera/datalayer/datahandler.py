@@ -41,7 +41,7 @@ class DataHandler_string(object):
     """
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         The data in the record is a string.
 
@@ -63,7 +63,7 @@ class DataHandler_time(object):
     """
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         The data in the record is a timestamp.
 
@@ -87,7 +87,7 @@ class DataHandler_csv_pandas(object):
     """
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         Loads a csv file into pandas dataframe.
 
@@ -118,7 +118,7 @@ class DataHandler_HDF(object):
     """
 
     @staticmethod
-    def getData(resource, usePandas=False):
+    def getData(resource, usePandas=False,desc=None):
         """
         Loads a key from a HDF file or files.
 
@@ -145,7 +145,7 @@ class DataHandler_HDF(object):
 class DataHandler_netcdf_xarray(object):
 
     @staticmethod
-    def getData(resource,**kwargs):
+    def getData(resource,desc=None,**kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -169,7 +169,7 @@ class DataHandler_netcdf_xarray(object):
 class DataHandler_JSON_dict(object):
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         Loads JSON to dict
 
@@ -194,7 +194,7 @@ class DataHandler_JSON_dict(object):
 class DataHandler_JSON_pandas(object):
 
     @staticmethod
-    def getData(resource, usePandas=True):
+    def getData(resource, usePandas=True,desc=None):
         """
         Loads JSON to pandas/dask
 
@@ -220,15 +220,22 @@ class DataHandler_JSON_pandas(object):
 
 class DataHandler_JSON_geopandas(object):
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None,**kwargs):
         df = geopandas.GeoDataFrame.from_features(pandas.read_json(resource)["features"])
         return df
 
 
 class DataHandler_geopandas(object):
     @staticmethod
-    def getData(resource):
-        df = geopandas.read_file(resource)
+    def getData(resource,desc=None,**kwargs):
+        if 'mask' in kwargs:
+            df = geopandas.read_file(resource, mask = kwargs['mask'])
+        elif 'bbox' in kwargs:
+            df = geopandas.read_file(resource, bbok=kwargs['bbox'])
+        else:
+            df = geopandas.read_file(resource)
+        if "crs" in desc:
+            df.crs = desc['crs']
 
         return df
 
@@ -236,7 +243,7 @@ class DataHandler_geopandas(object):
 class DataHandler_parquet(object):
 
     @staticmethod
-    def getData(resource, usePandas=False):
+    def getData(resource,desc=None, usePandas=False):
         """
         Loads a parquet file to dask/pandas.
 
@@ -266,7 +273,7 @@ class DataHandler_parquet(object):
 class DataHandler_image(object):
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         Loads an image using the resource.
 
@@ -287,7 +294,7 @@ class DataHandler_image(object):
 class DataHandler_pickle(object):
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         Loads an pickled object using the resource.
 
@@ -307,7 +314,7 @@ class DataHandler_pickle(object):
 class DataHandler_dict(object):
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         The resource is a dict.
 
@@ -326,7 +333,7 @@ class DataHandler_dict(object):
 class DataHandler_tif(object):
 
     @staticmethod
-    def getData(resource):
+    def getData(resource,desc=None):
         """
         Loads an pickled object using the resource.
 

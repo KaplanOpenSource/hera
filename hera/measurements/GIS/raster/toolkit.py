@@ -1,11 +1,11 @@
-from . import abstractLocation
+
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import os
-from ....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-from ....datalayer import datatypes, nonDBMetadataFrame
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from hera.datalayer import datatypes, nonDBMetadataFrame
 
-class RasterToolkit(abstractLocation.AbstractLocationToolkit):
+class RasterToolkit():
     """
         A class to handle an image that represents a location.
 

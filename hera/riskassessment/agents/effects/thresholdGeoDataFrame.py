@@ -1,13 +1,12 @@
 import numpy
 import collections
 import pandas
-import geopandas 
+import geopandas
 
-from unum.units import *
 from ....utils import toMeteorologicalAngle,toMathematicalAngle
 
 
-from hera.measurements.GIS.demography import DemographyToolkit as demoDatalayer
+from hera.measurements.GIS.vector.locations.demography import DemographyToolkit as demoDatalayer
 pop = demoDatalayer(projectName="Demography") # used only for the analysis layer, which is static.
 
 
