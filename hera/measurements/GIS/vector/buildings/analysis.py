@@ -178,7 +178,7 @@ class analysis():
                }
 
         self._datalayer.addCacheDocument(resource=outputfileFull,
-                              dataFormat=datatypes.STRING,
+                              dataFormat=datatypes.GEOPANDAS,
                               desc=desc)
 
         return domainLambda
