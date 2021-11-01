@@ -4,8 +4,6 @@ import geopandas as gps
 from hera.measurements.GIS.vector import toolkit
 from hera.measurements.GIS.vector.buildings.analysis import analysis
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-
-
 from hera.datalayer import datatypes,nonDBMetadataFrame
 
 try:
@@ -156,8 +154,8 @@ class BuildingsToolkit(toolkit.VectorToolkit):
                 raise ValueError(f"STL {regionNameSTL} exists in project {self.projectName}")
 
             desc = {
-                    abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
-                    abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                    toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
+                    toolkit.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
                    }
 
             if doc is None:
@@ -195,15 +193,16 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         docList = self.getCacheDocuments(**desc)
         return None if len(docList)==0 else docList[0]
 
+
 if __name__ == "__main__":
 
-    bt = BuildingsToolkit('test4')
+    bt = BuildingsToolkit('test4',FilesDirectory ='/home/hadas/Hadas_S/temp/')
     bt.addRegion([177933,663923,187933,673923], 'new9',crs = 2039)
     reg =[177933,663923,187933,673923]
     # lis = vt.getRegionNameList()
     #reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
     #data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
     #lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
-    lm = bt._analysis.LambdaOfDomain(270, 200, exteriorBlockNameOrData=reg, crs=2039)
+    lm = bt._analysis.LambdaOfDomain(270, 200, 'test',exteriorBlockNameOrData=reg, crs=2039)
     p=1
 
