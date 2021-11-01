@@ -123,7 +123,6 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         self.addCacheDocument(resource = data, dataFormat=datatypes.GEOPANDAS, desc=desc)
 
-
     def cutRegionFromSource(self,shapeDataOrName,dataSourceName , isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
         """
 
@@ -156,8 +155,6 @@ class VectorToolkit(toolkit.abstractToolkit):
                 raise ValueError(f"The Data sources available in the project are: " + sourceList)
             else:
                 return doc.getData(**dct)
-
-
 
     def getRegionNameList(self):
         """
