@@ -25,6 +25,8 @@ class ToolkitHome:
     TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
     ############################################################
 
+
+    LOGGING        = "Logging"
     GIS_BUILDINGS  = "GIS_Buildings"
     GIS_RASTER     = "GIS_Raster"
     GIS_TOPOGRAPHY = "GIS_Topography"

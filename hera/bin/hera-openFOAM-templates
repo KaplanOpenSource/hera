@@ -4,12 +4,12 @@ import json
 import sys
 import shutil
 import os
-from hera.simulations.hermesWorkflow import hermesWorkflow
+from hera.simulations.openFoam import hermesOpenFOAMWorkflow
 
 from hera.utils.jsonutils import loadJSON
 
 
-def parser_prepare(arguments):
+def prepare(arguments):
     """
         Prepares the workflow to the specific case by using the
         caseConfiguration file.
@@ -32,12 +32,9 @@ def parser_prepare(arguments):
 
     """
 
-    if len(arguments.args) != 3:
-        raise ValueError(f"Input must be: [workflow file] [template directory] [configuration file]")
-
     templateName = arguments.templateName
 
-    hwf = hermesWorkflow(arguments.workflow)
+    hwf = hermesOpenFOAMWorkflow(arguments.workflow)
     configuration = loadJSON(arguments.configurationFile)
 
     # 1. Prepare the geometry. Build the STL
@@ -53,6 +50,15 @@ def parser_prepare(arguments):
 
 
 if __name__=="__main__":
+
+    from hera import toolkitHome
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
+    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+
+    tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False)
+
+
+
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
@@ -85,7 +91,7 @@ if __name__=="__main__":
     parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
     parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
 
-    parser_prepare.set_defaults(func=parser_prepare)
+    parser_prepare.set_defaults(func=prepare)
 
 
     parsed = parser.parse_args()

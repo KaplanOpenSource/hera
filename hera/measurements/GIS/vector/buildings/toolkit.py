@@ -54,7 +54,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         return f"{self.name}_STL"
 
 
-    def geoPandasToSTL(self,buildingData,outputFileName,flat=None,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+    def geoPandasToSTL(self,buildingData,outputFileName,flat=None):
         """
                 Converts a building data (in geopandas format) to STL using the Freecad module.
 
@@ -71,12 +71,12 @@ class BuildingsToolkit(toolkit.VectorToolkit):
                 The base of the building.
                 If None, use the buildings height.
 
-        saveMode
-
         Returns
         -------
-
+            float
+                The maximal height that was found
         """
+        self.logger.info("geoPandasToSTL - Start")
         try:
             from freecad import app as FreeCAD
             import Part
@@ -85,50 +85,10 @@ class BuildingsToolkit(toolkit.VectorToolkit):
             logging.error("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
             raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
-
-
-    def regionToSTL(self, regionNameOrData, outputFileName,dataSource,flat=None,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
-        """
-            Converts the document to the stl and saves it to the disk.
-            Adds the stl file to the DB.
-
-
-            Parameters
-            ----------
-
-            regionNameOrData: str or geopandas .
-                The name of the datasource or the geopandas file to convert.
-
-                If geopandas has the following columns:
-
-            flat: None or float.
-                The base of the building.
-                If None, use the buildings height.
-
-            outputfile: str
-                a path to the output file.
-
-            saveMode: str
-                - None, does not add to the DB.
-                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
-                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
-
-            Returns
-            -------
-                The maximal height
-
-        """
-
         maxheight = -500
-
         FreeCADDOC = FreeCAD.newDocument("Unnamed")
 
-        shp = self.cutRegionFromSource(regionNameOrData)
-
-        if isinstance(regionNameOrData,str):
-            shp = self.getLocationByRegion(regionNameOrData).getData()
-        else:
-            shp = regionNameOrData
+        shp = buildingData # olv version compatability
 
         k = -1
         for j in range(len(shp)):  # converting al the buildings
@@ -172,6 +132,51 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         outputfileFull = os.path.abspath(os.path.join(self.FilesDirectory,outputFileName))
         Mesh.export(FreeCADDOC.Objects, outputfileFull)
 
+        self.logger.info(f"geoPandasToSTL - End. Max height found {maxheight}")
+        return maxheight
+
+
+    def regionToSTL(self, regionNameOrData, outputFileName,dataSourceName,flat=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+        """
+            Converts the document to the stl and saves it to the disk.
+            Adds the stl file to the DB.
+
+
+            Parameters
+            ----------
+
+            regionNameOrData: str or geopandas .
+                The name of the datasource or the geopandas file to convert.
+
+                If geopandas has the following columns:
+
+            dataSourceName: string
+                The name of the datasource that contains the database of the buildings
+
+            flat: None or float.
+                The base of the building.
+                If None, use the buildings height.
+
+            outputfile: str
+                a path to the output file.
+
+            saveMode: str
+                - None, does not add to the DB.
+                - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
+                - TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
+
+            Returns
+            -------
+                The maximal height
+
+        """
+
+        if isinstance(regionNameOrData, str):
+            shp = self.cutRegionFromSource(regionNameOrData,dataSourceName=dataSourceName)
+        else:
+            shp = regionNameOrData
+
+        maxheight = self.geoPandasToSTL(buildingData=shp, outputFileName=outputFileName, flat=flat)
 
         if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
                         TOOLKIT_SAVEMODE_FILEANDDB]:
@@ -185,23 +190,21 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
             desc = {
                     toolkit.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
-                    toolkit.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                    toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
                    }
 
             if doc is None:
                 self.addCacheDocument(type=self.doctype,
-                                      resource=outputfileFull,
+                                      resource=os.path.abspath(outputFileName),
                                       dataFormat=datatypes.STRING,
                                       desc=desc)
             else:
-                doc.resource = outputfileFull
+                doc.resource = os.path.abspath(outputFileName)
                 doc.desc = desc
                 doc.save()
 
-
-
-        self.logger.info(f"toSTL: end. Maxheight {maxheight}")
         return maxheight
+
 
     def getSTL(self,regionNameSTL):
         """

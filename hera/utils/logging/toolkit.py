@@ -16,7 +16,6 @@ def execution(self, message, *args, **kws):
 logging.Logger.execution = execution
 
 
-
 class loggingToolkit(abstractToolkit):
     """
         A toolkit to handle log files.
@@ -128,7 +127,7 @@ class loggingToolkit(abstractToolkit):
         # Add to the DB of the user.
         logDocument = self.getDatasourceDocument("logging")
         if logDocument is None:
-            self.addDataSource(dataSourceName="logging",dataFormat=datatypes.DICT,resource=log_config)
+            self.addDataSource(dataSourceName="logging",dataFormat=datatypes.DICT,resource=log_conf)
 
         # setup the config.
         logging.config.dictConfig(log_conf)
@@ -143,7 +142,7 @@ class loggingToolkit(abstractToolkit):
         -------
             None
         """
-        logDoument = self.getDatasourceData("logging")
+        logDoument = self.getDatasourceDocument("logging")
         logDoument.resource = self.configuration
         logDoument.save()
 
