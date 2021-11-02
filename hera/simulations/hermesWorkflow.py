@@ -1,5 +1,6 @@
 from ..utils.logging.loggedObject import loggedObject
 import jsonpath_ng as jsonpath
+from ..utils.jsonutils import loadJSON
 import json
 import os
 
@@ -20,6 +21,10 @@ class hermesWorkflow(loggedObject):
     def nodeList(self):
         return self._workflowJSON['nodeList']
 
+    @property
+    def nodes(self):
+        return self._workflowJSON['nodes']
+
 
     def __init__(self,workflow):
         """
@@ -33,25 +38,8 @@ class hermesWorkflow(loggedObject):
 
         self.logger.info("Initializing")
 
-        if hasattr(workflow,'read'):
-            self.logger.debug("loading from file-like")
-            self._workflow = json.load(workflow)
-        elif isinstance(workflow,str):
+        self._workflow = loadJSON(workflow)
 
-            if os.path.exists(workflow):
-                self.logger.debug("loading from file")
-                with open(workflow) as jsonFile:
-                    self._workflow = json.load(jsonFile)
-            else:
-                self.logger.debug("loading from str")
-                self._workflow = json.loads(workflow)
-        elif isinstance(workflow,dict):
-            self.logger.debug("using dict")
-            self._workflow = workflow
-        else:
-            err = f"workflow type: {type(workflow)} is unknonw. Must be str, file-like or dict. "
-            self.logger.error(err)
-            raise ValueError(err)
 
     def __getitem__(self, item):
         """
@@ -135,6 +123,29 @@ class hermesWorkflow(loggedObject):
         """
         jsonexpr = jsonpath.parse(jsonpath)
         jsonexpr.update(self._workflowJSON['nodes'],value)
+
+
+    def write(self,filename,overwrite=False):
+        """
+            writes the new workflow to the file.
+        Parameters
+        ----------
+        filename : str
+            The file name
+
+        overwrite: bool
+            If true, the writes over existing file. Otherwise raises an exception.
+
+        Returns
+        -------
+
+        """
+        if not overwrite:
+            if os.path.exists(filename):
+                raise FileExistsError(f"{filename} alread exists. Use overwrite=True to overwite it")
+
+        with open(filename,'w') as outputFile:
+            json.dump(self._workflow,outputFile)
 
 
 
