@@ -1,9 +1,7 @@
 from ...toolkit import abstractToolkit
-import pandas
-import xarray
-import numpy
 import os
 import glob
+from .OFObjects import OFField
 
 
 class OFToolkit(abstractToolkit):
@@ -110,9 +108,9 @@ class OFToolkit(abstractToolkit):
 
         self.logger.info(f"End")
 
-        return loadEulerianDataParallel(caseDirectory,fieldName="C",columnNames=['x','y','z'],times=time,parallelCase=useParallel)
+        cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
 
-
+        return cellCenters.load(caseDirectory,times=time,parallelCase=useParallel)
 
 
     def runWorkflow(self,workflowNameOrJSON,saveMode):
@@ -187,11 +185,6 @@ boundaryField
 
 // ************************************************************************* //
 """
-
-class Field:
-    """
-        Represent a single
-    """
 
 
 

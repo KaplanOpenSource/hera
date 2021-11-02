@@ -1,15 +1,8 @@
-from shapely import geometry
-import os
 import io
 from hera import toolkit
 import geopandas as gp
-from hera.measurements.GIS.shapes import ShapesToolKit
-import json
-import geojson
-import pandas
 from shapely.geometry import Polygon, box
 from hera.datalayer.datahandler import datatypes
-from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
 
 TOOLKIT_VECTOR_REGIONNAME = "regionName"
 
@@ -66,6 +59,23 @@ class VectorToolkit(toolkit.abstractToolkit):
             raise ValueError("Function receives only GeoDataFrame")
 
     def _setGeoPandasFromRegionData(self,regionData, crs = None):
+        """
+            Converts a shapte to geopandas.
+
+        Parameters
+        ----------
+        regionData: GeoDataFrame,dict,list,Polygon
+            The shape data to use.
+
+            list - a box with  [xmin,ymin,xmax,ymax]
+
+        crs : int
+            The CRS EPSG identification.
+
+        Returns
+        -------
+
+        """
 
         if isinstance(regionData,gp.GeoDataFrame):
 
@@ -75,7 +85,6 @@ class VectorToolkit(toolkit.abstractToolkit):
             data = gp.GeoDataFrame.from_features(regionData['features'])
 
         elif isinstance(regionData, list):
-
             try:
                 data =gp.GeoDataFrame({'geometry':[box(regionData[0], regionData[1], regionData[2], regionData[3])]})
             except Exception as e:
@@ -131,15 +140,25 @@ class VectorToolkit(toolkit.abstractToolkit):
         self.addCacheDocument(resource = data, dataFormat=datatypes.GEOPANDAS, desc=desc)
 
 
-    def cutRegionFromSource(self,shapeDataOrName,dataSourceName = None, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
+    def cutRegionFromSource(self,shapeDataOrName,dataSourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
         """
+            Cuts a the shape from the requested datasource
 
         Parameters
         ----------
-        shapeDataOrName
-        dataSourceName
-        isBounds
-        crs
+        shapeDataOrName: GeoDataFrame,dict,list,Polygon
+            The shape data to use.
+
+                        list - a box with the corners in [xmin,ymin,xmax,ymax]
+
+        dataSourceName : str
+            The name of the satasource to cur from.
+
+        isBounds : bool
+            If true, use the bounding box fo the polygon.
+
+        crs : int
+            The EPSG of the coordinate system of the shape (if it is a shape and not in the dtasource ative coordinates).
 
         Returns
         -------
@@ -147,9 +166,7 @@ class VectorToolkit(toolkit.abstractToolkit):
         """
         shape = None
         if isinstance(shapeDataOrName, str):
-
             shape= self.getRegionData(shapeDataOrName)
-
         else:
             shape = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
 

@@ -214,10 +214,11 @@ version     2.0;
 format      ascii;
 class       vectorField;
 object      kinematicCloudPositions;
+}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     """
 
-    def write(self,caseDirectory,time,data,fileName=None,parallel=False):
+    def write(self,caseDirectory,time,data=None,fileName=None,parallel=False):
         """
             Updates the field internal data to the input.
             Should **not** update the boundaries data.
@@ -252,6 +253,9 @@ object      kinematicCloudPositions;
 
         """
         fileName = self.name if fileName is None else fileName
+
+        if data is None:
+            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
 
         if parallel:
 
@@ -491,8 +495,11 @@ class OFField(OFObject):
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
 
-        if isinstance(data,float) or isinstance(data,int):
-            fileStrContent += f"internalField  uniform {data};\n"
+        if type(data) in ['float','int','list','tuple']: #isinstance(data,float) or isinstance(data,int):
+            if type(data) in ['float','int']:
+                fileStrContent += f"internalField  uniform {data};\n"
+            else:
+                fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"
         else:
             fileStrContent += "internalField   nonuniform List<vector>\n"
 
@@ -526,6 +533,71 @@ class OFField(OFObject):
             outfile.write(fileStrContent)
 
         return fileStrContent
+
+
+    def emptyParallelField(self,caseName,data=None):
+        """
+            Writes a null file with definitions of the processor boundries
+            because sometimes, the snappyHex mesh of decomposed pars breaks the parallel
+            fields. This file is used to correct this problem.
+
+        Parameters
+        ----------
+        filename: str
+            The name of the file to write to.
+
+        data: float, str, pandas.DataFrame, dask.DataFrame
+            The data to write to the field.
+
+        Returns
+        -------
+
+        """
+        fileStrContent = self._getHeader()
+        fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
+
+        if data is None:
+            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
+
+
+        if type(data) in ['float','int','list','tuple']: #isinstance(data,float) or isinstance(data,int):
+            if type(data) in ['float','int']:
+                fileStrContent += f"internalField  uniform {data};\n"
+            else:
+                fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"
+        else:
+            fileStrContent += "internalField   nonuniform List<vector>\n"
+
+            if isinstance(data,pandas.Series):
+                componentNames = ['demo']
+            else:
+                componentNames = [x for x in data.columns if
+                               (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
+
+            if len(componentNames) > 1:
+                # vector
+                fileStrContent += self.pandasToFoamFormat(data,componentNames)
+
+            else:
+                # scalar
+                if isinstance(data, pandas.Series):
+                    fileStrContent +=  "\n".join(data)
+                else:
+                    fileStrContent += "\n".join(data[componentNames])
+
+        fileStrContent += """
+   boundaryField
+{
+    "proc.*"
+    {
+        type            processor;
+    }
+
+}"""
+
+        filename = os.path.join(caseName,'0.parallel',self.name)
+        with open(filename,'w') as outfile:
+            outfile.write(fileStrContent)
 
 
 class OFList(OFObject):
@@ -786,4 +858,6 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
     theTime = os.path.split(timeName)[-1]
     newData['time'] = float(theTime)
     return newData
+
+
 

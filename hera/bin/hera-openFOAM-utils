@@ -12,7 +12,6 @@ def createEmpty(args):
     if len(args.args) == 0 :
         raise ValueError("Must supply case directory")
 
-
     caseDir = args.args[0]
     fieldList = args.args[1:]
     print(f"Making case {caseDir} with fields {','.join(fieldList)}")
@@ -21,51 +20,14 @@ def createEmpty(args):
     os.makedirs(os.path.join(caseDir,"constant"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "system"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
 
     # Makes the empty fields
     for fieldName in fieldList:
         field = ofObjectHome().getField(fieldName)
-        field.write(caseDirectory=caseDir,time=0,data=0)
+        field.write(caseDirectory=caseDir,time=0)
+        field.emptyParallelField(caseDirectory=caseDir,time=0)
 
-
-def makeTopographyCanopySTL(args):
-    """
-        Constructs the STL in the destination directory.
-
-        gets case directory and configuration file
-
-        The configuration file structure is:
-
-            {
-                "Regions" : {
-                    "Height": 800
-                    "Region": { "xmin":000,"xmax":000,"ymin":000,"ymax":000},
-                    "STL" : {
-                            "Buildings.stl" : "buildings",
-                            "Topography.stl" : "topography"
-                    }
-                }
-            }
-
-        1. Gets the names of the STL files from configuration file
-        2. Check if they exist in the run directory
-            If they are:
-                    Copy to the case directory.
-            If they are not:
-                    Create them in the directory main
-
-    Parameters
-    ----------
-    args : list
-        [0] - The case directory
-        [1] - The configuration file. (required only if there are no STL in the main directory)
-    flags
-
-    Returns
-    -------
-
-    """
-    pass
 
 
 def makeBlockmeshFromRegion(args):
@@ -109,27 +71,6 @@ if __name__=="__main__":
                                     help='[Case directory] [list of field]')
 
     parser_createEmpty.set_defaults(func=createEmpty)
-
-
-
-    parser_makeTopographyCanopySTL  = subparsers.add_parser('makeBuildingsTopographySTL', help='Creates the topography and canopy STL')
-    parser_makeTopographyCanopySTL.add_argument('args',
-                                    nargs=2,
-                                    type=str,
-                                    help='[Case directory] [JSON configuration file ]')
-
-    parser_makeTopographyCanopySTL.set_defaults(func=makeTopographyCanopySTL)
-
-
-
-    parser_makeBlockmeshFromRegion  = subparsers.add_parser('makeBlockmeshFromRegion', help='Creates the blockmesh from the region')
-    parser_makeBlockmeshFromRegion.add_argument('args',
-                                    nargs=2,
-                                    type=str,
-                                    help='[workflowTemplate] [JSON configuration file ]')
-
-    parser_makeBlockmeshFromRegion.set_defaults(func=makeBlockmeshFromRegion)
-
 
 
     parsed = parser.parse_args()

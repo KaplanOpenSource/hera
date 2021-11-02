@@ -5,6 +5,26 @@ import json
 import sys
 import shutil
 import os
+from hera.simulations.hermesWorkflow import hermesWorkflow
+
+
+def parser_prepare(arguments):
+
+    hwf = hermesWorkflow(arguments.workflow)
+
+    with open(arguments.configurationFile) as configurationFile:
+        configuration = json.load(configurationFile)
+
+    # 1. Prepare the geometry. Build the STL
+
+
+    # 2. Make case parallel
+
+    # 3. Make runfile.
+
+
+
+
 
 if __name__=="__main__":
 
@@ -33,5 +53,9 @@ if __name__=="__main__":
 
     # Build - build all the cases from the parameter file and the template.
     #         Adds to the hera database if necessary.
+
+    parser_prepare.add_argument('--workflow',dest="workflow",type=str,help='The workflow to alter (if exists)')
+    parser_prepare.add_argument('--configurationFile', dest="configurationFile", type=str,default="caseConfiguration.json", help='The configuration file. Default caseConfiguration.json')
+    parser_prepare.set_defaults(func=parser_prepare)
 
 

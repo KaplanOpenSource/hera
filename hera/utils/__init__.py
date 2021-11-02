@@ -2,7 +2,7 @@ import logging
 from unum import Unum
 
 from .query import andClause,dictToMongoQuery
-from .ConvertJSONtoConf import ConvertJSONtoConf
+from .jsonutils import ConvertJSONtoConf
 
 
 

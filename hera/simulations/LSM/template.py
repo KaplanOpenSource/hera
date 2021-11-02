@@ -9,7 +9,7 @@ import pandas
 import numpy
 from unum.units import *
 from ... import toolkit
-from ... utils.ConvertJSONtoConf import ConvertJSONtoConf
+from ... utils.jsonutils import ConvertJSONtoConf
 from ... utils import dictToMongoQuery
 
 

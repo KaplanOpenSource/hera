@@ -1,16 +1,12 @@
 import geopandas
-import random
-import gdal
 import io
 import scipy
 import numpy
 import math
 import os
-import requests
 from scipy.interpolate import griddata
 from shapely.geometry import LineString
 from hera import toolkit
-import xarray
 import dask
 from numpy import array, sqrt
 import pandas
@@ -18,30 +14,12 @@ import pandas
 from hera.measurements.GIS.vector import toolkit
 from hera.simulations.utils import coordinateHandler
 
-from hera.datalayer import datatypes
-
 
 class TopographyToolkit(toolkit.VectorToolkit):
-
-    _stlFactory = None
-    _srtmBounds = None
-    _toolkitname = None
-
-    @property
-    def doctype(self):
-        return f"{self.toolkitName}_STL"
 
     @property
     def stlFactory(self):
         return self._stlFactory
-
-    @property
-    def srtmBounds(self):
-        return self._srtmBounds
-
-    @property
-    def toolkitname(self):
-        return self._toolkitname
 
     def __init__(self, projectName, filesDirectory=""):
         toolkitName = "Topography"
@@ -49,217 +27,58 @@ class TopographyToolkit(toolkit.VectorToolkit):
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         self._toolkitname = toolkitName
         self._stlFactory = stlFactory()
-        srtmDocs = self.getMeasurementsDocumentsAsDict(name="SRTM")
-        self._srtmBounds = []
-        if type(srtmDocs)==dict:
-            for doc in srtmDocs["documents"]:
-                self._srtmBounds.append(doc["desc"]["Bounds"])
 
-    def makeRegion_tif(self, points,outputFileName,**kwargs):
 
-        availableBounds = {}
-        for bounds in self.srtmBounds:
-            if points[0] >= bounds[0] and points[0] <= bounds[2] and points[2] >= bounds[0] and points[2] <= bounds[2] and points[1] >= bounds[1] and points[1] <= bounds[3] and points[3] >= bounds[1] and points[3] <= bounds[3]:
-                availableBounds["Bounds"] = bounds
-                break
-        if len(availableBounds)>0:
-            FileName = f"{outputFileName}.parquet"
-            allData = self.getMeasurementsDocuments(name="SRTM",type=toolkit.TOOLKIT_DATASOURCE_TYPE, **availableBounds)[0].getData()
-            dataArray = allData.read(1)
-            xs = numpy.linspace(allData.bounds.left,allData.bounds.right,dataArray.shape[1])
-            ys = numpy.linspace(allData.bounds.top,allData.bounds.bottom,dataArray.shape[0])
-            xmin = numpy.where(xs>points[0])[0].min()
-            ymin = numpy.where(ys<points[1])[0].min()
-            xmax = numpy.where(xs<points[2])[0].max()
-            ymax = numpy.where(ys>points[3])[0].max()
-            xColumn = self.getConfig()["xColumn"] if "xColumn" in self.getConfig().keys() else "x"
-            yColumn = self.getConfig()["yColumn"] if "yColumn" in self.getConfig().keys() else "y"
-            heightColumn = self.getConfig()["heightColumn"] if "heightColumn" in self.getConfig().keys() else "height"
-            data = xarray.DataArray(data=dataArray[ymax:ymin,xmin:xmax],dims=["yWGS84","xWGS84"],coords=[ys[ymax:ymin],xs[xmin:xmax]]).to_dataframe(heightColumn).reset_index()
-            gdf = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data["xWGS84"], data["yWGS84"]))
-            gdf.crs = {"init": "epsg:4326"}
-            gdf = gdf.to_crs({"init": "epsg:2039"})
-            gdf[xColumn] = gdf.geometry.x
-            gdf[yColumn] = gdf.geometry.y
-            data = dask.dataframe.from_pandas(gdf.drop(columns="geometry"),npartitions=1)
-            data.to_parquet(FileName,compression="GZIP")
-        else:
-            raise KeyError("Couldn't find SRTM files which include the requested points!")
-        return
-
-    def getHeight(self, latitude, longitude, source):
-
-        return getattr(self, f"getHeight_{source}")(longitude=longitude,latitude=latitude)
-
-    def getHeight_mapquest(self, latitude, longitude):
-        resp = requests.get(
-            'http://open.mapquestapi.com/elevation/v1/profile?key=D5z9RSebQJLbUs4bohANIB4TzJdbvyvm&shapeFormat=raw&latLngCollection=' + str(
-                latitude) + ',' + str(longitude))
-
-        height = resp.json()['elevationProfile'][0]['height']
-
-        return height
-
-    def getHeight_USGS(self, latitude, longitude):
-
-        path = self.getMeasurementsDocuments(name="USGS")[0].getData()
-
-        if latitude > 29 and latitude < 30 and longitude > 34 and longitude < 35:
-            fheight = r'%s/N29E034.hgt' % path
-        elif latitude > 29 and latitude < 30 and longitude > 35 and longitude < 36:
-            fheight = r'%s/N29E035.hgt'% path
-        elif latitude > 30 and latitude < 31 and longitude > 34 and longitude < 35:
-            fheight = r'%s/N30E034.hgt'% path
-        elif latitude > 30 and latitude < 31 and longitude > 35 and longitude < 36:
-            fheight = r'%s/N30E035.hgt'% path
-        elif latitude > 31 and latitude < 32 and longitude > 34 and longitude < 35:
-            fheight = r'%s/N31E034.hgt'% path
-        elif latitude > 31 and latitude < 32 and longitude > 35 and longitude < 36:
-            fheight = r'%s/N31E035.hgt'% path
-        elif latitude > 32 and latitude < 33 and longitude > 34 and longitude < 35:
-            fheight = r'%s/N32E034.hgt'% path
-        elif latitude > 32 and latitude < 33 and longitude > 35 and longitude < 36:
-            fheight = r'%s/N32E035.hgt'% path
-        elif latitude > 33 and latitude < 33 and longitude > 35 and longitude < 36:
-            fheight = r'%s/N33E035.hgt'% path
-        else:
-            raise KeyError("The point is outside Isreal.")
-
-        ds = gdal.Open(fheight)
-        myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
-        myarray[myarray < -1000] = 0
-        gt = ds.GetGeoTransform()
-        rastery = (longitude - gt[0]) / gt[1]
-        rasterx = (latitude - gt[3]) / gt[5]
-        height11 = myarray[int(rasterx), int(rastery)]
-        height12 = myarray[int(rasterx) + 1, int(rastery)]
-        height21 = myarray[int(rasterx), int(rastery) + 1]
-        height22 = myarray[int(rasterx) + 1, int(rastery) + 1]
-        height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
-        height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
-        height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
-
-        return height
-
-    def toSTL(self, regionNameOrData, outputFileName, dxdy=50, saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE, additionalData=dict()):
+    def geoPandasToSTL(self,gpandas, dxdy=50, solidName="Topography"):
         """
-            Converts a topographic data to STL file.
+            Transforsm the gpandas to STL.
 
-            The topographic data can be given as a regionName in the DB, geopandas.Dataframe
-            or a geoJSON string.
+        Parameters
+        ----------
+        gpandas
+        dxdy
+        solidName
+
+        Returns
+        -------
+
+        """
+        return self.stlFactory.vectorToSTL(gpandas, dxdy=dxdy, solidName="Topography")
+
+    def regionToSTL(self, shapeDataOrName,dxdy,dataSource,crs=None):
+        """
+            Converts a region in a vector height map (contours) to STL at requested resolution
+
+            We always use the bounding box of the input shape .
 
         Parameters:
         -----------
 
-            regionNameOrData: str or geopandas.DataFrame
-                The data that should be converted to stl.
-                May be a dataframe or a name of a saved polygon in the database.
-
-
-            outputFileName: str
-                A name for the new stl file, also used in the stl string. (string)
-
-            saveMode: str
-                Can be either:
-
-                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
-                                                  raise exception if file exists.
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
-                                                  Replace the file if it exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
-                                                    Raise exception if the entry exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
-                                                    Replace the entry in the DB if it exists.
-
+            shapeDataOrName: str or polygon
+                The shape that we will use.
 
             dxdy: float.
-                the dimension of each cell in the mesh in meters, the default is 50.
+                the dimension of each cell in the mesh in meters
 
+            dataSource: str
+                The datasource to use.
 
-            flat: float or None.
-                If not None, it assumes that the area is flat and the value of flat is the height of the mesh cells.
-
-            additional_data: dict
-                Any additional metadata to be added to the new document in the database.
+            crs : int [optional]
+                Used if the CRS of the shapeData is different than the CRS of the datasource.
 
         Returns
         -------
-            DB document object or the STL as a string (if no saving to DB).
+            str
+            The STL string.
 
         """
 
-        if isinstance(regionNameOrData,str):
-            region = self.getDatasourceData(regionName)
-            if region is None:
-                region = geopandas.read_file(io.StringIO(regionNameOrData))
-        elif isinstance(regionNameOrData,geopandas.geodataframe.GeoDataFrame) or isinstance(regionNameOrData,pandas.core.frame.DataFrame) or \
-                                                                                 isinstance(regionNameOrData,dask.dataframe.core.DataFrame):
-            region = regionNameOrData
-        else:
-            raise ValueError(f"The regionNameOrData must be region name, geoJSON, geodataframe, or pandas or dask dataframes.")
+        topography = self.cutRegionFromSource(shapeDataOrName, dataSourceName=dataSource, isBounds=True, crs=crs)
+        stlstr = self.stlFactory.vectorToSTL(topography,dxdy=dxdy)
 
-        stlstr = self.stlFactory.vectorToSTL(region,dxdy=dxdy)
+        return stlstr
 
-        if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
-
-            if "stl" not in outputFileName:
-                outputFileName = f"{outputFileName.split('.')[0]}.stl"
-
-            fullfileNames = os.path.join(self.FilesDirectory,outputFileName)
-
-            if os.path.exists(fullfileNames) and saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                                                              abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
-                raise FileExistsError(f"The output STL file {fullfileNames} exists")
-
-            with open(fullfileNames,'w') as outfiles:
-                outfiles.write(stlstr)
-
-
-            if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                            abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
-
-                regionDoc = self.getSTL(regionNameOrData)
-
-                if regionDoc is not None and saveMode== abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-                    raise ValueError(f"{regionNameOrData} already exists in the DB")
-
-                xmin, ymin, xmax, ymax = region.bounds
-
-                additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: outputFileName.split('.')[0],
-                                       abstractLocation.toolkit.TOOLKIT_DATASOURCE_NAME: outputFileName.split('.')[0],
-                                       abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
-                                       "xmin": xmin,
-                                       "xmax": xmax,
-                                       "ymin": ymin,
-                                       "ymax": ymax
-                                       })
-
-                if regionDoc is None:
-                    regionDoc = self.addCacheDocument(type=self.doctype,
-                                                    resource=fullfileNames,
-                                                    dataFormat=datatypes.STRING,
-                                                    desc=additionalData)
-                else:
-                    regionDoc.resource = fullfileNames
-                    regionDoc.desc = additionalData
-                    regionDoc.save()
-            else:
-                regionDoc = None
-        else:
-            regionDoc = None
-
-
-        return stlstr if regionDoc is None else regionDoc
-
-    def getDEM(self,regionNameOrData,dxdy=50,**filters):
+    def toDEM(self,regionNameOrData,dxdy=50,**filters):
 
         """
             Creates a Data Elevation Model (DEM) format string of topography.
@@ -321,52 +140,6 @@ class TopographyToolkit(toolkit.VectorToolkit):
         return DEMstring
 
 
-    def getSTL(self,regionNameSTL):
-        """
-            Return the topography STL
-
-        Parameters
-        -----------
-        regionNameSTL: str
-            The name of the region
-
-
-        Returns
-        -------
-            Return the ATL document
-        """
-        desc = {
-                abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
-                "type" : self.doctype
-                }
-        docList = self.getCacheDocuments(**desc)
-        return None if len(docList)==0 else docList[0]
-
-    def getSTLDocumentsList(self):
-        """
-            Return a list with all the STL documents list
-        Returns
-        -------
-            list with STL documents
-        """
-        desc = {
-                "type" : self.doctype
-                }
-        return self.getCacheDocuments(**desc)
-
-    def getSTLList(self):
-        """
-            Return a list with all the STL documents names
-        Returns
-        -------
-            list with STL documents
-        """
-        desc = {
-                "type" : self.doctype
-                }
-        return [x.desc[abstractLocation.TOOLKIT_LOCATION_REGIONNAME] for x in self.getCacheDocuments(**desc)]
-
-
 
 class analysis():
 
@@ -380,7 +153,7 @@ class analysis():
         self._datalayer = dataLayer
 
 
-    def addHeight(self, data, groundData, coord1="x", coord2="y", coord3="z", resolution=10, saveMode=abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE, file=None, fillna=0, **kwargs):
+    def addHeight(self, data, groundData, coord1="x", coord2="y", coord3="z", resolution=10, saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, file=None, fillna=0, **kwargs):
         """
         adds a column of height from ground for a dataframe which describes a mesh.
         params:
@@ -417,26 +190,26 @@ class analysis():
         data["ground"]=ground
         data["height"] = data[coord3] - data["ground"]
         data.loc[data.height < 0, "height"] = 0
-        if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                        abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
+        if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                        toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                        toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                        toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
 
             file = os.path.join(self.datalayer.FilesDirectory, "cellData.parquet") if file is None else file
 
-            if os.path.exists(file) and saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-                                                     abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+            if os.path.exists(file) and saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+                                                     toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
                 raise FileExistsError(f"The output file {file} exists")
 
             data.to_parquet(file, compression="gzip")
 
 
-            if saveMode in [abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
-                            abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
+            if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                            toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:
 
                 regionDoc = self.datalayer.getCacheDcouments(resource=file, dataFormat="parquet",type="cellData", desc=dict(resolution=resolution,**kwargs))
 
-                if len(regionDoc) >0 and saveMode== abstractLocation.toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+                if len(regionDoc) >0 and saveMode== toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
                     raise ValueError(f"{file} already exists in the DB")
                 else:
                     self.datalayer.addCacheDocument(resource=file, dataFormat="parquet",
@@ -447,7 +220,7 @@ class analysis():
 
 class stlFactory:
     """
-        Helper class to convert geopandas to STL
+        Helper class to convert topography geopandas to STL
     """
 
     _heightColumnsNames=None
@@ -649,9 +422,9 @@ class stlFactory:
         -------
             string of the STL
         """
-        if isinstance(gpandas, geopandas.geodataframe.GeoDataFrame):
+        if isinstance(gpandas, geopandas.GeoDataFrame):
             rasterMap = self.rasterizeGeopandas(gpandas, dxdy=dxdy)
-        elif isinstance(gpandas, pandas.core.frame.DataFrame) or isinstance(gpandas, dask.dataframe.core.DataFrame):
+        elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.DataFrame):
             rasterMap = self.rasterizePandas(gpandas,dxdy=dxdy)
         return self.rasterToSTL(grid_x=rasterMap['x'],
                                     grid_y=rasterMap['y'],
@@ -703,82 +476,4 @@ class stlFactory:
             for n in range(len(row)-i):
                 row[-n-1] = row[i]
         return grid
-
-def get_altitdue_ip(lat, lon):
-    """
-    returning the altitude of the point, uses free mapquest data that is limited in the amount of calls per month, it uses Nir BAMBA Benmoshe key
-
-    param lat - the path where we save the stl
-    param lon - the width of the domain in the x direction
-
-    return:
-    altitude - meters above sea level
-    """
-
-    resp = requests.get(
-        'http://open.mapquestapi.com/elevation/v1/profile?key=D5z9RSebQJLbUs4bohANIB4TzJdbvyvm&shapeFormat=raw&latLngCollection=' + str(
-            lat) + ',' + str(lon))
-
-    height = resp.json()['elevationProfile'][0]['height']
-
-    return height
-def get_altitdue_gdal(lat, lon):
-    #        if lat<=30:
-    # USGS EROS Archive - Digital Elevation - Global Multi-resolution Terrain Elevation Data 2010 (GMTED2010)
-    # fheight = r'/data3/nirb/10N030E_20101117_gmted_med075.tif'
-    # fheight = r'/data3/nirb/30N030E_20101117_gmted_med075.tif'
-    # https://dds.cr.usgs.gov/srtm/version2_1/SRTM3/Africa/   # 90m resolution
-    if lat > 29 and lat < 30 and lon > 34 and lon < 35:
-        fheight = r'/data3/nirb/N29E034.hgt'
-    elif lat > 29 and lat < 30 and lon > 35 and lon < 36:
-        fheight = r'/data3/nirb/N29E035.hgt'
-    elif lat > 30 and lat < 31 and lon > 34 and lon < 35:
-        fheight = r'/data3/nirb/N30E034.hgt'
-    elif lat > 30 and lat < 31 and lon > 35 and lon < 36:
-        fheight = r'/data3/nirb/N30E035.hgt'
-    elif lat > 31 and lat < 32 and lon > 34 and lon < 35:
-        fheight = r'/data3/nirb/N31E034.hgt'
-    elif lat > 31 and lat < 32 and lon > 35 and lon < 36:
-        fheight = r'/data3/nirb/N31E035.hgt'
-    elif lat > 32 and lat < 33 and lon > 34 and lon < 35:
-        fheight = r'/data3/nirb/N32E034.hgt'
-    elif lat > 32 and lat < 33 and lon > 35 and lon < 36:
-        fheight = r'/data3/nirb/N32E035.hgt'
-    elif lat > 33 and lat < 33 and lon > 35 and lon < 36:
-        fheight = r'/data3/nirb/N33E035.hgt'
-    else:
-        print('!!!!NOT in Israel !!!!!!!!')
-        # taken from https://earthexplorer.usgs.gov/
-        fheight = r'/ibdata2/nirb/gt30e020n40.tif'
-
-    ds = gdal.Open(fheight)
-    myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
-    myarray[myarray < -1000] = 0
-    gt = ds.GetGeoTransform()
-    rastery = (lon - gt[0]) / gt[1]
-    rasterx = (lat - gt[3]) / gt[5]
-    height11 = myarray[int(rasterx), int(rastery)]
-    height12 = myarray[int(rasterx) + 1, int(rastery)]
-    height21 = myarray[int(rasterx), int(rastery) + 1]
-    height22 = myarray[int(rasterx) + 1, int(rastery) + 1]
-    height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
-    height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
-    height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
-
-    return height
-
-
-
-if __name__ == "__main__":
-    longitude = random.randint(35750, 35800) / 1000.0  # Hermon
-    latitude = random.randint(33250, 33800) / 1000.0
-    #    lon = 34.986008  // elevation should be 273m according to amud anan
-    #    lat = 32.808486  // elevation should be 273m according to amud anan
-    #    lon = 35.755  // elevation should be ~820 according to amud anan
-    #    lat = 33.459  // elevation should be ~820 according to amud anan
-    longitude = 35.234987  # 744m
-    latitude = 31.777978  # 744m
-    #alt1 = get_altitdue_ip(lat, longitude)
-    alt2 = get_altitdue_gdal(latitude, longitude)
-    print("the altitude at position: ", latitude, longitude, " is ", alt1, alt2)
 

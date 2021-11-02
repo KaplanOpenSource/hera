@@ -1,19 +1,11 @@
 import os
 import logging
-import geopandas as gps
 from hera.measurements.GIS.vector import toolkit
 from hera.measurements.GIS.vector.buildings.analysis import analysis
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 
+from hera.datalayer import datatypes
 
-from hera.datalayer import datatypes,nonDBMetadataFrame
-
-try:
-    from freecad import app as FreeCAD
-    import Part
-    import Mesh
-except ImportError as e:
-    logging.warning("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
 
 
 class BuildingsToolkit(toolkit.VectorToolkit):
@@ -61,7 +53,41 @@ class BuildingsToolkit(toolkit.VectorToolkit):
     def doctype(self):
         return f"{self.name}_STL"
 
-    def toSTL(self, regionNameOrData, outputFileName,flat=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+
+    def geoPandasToSTL(self,buildingData,outputFileName,flat=None,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+        """
+                Converts a building data (in geopandas format) to STL using the Freecad module.
+
+        Parameters
+        ----------
+        buildingData : geopandas.GeoDataFrame
+                The building data
+
+        outputFileName : str
+                Full path to the output file.
+
+
+        flat: None or float.
+                The base of the building.
+                If None, use the buildings height.
+
+        saveMode
+
+        Returns
+        -------
+
+        """
+        try:
+            from freecad import app as FreeCAD
+            import Part
+            import Mesh
+        except ImportError as e:
+            logging.error("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
+            raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
+
+
+
+    def regionToSTL(self, regionNameOrData, outputFileName,dataSource,flat=None,saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
         """
             Converts the document to the stl and saves it to the disk.
             Adds the stl file to the DB.
@@ -96,6 +122,8 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         maxheight = -500
 
         FreeCADDOC = FreeCAD.newDocument("Unnamed")
+
+        shp = self.cutRegionFromSource(regionNameOrData)
 
         if isinstance(regionNameOrData,str):
             shp = self.getLocationByRegion(regionNameOrData).getData()
@@ -141,9 +169,9 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
         FreeCADDOC.recompute() # maybe it should be in the loop.
 
-
         outputfileFull = os.path.abspath(os.path.join(self.FilesDirectory,outputFileName))
         Mesh.export(FreeCADDOC.Objects, outputfileFull)
+
 
         if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
                         TOOLKIT_SAVEMODE_FILEANDDB]:
@@ -156,8 +184,8 @@ class BuildingsToolkit(toolkit.VectorToolkit):
                 raise ValueError(f"STL {regionNameSTL} exists in project {self.projectName}")
 
             desc = {
-                    abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
-                    abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                    toolkit.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
+                    toolkit.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
                    }
 
             if doc is None:
