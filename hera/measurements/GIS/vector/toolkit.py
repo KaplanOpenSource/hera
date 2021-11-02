@@ -1,4 +1,6 @@
+import logging
 import io
+import numpy
 from hera import toolkit
 import geopandas as gp
 from shapely.geometry import Polygon, box
@@ -10,7 +12,7 @@ TOOLKIT_VECTOR_REGIONNAME = "regionName"
 class VectorToolkit(toolkit.abstractToolkit):
 
 
-    def __init__(self, projectName, toolkitName = 'VectorToolkit', FilesDirectory=None):
+    def __init__(self, projectName, toolkitName = 'VectorToolkit', filesDirectory=None):
         """
             Initializes vector data toolkit.
 
@@ -30,22 +32,8 @@ class VectorToolkit(toolkit.abstractToolkit):
                 exist, then use the current directory.
 
         """
-        super().__init__(projectName=projectName,toolkitName=toolkitName,FilesDirectory=FilesDirectory)
+        super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory)
 
-        # FileDirectoryCheck in abstractToolkit
-
-    # @staticmethod
-    # def geopandasToGeoJson(geoData):
-    #     features = []
-    #     insert_features = lambda X: features.append(
-    #         geojson.Feature(geometry=geojson.Point((X["long"],
-    #                                                 X["lat"],
-    #                                                 X["elev"])),
-    #                         properties=dict(name=X["name"],
-    #                                         description=X["description"])))
-    #     geoData.apply(insert_features, axis=1)
-    #     with open('map1.geojson', 'w', encoding='utf8') as fp:
-    #         geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
 
     @staticmethod
     def geopandasToGeoJson(geoData):
@@ -164,19 +152,23 @@ class VectorToolkit(toolkit.abstractToolkit):
         -------
 
         """
-        shape = None
+        self.logger.info("-- Start --")
+
         if isinstance(shapeDataOrName, str):
             shape= self.getRegionData(shapeDataOrName)
         else:
             shape = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
+
+        if self.logger.isEnabledFor(logging.DEBUG):
+            x,y = [x for x in shape.iloc[0].geometry.exterior.xy]
+            self.logger.debug(f"The requested region is {numpy.dstack((x,y)).tolist()}")
 
         if isBounds == False:
             dct = {'mask':shape}
         else:
             dct = {'bbox':shape}
 
-        qry = {toolkit.TOOLKIT_DATASOURCE_NAME: dataSourceName,
-               toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
+        self.logger.debug(f"Prepering to load the data from {dataSourceName} with the query {str(dct)}")
 
         doc = self.getDatasourceDocument(datasourceName=dataSourceName)
         return None if doc is None else doc.getData(**dct)

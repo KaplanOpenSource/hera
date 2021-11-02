@@ -14,6 +14,9 @@ import pandas
 from hera.measurements.GIS.vector import toolkit
 from hera.simulations.utils import coordinateHandler
 
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+
+
 
 class TopographyToolkit(toolkit.VectorToolkit):
 
@@ -72,9 +75,12 @@ class TopographyToolkit(toolkit.VectorToolkit):
             The STL string.
 
         """
+        self.logger.info("-- Start --")
 
         topography = self.cutRegionFromSource(shapeDataOrName, dataSourceName=dataSource, isBounds=True, crs=crs)
         stlstr = self.stlFactory.vectorToSTL(topography,dxdy=dxdy)
+
+        self.logger.info("-- End --")
 
         return stlstr
 
@@ -153,7 +159,7 @@ class analysis():
         self._datalayer = dataLayer
 
 
-    def addHeight(self, data, groundData, coord1="x", coord2="y", coord3="z", resolution=10, saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, file=None, fillna=0, **kwargs):
+    def addHeight(self, data, groundData, coord1="x", coord2="y", coord3="z", resolution=10, saveMode=TOOLKIT_SAVEMODE_ONLYFILE, file=None, fillna=0, **kwargs):
         """
         adds a column of height from ground for a dataframe which describes a mesh.
         params:

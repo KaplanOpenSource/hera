@@ -4,7 +4,7 @@ import os
 from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
 from itertools import product
-
+import json
 
 
 class hermesOpenFOAMWorkflow(hermesWorkflow):
@@ -194,16 +194,21 @@ cleanCase
             The name of the object and the names that were written.
 
         """
+        self.logger.info("-- Start --")
         configuration = loadJSON(configurationFile)
 
         geom_handlers = [x.split("_")[1] for x in dir(self) if x.startswith("geometryHandler")]
 
         for geometryObject in configuration['geometry']:
-            # 1. Handle the gemetry-type specifics. (create STL and ect.)
-            if geometryObject['type'] not in geom_handlers:
-                raise ValueError(f"{geometryObject['type']} must be one of {','.join(geom_handlers)}")
+            self.logger.debug(f"Processing: \n {json.dumps(geometryObject,indent=4)}")
 
-            handler = getattr(self, f"geometryHandler_{geometryObject['type']}")
+            # 1. Handle the gemetry-type specifics. (create STL and ect.)
+            if geometryObject['source']['type'] not in geom_handlers:
+                err = f"{geometryObject['source']['type']} must be one of {','.join(geom_handlers)}"
+                self.logger.error(err)
+                raise ValueError(err)
+
+            handler = getattr(self, f"geometryHandler_{geometryObject['source']['type']}")
             handler(geometryObject, workingDirectory, configuration)
 
             # 2. Change the snappyHexMesh node.
@@ -214,6 +219,8 @@ cleanCase
             else:
                 name = geometryObject['name']
                 snappyHexNode["geometry"]['objects'][name] = geometryObject["meshing"]
+
+        self.logger.info("-- End --")
 
     def prepareMesh(self, configurationFile, workingDirectory):
         """
@@ -233,7 +240,7 @@ cleanCase
         -------
 
         """
-        self.logger.info("adaptMesh - Start")
+        self.logger.info("-- Start --")
         configuration = loadJSON(configurationFile)
 
 
@@ -270,7 +277,7 @@ cleanCase
         else:
             self.logger.execution("blockMesh node was not Found. ")
 
-        self.logger.info("adaptMesh - End")
+        self.logger.info("-- End -- ")
 
 
     ##########################################
@@ -306,6 +313,7 @@ cleanCase
         -------
 
         """
+        self.logger.info(" -- Start -- ")
         tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,
                                     projectName=configuration['projectName'])
 
@@ -314,16 +322,22 @@ cleanCase
         regionCoords = regionList.get(region, None)
 
         if regionCoords is None:
-            raise ValueError(f"The region{region} is not found. Found the regions: {','.join(regionList.keys())}")
+            raise ValueError(f"The region: {region} is not found. Found the regions: {','.join(regionList.keys())}")
 
-        bx = [regionCoords['xmin'], regionCoords['ymin'], regionCoords['xmax'], regionCoords['ymax']]
 
-        stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],
-                                    dataSource=geometryJSON['source']['datasource'])
+        bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
+        self.logger.debug(f"Found the region {region} with coords {bx}")
+
+        stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],dataSource=geometryJSON['source']['datasource'])
+
         stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
+        fullFileName = os.path.join(workingDirectory, stlFileName)
 
-        with open(os.path.join(workingDirectory, stlFileName), 'w') as stloutputfile:
+        self.logger.debug(f"Converting to STL complete. Now writing to the file {fullFileName}")
+        with open(fullFileName, 'w') as stloutputfile:
             stloutputfile.write(stlcontent)
+
+        self.logger.info(" -- End -- ")
 
     def geometryHandler_buildings(self, geometryJSON, workingDirectory, configuration):
         """
@@ -365,7 +379,7 @@ cleanCase
         bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
 
         stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
-        fullFileName = open(os.path.join(workingDirectory, stlFileName)
+        fullFileName = os.path.join(workingDirectory, stlFileName)
 
         tk.toSTL(regionNameOrData=bx, outputFileName=fullFileName,flat=None,saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
 
