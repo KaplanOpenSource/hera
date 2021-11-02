@@ -173,7 +173,7 @@ cleanCase
 
         os.chmod(allcleanFile, 0o777)
 
-    def adaptGeometry(self, workingDirectory, configurationFile):
+    def prepareGeometry(self, workingDirectory, configurationFile):
         """
             Adapts the geometry of the workflow.
 
@@ -215,7 +215,7 @@ cleanCase
                 name = geometryObject['name']
                 snappyHexNode["geometry"]['objects'][name] = geometryObject["meshing"]
 
-    def adaptMesh(self, configurationFile, workingDirectory):
+    def prepareMesh(self, configurationFile, workingDirectory):
         """
             Reads the configuration file and:
 

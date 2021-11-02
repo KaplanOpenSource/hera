@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 import argparse
 import json
 import sys
@@ -7,23 +6,50 @@ import shutil
 import os
 from hera.simulations.hermesWorkflow import hermesWorkflow
 
+from hera.utils.jsonutils import loadJSON
+
 
 def parser_prepare(arguments):
+    """
+        Prepares the workflow to the specific case by using the
+        caseConfiguration file.
+
+
+        Its strucuture is given in the examples ...
+
+
+    Parameters
+    ----------
+    arguments
+        .args : list
+            The workflow file, target directory and the configuration file.
+
+        .noParallel: bool
+            If true, then change the workflow to run as composed case.
+
+    Returns
+    -------
+
+    """
+
+    if len(arguments.args) != 3:
+        raise ValueError(f"Input must be: [workflow file] [template directory] [configuration file]")
+
+    templateName = arguments.templateName
 
     hwf = hermesWorkflow(arguments.workflow)
-
-    with open(arguments.configurationFile) as configurationFile:
-        configuration = json.load(configurationFile)
+    configuration = loadJSON(arguments.configurationFile)
 
     # 1. Prepare the geometry. Build the STL
+    hwf.prepareGeometry(templateName, configuration)
 
+    if arguments.noParallel:
+        hwf.changeWorkflowToRunAsComposed()
 
-    # 2. Make case parallel
+    hwf.write(f"{templateName}.json")
 
     # 3. Make runfile.
-
-
-
+    hwf.buildCaseExecutionScript(templateName)
 
 
 if __name__=="__main__":
@@ -33,7 +59,7 @@ if __name__=="__main__":
 
     parser_make  = subparsers.add_parser('make', help='Makes the relevant template')
     parser_prepare = subparsers.add_parser('prepare', help='Specialized the template according to specific configuration of the case')
-    parser_build = subparsers.add_parser('executePipeline', help='executePipeline help')
+    parser_build = subparsers.add_parser('buildVariations', help='Build the variations of the workflow.')
 
 
     # Make - makes the case from requested template type.
@@ -54,8 +80,14 @@ if __name__=="__main__":
     # Build - build all the cases from the parameter file and the template.
     #         Adds to the hera database if necessary.
 
-    parser_prepare.add_argument('--workflow',dest="workflow",type=str,help='The workflow to alter (if exists)')
-    parser_prepare.add_argument('--configurationFile', dest="configurationFile", type=str,default="caseConfiguration.json", help='The configuration file. Default caseConfiguration.json')
+    parser_prepare.add_argument('workflow', type=str,help='The project to load the data')
+    parser_prepare.add_argument('templateName', type=str,help='The data type to load')
+    parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
+    parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
+
     parser_prepare.set_defaults(func=parser_prepare)
 
+
+    parsed = parser.parse_args()
+    parsed.func(parsed)
 
