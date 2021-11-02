@@ -28,7 +28,7 @@ def ConvertJSONtoConf(JSON):
 
     return ret
 
-def loadJSON(json):
+def loadJSON(jsonData):
     """
         Reads the json object to the memory.
 
@@ -40,7 +40,7 @@ def loadJSON(json):
 
     Parameters
     ----------
-    json : str, object file, path to disk, dict
+    jsonData : str, object file, path to disk, dict
         The object that contains the dict.
 
     Returns
@@ -50,19 +50,19 @@ def loadJSON(json):
 
     """
 
-    if hasattr(json, 'read'):
-        loadedjson = json.load(json)
-    elif isinstance(json, str):
+    if hasattr(jsonData, 'read'):
+        loadedjson = json.load(jsonData)
+    elif isinstance(jsonData, str):
 
-        if os.path.exists(json):
-            with open(json) as jsonFile:
+        if os.path.exists(jsonData):
+            with open(jsonData) as jsonFile:
                 loadedjson = json.load(jsonFile)
         else:
-            loadedjson = json.loads(json)
-    elif isinstance(json, dict):
-        loadedjson = json
+            loadedjson = json.loads(jsonData)
+    elif isinstance(jsonData, dict):
+        loadedjson = jsonData
     else:
-        err = f"workflow type: {type(json)} is unknonw. Must be str, file-like or dict. "
+        err = f"workflow type: {type(jsonData)} is unknonw. Must be str, file-like or dict. "
         raise ValueError(err)
 
 
