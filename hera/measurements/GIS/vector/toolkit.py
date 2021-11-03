@@ -1,6 +1,4 @@
-import logging
 import io
-import numpy
 from hera import toolkit
 import geopandas as gp
 from shapely.geometry import Polygon, box
@@ -34,6 +32,20 @@ class VectorToolkit(toolkit.abstractToolkit):
         """
         super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory)
 
+        # FileDirectoryCheck in abstractToolkit
+
+    # @staticmethod
+    # def geopandasToGeoJson(geoData):
+    #     features = []
+    #     insert_features = lambda X: features.append(
+    #         geojson.Feature(geometry=geojson.Point((X["long"],
+    #                                                 X["lat"],
+    #                                                 X["elev"])),
+    #                         properties=dict(name=X["name"],
+    #                                         description=X["description"])))
+    #     geoData.apply(insert_features, axis=1)
+    #     with open('map1.geojson', 'w', encoding='utf8') as fp:
+    #         geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
 
     @staticmethod
     def geopandasToGeoJson(geoData):
@@ -79,12 +91,9 @@ class VectorToolkit(toolkit.abstractToolkit):
                 raise ValueError(f"Can't create region shape from regionData list, The list should contain the following input: xmin,ymin,xmax,ymax ")
 
         elif isinstance(regionData, Polygon):
-
             data = gp.GeoDataFrame({'geometry':[regionData]})
-
         else:
             raise ValueError(f" regionData paremeter must be: GeoDataFrame/GeoJSON/list/Polygon")
-            return
 
         if crs is not None:
             try:
@@ -114,12 +123,6 @@ class VectorToolkit(toolkit.abstractToolkit):
                       the crs to the function.
 
         """
-        # desc =  {}
-        # if isBounds == True:
-        #     desc['bbox'] = True
-        # else:
-        #     desc['mask'] = True
-
         desc ={TOOLKIT_VECTOR_REGIONNAME: regionName,'crs':crs}
 
         data = self._setGeoPandasFromRegionData(regionData,crs = crs).to_json()
@@ -154,24 +157,34 @@ class VectorToolkit(toolkit.abstractToolkit):
         """
         self.logger.info("-- Start --")
 
+
         if isinstance(shapeDataOrName, str):
             shape= self.getRegionData(shapeDataOrName)
         else:
             shape = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
 
-        if self.logger.isEnabledFor(logging.DEBUG):
-            x,y = [x for x in shape.iloc[0].geometry.exterior.xy]
-            self.logger.debug(f"The requested region is {numpy.dstack((x,y)).tolist()}")
+            shape.crs=2039
 
-        if isBounds == False:
-            dct = {'mask':shape}
-        else:
-            dct = {'bbox':shape}
+        self.logger.debug(f"The crs of the input is {shape.crs}")
+        self.logger.debug(f"The shape is {shape.iloc[0]}")
 
-        self.logger.debug(f"Prepering to load the data from {dataSourceName} with the query {str(dct)}")
+        dct = dict(bbox=shape) if isBounds else dict(mask=shape)
 
-        doc = self.getDatasourceDocument(datasourceName=dataSourceName)
-        return None if doc is None else doc.getData(**dct)
+        if isinstance(dataSourceName, str):
+            doc = self.getDatasourceDocument(datasourceName=dataSourceName)
+            self.logger.debug(f"The datasource {dataSourceName} is pointing to {doc.resource}")
+
+
+            import pdb
+            pdb.set_trace()
+
+            if doc is None:
+                sourceList = self.getDataSourceTable()['datasourceName'].str.cat()
+                err = f"The Data sources available in the project are: " + sourceList
+                self.logger.error(err)
+                raise ValueError(err)
+            else:
+                return doc.getData(**dct)
 
     def getRegionNameList(self):
         """
