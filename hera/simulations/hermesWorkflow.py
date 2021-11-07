@@ -140,16 +140,17 @@ class hermesWorkflow(loggedObject):
         -------
 
         """
+        self.logger.info("-- Start --")
         if not overwrite:
             if os.path.exists(filename):
-                raise FileExistsError(f"{filename} alread exists. Use overwrite=True to overwite it")
+                err = f"{filename} alread exists. Use overwrite=True to overwite it"
+                self.logger.error(err)
+                raise FileExistsError(err)
 
         with open(filename,'w') as outputFile:
             json.dump(self._workflow,outputFile)
 
-
-
-
+        self.logger.info("-- End --")
 
 class hermesNode:
     """

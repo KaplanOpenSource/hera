@@ -66,17 +66,10 @@ class hermesOpenFOAMWorkflow(hermesWorkflow):
         self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
 
 
+
     @property
-    def isParallel(self):
-        """
-            The run is parallel if the workflow contains parallel nodes.
-
-        Returns
-        -------
-            bool
-
-        """
-        return any([x in self._parallelNodes for x in self.nodeList])
+    def parameters(self):
+        return hermesNode('controlDict',self.nodes['Parameters'])
 
     @property
     def controlDict(self):
@@ -97,7 +90,7 @@ class hermesOpenFOAMWorkflow(hermesWorkflow):
 
     @property
     def snappyHexmesh(self):
-        return hermesNode('snappyHexmesh',self.nodes['snappyHexmesh']) if 'snappyHexmesh' in self.nodes else None
+        return hermesNode('snappyHexMesh',self.nodes['snappyHexMesh']) if 'snappyHexMesh' in self.nodes else None
 
 
     @property
@@ -124,7 +117,7 @@ class hermesOpenFOAMWorkflow(hermesWorkflow):
                 del self.nodes[decmdNode]
 
 
-    def buildCaseExecutionScript(self,caseDirectory):
+    def buildCaseExecutionScript(self,caseDirectory,configuration):
         """
             Writes the allRun file that executes the workflow and the allClean file
             that cleans the case to the case directory.
@@ -134,16 +127,49 @@ class hermesOpenFOAMWorkflow(hermesWorkflow):
         caseDirectory: str
             The directory to write the files to.
 
-        """
-        isParallel = self.isParallel
-        parallelFlag = "-parallel" if isParallel else ""
-        execLine = ""
-        for execNode in self._workflowExecutionJSON:
-            if execLine['parallel'] and not isParallel:
-                continue
+        configuration: dict
+            A configuration file that is used to build the execution of the node.
+            Specifically, includes a node 'caseExecution' with the structure:
 
+             {
+                "parallelCase": true|false             # Write the execution for parallel execution.
+                "runFile": [
+                            --------------- A list of nodes.
+                  {
+                    "name": "blockMesh",               # The name of the program to execute.
+                    "couldRunInParallel": false,       # Write as parallel (only if parallel case is True).
+                    "parameters": null                 # Parameters for each run.
+                  }
+                ]
+                            --------------- A list of nodes.
+             }
+
+        """
+        self.logger.info("---- Start ----")
+        try:
+            execConfiguration = configuration['caseExecution']
+        except KeyError:
+            err = "'caseExecution' node not found in configuration"
+            self.logger.error(err)
+            raise ValueError(err)
+
+
+        isParallel = execConfiguration['parallelCase']
+        self.logger.info(f"Running this case as parallel? {isParallel}")
+
+        execLine = ""
+
+        for execNode in execConfiguration['runFile']:
+            self.logger.execution(f"Processing Node {execNode['name']}")
+
+            parallelFlag = "-parallel" if (isParallel and execNode['couldRunInParallel']) else ""
             progName = execNode['name']
-            params   = " ".join(numpy.atleast_1d(execNode['parameters']))
+            parameters = execNode.get('parameters',None)
+
+            if parameters is not None:
+                params   = " ".join(numpy.atleast_1d(execNode['parameters']))
+            else:
+                params = ""
             execLine += f"foamJob {parallelFlag} -screen -wait {progName} {params}\n"
 
 
@@ -173,7 +199,7 @@ cleanCase
 
         os.chmod(allcleanFile, 0o777)
 
-    def prepareGeometry(self, workingDirectory, configurationFile):
+    def prepareGeometry(self, workingDirectory, configurationFile,overwrite=False):
         """
             Adapts the geometry of the workflow.
 
@@ -187,6 +213,9 @@ cleanCase
             Reads the JSON  from the directory.
             Could be a file like object, a path to the file, a JSON string or a dict.
 
+        overwrite: bool
+            If true, then generate the STL even it exists.
+            if False, skip the genereation.
 
         Returns
         -------
@@ -209,13 +238,13 @@ cleanCase
                 raise ValueError(err)
 
             handler = getattr(self, f"geometryHandler_{geometryObject['source']['type']}")
-            handler(geometryObject, workingDirectory, configuration)
+            handler(geometryObject, workingDirectory, configuration,overwrite)
 
             # 2. Change the snappyHexMesh node.
             snappyHexNode = self.snappyHexmesh
 
             if snappyHexNode is None:
-                self.logger.warning("SnappyHexMesh node does not exist. Geometry might not be used!")
+                self.logger.warning("snappyHexMesh node does not exist. Geometry might not be used!")
             else:
                 name = geometryObject['name']
                 snappyHexNode["geometry"]['objects'][name] = geometryObject["meshing"]
@@ -285,7 +314,7 @@ cleanCase
     ##                  Handlers
     ##
     ##################
-    def geometryHandler_topography(self, geometryJSON, workingDirectory, configuration):
+    def geometryHandler_topography(self, geometryJSON, workingDirectory, configuration,overwrite=False):
         """
             Build the topography STL using the topography toolkit.
 
@@ -317,6 +346,10 @@ cleanCase
         tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,
                                     projectName=configuration['projectName'])
 
+        stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
+        fullFileName = os.path.join(workingDirectory, stlFileName)
+
+
         region = geometryJSON['source']['region']
         regionList = configuration.get('regions', {})
         regionCoords = regionList.get(region, None)
@@ -328,18 +361,21 @@ cleanCase
         bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
         self.logger.debug(f"Found the region {region} with coords {bx}")
 
-        stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],dataSource=geometryJSON['source']['datasource'])
+        if os.path.exists(fullFileName) and not overwrite:
+            self.logger.info(f"Geometry {geometryJSON['name']} exists. and overwrite=False")
+        else:
+            self.logger.info(f"Generating geometry {geometryJSON['name']}")
+            stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],
+                                        dataSourceName=geometryJSON['source']['datasource'])
 
-        stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
-        fullFileName = os.path.join(workingDirectory, stlFileName)
+            self.logger.debug(f"Converting to STL complete. Now writing to the file {fullFileName}")
+            with open(fullFileName, 'w') as stloutputfile:
+                stloutputfile.write(stlcontent)
 
-        self.logger.debug(f"Converting to STL complete. Now writing to the file {fullFileName}")
-        with open(fullFileName, 'w') as stloutputfile:
-            stloutputfile.write(stlcontent)
-
+        self.parameters['topographyBBOX'] = bx
         self.logger.info(" -- End -- ")
 
-    def geometryHandler_buildings(self, geometryJSON, workingDirectory, configuration):
+    def geometryHandler_buildings(self, geometryJSON, workingDirectory, configuration,overwrite=False):
         """
             Build the buildings STL using the buildings toolkit.
 
@@ -381,9 +417,11 @@ cleanCase
         stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
         fullFileName = os.path.join(workingDirectory, stlFileName)
 
-        tk.toSTL(regionNameOrData=bx, outputFileName=fullFileName,flat=None,saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
+        tk.regionToSTL(regionNameOrData=bx, outputFileName=fullFileName,flat=None,saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
 
-    def blockMeshHandler_region(self, configuration):
+        self.parameters['buildingsBBOX'] = bx
+
+    def blockMeshHandler_region(self, configuration,overwrite=False):
         """
             Creates the vertices in the the blockMesh, and updates the workflow.
 
@@ -420,7 +458,7 @@ cleanCase
         blockMesh = self.blockMesh
         blockMesh['vertices'] = VerticesList
 
-    def locationInMeshHandler_relative(self,configuration):
+    def locationInMeshHandler_relative(self,configuration,overwrite=False):
         """
             Calculates the location in mesh point according to the fractions
             in each dimension.

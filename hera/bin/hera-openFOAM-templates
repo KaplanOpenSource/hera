@@ -31,32 +31,33 @@ def prepare(arguments):
     -------
 
     """
-
     templateName = arguments.templateName
 
     hwf = hermesOpenFOAMWorkflow(arguments.workflow)
     configuration = loadJSON(arguments.configurationFile)
 
+    os.makedirs(templateName,exist_ok=True)
+
     # 1. Prepare the geometry. Build the STL
-    hwf.prepareGeometry(templateName, configuration)
+    hwf.prepareGeometry(templateName, configuration,arguments.overwrite)
 
     if arguments.noParallel:
         hwf.changeWorkflowToRunAsComposed()
 
-    hwf.write(f"{templateName}.json")
+    hwf.write(f"{templateName}.json",arguments.overwrite)
 
     # 3. Make runfile.
-    hwf.buildCaseExecutionScript(templateName)
+    hwf.buildCaseExecutionScript(templateName,configuration)
 
 
 if __name__=="__main__":
 
+    ### ---- Debugging
     from hera import toolkitHome
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
     tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
-    tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False)
-
-
+    #tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False)
+    ### ---- Debugging
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
@@ -64,7 +65,6 @@ if __name__=="__main__":
     parser_make  = subparsers.add_parser('make', help='Makes the relevant template')
     parser_prepare = subparsers.add_parser('prepare', help='Specialized the template according to specific configuration of the case')
     parser_build = subparsers.add_parser('buildVariations', help='Build the variations of the workflow.')
-
 
     # Make - makes the case from requested template type.
     #        1. The template types should be datasource in the OF toolkit.
@@ -79,15 +79,20 @@ if __name__=="__main__":
     #                - Other nodes:
     #                       : Write  the node in the appropriate .
     #       2.
-
-
-    # Build - build all the cases from the parameter file and the template.
-    #         Adds to the hera database if necessary.
-
     parser_prepare.add_argument('workflow', type=str,help='The project to load the data')
     parser_prepare.add_argument('templateName', type=str,help='The data type to load')
     parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
     parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
+    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                help='Run as single processor even if template is parallel')
+
+    # Build - build all the cases from the parameter file and the template.
+    #         Adds to the hera database if necessary.
+
+
+
+
+    ############################################################################
 
     parser_prepare.set_defaults(func=prepare)
 

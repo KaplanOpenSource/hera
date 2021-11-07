@@ -14,8 +14,7 @@ import pandas
 from hera.measurements.GIS.vector import toolkit
 from hera.simulations.utils import coordinateHandler
 
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-
+from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE
 
 
 class TopographyToolkit(toolkit.VectorToolkit):
@@ -30,6 +29,53 @@ class TopographyToolkit(toolkit.VectorToolkit):
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         self._toolkitname = toolkitName
         self._stlFactory = stlFactory()
+
+
+    def cutRegionFromSource(self,shapeDataOrName,dataSourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
+        """
+            Cuts a the shape from the requested datasource
+
+            It overrides the parent procedure because we need to perform intersection operation on the results.
+
+        Parameters
+        ----------
+        shapeDataOrName: GeoDataFrame,dict,list,Polygon
+            The shape data to use.
+
+                        list - a box with the corners in [xmin,ymin,xmax,ymax]
+
+        dataSourceName : str
+            The name of the satasource to cur from.
+
+        isBounds : bool
+            If true, use the bounding box fo the polygon.
+
+        crs : int
+            The EPSG of the coordinate system of the shape (if it is a shape and not in the dtasource ative coordinates).
+
+        Returns
+        -------
+
+        """
+        topography = super().cutRegionFromSource(shapeDataOrName=shapeDataOrName,dataSourceName=dataSourceName, isBounds =isBounds , crs =crs )
+        if isinstance(shapeDataOrName, str):
+            shape = self.getRegionData(shapeDataOrName)
+        else:
+            shape = self._setGeoPandasFromRegionData(shapeDataOrName, crs=crs)
+            doc = self.getDatasourceDocument(datasourceName=dataSourceName)
+            self.logger.debug(f"The datasource {dataSourceName} is pointing to {doc.resource}")
+            if 'crs' not in doc.desc['desc']:
+                self.logger.error(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
+                raise ValueError(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
+
+            if shape.crs is None:
+                self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
+                shape.crs = doc.desc['desc']['crs']
+                shape = shape.to_crs(topography.crs)
+
+        topography['geometry'] = topography.intersection(shape.iloc[0].geometry)
+        return topography
+
 
 
     def geoPandasToSTL(self,gpandas, dxdy=50, solidName="Topography"):
@@ -48,7 +94,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
         """
         return self.stlFactory.vectorToSTL(gpandas, dxdy=dxdy, solidName="Topography")
 
-    def regionToSTL(self, shapeDataOrName,dxdy,dataSource,crs=None):
+    def regionToSTL(self, shapeDataOrName, dxdy, dataSourceName, crs=None):
         """
             Converts a region in a vector height map (contours) to STL at requested resolution
 
@@ -63,7 +109,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
             dxdy: float.
                 the dimension of each cell in the mesh in meters
 
-            dataSource: str
+            dataSourceName: str
                 The datasource to use.
 
             crs : int [optional]
@@ -77,8 +123,14 @@ class TopographyToolkit(toolkit.VectorToolkit):
         """
         self.logger.info("-- Start --")
 
-        topography = self.cutRegionFromSource(shapeDataOrName, dataSourceName=dataSource, isBounds=True, crs=crs)
-        stlstr = self.stlFactory.vectorToSTL(topography,dxdy=dxdy)
+        topography = self.cutRegionFromSource(shapeDataOrName, dataSourceName=dataSourceName, isBounds=True, crs=crs)
+
+
+        if len(topography) == 0:
+            self.logger.warning("The requested region is empty. ")
+            stlstr = None
+        else:
+            stlstr = self.stlFactory.vectorToSTL(topography,dxdy=dxdy)
 
         self.logger.info("-- End --")
 
@@ -288,6 +340,7 @@ class stlFactory:
         ymax = gpandas.bounds.max()["maxy"]
         #print("Mesh boundaries x=(%s,%s) ; y=(%s,%s)" % (xmin, xmax, ymin, ymax))
         # 1.2 build the mesh.
+
         grid_x, grid_y = numpy.mgrid[(xmin):(xmax):dxdy, (ymin):(ymax):dxdy]
 
         # 2. Get the points from the geom
@@ -306,7 +359,7 @@ class stlFactory:
                     XY += linecoords
                     Height += lineheight
 
-        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='cubic')
+        grid_z2 = griddata(XY, Height, (grid_x, grid_y), method='linear')
         grid_z2 = self._organizeGrid(grid_z2)
 
         return dict(x=grid_x,y=grid_y,height=grid_z2)
@@ -428,10 +481,15 @@ class stlFactory:
         -------
             string of the STL
         """
+        import pdb
+        pdb.set_trace()
         if isinstance(gpandas, geopandas.GeoDataFrame):
             rasterMap = self.rasterizeGeopandas(gpandas, dxdy=dxdy)
-        elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.DataFrame):
+
+        elif isinstance(gpandas, pandas.DataFrame) or isinstance(gpandas, dask.dataframe.DataFrame):
             rasterMap = self.rasterizePandas(gpandas,dxdy=dxdy)
+
+
         return self.rasterToSTL(grid_x=rasterMap['x'],
                                     grid_y=rasterMap['y'],
                                     grid_z=rasterMap['height'],
