@@ -83,9 +83,12 @@ class analysis():
 
         return gpd
 
-    def LambdaOfDomain(self, wind,resolution,outputFileName,buildingsDataSourceNameOrData = None,exteriorBlockNameOrData = None,crs = None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+    def LambdaOfDomain(self, wind, resolution, buildingsData,crs=None, saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
         """
         Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
+
+        TODO:
+            Extend to account for changing wind direction in the city.
 
         Parameters
         ----------
@@ -93,21 +96,32 @@ class analysis():
               The meteorological wind direction.
         resolution: int
                     The size of the block in meter.
-        newDataSourceName: string
-                    If buildingsDataSourceNameOrData is Data, check if the newDataSourceName is not None and save buildingsDataSourceNameOrData
-                    as dataSource in project by the name newDataSourceName
 
-        buildingsDataSourceNameOrData: str or GeoDataframe
+        buildingsData: dict , geopandas.GeoDataframe, str
 
-        exteriorBlockNameOrData: GeoDataFrame,str,list,polygon
+            Holds the data of the buildings.
 
-        outputfile: str
-                a path to the output file.
+            if dict:
+                - dataSourceName: str
+                        the name of the buildings datasource.
+                - shapeDataOrName:  str, polygon or [xmin,ymin,xmax,ymax]
+                        The deifnition of the shape to use.
+                - crs: [optional], int
+                    if None, use the crs of the datasource.
 
-            saveMode: str
-                - None, does not add to the DB.
-                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
-                - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
+            if geoppandas.GeoDataFrame:
+                - hold the height, and geometry of the buildings.
+
+            if str:
+                geojson of the buildings.
+
+        crs: int [optional]
+            use as CRS if the buildings data is geoJSON or a geopadnas.
+
+        saveMode: str
+            - None, does not add to the DB.
+            - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
+            - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
 
 
         Returns
@@ -115,71 +129,52 @@ class analysis():
         GeoDataFrame of the grid geometry with the calculated parameters: lambdaP,lambdaF,hc
         """
 
-        extent = None
-        data = None
-
-        if buildingsDataSourceNameOrData is not None:
-
-            if isinstance(buildingsDataSourceNameOrData,str):
-
-                data = self._datalayer.getDatasourceData(buildingsDataSourceNameOrData)
-                if data is None:
-                    data = geopandas.read_file(io.StringIO(buildingsDataSourceNameOrData))
-            else:
-                data = buildingsDataSourceNameOrData
-                if isinstance(data, geopandas.GeoDataFrame):
-                    if data.crs is None:
-                        if crs is None:
-                            raise ValueError(f" You must provide the crs parameter of buildingsDataSourceNameOrData ")
-                        else:
-                            data.crs = crs
-                else:
-                    raise ValueError(f" buildingsDataSource must be GeoDataFrame ")
-
-        if exteriorBlockNameOrData is not None:
-
-            if  isinstance(exteriorBlockNameOrData,str):
-                    extent = self._datalayer.getRegionData(exteriorBlockNameOrData)
-            else:
-                    extent = self._datalayer._setGeoPandasFromRegionData(exteriorBlockNameOrData)
-
-            if isinstance(extent, geopandas.GeoDataFrame):
-                if extent.crs is not None:
-                    crs = extent.crs
-                elif crs is None:
-                    raise ValueError(f" You must provide the crs parameter of exteriorBlockNameOrData ")
-
-                extent = geopandas.GeoDataFrame({'geometry': [box(*(extent.total_bounds))]},crs=crs)
-
-            else:
-                raise ValueError(f" exteriorBlockNameOrData must be: GeoDataFrame/GeoJSON/list/Polygon/string")
-
-        if data is not None and extent is not None:
-            data = self._datalayer.cutRegionFromSource(extent, dataSourceName=data, crs=crs)
-
-        elif extent is not None:
-                data = self._datalayer.cutRegionFromSource(extent,dataSourceName="BNTL")
-
-        elif data is not None:
-            extent = geopandas.GeoDataFrame({'geometry': [box(*(data.total_bounds))]}, crs=data.crs)
-
+        if isinstance(buildingsData,str):
+            data = geopandas.read_file(io.StringIO(buildingsData))
+        elif isinstance(buildingsData,dict):
+            buildingsData['isBounds'] = True
+            buildingsData.setdefault(crs,None)
+            data = self.datalayer.cutRegionFromSource(**buildingsData)
         else:
-            raise ValueError(f" You must provide one or more of the followng parameters: buildingsDataSourceNameOrData ,exteriorBlockNameOrData ")
+            data = buildingsData
 
-        domainLambda = Blocks(level=0, df=extent, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=wind)
+        if isinstance(data, geopandas.GeoDataFrame):
+            if data.crs is None:
+                if crs is None:
+                    raise ValueError(f" You must provide the crs parameter of buildingsData ")
+                else:
+                    data.crs = crs
+        else:
+            raise ValueError("buildingsDataSource must be str, dict, or geopandas.GeoDataFrame")
 
-        outputfileFull = os.path.abspath(os.path.join(self._datalayer.FilesDirectory, outputFileName))
-        domainLambda.to_file(outputfileFull+'.shp')
 
         desc = {
-                 self._datalayer.TOOLKIT_VECTOR_REGIONNAME: outputFileName,
+                 "bounds" : data.total_bounds,
                  BUILDINGS_LAMBDA_WIND_DIRECTION: wind,
-                 BUILDINGS_LAMBDA_RESOLUTION : resolution
+                 BUILDINGS_LAMBDA_RESOLUTION : resolution,
                }
 
-        self._datalayer.addCacheDocument(resource=outputfileFull,
-                              dataFormat=datatypes.GEOPANDAS,
-                              desc=desc)
+
+        dataDoc = self.datalayer.getCacheDocument(dataFormat=datatypes.GEOPANDAS,
+                                                  desc=desc,
+                                                  type="Lambda_Buildings",
+                                                  **desc)
+
+        if dataDoc is None:
+            extent = geopandas.GeoDataFrame({'geometry': [box(*(data.total_bounds))]}, crs=data.crs)
+
+            domainLambda = Blocks(level=0, df=extent, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=wind)
+
+            outputfileFull = os.path.abspath(os.path.join(self._datalayer.FilesDirectory, outputFileName))
+            domainLambda.to_file(outputfileFull+'.shp')
+
+
+            self.datalayer.addCacheDocument(resource=outputfileFull,
+                                            dataFormat=datatypes.GEOPANDAS,
+                                            type="Lambda_Buildings",
+                                            desc=desc)
+        else:
+            domainLambda = dataDoc[0].getData()
 
         return domainLambda
 

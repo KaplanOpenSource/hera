@@ -73,6 +73,37 @@ def createTopography(args):
     with open(stlFileName,"w") as stlfile:
         stlfile.write(stl)
 
+def createWind(args):
+    """
+        Creates a wind profile according to the urban canopy.
+
+        Currently, only the log-normal wind profile is implemented.
+
+    Parameters
+    ----------
+    args
+        - caseDirectory
+
+    Returns
+    -------
+
+    """
+
+    # 1. Prepare the lambda geopandas. (write in the case directory)
+            #--> check if the file exists, if it does, then use it.
+
+    # 2. Prepeare station file.
+            # currently just take 1 speed and direction.
+
+    # 3. Get the cell centers.
+
+    # 4. Calculate the Ux,Uy of each point in the mesh.
+
+    # 5. Write in the constant/U0 file.
+
+
+
+
 
 if __name__=="__main__":
 
@@ -96,16 +127,16 @@ if __name__=="__main__":
     parser_createEmpty.set_defaults(func=createEmpty)
 
 
-    parser_createBuildings = subparsers.add_parser('createBuildings', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createBuildings = subparsers.add_parser('buildings', help='Creates an stl for the desired region. Mostly for debugging')
     parser_createBuildings.add_argument('configurationFile', type=str, help='The configuration file')
     parser_createBuildings.add_argument('regionName', type=str, help='the region to build')
     parser_createBuildings.add_argument('datasource', type=str, help='the datasource to use')
     parser_createBuildings.add_argument('outputFile', type=str, help='the output file name')
     parser_createBuildings.set_defaults(func=createBuildings)
 
-    ########################################################3
+    ########################################################
 
-    parser_createTopography = subparsers.add_parser('createTopography', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createTopography = subparsers.add_parser('topography', help='Creates an stl for the desired region. Mostly for debugging')
     parser_createTopography.add_argument('configurationFile', type=str, help='The configuration file')
     parser_createTopography.add_argument('regionName', type=str, help='the region to build')
     parser_createTopography.add_argument('datasource', type=str, help='the datasource to use')
@@ -113,6 +144,20 @@ if __name__=="__main__":
     parser_createTopography.add_argument('--dxdy', dest='dxdy',default=50,type=int, help='the resolution')
     parser_createTopography.set_defaults(func=createTopography)
 
+    ########################################################
 
+    parser_createWind = subparsers.add_parser('windProfile',
+                                                    help='Creates a wind profile on an existing case')
+
+    parser_createWind.add_argument('caseDirectory', type=str, help='The case directory')
+    parser_createWind.add_argument('--windSpeed', dest="windSpeed", help='The wind speed')
+    parser_createWind.add_argument('--windDirection', dest="windDirection", help='The wind direction (meteorological')
+    parser_createWind.add_argument('--bbox', dest="bbox",help='The bounding box of the area')
+
+    parser_createWind.set_defaults(func=createWind)
+
+
+
+    ########################################################
     parsed = parser.parse_args()
     parsed.func(parsed)
