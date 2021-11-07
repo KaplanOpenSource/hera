@@ -1,23 +1,11 @@
+import numpy
 import os
 import logging
 from hera.measurements.GIS.vector import toolkit
 from hera.measurements.GIS.vector.buildings.analysis import analysis
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-<<<<<<< HEAD
-
 from hera.datalayer import datatypes
-
-=======
-from hera.datalayer import datatypes,nonDBMetadataFrame
-
-try:
-    from freecad import app as FreeCAD
-    import Part
-    import Mesh
-except ImportError as e:
-    logging.warning("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
->>>>>>> 06945d0c39425ace970bf5c70d8836672317c045
-
+import geopandas
 
 class BuildingsToolkit(toolkit.VectorToolkit):
     """
@@ -87,8 +75,9 @@ class BuildingsToolkit(toolkit.VectorToolkit):
             float
                 The maximal height that was found
         """
-        self.logger.info("geoPandasToSTL - Start")
+        self.logger.info("---- Start ---")
         try:
+            self.logger.execution("Loading Freecad")
             from freecad import app as FreeCAD
             import Part
             import Mesh
@@ -101,53 +90,64 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
         shp = buildingData # olv version compatability
 
-        k = -1
-        for j in range(len(shp)):  # converting al the buildings
+        for indx,building in shp.iterrows():  # converting al the buildings
+
             try:
-                walls = shp['geometry'][j].exterior.xy
+                walls = building['geometry'].exterior.xy
+                walls = numpy.stack(walls).T
             except:
                 continue
 
-            if j % 100 == 0:
-                self.logger.execution(f"{j} shape file is executed. Length Shape: {len(shp)}")
+            if indx % 100 == 0:
+                self.logger.execution(f"{indx}/{len(shp)} shape file is executed")
 
-            k = k + 1
-            wallsheight = shp[self.BuildingHeightColumn][j]
+
+            wallsheight = building[self.BuildingHeightColumn]
             if flat is None:
-                altitude = shp[self.LandHeightColumn][j]
+                altitude = building[self.LandHeightColumn]
             else:
                 altitude = flat
 
-            FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch' + str(j))
-            FreeCADDOC.Objects[2 * k].Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 0.000000),  # 2*k-1
+            self.logger.debug(f" Building -- {indx} --")
+            self.logger.debug("newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch"+ str(indx) +"')")
+            newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch' + str(indx))
+
+            self.logger.debug(f"newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, {altitude}), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))")
+            newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, altitude),  # 2*k-1
                                                              FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
 
-            for i in range(len(walls[0]) - 1):
-                FreeCADDOC.Objects[2 * k].addGeometry(Part.Line(FreeCAD.Vector(walls[0][i], walls[1][i], altitude),
-                                                         FreeCAD.Vector(walls[0][i + 1], walls[1][i + 1], altitude)))
+            for xy0,xy1 in zip(walls[:-1],walls[1:]):
+                self.logger.debug(f"newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector({xy0[0]}, {xy0[1]}, {altitude}),FreeCAD.Vector({xy1[0]}, {xy1[1]}, {altitude})))")
+                newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(xy0[0], xy0[1], altitude),FreeCAD.Vector(xy1[0], xy1[1], altitude)))
 
-            FreeCADDOC.addObject("PartDesign::Pad", "Pad" + str(j))
-            FreeCADDOC.Objects[2 * k + 1].Sketch = FreeCADDOC.Objects[2 * k]
-            buildingTopAltitude = wallsheight + altitude  # wallsheight + altitude
+            self.logger.debug("FreeCADDOC.addObject('Part::Extrusion', 'building" + str(indx) + "')")
+            newPad = FreeCADDOC.addObject("Part::Extrusion", "building" + str(indx))
+            self.logger.debug("newPad.Base = newSketch")
+            newPad.Base = newSketch
+            buildingTopAltitude = wallsheight # + altitude  # wallsheight + altitude
             maxheight = max(maxheight, buildingTopAltitude)
-            FreeCADDOC.Objects[2 * k + 1].Length = buildingTopAltitude  # 35.000000
-            FreeCADDOC.Objects[2 * k + 1].Reversed = 0
-            FreeCADDOC.Objects[2 * k + 1].Midplane = 0
-            FreeCADDOC.Objects[2 * k + 1].Length2 = wallsheight  # 100.000000
-            FreeCADDOC.Objects[2 * k + 1].Type = 0
-            FreeCADDOC.Objects[2 * k + 1].UpToFace = None
+            self.logger.debug(f"newPad.LengthFwd = {buildingTopAltitude}")
+            newPad.LengthFwd = wallsheight
+
+            self.logger.debug("newPad.Solid = True")
+            newPad.Solid = True
+
+            self.logger.debug("newPad.Symmetric = False")
+            newPad.Symmetric = False
+
 
 
         FreeCADDOC.recompute() # maybe it should be in the loop.
 
         outputfileFull = os.path.abspath(os.path.join(self.FilesDirectory,outputFileName))
+        self.logger.execution(f"Writing the STL {outputfileFull}")
         Mesh.export(FreeCADDOC.Objects, outputfileFull)
 
         self.logger.info(f"geoPandasToSTL - End. Max height found {maxheight}")
         return maxheight
 
 
-    def regionToSTL(self, regionNameOrData, outputFileName,dataSourceName,flat=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+    def regionToSTL(self, regionNameOrData, outputFileName,dataSourceName,flat=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, crs=None):
         """
             Converts the document to the stl and saves it to the disk.
             Adds the stl file to the DB.
@@ -176,16 +176,23 @@ class BuildingsToolkit(toolkit.VectorToolkit):
                 - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
                 - TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
 
+            crs : int [optional]
+                Used if the CRS of the shapeData is different than the CRS of the datasource.
+
+
             Returns
             -------
                 The maximal height
 
         """
+        self.logger.info("---- Start ----")
 
-        if isinstance(regionNameOrData, str):
-            shp = self.cutRegionFromSource(regionNameOrData,dataSourceName=dataSourceName)
+        if not isinstance(regionNameOrData,geopandas.GeoDataFrame):
+            shp = self.cutRegionFromSource(regionNameOrData,dataSourceName=dataSourceName, isBounds=True, crs=crs)
         else:
             shp = regionNameOrData
+
+        self.logger.info(f"Region {regionNameOrData} consists of {len(shp)} buildings")
 
         maxheight = self.geoPandasToSTL(buildingData=shp, outputFileName=outputFileName, flat=flat)
 
@@ -200,13 +207,8 @@ class BuildingsToolkit(toolkit.VectorToolkit):
                 raise ValueError(f"STL {regionNameSTL} exists in project {self.projectName}")
 
             desc = {
-<<<<<<< HEAD
-                    toolkit.TOOLKIT_LOCATION_REGIONNAME: regionNameSTL,
-                    toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
-=======
                     toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
                     toolkit.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
->>>>>>> 06945d0c39425ace970bf5c70d8836672317c045
                    }
 
             if doc is None:
@@ -255,3 +257,12 @@ if __name__ == "__main__":
     lm = bt._analysis.LambdaOfDomain(270, 200, 'test',exteriorBlockNameOrData=reg, crs=2039)
     p=1
 
+# newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch3180')
+# newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 19.86), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179062.00002653955, 662887.8099938995, 19.86),FreeCAD.Vector(179028.70002653956, 662904.1199938995, 19.86)))
+# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179028.70002653956, 662904.1199938995, 19.86),FreeCAD.Vector(179038.50002653955, 662923.9999938995, 19.86)))
+# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179038.50002653955, 662923.9999938995, 19.86),FreeCAD.Vector(179071.80002653957, 662907.6199938995, 19.86)))
+# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179071.80002653957, 662907.6199938995, 19.86),FreeCAD.Vector(179062.00002653955, 662887.8099938995, 19.86)))
+# FreeCADDOC.addObject('Part::Extrusion', 'building3180')
+# newPad.Base = newSketch
+# newPad.LengthFwd = 21.62

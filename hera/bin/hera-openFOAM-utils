@@ -6,7 +6,8 @@ import sys
 import shutil
 import os
 from hera.simulations.openFoam.OFObjects import ofObjectHome
-
+from hera.utils.jsonutils import loadJSON
+from hera import toolkitHome
 
 def createEmpty(args):
     if len(args.args) == 0 :
@@ -29,47 +30,88 @@ def createEmpty(args):
         field.emptyParallelField(caseDirectory=caseDir,time=0)
 
 
+def createBuildings(args):
 
-def makeBlockmeshFromRegion(args):
-    """
-        Creates the blockmesh nodes from the region of the JSON
+    configuration = loadJSON(args.configurationFile)
 
-        The configuration file structure is:
+    regionCoords = configuration['regions'].get(args.regionName,None)
 
-            {
-                "Regions" : {
-                    "Height": 800
-                    "Region": { "xmin":000,"xmax":000,"ymin":000,"ymax":000},
-                    "STL" : {
-                            "Buildings.stl" : "buildings",
-                            "Topography.stl" : "topography"
-                    }
-                }
-            }
+    if regionCoords is None:
+        raise ValueError(f"The region{args.regionName} is not found. Found the regions: {','.join(configuration['regions'].keys())}")
 
-    Parameters
-    ----------
-    args
-    Returns
-    -------
+    bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
 
-    """
+    stlFileName = f"{args.outputFile.split('.')[0]}.stl"
 
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS ,
+                                projectName=configuration['projectName'])
+
+    tk.regionToSTL(regionNameOrData=bx,
+                   outputFileName=stlFileName,
+                   flat=None,
+                   dataSourceName=args.datasource,
+                   saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
+
+
+def createTopography(args):
+    configuration = loadJSON(args.configurationFile)
+
+    regionCoords = configuration['regions'].get(args.regionName,None)
+
+    if regionCoords is None:
+        raise ValueError(f"The region{args.regionName} is not found. Found the regions: {','.join(configuration['regions'].keys())}")
+
+    bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,
+                                projectName=configuration['projectName'])
+    stl = tk.regionToSTL(shapeDataOrName=bx,
+                         dxdy = args.dxdy,
+                         dataSourceName=args.datasource)
+
+    stlFileName = f"{args.outputFile.split('.')[0]}.stl"
+    with open(stlFileName,"w") as stlfile:
+        stlfile.write(stl)
 
 
 if __name__=="__main__":
+
+    ### ---- Debugging
+    from hera import toolkitHome
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
+    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+    tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False)
+    ### ---- Debugging
+
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
     parser_createEmpty  = subparsers.add_parser('createEmpty', help='Creates an empty case with empty fields')
-
     parser_createEmpty.add_argument('args',
                                     nargs='*',
                                     type=str,
                                     help='[Case directory] [list of field]')
 
     parser_createEmpty.set_defaults(func=createEmpty)
+
+
+    parser_createBuildings = subparsers.add_parser('createBuildings', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createBuildings.add_argument('configurationFile', type=str, help='The configuration file')
+    parser_createBuildings.add_argument('regionName', type=str, help='the region to build')
+    parser_createBuildings.add_argument('datasource', type=str, help='the datasource to use')
+    parser_createBuildings.add_argument('outputFile', type=str, help='the output file name')
+    parser_createBuildings.set_defaults(func=createBuildings)
+
+    ########################################################3
+
+    parser_createTopography = subparsers.add_parser('createTopography', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createTopography.add_argument('configurationFile', type=str, help='The configuration file')
+    parser_createTopography.add_argument('regionName', type=str, help='the region to build')
+    parser_createTopography.add_argument('datasource', type=str, help='the datasource to use')
+    parser_createTopography.add_argument('outputFile', type=str, help='the output file name')
+    parser_createTopography.add_argument('--dxdy', dest='dxdy',default=50,type=int, help='the resolution')
+    parser_createTopography.set_defaults(func=createTopography)
 
 
     parsed = parser.parse_args()

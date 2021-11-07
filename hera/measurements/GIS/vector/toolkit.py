@@ -163,8 +163,6 @@ class VectorToolkit(toolkit.abstractToolkit):
         else:
             shape = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
 
-            shape.crs=2039
-
         self.logger.debug(f"The crs of the input is {shape.crs}")
         self.logger.debug(f"The shape is {shape.iloc[0]}")
 
@@ -173,10 +171,18 @@ class VectorToolkit(toolkit.abstractToolkit):
         if isinstance(dataSourceName, str):
             doc = self.getDatasourceDocument(datasourceName=dataSourceName)
             self.logger.debug(f"The datasource {dataSourceName} is pointing to {doc.resource}")
+            if 'crs' not in doc.desc['desc']:
+                self.logger.error(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
+                raise ValueError(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
 
-
-            import pdb
-            pdb.set_trace()
+            if shape.crs is None:
+                self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
+                shape.crs = doc.desc['desc']['crs']
+            elif shape.crs.to_epsg() != doc.desc['desc']['crs']:
+                self.logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
+                shape = shape.to_crs(doc.desc['desc']['crs'])
+            else:
+                self.logger.execution("shape and region crs match.")
 
             if doc is None:
                 sourceList = self.getDataSourceTable()['datasourceName'].str.cat()

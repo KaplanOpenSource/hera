@@ -228,12 +228,8 @@ class DataHandler_JSON_geopandas(object):
 class DataHandler_geopandas(object):
     @staticmethod
     def getData(resource,desc=None,**kwargs):
-        if 'mask' in kwargs:
-            df = geopandas.read_file(resource, mask = kwargs['mask'])
-        elif 'bbox' in kwargs:
-            df = geopandas.read_file(resource, bbok=kwargs['bbox'])
-        else:
-            df = geopandas.read_file(resource)
+
+        df = geopandas.read_file(resource,**kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
 
