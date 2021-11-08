@@ -9,13 +9,17 @@ import shapely.wkt
 from shapely.geometry import box, Polygon
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.datalayer import datatypes,nonDBMetadataFrame
-
+import logging
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
 
 class analysis():
 
     _datalayer = None
+
+    @property
+    def logger(self):
+        return self._datalayer.logger
 
     @property
     def datalayer(self):
@@ -83,7 +87,7 @@ class analysis():
 
         return gpd
 
-    def LambdaOfDomain(self, wind, resolution, buildingsData,crs=None, saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE):
+    def LambdaOfDomain(self, windMeteorologicalDirection, resolution, buildingsData, crs=None, saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,overwrite=False):
         """
         Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
 
@@ -92,7 +96,7 @@ class analysis():
 
         Parameters
         ----------
-        wind: float
+        windMeteorologicalDirection: float
               The meteorological wind direction.
         resolution: int
                     The size of the block in meter.
@@ -124,22 +128,31 @@ class analysis():
             - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
 
 
+        overwrite: bool
+            Calculate the results even if data in the db.
+            if it exists in db, update.
+
         Returns
         -------
         GeoDataFrame of the grid geometry with the calculated parameters: lambdaP,lambdaF,hc
         """
+        self.logger.info("--- Start ---")
 
         if isinstance(buildingsData,str):
+            self.logger.debug("Reading the bounds from StringIO")
             data = geopandas.read_file(io.StringIO(buildingsData))
         elif isinstance(buildingsData,dict):
+            self.logger.debug("Reading the bounds from dict")
             buildingsData['isBounds'] = True
-            buildingsData.setdefault(crs,None)
+            buildingsData.setdefault("crs",None)
             data = self.datalayer.cutRegionFromSource(**buildingsData)
         else:
+            self.logger.debug("Using the input")
             data = buildingsData
 
         if isinstance(data, geopandas.GeoDataFrame):
             if data.crs is None:
+                self.logger.debug("Setting data crs")
                 if crs is None:
                     raise ValueError(f" You must provide the crs parameter of buildingsData ")
                 else:
@@ -150,32 +163,51 @@ class analysis():
 
         desc = {
                  "bounds" : data.total_bounds,
-                 BUILDINGS_LAMBDA_WIND_DIRECTION: wind,
-                 BUILDINGS_LAMBDA_RESOLUTION : resolution,
+                 BUILDINGS_LAMBDA_WIND_DIRECTION: windMeteorologicalDirection,
+                 BUILDINGS_LAMBDA_RESOLUTION : resolution
                }
 
 
-        dataDoc = self.datalayer.getCacheDocument(dataFormat=datatypes.GEOPANDAS,
-                                                  desc=desc,
-                                                  type="Lambda_Buildings",
-                                                  **desc)
+        self.logger.info(f"Check if cached data exists for data {desc}")
+        dataDoc = self.datalayer.getCacheDocuments(type="Lambda_Buildings",**desc)
 
-        if dataDoc is None:
+        if self.logger.isEnabledFor(logging.DEBUG):
+            dbgstr = "Cached data Not found"  if len(dataDoc) == 0 else "Found data in the cache"
+            self.logger.debug(dbgstr)
+
+        if len(dataDoc)==0 or overwrite:
+            self.logger.info("Calculatings lambda data..")
             extent = geopandas.GeoDataFrame({'geometry': [box(*(data.total_bounds))]}, crs=data.crs)
 
-            domainLambda = Blocks(level=0, df=extent, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=wind)
+            domainLambda = Blocks(level=0, df=extent, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=windMeteorologicalDirection)
 
-            outputfileFull = os.path.abspath(os.path.join(self._datalayer.FilesDirectory, outputFileName))
-            domainLambda.to_file(outputfileFull+'.shp')
+            if len(dataDoc) == 0:
+                self.logger.debug("Adding new record to the DB")
+                doc = self.datalayer.addCacheDocument(resource="",
+                                                dataFormat=datatypes.GEOPANDAS,
+                                                type="Lambda_Buildings",
+                                                desc=desc)
+                filename = f"{str(doc.id)}.geojson"
+                outputfileFull = os.path.abspath(os.path.join(self._datalayer.FilesDirectory, filename))
+                self.logger.debug(f"Writing Lambda data to {outputfileFull}")
 
+            else:
+                self.logger.info("Updating old record.")
+                doc = dataDoc[0]
+                outputfileFull = doc.resource
 
-            self.datalayer.addCacheDocument(resource=outputfileFull,
-                                            dataFormat=datatypes.GEOPANDAS,
-                                            type="Lambda_Buildings",
-                                            desc=desc)
+            import pdb
+            pdb.set_trace()
+
+            domainLambda.to_file(outputfileFull,driver='GeoJSON')
+            doc.resource = outputfileFull
+            doc.save()
+
         else:
+            self.logger.debug("Return found data in DB")
             domainLambda = dataDoc[0].getData()
 
+        self.logger.info("---- End ----")
         return domainLambda
 
 
