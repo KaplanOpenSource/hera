@@ -495,8 +495,11 @@ class OFField(OFObject):
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
 
-        if type(data) in ['float','int','list','tuple']: #isinstance(data,float) or isinstance(data,int):
-            if type(data) in ['float','int']:
+        import pdb
+        pdb.set_trace()
+
+        if type(data) in ['float','int','list','tuple','str']: #isinstance(data,float) or isinstance(data,int):
+            if type(data) in ['float','int','str']:
                 fileStrContent += f"internalField  uniform {data};\n"
             else:
                 fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"

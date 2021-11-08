@@ -31,10 +31,11 @@ def prepare(arguments):
     -------
 
     """
-    templateName = arguments.templateName
 
     hwf = hermesOpenFOAMWorkflow(arguments.workflow)
     configuration = loadJSON(arguments.configurationFile)
+
+    templateName =configuration["specializedTemplateDirectory"]
 
     os.makedirs(templateName,exist_ok=True)
 
@@ -80,7 +81,6 @@ if __name__=="__main__":
     #                       : Write  the node in the appropriate .
     #       2.
     parser_prepare.add_argument('workflow', type=str,help='The project to load the data')
-    parser_prepare.add_argument('templateName', type=str,help='The data type to load')
     parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
     parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
     parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
