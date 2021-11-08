@@ -495,11 +495,8 @@ class OFField(OFObject):
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
 
-        import pdb
-        pdb.set_trace()
-
-        if type(data) in ['float','int','list','tuple','str']: #isinstance(data,float) or isinstance(data,int):
-            if type(data) in ['float','int','str']:
+        if type(data) in [float,int,list,tuple,str]: #isinstance(data,float) or isinstance(data,int):
+            if type(data) in [float,int,str]:
                 fileStrContent += f"internalField  uniform {data};\n"
             else:
                 fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"
@@ -538,7 +535,7 @@ class OFField(OFObject):
         return fileStrContent
 
 
-    def emptyParallelField(self,caseName,data=None):
+    def emptyParallelField(self, caseDirectory, data=None):
         """
             Writes a null file with definitions of the processor boundries
             because sometimes, the snappyHex mesh of decomposed pars breaks the parallel
@@ -562,9 +559,8 @@ class OFField(OFObject):
         if data is None:
             data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
 
-
-        if type(data) in ['float','int','list','tuple']: #isinstance(data,float) or isinstance(data,int):
-            if type(data) in ['float','int']:
+        if type(data) in [float,int,list,tuple,str]: #isinstance(data,float) or isinstance(data,int):
+            if type(data) in [float,int,str]:
                 fileStrContent += f"internalField  uniform {data};\n"
             else:
                 fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"
@@ -598,7 +594,7 @@ class OFField(OFObject):
 
 }"""
 
-        filename = os.path.join(caseName,'0.parallel',self.name)
+        filename = os.path.join(caseDirectory, '0.parallel', self.name)
         with open(filename,'w') as outfile:
             outfile.write(fileStrContent)
 
