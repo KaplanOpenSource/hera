@@ -228,7 +228,7 @@ cleanCase
 
         geom_handlers = [x.split("_")[1] for x in dir(self) if x.startswith("geometryHandler")]
 
-        for geometryObject in configuration['geometry']:
+        for name,geometryObject in configuration['geometry'].items():
             self.logger.debug(f"Processing: \n {json.dumps(geometryObject,indent=4)}")
 
             # 1. Handle the gemetry-type specifics. (create STL and ect.)
@@ -238,7 +238,7 @@ cleanCase
                 raise ValueError(err)
 
             handler = getattr(self, f"geometryHandler_{geometryObject['source']['type']}")
-            handler(geometryObject, workingDirectory, configuration,overwrite)
+            handler(name, geometryObject, workingDirectory, configuration,overwrite)
 
             # 2. Change the snappyHexMesh node.
             snappyHexNode = self.snappyHexmesh
@@ -246,7 +246,6 @@ cleanCase
             if snappyHexNode is None:
                 self.logger.warning("snappyHexMesh node does not exist. Geometry might not be used!")
             else:
-                name = geometryObject['name']
                 snappyHexNode["geometry"]['objects'][name] = geometryObject["meshing"]
 
         self.logger.info("-- End --")
@@ -314,7 +313,7 @@ cleanCase
     ##                  Handlers
     ##
     ##################
-    def geometryHandler_topography(self, geometryJSON, workingDirectory, configuration,overwrite=False):
+    def geometryHandler_topography(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=False):
         """
             Build the topography STL using the topography toolkit.
 
@@ -362,9 +361,9 @@ cleanCase
         self.logger.debug(f"Found the region {region} with coords {bx}")
 
         if os.path.exists(fullFileName) and not overwrite:
-            self.logger.info(f"Geometry {geometryJSON['name']} exists. and overwrite=False")
+            self.logger.info(f"Geometry {regionName} exists. and overwrite=False")
         else:
-            self.logger.info(f"Generating geometry {geometryJSON['name']}")
+            self.logger.info(f"Generating geometry {regionName}")
             stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],
                                         dataSourceName=geometryJSON['source']['datasource'])
 
@@ -372,10 +371,10 @@ cleanCase
             with open(fullFileName, 'w') as stloutputfile:
                 stloutputfile.write(stlcontent)
 
-        self.parameters['topographyBBOX'] = bx
+        self.parameters["domains"] = dict(regionName=dict(shapeDataOrName=bx,dataSourceName=geometryJSON['source']['datasource']))
         self.logger.info(" -- End -- ")
 
-    def geometryHandler_buildings(self, geometryJSON, workingDirectory, configuration,overwrite=False):
+    def geometryHandler_buildings(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=False):
         """
             Build the buildings STL using the buildings toolkit.
 

@@ -172,6 +172,9 @@ class hermesNode:
         return self._nodeJSON['Execution']['input_parameters']
 
 
+    def __setitem__(self, item,value):
+        self._nodeJSON['Execution']['input_parameters'][item] = value
+
     def __getitem__(self, item):
         return self._nodeJSON['Execution']['input_parameters'][item]
 

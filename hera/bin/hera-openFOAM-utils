@@ -1,5 +1,12 @@
 #! /usr/bin/env python
 
+"""
+    Utils to generate openFOAM templtes.
+
+    uses the configuration file.
+
+"""
+
 import argparse
 import json
 import sys
@@ -7,6 +14,7 @@ import shutil
 import os
 from hera.simulations.openFoam.OFObjects import ofObjectHome
 from hera.utils.jsonutils import loadJSON
+from hera.simulations.openFoam.hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
 from hera import toolkitHome
 
 def createEmpty(args):
@@ -88,9 +96,20 @@ def createWind(args):
     -------
 
     """
+    hwf = hermesOpenFOAMWorkflow(args.workflowFile)
 
     # 1. Prepare the lambda geopandas. (write in the case directory)
             #--> check if the file exists, if it does, then use it.
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=args.projectName)
+
+    buildingsData =  dict(hwf.parameters['domains'][args.buildingDomainName])
+    buildingsData['crs'] = None
+
+    lambdaBuildings = tk.analysis.LambdaFromDatasource(hwf.parameters['windMeteorologicalDirection'],
+                                                       hwf.parameters['LambdaCalculationResolution'],
+                                                       buildingsData=buildingsData)
+
+    print(lambdaBuildings)
 
     # 2. Prepeare station file.
             # currently just take 1 speed and direction.
@@ -112,6 +131,7 @@ if __name__=="__main__":
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
     tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
     tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False)
+    tk.addLogger(loggerName="measurements.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False)
     ### ---- Debugging
 
 
@@ -148,11 +168,9 @@ if __name__=="__main__":
 
     parser_createWind = subparsers.add_parser('windProfile',
                                                     help='Creates a wind profile on an existing case')
-
-    parser_createWind.add_argument('caseDirectory', type=str, help='The case directory')
-    parser_createWind.add_argument('--windSpeed', dest="windSpeed", help='The wind speed')
-    parser_createWind.add_argument('--windDirection', dest="windDirection", help='The wind direction (meteorological')
-    parser_createWind.add_argument('--bbox', dest="bbox",help='The bounding box of the area')
+    parser_createWind.add_argument('projectName', type=str, help='The workflow file')
+    parser_createWind.add_argument('workflowFile', type=str, help='The workflow file')
+    parser_createWind.add_argument('buildingDomainName', type=str, help='The name of the geometry region to use from the params node')
 
     parser_createWind.set_defaults(func=createWind)
 
