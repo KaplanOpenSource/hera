@@ -73,7 +73,7 @@ class OFToolkit(abstractToolkit):
         Parameters
         ----------
             caseDirectory: str
-                    The path to the case
+                    The path to the case. Should be absolute in order to determine whether we need to add the -case tot he postProcess.
 
             parallel: bool
                     If parallel case exists, read it .
@@ -87,11 +87,12 @@ class OFToolkit(abstractToolkit):
         """
 
         # 1. Run the postProcess utility to set the cell centers
-        self.logger.info(f"Start. case {caseDirectory}.")
 
+        self.logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
+
+        casePointer = "" if caseDirectory == os.getcwd() else f"-case {fullPathDirectory}"
 
         useParallel= False
-        cmd = f"postProcess -func writeCellCentres -case {caseDirectory}"
         if parallel:
             self.logger.debug(f"Attempt to load parallel case")
             # Check if the case is decomposed, if it is, run it.
@@ -99,19 +100,26 @@ class OFToolkit(abstractToolkit):
 
             if os.path.exists(proc0dir):
                 self.logger.debug(f"Found parallel case, using decomposed case")
-                cmd = f"foamJob -parallel postProcess -func writeCellCentres -case {caseDirectory}"
                 useParallel = True
             else:
                 self.logger.debug(f"parallel case NOT found. Using composed case")
 
-        os.system(cmd)
-
-        self.logger.info(f"End")
+        # Calculating the cell centers
+        checkPath = os.path.join(caseDirectory,"processor0",str(time),"C") if useParallel else os.path.join(caseDirectory,str(time),"C")
+        parallelExec = "-parallel" if useParallel else ""
+        caseType = "decomposed" if useParallel else "composed"
+        if not os.path.exists(checkPath):
+            self.logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
+            os.system(f"foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+        else:
+            self.logger.debug(f"Cell centers exist in {caseType} case.")
 
         cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
+        self.logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
+        ret =  cellCenters.load(caseDirectory,times=time,parallelCase=useParallel)
 
-        return cellCenters.load(caseDirectory,times=time,parallelCase=useParallel)
-
+        self.logger.info(f"--- End ---")
+        return ret
 
     def runWorkflow(self,workflowNameOrJSON,saveMode):
         """

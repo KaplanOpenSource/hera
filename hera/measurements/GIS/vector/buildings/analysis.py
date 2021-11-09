@@ -134,7 +134,7 @@ class analysis():
             self.logger.debug("Using the user input")
             data = buildingsData
         else:
-            err = f"buildingsData must be str or geopandas.GeoDataFrame. Got {type(buildingsData)}".
+            err = f"buildingsData must be str or geopandas.GeoDataFrame. Got {type(buildingsData)}"
             self.logger.error(err)
             raise ValueError(err)
 
@@ -144,16 +144,15 @@ class analysis():
             raise ValueError(err)
 
         if isinstance(externalShape, str):
-            bounds= self.getRegionData(externalShape).total_bounds
+            bounds= self.datalayer.getRegionData(externalShape)
         else:
-            bounds = self._setGeoPandasFromRegionData(externalShape,crs = data.crs).total_bounds
-
+            bounds = self.datalayer._RegionToGeopandas(externalShape, crs = data.crs)
 
         desc = {
-                 "bounds" : bounds,
+                 "bounds" : bounds.total_bounds,
                  BUILDINGS_LAMBDA_WIND_DIRECTION: windMeteorologicalDirection,
                  BUILDINGS_LAMBDA_RESOLUTION : resolution,
-                 "crs":data.crs.to_espg()
+                 "crs":data.crs.to_epsg()
                }
 
 
@@ -165,7 +164,7 @@ class analysis():
             self.logger.debug(dbgstr)
 
         if len(dataDoc)==0 or overwrite:
-            self.logger.info(f"Calculatings lambda data with bounds {bounds}")
+            self.logger.info(f"Calculatings lambda data with bounds {bounds.total_bounds}")
             domainLambda = Blocks(level=0, df=bounds, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=windMeteorologicalDirection)
 
             if len(dataDoc) == 0:
@@ -234,12 +233,13 @@ class analysis():
         """
         self.logger.info("--- Start ---")
 
-        buildingsData = self.datalayer.cutRegionFromSource(shapeDataOrName=shapeDataOrName,dataSourceName=datasourceName,crs=crs)
+        buildingsData = self.datalayer.cutRegionFromSource(shapeDataOrName=shapeDataOrName,
+                                                           datasourceName=datasourceName, crs=crs)
 
         if isinstance(shapeDataOrName, str):
-            bounds= self.getRegionData(shapeDataOrName)
+            bounds= self.datalayer.getRegionData(shapeDataOrName)
         else:
-            bounds = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
+            bounds = self.datalayer._RegionToGeopandas(shapeDataOrName, crs = crs)
 
         domainLambda = self.LambdaFromBuildingData(windMeteorologicalDirection=windMeteorologicalDirection,
                                                    resolution=resolution,
@@ -498,7 +498,7 @@ class Blocks(object):
 
             return None
 
-    def Lambda(self, buildings, windDirection=270):
+    def Lambda(self, buildings, windDirection):
         """
         This method calculates average Lambda P and F of each block in the domain.
 
@@ -506,16 +506,17 @@ class Blocks(object):
         """
         listOfBuildingsBlock = []
         self._Buildings = buildings
-        currentDict = {'lambdaP': [], 'lambdaF':[], 'hc': [], 'geometry': []}
-
+        currentDict = {'lambdaP': [], 'lambdaF':[], 'hc': [], 'geometry': [],'i0':[],'j0':[]}
 
         for i,blockDict in enumerate( self._GetBlocks()):
             # currentPandas = pandas.DataFrame.from_dict(blockDict)
-            listOfBuildingsBlock.append(self.initBuildingsBlock(blockDict))
-            currentDict['lambdaF'].append(listOfBuildingsBlock[i]._LambdaF(windDirection=windDirection))
-            currentDict['lambdaP'].append(listOfBuildingsBlock[i]._LambdaP())
-            currentDict['hc'].append(listOfBuildingsBlock[i].getHc()) # The calculation of HC is done at LambdaP function
-            currentDict['geometry'].append(listOfBuildingsBlock[i]._ExteriorBlock)
+            BuildingsBlock = self.initBuildingsBlock(blockDict)
+            currentDict['lambdaF'].append(BuildingsBlock._LambdaF(windDirection=windDirection))
+            currentDict['lambdaP'].append(BuildingsBlock._LambdaP())
+            currentDict['hc'].append(BuildingsBlock.getHc()) # The calculation of HC is done at LambdaP function
+            currentDict['geometry'].append(BuildingsBlock._ExteriorBlock)
+            currentDict['i0'].append(blockDict['i0'][0])
+            currentDict['j0'].append(blockDict['j0'][0])
 
 
         df = pd.DataFrame.from_dict(currentDict, orient='columns')

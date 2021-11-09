@@ -188,7 +188,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         self.logger.info("---- Start ----")
 
         if not isinstance(regionNameOrData,geopandas.GeoDataFrame):
-            shp = self.cutRegionFromSource(regionNameOrData,dataSourceName=dataSourceName, isBounds=True, crs=crs)
+            shp = self.cutRegionFromSource(regionNameOrData, datasourceName=dataSourceName, isBounds=True, crs=crs)
         else:
             shp = regionNameOrData
 

@@ -250,7 +250,7 @@ cleanCase
 
         self.logger.info("-- End --")
 
-    def prepareMesh(self, configurationFile, workingDirectory):
+    def prepareMesh(self, configurationFile):
         """
             Reads the configuration file and:
 
@@ -294,7 +294,7 @@ cleanCase
                 self.logger.execution("Found location Node")
                 ## 2. Location in mesh handler.
                 locationInMesh_handlers = [x.split("_")[1] for x in dir(self) if x.startswith("locationInMeshHandler")]
-                if blockMeshNode['locationInMesh'] not in locationInMesh_handlers:
+                if locationNode['type'] not in locationInMesh_handlers:
                     err = f"{blockMeshNode['locationInMesh']} must be one of {','.join(locationInMesh_handlers)}"
                     self.logger.error(err)
                     raise ValueError(err)
@@ -365,13 +365,14 @@ cleanCase
         else:
             self.logger.info(f"Generating geometry {regionName}")
             stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],
-                                        dataSourceName=geometryJSON['source']['datasource'])
+                                        datasourceName=geometryJSON['source']['datasourceName'])
 
             self.logger.debug(f"Converting to STL complete. Now writing to the file {fullFileName}")
             with open(fullFileName, 'w') as stloutputfile:
                 stloutputfile.write(stlcontent)
 
-        self.parameters["domains"] = dict(regionName=dict(shapeDataOrName=bx,dataSourceName=geometryJSON['source']['datasource']))
+        self.logger.debug(f"Adding the region {regionName} to the workflow")
+        self.parameters["domains"] = {regionName : dict(shapeDataOrName=bx,datasourceName=geometryJSON['source']['datasourceName'])}
         self.logger.info(" -- End -- ")
 
     def geometryHandler_buildings(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=False):
@@ -450,7 +451,7 @@ cleanCase
         Ylist = [corners['ymin'], corners['ymin'], corners['ymax'], corners['ymin']]
 
         VerticesList = []
-        for xy,h in product(zip(Xlist,Ylist),height):
+        for h,xy in product(height,zip(Xlist,Ylist)):
             VerticesList.append([xy[0],xy[1],h])
 
 

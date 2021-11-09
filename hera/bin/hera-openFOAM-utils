@@ -12,10 +12,14 @@ import json
 import sys
 import shutil
 import os
+
+import pandas
 from hera.simulations.openFoam.OFObjects import ofObjectHome
 from hera.utils.jsonutils import loadJSON
 from hera.simulations.openFoam.hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
 from hera import toolkitHome
+from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
+
 
 def createEmpty(args):
     if len(args.args) == 0 :
@@ -35,7 +39,7 @@ def createEmpty(args):
     for fieldName in fieldList:
         field = ofObjectHome().getField(fieldName)
         field.write(caseDirectory=caseDir,time=0)
-        field.emptyParallelField(caseDirectory=caseDir,time=0)
+        field.emptyParallelField(caseDirectory=caseDir)
 
 
 def createBuildings(args):
@@ -58,7 +62,7 @@ def createBuildings(args):
     tk.regionToSTL(regionNameOrData=bx,
                    outputFileName=stlFileName,
                    flat=None,
-                   dataSourceName=args.datasource,
+                   datasourceName=args.datasource,
                    saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
 
 
@@ -75,13 +79,13 @@ def createTopography(args):
                                 projectName=configuration['projectName'])
     stl = tk.regionToSTL(shapeDataOrName=bx,
                          dxdy = args.dxdy,
-                         dataSourceName=args.datasource)
+                         datasourceName=args.datasource)
 
     stlFileName = f"{args.outputFile.split('.')[0]}.stl"
     with open(stlFileName,"w") as stlfile:
         stlfile.write(stl)
 
-def createWind(args):
+def windProfile(args):
     """
         Creates a wind profile according to the urban canopy.
 
@@ -98,31 +102,32 @@ def createWind(args):
     """
     hwf = hermesOpenFOAMWorkflow(args.workflowFile)
 
-    # 1. Prepare the lambda geopandas. (write in the case directory)
-            #--> check if the file exists, if it does, then use it.
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=args.projectName)
+    projectName = hwf.parameters['projectName']
+    buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
+    of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.OPENFOAM, projectName=projectName)
 
     buildingsData =  dict(hwf.parameters['domains'][args.buildingDomainName])
     buildingsData['crs'] = None
 
-    lambdaBuildings = tk.analysis.LambdaFromDatasource(hwf.parameters['windMeteorologicalDirection'],
-                                                       hwf.parameters['LambdaCalculationResolution'],
-                                                       buildingsData=buildingsData)
+    caseDirectory = hwf.parameters['caseDirectory']
 
-    print(lambdaBuildings)
-
-    # 2. Prepeare station file.
+    # 1. Prepeare station file.
             # currently just take 1 speed and direction.
+    wind = pandas.DataFrame(hwf.parameters['wind'])
+
+    # 1. Prepare the lambda geopandas. (write in the case directory)
+            #--> check if the file exists, if it does, then use it.
+    lambdaBuildings = buildings_tk.analysis.LambdaFromDatasource(windMeteorologicalDirection=wind.MeteorologicalDirection.mean(),
+                                                       resolution=hwf.parameters['LambdaCalculationResolution'],
+                                                       **buildingsData,overwrite=True)
 
     # 3. Get the cell centers.
+    meshCells = of_tk.getMesh(caseDirectory)
 
     # 4. Calculate the Ux,Uy of each point in the mesh.
+    data = urbanLogNormalProfile(cellCenters=meshCells,lambdaGrid=lambdaBuildings,stations=wind)
 
     # 5. Write in the constant/U0 file.
-
-
-
-
 
 if __name__=="__main__":
 
@@ -166,13 +171,10 @@ if __name__=="__main__":
 
     ########################################################
 
-    parser_createWind = subparsers.add_parser('windProfile',
-                                                    help='Creates a wind profile on an existing case')
-    parser_createWind.add_argument('projectName', type=str, help='The workflow file')
+    parser_createWind = subparsers.add_parser('windProfile',help='Creates a wind profile on an existing case')
     parser_createWind.add_argument('workflowFile', type=str, help='The workflow file')
     parser_createWind.add_argument('buildingDomainName', type=str, help='The name of the geometry region to use from the params node')
-
-    parser_createWind.set_defaults(func=createWind)
+    parser_createWind.set_defaults(func=windProfile)
 
 
 

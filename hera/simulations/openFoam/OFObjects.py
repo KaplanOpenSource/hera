@@ -265,7 +265,7 @@ object      kinematicCloudPositions;
 
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
-            if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe):
+            if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):
                 dataProcessorList = data.processor.unique()
                 if isinstance(data,dask.dataframe):
                     dataProcessorList = dataProcessorList.compute()
@@ -392,7 +392,7 @@ class OFField(OFObject):
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dataframe.from_delayed(
+            data = dask.from_delayed(
                 [delayed(extractFieldFile)(os.path.join(finalCasePath,processorName, str(timeName),self.name),
                                            columnNames=self.componentNames,
                                            time=timeName,
@@ -408,8 +408,10 @@ class OFField(OFObject):
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(finalCasePath,str(timeName),self.name),
-                                                                     columnNames = self.columnNames,time=timeName) for timeName in timeList])
+            data = dask.dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(finalCasePath,str(timeName),self.name),
+                                                                          columnNames = self.componentNames,
+                                                                          time=timeName)
+                                                for timeName in timeList])
 
         return data
 
