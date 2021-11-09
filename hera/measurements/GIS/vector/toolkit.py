@@ -58,9 +58,9 @@ class VectorToolkit(toolkit.abstractToolkit):
         else:
             raise ValueError("Function receives only GeoDataFrame")
 
-    def _setGeoPandasFromRegionData(self,regionData, crs = None):
+    def _RegionToGeopandas(self, regionData, crs = None):
         """
-            Converts a shapte to geopandas.
+            Converts a shape to geopandas.
 
         Parameters
         ----------
@@ -125,13 +125,13 @@ class VectorToolkit(toolkit.abstractToolkit):
         """
         desc ={TOOLKIT_VECTOR_REGIONNAME: regionName,'crs':crs}
 
-        data = self._setGeoPandasFromRegionData(regionData,crs = crs).to_json()
+        data = self._RegionToGeopandas(regionData, crs = crs).to_json()
         # data = self.geopandasToGeoJson(data)
 
         self.addCacheDocument(resource = data, dataFormat=datatypes.GEOPANDAS, desc=desc)
 
 
-    def cutRegionFromSource(self,shapeDataOrName,dataSourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
+    def cutRegionFromSource(self, shapeDataOrName, datasourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
         """
             Cuts a the shape from the requested datasource
 
@@ -142,7 +142,7 @@ class VectorToolkit(toolkit.abstractToolkit):
 
                         list - a box with the corners in [xmin,ymin,xmax,ymax]
 
-        dataSourceName : str
+        datasourceName : str
             The name of the satasource to cur from.
 
         isBounds : bool
@@ -161,19 +161,23 @@ class VectorToolkit(toolkit.abstractToolkit):
         if isinstance(shapeDataOrName, str):
             shape= self.getRegionData(shapeDataOrName)
         else:
-            shape = self._setGeoPandasFromRegionData(shapeDataOrName,crs = crs)
+            shape = self._RegionToGeopandas(shapeDataOrName, crs = crs)
 
         self.logger.debug(f"The crs of the input is {shape.crs}")
         self.logger.debug(f"The shape is {shape.iloc[0]}")
 
         dct = dict(bbox=shape) if isBounds else dict(mask=shape)
 
-        if isinstance(dataSourceName, str):
-            doc = self.getDatasourceDocument(datasourceName=dataSourceName)
-            self.logger.debug(f"The datasource {dataSourceName} is pointing to {doc.resource}")
+        if isinstance(datasourceName, str):
+            doc = self.getDatasourceDocument(datasourceName=datasourceName)
+            if doc is None:
+                self.logger.error(f"datasource {datasourceName} not found in project {self.projectName}")
+                raise ValueError(f"datasource {datasourceName} not found in project {self.projectName}")
+
+            self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
             if 'crs' not in doc.desc['desc']:
-                self.logger.error(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
-                raise ValueError(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
+                self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
+                raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
 
             if shape.crs is None:
                 self.logger.execution("The region was defined without crs. Using the crs of the datasource.")

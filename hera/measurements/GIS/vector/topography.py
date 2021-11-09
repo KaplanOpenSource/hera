@@ -31,7 +31,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
         self._stlFactory = stlFactory()
 
 
-    def cutRegionFromSource(self,shapeDataOrName,dataSourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
+    def cutRegionFromSource(self, shapeDataOrName, datasourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
         """
             Cuts a the shape from the requested datasource
 
@@ -44,7 +44,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
 
                         list - a box with the corners in [xmin,ymin,xmax,ymax]
 
-        dataSourceName : str
+        datasourceName : str
             The name of the satasource to cur from.
 
         isBounds : bool
@@ -57,16 +57,16 @@ class TopographyToolkit(toolkit.VectorToolkit):
         -------
 
         """
-        topography = super().cutRegionFromSource(shapeDataOrName=shapeDataOrName,dataSourceName=dataSourceName, isBounds =isBounds , crs =crs )
+        topography = super().cutRegionFromSource(shapeDataOrName=shapeDataOrName, datasourceName=datasourceName, isBounds =isBounds, crs =crs)
         if isinstance(shapeDataOrName, str):
             shape = self.getRegionData(shapeDataOrName)
         else:
-            shape = self._setGeoPandasFromRegionData(shapeDataOrName, crs=crs)
-            doc = self.getDatasourceDocument(datasourceName=dataSourceName)
-            self.logger.debug(f"The datasource {dataSourceName} is pointing to {doc.resource}")
+            shape = self._RegionToGeopandas(shapeDataOrName, crs=crs)
+            doc = self.getDatasourceDocument(datasourceName=datasourceName)
+            self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
             if 'crs' not in doc.desc['desc']:
-                self.logger.error(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
-                raise ValueError(f"The datasource {dataSourceName} has no CRS defined in the metadata. please add it")
+                self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
+                raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
 
             if shape.crs is None:
                 self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
@@ -94,7 +94,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
         """
         return self.stlFactory.vectorToSTL(gpandas, dxdy=dxdy, solidName="Topography")
 
-    def regionToSTL(self, shapeDataOrName, dxdy, dataSourceName, crs=None):
+    def regionToSTL(self, shapeDataOrName, dxdy, datasourceName, crs=None):
         """
             Converts a region in a vector height map (contours) to STL at requested resolution
 
@@ -123,7 +123,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
         """
         self.logger.info("-- Start --")
 
-        topography = self.cutRegionFromSource(shapeDataOrName, dataSourceName=dataSourceName, isBounds=True, crs=crs)
+        topography = self.cutRegionFromSource(shapeDataOrName, datasourceName=datasourceName, isBounds=True, crs=crs)
 
 
         if len(topography) == 0:
@@ -481,8 +481,6 @@ class stlFactory:
         -------
             string of the STL
         """
-        import pdb
-        pdb.set_trace()
         if isinstance(gpandas, geopandas.GeoDataFrame):
             rasterMap = self.rasterizeGeopandas(gpandas, dxdy=dxdy)
 

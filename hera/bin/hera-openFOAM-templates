@@ -42,6 +42,9 @@ def prepare(arguments):
     # 1. Prepare the geometry. Build the STL
     hwf.prepareGeometry(templateName, configuration,arguments.overwrite)
 
+    # 2. Prepare the mesh
+    hwf.prepareMesh(configurationFile=configuration)
+
     if arguments.noParallel:
         hwf.changeWorkflowToRunAsComposed()
 
@@ -64,7 +67,6 @@ if __name__=="__main__":
     subparsers = parser.add_subparsers(help='sub-command help')
 
     parser_make  = subparsers.add_parser('make', help='Makes the relevant template')
-    parser_prepare = subparsers.add_parser('prepare', help='Specialized the template according to specific configuration of the case')
     parser_build = subparsers.add_parser('buildVariations', help='Build the variations of the workflow.')
 
     # Make - makes the case from requested template type.
@@ -80,11 +82,11 @@ if __name__=="__main__":
     #                - Other nodes:
     #                       : Write  the node in the appropriate .
     #       2.
+    parser_prepare = subparsers.add_parser('prepare',help='Specialized the template according to specific configuration of the case')
     parser_prepare.add_argument('workflow', type=str,help='The project to load the data')
     parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
     parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
-    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                help='Run as single processor even if template is parallel')
+    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='Run as single processor even if template is parallel')
 
     # Build - build all the cases from the parameter file and the template.
     #         Adds to the hera database if necessary.

@@ -16,7 +16,12 @@ loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
 
- 
+ GIS_Buildings 
+ --------------
+    - Adding the i0,j0 index of the bloc to the lambda. 
+    - canging names. 
+    - refactoring the canopywindProfile. 
+       
 
  Util 
  ----
