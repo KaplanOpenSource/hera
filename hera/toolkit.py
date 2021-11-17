@@ -116,7 +116,7 @@ class abstractToolkit(Project):
 
         *  Inherits from project and therefore exposes all the datalayer functions.
 
-        *  Holds the toolkit name, and references to the analysis and presentation layers.
+        *  Holds the toolkit name, and references to the datalayer and presentation layers.
 
         *  Adds a mechanism (setConfig,getConfig) for saving configuration in the DB. the settings are specific for a project.
 
@@ -139,7 +139,7 @@ class abstractToolkit(Project):
     _toolkitname = None
     _projectName = None
 
-    _analysis = None # holds the analysis layer.
+    _analysis = None # holds the datalayer layer.
     _presentation = None # holds the presentation layer
 
     _FilesDirectory = None
@@ -172,7 +172,7 @@ class abstractToolkit(Project):
     @property
     def analysis(self):
         """
-            Access to the analysis layer
+            Access to the datalayer layer
         :return:
         """
         return self._analysis

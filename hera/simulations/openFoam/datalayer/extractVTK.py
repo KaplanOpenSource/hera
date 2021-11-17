@@ -1,10 +1,10 @@
 import pandas
 import os
 import json
-from pvOpenFOAMBase import paraviewOpenFOAM
+from simulations.openFoam.datalayer.pvOpenFOAMBase import paraviewOpenFOAM
 import paraview.simple as pvsimple
 
-from simulations.openfoam.preprocess import RECONSTRUCTED_CASE,DECOMPOSED_CASE
+from simulations.openfoam.preprocess import DECOMPOSED_CASE
 
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).

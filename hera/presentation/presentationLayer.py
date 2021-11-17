@@ -8,7 +8,7 @@ class PresentationLayer(object):
     def _calculate_hist(self,data,x,y,bins,normalization="density"):
         """
             Calculate the distrubtion.
-            in future version should be moved to a specialied analysis of a mean data.
+            in future version should be moved to a specialied datalayer of a mean data.
 
         :return:
             x_mid - the x axis

@@ -25,7 +25,7 @@ import dask.dataframe
 data = dask.dataframe.read_parquet("documentationData/Slice1.parquet").compute()
 
 #######################
-# Now, we use a function of the analysis layer in order to arrange the data.
+# Now, we use a function of the datalayer layer in order to arrange the data.
 # The arrangement adds columns that hold the velocity magnitude, the height ofer the terrain
 # and the distance downwind from the domain's corner.
 

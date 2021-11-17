@@ -18,9 +18,9 @@ def getRiskAreaAlgorithm(algorithmName,**kwargs):
 
 		currently only Sweep is implemented
 	"""
-	estimatorCLS = pydoc.locate("pyriskassessment.analysis.riskAreas.riskAreaAlgorithm_%s" % algorithmName.title())
+	estimatorCLS = pydoc.locate("pyriskassessment.datalayer.riskAreas.riskAreaAlgorithm_%s" % algorithmName.title())
 	if estimatorCLS is None: 
-		mymod = pydoc.locate("pyriskassessment.analysis.riskAreas")
+		mymod = pydoc.locate("pyriskassessment.datalayer.riskAreas")
 		raise ValueError("estimator %s not found. Available estimators are: %s" % (algorithmName,",".join([x.split("_")[1] for x in dir(mymod) if x.startswith("riskAreaAlgorithm_")])))
 
 	return estimatorCLS(**kwargs)
