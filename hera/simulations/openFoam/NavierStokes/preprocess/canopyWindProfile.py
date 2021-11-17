@@ -128,9 +128,6 @@ def urbanLogNormalProfile(cellCenters, lambdaGrid, stations):
     theta = []
     valuesDict = {}
 
-    import pdb
-    pdb.set_trace()
-
     for i in range(len(cellCenters)):
         x = cellCenters.loc[i]["x"]
         y = cellCenters.loc[i]["y"]
