@@ -42,7 +42,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         self.logger.info("Init High frequency data")
         self.campaignName = campaignName
         self._analysis = RawdataAnalysis(self)
-       # self._presentation = presenation(self,self.analysis)
+       # self._presentation = presenation(self,self.datalayer)
 
 
         self._np_size = "100MB"

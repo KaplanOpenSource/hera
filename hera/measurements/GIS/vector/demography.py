@@ -96,7 +96,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
         import warnings
-        warnings.warn("Depracted in Version 2.0.0+. Use analysis.calculatePopulationInPolygon",
+        warnings.warn("Depracted in Version 2.0.0+. Use datalayer.calculatePopulationInPolygon",
                       category=DeprecationWarning,
                       stacklevel=2)
         self.analysis.calculatePopulationInPolygon(Shape=Shape, projectName=projectName, populationTypes=populationTypes, Data=Data)

@@ -1,4 +1,4 @@
-from .OFObjects import ofObjectHome
-from .hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
+from .datalayer.OFObjects import ofObjectHome
+from .datalayer.hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
 
 OFObjectHome = ofObjectHome()

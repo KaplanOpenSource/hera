@@ -1,8 +1,9 @@
 from ...toolkit import abstractToolkit
 import os
 import glob
-from .OFObjects import OFField
-
+from .datalayer.OFObjects import OFField
+from .datalayer.hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
+from .datalayer.OFObjects import ofObjectHome
 
 class OFToolkit(abstractToolkit):
     """
@@ -14,36 +15,15 @@ class OFToolkit(abstractToolkit):
 
     """
 
+    _ofObjectHome = None
+
+    @property
+    def ofObjectHome(self):
+        return self._ofObjectHome
+
     def __init__(self, projectName, filesDirectory=None, toolkitName="OFToolkit"):
         super().__init__(toolkitName=toolkitName, projectName=projectName, filesDirectory=filesDirectory)
-
-
-    def getFieldDimensions(self,fieldName):
-        """
-            Return the dimensions of the field.
-
-            For now, we assume that the flow is incompressible.
-
-        Parameters
-        ----------
-        fieldName : str
-            The field name
-
-        Returns
-        -------
-            str
-
-        """
-        dimensions = dict(U="[ 0 1 -1 0 0 0 0 ]",
-                          p="[ 0 2 -2 0 0 0 0 ]",
-                          epsilon="[ 0 2 -3 0 0 0 0 ]",
-                          f="[0 0 -1 0 0 0 0]",
-                          k="[0 2 -2 0 0 0 0]",
-                          nut="[0 2 -1 0 0 0 0]")
-
-        return dimensions[fieldName]
-
-
+        self._ofObjectHome = ofObjectHome()
 
     def processorList(self,caseDirectory):
         """
@@ -59,6 +39,18 @@ class OFToolkit(abstractToolkit):
         """
         return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
+    def getHermesWorkflow(self,workflowfile):
+        """
+            Returns the workflow of the requested JSON file.
+        Parameters
+        ----------
+        workflowfile
+
+        Returns
+        -------
+
+        """
+        return hermesOpenFOAMWorkflow(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """
@@ -111,6 +103,10 @@ class OFToolkit(abstractToolkit):
         if not os.path.exists(checkPath):
             self.logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
             os.system(f"foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            self.logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            if not os.path.exists(checkPath):
+                self.logger.error("Error running the writeCellCentres. Check mesh")
+                raise RuntimeError("Error running the writeCellCentres. Check mesh")
         else:
             self.logger.debug(f"Cell centers exist in {caseType} case.")
 

@@ -7,7 +7,7 @@ from ....utils import toMeteorologicalAngle,toMathematicalAngle
 
 
 from hera.measurements.GIS.vector.locations.demography import DemographyToolkit as demoDatalayer
-pop = demoDatalayer(projectName="Demography") # used only for the analysis layer, which is static.
+pop = demoDatalayer(projectName="Demography") # used only for the datalayer layer, which is static.
 
 
 
