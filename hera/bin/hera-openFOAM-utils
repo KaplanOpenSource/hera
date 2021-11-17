@@ -176,8 +176,10 @@ if __name__=="__main__":
     parser_createWind.add_argument('buildingDomainName', type=str, help='The name of the geometry region to use from the params node')
     parser_createWind.set_defaults(func=windProfile)
 
+    ########################################################
 
 
     ########################################################
+
     parsed = parser.parse_args()
     parsed.func(parsed)
