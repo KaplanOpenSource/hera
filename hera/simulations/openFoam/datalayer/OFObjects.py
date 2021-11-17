@@ -6,14 +6,39 @@ from dask.delayed import delayed
 import dask
 from itertools import product,islice
 from io import StringIO
+from ....utils import loggedObject
 
-class ofObjectHome:
+class ofObjectHome(loggedObject):
     """
         A factory for field classes.
 
         This class creates the field and populates the data.
     """
-    def getField(self,fieldName,compressible=False):
+
+    def __init__(self):
+        super().__init__(loggerName=None)
+
+    def getDimensions(self,kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
+        """
+            Returns the openfaom dimensions vector.
+        Parameters
+        ----------
+        kg : int
+
+        m  : int
+        s  : int
+        K  : int
+        mol: int
+        A  : int
+        cd : int
+
+        Returns
+        -------
+            The openfoam unit vector  [kg m s K mol A cd]
+        """
+        return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
+
+    def getField(self,fieldName,compressible=False,componentNames=None,dimensions=None):
         """
             Return the field with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
@@ -31,8 +56,10 @@ class ofObjectHome:
             OFField.
 
         """
-        incompressibleDict = dict(U=dict(dimensions="[ 0 1 -1 0 0 0 0 ]",componentNames=['u','v','w']),
-                              p=dict(dimensions="[ 0 2 -2 0 0 0 0 ]",componentNames=None),
+        self.logger.info("----- Start ----")
+
+        incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1,s=-1),componentNames=['Ux','Uy','Uz']),
+                              p=dict(dimensions=self.getDimensions(m=2,s=-2),componentNames=None),
                               epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]",componentNames=None),
                               nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]",componentNames=None),
                               k  =dict(dimensions="[ 0 2 -2 0 0 0 0 ]",componentNames=None),
@@ -43,12 +70,20 @@ class ofObjectHome:
         objs = {True : compressibleDict,
                 False : incompressibleDict}
 
-        try:
-            objData = objs[compressible][fieldName]
-        except KeyError:
-            raise KeyError(f"Field {fieldName} not Found. Existing fields are: {','.join(objs[compressible].keys())}")
+        if fieldName not in objs[compressible]:
+            self.logger.warning(f"{fieldName} not found in pre-existing fields. Using inputs")
+            objData = {}
+        else:
+            objData = dict(objs[compressible][fieldName])
 
-        return OFField(name=fieldName,dimensions=objData['dimensions'],componentNames=objData['componentNames'])
+        objData['name'] = fieldName
+        if dimensions is not None:
+            objData['dimensions'] = dimensions
+        if componentNames is not None:
+            objData['componentNames'] = componentNames
+
+        self.logger.info("----- End -----")
+        return OFField(**objData)
 
 
     def loadLagrangianDataParallel(casePath,
@@ -123,7 +158,7 @@ class ofObjectHome:
 
 
 
-class OFObject:
+class OFObject(loggedObject):
     """
         Represents an OF object. i.e a field or a list.
 
@@ -163,6 +198,7 @@ class OFObject:
             If None, then it is a scalar.
             If list, then it is a list.
         """
+        super().__init__(loggerName=None)
         self._name = name
         self._componentNames =componentNames
 
@@ -195,30 +231,31 @@ class OFObject:
         newStr = f"{str(data.shape[0])}\n"
         newStr += "(\n"
         newStr += "\n".join([f"({x})" for x in D.to_csv(sep=' ', header=False, index=False).split("\n")[:-1]])
-        newStr += "\n)\n"
+        newStr += "\n);\n"
         return newStr
 
     def _getHeader(self):
 
         return """
 /*--------------------------------*- C++ -*----------------------------------*\
-=========                 |                                                 
-\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           
-\    /   O peration     | Version:  dev                                   
-\  /    A nd           | Web:      www.OpenFOAM.org                      
-\/     M anipulation  |                                                 
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  7
+     \\/     M anipulation  |
 \*---------------------------------------------------------------------------*/
 FoamFile
-{    
-version     2.0;
-format      ascii;
-class       vectorField;
-object      kinematicCloudPositions;
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      C;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     """
 
-    def write(self,caseDirectory,time,data=None,fileName=None,parallel=False):
+    def write(self, caseDirectory, location, data=None, fileName=None, parallel=False):
         """
             Updates the field internal data to the input.
             Should **not** update the boundaries data.
@@ -233,8 +270,9 @@ object      kinematicCloudPositions;
         ----------
         caseDirectory: str
                 The path of the case
-        time: str
-                The time to update.
+        location: str
+                The location in the caseDirectory to update.
+                Can be system, constant or the time
 
         fileName: str
             Optional field name.
@@ -252,13 +290,13 @@ object      kinematicCloudPositions;
             value as the data.
 
         """
+        self.logger.info("---- Start----")
         fileName = self.name if fileName is None else fileName
 
         if data is None:
             data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
 
         if parallel:
-
             # Check if pandas support multicolumns.
             if 'processor' not in data:
                 raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
@@ -285,7 +323,7 @@ object      kinematicCloudPositions;
                     else:
                         procData = data
 
-                fullFileName = os.path.join(caseDirectory,processorName ,time, fileName)
+                fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
 
                 if os.path.exists(fullFileName):
                     self._updateExisting(filename=fullFileName,data=procData)
@@ -293,11 +331,14 @@ object      kinematicCloudPositions;
                     self._writeNew(filename=fullFileName,data=procData)
 
         else:
-            fullFileName = os.path.join(caseDirectory, str(time), fileName)
+            fullFileName = os.path.join(caseDirectory, str(location), fileName)
+            self.logger.debug(f"Writinge {fullFileName} as composed file")
 
             if os.path.exists(fullFileName):
+                self.logger.debug("File exists, updating")
                 self._updateExisting(filename=fullFileName, data=data)
             else:
+                self.logger.debug("File does not exist, write new")
                 self._writeNew(filename=fullFileName, data=data)
 
     def _updateExisting(self, filename, data):
@@ -316,6 +357,8 @@ class OFField(OFObject):
             - internalField
             - boundaryField
 
+
+    There is a bug in updating an OF field -> removes the boundary conditions.
 
     """
     _dimensions = None  # The dimensions str (currently just a string without the parsing.
@@ -453,13 +496,16 @@ class OFField(OFObject):
 
                         if len(columnNames) > 1:
                             # vector
-                            filecontentStr += self.pandasToFoamFormat(data, columnNames)
+                            filecontentStr += self.pandasToFoamFormat(data)
                         else:
                             # scalar
                             if isinstance(data, pandas.Series):
-                                filecontentStr += "\n".join(data)
-                            else:
-                                filecontentStr += "\n".join(data[columnNames])
+                                data = data.values
+                            fileStrContent += ""
+                            fileStrContent = f"{str(data.shape[0])}\n"
+                            fileStrContent += "(\n"
+                            fileStrContent += "\n".join(data)
+                            fileStrContent += ");\n"
 
                         filecontentStr += "\n"
                         # Skip internal field until the boundaryField.
@@ -493,6 +539,7 @@ class OFField(OFObject):
         -------
 
         """
+        self.logger.info("----- Start -----")
 
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
@@ -513,14 +560,17 @@ class OFField(OFObject):
 
             if len(componentNames) > 1:
                 # vector
-                fileStrContent += self.pandasToFoamFormat(data,componentNames)
+                fileStrContent += self.pandasToFoamFormat(data)
 
             else:
                 # scalar
                 if isinstance(data, pandas.Series):
-                    fileStrContent +=  "\n".join(data)
-                else:
-                    fileStrContent += "\n".join(data[componentNames])
+                    data = data.values
+                fileStrContent += ""
+                fileStrContent = f"{str(data.shape[0])}\n"
+                fileStrContent += "(\n"
+                fileStrContent += "\n".join(data)
+                fileStrContent += ");\n"
 
         fileStrContent += """
     boundaryField
@@ -582,9 +632,12 @@ class OFField(OFObject):
             else:
                 # scalar
                 if isinstance(data, pandas.Series):
-                    fileStrContent +=  "\n".join(data)
-                else:
-                    fileStrContent += "\n".join(data[componentNames])
+                    data = data.values
+                fileStrContent += ""
+                fileStrContent = f"{str(data.shape[0])}\n"
+                fileStrContent += "(\n"
+                fileStrContent += "\n".join(data)
+                fileStrContent += ");\n"
 
         fileStrContent += """
    boundaryField
@@ -605,9 +658,6 @@ class OFList(OFObject):
     """
         Just data.
     """
-    pass
-
-
 
     def _updateExisting(self,filename,data):
         """

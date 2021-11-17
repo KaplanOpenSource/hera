@@ -1,8 +1,8 @@
-from ..hermesWorkflow import hermesWorkflow,hermesNode
 import numpy
 import os
-from ... import toolkitHome
-from ...utils.jsonutils import loadJSON
+from hera import toolkitHome
+from ...hermesWorkflow import hermesWorkflow,hermesNode
+from ....utils import loadJSON
 from itertools import product
 import json
 
@@ -448,7 +448,7 @@ cleanCase
         corners = configuration['regions'][regionName]['parameters']
 
         Xlist = [corners['xmin'],corners['xmax'],corners['xmax'],corners['xmin']]
-        Ylist = [corners['ymin'], corners['ymin'], corners['ymax'], corners['ymin']]
+        Ylist = [corners['ymin'], corners['ymin'], corners['ymax'], corners['ymax']]
 
         VerticesList = []
         for h,xy in product(height,zip(Xlist,Ylist)):

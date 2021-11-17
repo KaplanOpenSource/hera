@@ -242,7 +242,7 @@ Experiment:
 
  0.3.0
  -----
- Changed the datalayer.analysis to datalayer.cache.
+ Changed the datalayer.datalayer to datalayer.cache.
  Added more documentation.
 
  0.2.2

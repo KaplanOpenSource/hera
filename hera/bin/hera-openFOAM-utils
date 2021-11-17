@@ -6,20 +6,12 @@
     uses the configuration file.
 
 """
-
 import argparse
-import json
-import sys
-import shutil
 import os
-
 import pandas
-from hera.simulations.openFoam.OFObjects import ofObjectHome
 from hera.utils.jsonutils import loadJSON
-from hera.simulations.openFoam.hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
-from hera import toolkitHome
 from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
-
+from hera.simulations.openFoam import hermesOpenFOAMWorkflow
 
 def createEmpty(args):
     if len(args.args) == 0 :
@@ -38,7 +30,7 @@ def createEmpty(args):
     # Makes the empty fields
     for fieldName in fieldList:
         field = ofObjectHome().getField(fieldName)
-        field.write(caseDirectory=caseDir,time=0)
+        field.write(caseDirectory=caseDir, location=0)
         field.emptyParallelField(caseDirectory=caseDir)
 
 
@@ -101,8 +93,8 @@ def windProfile(args):
 
     """
     hwf = hermesOpenFOAMWorkflow(args.workflowFile)
-
     projectName = hwf.parameters['projectName']
+
     buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
     of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.OPENFOAM, projectName=projectName)
 
@@ -115,19 +107,27 @@ def windProfile(args):
             # currently just take 1 speed and direction.
     wind = pandas.DataFrame(hwf.parameters['wind'])
 
-    # 1. Prepare the lambda geopandas. (write in the case directory)
+    # 2. Prepare the lambda geopandas. (write in the case directory)
             #--> check if the file exists, if it does, then use it.
     lambdaBuildings = buildings_tk.analysis.LambdaFromDatasource(windMeteorologicalDirection=wind.MeteorologicalDirection.mean(),
-                                                       resolution=hwf.parameters['LambdaCalculationResolution'],
-                                                       **buildingsData,overwrite=True)
+                                                                 resolution=hwf.parameters['LambdaCalculationResolution'],
+                                                                 **buildingsData)
 
     # 3. Get the cell centers.
+
+    #### This should change to get height above topography of the mesh.
+    ##   It has the buildingDomainName. So it should take the topography and try to calculate the height of the cells.
+    ##   Should solve synthetic data in which the topogrpahy is synthetic or does not exist.
     meshCells = of_tk.getMesh(caseDirectory)
 
     # 4. Calculate the Ux,Uy of each point in the mesh.
     data = urbanLogNormalProfile(cellCenters=meshCells,lambdaGrid=lambdaBuildings,stations=wind)
-
+    data = data.assign(Uz=0)
     # 5. Write in the constant/U0 file.
+    dims = of_tk.ofObjectHome.getDimensions(m=1,s=-1)
+    newField = of_tk.ofObjectHome.getField(fieldName="U0",componentNames=['Ux','Uy','Uz'],dimensions=dims)
+    newField.write(caseDirectory=caseDirectory, location="constant", data=data)
+
 
 if __name__=="__main__":
 
