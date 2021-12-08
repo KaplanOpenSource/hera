@@ -82,7 +82,7 @@ class OFToolkit(abstractToolkit):
 
         self.logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
 
-        casePointer = "" if caseDirectory == os.getcwd() else f"-case {fullPathDirectory}"
+        casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
 
         useParallel= False
         if parallel:

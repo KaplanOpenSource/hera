@@ -435,7 +435,7 @@ class OFField(OFObject):
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dask.from_delayed(
+            data = dask.dataframe.from_delayed(
                 [delayed(extractFieldFile)(os.path.join(finalCasePath,processorName, str(timeName),self.name),
                                            columnNames=self.componentNames,
                                            time=timeName,
