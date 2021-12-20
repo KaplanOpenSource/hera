@@ -158,6 +158,8 @@ class ofObjectHome(loggedObject):
 
 
 
+
+
 class OFObject(loggedObject):
     """
         Represents an OF object. i.e a field or a list.
@@ -185,6 +187,18 @@ class OFObject(loggedObject):
     @property
     def data(self):
         return self.data
+
+    @property
+    def fieldType(self):
+        fieldType = "Scalar"
+        if self.componentNames is not None:
+            if len(self.componentNames) == 3:
+                fieldType = "Vector"
+            elif len(self.componentNames) == 9:
+                fieldType = "Tensor"
+            else:
+                raise ValueError(f"Component names for field {self.name} is invalid. ")
+        return fieldType
 
     def __init__(self,name,componentNames=None):
         """
@@ -236,6 +250,8 @@ class OFObject(loggedObject):
 
     def _getHeader(self):
 
+        fieldType = self.fieldType
+
         return """
 /*--------------------------------*- C++ -*----------------------------------*\
   =========                 |
@@ -248,12 +264,12 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       volVectorField;
+    class       vol{fieldType}Field;
     location    "0";
     object      C;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-    """
+    """.replace("{fieldType}",fieldType)
 
     def write(self, caseDirectory, location, data=None, fileName=None, parallel=False):
         """
@@ -605,11 +621,12 @@ class OFField(OFObject):
         -------
 
         """
+        if data is None:
+            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
+
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
 
-        if data is None:
-            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
 
         if type(data) in [float,int,list,tuple,str]: #isinstance(data,float) or isinstance(data,int):
             if type(data) in [float,int,str]:

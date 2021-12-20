@@ -1,7 +1,7 @@
 from unum.units import *
 import os
 import json
-
+from json.decoder import JSONDecodeError
 def ConvertJSONtoConf(JSON):
     """
         Traverse the JSON and replace all the unum values with objects.
@@ -53,12 +53,15 @@ def loadJSON(jsonData):
     if hasattr(jsonData, 'read'):
         loadedjson = json.load(jsonData)
     elif isinstance(jsonData, str):
-
         if os.path.exists(jsonData):
             with open(jsonData) as jsonFile:
                 loadedjson = json.load(jsonFile)
         else:
-            loadedjson = json.loads(jsonData)
+            try:
+                loadedjson = json.loads(jsonData)
+            except JSONDecodeError as e:
+                raise ValueError(f" {str(e)}: Got {jsonData}, either bad format of file does not exist")
+
     elif isinstance(jsonData, dict):
         loadedjson = jsonData
     else:

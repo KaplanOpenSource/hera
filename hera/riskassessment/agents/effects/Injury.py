@@ -224,8 +224,6 @@ class Injury(object):
 		json.dumps(self.toJSON(),indent=4)
 
 
-
-
 class InjuryLognormal10(Injury): 
 
 

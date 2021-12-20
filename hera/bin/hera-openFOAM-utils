@@ -7,23 +7,25 @@
 
 """
 import argparse
+import json
 import os
 import pandas
 from hera.utils.jsonutils import loadJSON
 from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
 from hera.simulations.openFoam import hermesOpenFOAMWorkflow
+from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
+from itertools import product
 
 def createEmpty(args):
-    if len(args.args) == 0 :
-        raise ValueError("Must supply case directory")
 
-    caseDir = args.args[0]
-    fieldList = args.args[1:]
+    caseDir = args.caseDirectory
+    fieldList = args.fields
     print(f"Making case {caseDir} with fields {','.join(fieldList)}")
 
     # Make the case :
     os.makedirs(os.path.join(caseDir,"constant"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "system"),exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "constant","triSurface"), exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
 
@@ -129,30 +131,113 @@ def windProfile(args):
     newField.write(caseDirectory=caseDirectory, location="constant", data=data)
 
 
+def listRegions(args):
+    """
+        Lists all the regions of the obj file so that they could be inserted to the snappyHexMesh node.
+
+    Parameters
+    ----------
+    args.objectFile : the obj file.
+
+
+    Returns
+    -------
+        Prints a list of regions with their type .
+    """
+    try:
+        from freecad import app as FreeCAD
+        import Mesh
+    except ImportError:
+        self.logger.error("freecad module  is not installed in the environment")
+        raise ImportError("freecad is not installed. please install it before trying again.")
+
+    # Load the file
+    fileName = args.objectFile
+    Mesh.open(fileName)
+    objFile  = FreeCAD.getDocument("Unnamed")
+
+    if objFile is None:
+        print(f"{fileName} not found")
+        exit()
+
+    outputDict = dict()
+
+    for regionObj in objFile.findObjects():
+        outputDict[regionObj.Name] = dict(name=regionObj.Name,type="wall|patch")
+
+    print(json.dumps(outputDict,indent=4,sort_keys=True))
+
+
+def createBoundaryConditions(args):
+    """
+        Creates the list of the boudnary conditions for each fieldin the object .
+
+    Parameters
+    ----------
+    args: arguments from the command line.
+
+        .workflowFile - The path to the template workflow
+        .objectFile - the object file.
+
+    Returns
+    -------
+
+    """
+    #hwf = hermesOpenFOAMWorkflow(args.workflowFile)
+
+    try:
+        from freecad import app as FreeCAD
+        import Mesh
+    except ImportError:
+        self.logger.error("freecad module  is not installed in the environment")
+        raise ImportError("freecad is not installed. please install it before trying again.")
+
+    # Load the file
+    fileName = args.objectFile
+    Mesh.open(fileName)
+    objFile  = FreeCAD.getDocument("Unnamed")
+
+    ret = dict()
+    for fieldName in args.fields:
+
+        boundary = dict()
+        for  regionObj in objFile.findObjects():
+                    boundary[regionObj.Name] = dict(type="zeroGradient",value="")
+        ret[fieldName] = dict(boundaryField=boundary)
+
+    print(json.dumps(ret, indent=4, sort_keys=True))
+
+
+
 if __name__=="__main__":
 
-    ### ---- Debugging
-    from hera import toolkitHome
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
-    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
-    tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False)
-    tk.addLogger(loggerName="measurements.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False)
-    ### ---- Debugging
-
+    # ### ---- Debugging
+    # from hera import toolkitHome
+    # tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
+    # tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+    # tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False)
+    # tk.addLogger(loggerName="measurements.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False)
+    # ### ---- Debugging
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
     parser_createEmpty  = subparsers.add_parser('createEmpty', help='Creates an empty case with empty fields')
-    parser_createEmpty.add_argument('args',
+    parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    parser_createEmpty.add_argument('--fields',
                                     nargs='*',
                                     type=str,
-                                    help='[Case directory] [list of field]')
+                                    help='[list of field]')
 
     parser_createEmpty.set_defaults(func=createEmpty)
 
+    ########################################################
+    ######################################################## STLOBJFiles
+    ########################################################
+    parser_stlUtils = subparsers.add_parser('STLOBJUtils', help='Utilities for debugging STL and obj files ')
+    stlUtils_subparsers = parser_stlUtils.add_subparsers(help='Utilities for debugging STL and obj files ')
 
-    parser_createBuildings = subparsers.add_parser('buildings', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createBuildings = stlUtils_subparsers.add_parser('buildings', help='Creates an stl for the desired region. Mostly for debugging')
     parser_createBuildings.add_argument('configurationFile', type=str, help='The configuration file')
     parser_createBuildings.add_argument('regionName', type=str, help='the region to build')
     parser_createBuildings.add_argument('datasource', type=str, help='the datasource to use')
@@ -161,7 +246,7 @@ if __name__=="__main__":
 
     ########################################################
 
-    parser_createTopography = subparsers.add_parser('topography', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createTopography = stlUtils_subparsers.add_parser('topography', help='Creates an stl for the desired region. Mostly for debugging')
     parser_createTopography.add_argument('configurationFile', type=str, help='The configuration file')
     parser_createTopography.add_argument('regionName', type=str, help='the region to build')
     parser_createTopography.add_argument('datasource', type=str, help='the datasource to use')
@@ -171,11 +256,26 @@ if __name__=="__main__":
 
     ########################################################
 
+    parser_createTopography = stlUtils_subparsers.add_parser('listRegions', help='Lists the regions ')
+    parser_createTopography.add_argument('objectFile', type=str, help='The object file')
+    parser_createTopography.set_defaults(func=listRegions)
+
+    parser_createTopography = stlUtils_subparsers.add_parser('createBoundaryConditions', help='Creates the boundary conditions for all the variable sin the ')
+    parser_createTopography.add_argument('objectFile', type=str, help='The objectFile file')
+    parser_createTopography.add_argument('--f', '--fields', dest="fields", type=str, nargs='+', required=True,help="The list of the fields to create")
+    parser_createTopography.set_defaults(func=createBoundaryConditions)
+
+
+    ########################################################
+    ######################################################## Initial conditions
+    ########################################################
+    parser_initial = subparsers.add_parser('initialConditions', help='Utilities for debugging STL and obj files ')
+    initial_subparsers = parser_initial.add_subparsers(help='Utilities for debugging STL and obj files ')
+
     parser_createWind = subparsers.add_parser('windProfile',help='Creates a wind profile on an existing case')
     parser_createWind.add_argument('workflowFile', type=str, help='The workflow file')
     parser_createWind.add_argument('buildingDomainName', type=str, help='The name of the geometry region to use from the params node')
     parser_createWind.set_defaults(func=windProfile)
-
 
 
     ########################################################

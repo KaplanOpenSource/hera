@@ -35,7 +35,7 @@ def prepare(arguments):
     hwf = hermesOpenFOAMWorkflow(arguments.workflow)
     configuration = loadJSON(arguments.configurationFile)
 
-    templateName =configuration["specializedTemplateDirectory"]
+    templateName =configuration["specializedTemplateName"]
 
     os.makedirs(templateName,exist_ok=True)
 
@@ -44,6 +44,10 @@ def prepare(arguments):
 
     # 2. Prepare the mesh
     hwf.prepareMesh(configurationFile=configuration)
+
+    # 3. Prepare the boundary conditions and initial conditinos .
+    #    changes the dict change node.
+    hwf.prepareICandBC(configurationFile=configuration)
 
     if arguments.noParallel:
         hwf.changeWorkflowToRunAsComposed()
@@ -97,8 +101,6 @@ if __name__=="__main__":
     ############################################################################
 
     parser_prepare.set_defaults(func=prepare)
-
-
     parsed = parser.parse_args()
     parsed.func(parsed)
 

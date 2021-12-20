@@ -5,6 +5,7 @@ from ...hermesWorkflow import hermesWorkflow,hermesNode
 from ....utils import loadJSON
 from itertools import product
 import json
+from shutil import copyfile
 
 
 class hermesOpenFOAMWorkflow(hermesWorkflow):
@@ -89,13 +90,18 @@ class hermesOpenFOAMWorkflow(hermesWorkflow):
 
 
     @property
-    def snappyHexmesh(self):
+    def snappyHexMesh(self):
         return hermesNode('snappyHexMesh',self.nodes['snappyHexMesh']) if 'snappyHexMesh' in self.nodes else None
 
 
     @property
     def fileWriter(self):
         return hermesNode('fileWriter',self.nodes['fileWriter'])
+
+
+    @property
+    def defineNewBoundaryConditions(self):
+        return hermesNode('defineNewBoundaryConditions',self.nodes['defineNewBoundaryConditions'])
 
 
     def changeWorkflowToRunAsComposed(self):
@@ -203,7 +209,6 @@ cleanCase
         """
             Adapts the geometry of the workflow.
 
-
         Parameters
         ----------
         caseDirectory : str
@@ -241,12 +246,12 @@ cleanCase
             handler(name, geometryObject, workingDirectory, configuration,overwrite)
 
             # 2. Change the snappyHexMesh node.
-            snappyHexNode = self.snappyHexmesh
-
-            if snappyHexNode is None:
-                self.logger.warning("snappyHexMesh node does not exist. Geometry might not be used!")
-            else:
-                snappyHexNode["geometry"]['objects'][name] = geometryObject["meshing"]
+            # snappyHexNode = self.snappyHexMesh
+            #
+            # if snappyHexNode is None:
+            #     self.logger.warning("snappyHexMesh node does not exist. Geometry might not be used!")
+            # else:
+            #     snappyHexNode["geometry"]['objects'][name] = geometryObject["meshing"]
 
         self.logger.info("-- End --")
 
@@ -307,12 +312,37 @@ cleanCase
 
         self.logger.info("-- End -- ")
 
+    def prepareICandBC(self,configurationFile):
+        """
+            Handles the initial conditions of the file
+            calls the iniital conditions handler.
+
+
+        Parameters
+        ----------
+        configurationFile:
+                The customization json file.
+
+        Returns
+        -------
+
+        """
+
+        for icbc in configurationFile['ICandBC']:
+            icbc_type = icbc['type']
+            func = getattr(self,f"ICandBCHandler_{icbc_type}")(icbc)
+
 
     ##########################################
     ##
     ##                  Handlers
     ##
     ##################
+
+
+    ############## geometryHandler
+    # Defines the geometry objects and sets up the snappy hex mesh.
+
     def geometryHandler_topography(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=False):
         """
             Build the topography STL using the topography toolkit.
@@ -348,7 +378,6 @@ cleanCase
         stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
         fullFileName = os.path.join(workingDirectory, stlFileName)
 
-
         region = geometryJSON['source']['region']
         regionList = configuration.get('regions', {})
         regionCoords = regionList.get(region, None)
@@ -356,14 +385,13 @@ cleanCase
         if regionCoords is None:
             raise ValueError(f"The region: {region} is not found. Found the regions: {','.join(regionList.keys())}")
 
-
         bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
         self.logger.debug(f"Found the region {region} with coords {bx}")
 
         if os.path.exists(fullFileName) and not overwrite:
-            self.logger.info(f"Geometry {regionName} exists. and overwrite=False")
+            self.logger.info(f"File {stlFileName} in {regionName} exists. and overwrite=False")
         else:
-            self.logger.info(f"Generating geometry {regionName}")
+            self.logger.info(f"Generating {stlFileName} for geometry {regionName}")
             stlcontent = tk.regionToSTL(shapeDataOrName=bx, dxdy=geometryJSON['source']['dxdy'],
                                         datasourceName=geometryJSON['source']['datasourceName'])
 
@@ -371,33 +399,45 @@ cleanCase
             with open(fullFileName, 'w') as stloutputfile:
                 stloutputfile.write(stlcontent)
 
+        ## Here we should update the snappyHexMesh node
+
         self.logger.debug(f"Adding the region {regionName} to the workflow")
         self.parameters["domains"] = {regionName : dict(shapeDataOrName=bx,datasourceName=geometryJSON['source']['datasourceName'])}
         self.logger.info(" -- End -- ")
 
-    def geometryHandler_buildings(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=False):
+    def geometryHandler_buildings(self,regionName, geometryJSON, workingDirectory, configuration):
         """
-            Build the buildings STL using the buildings toolkit.
+            Creates the STL of the buildings in the region using the building toolkit.
+
+            Sets the parameter buildingsBBOX to the bounding box of the buildings area.
 
             We assume that the region to crop is bbox. (and given in the configuration as dict with the xmax,xmin,ymin,ymax keys).
 
+
         Parameters
         ----------
+        regionName: str
+            The name of the region.
+
+            Not used here, only for completeness of the interface.
+
         geometryJSON: dict
-                The geometry object.
-                Has the structure:
+                The geometry object is a dict with the following keys:
 
-                "source" :    {
-                        "type" : "buildings",  <-- the type
-                        "datasource" : "BNTL",  <-- The name of the datasource to use.
-                        "region" : "canopy"     <-- The name of the region in the configuration file to use.
-                    }
+                * source - parameters for building the STL of the buildings.
+                           used by the buildings toolkit.
 
-        workingDirectory: str
-                The path to save the STL to.
+                    has the strucutre:
+                        "source" :    {
+                                "type" : "buildings",  <-- the type
+                                "datasource" : "BNTL",  <-- The name of the datasource to use.
+                                "region" : "canopy"     <-- The name of the region in the configuration file to use.
+                            }
+                * meshing - parameters used by the blockMesh and the snappyHexMesh to build the code.
+                    has the structure of the snappyHexMesh node ["geometry"]['objects'][name]
 
-        regions: dict
-                A dict with the regions as polygons.
+        configuration: dict
+                The overall configuration of the case.
 
         Returns
         -------
@@ -420,6 +460,67 @@ cleanCase
         tk.regionToSTL(regionNameOrData=bx, outputFileName=fullFileName,flat=None,saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
 
         self.parameters['buildingsBBOX'] = bx
+        ## Here we should update the snappyHexMesh node
+
+
+    def geometryHandler_indoorBuilding(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=None):
+        """
+            Updating the snappyHexMesh node.
+
+            Assumes that the name of the region is the name of the object in the
+            workflow node. .
+
+        Parameters
+        ----------
+        geometryJSON: dict
+                The geometry object that defines the object.
+                Has the structure:
+
+                "source" :    {
+                        "type": "indoorBuilding",
+                        "fileName": "StationOpenDoors",
+                        "fileType" : "obj"
+                    }
+                "mesh" : {
+                    ... snappy hex mesh data
+                }
+
+        workingDirectory: str
+                The path to copy the obj file to.
+
+        overwrite:
+            Not used
+
+        Returns
+        -------
+
+        """
+        self.logger.info(" -- Start -- ")
+
+        objectName = geometryJSON['source']['fileName']
+        objectType = geometryJSON['source']['fileType']
+        # Updating the snappyHexMesh object:
+        snappyNode = self.snappyHexMesh
+        if snappyNode is None:
+            self.logger.error("There is no snappyHexMesh Node in this workflow")
+            raise ValueError("There is no snappyHexMesh Node in this workflow")
+
+        # # 1. change the object name to the regionName
+        # try:
+        #     objNode =  snappyNode['geometry']['objects'][regionName]
+        # except KeyError:
+        #     err = f"The object {regionName} was not found in snappyHexMesh node. Found : {','.join(snappyNode['geometry'].keys())}"
+        #     self.logger.error(err)
+        #     raise ValueError(err)
+        #
+        # # 2. change all the keys from the casefile:
+        # for keyName,keyValue in geometryJSON['meshing'].items():
+        #     objNode[keyName] = keyValue
+        self.parameters['objectFile'] = f"{objectName}.{objectType}"
+        snappyNode['geometry']['objects'][regionName].update(geometryJSON['meshing'])
+
+    ############## blockMeshHandler
+    ## Defines the block mesh node .
 
     def blockMeshHandler_region(self, configuration,overwrite=False):
         """
@@ -458,12 +559,72 @@ cleanCase
         blockMesh = self.blockMesh
         blockMesh['vertices'] = VerticesList
 
+    def blockMeshHandler_objFile(self, configuration,overwrite=False):
+        """
+            Creates the vertices in the the blockMesh, and updates the workflow using the
+            bounds of the obj file.
+            The location of the region was taken from the region that was defined in the configuration.
+            Currently, we only support box-like blockMesh domains.
+
+            Does not change the boundaries or makes the mesh cyclic.
+
+            Note that the obj file is given in millimeters and it is converted to meters.
+
+        Parameters
+        ----------
+        configuration : dict
+            The configuration data.
+
+
+        Returns
+        -------
+            None, updates the blockMesh node.
+        """
+        try:
+            from freecad import app as FreeCAD
+            import Mesh
+        except ImportError:
+            self.logger.error("freecad module  is not installed in the environment")
+            raise ImportError("freecad is not installed. please install it before trying again.")
+
+        # Load the file
+        fileName = configuration['mesh']['blockMesh']['fileName']
+        Mesh.open(fileName)
+        objFile = FreeCAD.getDocument("Unnamed")
+
+        bboxes = [x.Mesh.BoundBox for x in objFile.findObjects()]
+
+        maxPropList = ['XMax','YMax','ZMax']
+        corners = dict()
+        for propName in maxPropList:
+             corners[propName] = numpy.max([getattr(x,propName) for x in bboxes])/1000
+
+        minPropList = ['XMin', 'YMin', 'ZMin']
+        for propName in minPropList:
+             corners[propName] = numpy.min([getattr(x,propName) for x in bboxes])/1000
+
+        Xlist = [corners['XMin'],corners['XMax'],corners['XMax'],corners['XMin']]
+        Ylist = [corners['YMin'], corners['YMin'], corners['YMax'], corners['YMax']]
+        Zlist = [corners['ZMin'], corners['ZMax']]
+
+        VerticesList = []
+        for h,xy in product(Zlist,zip(Xlist,Ylist)):
+            VerticesList.append([xy[0],xy[1],h])
+
+        blockMesh = self.blockMesh
+        blockMesh['vertices'] = VerticesList
+
+        # copy the obj file to the template directory.
+        #copyfile( fileName,    os.path.join(configuration["specializedTemplateDirectory"],fileName))
+
+
+    ############## location in the mesh
+    ## Handles the location mesh.
+
     def locationInMeshHandler_relative(self,configuration,overwrite=False):
         """
             Calculates the location in mesh point according to the fractions
             in each dimension.
-
-
 
         Parameters
         ----------
@@ -488,13 +649,47 @@ cleanCase
         y = corners['ymin'] + y_frac *(corners['ymax']-corners['ymin'])
         z = height[0] + z_frac * (height[1] -height[0])
 
-        snappyNode = self.snappyHexmesh
+        snappyNode = self.snappyHexMesh
 
         if snappyNode is not None:
             snappyNode["castellatedMeshControls"]["locationInMesh"] = [x,y,z]
 
 
+    def locationInMeshHandler_absolute(self,configuration,overwrite=False):
+        """
+            Calculates the location in mesh point according to the fractions
+            in each dimension.
 
 
 
+        Parameters
+        ----------
+        configuration : dict
+                The configurtation of the change.
 
+        Returns
+        -------
+
+        """
+        x = configuration['mesh']['locationInMesh']['x']
+        y = configuration['mesh']['locationInMesh']['y']
+        z = configuration['mesh']['locationInMesh']['z']
+
+        snappyNode = self.snappyHexMesh
+
+        if snappyNode is not None:
+            snappyNode["castellatedMeshControls"]["locationInMesh"] = [x,y,z]
+
+
+    ############## initial and boundry conditions.
+    ## creates the initial and the boundary conditions
+
+    def ICandBCHandler_node(self,icnode):
+        """
+            write the defineNewBoundaryConditions node.
+
+        Returns
+        -------
+
+        """
+        self.defineNewBoundaryConditions['fields'] = icnode['data']

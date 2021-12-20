@@ -35,8 +35,7 @@ class hermesWorkflow(loggedObject):
             Can be the file name, a string of the JSON, or a file type.
         """
         super().__init__(loggerName=None)
-
-        self.logger.info("Initializing")
+        self.logger.info(f"Initializing using file: {workflow}")
 
         self._workflow = loadJSON(workflow)
 
