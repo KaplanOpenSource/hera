@@ -1,1 +1,1 @@
-from .hermesWorkflow import hermesWorkflow
+from .workflowToolkit import hermesWorkflow

@@ -15,8 +15,35 @@ class ofObjectHome(loggedObject):
         This class creates the field and populates the data.
     """
 
+    GROUP_COMPRESSIBLE = "compressible"
+    GROUP_INCOMPRESSIBLE = "incompressible"
+    GROUP_DISPERSION = "dispersion"
+
+    @property
+    def predifinedFields(self):
+        return self._predefinedfields
+
     def __init__(self):
         super().__init__(loggerName=None)
+
+        incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
+                                  p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
+                                  epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]", componentNames=None),
+                                  nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]", componentNames=None),
+                                  k=dict(dimensions="[ 0 2 -2 0 0 0 0 ]", componentNames=None),
+                                  )
+
+        compressibleDict = dict()
+
+        dispersionDict = dict(Hmix=dict(dimensions=self.getDimensions(m=1), componentNames=None),
+                              ustar=dict(dimensions=self.getDimensions(m=1,s=-1), componentNames=None),
+                              cellHeights=dict(dimensions=self.getDimensions(m=1), componentNames=None))
+
+
+        self._predefinedfields=dict(compressible=compressibleDict,
+                      incompressible=incompressibleDict,
+                      dispersion = dispersionDict)
+
 
     def getDimensions(self,kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
         """
@@ -38,11 +65,25 @@ class ofObjectHome(loggedObject):
         """
         return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
 
-    def getField(self,fieldName,compressible=False,componentNames=None,dimensions=None):
+    def getPredefinedFields(self,fieldGroup):
+        """
+            Return a list of all the fields in a gropu.
+        Parameters
+        ----------
+        fieldGroup: str
+            The group to list.
+
+        Returns
+        -------
+            A list of names
+        """
+        return [x for x in self.predifinedFields[fieldGroup].keys()]
+
+    def getField(self,fieldName,fieldGroup="incompressible",componentNames=None,dimensions=None):
         """
             Return the field with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
-            solution, we haveto supply it as well.
+            solution, we haveto supply the group of parameters to which the group belongs.
 
             Currently holds a list of fields. In the future might read itfrom a list.
 
@@ -51,6 +92,26 @@ class ofObjectHome(loggedObject):
         fieldName: str
             The field name
 
+        fieldGroup: str
+            The group to which the parameter belongs.
+            Currently:
+                - compressible
+                - incompressible
+                - dispersion
+
+        componentNames: list of str
+            The names of the components.
+            The length of the list determines whether the field s scalar, vector or tensor.
+            (for scalars, the componenetName is None).
+
+        dimensions : dict
+            The dimensions of the object.
+            the key name is the unit name and the value is its exponent:
+            dict(m=1,s=-1) is the units of velocity (m/s).
+
+            The units are:
+                kg,m,s,K,mol,A,cd
+
         Returns
         -------
             OFField.
@@ -58,30 +119,17 @@ class ofObjectHome(loggedObject):
         """
         self.logger.info("----- Start ----")
 
-        incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1,s=-1),componentNames=['Ux','Uy','Uz']),
-                              p=dict(dimensions=self.getDimensions(m=2,s=-2),componentNames=None),
-                              epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]",componentNames=None),
-                              nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]",componentNames=None),
-                              k  =dict(dimensions="[ 0 2 -2 0 0 0 0 ]",componentNames=None),
-                              )
-
-        compressibleDict = dict()
-
-        objs = {True : compressibleDict,
-                False : incompressibleDict}
-
-        if fieldName not in objs[compressible]:
+        if fieldName not in self.predifinedFields[fieldGroup]:
             self.logger.warning(f"{fieldName} not found in pre-existing fields. Using inputs")
-            objData = {}
+            if dimensions is  None:
+                raise ValueError(f"Must supply dimensions to the new field {fieldName}")
+            objData = dict(dimensions= self.getDimensions(**dimensions),componentNames = componentNames)
         else:
-            objData = dict(objs[compressible][fieldName])
+            objData = dict(self.predifinedFields[fieldGroup][fieldName])
 
         objData['name'] = fieldName
-        if dimensions is not None:
-            objData['dimensions'] = dimensions
-        if componentNames is not None:
-            objData['componentNames'] = componentNames
 
+        self.logger.info(f"Getting the object {objData}")
         self.logger.info("----- End -----")
         return OFField(**objData)
 
@@ -310,16 +358,19 @@ FoamFile
         fileName = self.name if fileName is None else fileName
 
         if data is None:
+            self.logger.debug("Data was not supplied, using 0. ")
             data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
 
         if parallel:
-            # Check if pandas support multicolumns.
-            if 'processor' not in data:
-                raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
+            self.logger.info("Saving fields to parallel case")
 
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
             if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):
+
+                if 'processor' not in data:
+                    raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
+
                 dataProcessorList = data.processor.unique()
                 if isinstance(data,dask.dataframe):
                     dataProcessorList = dataProcessorList.compute()
@@ -603,7 +654,7 @@ class OFField(OFObject):
         return fileStrContent
 
 
-    def emptyParallelField(self, caseDirectory, data=None):
+    def emptyParallelField(self, caseDirectory,timeName="0.parallel",processor="", data=None,boundaryField=None):
         """
             Writes a null file with definitions of the processor boundries
             because sometimes, the snappyHex mesh of decomposed pars breaks the parallel
@@ -627,7 +678,6 @@ class OFField(OFObject):
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
 
-
         if type(data) in [float,int,list,tuple,str]: #isinstance(data,float) or isinstance(data,int):
             if type(data) in [float,int,str]:
                 fileStrContent += f"internalField  uniform {data};\n"
@@ -643,9 +693,8 @@ class OFField(OFObject):
                                (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
 
             if len(componentNames) > 1:
-                # vector
+                # vector/tensor
                 fileStrContent += self.pandasToFoamFormat(data,componentNames)
-
             else:
                 # scalar
                 if isinstance(data, pandas.Series):
@@ -656,6 +705,16 @@ class OFField(OFObject):
                 fileStrContent += "\n".join(data)
                 fileStrContent += ");\n"
 
+        boundaryConditions = ""
+        if boundaryField is not None:
+            for boundaryPatchName,boundaryData in boundaryField.items():
+                bstr = f"\n{boundaryPatchName}\n"
+                bstr += "{\n"
+                for bcondProp,bcondData in boundaryData.items():
+                    bstr += f"\t{bcondProp} {bcondData};\n"
+                bstr += "}\n"
+                boundaryConditions += bstr
+
         fileStrContent += """
    boundaryField
 {
@@ -663,10 +722,11 @@ class OFField(OFObject):
     {
         type            processor;
     }
-
-}"""
-
-        filename = os.path.join(caseDirectory, '0.parallel', self.name)
+    """  + boundaryConditions + """
+}
+"""
+        filename = os.path.join(caseDirectory,processor, timeName, self.name)
+        self.logger.debug(f"Saving the file {self.name} to {filename} ")
         with open(filename,'w') as outfile:
             outfile.write(fileStrContent)
 

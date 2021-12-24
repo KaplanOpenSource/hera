@@ -4,7 +4,7 @@ import json
 import sys
 import shutil
 import os
-from hera.simulations.openFoam import hermesOpenFOAMWorkflow
+from hera.simulations.openFoam import Workflow_Flow
 
 from hera.utils.jsonutils import loadJSON
 
@@ -32,8 +32,9 @@ def prepare(arguments):
 
     """
 
-    hwf = hermesOpenFOAMWorkflow(arguments.workflow)
     configuration = loadJSON(arguments.configurationFile)
+    hwf = Workflow_Flow(projectName=configuration['projectName'],
+                        workflow=arguments.workflow)
 
     templateName =configuration["specializedTemplateName"]
 
@@ -70,8 +71,8 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    parser_make  = subparsers.add_parser('make', help='Makes the relevant template')
-    parser_build = subparsers.add_parser('buildVariations', help='Build the variations of the workflow.')
+    #parser_make  = subparsers.add_parser('make', help='Makes the relevant template')
+    #parser_build = subparsers.add_parser('buildVariations', help='Build the variations of the workflow.')
 
     # Make - makes the case from requested template type.
     #        1. The template types should be datasource in the OF toolkit.
@@ -91,10 +92,6 @@ if __name__=="__main__":
     parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
     parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
     parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='Run as single processor even if template is parallel')
-
-    # Build - build all the cases from the parameter file and the template.
-    #         Adds to the hera database if necessary.
-
 
 
 

@@ -12,7 +12,7 @@ import os
 import pandas
 from hera.utils.jsonutils import loadJSON
 from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
-from hera.simulations.openFoam import hermesOpenFOAMWorkflow
+from hera.simulations.openFoam import Workflow_Flow
 from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
 from itertools import product
 
@@ -94,7 +94,7 @@ def windProfile(args):
     -------
 
     """
-    hwf = hermesOpenFOAMWorkflow(args.workflowFile)
+    hwf = Workflow_Flow(args.workflowFile)
     projectName = hwf.parameters['projectName']
 
     buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)

@@ -1,0 +1,191 @@
+#! /usr/bin/env python
+import argparse
+import json
+import sys
+import shutil
+import os
+from distutils.dir_util import copy_tree
+from hera.simulations.openFoam.datalayer.hermesWorkflow import Workflow_Dispersion
+from hera.utils import loggedObject
+from hera.utils.jsonutils import loadJSON
+
+
+def makeDispersionWorkflow(arguments):
+    """
+    Prepare the dispersion simulation by specializing the
+    workflows.
+
+    That is, copy the relevant fields from the case configuration to the workflow
+
+    Parameters
+    ----------
+    arguments:
+            - workflow: str
+                    The configuration file
+
+            - caseConfiguration: str
+                    The specialization case.
+
+    Returns
+    -------
+
+    """
+    configuration = loadJSON(arguments.configurationFile)
+    hwf = Workflow_Dispersion(projectName=configuration['projectName'],
+                              workflow=arguments.dispersionWorkflow)
+
+    templateName =configuration["specializedTemplateName"]
+
+    # 1. Make a specialized workflow.
+    hwf.parameters['baseFlow'] = configuration['flowField']['baseFlow']
+    hwf.parameters['dispersionFields'] = configuration['flowField']['dispersionFields']
+    hwf.write(f"{templateName}.json",overwrite=arguments.overwrite)
+
+def prepareFlowField(arguments):
+    """
+        Prepare the flowFields if they are  not in the db.
+        ** Currently only implemented for steady state fields **
+
+            1) create a new directory for the flow field.
+            2) copy all the fields to the requeted start and end timesteps.
+            3) make links to the mesh.
+
+    Parameters
+    ----------
+    argumets
+        - configurationFile: str
+                The configuration file that is specialized for the case.
+
+    Returns
+    -------
+
+    """
+    logger = loggedObject("bin.hera_of_lsm_workflows").logger
+    logger.info(" -- Starting: prepare workflow --")
+
+    configuration = loadJSON(arguments.configurationFile)
+
+    projectName = configuration['projectName']
+    basename = configuration["flowFields"]['prefixName']
+    for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
+        formatted_number = "{0:04d}".format(flowid+1)
+        suggsetedName = f"{basename}_{formatted_number}"
+        Workflow_Dispersion.prepareFlowField(projectName=projectName,flowData=flowdata,suggsetedName=suggsetedName)
+
+def prepareIndoorsFlowField(arguments):
+    """
+        Prepare the flowField if it is not in the db.
+        ** Currently only implemented for steady state fields **
+
+        /    1) create a new directory for the flow field.
+        |    2) copy all the fields to the requeted start and end timesteps.
+        \    3) make links to the mesh.
+             4) Run the cellHeightsIndoors.
+
+             Steps 1-3 are similar to the general prepareFlowField,
+             step 4 is specialized for indoor environments.
+
+    Parameters
+    ----------
+    argumets
+        - dispersionWorkflow : str
+                The workflow
+
+        - configurationFile: str
+                The configuration file that is specialized for the case.
+
+    Returns
+    -------
+        The case direcory of the flowfield.
+    """
+    logger = loggedObject("bin.hera_of_lsm_workflows").logger
+    logger.info(" -- Starting: prepare flow indoors --")
+
+    configuration = loadJSON(arguments.configurationFile)
+
+    projectName = configuration['projectName']
+    basename = configuration["flowFields"]['prefixName']
+    for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
+        formatted_number = "{0:04d}".format(flowid+1)
+        suggsetedName = f"{basename}_{formatted_number}"
+        case = Workflow_Dispersion.prepareFlowField(projectName=projectName,flowData=flowdata,suggsetedName=suggsetedName)
+        ret = os.system(f"cd {case};foamJob -parallel -wait indoorDistanceFromWalls  -case {case} -time 0: ;cd ..")
+        if ret != 0:
+            raise ValueError("Openfoam not installed, or indoorDistanceFromWalls does not exist!. ")
+
+
+def perpareDispersionCase(arguments):
+    """
+         Create the hermes workflow for the dispersion.
+
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+        T
+    """
+
+
+
+    pass
+
+if __name__=="__main__":
+
+    ### ---- Debugging
+    from hera import toolkitHome
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
+    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+    tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
+
+    #tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False)
+    ### ---- Debugging
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    ## Parser flowfield
+
+    ## Prepare the dispersion simulation:
+    ##          1. Prepare the flowField
+    flowfield = subparsers.add_parser('flowfield', help='Prepares the flowfield for the dispersion.')
+    flowfield_subparsers = flowfield.add_subparsers(help='sub-command help')
+
+    parser_flowField = flowfield_subparsers.add_parser('prepare',help='Prepares the flowfield for the dispersion.')
+    parser_flowField.add_argument("configurationFile",type=str,help="The configuration file")
+    parser_flowField.set_defaults(func=prepareFlowField)
+
+    ## Prepare the dispersion simulation:
+    ##          1. Prepare the flowField for indoors. (that is , also runs the createCellheights.
+    parser_indoors_flowField = flowfield_subparsers.add_parser('prepareIndoor',help='Prepares the flowfield for the dispersion.')
+    parser_indoors_flowField.add_argument("configurationFile",type=str,help="The configuration file")
+    parser_indoors_flowField.set_defaults(func=prepareIndoorsFlowField)
+
+    ## list and manage the db simulations.
+
+    ##          2. Prepare the dispersion case:
+    ##                  a) copy the template case directory.
+    ##                  b) link the template to the flowField.
+    ##                  b) update the workflow according to the template.
+
+    ## Specializes the dispersion workflow
+    dispersion = subparsers.add_parser('dispersion', help='Prepares the flowfield for the dispersion.')
+    dispersion_subparsers = dispersion.add_subparsers(help='sub-command help')
+
+    parser_makedispersionflowfield = dispersion_subparsers.add_parser('makeWorkflow',help='Specialize the workflow for the current dispersion case.')
+    parser_makedispersionflowfield.add_argument("dispersionWorkflow", type=str, help="The template workflow file")
+    parser_makedispersionflowfield.add_argument("configurationFile",type=str,help="The configuration file of this case")
+    parser_makedispersionflowfield.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the existing workflow, if file already exists')
+    parser_makedispersionflowfield.set_defaults(func=makeDispersionWorkflow)
+
+    parser_makedispersionflowfield = dispersion_subparsers.add_parser('prepare',help='Prepares the simulation')
+    parser_makedispersionflowfield.add_argument("dispersionWorkflow", type=str, help="The template workflow file")
+    parser_makedispersionflowfield.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the existing workflow, if file already exists')
+    parser_makedispersionflowfield.set_defaults(func=makeDispersionWorkflow)
+
+    ############################################################################
+
+    parsed = parser.parse_args()
+    parsed.func(parsed)
+

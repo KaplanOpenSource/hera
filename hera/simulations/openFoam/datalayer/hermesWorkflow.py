@@ -1,126 +1,49 @@
 import numpy
 import os
+import glob
+import shutil
+from distutils.dir_util import copy_tree
 from hera import toolkitHome
-from ...hermesWorkflow import hermesWorkflow,hermesNode
+from ...workflowToolkit import hermesWorkflow,hermesNode
 from ....utils import loadJSON
+from ....utils import loggedObject
+from ....datalayer import Project
 from itertools import product
 import json
 from shutil import copyfile
+from ...openFoam import ofObjectHome
+
+try:
+    from hermes import workflow
+except ImportError:
+    raise ImportError("Cannot use this module without hermes... Install it. ")
 
 
-class hermesOpenFOAMWorkflow(hermesWorkflow):
+class abstractWorkflow(hermesWorkflow):
     """
-        This class manages the hermes workflow of openFOAM.
-
-        It contains additional functions that are specific to openFOAM workflows
-        such as controlDict, fvOptions, fvSchemes, and fvSolutions that return the relevant
-        nodes.
-
-        Also, it contains a function change the from composed to decomposed run.
-
-        Each node has a list of default flags that could be modified when the case execution script is built.
-
-        The case is considered as running in parallel if there is an execution that is required to run
-        in parallel (for example the decompose par).
+            An abstract specialization of the hermes workflow to the
+            openfoam workflow.
 
     """
 
-    _workflowExecutionJSON = None # Holds the datastructure that allows the workflow to build the execution
-                              # of the workflow.
+    DOCTYPE_DISPERSION_FLOWFIELD = "dispersionFlowField" # The flow field of the dispersion.
+    DOCTYPE_FLOWFIELD = "FlowField" # calculation of the flow field.
+    DOCTYPE_DISPERSION = "dispersion" # The dispersion itself.
 
-    def __init__(self,workflow,workflowExecutionJSON=None,parallelNodes=None):
-        """
-            Initializes a openFOAM hermes workflow.
-
-            workflowExecutionJSON is a JSON that describes how to execute the workflow.
-
-            Its structure is an ordered list of dict.
-            Each dict represents a command line that has to be executed to run the case.
-                [
-                    {
-                        ... node description ...
-                    },
-
-                ]
-
-            The node description is:
-            {
-                name:       The name of the program to execute.
-                parallel:   Is it necessary for parallel run.
-                parameters: a list of string to append as parameters.
-            }
-
-
-        Parameters
-        ----------
-        workflow : str, dict, file type.
-            Can be the file name, a string of the JSON, or a file type.
-
-
-        parallelNodes: str, list
-            A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
-
-        """
-        super().__init__(workflow)
-
-        self._workflowExecutionJSON = workflowExecutionJSON
-        self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
-
-
+    _db = None # a hera project to handle the connection to db.
 
     @property
     def parameters(self):
-        return hermesNode('controlDict',self.nodes['Parameters'])
+        return self['Parameters']
 
     @property
-    def controlDict(self):
-        return hermesNode('controlDict',self.nodes['controlDict'])
+    def db(self):
+        return self._db
 
-    @property
-    def fvSolution(self):
-        return hermesNode('fvSolution',self.nodes['fvSolution'])
+    def __init__(self,projectName,workflow):
 
-    @property
-    def fvScheme(self):
-        return hermesNode('fvScheme',self.nodes['fvScheme'])
-
-    @property
-    def blockMesh(self):
-        return hermesNode('blockMesh',self.nodes['blockMesh'])
-
-
-    @property
-    def snappyHexMesh(self):
-        return hermesNode('snappyHexMesh',self.nodes['snappyHexMesh']) if 'snappyHexMesh' in self.nodes else None
-
-
-    @property
-    def fileWriter(self):
-        return hermesNode('fileWriter',self.nodes['fileWriter'])
-
-
-    @property
-    def defineNewBoundaryConditions(self):
-        return hermesNode('defineNewBoundaryConditions',self.nodes['defineNewBoundaryConditions'])
-
-
-    def changeWorkflowToRunAsComposed(self):
-        """
-            Removes the decompose node from the workflow.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-            None
-        """
-
-        # 1. Remove from the nodelist.
-        for decmdNode in self._parallelNodes:
-            if decmdNode in self.nodeList:
-                self.nodeList.remove(decmdNode)
-                del self.nodes[decmdNode]
+        super().__init__(workflow=workflow)
+        self._db = Project(projectName=projectName)
 
 
     def buildCaseExecutionScript(self,caseDirectory,configuration):
@@ -176,8 +99,13 @@ class hermesOpenFOAMWorkflow(hermesWorkflow):
                 params   = " ".join(numpy.atleast_1d(execNode['parameters']))
             else:
                 params = ""
-            execLine += f"foamJob {parallelFlag} -screen -wait {progName} {params}\n"
 
+            foamJob = execNode.get("foamJob",True)
+
+            if foamJob:
+                execLine += f"foamJob {parallelFlag} -screen -wait {progName} {params}\n"
+            else:
+                execLine += f"{progName} {params}\n"
 
         allrunFile = os.path.join(caseDirectory,"Allrun")
         with open(allrunFile,'w') as execFile:
@@ -204,6 +132,137 @@ cleanCase
             allclean.write(allCleanContent)
 
         os.chmod(allcleanFile, 0o777)
+
+    @classmethod
+    def baseTemplateHandler_directory(cls,jsonConfiguration):
+        """
+            Check if the directory is already the db.
+            If it is, then return the id.
+
+        Parameters
+        ----------
+        json: str
+            The json of the directory:
+                {
+                    name : ...
+                }
+
+
+        Returns
+        -------
+
+        """
+        return jsonConfiguration['name']
+
+
+class Workflow_Flow(abstractWorkflow):
+    """
+        This class manages the hermes workflow of openFOAM that is designated to
+        calculate flow fields.
+
+
+        It contains additional functions that are specific to openFOAM workflows
+        such as controlDict, fvOptions, fvSchemes, and fvSolutions that return the relevant
+        nodes.
+
+        Also, it contains a function change the from composed to decomposed run.
+
+        Each node has a list of default flags that could be modified when the case execution script is built.
+
+        The case is considered as running in parallel if there is an execution that is required to run
+        in parallel (for example the decompose par).
+
+    """
+    def __init__(self,projectName,workflow,parallelNodes=None):
+        """
+            Initializes a openFOAM hermes workflow.
+
+            workflowExecutionJSON is a JSON that describes how to execute the workflow.
+
+            Its structure is an ordered list of dict.
+            Each dict represents a command line that has to be executed to run the case.
+                [
+                    {
+                        ... node description ...
+                    },
+
+                ]
+
+            The node description is:
+            {
+                name:       The name of the program to execute.
+                parallel:   Is it necessary for parallel run.
+                parameters: a list of string to append as parameters.
+            }
+
+
+        Parameters
+        ----------
+        workflow : str, dict, file type.
+            Can be the file name, a string of the JSON, or a file type.
+
+
+        parallelNodes: str, list
+            A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
+            Will be removed if the workflow is executed as a unified case.
+        """
+        super().__init__(workflow,projectName=projectName)
+        self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
+
+        # examine here that all the nodes exist, if not - it is not a flow
+        for node in ['controlDict','fvSolution','fvScheme','blockMesh','fileWriter','defineNewBoundaryConditions']:
+            if node not in self._workflowJSON['nodes']:
+                raise ValueError(f"The node {node} does not exist in the flow. Not a flow workflow.")
+
+
+
+    @property
+    def controlDict(self):
+        return self['controlDict']
+
+    @property
+    def fvSolution(self):
+        return self['fvSolution']
+
+    @property
+    def fvScheme(self):
+        return self['fvScheme']
+
+    @property
+    def blockMesh(self):
+        return self['blockMesh']
+
+
+    @property
+    def snappyHexMesh(self):
+        return self['snappyHexMesh'] if 'snappyHexMesh' in self.nodes else None
+
+    @property
+    def fileWriter(self):
+        return self['fileWriter']
+
+
+    @property
+    def defineNewBoundaryConditions(self):
+        return self['defineNewBoundaryConditions']
+
+    def changeWorkflowToRunAsComposed(self):
+        """
+            Removes the decompose node from the workflow.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+            None
+        """
+
+        # 1. Remove from the nodelist.
+        for decmdNode in self._parallelNodes:
+            if decmdNode in self.nodeList:
+                self.nodeList.remove(decmdNode)
+                del self.nodes[decmdNode]
 
     def prepareGeometry(self, workingDirectory, configurationFile,overwrite=False):
         """
@@ -332,12 +391,11 @@ cleanCase
             icbc_type = icbc['type']
             func = getattr(self,f"ICandBCHandler_{icbc_type}")(icbc)
 
-
     ##########################################
     ##
     ##                  Handlers
     ##
-    ##################
+        ##################
 
 
     ############## geometryHandler
@@ -461,7 +519,6 @@ cleanCase
 
         self.parameters['buildingsBBOX'] = bx
         ## Here we should update the snappyHexMesh node
-
 
     def geometryHandler_indoorBuilding(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=None):
         """
@@ -693,3 +750,222 @@ cleanCase
 
         """
         self.defineNewBoundaryConditions['fields'] = icnode['data']
+
+
+class Workflow_Dispersion(abstractWorkflow):
+
+    def __init__(self,projectName ,workflow):
+        super().__init__(projectName=projectName,
+                         workflow=workflow)
+
+        # examine here that all the nodes exist, if not - it is not a flow
+
+    @classmethod
+    def prepareFlowField(cls,projectName,flowData,suggsetedName):
+        """
+            Prepares the case directory of the flow for the dispersion.
+            Currently, assumes the case is parallel.
+
+            Steps:
+            ------
+
+            1. First checks in the DB if the simulation was already defined.
+            2. If it is uses is id.
+               If not:
+                2.1. add it to the DB and get the id.
+                2.2 Perpare the case:
+                    1. Copies the base directory to the simulationsDirectory.
+                    2. Creates the symbolic link for the mesh.
+                    3. Creates the Hmix and ustar.
+                    4. build the change directory and run it.
+                    5. run the create cell heights.
+                2.3 return the id
+
+        Parameters
+        ----------
+        configurationJSON : dict
+            The configuration of the base flow.
+
+            Has the structure:
+                    "baseFlow" : {
+                        type: "directory|simulationName|workflowFile|ID"
+                        parameters:  {
+                                .. depend on the type
+                        },
+                        "useTimestep" : [float], optional, default: last timestep
+                        fromTimestep : [float], optional,  default: 0
+                        maximalDispersionTime : [float], required.
+                        copyMesh : [bool], default false
+
+                    },
+                    "dispersionField" : {
+
+                    }
+
+            base flow parameters:
+            =====================
+
+                * useTimestep : float, the time step to copy from the simulation.
+                          If None (or not specified) use the last time step.
+
+                * fromTimestep: float, the first time step in the simulation.
+                * maximalDispersionTime: float, required, the maximal timestep of the dispersion simulation (of the flow field).
+                * copyMesh: bool, if true, then copy the mesh. otherwise, make symbolic links.
+
+                base flow type
+                --------------
+                        - directory: The name of the directory to use.
+                            Parameters:
+                                    + name
+                        - simulationName : query the hera db by the simulation name,
+                            Parameters
+                                    + name : the base name of the run.
+                                    + filters : { nodename : { jpath : value}}
+                                            where nodename is the name of the node in the workflow.
+
+                        - workflowFile: query the hera db using the workflow.
+                            Parameters:
+                                    + filters : { nodename : { jpath : value}}
+                                            where nodename is the name of the node in the workflow.
+                        - ID : the id of the document in the heradb.
+
+                        ONLY directory is implemented now.
+
+        Returns
+        -------
+            A list of str
+
+            The ids of the documents that will be used as the directories.
+
+        """
+
+        logger = loggedObject(loggerName="simulations.openFoam.datalayer.hermesWorkflow").logger
+        db = Project(projectName=projectName)
+
+
+        logger.info("-------- Start ---------")
+        baseFlow = flowData['baseFlow']
+
+        # 1. Get the case of the run
+        logger.debug(f"Getting the base flow directory from handler  {baseFlow['type']}")
+        handler = getattr(cls,f"baseTemplateHandler_{baseFlow['type']}")
+        orig = handler(baseFlow['parameters'])
+        logger.debug(f"Getting the base flow directory: {orig}")
+
+        TS = [os.path.basename(ts) for ts in glob.glob(os.path.join(orig, "processor0", "*")) if
+              os.path.basename(ts).replace(".", "").isdigit()]
+        TS.sort()
+
+        useTimestep = baseFlow.get("useTimestep",None)
+        fromTimestep = baseFlow.get("fromTimestep","0")
+        maximalDispersionTime = baseFlow["maximalDispersionTime"]
+        copyMesh = baseFlow.get("copyMesh",False)
+
+        if useTimestep is None:
+            # find maximal TS, assume it is parallel:
+            uts = TS[-1]
+        else:
+            # find the closes TS.
+            request = float(useTimestep)
+            uts = TS[min(range(len(TS)), key=lambda i: abs(float(TS[i]) - request))]
+
+        fromTime = fromTimestep
+
+        logger.debug(f"Using Time step {uts} for Steady state")
+
+        ## Now we should find out if there is a similar run.
+        # 1. same original run.
+        # 2. same Hmix/ustar/... other fields.
+        # 3. the requested start and end are within the existing start and end.
+
+        querydict = dict(
+            flowParameters=dict(
+                baseFlowDirectory=orig,
+                flowFields=flowData['dispersionFields'],
+                usingTimeStep = uts
+            )
+        )
+
+        logger.debug(f"Test if the requested flow field already exists in the project")
+        docList = db.getCacheDocuments(type=cls.DOCTYPE_DISPERSION_FLOWFIELD,**querydict)
+
+        if len(docList) == 0:
+            logger.info(f"Flow field not found, creating new and adding to the DB")
+            ofhome = ofObjectHome()
+            ## Add new document to the db.
+
+
+            # Copy
+
+            ### Tempoarary
+            DispersionCase = suggsetedName # this will be replaced with the document id from the db
+            ########
+            dest = os.path.abspath(DispersionCase)
+            try:
+                logger.info(f"Creating the directory {dest}")
+                os.makedirs(dest,exist_ok=True)
+            except FileExistsError:
+                raise FileExistsError("The case already exists, use --overwrite ")
+
+            # copy constant, 0 and system.
+            for general in ["constant", "system", "0"]:
+                logger.info(f"Copying {general} in {orig} directory --> {dest}")
+                orig_general = os.path.join(orig, general)
+                dest_general = os.path.join(dest, general)
+                if os.path.exists(dest_general):
+                    copy_tree(orig_general, dest_general)
+                else:
+                    shutil.copytree(orig_general, dest_general)
+
+            logger.debug(f"Copy the parallel directories")
+            for proc in glob.glob(os.path.join(orig,"processor*")):
+                for dest_time in [fromTime, maximalDispersionTime]:
+                    logger.info(f"Handling time {dest_time}/Process {proc}")
+                    orig_proc = os.path.join(proc,str(uts))
+                    dest_proc = os.path.join(dest,os.path.basename(proc),str(dest_time))
+                    shutil.copytree(orig_proc,dest_proc)
+
+                logger.debug(f"Copying the mesh")
+                if copyMesh:
+                    orig_constant = os.path.join(proc,"constant")
+                    dest_constant = os.path.join(dest,os.path.basename(proc),"constant")
+                    shutil.copytree(orig_constant, dest_constant)
+                else:
+                    fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
+                    destination = os.path.join(dest, os.path.basename(proc), "constant", "polyMesh")
+                    os.makedirs(os.path.dirname(destination), exist_ok=True)
+                    os.system(f"ln -s {fullpath} {destination}")
+
+            logger.debug(f"Creating the flow specific fields in the flow needed for the dispersion")
+
+            dispersionFields = flowData['dispersionFields']
+            for dispersionFieldName in dispersionFields.keys():
+                fieldDimensions = dispersionFields[dispersionFieldName].get("dimensions",None)
+                fieldComponents = dispersionFields[dispersionFieldName].get("components", None)
+
+                logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
+                field = ofhome.getField(fieldName=dispersionFieldName,
+                                              fieldGroup=ofObjectHome.GROUP_DISPERSION,
+                                              dimensions=fieldDimensions,
+                                              componentNames=fieldComponents)
+
+                for proc in glob.glob(os.path.join(orig, "processor*")):
+                    procName = os.path.split(proc)[-1]
+                    logger.debug(f"Writing the flow specific field {dispersionFieldName} to processor {procName} . ")
+                    for dest_time in [fromTime, maximalDispersionTime]:
+                        field.emptyParallelField(caseDirectory=dest,
+                                                 timeName=str(dest_time),
+                                                 processor=procName,
+                                                 boundaryField=dispersionFields[dispersionFieldName]["boundaryField"],
+                                                 data=dispersionFields[dispersionFieldName].get("internalField"))
+
+                # We should look into it more closly, why parallel case doesn't recognize the time steps of the
+                # processors. For now, just create these directories in the main root as well.
+                for dest_time in [fromTime, maximalDispersionTime]:
+                    os.makedirs(os.path.join(dest,str(dest_time)),exist_ok=True)
+            ret = dest
+        else:
+            ret = docList[0].resource
+
+        return ret
+

@@ -2,7 +2,7 @@ from ...toolkit import abstractToolkit
 import os
 import glob
 from .datalayer.OFObjects import OFField
-from .datalayer.hermesOpenFOAMWorkflow import hermesOpenFOAMWorkflow
+from .datalayer.hermesWorkflow import Workflow_Flow
 from .datalayer.OFObjects import ofObjectHome
 
 class OFToolkit(abstractToolkit):
@@ -50,7 +50,7 @@ class OFToolkit(abstractToolkit):
         -------
 
         """
-        return hermesOpenFOAMWorkflow(workflowfile)
+        return Workflow_Flow(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """

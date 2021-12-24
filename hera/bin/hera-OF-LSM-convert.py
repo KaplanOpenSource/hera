@@ -3,6 +3,10 @@ import os
 from hera.simulations.openFoam import OFObjectHome
 import argparse
 
+"""
+    Convert LSM openfoam format to parquet files. 
+"""
+
 if __name__=="__main__":
 
     parser = argparse.ArgumentParser()
