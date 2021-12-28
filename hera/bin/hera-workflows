@@ -1,0 +1,147 @@
+#! /usr/bin/env python
+import argparse
+import json
+import os
+from hera import toolkitHome
+
+def add(args):
+    """
+        Adds a new simulation to the group. The workflow is expanded and store in the db under the requested group.
+
+        If the groupName is None, extract the group name from the simulation name. that is,
+        assume that the simulation name is <group name>_<id>.
+
+    Parameters
+    ----------
+    args:
+        workflow : The workflow file that will be prepared.
+        groupName : The group of the simulation.
+        variations : Json with the parameter variations on the requested workflow.
+                    The structure of the JSON is:
+                    {
+                        "parameterVariation" : {
+                                TBD
+                        }
+                    }
+        docType: the type of the document.
+
+    Returns
+    -------
+        None
+    """
+    logger = loggedObject("bin.hera_workflows.add").logger
+    logger.info(" -- Starting: adding workflow to the group --")
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
+
+    if args.variations is None:
+        workflowFile = args.workfow
+        groupName    = args.groupName
+        docType      = args.docType
+        logger.info(f"Parameters is empty: loading the requested workflow in {workflowFile} to group {groupName}. Using type {docType if docType is not None else 'default type'}.")
+        wftk.loadToGroupFromFile(fileName=workflowFile,
+                                 groupName =groupName,
+                                 docType= docType, overwrite=args.overwrite,force=args.force)
+    else:
+        # should load the combinations....
+        raise NotImplementedError("Loading the combinations... Not implemented yet... ")
+
+
+def listSimulations(arguments):
+    """
+            Lists the simulations in the group.
+    Parameters
+    ----------
+    arguments
+        projectName : the name of the project
+        groupName   : the group
+        type : the document type to query [optional]
+
+
+    Returns
+    -------
+        A list of all the simulations in the group.
+    """
+    logger = loggedObject("bin.hera_workflows.list").logger
+    logger.info(f" -- Starting: Listing the simulations in group  {arguments.groupName} --")
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
+
+    simulationList = wftk.getSimulationsInGroup(groupName,docType)
+    title = f"The simulations in group {arguments.groupName}"
+    if args.type is not None:
+        title = f"{title}. Querying only simulations of the type {args.type}"
+
+    print(title)
+    print("-"*len(title))
+    print("\n".join([x['desc']['name'] for x in simulationList]))
+
+
+def compareSimulations(arguments):
+    """
+            Compares two or more simulations.
+
+
+    Parameters
+    ----------
+    arguments
+        projectName : str, the name of the projet
+
+        simulations: [groupName] - compare all the simulations,
+                     [sim1,sim2,..] compare the different simulations. simX is either a simulation name in the DB or a file on the disk
+
+        change     : show only the changes between the different parameters.
+        nodes      : show only the parameters associated with a specific set of nodes.
+        type       : query only simulations of a specific type.
+
+    Returns
+    -------
+
+    """
+
+
+if __name__=="__main__":
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
+    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+    tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    prepare = subparsers.add_parser('add', help='Adds a new simulation to the group.')
+    parser_prepare.add_argument('projectName', type=str, help='The project to load the data')
+    parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
+    parser_prepare.add_argument('groupName',default=None, type=str, help='The simulation group to associate the ')
+    parser_prepare.add_argument('--variations', default=None, type=str, help='A file with all the variations.')
+    parser_prepare.add_argument('--type',dest="docType", default=None, type=str,help='The type of simulation ')
+    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the existing workflow, if file already exists')
+    parser_prepare.add_argument('--force', dest="force", action="store_true", default=False,help='Add to the db even if the workflow exists there (under a different name)')
+    parser_prepare.set_defaults(func=add)
+
+    listSimulations = subparsers.add_parser('list', help='Lists the simulations in the project. Use the prefic of the base name. If the input is workflow, then take the prefix of that workflow')
+    listSimulations.add_argument('projectName', type=str, help='The project name')
+    listSimulations.add_argument('workflow', type=str, help='The workflow file to load')
+    listSimulations.add_argument('--type', dest="docType", default=None, type=str, help='The type of simulation ')
+    listSimulations.set_defaults(func=listSimulations)
+
+    export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
+    # --build - also builds the python executer
+
+    compare = subparsers.add_parser('compare', help='Compare two or more simulations. ')
+    listSimulations.add_argument('projectName', type=str, help='The project name')
+    listSimulations.add_argument('simulations',nargs="+", type=str, help='[groupName] - compare all the simulations, [sim1,sim2,..] compare the different simulations. simX is either a simulation name in the DB or a file on the disk')
+    parser_prepare.add_argument('--JSON', dest="JSON", action="store_true", default=False, help='Return the results in JSON format')
+    parser_prepare.add_argument('--all', default=False, type=store_true, help='Return all the parameters fields')
+    parser_prepare.add_argument('--nodes', nargs="+", default=None, type=str, help='The list of nodes to present')
+    listSimulations.add_argument('--type', dest="docType", default=None, type=str, help='The type of simulation ')
+    listSimulations.set_defaults(func=compareSimulations)
+
+    compare = subparsers.add_parser('delete', help='Delete the run. exports the simulation that was deleted ')
+    # --includeRun - also deletes the run.
+    # --group     - deletes all the simulation with that prefix.
+    # --no-export  - does not save the deleted workflow to the disk.
+
+    handler = argsHandler(projectName)
+    parsed.func(parsed)
+    function(args)

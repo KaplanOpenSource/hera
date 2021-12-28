@@ -1,7 +1,7 @@
 """
     Algorithm for calculating the ustar in a channel flow.
 
-    Taken from Boundary-Layer Theory 9th edition (schlichting).
+    Taken from Boundary-Layer Theory 9th edition (schlichting) pg 537.
 
 """
 from ...utils.unum import tounit
@@ -109,7 +109,7 @@ class nearWallFlow:
         ----------
 
         Ra: float/unit
-            Arithmetic mean deviations. default unit [m]
+            Arithmetic mean deviations of surface asperities. default unit [m]
 
         nu: float/ unit
             The viscosity of the fluid. default unit [m^2/s]

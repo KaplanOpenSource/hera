@@ -26,19 +26,28 @@ def makeDispersionWorkflow(arguments):
             - caseConfiguration: str
                     The specialization case.
 
+            - flowFieldID : int
+                    The flow field number in the case configuration to use in this case.
+
     Returns
     -------
 
     """
+    logger = loggedObject("bin.hera_of_lsm_workflows.makeDispersion").logger
+    logger.info("--- Start ---")
+    logger.debug(f"Loading workflow {arguments.dispersionWorkflow} and configuration {arguments.configurationFile}")
+
     configuration = loadJSON(arguments.configurationFile)
-    hwf = Workflow_Dispersion(projectName=configuration['projectName'],
-                              workflow=arguments.dispersionWorkflow)
+    hwf = Workflow_Dispersion(workflowJSON=arguments.dispersionWorkflow)
 
     templateName =configuration["specializedTemplateName"]
 
+    flowName = Workflow_Dispersion.getFlowFieldName(configuration['flowFields']['prefixName'], arguments.flowFieldID-1)
+    flowData = configuration['flowFields']['Flows'][arguments.flowFieldID-1]
     # 1. Make a specialized workflow.
-    hwf.parameters['baseFlow'] = configuration['flowField']['baseFlow']
-    hwf.parameters['dispersionFields'] = configuration['flowField']['dispersionFields']
+    hwf.parameters['flowField'] = flowName
+    hwf.parameters['flow_usedTime'] = flowData['baseFlow']['useTime']
+    hwf.parameters['dispersionFields'] = flowData['dispersionFields']
     hwf.write(f"{templateName}.json",overwrite=arguments.overwrite)
 
 def prepareFlowField(arguments):
@@ -68,8 +77,7 @@ def prepareFlowField(arguments):
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        formatted_number = "{0:04d}".format(flowid+1)
-        suggsetedName = f"{basename}_{formatted_number}"
+        suggsetedName = Workflow_Dispersion.getFlowFieldName(basename,flowid)
         Workflow_Dispersion.prepareFlowField(projectName=projectName,flowData=flowdata,suggsetedName=suggsetedName)
 
 def prepareIndoorsFlowField(arguments):
@@ -106,30 +114,13 @@ def prepareIndoorsFlowField(arguments):
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        formatted_number = "{0:04d}".format(flowid+1)
-        suggsetedName = f"{basename}_{formatted_number}"
+        suggsetedName = Workflow_Dispersion.getFlowFieldName(basename, flowid)
         case = Workflow_Dispersion.prepareFlowField(projectName=projectName,flowData=flowdata,suggsetedName=suggsetedName)
         ret = os.system(f"cd {case};foamJob -parallel -wait indoorDistanceFromWalls  -case {case} -time 0: ;cd ..")
         if ret != 0:
             raise ValueError("Openfoam not installed, or indoorDistanceFromWalls does not exist!. ")
 
 
-def perpareDispersionCase(arguments):
-    """
-         Create the hermes workflow for the dispersion.
-
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-        T
-    """
-
-
-
-    pass
 
 if __name__=="__main__":
 
@@ -173,14 +164,11 @@ if __name__=="__main__":
     dispersion = subparsers.add_parser('dispersion', help='Prepares the flowfield for the dispersion.')
     dispersion_subparsers = dispersion.add_subparsers(help='sub-command help')
 
-    parser_makedispersionflowfield = dispersion_subparsers.add_parser('makeWorkflow',help='Specialize the workflow for the current dispersion case.')
-    parser_makedispersionflowfield.add_argument("dispersionWorkflow", type=str, help="The template workflow file")
-    parser_makedispersionflowfield.add_argument("configurationFile",type=str,help="The configuration file of this case")
-    parser_makedispersionflowfield.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the existing workflow, if file already exists')
-    parser_makedispersionflowfield.set_defaults(func=makeDispersionWorkflow)
-
     parser_makedispersionflowfield = dispersion_subparsers.add_parser('prepare',help='Prepares the simulation')
     parser_makedispersionflowfield.add_argument("dispersionWorkflow", type=str, help="The template workflow file")
+    parser_makedispersionflowfield.add_argument("configurationFile", type=str,
+                                                help="The configuration file of this case")
+    parser_makedispersionflowfield.add_argument('--flowFieldID', dest="flowFieldID",type=int,help='The ID of the flowfield to use. The first is 1')
     parser_makedispersionflowfield.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the existing workflow, if file already exists')
     parser_makedispersionflowfield.set_defaults(func=makeDispersionWorkflow)
 

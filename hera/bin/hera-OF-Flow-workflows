@@ -33,8 +33,7 @@ def prepare(arguments):
     """
 
     configuration = loadJSON(arguments.configurationFile)
-    hwf = Workflow_Flow(projectName=configuration['projectName'],
-                        workflow=arguments.workflow)
+    hwf = Workflow_Flow(workflowJSON=arguments.workflow)
 
     templateName =configuration["specializedTemplateName"]
 

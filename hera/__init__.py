@@ -16,6 +16,11 @@ loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
 
+ Simulations
+ -----------
+    - hera workflow - moved to the hermes. 
+    - updated the interfaces and the work on the hera-of package. 
+
  GIS_Buildings 
  --------------
     - Adding the i0,j0 index of the bloc to the lambda. 

@@ -4,7 +4,7 @@ import glob
 import shutil
 from distutils.dir_util import copy_tree
 from hera import toolkitHome
-from ...workflowToolkit import hermesWorkflow,hermesNode
+from hermes.workflow import workflow,hermesNode
 from ....utils import loadJSON
 from ....utils import loggedObject
 from ....datalayer import Project
@@ -19,7 +19,7 @@ except ImportError:
     raise ImportError("Cannot use this module without hermes... Install it. ")
 
 
-class abstractWorkflow(hermesWorkflow):
+class abstractWorkflow(workflow):
     """
             An abstract specialization of the hermes workflow to the
             openfoam workflow.
@@ -30,21 +30,13 @@ class abstractWorkflow(hermesWorkflow):
     DOCTYPE_FLOWFIELD = "FlowField" # calculation of the flow field.
     DOCTYPE_DISPERSION = "dispersion" # The dispersion itself.
 
-    _db = None # a hera project to handle the connection to db.
-
     @property
     def parameters(self):
         return self['Parameters']
 
-    @property
-    def db(self):
-        return self._db
-
-    def __init__(self,projectName,workflow):
-
-        super().__init__(workflow=workflow)
-        self._db = Project(projectName=projectName)
-
+    def __init__(self,workflowJSON):
+        super().__init__(workflowJSON=workflowJSON)
+        self.logger = loggedObject(loggerName=None).logger
 
     def buildCaseExecutionScript(self,caseDirectory,configuration):
         """
@@ -154,7 +146,6 @@ cleanCase
         """
         return jsonConfiguration['name']
 
-
 class Workflow_Flow(abstractWorkflow):
     """
         This class manages the hermes workflow of openFOAM that is designated to
@@ -173,7 +164,7 @@ class Workflow_Flow(abstractWorkflow):
         in parallel (for example the decompose par).
 
     """
-    def __init__(self,projectName,workflow,parallelNodes=None):
+    def __init__(self,workflowJSON,parallelNodes=None):
         """
             Initializes a openFOAM hermes workflow.
 
@@ -206,12 +197,12 @@ class Workflow_Flow(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
-        super().__init__(workflow,projectName=projectName)
+        super().__init__(workflowJSON=workflowJSON)
         self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
 
         # examine here that all the nodes exist, if not - it is not a flow
-        for node in ['controlDict','fvSolution','fvScheme','blockMesh','fileWriter','defineNewBoundaryConditions']:
-            if node not in self._workflowJSON['nodes']:
+        for node in ['controlDict','fvSolution','fvSchemes','blockMesh','fileWriter','defineNewBoundaryConditions']:
+            if node not in self.workflowJSON['nodes']:
                 raise ValueError(f"The node {node} does not exist in the flow. Not a flow workflow.")
 
 
@@ -751,14 +742,36 @@ class Workflow_Flow(abstractWorkflow):
         """
         self.defineNewBoundaryConditions['fields'] = icnode['data']
 
-
 class Workflow_Dispersion(abstractWorkflow):
 
-    def __init__(self,projectName ,workflow):
-        super().__init__(projectName=projectName,
-                         workflow=workflow)
+    def __init__(self ,workflowJSON):
+        super().__init__(workflowJSON=workflowJSON)
 
         # examine here that all the nodes exist, if not - it is not a flow
+
+    @staticmethod
+    def getFlowFieldName(baseName,flowID):
+        """
+            Returns the name of the flow field from the base and the
+            flow id.
+
+            The name is <base>_<id>
+            where <id> is padded.
+
+        Parameters
+        ----------
+        baseName : str
+                The base name
+        flowID: int
+                the id of the name.
+
+        Returns
+        -------
+
+        """
+
+        formatted_number = "{0:04d}".format(flowID+1)
+        return f"{baseName}_{formatted_number}"
 
     @classmethod
     def prepareFlowField(cls,projectName,flowData,suggsetedName):

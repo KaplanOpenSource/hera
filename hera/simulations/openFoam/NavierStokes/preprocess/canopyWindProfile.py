@@ -9,6 +9,8 @@ def urbanLogNormalProfile(cellCenters, lambdaGrid, stations):
     """
         Creates a log-normal wind profile in the mesh.
 
+        TODO: seemd wrong - check equations.
+
 
     Parameters
     ----------
