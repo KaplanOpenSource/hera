@@ -1,3 +1,4 @@
+from enum import Enum,auto
 from typing import Union
 from collections.abc import Iterable
 import pandas
@@ -8,7 +9,16 @@ from ..utils import loadJSON
 from ..utils.query import dictToMongoQuery
 from ..datalayer import datatypes
 import numpy
+try:
+    from hermes import workflow
+except ImportError:
+    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
 
+@unique
+class buildModes(Enum):
+    ADDBUILDRUN = auto()
+    ADDBUILD    = auto()
+    ADD = auto()
 
 class workflowToolkit(abstractToolkit):
     """
@@ -96,25 +106,66 @@ class workflowToolkit(abstractToolkit):
 
         return newID, f"{prefixName}_{newID}"
 
-    def addToGroup(self, workflowJSON: str, groupName: str, docType: str = None, parameters=dict()):
+    def addToGroup(self,
+                   workflowJSON: str,
+                   groupName : str =None,
+                   docType: str = None,
+                   overwrite: bool =False,
+                   force : bool =False,
+                   assignName : bool =False,
+                   buildMode:buildModes=BUILDMODE_ADDBUILDRUN,
+                   parameters : dict = dict()):
         """
-            Adds the workflow to the requested group, after the chane in the parameters
-            if it does not exist in the DB.
+            1. Adds the workflow to the database in the requested group
+            2. Builds the template (.json) and python executer
+            3. Runs the workflow.
 
-            Assigns the new simlation a name from te group and then saves the
-            expaned workflow and python execute to the disk with that name.
+            The stages are executed according to the buildMode.
 
+            Notes:
+
+            * If the workflow is already in the db in a different name adds to the db only if **force** is True.
+
+            * If the simulationName already exist in the group then overwrite its definitions
+              only if the **overwrite** is True.
+
+            * If the template and python execution files exist on the disk, raise error unless overwrite is True.
+
+            * If the group is None, parse the file name to get the group. That is, we assume that the
+                file name has the structure : <groupname>_<id>. If the <id> is not an integer,
+                the id in the database will be saved as None.
 
         Parameters
         ----------
-        workflowJSON  : str
-                JSON file, or json configuration
+        workflowJSON : str
+            The file name that contains the workflow.
 
         groupName : str
-                The base name of the simulation. Used to find the available names.
+            The group to assign the workflow to.
+            If None, parse the name under the format
+                <groupname>_<id> to get the group and the ID.
 
-        docType  : str
-                The type of the document. if None use general docWORKFLOW.
+        docType : str
+            The type of the workflow. [optional]
+            If none, use the DOCTYPE_WORKFLOW type.
+
+        overwrite : bool
+            If true, update the record if it exists.
+            If false, throw an exception if the record exists.
+
+        assignName : bool
+            If true, finds the next available id and saves it in the DB.
+            If groupName is None, parse the filename to get the group.
+
+            Note that if true and group name is None, the names of the simulation will use only the string before the '_'.
+
+            Otherwise, use the filename as the name of the simulation.
+
+        buildMode : buildModes enum.
+            ADDBUILDRUN : add the simulation to the db, builds the execution files (also saves the new tempalte) and executes it.
+                          if the file already in the db -> overwrite if over
+            ADDBUILD    : add to the db and build the template and execution files.
+            ADD         : add to the db.
 
         parameters : dict
 
@@ -133,129 +184,94 @@ class workflowToolkit(abstractToolkit):
 
         Returns
         -------
-            str
-            The name ofthe new
-        """
-        self.logger.info("--- Start ---")
-        # 1. expand workflow:
-        hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
-        hermesWF.updateNodes(parameters=parameters)
-
-        # 2. Check if that simulation is already in the database.
-        currentQuery = dictToMongoQuery(newTemplate.workflowJSON, prefix="workflow")
-        theType = self.DOCTYPE_WORKFLOW if docType is None else docType
-
-        docList = self.getSimulationsInGroup(groupName=groupName, docType=theType, **currentQuery)
-        self.logger.info("Check if the current workflow exists in the database.")
-        if len(docList) == 0:
-            self.logger.info("Does not exist in the db. find a new name.")
-            newID, newName = self._findAvailableName(prefixName=groupName, docType=theType)
-
-            self.logger.info(f"Adding the new simulation to the database using the name {newName}")
-
-            doc = self.addSimulationDocument(resource=os.path.join(self.FilesDirectory, newName),
-                                             format=datatypes.STRING,
-                                             type=theType,
-                                             desc=dict(groupName=groupName,
-                                                       groupID=newID,
-                                                       name=newName,
-                                                       workflow=newTemplate.workflowJSON)
-                                             )
-
-            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
-
-            self.logger.info(f"Writing the workflow and the executer python {newName}")
-            with open(os.path.join(self.FilesDirectory, f"{newName}.json"), "w") as file:
-                file.write(newTemplate.workflowJSON)
-            with open(os.path.join(self.FilesDirectory, f"{newName}.py"), "w") as file:
-                file.write(build)
-
-            ret = newName
-        else:
-            ret = docList[0]['desc']['name']
-
-    def addToGroupFromFile(self, fileName: str,groupName : str =None, docType: str = None, overwrite=False,force=False):
-        """
-            Loads the workflow in the file to the database to the requested group.
-
-            If the group is None, use the file name as the group. We assume that the
-            file name has the structure : <groupname>_<id>. If the <id> is not an integer,
-            the id in the database will be saved as None.
-
-            If the simulationName already exist in the group then overwrite its definitions only if
-            the overwrite is True.
-
-            Check if the workflow is in the group. if it does, add it with the new requested name (thus, create duplicity)
-            only if force is True.
-
-        Parameters
-        ----------
-        fileName : str
-            The file name that contains the workflow.
-
-        docType : str
-            The type of the workflow. [optional]
-            If none, use the DOCTYPE_WORKFLOW type.
-
-        overwrite : bool
-            If true, update the record if it exists.
-            If false, throw an exception if the record exists.
-
-        groupName : str
-            The group to assign the workflow to.
-            If None, use the file name as the group and the ID.
-
-
-        Returns
-        -------
             None
         """
         self.logger.info("-- Start --")
 
-        cleanName = fileName.split(".")[0]
+        # 1. Getting the names of the simulation and the groups.
+
+        #    a. Make sure that there are no extensions.
+        cleanName = workflowJSON.split(".")[0]
         theType = self.DOCTYPE_WORKFLOW if docType is None else docType
-        workflow = loadJSON(fileName)
+        self.logger.debug(f"The suggested simulation name is {cleanName} in the document {theType}")
 
+        #   b. loading the workflow.
+        self.logger.debug(f"Loading the workflow JSON {workflowJSON}")
+        hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
+        hermesWF.updateNodes(parameters=parameters)
+
+
+        #   c. Determining the simulation anem, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
-        groupID   = cleanName.split("_")[1]
-        if not groupID.isdigit():
-            groupID = None
+        if assignName:
+            self.logger.debug("Generating ID from the DB")
+            groupID, simulationName = self._findAvailableName(prefixName=groupName, docType=theType)
+            self.logger.debug(f" Got id : {groupID} and suggested name {newName}")
+        else:
+            simulationName = cleanName
+            groupID   = cleanName.split("_")[1]
+            if not groupID.isdigit():
+                groupID = None
+            self.logger.debug(f"Use input as simulation : {simulationName} with the group {groupID}")
 
-        self.logger.info(f"Loading {fileName} with type {theType} to simulation group {groupName} with group ID {groupID}")
+        self.logger.info(f"Simulation name is {simulationName} with type {theType} in group {groupName} with id {groupID}.")
 
-        # 1. Check if the workflow itself is already in the DB.
-        currentQuery = dictToMongoQuery(workflow, prefix="workflow")
+        # 2. Check if exists in the DB.
+
+        #    a. Check if the workflow exists in the DB under different name (assume similar type)
+        self.logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
+        currentQuery = dictToMongoQuery(hermesWF.workflowJSON, prefix="workflow")
         docList = self.getSimulationsInGroup(groupName=groupName, docType=theType, **currentQuery)
 
         if len(docList) > 0 and not force:
+            err = f"The requested workflow already exists in the group {groupName} with the name {doc['desc']['name']}"
+            self.logger.error(err)
             doc = docList[0]
-            raise FileExistsError(f"The requested workflow already exists in the group {groupName} with the name {doc['desc']['name']}")
+            raise FileExistsError(err)
 
-        # 2. Check if the name of the simulation already exists
-        docList = self.getSimulationsInGroup(groupName=groupName, docType=theType, name=cleanName)
+        #   b. Check if the name of the simulation already exists in the group
+        self.logger.debug(f"Check if the name of the simulation {simulationName} already exists in the group")
+        docList = self.getSimulationsInGroup(groupName=groupName, docType=theType, name=simulationName)
 
         if len(docList) ==0:
-            # add to the db
-            doc = self.addSimulationDocument(resource=os.path.join(self.FilesDirectory, cleanName),
+            self.logger.info("Simulation is not in the DB, adding... ")
+            doc = self.addSimulationDocument(resource=os.path.join(self.FilesDirectory, simulationName),
                                              format=datatypes.STRING,
                                              type=theType,
                                              desc=dict(
                                                  groupName=groupName,
                                                  groupID=groupID,
-                                                 name=cleanName,
-                                                 workflow=workflow)
+                                                 name=simulationName,
+                                                 workflow=hermesWF.workflowJSON)
                                              )
 
         elif overwrite:
-            # update the record.
+            self.logger.info("Simulation in the DB, overwrite=True.  Updating... ")
             doc = docList[0]
             doc['desc']['workflow'] = workflow
             doc.save()
         else:
-            # print error and show the differences between the two cases.
-            raise FileExistsError(
-                f"The simulation {fileName} is already in the database. use the overwrite=True to update the record.")
+            err = f"The simulation {simulationName} with type {theType} is already in the database in group {groupName}. use the overwrite=True to update the record."
+            self.logger.error(err)
+            raise FileExistsError(err)
 
+        # 3.  Building and running the workflow.
+        if buildMode > buildModes.ADD:
+            self.logger.info(f"Building the workflow {simulationName}")
+            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
+
+            self.logger.info(f"Writing the workflow and the executer python {simulationName}")
+            with open(os.path.join(self.FilesDirectory, f"{simulationName}.json"), "w") as file:
+                file.write(hermesWF.workflowJSON)
+            with open(os.path.join(self.FilesDirectory, f"{simulationName}.py"), "w") as file:
+                file.write(build)
+
+        if buildMode > buildModes.ADDBUILD:
+            self.logger.info(f"Run the workflow {simulationName}")
+            pythonPath = os.path.join(self.FilesDirectory, f"{simulationName}.py")
+            executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
+            self.logger.debug(executionStr)
+            os.system(executionStr)
 
     def compare(self,workFlows : Union[list,str],docType: str=None,nodes : Union[list,str]=None,allParameters:bool=True,JSON:bool=False)-> Union[dict,pandas.DataFrame]:
         """
