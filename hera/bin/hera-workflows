@@ -5,9 +5,9 @@ import os
 import pdb
 
 from hera import toolkitHome
-from hera.simulations.hermesWorkflowToolkit import actionModes,DOCTYPE_WORKFLOW
+from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
 from hera.utils import loggedObject,loadJSON
-
+from hermes import workflow
 
 
 def add(args):
@@ -51,12 +51,12 @@ def add(args):
     logger.info(" -- Starting: adding workflow to the group --")
 
     conf = loadJSON(args.workflow)
-    projectName = conf['heraMetaData']['projectName'] if args.projectName is None else args.projectName
+    projectName = conf[HERAMETADATA]['projectName'] if args.projectName is None else args.projectName
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     simulationGroup         = args.workflow.split(".")[0] if args.simulationGroup is None else args.simulationGroup
-    workflowType            = DOCTYPE_WORKFLOW if args.workflowType is None else args.workflowType
+    workflowType            = simulationTypes.WORKFLOW.value if args.workflowType is None else args.workflowType
 
     if args.variations is None:
         logger.info("No variations supplied. Adding one simulation. ")
@@ -67,7 +67,7 @@ def add(args):
 
         wftk.addToGroup(workflowJSON=workflowFile,
                         groupName=simulationGroup,
-                        docType=workflowType,
+                        simulationType=workflowType,
                         assignName=args.assignName,
                         overwrite=args.overwrite,
                         action=action,
@@ -93,18 +93,83 @@ def listSimulations(arguments):
         A list of all the simulations in the group.
     """
     logger = loggedObject("bin.hera_workflows.list").logger
-    logger.info(f" -- Starting: Listing the simulations in group  {arguments.groupName} --")
+    logger.info(f" -- Starting: Listing simulations --")
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
+    if arguments.workflow is not None:
+        heraMetadata = loadJSON(arguments.workflow).get(HERAMETADATA, None)
+        if heraMetadata is None:
+            raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
+        projectName = heraMetadata['projectName']
+        simulationGroup = heraMetadata['simulationGroup']
 
-    simulationList = wftk.getSimulationsInGroup(groupName, docType)
-    title = f"The simulations in group {arguments.groupName}"
-    if args.type is not None:
-        title = f"{title}. Querying only simulations of the type {args.type}"
+    #1. Getting the project name.
+    if arguments.projectName is not None:
+        projectName = arguments.projectName
 
-    print(title)
-    print("-" * len(title))
-    print("\n".join([x['desc']['name'] for x in simulationList]))
+    if arguments.simulationGroup is not None:
+        simulationGroup = arguments.simulationGroup
+
+    if projectName is None:
+        raise ValueError("Must supply projectName in a workflow (with hera metadata) or explicitely using --projectName")
+
+    if  simulationGroup is None:
+        raise ValueError("Must supply simulationGroup in a workflow (with hera metadata) or explicitely using --simulationGroup")
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+
+    simuationType = arguments.simulationType
+    parameters    = arguments.parameters
+    allParams     = arguments.allParameters
+    jsonFormat    = arguments.json
+
+    simulationList = wftk.listSimulations(simulationGroup=simulationGroup,
+                                          simuationType=simuationType,
+                                          parameters=parameters,
+                                          allParams=allParams,
+                                          jsonFormat=jsonFormat)
+
+    # title = f"The simulations in group {arguments.groupName}"
+    # if args.type is not None:
+    #     title = f"{title}. Querying only simulations of the type {args.type}"
+    #
+    # print(title)
+    # print("-" * len(title))
+    # print("\n".join([x['desc']['name'] for x in simulationList]))
+
+def listWokflowNodes(arguments):
+    """
+        Lists the nodes in the requested workflow. The workflow can be a file on the disk or a name
+        of a simulation in the database.
+
+    Parameters
+    ----------
+    arguments
+            projectName: str
+                The name of the project.
+            workflowName: str
+                A file on the disk or a simulation in the DB.
+    Returns
+    -------
+        prints a list of all the nodes of the workflow.
+    """
+    logger = loggedObject("bin.hera_workflows.listNodes").logger
+    logger.info(f" -- Starting: Listing simulations --")
+
+    if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
+            json = loadJSON(arguments.workflowName)
+            hermesObject = workflow(json)
+    else:
+        if arguments.projectName is None:
+            raise ValueError("Must supply a project name for a non-file workflow")
+
+        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
+
+        hermesObject = wftk.getHermesWorkflowFromDB(arguments.workflowName)
+
+    tlte = f"The nodes of the {arguments.workflowName}"
+    print(tlte)
+    print("-"*len(tlte))
+    print("\t * "+"\n\t * ".join([x for x in hermesObject.nodeList]))
 
 
 def compareSimulations(arguments):
@@ -144,7 +209,7 @@ if __name__ == "__main__":
     parser_prepare.add_argument('--projectName', type=str, default=None, help='The project to load the data')
     parser_prepare.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group to associate the ')
     parser_prepare.add_argument('--variations', default=None, type=str, help='A file with all the variations.')
-    parser_prepare.add_argument('--workflowType', dest="workflowType", default=None, type=str, help='The type of simulation ')
+    parser_prepare.add_argument('--simulationType', dest="workflowType", default=None, type=str, help='The type of simulation ')
     parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                 help='overwrite the existing workflow, if file already exists')
     parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
@@ -157,17 +222,26 @@ if __name__ == "__main__":
 
     parser_prepare.set_defaults(func=add)
 
+    ### ------------------------
     listSimulations_parser = subparsers.add_parser('list',
-                                                   help='Lists the simulations in the project. Use the prefic of the base name. If the input is workflow, then take the prefix of that workflow')
-    listSimulations_parser.add_argument('projectName', type=str, help='The project name')
-    listSimulations_parser.add_argument('workflow', type=str, help='The workflow file to load')
-    listSimulations_parser.add_argument('--type', dest="docType", default=None, type=str,
-                                        help='The type of simulation ')
+                                                   help='Lists the simulations in the simulation group of that project.')
+    listSimulations_parser.add_argument('workflow', type=str, help='The workflow file to load',default=None)
+    listSimulations_parser.add_argument('--projectName', default =None,type=str, help='Provide the projectName to use')
+    listSimulations_parser.add_argument('--simulationGroup',default=None, type=str, help='The simulation group to use')
+    listSimulations_parser.add_argument('--simulationType', dest="simulationType", default=None, type=str, help='Use the simulation type as filter')
+    listSimulations_parser.add_argument('--parameters',nargs="*", dest="parameters", default=None, help='List the paramaters. If parameters nodes are given, then only list theirs.')
+    listSimulations_parser.add_argument('--all', dest="allParameters", default=False, type=bool, help='If exsists, return all the parameters, else, return only the differences between the different simulations.')
+    listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
+                                        help='If exsists, return the results as JSON and not as pandas table')
     listSimulations_parser.set_defaults(func=listSimulations)
 
+
+    ### ------------------------
     export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
     # --build - also builds the python executer
 
+
+    ### ------------------------
     compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations. ')
     compare_parser.add_argument('projectName', type=str, help='The project name')
     compare_parser.add_argument('simulations', nargs="+", type=str,
@@ -179,10 +253,25 @@ if __name__ == "__main__":
     compare_parser.add_argument('--type', dest="docType", default=None, type=str, help='The type of simulation ')
     compare_parser.set_defaults(func=compareSimulations)
 
+    ### ------------------------
     delete_parser = subparsers.add_parser('delete', help='Delete the run. exports the simulation that was deleted ')
     # --includeRun - also deletes the run.
     # --group     - deletes all the simulation with that prefix.
     # --no-export  - does not save the deleted workflow to the disk.
+
+    ### ------------------------
+    nodes = subparsers.add_parser('nodes', help='Information about the nodes in the workflow')
+    noded_subparsers = nodes.add_subparsers(help='sub-command help')
+
+    ##             +++++++++++++++++++
+    nodes_list = noded_subparsers.add_parser('list', help='Lists the nodes in the workflow.')
+    nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
+    nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help='The project name')
+    nodes_list.set_defaults(func=listWokflowNodes)
+
+    ###             +++++++++++++++++++
+    nodes_list = subparsers.add_parser('parameters', help='Lists the nodes in the workflow.')
+
 
     parsed = parser.parse_args()
     parsed.func(parsed)

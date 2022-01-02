@@ -14,7 +14,7 @@ import json
 from shutil import copyfile
 from ...openFoam import ofObjectHome
 
-from ...hermesWorkflowToolkit import DOCTYPE_WORKFLOW
+from ...hermesWorkflowToolkit import SIMULATIONTYPE_WORKFLOW
 
 try:
     from hermes import workflow
@@ -29,15 +29,11 @@ class abstractWorkflow(workflow):
 
     """
 
-    DOCTYPE_DISPERSION_FLOWFIELD = "dispersionFlowField" # The flow field of the dispersion.
-    DOCTYPE_FLOWFIELD = "FlowField" # calculation of the flow field.
-    DOCTYPE_DISPERSION = "dispersion" # The dispersion itself.
-
     @property
     def parameters(self):
         return self['Parameters']
 
-    def __init__(self,workflowJSON,workflowType=DOCTYPE_WORKFLOW):
+    def __init__(self, workflowJSON, workflowType=SIMULATIONTYPE_WORKFLOW):
         super().__init__(workflowJSON=workflowJSON)
         self.logger = loggedObject(loggerName=None).logger
         self.workflowType = workflowType
