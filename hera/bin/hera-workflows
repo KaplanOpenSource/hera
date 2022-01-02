@@ -153,7 +153,7 @@ def listWokflowNodes(arguments):
         prints a list of all the nodes of the workflow.
     """
     logger = loggedObject("bin.hera_workflows.listNodes").logger
-    logger.info(f" -- Starting: Listing simulations --")
+    logger.info(f" -- Starting: Listing workflow nodes --")
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             json = loadJSON(arguments.workflowName)
@@ -169,7 +169,56 @@ def listWokflowNodes(arguments):
     tlte = f"The nodes of the {arguments.workflowName}"
     print(tlte)
     print("-"*len(tlte))
-    print("\t * "+"\n\t * ".join([x for x in hermesObject.nodeList]))
+
+    if arguments.parameters:
+        for hnodeName,hnodeData in hermesObject.items():
+            print(f"\t * {hnodeName}")
+            for prop in hnodeData.parameters.keys():
+                print(f"\t\t + {prop}")
+    else:
+        print("\t * "+"\n\t * ".join(hermesObject.nodeList))
+
+
+def listWokflowNodeParameters(arguments):
+    """
+            List the parameters of the node.
+
+    Parameters
+    ----------
+    arguments
+            projectName: str
+                The name of the project.
+            nodename : str
+                The name of the node to list.
+
+            workflowName: str
+                A file on the disk or a simulation in the DB.
+
+    Returns
+    -------
+
+    """
+    logger = loggedObject("bin.hera_workflows.listNodeParameters").logger
+    logger.info(f" -- Starting: Listing node parameters --")
+
+    if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
+            json = loadJSON(arguments.workflowName)
+            hermesObject = workflow(json)
+    else:
+        if arguments.projectName is None:
+            raise ValueError("Must supply a project name for a non-file workflow")
+
+        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
+
+        hermesObject = wftk.getHermesWorkflowFromDB(arguments.workflowName)
+
+    if arguments.nodeName not in hermesObject.nodeList:
+        raise ValueError(f" Node {arguments.nodeName} not found in workflow {arguments.workflowName}. Existing nodes are: {','.join(hermesObject.nodeList)}")
+
+    tlte = f"The parameters of the node {arguments.nodeName} in the workflow {arguments.workflowName}"
+    print(tlte)
+    print("-"*len(tlte))
+    print("\t - "+"\n\t - ".join(hermesObject[arguments.nodeName].parameters.keys()))
 
 
 def compareSimulations(arguments):
@@ -267,11 +316,15 @@ if __name__ == "__main__":
     nodes_list = noded_subparsers.add_parser('list', help='Lists the nodes in the workflow.')
     nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
     nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help='The project name')
+    nodes_list.add_argument('--parameters', dest="parameters", action="store_true", default=False,help='Also pring the paramters of each node')
     nodes_list.set_defaults(func=listWokflowNodes)
 
     ###             +++++++++++++++++++
-    nodes_list = subparsers.add_parser('parameters', help='Lists the nodes in the workflow.')
-
+    nodes_list = noded_subparsers.add_parser('nodeParameters', help='Lists the parameters of the nodes.')
+    nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
+    nodes_list.add_argument('nodeName', type=str, help='The node to list the paramters')
+    nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help='The project name')
+    nodes_list.set_defaults(func=listWokflowNodeParameters)
 
     parsed = parser.parse_args()
     parsed.func(parsed)
