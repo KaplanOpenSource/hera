@@ -179,7 +179,7 @@ class workflowToolkit(abstractToolkit):
         theType = simulationTypes.WORKFLOW.value if simuationType is None else simuationType
         return self.getSimulationsDocuments(groupName=simulationGroup, type=theType, **kwargs)
 
-    def _findAvailableName(self, prefixName: str, simuationType: str = None, **kwargs):
+    def findAvailableName(self, simulationGroup: str, simuationType: str = None, **kwargs):
         """
             Finds the next availabe name of that prefix. The available name is the maximal ID + 1.
 
@@ -189,8 +189,8 @@ class workflowToolkit(abstractToolkit):
 
         Parameters
         ----------
-        prefixName : str
-            The prefix name of all the runs.
+        simulationGroup : str
+            The simulation group
 
         simuationType : str
             The type of the workflow.
@@ -206,14 +206,14 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getSimulationsInGroup(name=prefixName, simuationType=simuationType, **kwargs)
+        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simuationType=simuationType, **kwargs)
         group_ids = [x['desc']['groupID'] for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
         else:
             newID = numpy.max(group_ids)
 
-        return newID, f"{prefixName}_{newID}"
+        return newID, f"{simulationGroup}_{newID}"
 
     def addToGroup(self,
                    workflowJSON: str,
@@ -313,8 +313,8 @@ class workflowToolkit(abstractToolkit):
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
             self.logger.debug("Generating ID from the DB")
-            groupID, simulationName = self._findAvailableName(prefixName=groupName, simuationType=theType)
-            self.logger.debug(f" Got id : {groupID} and suggested name {newName}")
+            groupID, simulationName = self.findAvailableName(simulationGroup=groupName, simuationType=theType)
+            self.logger.debug(f" Got id : {groupID} and suggested name {simulationName}")
         else:
             simulationName = cleanName
             try:
@@ -327,7 +327,7 @@ class workflowToolkit(abstractToolkit):
             self.logger.debug(f"Use input as simulation : {simulationName} with the group {groupID}")
 
         self.logger.info(
-            f"Simulation name is {simulationName} with type {theType} in group {groupName} with id {groupID}.")
+            f"Simulation name is {simulationName} with type {theType} in simulation group {groupName} with id {groupID}.")
 
         # 2. Check if exists in the DB.
 
@@ -339,7 +339,7 @@ class workflowToolkit(abstractToolkit):
 
         if len(docList) > 0 and (not force) and (docList[0]['desc']['name'] != simulationName):
             doc = docList[0]
-            wrn = f"The requested workflow {simulationName} has similar parameters to the workflow **{doc['desc']['name']}** in group {groupName}."
+            wrn = f"The requested workflow {simulationName} has similar parameters to the workflow **{doc['desc']['name']}** in simulation group {groupName}."
             self.logger.warning(wrn)
             raise FileExistsError(wrn)
         else:
@@ -349,8 +349,6 @@ class workflowToolkit(abstractToolkit):
             docList = self.getSimulationsInGroup(simulationGroup=groupName, simuationType=theType, name=simulationName)
 
             if len(docList) == 0:
-                import pdb
-                pdb.set_trace()
                 self.logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, simulationName),
                                                   dataFormat=datatypes.STRING,
@@ -466,7 +464,7 @@ class workflowToolkit(abstractToolkit):
     def listSimulations(self,
                         simulationGroup:str,
                         simuationType:str = None,
-                        parameters:list = None,
+                        parametersOfNodes:list = None,
                         allParams:bool = False,
                         jsonFormat:bool = False
                         ) -> Union[pandas.DataFrame,dict]:
@@ -489,7 +487,7 @@ class workflowToolkit(abstractToolkit):
         simuationType : str, optional
             Additional filter according to the simulation type.
 
-        parameters  : list[str]
+        parametersOfNodes  : list[str]
             If None, just return the names of the simulations. Otherwise add the parameters from the requested nodes.
 
         allParams: bool
@@ -503,14 +501,23 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations and their values.
         """
         simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup,simuationType=simuationType)
+        if parametersOfNodes is not None:
 
-        import pdb
-        pdb.set_trace()
+            qry = None
+            if len(parametersOfNodes) > 0:
+                qry = "nodeName in @parametersOfNodes"
 
-        if parameters is not None:
+            simParamList = []
             for simulationDoc in simulationList:
                 wf = workflow(simulationDoc['desc']['workflow'])
-                print(wf.getNodesParametersTable())
+                simulationParameters = wf.getNodesParametersTable().assign(simulationName=simulationDoc.desc['name'])
+                if qry is not None:
+                    simulationParameters = simulationParameters.query(qry)
+
+                simParamList.apend(simulationParameters)
+
+            print(pandas.concat(simulationParameters))
+
         else:
             ret = pandas.DataFrame([x.desc['name'] for x in simulationList],columns=["name"])
             if jsonFormat:

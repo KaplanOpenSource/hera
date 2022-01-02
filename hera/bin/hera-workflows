@@ -2,7 +2,6 @@
 import argparse
 import json
 import os
-import pdb
 
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
@@ -29,7 +28,7 @@ def add(args):
                                 TBD
                         }
                     }
-        docType: the type of the document.
+        simulationType: the type of the simulation.
 
         overwrite : bool,
                 overwite thw workflow with the given name
@@ -55,7 +54,7 @@ def add(args):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    simulationGroup         = args.workflow.split(".")[0] if args.simulationGroup is None else args.simulationGroup
+    simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if args.simulationGroup is None else args.simulationGroup
     workflowType            = simulationTypes.WORKFLOW.value if args.workflowType is None else args.workflowType
 
     if args.variations is None:
@@ -76,6 +75,60 @@ def add(args):
     else:
         # should load the combinations....
         raise NotImplementedError("Loading the combinations... Not implemented yet... ")
+
+def create(arguments):
+    """
+            Create a JSON from the name of the simulation (or from a JSON file) and assignes a new empty name to it.
+            It does NOT build or adds it to the DB. to do so, use the add subcommand
+
+    Parameters
+    ----------
+    arguments
+        workflow : The workflow file that will be prepared.
+        groupName : The group of the simulation.
+        variations : Json with the parameter variations on the requested workflow.
+                    The structure of the JSON is:
+                    {
+                        "parameterVariation" : {
+                                TBD
+                        }
+                    }
+        simulationType: the type of the simulation.
+
+        overwrite : bool,
+                overwite thw workflow with the given name
+
+
+    Returns
+    -------
+
+    """
+    logger = loggedObject("bin.hera_workflows.add").logger
+    logger.info(" -- Starting: adding workflow to the group --")
+
+    conf = loadJSON(arguments.workflow)
+    projectName = conf[HERAMETADATA]['projectName'] if arguments.projectName is None else arguments.projectName
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+
+    simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if arguments.simulationGroup is None else arguments.simulationGroup
+    workflowType            = simulationTypes.WORKFLOW.value if arguments.workflowType is None else arguments.workflowType
+
+    if arguments.variations is None:
+        logger.info("No variations supplied. Creating one simulation. ")
+        groupID, simulationName = wftk.findAvailableName(simulationGroup=simulationGroup, simuationType=workflowType)
+        logger.info(f"Creating workflow in {simulationName} (group ID {groupID}) to group {simulationGroup}. Using workflow type: {workflowType}.")
+
+        if not os.path.exists(simulationName) or arguments.overwrite:
+            with open(f"{simulationName}.json","w") as newfile:
+                json.dump(conf,newfile)
+        else:
+            raise FileExistsError(f"The workflow {simulationName} exists in that directory. Use --overwrite to overwrite it.")
+
+    else:
+        # should load the combinations....
+        raise NotImplementedError("Loading the combinations... Not implemented yet... ")
+
 
 def listSimulations(arguments):
     """
@@ -118,13 +171,13 @@ def listSimulations(arguments):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     simuationType = arguments.simulationType
-    parameters    = arguments.parameters
+    parametersOfNodes    = arguments.parametersOfNodes
     allParams     = arguments.allParameters
     jsonFormat    = arguments.json
 
     simulationList = wftk.listSimulations(simulationGroup=simulationGroup,
                                           simuationType=simuationType,
-                                          parameters=parameters,
+                                          parametersOfNodes=parametersOfNodes,
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
 
@@ -177,7 +230,6 @@ def listWokflowNodes(arguments):
                 print(f"\t\t + {prop}")
     else:
         print("\t * "+"\n\t * ".join(hermesObject.nodeList))
-
 
 def listWokflowNodeParameters(arguments):
     """
@@ -268,22 +320,30 @@ if __name__ == "__main__":
     parser_prepare.add_argument('--action', dest="action", choices=['Add', 'AddBuild', 'AddBuildRun'],
                                 help='The action: just add, just add and build, or add,build and run',
                                 default='AddBuildRun')
-
     parser_prepare.set_defaults(func=add)
 
     ### ------------------------
-    listSimulations_parser = subparsers.add_parser('list',
-                                                   help='Lists the simulations in the simulation group of that project.')
+    parser_create = subparsers.add_parser('create', help='Creates a one or more new simulation and assignes their name from the ID of the database. Does not build or add to the DB')
+    parser_create.add_argument('workflow', type=str, help='The workflow file to load')
+    parser_create.add_argument('--projectName', type=str, default=None, help='The project to load the data')
+    parser_create.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group to associate the ')
+    parser_create.add_argument('--variations', default=None, type=str, help='A file with all the variations.')
+    parser_create.add_argument('--simulationType', dest="workflowType", default=None, type=str, help='The type of simulation ')
+    parser_create.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                help='overwrite the existing workflow, if file already exists')
+    parser_create.set_defaults(func=create)
+
+    ### ------------------------
+    listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
     listSimulations_parser.add_argument('workflow', type=str, help='The workflow file to load',default=None)
     listSimulations_parser.add_argument('--projectName', default =None,type=str, help='Provide the projectName to use')
     listSimulations_parser.add_argument('--simulationGroup',default=None, type=str, help='The simulation group to use')
     listSimulations_parser.add_argument('--simulationType', dest="simulationType", default=None, type=str, help='Use the simulation type as filter')
-    listSimulations_parser.add_argument('--parameters',nargs="*", dest="parameters", default=None, help='List the paramaters. If parameters nodes are given, then only list theirs.')
+    listSimulations_parser.add_argument('--parametersOfNodes',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
     listSimulations_parser.add_argument('--all', dest="allParameters", default=False, type=bool, help='If exsists, return all the parameters, else, return only the differences between the different simulations.')
     listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
                                         help='If exsists, return the results as JSON and not as pandas table')
     listSimulations_parser.set_defaults(func=listSimulations)
-
 
     ### ------------------------
     export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
