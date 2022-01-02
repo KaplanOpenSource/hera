@@ -174,7 +174,7 @@ class analysis():
                                                       type="Lambda_Buildings",
                                                       desc=desc)
                 filename = f"{str(doc.id)}.geojson"
-                outputfileFull = os.path.abspath(os.path.join(self._datalayer.FilesDirectory, filename))
+                outputfileFull = os.path.abspath(os.path.join(self._datalayer.filesDirectory, filename))
                 self.logger.debug(f"Writing Lambda data to {outputfileFull}")
 
             else:

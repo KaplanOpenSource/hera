@@ -106,7 +106,7 @@ class LSMTemplate:
 
         """
         fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
-        saveDir = os.path.abspath(self.Toolkit.FilesDirectory)
+        saveDir = os.path.abspath(self.Toolkit.filesDirectory)
 
         # create the input file.
         updated_params = dict(self._document['desc']['params'])

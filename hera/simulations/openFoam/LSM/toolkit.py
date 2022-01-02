@@ -894,7 +894,7 @@ class Analysis:
                                                       resource="",
                                                       desc=desc)
 
-                outputDirectory = os.path.join(self.datalayer.FilesDirectory, str(doc.id))
+                outputDirectory = os.path.join(self.datalayer.filesDirectory, str(doc.id))
                 os.makedirs(outputDirectory, exist_ok=True)
 
                 finalFileName = os.path.join(outputDirectory, "concentration.parquet")
@@ -1031,7 +1031,7 @@ class Analysis:
                                                          type=self.DOCTYPE_CONCENTRATION,
                                                          desc=mdata)
 
-                xryDoc.resource = os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id), "Concentrations*.nc")
+                xryDoc.resource = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id), "Concentrations*.nc")
                 xryDoc.save()
             else:
                 xryDoc = docList[0]
@@ -1045,7 +1045,7 @@ class Analysis:
 
             data = dataDocument.getData()  # dask.
 
-            os.makedirs(os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id)), exist_ok=True)
+            os.makedirs(os.path.join(self.datalayer.filesDirectory, str(xryDoc.id)), exist_ok=True)
 
             for partitionID, partition in enumerate(data.partitions):
                 L = []
@@ -1057,7 +1057,7 @@ class Analysis:
 
                 pxry = xarray.concat(L, dim="time")
 
-                outFile_Final = os.path.join(self.datalayer.FilesDirectory, str(xryDoc.id),
+                outFile_Final = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id),
                                              f"Concentrations{partitionID}.nc")
                 pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
 

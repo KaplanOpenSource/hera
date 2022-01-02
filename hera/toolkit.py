@@ -76,7 +76,7 @@ class ToolkitHome:
 
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
 
-            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflow.workflowToolkit")
+            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit")
         )
 
 

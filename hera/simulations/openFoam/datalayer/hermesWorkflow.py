@@ -1,3 +1,4 @@
+from enum import Enum, auto, unique
 import numpy
 import os
 import glob
@@ -12,6 +13,8 @@ from itertools import product
 import json
 from shutil import copyfile
 from ...openFoam import ofObjectHome
+
+from ...hermesWorkflowToolkit import DOCTYPE_WORKFLOW
 
 try:
     from hermes import workflow
@@ -34,9 +37,10 @@ class abstractWorkflow(workflow):
     def parameters(self):
         return self['Parameters']
 
-    def __init__(self,workflowJSON):
+    def __init__(self,workflowJSON,workflowType=DOCTYPE_WORKFLOW):
         super().__init__(workflowJSON=workflowJSON)
         self.logger = loggedObject(loggerName=None).logger
+        self.workflowType = workflowType
 
     def buildCaseExecutionScript(self,caseDirectory,configuration):
         """
@@ -145,6 +149,48 @@ cleanCase
 
         """
         return jsonConfiguration['name']
+
+    @property
+    def projectName(self):
+
+        return self._workflowJSON.get('heraMetaData',dict()).get('projectName',None)
+    
+    @projectName.setter
+    def projectName(self, value):
+        self._workflowJSON.setdefault('heraMetaData',dict())
+        self._workflowJSON['heraMetaData']['projectName'] = value
+    
+    @property
+    def simulationGroup(self):
+        return self._workflowJSON.get('heraMetaData',dict()).get('simulationGroup',None)
+
+    @simulationGroup.setter
+    def simulationGroup(self, value):
+        self._workflowJSON.setdefault('heraMetaData',dict())
+        self._workflowJSON['heraMetaData']['simulationGroup'] = value
+
+    @property
+    def workflowType(self):
+        return self._workflowJSON.get('heraMetaData', dict()).get('workflowType', None)
+
+    @workflowType.setter
+    def workflowType(self, value):
+        self._workflowJSON.setdefault('heraMetaData',dict())
+        self._workflowJSON['heraMetaData']['workflowType'] = value
+
+    def assignToProjectAndSimulationGroup(self,jsonConfiguration):
+        """
+            Assigns the projectName, simulationGroup and the
+            flowType to the simulation.
+
+        Parameters
+        ----------
+        jsonConfiguration
+
+        Returns
+        -------
+
+        """
 
 class Workflow_Flow(abstractWorkflow):
     """
@@ -325,8 +371,6 @@ class Workflow_Flow(abstractWorkflow):
         """
         self.logger.info("-- Start --")
         configuration = loadJSON(configurationFile)
-
-
         blockMeshNode = configuration['mesh'].get('blockMesh',None)
 
         if blockMeshNode is not None:
@@ -501,7 +545,7 @@ class Workflow_Flow(abstractWorkflow):
         if regionCoords is None:
             raise ValueError(f"The region{region} is not found. Found the regions: {','.join(regionList.keys())}")
 
-        bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
+        bx = [regionCoords['parameters']['xmin']*0.95, regionCoords['parameters']['ymin']*0.95, regionCoords['parameters']['xmax']*1.05, regionCoords['parameters']['ymax']*1.05]
 
         stlFileName = f"{geometryJSON['meshing']['objectName']}.stl"
         fullFileName = os.path.join(workingDirectory, stlFileName)

@@ -257,7 +257,7 @@ class analysis:
 
             filename = regionName if "." in regionName else f"{regionName}.shp"
 
-            fullname = os.path.join(self.datalayer.FilesDirectory,filename)
+            fullname = os.path.join(self.datalayer.filesDirectory, filename)
             newData.to_file(fullname)
             if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
 

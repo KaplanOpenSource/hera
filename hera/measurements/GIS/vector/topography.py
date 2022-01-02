@@ -253,7 +253,7 @@ class analysis():
                         toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
                         toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE]:
 
-            file = os.path.join(self.datalayer.FilesDirectory, "cellData.parquet") if file is None else file
+            file = os.path.join(self.datalayer.filesDirectory, "cellData.parquet") if file is None else file
 
             if os.path.exists(file) and saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
                                                      toolkit.TOOLKIT_SAVEMODE_FILEANDDB]:

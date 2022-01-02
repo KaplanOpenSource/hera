@@ -2,7 +2,13 @@
 import argparse
 import json
 import os
+import pdb
+
 from hera import toolkitHome
+from hera.simulations.hermesWorkflowToolkit import actionModes,DOCTYPE_WORKFLOW
+from hera.utils import loggedObject,loadJSON
+
+
 
 def add(args):
     """
@@ -25,6 +31,18 @@ def add(args):
                     }
         docType: the type of the document.
 
+        overwrite : bool,
+                overwite thw workflow with the given name
+        force:   bool,
+            add the simulation to the db, even if the workflow exists under a different name.
+        assignName: bool,
+            generate automated name to the workflow
+        action   : Add, AddBuild, or AddBuildRun
+                Add - just adds the simulation to the db
+                AddBuild - add the simulation to the db, and then write the workfow and python execution code.
+                AddBuildRun - add the simulation to the db, write the workflow and the python execution code,
+                              the run the execution code
+
     Returns
     -------
         None
@@ -32,20 +50,32 @@ def add(args):
     logger = loggedObject("bin.hera_workflows.add").logger
     logger.info(" -- Starting: adding workflow to the group --")
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
+    conf = loadJSON(args.workflow)
+    projectName = conf['heraMetaData']['projectName'] if args.projectName is None else args.projectName
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+
+    simulationGroup         = args.workflow.split(".")[0] if args.simulationGroup is None else args.simulationGroup
+    workflowType            = DOCTYPE_WORKFLOW if args.workflowType is None else args.workflowType
 
     if args.variations is None:
-        workflowFile = args.workfow
-        groupName    = args.groupName
-        docType      = args.docType
-        logger.info(f"Parameters is empty: loading the requested workflow in {workflowFile} to group {groupName}. Using type {docType if docType is not None else 'default type'}.")
-        wftk.loadToGroupFromFile(fileName=workflowFile,
-                                 groupName =groupName,
-                                 docType= docType, overwrite=args.overwrite,force=args.force)
+        logger.info("No variations supplied. Adding one simulation. ")
+        workflowFile = args.workflow
+        logger.info(f"Adding workflow in {workflowFile} to group {simulationGroup}. Using workflow type: {workflowType}.")
+
+        action = getattr(actionModes, args.action.upper())
+
+        wftk.addToGroup(workflowJSON=workflowFile,
+                        groupName=simulationGroup,
+                        docType=workflowType,
+                        assignName=args.assignName,
+                        overwrite=args.overwrite,
+                        action=action,
+                        force=args.force)
+
     else:
         # should load the combinations....
         raise NotImplementedError("Loading the combinations... Not implemented yet... ")
-
 
 def listSimulations(arguments):
     """
@@ -67,13 +97,13 @@ def listSimulations(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
 
-    simulationList = wftk.getSimulationsInGroup(groupName,docType)
+    simulationList = wftk.getSimulationsInGroup(groupName, docType)
     title = f"The simulations in group {arguments.groupName}"
     if args.type is not None:
         title = f"{title}. Querying only simulations of the type {args.type}"
 
     print(title)
-    print("-"*len(title))
+    print("-" * len(title))
     print("\n".join([x['desc']['name'] for x in simulationList]))
 
 
@@ -98,50 +128,61 @@ def compareSimulations(arguments):
     -------
 
     """
+    pass
 
 
-if __name__=="__main__":
-
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
-    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+if __name__ == "__main__":
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING, projectName=None)
+    tk.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
     tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    prepare = subparsers.add_parser('add', help='Adds a new simulation to the group.')
-    parser_prepare.add_argument('projectName', type=str, help='The project to load the data')
+    parser_prepare = subparsers.add_parser('add', help='Adds simulations to the group.')
     parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
-    parser_prepare.add_argument('groupName',default=None, type=str, help='The simulation group to associate the ')
+    parser_prepare.add_argument('--projectName', type=str, default=None, help='The project to load the data')
+    parser_prepare.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group to associate the ')
     parser_prepare.add_argument('--variations', default=None, type=str, help='A file with all the variations.')
-    parser_prepare.add_argument('--type',dest="docType", default=None, type=str,help='The type of simulation ')
-    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the existing workflow, if file already exists')
-    parser_prepare.add_argument('--force', dest="force", action="store_true", default=False,help='Add to the db even if the workflow exists there (under a different name)')
+    parser_prepare.add_argument('--workflowType', dest="workflowType", default=None, type=str, help='The type of simulation ')
+    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                help='overwrite the existing workflow, if file already exists')
+    parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
+                                help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
+    parser_prepare.add_argument('--force', dest="force", action="store_true", default=False,
+                                help='Add to the db even if the workflow exists there (under a different name)')
+    parser_prepare.add_argument('--action', dest="action", choices=['Add', 'AddBuild', 'AddBuildRun'],
+                                help='The action: just add, just add and build, or add,build and run',
+                                default='AddBuildRun')
+
     parser_prepare.set_defaults(func=add)
 
-    listSimulations = subparsers.add_parser('list', help='Lists the simulations in the project. Use the prefic of the base name. If the input is workflow, then take the prefix of that workflow')
-    listSimulations.add_argument('projectName', type=str, help='The project name')
-    listSimulations.add_argument('workflow', type=str, help='The workflow file to load')
-    listSimulations.add_argument('--type', dest="docType", default=None, type=str, help='The type of simulation ')
-    listSimulations.set_defaults(func=listSimulations)
+    listSimulations_parser = subparsers.add_parser('list',
+                                                   help='Lists the simulations in the project. Use the prefic of the base name. If the input is workflow, then take the prefix of that workflow')
+    listSimulations_parser.add_argument('projectName', type=str, help='The project name')
+    listSimulations_parser.add_argument('workflow', type=str, help='The workflow file to load')
+    listSimulations_parser.add_argument('--type', dest="docType", default=None, type=str,
+                                        help='The type of simulation ')
+    listSimulations_parser.set_defaults(func=listSimulations)
 
     export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
     # --build - also builds the python executer
 
-    compare = subparsers.add_parser('compare', help='Compare two or more simulations. ')
-    listSimulations.add_argument('projectName', type=str, help='The project name')
-    listSimulations.add_argument('simulations',nargs="+", type=str, help='[groupName] - compare all the simulations, [sim1,sim2,..] compare the different simulations. simX is either a simulation name in the DB or a file on the disk')
-    parser_prepare.add_argument('--JSON', dest="JSON", action="store_true", default=False, help='Return the results in JSON format')
-    parser_prepare.add_argument('--all', default=False, type=store_true, help='Return all the parameters fields')
-    parser_prepare.add_argument('--nodes', nargs="+", default=None, type=str, help='The list of nodes to present')
-    listSimulations.add_argument('--type', dest="docType", default=None, type=str, help='The type of simulation ')
-    listSimulations.set_defaults(func=compareSimulations)
+    compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations. ')
+    compare_parser.add_argument('projectName', type=str, help='The project name')
+    compare_parser.add_argument('simulations', nargs="+", type=str,
+                                help='[groupName] - compare all the simulations, [sim1,sim2,..] compare the different simulations. simX is either a simulation name in the DB or a file on the disk')
+    compare_parser.add_argument('--JSON', dest="JSON", action="store_true", default=False,
+                                help='Return the results in JSON format')
+    compare_parser.add_argument('--all', default=False, action="store_true", help='Return all the parameters fields')
+    compare_parser.add_argument('--nodes', nargs="+", default=None, type=str, help='The list of nodes to present')
+    compare_parser.add_argument('--type', dest="docType", default=None, type=str, help='The type of simulation ')
+    compare_parser.set_defaults(func=compareSimulations)
 
-    compare = subparsers.add_parser('delete', help='Delete the run. exports the simulation that was deleted ')
+    delete_parser = subparsers.add_parser('delete', help='Delete the run. exports the simulation that was deleted ')
     # --includeRun - also deletes the run.
     # --group     - deletes all the simulation with that prefix.
     # --no-export  - does not save the deleted workflow to the disk.
 
-    handler = argsHandler(projectName)
+    parsed = parser.parse_args()
     parsed.func(parsed)
-    function(args)
