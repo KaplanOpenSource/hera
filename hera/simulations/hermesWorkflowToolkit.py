@@ -40,6 +40,14 @@ class simulationTypes(Enum):
         else:
             raise ValueError(f"'{cls.__name__}' enum not found for '{value}'")
 
+    @classmethod
+    def isvalid(cls,value):
+        for k, v in cls.__members__.items():
+            if value == v.value:
+                return True
+        else:
+            raise False
+
 
 HERAMETADATA = 'heraMetaData'  # The name of the node in the workflow to which the hera meta data is added.
 
@@ -213,7 +221,32 @@ class workflowToolkit(abstractToolkit):
         else:
             newID = numpy.max(group_ids)
 
-        return newID, f"{simulationGroup}_{newID}"
+        return newID, self.getworkFlowName(simulationGroup,newID)
+
+    @staticmethod
+    def getworkFlowName(baseName,flowID):
+        """
+            Returns the name of the flow field from the base and the
+            flow id.
+
+            The name is <base>_<id>
+            where <id> is padded.
+
+        Parameters
+        ----------
+        baseName : str
+                The base name
+        flowID: int
+                the id of the name.
+
+        Returns
+        -------
+
+        """
+        formatted_number = "{0:04d}".format(flowID)
+        return f"{baseName}_{formatted_number}"
+
+
 
     def addToGroup(self,
                    workflowJSON: str,

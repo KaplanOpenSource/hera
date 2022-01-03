@@ -6,7 +6,7 @@ import shutil
 import os
 from hera.simulations.openFoam import Workflow_Flow
 from hera.utils import loadJSON,loggedObject
-
+from hera.simulations.hermesWorkflowToolkit import simulationTypes
 
 def prepareAll(arguments):
     """
@@ -44,7 +44,6 @@ def prepareAll(arguments):
     logger.debug("Making directory")
     os.makedirs(templateName,exist_ok=True)
 
-
     # 1. Prepare the geometry. Build the STL
     logger.debug("Preparing geometry")
     hwf.prepareGeometry(templateName, configuration,arguments.overwrite)
@@ -64,13 +63,14 @@ def prepareAll(arguments):
     projectName = configuration.get("projectName",None)
     simulationGroup    = configuration.get("specializedTemplateName",None)
 
+    logger.debug(f"Setting hera metadata: project name is {projectName} and simulation group is {simulationGroup}")
     if projectName is not None:
         hwf.projectName = projectName
 
     if simulationGroup is not None:
         hwf.simulationGroup = simulationGroup
 
-    logger.debug(f"Setting project name: {projectName} || simulation group: {simulationGroup}")
+    hwf.workflowType = simulationTypes.OF_FLOWFIELD
 
     logger.debug(f"Writing specialized workflow to file {templateName}.json")
     hwf.write(f"{templateName}.json",arguments.overwrite)
@@ -79,7 +79,6 @@ def prepareAll(arguments):
     # 3. Make runfile.
     logger.debug("Writing the execution files. ")
     hwf.buildCaseExecutionScript(templateName,configuration)
-
 
 
     logger.info("--- End ---")

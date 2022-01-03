@@ -8,7 +8,7 @@ from ....utils import loadJSON,loggedObject
 #from ....datalayer import Project
 from itertools import product
 from ...openFoam import ofObjectHome
-from ...hermesWorkflowToolkit import simulationTypes
+from ...hermesWorkflowToolkit import simulationTypes,HERAMETADATA
 
 try:
     from hermes import workflow
@@ -119,51 +119,40 @@ cleanCase
 
         os.chmod(allcleanFile, 0o777)
 
-
-
-
-
     @property
     def projectName(self):
-
-        return self._workflowJSON.get('heraMetaData',dict()).get('projectName',None)
+        return self._workflowJSON.get(HERAMETADATA,dict()).get('projectName',None)
     
     @projectName.setter
     def projectName(self, value):
-        self._workflowJSON.setdefault('heraMetaData',dict())
-        self._workflowJSON['heraMetaData']['projectName'] = value
+        self._workflowJSON.setdefault(HERAMETADATA,dict())
+        self._workflowJSON[HERAMETADATA]['projectName'] = value
     
     @property
     def simulationGroup(self):
-        return self._workflowJSON.get('heraMetaData',dict()).get('simulationGroup',None)
+        return self._workflowJSON.get(HERAMETADATA,dict()).get('simulationGroup',None)
 
     @simulationGroup.setter
     def simulationGroup(self, value):
-        self._workflowJSON.setdefault('heraMetaData',dict())
-        self._workflowJSON['heraMetaData']['simulationGroup'] = value
+        self._workflowJSON.setdefault(HERAMETADATA,dict())
+        self._workflowJSON[HERAMETADATA]['simulationGroup'] = value
 
     @property
     def workflowType(self):
-        return self._workflowJSON.get('heraMetaData', dict()).get('workflowType', None)
+        return self._workflowJSON.get(HERAMETADATA, dict()).get('workflowType', None)
 
     @workflowType.setter
     def workflowType(self, value):
-        self._workflowJSON.setdefault('heraMetaData',dict())
-        self._workflowJSON['heraMetaData']['workflowType'] = value.value
+        self._workflowJSON.setdefault(HERAMETADATA,dict())
 
-    def assignToProjectAndSimulationGroup(self,jsonConfiguration):
-        """
-            Assigns the projectName, simulationGroup and the
-            flowType to the simulation.
+        if isinstance(value,str):
+            if not simulationTypes.isvalid(value):
+                raise ValueError(f"{value} is not a valid simulation type. ")
+        else:
+            value = value.value # get the string value of the enum.
 
-        Parameters
-        ----------
-        jsonConfiguration
+        self._workflowJSON[HERAMETADATA]['workflowType'] = value
 
-        Returns
-        -------
-
-        """
 
 class Workflow_Flow(abstractWorkflow):
     """
@@ -223,8 +212,6 @@ class Workflow_Flow(abstractWorkflow):
         for node in ['controlDict','fvSolution','fvSchemes','blockMesh','fileWriter','defineNewBoundaryConditions']:
             if node not in self.workflowJSON['nodes']:
                 raise ValueError(f"The node {node} does not exist in the flow. Not a flow workflow.")
-
-
 
     @property
     def controlDict(self):

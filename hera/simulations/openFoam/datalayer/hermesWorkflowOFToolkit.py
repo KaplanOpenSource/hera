@@ -25,31 +25,8 @@ class OFworkflowToolkit(workflowToolkit):
 
 
 
-    @staticmethod
-    def getFlowFieldName(baseName,flowID):
-        """
-            Returns the name of the flow field from the base and the
-            flow id.
 
-            The name is <base>_<id>
-            where <id> is padded.
-
-        Parameters
-        ----------
-        baseName : str
-                The base name
-        flowID: int
-                the id of the name.
-
-        Returns
-        -------
-
-        """
-
-        formatted_number = "{0:04d}".format(flowID+1)
-        return f"{baseName}_{formatted_number}"
-
-    def prepareFlowField(self,flowData,simulationGroup:str):
+    def prepareFlowFieldForDispersion(self, flowData, simulationGroup:str):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
             Currently, assumes the case is parallel.
