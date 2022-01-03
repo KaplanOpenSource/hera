@@ -38,6 +38,7 @@ class ToolkitHome:
     OPENFOAM       = "OpenFOAM"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
+    SIMULATIONS_OF_WORKFLOWS = "OFhermesWorkflows"
 
     METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
     METEOROLOGY_LOWFREQ = "MeteoLowFreq"
@@ -76,7 +77,8 @@ class ToolkitHome:
 
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
 
-            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit")
+            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit"),
+            OFhermesWorkflows = dict(cls="hera.simulations.openFoam.datalayer.hermesWorkflowOFToolkit.OFworkflowToolkit")
         )
 
 

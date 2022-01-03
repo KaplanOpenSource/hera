@@ -1,20 +1,14 @@
-from enum import Enum, auto, unique
 import numpy
 import os
 import glob
-import shutil
+import json
 from distutils.dir_util import copy_tree
 from hera import toolkitHome
-from hermes.workflow import workflow,hermesNode
-from ....utils import loadJSON
-from ....utils import loggedObject
-from ....datalayer import Project
+from ....utils import loadJSON,loggedObject
+#from ....datalayer import Project
 from itertools import product
-import json
-from shutil import copyfile
 from ...openFoam import ofObjectHome
-
-from ...hermesWorkflowToolkit import SIMULATIONTYPE_WORKFLOW
+from ...hermesWorkflowToolkit import simulationTypes
 
 try:
     from hermes import workflow
@@ -33,7 +27,7 @@ class abstractWorkflow(workflow):
     def parameters(self):
         return self['Parameters']
 
-    def __init__(self, workflowJSON, workflowType=SIMULATIONTYPE_WORKFLOW):
+    def __init__(self, workflowJSON, workflowType=simulationTypes.WORKFLOW):
         super().__init__(workflowJSON=workflowJSON)
         self.logger = loggedObject(loggerName=None).logger
         self.workflowType = workflowType
@@ -125,26 +119,9 @@ cleanCase
 
         os.chmod(allcleanFile, 0o777)
 
-    @classmethod
-    def baseTemplateHandler_directory(cls,jsonConfiguration):
-        """
-            Check if the directory is already the db.
-            If it is, then return the id.
-
-        Parameters
-        ----------
-        json: str
-            The json of the directory:
-                {
-                    name : ...
-                }
 
 
-        Returns
-        -------
 
-        """
-        return jsonConfiguration['name']
 
     @property
     def projectName(self):
@@ -172,7 +149,7 @@ cleanCase
     @workflowType.setter
     def workflowType(self, value):
         self._workflowJSON.setdefault('heraMetaData',dict())
-        self._workflowJSON['heraMetaData']['workflowType'] = value
+        self._workflowJSON['heraMetaData']['workflowType'] = value.value
 
     def assignToProjectAndSimulationGroup(self,jsonConfiguration):
         """
@@ -239,7 +216,7 @@ class Workflow_Flow(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
-        super().__init__(workflowJSON=workflowJSON)
+        super().__init__(workflowJSON=workflowJSON,workflowType=simulationTypes.OF_FLOWFIELD)
         self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
 
         # examine here that all the nodes exist, if not - it is not a flow
@@ -785,240 +762,6 @@ class Workflow_Flow(abstractWorkflow):
 class Workflow_Dispersion(abstractWorkflow):
 
     def __init__(self ,workflowJSON):
-        super().__init__(workflowJSON=workflowJSON)
+        super().__init__(workflowJSON=workflowJSON,workflowType=simulationTypes.OF_DISPERSION)
 
         # examine here that all the nodes exist, if not - it is not a flow
-
-    @staticmethod
-    def getFlowFieldName(baseName,flowID):
-        """
-            Returns the name of the flow field from the base and the
-            flow id.
-
-            The name is <base>_<id>
-            where <id> is padded.
-
-        Parameters
-        ----------
-        baseName : str
-                The base name
-        flowID: int
-                the id of the name.
-
-        Returns
-        -------
-
-        """
-
-        formatted_number = "{0:04d}".format(flowID+1)
-        return f"{baseName}_{formatted_number}"
-
-    @classmethod
-    def prepareFlowField(cls,projectName,flowData,suggsetedName):
-        """
-            Prepares the case directory of the flow for the dispersion.
-            Currently, assumes the case is parallel.
-
-            Steps:
-            ------
-
-            1. First checks in the DB if the simulation was already defined.
-            2. If it is uses is id.
-               If not:
-                2.1. add it to the DB and get the id.
-                2.2 Perpare the case:
-                    1. Copies the base directory to the simulationsDirectory.
-                    2. Creates the symbolic link for the mesh.
-                    3. Creates the Hmix and ustar.
-                    4. build the change directory and run it.
-                    5. run the create cell heights.
-                2.3 return the id
-
-        Parameters
-        ----------
-        configurationJSON : dict
-            The configuration of the base flow.
-
-            Has the structure:
-                    "baseFlow" : {
-                        type: "directory|simulationName|workflowFile|ID"
-                        parameters:  {
-                                .. depend on the type
-                        },
-                        "useTimestep" : [float], optional, default: last timestep
-                        fromTimestep : [float], optional,  default: 0
-                        maximalDispersionTime : [float], required.
-                        copyMesh : [bool], default false
-
-                    },
-                    "dispersionField" : {
-
-                    }
-
-            base flow parameters:
-            =====================
-
-                * useTimestep : float, the time step to copy from the simulation.
-                          If None (or not specified) use the last time step.
-
-                * fromTimestep: float, the first time step in the simulation.
-                * maximalDispersionTime: float, required, the maximal timestep of the dispersion simulation (of the flow field).
-                * copyMesh: bool, if true, then copy the mesh. otherwise, make symbolic links.
-
-                base flow type
-                --------------
-                        - directory: The name of the directory to use.
-                            Parameters:
-                                    + name
-                        - simulationName : query the hera db by the simulation name,
-                            Parameters
-                                    + name : the base name of the run.
-                                    + filters : { nodename : { jpath : value}}
-                                            where nodename is the name of the node in the workflow.
-
-                        - workflowFile: query the hera db using the workflow.
-                            Parameters:
-                                    + filters : { nodename : { jpath : value}}
-                                            where nodename is the name of the node in the workflow.
-                        - ID : the id of the document in the heradb.
-
-                        ONLY directory is implemented now.
-
-        Returns
-        -------
-            A list of str
-
-            The ids of the documents that will be used as the directories.
-
-        """
-
-        logger = loggedObject(loggerName="simulations.openFoam.datalayer.hermesWorkflow").logger
-        db = Project(projectName=projectName)
-
-
-        logger.info("-------- Start ---------")
-        baseFlow = flowData['baseFlow']
-
-        # 1. Get the case of the run
-        logger.debug(f"Getting the base flow directory from handler  {baseFlow['type']}")
-        handler = getattr(cls,f"baseTemplateHandler_{baseFlow['type']}")
-        orig = handler(baseFlow['parameters'])
-        logger.debug(f"Getting the base flow directory: {orig}")
-
-        TS = [os.path.basename(ts) for ts in glob.glob(os.path.join(orig, "processor0", "*")) if
-              os.path.basename(ts).replace(".", "").isdigit()]
-        TS.sort()
-
-        useTimestep = baseFlow.get("useTimestep",None)
-        fromTimestep = baseFlow.get("fromTimestep","0")
-        maximalDispersionTime = baseFlow["maximalDispersionTime"]
-        copyMesh = baseFlow.get("copyMesh",False)
-
-        if useTimestep is None:
-            # find maximal TS, assume it is parallel:
-            uts = TS[-1]
-        else:
-            # find the closes TS.
-            request = float(useTimestep)
-            uts = TS[min(range(len(TS)), key=lambda i: abs(float(TS[i]) - request))]
-
-        fromTime = fromTimestep
-
-        logger.debug(f"Using Time step {uts} for Steady state")
-
-        ## Now we should find out if there is a similar run.
-        # 1. same original run.
-        # 2. same Hmix/ustar/... other fields.
-        # 3. the requested start and end are within the existing start and end.
-
-        querydict = dict(
-            flowParameters=dict(
-                baseFlowDirectory=orig,
-                flowFields=flowData['dispersionFields'],
-                usingTimeStep = uts
-            )
-        )
-
-        logger.debug(f"Test if the requested flow field already exists in the project")
-        docList = db.getCacheDocuments(type=cls.DOCTYPE_DISPERSION_FLOWFIELD,**querydict)
-
-        if len(docList) == 0:
-            logger.info(f"Flow field not found, creating new and adding to the DB")
-            ofhome = ofObjectHome()
-            ## Add new document to the db.
-
-
-            # Copy
-
-            ### Tempoarary
-            DispersionCase = suggsetedName # this will be replaced with the document id from the db
-            ########
-            dest = os.path.abspath(DispersionCase)
-            try:
-                logger.info(f"Creating the directory {dest}")
-                os.makedirs(dest,exist_ok=True)
-            except FileExistsError:
-                raise FileExistsError("The case already exists, use --overwrite ")
-
-            # copy constant, 0 and system.
-            for general in ["constant", "system", "0"]:
-                logger.info(f"Copying {general} in {orig} directory --> {dest}")
-                orig_general = os.path.join(orig, general)
-                dest_general = os.path.join(dest, general)
-                if os.path.exists(dest_general):
-                    copy_tree(orig_general, dest_general)
-                else:
-                    shutil.copytree(orig_general, dest_general)
-
-            logger.debug(f"Copy the parallel directories")
-            for proc in glob.glob(os.path.join(orig,"processor*")):
-                for dest_time in [fromTime, maximalDispersionTime]:
-                    logger.info(f"Handling time {dest_time}/Process {proc}")
-                    orig_proc = os.path.join(proc,str(uts))
-                    dest_proc = os.path.join(dest,os.path.basename(proc),str(dest_time))
-                    shutil.copytree(orig_proc,dest_proc)
-
-                logger.debug(f"Copying the mesh")
-                if copyMesh:
-                    orig_constant = os.path.join(proc,"constant")
-                    dest_constant = os.path.join(dest,os.path.basename(proc),"constant")
-                    shutil.copytree(orig_constant, dest_constant)
-                else:
-                    fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
-                    destination = os.path.join(dest, os.path.basename(proc), "constant", "polyMesh")
-                    os.makedirs(os.path.dirname(destination), exist_ok=True)
-                    os.system(f"ln -s {fullpath} {destination}")
-
-            logger.debug(f"Creating the flow specific fields in the flow needed for the dispersion")
-
-            dispersionFields = flowData['dispersionFields']
-            for dispersionFieldName in dispersionFields.keys():
-                fieldDimensions = dispersionFields[dispersionFieldName].get("dimensions",None)
-                fieldComponents = dispersionFields[dispersionFieldName].get("components", None)
-
-                logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
-                field = ofhome.getField(fieldName=dispersionFieldName,
-                                              fieldGroup=ofObjectHome.GROUP_DISPERSION,
-                                              dimensions=fieldDimensions,
-                                              componentNames=fieldComponents)
-
-                for proc in glob.glob(os.path.join(orig, "processor*")):
-                    procName = os.path.split(proc)[-1]
-                    logger.debug(f"Writing the flow specific field {dispersionFieldName} to processor {procName} . ")
-                    for dest_time in [fromTime, maximalDispersionTime]:
-                        field.emptyParallelField(caseDirectory=dest,
-                                                 timeName=str(dest_time),
-                                                 processor=procName,
-                                                 boundaryField=dispersionFields[dispersionFieldName]["boundaryField"],
-                                                 data=dispersionFields[dispersionFieldName].get("internalField"))
-
-                # We should look into it more closly, why parallel case doesn't recognize the time steps of the
-                # processors. For now, just create these directories in the main root as well.
-                for dest_time in [fromTime, maximalDispersionTime]:
-                    os.makedirs(os.path.join(dest,str(dest_time)),exist_ok=True)
-            ret = dest
-        else:
-            ret = docList[0].resource
-
-        return ret
-

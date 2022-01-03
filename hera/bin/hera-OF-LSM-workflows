@@ -8,7 +8,7 @@ from distutils.dir_util import copy_tree
 from hera.simulations.openFoam.datalayer.hermesWorkflow import Workflow_Dispersion
 from hera.utils import loggedObject
 from hera.utils.jsonutils import loadJSON
-
+from hera import toolkitHome
 
 def makeDispersionWorkflow(arguments):
     """
@@ -76,9 +76,9 @@ def prepareFlowField(arguments):
 
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OF_WORKFLOWS,projectName=projectName)
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        suggsetedName = Workflow_Dispersion.getFlowFieldName(basename,flowid)
-        Workflow_Dispersion.prepareFlowField(projectName=projectName,flowData=flowdata,suggsetedName=suggsetedName)
+        case = tk.prepareFlowField(flowData=flowdata,simulationGroup=basename)
 
 def prepareIndoorsFlowField(arguments):
     """
@@ -109,17 +109,18 @@ def prepareIndoorsFlowField(arguments):
     logger = loggedObject("bin.hera_of_lsm_workflows").logger
     logger.info(" -- Starting: prepare flow indoors --")
 
+
     configuration = loadJSON(arguments.configurationFile)
 
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
+    tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OF_WORKFLOWS,projectName=projectName)
+
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        suggsetedName = Workflow_Dispersion.getFlowFieldName(basename, flowid)
-        case = Workflow_Dispersion.prepareFlowField(projectName=projectName,flowData=flowdata,suggsetedName=suggsetedName)
+        case = tk.prepareFlowField(flowData=flowdata,simulationGroup=basename)
         ret = os.system(f"cd {case};foamJob -parallel -wait indoorDistanceFromWalls  -case {case} -time 0: ;cd ..")
         if ret != 0:
             raise ValueError("Openfoam not installed, or indoorDistanceFromWalls does not exist!. ")
-
 
 
 if __name__=="__main__":

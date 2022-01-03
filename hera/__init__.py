@@ -18,6 +18,7 @@ loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
  Simulations
  -----------
+    - Updating the hermes/hera interafces. 
     - hera workflow - moved to the hermes. 
     - updated the interfaces and the work on the hera-of package. 
 

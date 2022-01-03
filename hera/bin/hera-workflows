@@ -148,6 +148,8 @@ def listSimulations(arguments):
     logger = loggedObject("bin.hera_workflows.list").logger
     logger.info(f" -- Starting: Listing simulations --")
 
+    projectName = None
+    simulationGroup = None
     if arguments.workflow is not None:
         heraMetadata = loadJSON(arguments.workflow).get(HERAMETADATA, None)
         if heraMetadata is None:
@@ -181,13 +183,11 @@ def listSimulations(arguments):
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
 
-    # title = f"The simulations in group {arguments.groupName}"
-    # if args.type is not None:
-    #     title = f"{title}. Querying only simulations of the type {args.type}"
-    #
-    # print(title)
-    # print("-" * len(title))
-    # print("\n".join([x['desc']['name'] for x in simulationList]))
+    title = f"The simulations in group {simulationGroup} of the type {simuationType}"
+
+    print(title)
+    print("-" * len(title))
+    print(simulationList.to_string())
 
 def listWokflowNodes(arguments):
     """
@@ -300,6 +300,7 @@ def compareSimulations(arguments):
 if __name__ == "__main__":
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING, projectName=None)
     tk.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
+    tk.addLogger(loggerName="simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False)
     tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
 
     parser = argparse.ArgumentParser()
@@ -335,7 +336,7 @@ if __name__ == "__main__":
 
     ### ------------------------
     listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
-    listSimulations_parser.add_argument('workflow', type=str, help='The workflow file to load',default=None)
+    listSimulations_parser.add_argument('--workflow', type=str, help='The workflow file to load',default=None)
     listSimulations_parser.add_argument('--projectName', default =None,type=str, help='Provide the projectName to use')
     listSimulations_parser.add_argument('--simulationGroup',default=None, type=str, help='The simulation group to use')
     listSimulations_parser.add_argument('--simulationType', dest="simulationType", default=None, type=str, help='Use the simulation type as filter')

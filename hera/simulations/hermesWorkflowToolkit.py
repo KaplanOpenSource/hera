@@ -30,7 +30,7 @@ class simulationTypes(Enum):
     WORKFLOW = "hermes_workflow"
     OF_FLOWFIELD = "OF_FlowField"  # OpenFoam: calculation of the flow field.
     OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
-
+    OF_FLOWDISPERSION = "OF_flowDispersion"
 
     @classmethod
     def value_of(cls, value):
@@ -56,7 +56,7 @@ class workflowToolkit(abstractToolkit):
 
 
 
-    def __init__(self, projectName: str, filesDirectory: str = None):
+    def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
         """
             Initializes the workflow toolkit.
 
@@ -68,7 +68,9 @@ class workflowToolkit(abstractToolkit):
         filesDirectory : str
             The directory to write all the workflows and the outputs. default is current directory.
         """
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName="hermesWorkflowToolkit")
+        super().__init__(projectName=projectName,
+                         filesDirectory=filesDirectory,
+                         toolkitName =toolkitName)
 
         ## Create the simulationType->object map
 
@@ -151,8 +153,6 @@ class workflowToolkit(abstractToolkit):
 
         doc = docList[0]
         return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=doc.type)
-
-
 
     def getSimulationsInGroup(self, simulationGroup: str, simuationType: simulationTypes = None, **kwargs):
         """
@@ -365,15 +365,13 @@ class workflowToolkit(abstractToolkit):
             elif overwrite:
                 self.logger.info("Simulation in the DB, overwrite=True.  Updating... ")
                 doc = docList[0]
-                doc['desc']['workflow'] = workflowJSON
+                doc['desc']['workflow'] = hermesWF.json
                 doc['desc']['parameters'] = hermesWF.parametersJSON
                 doc.save()
             else:
                 err = f"The simulation {simulationName} with type {theType} is already in the database in group {groupName}. use the overwrite=True to update the record."
                 self.logger.error(err)
                 raise FileExistsError(err)
-
-
 
         # 3.  Building and running the workflow.
         if action.value > actionModes.ADD.value:
@@ -499,6 +497,7 @@ class workflowToolkit(abstractToolkit):
         -------
             pandas.DataFrame or dict
             A list of the simulations and their values.
+
         """
         simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup,simuationType=simuationType)
         if parametersOfNodes is not None:
@@ -514,14 +513,117 @@ class workflowToolkit(abstractToolkit):
                 if qry is not None:
                     simulationParameters = simulationParameters.query(qry)
 
-                simParamList.apend(simulationParameters)
+                simParamList.append(simulationParameters)
 
-            print(pandas.concat(simulationParameters))
-
+            res = pandas.concat(simParamList)
+            if not allParams:
+                ret = self._compareConfigurationsPandas(res)
+            else:
+                ret = res
         else:
             ret = pandas.DataFrame([x.desc['name'] for x in simulationList],columns=["name"])
-            if jsonFormat:
-                ret = ret.to_json()
-            print(ret)
+
+        ret = ret.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
+        if jsonFormat:
+            ret = ret.to_json()
 
         return ret
+
+    def _compareConfigurationsPandas(self,configurations):
+        """
+            Compares the configurations of the simulations.
+
+            A configuration is a pandas with the columns:
+                - parameterName (the path of the parameter with '.' as a separator).
+                - value     - The value of the parameter
+                - nodeName  - The name of the node
+                - simulationName - The name of the simulation
+
+
+
+        Parameters
+        ----------
+        configurations : pandas.DataFrame.
+
+        Returns
+        -------
+
+        """
+        self.logger.info("--- Start ---")
+        diffList = []
+        for grpid,grpdata in configurations.groupby(["parameterName","nodeName"]):
+            try:
+                if grpdata.value.unique().shape[0]> 1:
+                    self.logger.debug(f"{grpid}:: Normal Field. Different  ")
+                    diffList.append(grpdata.copy())
+
+            except TypeError:
+                self.logger.debug(f"{grpid}:: Compound Field, checking for differences ")
+                # A compound set.
+                difference = self._detectDifference(grpdata.value)
+                if difference:
+                    diffList.append(grpdata.copy())
+
+        return pandas.concat(diffList)
+
+    def _detectDifference(self,pandasValues,stopFlag=False):
+        """
+            Find difference in pandas dataframe where the values are dicts/lists and ect.
+            return True if all of the rows are equal, false otherwise.
+        Parameters
+        ----------
+        pandasValues
+
+        Returns
+        -------
+
+        """
+        self.logger.debug("--- Start ---")
+        baseRow = pandasValues.iloc[0]
+
+        if isinstance(baseRow,dict):
+            self.logger.debug("Compound data is a dict")
+            # key base comparison
+            # 1. get all the keys
+            keyList = [x for x in baseRow.keys()]
+            # 2. build for each key a list of all values.
+            for key in keyList:
+                values = []
+                for item in pandasValues:
+                    values.append(item[key])
+                self.logger.debug(f"Checking dict key {key} with values: {values} ")
+                if self._detectDifference(pandas.Series(values)):
+                    return True
+
+            # Could not detect any difference...
+            return False
+
+        elif isinstance(baseRow,str):
+            # This is because str is an iterable and we wish to keep it simple.
+            self.logger.debug("Compound data is a str")
+            # comparing the old fashion way.
+            if len(pandasValues.unique()) == 1:
+                return False
+            else:
+                return True
+
+        elif isinstance(baseRow,Iterable):
+            self.logger.debug("Compound data is a iterable")
+
+            # 2. build for each key a list of all values.
+            for indx in range(len(baseRow)):
+                values = []
+                for item in pandasValues:
+                    values.append(item[indx])
+                self.logger.debug(f"Checking iter ID {indx} with values: {values} ")
+                if self._detectDifference(pandas.Series(values)):
+                    return True
+            return False
+        else:
+            self.logger.debug("Compound data is a simple datatype ")
+            # comparing the old fashion way.
+            if len(pandasValues.unique()) == 1:
+                return False
+            else:
+                return True
+

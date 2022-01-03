@@ -37,7 +37,7 @@ class ofObjectHome(loggedObject):
 
         dispersionDict = dict(Hmix=dict(dimensions=self.getDimensions(m=1), componentNames=None),
                               ustar=dict(dimensions=self.getDimensions(m=1,s=-1), componentNames=None),
-                              cellHeights=dict(dimensions=self.getDimensions(m=1), componentNames=None))
+                              CellHeights=dict(dimensions=self.getDimensions(m=1), componentNames=None))
 
 
         self._predefinedfields=dict(compressible=compressibleDict,

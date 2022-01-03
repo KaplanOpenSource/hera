@@ -2,6 +2,7 @@ from unum.units import *
 import os
 import json
 from json.decoder import JSONDecodeError
+
 def ConvertJSONtoConf(JSON):
     """
         Traverse the JSON and replace all the unum values with objects.
@@ -70,3 +71,4 @@ def loadJSON(jsonData):
 
 
     return  loadedjson
+
