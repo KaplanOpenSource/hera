@@ -4,7 +4,7 @@ import json
 from simulations.openFoam.datalayer.pvOpenFOAMBase import paraviewOpenFOAM
 import paraview.simple as pvsimple
 
-from simulations.openfoam.preprocess import DECOMPOSED_CASE
+from  import DECOMPOSED_CASE
 
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).

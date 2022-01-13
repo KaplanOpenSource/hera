@@ -187,7 +187,7 @@ class workflowToolkit(abstractToolkit):
         theType = simulationTypes.WORKFLOW.value if simuationType is None else simuationType
         return self.getSimulationsDocuments(groupName=simulationGroup, type=theType, **kwargs)
 
-    def findAvailableName(self, simulationGroup: str, simuationType: str = None, **kwargs):
+    def findAvailableName(self, simulationGroup: str, simulationType: str = None, **kwargs):
         """
             Finds the next availabe name of that prefix. The available name is the maximal ID + 1.
 
@@ -200,7 +200,7 @@ class workflowToolkit(abstractToolkit):
         simulationGroup : str
             The simulation group
 
-        simuationType : str
+        simulationType : str
             The type of the workflow.
             if None, use DOCTYPE_WORKFLOW
 
@@ -214,12 +214,12 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simuationType=simuationType, **kwargs)
-        group_ids = [x['desc']['groupID'] for x in simList if x['desc']['groupID'] is not None]
+        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simuationType=simulationType, **kwargs)
+        group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
         else:
-            newID = numpy.max(group_ids)
+            newID = int(numpy.max(group_ids)+1)
 
         return newID, self.getworkFlowName(simulationGroup,newID)
 
@@ -346,7 +346,7 @@ class workflowToolkit(abstractToolkit):
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
             self.logger.debug("Generating ID from the DB")
-            groupID, simulationName = self.findAvailableName(simulationGroup=groupName, simuationType=theType)
+            groupID, simulationName = self.findAvailableName(simulationGroup=groupName, simulationType=theType)
             self.logger.debug(f" Got id : {groupID} and suggested name {simulationName}")
         else:
             simulationName = cleanName

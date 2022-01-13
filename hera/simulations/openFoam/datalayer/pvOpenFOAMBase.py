@@ -15,6 +15,7 @@ from paraview import servermanager
 #### disable automatic camera reset on 'Show'
 pvsimple._DisableFirstRenderCameraReset()
 
+
 class paraviewOpenFOAM(object):
     """
         A class to extract openFOAM file format
@@ -28,8 +29,6 @@ class paraviewOpenFOAM(object):
 
     _reader = None      # the reference to the reader object.
     _readerName = None  # the name of the reader in the vtk pipeline.
-
-
 
     @property
     def reader(self):
@@ -236,7 +235,6 @@ class paraviewOpenFOAM(object):
                 except ValueError:
                     print("Field %s is problematic... ommiting" % field)
 
-
         curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if xarray else curstep
 
         return curstep
@@ -365,23 +363,6 @@ class paraviewOpenFOAM(object):
                 blockID += 1
         if len(L) > 0:
             writeList(L, blockID,blockDig)
-
-    # def open_dataset(self, outfile=None, timechunk=10):
-    #     """
-    #         Maybe this should be a data hander that is specifc to openfoam xarray (because
-    #         it uses the name convension)
-    #
-    #     :param outfile:
-    #     :param timechunk:
-    #     :return:
-    #     """
-    #
-    #     filenames = [filename for filename in glob.glob(os.path.join(self.netcdfdir, "%s*.nc" % outfile))]
-    #     filenames = sorted(filenames, key=lambda x: float(x.split(".")[0].split("_")[-1]))
-    #
-    #     dataset = xarray.open_mfdataset(filenames, chunks={'time': timechunk})
-    #
-    #     return dataset
 
 
 

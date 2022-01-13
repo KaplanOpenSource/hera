@@ -1,14 +1,13 @@
 import warnings
-
 import numpy
 import os
 import glob
 import shutil
 from distutils.dir_util import copy_tree
-from ....utils import loadJSON
-from ....utils import loggedObject
-from ...hermesWorkflowToolkit import workflowToolkit,simulationTypes
-from ...openFoam import ofObjectHome
+from utils import loadJSON
+from utils import loggedObject
+from simulations.hermesWorkflowToolkit import workflowToolkit,simulationTypes
+from simulations.openFoam import ofObjectHome
 from hera.datalayer import datatypes
 
 class OFworkflowToolkit(workflowToolkit):
@@ -26,7 +25,7 @@ class OFworkflowToolkit(workflowToolkit):
 
 
 
-    def prepareFlowFieldForDispersion(self, flowData, simulationGroup:str):
+    def prepareFlowFieldForDispersion(self, flowData, simulationGroup:str,overwrite:bool=False):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
             Currently, assumes the case is parallel.
@@ -161,11 +160,22 @@ class OFworkflowToolkit(workflowToolkit):
         self.logger.debug(f"Test if the requested flow field already exists in the project")
         docList = self.getSimulationsDocuments(type=simulationTypes.OF_FLOWDISPERSION.value,**querydict)
 
-        if len(docList) == 0:
+        if len(docList) == 0 or overwrite:
             self.logger.info(f"Flow field not found, creating new and adding to the DB. ")
             ofhome = ofObjectHome()
+            if len(docList) == 0:
+                self.logger.debug("Getting a new name")
+                groupID,simulationName = self.findAvailableName(simulationGroup,
+                                                                simulationType=simulationTypes.OF_FLOWDISPERSION.value)
+            else:
 
-            groupID,simulationName = self.findAvailableName(simulationGroup,simuationType=simulationTypes.OF_FLOWDISPERSION.value)
+                resource = docList[0].resource
+                simulationName = docList[0].desc['name']
+                groupID= docList[0].desc['groupID']
+                self.logger.debug(f"The flow exists with the name {simulationName}, so deleting {resource}, and writing over it")
+                shutil.rmtree(resource)
+
+
             self.logger.info(f"Creating new name for the simulation.... Got ID {groupID} with simulation name {simulationName}")
             dest = os.path.abspath(os.path.join(self.FilesDirectory,simulationName))
 
@@ -243,17 +253,16 @@ class OFworkflowToolkit(workflowToolkit):
 
 
             self.logger.info("Finished creating the flow field for the dispersion. Adding to the database. ")
-            self.logger.debug("Updating the metadata of the record with the new group ID and simulation name")
-            querydict.update(dict(
-                groupID=groupID,
-                name=simulationName,
-            ))
 
-            self.logger.debug("Adding record to the database")
-            self.addSimulationsDocument(resource=dest,
-                                       type=simulationTypes.OF_FLOWDISPERSION.value,
-                                       dataFormat=datatypes.STRING,
-                                       desc=querydict)
+            if len(docList) ==0:
+                self.logger.debug("Updating the metadata of the record with the new group ID and simulation name")
+                querydict.update(dict(
+                    groupID=groupID,
+                    name=simulationName,
+                ))
+
+                self.logger.debug("Adding record to the database")
+                self.addSimulationsDocument(resource=dest,type=simulationTypes.OF_FLOWDISPERSION.value,dataFormat=datatypes.STRING,desc=querydict)
 
             ret = dest
         else:

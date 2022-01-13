@@ -134,8 +134,9 @@ class ofObjectHome(loggedObject):
         return OFField(**objData)
 
 
-    def loadLagrangianDataParallel(casePath,
-                                   times,
+    def loadLagrangianDataParallel(self,
+                                   casePath,
+                                   times=None,
                                    parallelCase=True,
                                    withVelocity=False,
                                    withReleaseTimes=False,

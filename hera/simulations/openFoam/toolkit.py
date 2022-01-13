@@ -127,8 +127,6 @@ class OFToolkit(abstractToolkit):
         """
         pass
 
-
-
     def writeEmptyFieldFile(self,caseDirectory,time,fieldName,parallel=False,dimensions=None):
         """
             Writes an empty field file to the target case directory/time. If parallel, then write it in
@@ -189,6 +187,8 @@ boundaryField
 
 // ************************************************************************* //
 """
+
+
 
 
 

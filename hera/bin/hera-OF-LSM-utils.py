@@ -30,11 +30,20 @@ def prepareDispersionCase(args):
                    2 : The name of the root case.
     :return:
     """
-    template = os.path.abspath(args.dispersionTemplate)
     case     = os.path.abspath(args.dispersionCase)
     flowCase = os.path.abspath(args.baseFlow)
 
-    shutil.copytree(template,case)
+    constantDir = os.path.join(case,"constant")
+    systemDir   = os.path.join(case, "system")
+    os.makedirs(constantDir,exist_ok=True)
+    os.makedirs(systemDir, exist_ok=True)
+
+    for fls in glob.glob(os.path.join(flowCase,"constant","*")):
+        os.system(f"ln -s {fls} {constantDir}")
+
+    for fls in glob.glob(os.path.join(flowCase,"system","*")):
+        os.system(f"ln -s {fls} {systemDir}")
+
     for proc in glob.glob(os.path.join(flowCase,"processor*")):
         fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
         destination = os.path.join(case, os.path.basename(proc), "constant", "polyMesh")
@@ -45,10 +54,12 @@ def prepareDispersionCase(args):
         # create the 0 directory in all processors.
         os.makedirs(os.path.join(case, os.path.basename(proc), '0'), exist_ok=True)
 
+
+
     # linking the decpomposePar dict from the root.
-    root_decomposePar = os.path.abspath(os.path.join(flowCase,"system","decomposeParDict"))
-    decompose_dest    = os.path.abspath(os.path.join(case,"system"))
-    os.system(f"ln -s {root_decomposePar} {decompose_dest}")
+    #root_decomposePar = os.path.abspath(os.path.join(flowCase,"system","decomposeParDict"))
+    #decompose_dest    = os.path.abspath(os.path.join(case,"system"))
+    #os.system(f"ln -s {root_decomposePar} {decompose_dest}")
 
     # linking the rootCase in the root directory of the dispersion case.
     os.system(f"ln -s {flowCase} {os.path.join(case,'rootCase')}")
@@ -115,7 +126,6 @@ if __name__ =="__main__":
 
     #### Prepare dispersion
     parser_prepareDisperionCase = subparsers.add_parser('prepareDispersionCase', help='executePipeline help')
-    parser_prepareDisperionCase.add_argument("dispersionTemplate",type=str,help="The original flow case")
     parser_prepareDisperionCase.add_argument("dispersionCase",type=str,help="The target flow case")
     parser_prepareDisperionCase.add_argument("baseFlow",type=str,help="the flow field to use")
     parser_prepareDisperionCase.set_defaults(func=prepareDispersionCase)

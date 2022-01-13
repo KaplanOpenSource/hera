@@ -11,34 +11,26 @@ toolkitHome =ToolkitHome()
 # The project name is not imporant becuase logging is universal for user.
 loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
-
-
-
 """
-
- Simulations
- -----------
-    - Updating the hermes/hera interafces. 
-    - hera workflow - moved to the hermes. 
-    - updated the interfaces and the work on the hera-of package. 
 
  GIS_Buildings 
  --------------
     - Adding the i0,j0 index of the bloc to the lambda. 
     - canging names. 
     - refactoring the canopywindProfile. 
-       
 
  Util 
  ----
- 
     - Adding special units and fixing the multiple load problem under the unum 
     - Adding logging toolkit to handle the local logs. 
              + Changed the default logging directory to .pyhera/log. 
-     
     
  Simulations
  -----------
+
+    - Updating the hermes/hera interafces. 
+    - hera workflow - moved to the hermes. 
+    - updated the interfaces and the work on the hera-of package. 
     
     OpenFoam  
         * Build a toolkit that unifies the access to NS and LSM  

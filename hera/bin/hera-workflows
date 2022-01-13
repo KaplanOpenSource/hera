@@ -55,7 +55,7 @@ def add(args):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if args.simulationGroup is None else args.simulationGroup
-    workflowType            = simulationTypes.WORKFLOW.value if args.workflowType is None else args.workflowType
+    workflowType            = conf[HERAMETADATA].get('workflowType',simulationTypes.WORKFLOW.value)
 
     if args.variations is None:
         logger.info("No variations supplied. Adding one simulation. ")
@@ -112,11 +112,12 @@ def create(arguments):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if arguments.simulationGroup is None else arguments.simulationGroup
-    workflowType            = simulationTypes.WORKFLOW.value if arguments.workflowType is None else arguments.workflowType
+    workflowType            = conf[HERAMETADATA].get('workflowType',simulationTypes.WORKFLOW.value)
+
 
     if arguments.variations is None:
         logger.info("No variations supplied. Creating one simulation. ")
-        groupID, simulationName = wftk.findAvailableName(simulationGroup=simulationGroup, simuationType=workflowType)
+        groupID, simulationName = wftk.findAvailableName(simulationGroup=simulationGroup, simulationType=workflowType)
         logger.info(f"Creating workflow in {simulationName} (group ID {groupID}) to group {simulationGroup}. Using workflow type: {workflowType}.")
 
         if not os.path.exists(simulationName) or arguments.overwrite:

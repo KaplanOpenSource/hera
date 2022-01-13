@@ -136,8 +136,15 @@ def prepareIndoorsFlowField(arguments):
     basename = configuration["flowFields"]['prefixName']
     tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OF_WORKFLOWS,projectName=projectName)
 
+    overwriteFlag = False
+    overwrite = arguments.overwrite
+    if len(overwrite) == 0:
+        overwriteFlag = True
+
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        case = tk.prepareFlowFieldForDispersion(flowData=flowdata, simulationGroup=basename)
+        if len(overwrite) > 0:
+                overwriteFlag = True if str(flowid+1) in overwrite else False
+        case = tk.prepareFlowFieldForDispersion(flowData=flowdata, simulationGroup=basename,overwrite=overwriteFlag)
         ret = os.system(f"cd {case};foamJob -parallel -wait indoorDistanceFromWalls  -case {case} -time 0: ;cd ..")
         if ret != 0:
             raise ValueError("Openfoam not installed, or indoorDistanceFromWalls does not exist!. ")
@@ -172,6 +179,7 @@ if __name__=="__main__":
     ##          1. Prepare the flowField for indoors. (that is , also runs the createCellheights.
     parser_indoors_flowField = flowfield_subparsers.add_parser('prepareIndoor',help='Prepares the flowfield for the dispersion.')
     parser_indoors_flowField.add_argument("configurationFile",type=str,help="The configuration file")
+    parser_indoors_flowField.add_argument('--overwrite', dest="overwrite",nargs="*", default=None,help='overwrite the existing workflow, if file already exists')
     parser_indoors_flowField.set_defaults(func=prepareIndoorsFlowField)
 
     ## list and manage the db simulations.

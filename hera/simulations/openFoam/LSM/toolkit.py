@@ -7,14 +7,12 @@ from dask.delayed import delayed
 from dask import dataframe
 
 from unum.units import *
-from hera.datalayer import datatypes
-
-from ....measurements.GIS.locations.topography import TopographyToolkit
+from ....datalayer import datatypes
 
 from ..utils import getCellDataAndGroundData
 from ...utils import coordinateHandler
 from ....datalayer import nonDBMetadataFrame
-from .... import toolkit
+from .... import toolkit,toolkitHome
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
 
@@ -81,7 +79,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         self._sourcesFactory = sourcesFactoryTool()
         self._cloudName = cloudName
         self._parallelCase = parallelCase
-        self._topography = TopographyToolkit(projectName)
+        self._topography = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,projectName=projectName)
         self._analysis = Analysis(self)
 
     def _extractFile(self, path, columnNames, vector=True):
@@ -405,13 +403,23 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         with open(os.path.join(self.casePath, "constant", fileName), "w") as writeFile:
             writeFile.write(string)
 
-    def makeCellHeights(self, times, ground="ground", fileName="cellHeights", resolution=10,
-                        saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, fillna=0):
+    def makeDistanceFromGround(self, times, ground="ground", fileName="cellHeights", resolution=10,
+                               saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, fillna=0):
         """
-        makes a file with the height of each cell.
-        params:
-        times = A list of time directories in which to save the new file
-        ground = The name of the ground patch, default is "ground"
+            Makes a file with the height of each cell.
+
+            TODO: This is an old version and we should change:
+                - create a scalar with the name distanceFromWall and not cellData.
+                - Maybe use the OFObjects to read the OF files.
+
+
+        Parameters
+        -----------
+
+        times:  list
+            A list of time directories in which to save the new file
+        ground: str
+            The name of the ground patch, default is "ground"
         fileName = The new file's name
         resolution = The cell length used in the conversion of the ground dataframe to a regular grid
         savePandas = Boolean, whether to save the dataframe
@@ -630,7 +638,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstrcucturedVTK(self, data, outputdirectory, filename, timeNameOutput=True):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True):
         """
             Writes the data as a VTK vtu file.
 
@@ -691,106 +699,6 @@ class OFLSMToolkit(toolkit.abstractToolkit):
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
             structuredToVTK(finalFile, X, Y, Z, pointData=data)
 
-    def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
-        """
-            Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
-            In paraview, each timestep is a different file.
-
-        Parameters
-        -----------
-        data: dask.dataframe or pandas.dataframe
-            The data to present
-
-        outputdirectory: str
-            The directory to write the files in
-
-        timeFactor : int
-            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
-
-        filename: str
-            The filename to write.
-
-        Returns
-        -------
-            None
-        """
-        for times, timedata in data.groupby("time"):
-            with open(os.path.join(outputdirectory, f"{filename}_{str(int(timeFactor * times)).replace('.', '_')}.csv"),
-                      "w") as outputfile:
-                outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
-
-    def toUnstrcucturedVTK(self, data, outputdirectory, filename, timeNameOutput=True):
-        """
-            Writes the data as a VTK vtu file.
-
-
-
-        :param data: panas.Dataframe.
-                The data in a dataframe of pandas.
-        :param outputdirectory:
-        :param filename: str
-                    The filename
-        :param timeNameOutput: bool
-                    If true, use the time as the suffix to the filename. Else, use running number.
-        :return:
-        """
-        namePath = os.path.join(outputdirectory, filename)
-        os.makedirs(outputdirectory, exist_ok=True)
-
-        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
-
-            data = dict(mass=timeData.mass.values)
-            x = timeData.globalX.values
-            y = timeData.globalY.values
-            z = timeData.globalZ.values
-            pointsToVTK(finalFile, x, y, z, data)
-
-    def toStructuredVTK(self, data, outputdirectory, filename, extents, timeNameOutput=True, dxdydz=0.25):
-        """
-            Converts the data to structured grid, and calcualtes the cocnentration
-
-            ** for now, the ppm is of SF6.
-
-        :param data:
-        :param outputdirectory:
-        :param filename:
-        :param timeNameOutput: bool
-                    Use the time or sequence for the output file name.
-        :param extents: dict
-                    with keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
-        :param dxdydz: float
-                    The mesh steps.
-
-        :return:
-        """
-        x_full = numpy.arange(extents['xmin'], extents['xmax'], dxdydz)
-        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
-        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
-
-        namePath = os.path.join(outputdirectory, filename)
-        os.makedirs(outputdirectory, exist_ok=True)
-        dH = dxdydz ** 3
-
-        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-            fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
-
-            print(f"\t Processing {timeName}")
-            Mass = timeData.assign(xI=dxdydz * (timeData.globalX // dxdydz), yI=dxdydz * (timeData.globalY // dxdydz),
-                                   zI=dxdydz * (timeData.globalZ // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
-                       'mass'].sum().to_xarray().squeeze().fillna(0) / dH
-
-            # assign the timestep into the large mesh
-            fulldata.loc[dict(xI=Mass.xI, yI=Mass.yI, zI=Mass.zI)] = Mass
-
-            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
-
-            X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
-
-            C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
-
-            data = dict(C_kg_m3=C, ppm=C * 160000)  # 1kg/m**3=160000ppm
-            structuredToVTK(finalFile, X, Y, Z, pointData=data)
 
 
 class Analysis:
