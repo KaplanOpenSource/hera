@@ -1,10 +1,8 @@
 import pandas
 import os
 import json
-from simulations.openFoam.datalayer.pvOpenFOAMBase import paraviewOpenFOAM
 import paraview.simple as pvsimple
-
-from  import DECOMPOSED_CASE
+from .pvOpenFOAMBase import DECOMPOSED_CASE,paraviewOpenFOAM
 
 class VTKpipeline(object):
     """This class executes a pipeline (runs and saves the outputs).
@@ -23,8 +21,9 @@ class VTKpipeline(object):
 
             },
             "pipeline" : {
+                    "filterName" : {
                             "type" : The type of the filter. (clip,slice,...).
-                            "write"   : None/hdf (pandas)/netcdf (xarray),
+                            "write"   : None/parquet (pandas)/netcdf (xarray),
                             "params" : [
                                     ("key","value"),
                                           .
@@ -32,6 +31,7 @@ class VTKpipeline(object):
                                           .
                             ],...
                             "downstream" : [Another pipeline]
+                            }
                         }
     }
      The write to writes the requested filters to the disk.
@@ -44,17 +44,12 @@ class VTKpipeline(object):
     _VTKpipelineJSON = None  # Holds the json of the VTK pipeline.
     _pvOFBase = None  # Holds the OF base.
     _mainpath = None
-    _name = None
-
-    @property
-    def name(self):
-        return self._name
 
     @property
     def pvOFBase(self):
         return self._pvOFBase
 
-    def __init__(self, name, pipelineJSON, casePath, caseType=DECOMPOSED_CASE, servername=None):
+    def __init__(self, pipelineJSON, casePath, caseType=DECOMPOSED_CASE, servername=None):
         """
             Initializes a VTK pipeline.
 
@@ -80,19 +75,18 @@ class VTKpipeline(object):
                 The connection string is printed when the server is initialized.
 
         """
-        self._pvOFBase = paraviewOpenFOAM(casePath=casePath, caseType=caseType, servername=servername)
         self._VTKpipelineJSON = pipelineJSON
-        self._name = name
-        outputdir = pipelineJSON["metadata"].get("CaseDirectory", "None")
-        
-        if outputdir != "None":
-            self._pvOFBase.hdfdir = os.path.join("%s" % outputdir, "%s" % name, 'hdf')
-            self._pvOFBase.netcdfdir = os.path.join(outputdir, name, "netcdf")
-            self._mainpath = os.path.join('%s' % outputdir,'%s' % name)
-        else:
-            raise Exception('Case directory is missing in pipeline file!')
+        outputdir = pipelineJSON["metadata"].get("CaseDirectory", os.getcwd())
+        self._pvOFBase = paraviewOpenFOAM(casePath=casePath,
+                                          caseType=caseType,
+                                          servername=servername)
 
-    def execute(self, source, writeMetadata=True, tsBlockNum=100, JSONName='', overWrite=False):
+        self._pvOFBase.parquetdir = os.path.abspath(os.path.join( outputdir,casePath, 'parquet'))
+        self._pvOFBase.netcdfdir = os.path.abspath(os.path.join(outputdir,casePath, "netcdf"))
+        self._mainpath = os.path.abspath(outputdir)
+
+
+    def execute(self, source, tsBlockNum=100, overwrite=False):
         """
             Builds the pipeline from the JSON vtk.
 
@@ -108,11 +102,10 @@ class VTKpipeline(object):
         filterWrite = {}
         self._buildFilterLayer(father=reader, structureJson=self._VTKpipelineJSON["pipelines"], filterWrite=filterWrite)
         # Now execute the pipeline.
-        timelist = self._VTKpipelineJSON["metadata"].get("timelist", "None")
-        if (timelist == "None"):
-            timelist = None
+        timelist = self._VTKpipelineJSON["metadata"].get("timelist", None)
 
-        elif isinstance(timelist, str) or isinstance(timelist, unicode):
+
+        if timelist is not None and (isinstance(timelist, str) or isinstance(timelist, unicode)):
             # a bit of parsing.
             readerTL = reader.TimestepValues
             BandA = [readerTL[0], readerTL[-1]]
@@ -133,18 +126,12 @@ class VTKpipeline(object):
             writer = getattr(self._pvOFBase, "write_%s" % frmt)
             if writer is None:
                 raise ValueError("The write %s is not found" % writer)
-            writer(readername=source,
-                   datasourcenamelist=datasourceslist,
+            writer(datasourcenamelist=datasourceslist,
                    timelist=timelist,
                    fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None),
-                   outfile=self.name,
                    tsBlockNum=tsBlockNum,
-                   JSONbaseName=JSONName,
-                   overWrite=overWrite)
+                   overwrite=overwrite)
 
-        if writeMetadata:
-            with open(os.path.join('%s' % self._mainpath,'meta.json') , 'w') as outfile:
-                json.dump(self._VTKpipelineJSON, outfile)
 
     def _buildFilterLayer(self, father, structureJson, filterWrite):
         """
@@ -187,35 +174,6 @@ class VTKpipeline(object):
                 filterlist.append(filterGuiName)
 
             self._buildFilterLayer(filter, structureJson[filterGuiName].get("downstream", None), filterWrite)
-
-    def get_slice_height(filename, itteration, axis_index, axis_value, offset=0.0,
-                         clipxmin=0.0, clipxmax=0.0, clipymin=0.0, clipymax=0.0, clipzmin=0.0, clipzmax=0.0,
-                         reader=None):
-        if reader is None:
-            reader = bse.ReadCase('case name', filename, CaseType='Reconstructed Case')  # 'Reconstructed Case')
-            print('Initial timelist print:', reader.TimestepValues)
-
-        contour1 = pvsimple.Contour(reader)
-        contour1.ContourBy = ['POINTS', 'HeightFromTopo']
-        try:
-            realoffset = offset + axis_value
-            print('realoffset easy')
-        except:
-            print('realoffset except', len(offset))
-            realoffset = []
-            for i in range(len(offset)):
-                realoffset.append(offset[i] + axis_value)
-
-        contour1.Isosurfaces = realoffset
-        contour1.PointMergeMethod = 'Uniform Binning'
-        # // "downstream": {
-        #                  // "pipeline": {
-        #                                 // "type": "Contour",
-        # // "guiname": "Contour1",
-        # // "write": "hdf",
-        # // "params": [["ContourBy", ["POINTS", "HeightFromTopo"]], ["Isosurfaces", 30],
-        #               ["PointMergeMethod", "Uniform Binning"]]
-        #              //}
 
 # if __name__ == "__main__":
     # bse = pvOFBase()

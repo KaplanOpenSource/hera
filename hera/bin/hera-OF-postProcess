@@ -2,15 +2,17 @@
 
 import argparse
 import json
-import sys
 import shutil
 import os
 
+import sys
 version = sys.version_info[0]
-from hera.simulations.openfoam.NavierStokes.preProcess.etlVTK import recurseNode
-
 if version == 2:
-    from hera import openfoam
+    import hera.simulations.openFoam.datalayer.extractVTK as openfoam
+    from hera.simulations.openFoam.datalayer.pvOpenFOAMBase import DECOMPOSED_CASE,RECONSTRUCTED_CASE
+
+
+from hera.simulations.openFoam.datalayer.etlVTK import recurseNode
 
 VTKOutput_folder='VTKOutput'
 
@@ -19,8 +21,6 @@ def load_handler(args):
     """
             This function handles the loading of the OpenFoam runs to the database.
             Converts hdf files results to .parquet, if exist.
-
-
 
         Parameters
         ----------
@@ -45,7 +45,6 @@ def load_handler(args):
     pipelines = jsondata["pipelines"]  # Reading the pipelines
     path=metadata['CaseDirectory']
 
-
     for i,node in enumerate(pipelines):
         Tree=[]
         Tree.append(node)
@@ -66,37 +65,29 @@ def executePipeline_handler(args):
         Parameters
         ----------
 
-        args : a positional list pased by the user:
-            arguments[0] - the path to the pipeline json file
-            arguments[1] - the name which will be given to the output folder and to the hdf files
-            arguments[2] - the path to the directory of the openFOAM project contains the results
-            arguments[3] - optional. 'Decomposed Case' for parallel cases or 'Reconstructed Case' for single processor cases. default is 'Decomposed Case'.
-            arguments[4] - optional. a connection string to paraview server.default is None (work locally).
-            arguments[5] - optional. the number of time steps will be saved to single file. default is 100
-
     """
 
-    JSONpath = args.args[0]
+    JSONpath = args.pipelineFile
     JSONbaseName= os.path.splitext(os.path.basename(JSONpath))[0]
 
     with open(JSONpath) as json_file:
         data = json.load(json_file)
 
-    casePath = data["metadata"].get("CaseDirectory", "None")
+    if args.casePath is None:
+        raise ValueError("Must supply the casePath in the command line ")
+
     caseType = DECOMPOSED_CASE if args.parallelCase else RECONSTRUCTED_CASE
 
-    vtkpipe = openfoam.VTKpipeline(name=VTKOutput_folder, pipelineJSON=data, casePath=casePath, caseType=caseType, servername=args.serverName)
-    vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, JSONName=JSONbaseName, overWrite=args.overwrite)
+    vtkpipe = openfoam.VTKpipeline(pipelineJSON=data, casePath=args.casePath, caseType=caseType, servername=args.serverName)
+    vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, overwrite=args.overwrite)
 
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
+    ##### Load results to the hera DB
     parser_load = subparsers.add_parser('load', help='load help')
-    parser_executePipeline = subparsers.add_parser('executePipeline', help='executePipeline help')
-
-    ##### Load parameters
     parser_load.add_argument('args',
                              nargs='*',
                              type=str,
@@ -104,34 +95,45 @@ if __name__ =="__main__":
 
     parser_load.add_argument('-keepHDF',
                              action='store_true',
+
                              default=False,
                              help='If keepHDF does not remove the old HDF files')
 
     parser_load.set_defaults(func=load_handler)
 
     ##### executePipeline parameters
-    parser_executePipeline.add_argument('args',
-                                        nargs='*',
+    parser_executePipeline = subparsers.add_parser('executePipeline', help='executePipeline help')
+    parser_executePipeline.add_argument('pipelineFile',
                                         type=str,
-                                        help='[path to JSON]')
+                                        help='[path to VTK pipeline JSON]')
+
+    parser_executePipeline.add_argument('-casePath',
+                                        dest="casePath",
+                                        type=str,
+                                        required=True,
+                                        help='[path to the case]')
 
     parser_executePipeline.add_argument('-parallelCase',
                                         action='store_true',
-                                        default=False,
+                                        dest="parallelCase",
+                                        default=True,
                                         help='If exists, reads the decomposed case')
 
     parser_executePipeline.add_argument('-serverName',
                                         type=str,
+                                        dest="serverName",
                                         default=None,
                                         help='If exists, uses the paraview server')
 
     parser_executePipeline.add_argument('-timeStepsInPartition',
                                         type=int,
+                                        dest="timeStepsInPartition",
                                         default=100,
-                                        help='The number of time steps in each HDF/NetCDF File')
+                                        help='The number of time steps in each NetCDF File/ the size of the batch to process')
 
     parser_executePipeline.add_argument('-overwrite',
                                         action='store_true',
+                                        dest = "overwrite",
                                         default=False,
                                         help='If exists, write over the existing files.')
 

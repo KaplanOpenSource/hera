@@ -71,7 +71,7 @@ class Injury(object):
 
 	@property
 	def levelNames(self): 
-		return [x.name for x in self._levels]
+		return [x.filterType for x in self._levels]
 
 	def __getitem__(self,name):
 		return self._levelsmap[name]
@@ -216,7 +216,7 @@ class Injury(object):
 	def toJSON(self):
 		ret = dict()
 		#ret['name']  = self._name
-		ret['levels'] = dict([(lvl.name,lvl.toJSON()) for lvl in self.levels])
+		ret['levels'] = dict([(lvl.filterType, lvl.toJSON()) for lvl in self.levels])
 		ret['calculator'] = self._calculator.toJSON()
 		return ret
 

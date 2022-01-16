@@ -265,13 +265,13 @@ def listWokflowNodeParameters(arguments):
 
         hermesObject = wftk.getHermesWorkflowFromDB(arguments.workflowName)
 
-    if arguments.nodeName not in hermesObject.nodeList:
-        raise ValueError(f" Node {arguments.nodeName} not found in workflow {arguments.workflowName}. Existing nodes are: {','.join(hermesObject.nodeList)}")
+    if arguments.filterType not in hermesObject.nodeList:
+        raise ValueError(f" Node {arguments.filterType} not found in workflow {arguments.workflowName}. Existing nodes are: {','.join(hermesObject.nodeList)}")
 
-    tlte = f"The parameters of the node {arguments.nodeName} in the workflow {arguments.workflowName}"
+    tlte = f"The parameters of the node {arguments.filterType} in the workflow {arguments.workflowName}"
     print(tlte)
     print("-"*len(tlte))
-    print("\t - "+"\n\t - ".join(hermesObject[arguments.nodeName].parameters.keys()))
+    print("\t - " +"\n\t - ".join(hermesObject[arguments.filterType].parameters.keys()))
 
 
 def compareSimulations(arguments):

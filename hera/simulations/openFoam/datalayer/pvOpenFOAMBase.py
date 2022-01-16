@@ -7,6 +7,8 @@ import os
 import glob
 import vtk.numpy_interface.dataset_adapter as dsa
 import xarray
+import dask
+import dask.array as da
 
 #### import the simple module from the paraview
 import paraview.simple as pvsimple
@@ -15,6 +17,8 @@ from paraview import servermanager
 #### disable automatic camera reset on 'Show'
 pvsimple._DisableFirstRenderCameraReset()
 
+DECOMPOSED_CASE = 'Decomposed Case'
+RECONSTRUCTED_CASE ="Reconstructed Case"
 
 class paraviewOpenFOAM(object):
     """
@@ -26,9 +30,11 @@ class paraviewOpenFOAM(object):
 
     _hdfdir        = None    # path to save the hdf.
     _netcdfdir     = None    # path to save the netcdf.
+    _parquetdir    = None
 
-    _reader = None      # the reference to the reader object.
-    _readerName = None  # the name of the reader in the vtk pipeline.
+
+    _readerName = None
+    _father = None
 
     @property
     def reader(self):
@@ -37,6 +43,11 @@ class paraviewOpenFOAM(object):
     @property
     def readerName(self):
         return self._readerName
+
+
+    @property
+    def outputPath(self):
+        return self._outputPath
 
     @property
     def hdfdir(self):
@@ -57,7 +68,15 @@ class paraviewOpenFOAM(object):
     def netcdfdir(self, netcdfdir):
         self._netcdfdir = netcdfdir
 
-    def __init__(self, casePath, caseType='Decomposed Case', fieldnames=None, servername=None):
+    @property
+    def parquetdir(self):
+        return self._parquetdir
+
+    @parquetdir.setter
+    def parquetdir(self, parquetdir):
+        self._parquetdir = parquetdir
+
+    def __init__(self, casePath,caseType='Decomposed Case', servername=None,fieldNames =None,name="mainreader"):
         """
             Initializes the paraviewOpenFOAM class.
 
@@ -70,13 +89,12 @@ class paraviewOpenFOAM(object):
         casePath: str
                     A full path to the case directory.
 
+        outputPath : str
+                    The path to save the results in
+
         CaseType:  str
                 Either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
                 for single processor cases.
-
-        fieldnames: None or list of field names.  default: None.
-                The list of fields to load.
-                if None, read all fields
 
         servername: str
                 if None, work locally.
@@ -93,6 +111,8 @@ class paraviewOpenFOAM(object):
 
         self.netcdfdir = "netcdf"
         self.hdfdir = "hdf"
+        self.parquetdir = "parquet"
+
 
         # Array shape length 1 - scalar.
         #					 2 - vector.
@@ -112,9 +132,10 @@ class paraviewOpenFOAM(object):
                                  (2, 1): "_zy",
                                  (2, 2): "_zz"}
 
-        self._ReadCase(readerName="mainReader", casePath=casePath, CaseType=caseType, fieldnames=fieldnames)
 
-    def _ReadCase(self, readerName, casePath, CaseType='Decomposed Case', fieldnames=None):
+        self._ReadCase(readerName=name, casePath=casePath, CaseType=caseType, fieldNames=fieldNames)
+
+    def _ReadCase(self, readerName, casePath, CaseType='Decomposed Case', fieldNames=None):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -141,8 +162,8 @@ class paraviewOpenFOAM(object):
         self.reader.MeshRegions.SelectAll()
         self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
-        if fieldnames is not None:
-            self._reader.CellArrays = fieldnames
+        if fieldNames is not None:
+            self._reader.CellArrays = fieldNames
 
         self._reader.UpdatePipeline()
 
@@ -183,7 +204,7 @@ class paraviewOpenFOAM(object):
         timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
         for timeslice in timelist:
             # read the timestep.
-            print("\r Reading time slice %s" % timeslice)
+            print("\r Reading time step %s" % timeslice)
 
             ret = {}
 
@@ -205,6 +226,7 @@ class paraviewOpenFOAM(object):
         else:
             points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
 
+
         curstep = pandas.DataFrame()
 
         # create index
@@ -215,7 +237,7 @@ class paraviewOpenFOAM(object):
 
         fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
-
+            field = str(field.decode("utf-8"))
             if isinstance(data.PointData[field], dsa.VTKNoneArray):
                 continue
             elif isinstance(data.PointData[field], dsa.VTKArray):
@@ -229,7 +251,7 @@ class paraviewOpenFOAM(object):
             # the dict holds their names.
             TypeIndex = len(arry.shape) - 1
             for indxiter in product(*([range(3)] * TypeIndex)):
-                L = [slice(None, None, None)] + list(indxiter)
+                L = tuple([slice(None, None, None)] + list(indxiter))
                 try:
                     curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
                 except ValueError:
@@ -239,11 +261,13 @@ class paraviewOpenFOAM(object):
 
         return curstep
 
-    def write_netcdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100,JSONbaseName='',overWrite=False):
+    def write_netcdf(self, datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=100, overwrite=False):
         """
             Writes a list of datasources (vtk filters) to netcdf (with xarray).
 
             The grid data **must** be regular!!!.
+
+            Todo: add a an option for regularization function.
 
         Parameters
         ----------
@@ -268,11 +292,10 @@ class paraviewOpenFOAM(object):
 
         """
 
-        def writeList(theList, blockID, blockDig,JSONbaseName,overWrite):
-
+        def writeList(theList, blockID, blockDig,overWrite,fileDirectory):
             data = xarray.concat(theList, dim="time")
             blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
-            curfilename = os.path.join(self.netcdfdir, "%s_%s_%s.nc" % (JSONbaseName,filtername, blockfrmt))
+            curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
             if os.path.exists(curfilename):
                 if not overWrite:
                     raise Exception ('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
@@ -280,90 +303,109 @@ class paraviewOpenFOAM(object):
             data.to_netcdf(curfilename)
             blockID += 1
 
-        def checkIfExist(self,dataChunk,blockID,JSONbaseName):
-
+        def checkIfExist(self,dataChunk,blockID,fileDirectory):
             filterList = [k for k in dataChunk.keys()]
             blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
             for filtername in filterList:
-                curfilename = os.path.join(self.netcdfdir, "%s_%s_%s.nc" % (JSONbaseName, filtername, blockfrmt))
+                curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
                 if os.path.exists(curfilename):
-                    if not overWrite:
+                    if not overwrite:
                         raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
 
-
-        self._outfile = readername if outfile is None else outfile
-
         timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
-        if not os.path.isdir(self.netcdfdir):
-            os.makedirs(self.netcdfdir)
+
+
+        os.makedirs(self.netcdfdir,exist_ok=True)
 
         blockDig = max(5,numpy.ceil(numpy.log10(len(timelist))) + 1)
         blockID = 0
 
         L = []
-        checkExist=0
+        checkExist=True
 
         for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timelist, fieldnames=fieldnames):
 
-            if checkExist==0:
-                checkExist =1
-                checkIfExist(self, xray, blockID, JSONbaseName)
-
+            if checkExist:
+                checkExist =False
+                checkIfExist(xray, blockID, self.netcdfdir)
 
             L.append(xray)
             if len(L) == tsBlockNum:
                 if isinstance(L[0],dict):
                     filterList = [k for k in L[0].keys()]
                     for filtername in filterList:
-                        writeList([item[filtername] for item in L],blockID,blockDig,JSONbaseName,overWrite)
+                        writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
 
                 else:
-                    writeList(L,blockID,blockDig,JSONbaseName,overWrite)
+                    writeList(L, blockID, blockDig, overwrite, self.netcdfdir)
                 L = []
                 blockID += 1
-                checkExist = 0
+                checkExist = False
 
         if len(L)>0:
-            checkIfExist(self, xray, blockID, JSONbaseName)
+            checkIfExist(xray, blockID, self.netcdfdir)
             if isinstance(L[0],dict):
                 filterList = [k for k in L[0].keys()]
                 for filtername in filterList:
-                    writeList([item[filtername] for item in L],blockID,blockDig,JSONbaseName,overWrite)
+                    writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
             else:
-                writeList(L,blockID,blockDig,JSONbaseName)
+                writeList(L,blockID,blockDig,self.netcdfdir)
 
-    def write_hdf(self, readername, datasourcenamelist, outfile=None, timelist=None, fieldnames=None, tsBlockNum=100,JSONbaseName='',**kwargs):
+    def write_parquet(self,datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=100,overwrite=None):
+        """
+                Writes the requested fileters as parquet files.
+        Parameters
+        ----------
+        datasourcenamelist : list
+                List of VTK filters to write as parquets
 
-        def writeList(theList, blockID, blockDig):
-            filterList = [x for x in L[0].keys()]
+        timelist : list
+                List of timesteps to write. optional, if None, the use all time series.
+
+        fieldnames : list
+                List of the fields to write in the filters (i.e the variables).
+
+        FileBaseName : str
+                The basic name of the file. Used to distinguish several filters with the same name.
+        tsBlockNum
+
+        Returns
+        -------
+
+        """
+
+        def writeList(theList,filePath):
+            filterList = [x for x in theList[0].keys()]
             for filtername in filterList:
+                outfile = os.path.join(filePath,filtername+".parquet") # rememebr that it should run in python 2.7 so no f'... '
+                append = True if os.path.exists(outfile) else False
                 data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
-                blockfrmt=('{:0%dd}' % blockDig).format(blockID)
-                curfilename = "%s_%s.hdf" % (outfile, blockfrmt)
-                print("\tWriting filter %s in file %s" % (filtername, curfilename))
-                print("dir", os.path.join(self.hdfdir, curfilename))
-                data.to_hdf(os.path.join(self.hdfdir, curfilename), key=filtername, format='table')
+                print("\tWriting filter %s in file %s" % (filtername, outfile))
+                data.rename(columns=dict([(x,x.decode("utf-8")) for x in data.columns])).to_parquet(outfile) #,append=append)
 
-        outfile = readername if outfile is None else outfile
-        if not os.path.isdir(self.hdfdir):
-            os.makedirs(self.hdfdir)
+        if not os.path.isdir(self.parquetdir):
+            os.makedirs(self.parquetdir)
 
         timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
-        blockDig=numpy.ceil(numpy.log10(len(timelist)))+1
         blockID = 0
         L = []
-
-        for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,
-                                   fieldnames=fieldnames):
+        for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,fieldnames=fieldnames):
             L.append(pnds)
-
             if len(L) == tsBlockNum:
-                writeList(L, blockID,blockDig)
+                writeList(L, self.parquetdir)
                 L=[]
                 blockID += 1
         if len(L) > 0:
-            writeList(L, blockID,blockDig)
+            writeList(L, self.parquetdir)
 
+        # rearrange partitions by repartitioning and rewriting.
+        # filterList = [x for x in L[0].keys()]
+        # for filtername in filterList:
+        #     outfile = os.path.join(self.parquetdir,filtername + ".parquet")  # rememebr that it should run in python 2.7 so no f'... '
+        #     print("\tRepartitioning filter %s in file %s" % (filtername, outfile))
+        #     data = dask.dataframe.read_parquet(outfile)
+        #     data = data.repartition(partition_size="100MB")
+        #     data.to_parquet(outfile,overwrite=True)
 
 
 

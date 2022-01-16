@@ -2,14 +2,15 @@ __version__ = '2.4.1'
 
 import os
 import json
+import sys
+version = sys.version_info[0]
+if version > 2:
+    from .toolkit import ToolkitHome
+    toolkitHome =ToolkitHome()
 
-
-from .toolkit import ToolkitHome
-toolkitHome =ToolkitHome()
-
-# Setup the units for the model
-# The project name is not imporant becuase logging is universal for user.
-loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
+    # Setup the units for the model
+    # The project name is not imporant becuase logging is universal for user.
+    loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
 
@@ -121,13 +122,13 @@ Datalayer
 
 
 buildings:
-     - refactoring the code
+ - refactoring the code
 
 OF-LSM:
-     - fixed small bug in reading points
+ - fixed small bug in reading points
 
 Topography:
-     - Removed extra code    
+ - Removed extra code    
     
 Experiment: 
      -   Fixed the dynamic load of the experiment.  

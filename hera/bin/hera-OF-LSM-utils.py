@@ -91,7 +91,7 @@ def makeEscapedMassFile(args):
     dt = args.dt
     LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
     data = LSMtoolkit.analysis.getMassFromLog(logFile=args.logFile,solver=args.solver)
-    data = data.loc[data.name==args.patch].loc[data.action==args.action]
+    data = data.loc[data.filterType == args.patch].loc[data.action == args.action]
     data["diffMass"] = data.mass.diff()
     data = data.fillna(0)
     if dt is None:

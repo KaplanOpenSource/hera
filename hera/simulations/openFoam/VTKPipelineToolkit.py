@@ -1,19 +1,45 @@
 import os
-from collections.abc import Iterable
-
+import sys
 import numpy
-from hera.toolkit import abstractToolkit, TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+if sys.version_info > (3, 7):
+    from hera.toolkit import abstractToolkit, TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+    python27=False
+else:
+    # Define a dummy class for the 2.7 version.
+    python27=True
+    class abstractToolkit(object):
+
+        _filesDirectory = None
+        _projectName = None
+
+        @property
+        def filesDirectory(self):
+            return self._filesDirectory
+
+        @property
+        def projectName (self):
+            return self._projectName
+
+        def __init__(self,projectName,toolkitName,filesDirectory):
+            self._filesDirectory = filesDirectory
+            self._projectName = projectName
+
+
 
 #### import the simple module from the paraview
-import paraview.simple as pvsimple
-from paraview import servermanager
-#### disable automatic camera reset on 'Show'
-pvsimple._DisableFirstRenderCameraReset()
+try:
+    import paraview.simple as pvsimple
+    from paraview import servermanager
+
+    #### disable automatic camera reset on 'Show'
+    pvsimple._DisableFirstRenderCameraReset()
+    paraview = True
+except ImportError:
+    ## Working in 3.8 with hera.
+    paraview = False
 
 RECONSRUCTED_CASE = "Reconstructed Case"
 DECOMPOSED_CASE = 'Decomposed Case'
-
-
 
 class ReaderNode(abstractToolkit):
     """
@@ -27,8 +53,13 @@ class ReaderNode(abstractToolkit):
     _reader         = None
     _readerName     = None
 
-    def __init__(self,projectName,filesDirectory=None):
-        super().__init__(toolkitName="VTKPipelineToolkit",projectName=projectName,filesDirectory=filesDirectory)
+    _children = None # A map of the child filters.
+
+    def __init__(self, projectName, readerName, casePath, filesDirectory=None, timeList=None, caseType=DECOMPOSED_CASE, fieldNames=None, serverName=None):
+        if python27:
+            super(ReaderNode,self).__init__(toolkitName="VTKPipelineToolkit",projectName=projectName,filesDirectory=filesDirectory)
+        else:
+            super().__init__(toolkitName="VTKPipelineToolkit",projectName=projectName,filesDirectory=filesDirectory)
 
         # Array shape length 1 - scalar.
         #					 2 - vector.
@@ -48,7 +79,15 @@ class ReaderNode(abstractToolkit):
                                  (2, 1): "_zy",
                                  (2, 2): "_zz"}
 
-    def initializeReader(self, readerName, casePath, timeList=None , CaseType=DECOMPOSED_CASE, fieldnames=None,servername=None):
+        self._children = dict()
+        self.initializeReader(readerName=readerName,
+                              casePath=casePath,
+                              timeList=timeList,
+                              caseType=caseType,
+                              fieldNames=fieldNames,
+                              serverName=serverName)
+
+    def initializeReader(self, readerName, casePath, timeList=None, caseType=DECOMPOSED_CASE, fieldNames=None, serverName=None):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -76,19 +115,41 @@ class ReaderNode(abstractToolkit):
                 the reader
         """
 
-        if servername is not None:
-            pvsimple.Connect(servername)
+        if serverName is not None:
+            pvsimple.Connect(serverName)
 
         self._readerName  = readerName
-        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
+        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=caseType, guiName=readerName)
         self._reader.MeshRegions.SelectAll()
         self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
-        if fieldnames is not None:
-            self._reader.CellArrays = fieldnames
+        if fieldNames is not None:
+            self._reader.CellArrays = fieldNames
         self._reader.UpdatePipeline()
 
         return self._reader
+
+    def addNode(self, item):
+        """
+            Define a new filter under this one.
+        Parameters
+        ----------
+        item
+
+        Returns
+        -------
+
+        """
+        if paraview:
+            if item in self._children.keys():
+                ret =  self._children[item]
+            else:
+                newnode = VTKNode(item, self.reader, self.readerName)
+                self._children[item] = newnode
+                ret = newnode
+            return ret
+        else:
+            raise ValueError("Cannot define VTK pipeline when paraview.simple is not installed. Install or switch to the right environment")
 
     @property
     def readerName(self):
@@ -104,35 +165,74 @@ class ReaderNode(abstractToolkit):
 
     @timelist.setter
     def timelist(self, value):
-        if not isinstance(value,Iterable):
-            self._timeList = numpy.atleast_1d(value)
-        else:
-            self._timeList = value
+        self._timeList = numpy.atleast_1d(value)
+
+    def __getitem__(self, item):
+        return self._children[item]
+
+    def keys(self):
+        return self._children.keys()
+
+    def writePipeline(self):
+        """
+            Writes all the nodes in the pipeline.
+
+            First make a list of all the nodes that are written as parquet and a list of all the node that are written as
+
+        Returns
+        -------
+
+        """
 
 class VTKNode:
 
+    _name       = None
     _filter     = None
-    _nodeName   = None
-    _reader     = None
-    _path       = None
+    _filterType   = None
+    _father     = None
+    _JSONpath       = None
+    _saveNode = None
+    _regularize = None
+
+    _children = None
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def filter(self):
         return self._filter
 
     @property
-    def reader(self):
-        return self._reader
+    def father(self):
+        return self._father
 
     @property
-    def path(self):
-        return self._path
+    def JSONpath(self):
+        return self._JSONpath
 
     @property
-    def name(self):
-        return self._nodeName
+    def filterType(self):
+        return self._filterType
 
-    def __init__(self,nodeName,reader,path,**kwargs):
+    @property
+    def saveNode(self):
+        return self._saveNode
+
+    @saveNode.setter
+    def saveNode(self, value):
+        self._saveNode = value
+
+    @property
+    def regularize(self):
+        return self._regularize
+
+    @regularize.setter
+    def regularize(self, value):
+        self._regularize = value
+
+    def __init__(self, name, father, JSONpath,saveNode=False,regularize=None):
         """
             Initializes a node.
 
@@ -144,21 +244,37 @@ class VTKNode:
 
         Parameters
         ----------
-        nodeName
-        reader
-        path: str
+        nodeType : str
+            The type of the filter (i.e clip,slice and ect).
+        father : filter
+            The main fileter.
+
+        JSONpath: str
             The path to the root (the list of all the nodes from the root to the current node).
 
-        kwargs : dict
-            The name->value of the paremters.
-            The paremter names are separated with '_'.
+        saveNode : bool
+            If true save the data of the filter.
+            The format depends on the regularize data.
 
+        regularize : str/None/True
+            If None, save as raw data (in parquet)
+            if True, try to convert to xarray and save as netcdf
+            if 'str', use the function to regularize the data. [not implemented yet]
         """
-        self._nodeName = nodeName
-        self._reader = reader
-        self._path = path
+        self._name = name
+        self._father = father
+        self._JSONpath = JSONpath
+        self._children = dict
+        self._saveNode = saveNode
+        self._regularize = regularize
 
-        self._filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
+    def __call__(self, filterType, **kwargs):
+        self._filterType = filterType
+        filtobj = getattr(pvsimple, self.filterType)
+        if filtobj is None:
+            raise ValueError("%s is not a valid VTK object. The valid objects are: %s " % (item, '\n'.join(dir(pvsimple))))
+
+        self._filter= filtobj(Input=self.father, guiName=self.name)
         for param, pvalue in kwargs.items():
             pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
             paramnamelist = param.split("_")
@@ -168,99 +284,56 @@ class VTKNode:
             setattr(paramobj, paramnamelist[-1], pvalue)
         self._filter.UpdatePipeline()
 
-    def getData(self,timeList=None,regularize=None,fieldNames=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB):
+    def addNode(self, item):
         """
-            Return the data of the filter.
+            Define a new filter under this one.
         Parameters
         ----------
-        timeList
-        saveMode: str
-            Determine whether to cache the result in the database.
+        item
 
-            - stored as a file (but not saved to the DB)  - return dask.DataFrame
-            - stored and saved in db                      - return dask.DataFrame
-            - not store (just read all to the memeory and return pandas.DataFrame).
+        Returns
+        -------
 
-            The files are stored to the root.filesDirectory/... path ..../ data.parquet/
+        """
+        if paraview:
+            if item in self._children:
+                ret =  self._children[item]
+            else:
+                newnode = VTKNode(item, self.filter, self.JSONpath + "_" + self.filterType)
+                self._children[item] = newnode
+                ret = newnode
+            return ret
+        else:
+                raise ValueError("Cannot define VTK pipeline when paraview.simple is not installed. Install or switch to the right environment")
 
-        regularize : str/bool
-            If None - save the data as is in parquet (DataFrame)
-            If true - try to convert to xarray. If saved than as an netcdf file.
-            if str  - run a regularize function and return an xarray. If saved than as an netcdf file. [Not implemented yet]
+    def __getitem__(self, item):
+        return self._children[item]
+
+    def keys(self):
+        return self._children.keys()
+
+    def getData(self):
+        """
+            Return the data of the filter from the hera datalayer.
+            Must write the filter first (use writeData in the root node) and load (use loadData) before using
+            this function.
+
+        Parameters
+        ----------
 
         Returns
         -------
             pandas/dask of the results. or xarray.
         """
-        timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timelist)
+        if paraview:
+            raise NotImplementedError("Get data for a node is not implemented. Use the write at the root node. Then in the conda environment load it, and get it")
+        else:
+            pass
 
-        # Search if that filter results already exists in the cache.
-        doc = None # The document of the file, if the requested time is not in the time list.
 
-        ret = []
-        for timeList in timeList:
 
-            self.filter.UpdatePipeline(timeslice)
-            rawData = servermanager.Fetch(datasource)
-            data = dsa.WrapDataObject(rawData)
-            #print(data.PointData)
-            #print(type(data.PointData))
 
-            if isinstance(data.Points, dsa.VTKArray):
-                points = numpy.array(data.Points).squeeze()
-            else:
-                points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
-
-            curstep = pandas.DataFrame()
-
-            # create index
-            curstep['x'] = points[:, 0]
-            curstep['y'] = points[:, 1]
-            curstep['z'] = points[:, 2]
-            curstep['time'] = timeslice
-
-            fieldlist = data.PointData.keys() if fieldNames is None else fieldNames
-            for field in fieldlist:
-                if isinstance(data.PointData[field], dsa.VTKNoneArray):
-                    continue
-                elif isinstance(data.PointData[field], dsa.VTKArray):
-                    arry = numpy.array(data.PointData[field]).squeeze()
-                else:
-                    arry = numpy.concatenate([numpy.array(x) for x in data.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
-
-                # Array shape length 1 - scalar.
-                #					 2 - vector.
-                #					 3 - tensor.
-                # the dict holds their names.
-                TypeIndex = len(arry.shape) - 1
-                for indxiter in product(*([range(3)] * TypeIndex)):
-                    L = [slice(None, None, None)] + list(indxiter)
-                    try:
-                        curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
-                    except ValueError:
-                        print("Field %s is problematic... ommiting" % field)
-
-            curstep = curstep.set_index(['time', 'x', 'y', 'z'])
-
-            if saveMode == TOOLKIT_SAVEMODE_NOSAVE:
-                ret.append(curstep)
-            elif saveMode in [TOOLKIT_SAVEMODE_ONLYFILE, TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-                # getting the file name
-                if doc is not None:
-                    # The file exists but not with that time step.
-                    filename = doc.resource
-                else:
-                    extension = "parquet" if regularize is None else "nc"
-                    filepath = os.path.join(self.reader.filesDirectory,self.path)
-                    os.makedirs(filepath,exist_ok=True)
-                    filename = os.path.join(filepath,f"{self.name}.{extension}")
-
-                if os.path.exists(filename):
-                    # append to dask/nc file
-                else:
-                    if regularize is None:
-                        # append to parquet.
-
-                    else:
-                        # append to netcdf.
-                        data.to_netcdf(curfilename)
+if __name__=="__main__":
+    rootnode = ReaderNode(projectName="test",readerName="root",casePath="channel",filesDirectory="cache")
+    rootnode.addNode("CellCenters")(filterType="CellCenters")
+    print(rootnode['CellCenters'])
