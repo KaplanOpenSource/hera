@@ -1,24 +1,39 @@
 import pandas
 import os
 import json
+import glob
 import paraview.simple as pvsimple
-from .pvOpenFOAMBase import DECOMPOSED_CASE,paraviewOpenFOAM
+from .pvOpenFOAMBase import paraviewOpenFOAM
+from .. import DECOMPOSED_CASE, VTK_PIPELINE_FILTER
+
+import sys
+
+version = sys.version_info[0]
+if version == 3:
+    from hera.datalayer import Project, datatypes
+
 
 class VTKpipeline(object):
-    """This class executes a pipeline (runs and saves the outputs).
-    It also holds the metadata.
+    """
+
+    This is a helper class to handle VTK pipelines.
+    It has 2 main functions:
+
+        * Execute the pipelines and save the results to parquet or netcdf file
+                Must run in the python 2.7 environment.
+
+        * Loads the results to the database.
+                Must run in the python 3+ (with hera) environment.
 
     Currently works only for the JSON pipeline. The XML (paraview native pipelines) will be built in the future.
 
     The pipeline is initialized with a reader.
-    The metadata holds the names of all the filters that has to be executed.
 
     The VTK pipeline JSON structure.
         {
            "metadata" : {
                   "guiname" : <gui name>,
-                   ... all other meta data ..........
-
+                  "timeList" : ...
             },
             "pipeline" : {
                     "filterName" : {
@@ -33,21 +48,23 @@ class VTKpipeline(object):
                             "downstream" : [Another pipeline]
                             }
                         }
-    }
+      }
      The write to writes the requested filters to the disk.
-     The files are saved to a single .nc/hdf file with keys/fields in it. The file name is the
-     pipelinename.
-
-     As before, the hdf/nc is for one timestep.
+     Each filter is saved to a parquet/netcdf file.  The file name is the filter name
     """
 
     _VTKpipelineJSON = None  # Holds the json of the VTK pipeline.
     _pvOFBase = None  # Holds the OF base.
     _mainpath = None
+    _casePath = None
 
     @property
     def pvOFBase(self):
         return self._pvOFBase
+
+    @property
+    def VTKpipelineJSON(self):
+        return self._VTKpipelineJSON
 
     def __init__(self, pipelineJSON, casePath, caseType=DECOMPOSED_CASE, servername=None):
         """
@@ -77,14 +94,20 @@ class VTKpipeline(object):
         """
         self._VTKpipelineJSON = pipelineJSON
         outputdir = pipelineJSON["metadata"].get("CaseDirectory", os.getcwd())
-        self._pvOFBase = paraviewOpenFOAM(casePath=casePath,
-                                          caseType=caseType,
-                                          servername=servername)
 
-        self._pvOFBase.parquetdir = os.path.abspath(os.path.join( outputdir,casePath, 'parquet'))
-        self._pvOFBase.netcdfdir = os.path.abspath(os.path.join(outputdir,casePath, "netcdf"))
+        if version == 2:
+            self._pvOFBase = paraviewOpenFOAM(casePath=casePath,
+                                              caseType=caseType,
+                                              servername=servername)
+
+            self._pvOFBase.parquetdir = os.path.abspath(os.path.join(outputdir, casePath, 'parquet'))
+            self._pvOFBase.netcdfdir = os.path.abspath(os.path.join(outputdir, casePath, "netcdf"))
+        else:
+            self._parquetdir = os.path.abspath(os.path.join(outputdir, casePath, 'parquet'))
+            self._netcdfdir = os.path.abspath(os.path.join(outputdir, casePath, "netcdf"))
+
         self._mainpath = os.path.abspath(outputdir)
-
+        self._casePath = os.path.abspath(casePath)
 
     def execute(self, source, tsBlockNum=100, overwrite=False):
         """
@@ -103,7 +126,6 @@ class VTKpipeline(object):
         self._buildFilterLayer(father=reader, structureJson=self._VTKpipelineJSON["pipelines"], filterWrite=filterWrite)
         # Now execute the pipeline.
         timelist = self._VTKpipelineJSON["metadata"].get("timelist", None)
-
 
         if timelist is not None and (isinstance(timelist, str) or isinstance(timelist, unicode)):
             # a bit of parsing.
@@ -131,7 +153,6 @@ class VTKpipeline(object):
                    fieldnames=self._VTKpipelineJSON["metadata"].get('fields', None),
                    tsBlockNum=tsBlockNum,
                    overwrite=overwrite)
-
 
     def _buildFilterLayer(self, father, structureJson, filterWrite):
         """
@@ -175,12 +196,91 @@ class VTKpipeline(object):
 
             self._buildFilterLayer(filter, structureJson[filterGuiName].get("downstream", None), filterWrite)
 
-# if __name__ == "__main__":
-    # bse = pvOFBase()
-    # reader = bse.ReadCase("Test", "AC4_3Da.foam", CaseType='Decomposed Case')  # 'Reconstructed Case')
-    #
-    # R = pipelineFactory_JSON().getPipeline("VTKPipe.json")
-    # with open('test.json') as json_file:
-    #     data = json.load(json_file)
-    # vtkpipe = VTKpipeline(name="test", pipelineJSON=data, casePath="/home/ofir/Projects/openFoamUsage/askervein", caseType=RECONSTRUCTED_CASE)
-    # vtkpipe.execute("mainReader")
+        def load(projectName):
+            """
+                Loads the pipeline results to the database.
+                We assume that the pipeline was already executed, and that the
+
+            Parameters
+            ----------
+            projectName : str
+                    The project name to load the data to.
+
+            Returns
+            -------
+
+            """
+            proj = Project(projectName=projectName)
+
+            for filterName, filterData in VTKpipelineJSON["pipelines"].items():
+                self._recurseNode(filterName=filterName, filterParameters=filterData['parameters'], path="",
+                                  project=proj)
+
+        def _recurseNode(self, filterName, filterData, path, project):
+
+            """
+            This function is recursively passed on the pipeline tree from json file and loads the filters to the database.
+
+            Parameter
+            ----------
+
+            Tree : a list of filters applied in the current tree before the current node
+            nodeName : the current filter node name from the pipeline
+            nodeData : the current filter node properties from the pipeline
+            metadata : the metadata from the json file
+            pipelines : the pipelines from the json file
+            path : path to the main directory
+            name : output folder/ hdf files string
+            projectName : projectName string
+
+
+            """
+            formatName = nodeData.get('write', None)
+            if (formatName is not None) and (formatName is not "None"):
+
+                # Find the flow document.
+                flowDoc = proj.getSimulationsDocumet(resource=self._casePath)
+                if len(flowDoc) == 0:
+                    raise ValueError(
+                        "The simulation in path %s is not found!. Load it to the database first" % self._casePath)
+
+                # Create the new description
+                filterDesc = dict(flowDow['desc'])
+
+                # check if it is already loaded.
+                docList = proj.getCacheDocuments(type=VTK_PIPELINE_FILTER,
+                                                 simulationName=filterDesc['simulationName'],
+                                                 groupName = filterDesc['groupName'],
+                                                 filterName = filterName)
+
+                if len(docList) ==0:
+                    filterDesc['filterName'] = filterName
+                    filterDesc['filterParameters'] = filterData['parameters']
+                    filterDesc['pipeline'] = self.VTKpipelineJSON
+                    filterDesc['filterPath'] = path
+
+                    if formatName == "netcdf":
+                        resource = glob.glob(os.path.join(self._netcdfdir, "%s_*.nc" % filterName))
+                        currentdatatype = datatypes.NETCDF_XARRAY
+                    elif formatName == "parquet":
+                        resource = os.path.join(self._parquetdir, "%s.parquet" % filterName)
+                        currentdatatype = datatypes.PARQUET
+                    else:
+                        raise ValueError(
+                            "Format type %s unknown for filter %s. Must be 'netcdf' or 'parquet' (case sensitive!)" % (
+                            formatName, filterName))
+
+                    proj.addCacheDocument(projectName=projectName,
+                                               desc=filterDesc,
+                                               type=VTK_PIPELINE_FILTER,
+                                               resource=resource,
+                                               dataFormat = currentdatatype)
+                else:
+                    print("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
+
+            # processing the
+            ds = nodeData.get("downstream", {})
+            for filterName, filterData in ds.items():
+                path += "." + filterName
+                self._recurseNode(filterName=filterName, filterData=filterData, path=path,
+                                  project=proj)

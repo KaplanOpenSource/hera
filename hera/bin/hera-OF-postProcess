@@ -9,7 +9,9 @@ import sys
 version = sys.version_info[0]
 if version == 2:
     import hera.simulations.openFoam.datalayer.extractVTK as openfoam
-    from hera.simulations.openFoam.datalayer.pvOpenFOAMBase import DECOMPOSED_CASE,RECONSTRUCTED_CASE
+    from simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
+else:
+    from hera.utils import loadJSON
 
 
 from hera.simulations.openFoam.datalayer.etlVTK import recurseNode
@@ -25,25 +27,18 @@ def load_handler(args):
         Parameters
         ----------
 
-        args : a positional list pased by the user:
-            arguments[0] - the path to the pipeline json file
-            arguments[1] - the path to the main directory of the execute resulted files, as the metadata 'datadir' in the json file
-            arguments[2] - the name given to the output folder (and to the hdf files if selected)
-            arguments[3] - the 'projecName' will be saved to the database
-
-
     """
+    if version < 3:
+        raise ValueError("Must run the loader with python 3+. ")
 
-    JSONpath = args.args[0]
-    projectName = args.args[1]
-    JSONbaseName = os.path.splitext(os.path.basename(JSONpath))[0]
+    projectName = args.projectName
+    pipelineFile = args.pipelineFile
 
-    with open(JSONpath) as json_file:
-        jsondata = json.load(json_file)
+    pipelineFilebaseName = os.path.splitext(os.path.basename(pipelineFile))[0]
 
-    metadata = jsondata["metadata"]  # Reading the metadata
+    jsondata = loadJSON(pipelineFile)
     pipelines = jsondata["pipelines"]  # Reading the pipelines
-    path=metadata['CaseDirectory']
+    path=args.casePath
 
     for i,node in enumerate(pipelines):
         Tree=[]
@@ -66,6 +61,8 @@ def executePipeline_handler(args):
         ----------
 
     """
+    if version > 2:
+        raise ValueError("Must run the pipeline execution with python 2.7 ")
 
     JSONpath = args.pipelineFile
     JSONbaseName= os.path.splitext(os.path.basename(JSONpath))[0]
@@ -88,16 +85,19 @@ if __name__ =="__main__":
 
     ##### Load results to the hera DB
     parser_load = subparsers.add_parser('load', help='load help')
-    parser_load.add_argument('args',
-                             nargs='*',
+    parser_load.add_argument('projectName',
                              type=str,
-                             help='[JSON file name] [ProjectName]')
+                             help='The project name')
 
-    parser_load.add_argument('-keepHDF',
-                             action='store_true',
+    parser_load.add_argument('pipelineFile',
+                             type=str,
+                             help='[pipeline file name]')
 
-                             default=False,
-                             help='If keepHDF does not remove the old HDF files')
+    parser_executePipeline.add_argument('-casePath',
+                                        dest="casePath",
+                                        type=str,
+                                        required=True,
+                                        help='[path to the case]')
 
     parser_load.set_defaults(func=load_handler)
 

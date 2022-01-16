@@ -140,7 +140,7 @@ class workflowToolkit(abstractToolkit):
         if isinstance(workflow,str):
             # try to find it as a name
             self.logger.debug(f"Trying to get the workflow as a name.")
-            docList = self.getSimulationsDocuments(name=workflow)
+            docList = self.getSimulationsDocuments(simulationName=workflow)
             if len(docList) == 0:
                 self.logger.debug(f"... not found. Try to query as a json. ")
                 jsn = loadJSON(workflow)
@@ -379,7 +379,7 @@ class workflowToolkit(abstractToolkit):
 
             #   b. Check if the name of the simulation already exists in the group
             self.logger.debug(f"Check if the name of the simulation {simulationName} already exists in the group")
-            docList = self.getSimulationsInGroup(simulationGroup=groupName, simuationType=theType, name=simulationName)
+            docList = self.getSimulationsInGroup(simulationGroup=groupName, simuationType=theType, simulationName=simulationName)
 
             if len(docList) == 0:
                 self.logger.info("Simulation is not in the DB, adding... ")
@@ -389,7 +389,7 @@ class workflowToolkit(abstractToolkit):
                                                   desc=dict(
                                                       groupName=groupName,
                                                       groupID=groupID,
-                                                      name=simulationName,
+                                                      simulationName=simulationName,
                                                       workflow=hermesWF.json,
                                                       parameters=hermesWF.parametersJSON)
                                                   )
@@ -474,7 +474,7 @@ class workflowToolkit(abstractToolkit):
                     workflowJSON = loadJSON(simulation)
                 else:
                     theType = self.DOCTYPE_WORKFLOW if docType is None else docType
-                    docList = self.getSimulationDocuments(name=simulation, type=theType)
+                    docList = self.getSimulationDocuments(simulationName=simulation, type=theType)
                     if len(docList) == 0:
                         raise ValueError(f"Simulation {simulation} was not found on disk or in the project. ")
                     workflowJSON = docList[0]['desc']['workflow']

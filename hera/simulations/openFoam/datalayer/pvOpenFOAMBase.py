@@ -4,11 +4,8 @@ import pandas
 import numpy
 
 import os
-import glob
 import vtk.numpy_interface.dataset_adapter as dsa
 import xarray
-import dask
-import dask.array as da
 
 #### import the simple module from the paraview
 import paraview.simple as pvsimple
@@ -17,8 +14,6 @@ from paraview import servermanager
 #### disable automatic camera reset on 'Show'
 pvsimple._DisableFirstRenderCameraReset()
 
-DECOMPOSED_CASE = 'Decomposed Case'
-RECONSTRUCTED_CASE ="Reconstructed Case"
 
 class paraviewOpenFOAM(object):
     """

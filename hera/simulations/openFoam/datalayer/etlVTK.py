@@ -12,7 +12,7 @@ if version == 3:
 def recurseNode(Tree,nodeName,nodeData,metadata,pipelines,path,name,projectName,JSONName):
 
     """
-    This function is recursively passed on the pipeline tree from json file and execute the needed functions by file write format
+    This function is recursively passed on the pipeline tree from json file and loads the filters to the database.
 
     Parameter
     ----------
