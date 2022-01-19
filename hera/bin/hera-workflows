@@ -64,13 +64,16 @@ def add(args):
 
         action = getattr(actionModes, args.action.upper())
 
-        wftk.addToGroup(workflowJSON=workflowFile,
-                        groupName=simulationGroup,
-                        simulationType=workflowType,
-                        assignName=args.assignName,
-                        overwrite=args.overwrite,
-                        action=action,
-                        force=args.force)
+        try:
+            wftk.addToGroup(workflowJSON=workflowFile,
+                            groupName=simulationGroup,
+                            simulationType=workflowType,
+                            assignName=args.assignName,
+                            overwrite=args.overwrite,
+                            action=action,
+                            force=args.force)
+        except FileExistsError as e:
+            print(e)
 
     else:
         # should load the combinations....
@@ -151,35 +154,56 @@ def listSimulations(arguments):
 
     projectName = None
     simulationGroup = None
-    if arguments.workflow is not None:
-        heraMetadata = loadJSON(arguments.workflow).get(HERAMETADATA, None)
+
+    if os.path.isfile(arguments.object):
+
+        heraMetadata = loadJSON(arguments.object).get(HERAMETADATA, None)
         if heraMetadata is None:
             raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
         projectName = heraMetadata['projectName']
         simulationGroup = heraMetadata['simulationGroup']
+        simuationType = heraMetadata['workflowType']
 
-    #1. Getting the project name.
-    if arguments.projectName is not None:
+        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+        searchAsGroupOrName = False
+
+    else:
+        if arguments.projectName is None:
+            raise ValueError(f"Must supply a projectName. use --projectName ")
         projectName = arguments.projectName
+        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    if arguments.simulationGroup is not None:
-        simulationGroup = arguments.simulationGroup
+        if os.path.isdir(arguments.object):
+            simDocument = wftk.getSimulation(resource=arguments.object)
+            if len(simDocument) == 0:
+                searchAsGroupOrName = True
+            else:
+                searchAsGroupOrName = False
+                simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+                simuationType   = simDocument[0].type
 
-    if projectName is None:
-        raise ValueError("Must supply projectName in a workflow (with hera metadata) or explicitely using --projectName")
+    if searchAsGroupOrName:
+        ## The wftk
+        # Could be a group name or a simulation name.
+        grpqry = { wftk.DESC_GROUPNAME :  arguments.object}
+        simDocument = wftk.getSimulation(**grpqry)
+        if len(simDocument) == 0:
+            # check if simulation name
+            simqry = {wftk.DESC_SIMULATIONNAME : arguments.object}
+            simDocument = wftk.getSimulation(**simqry)
+            if len(simDocument) == 0:
+                print(f"Requested {arguments.object} is not a workflow file, case directory, simulation group name or simulation name... ")
+                exit()
 
-    if  simulationGroup is None:
-        raise ValueError("Must supply simulationGroup in a workflow (with hera metadata) or explicitely using --simulationGroup")
+        simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+        simuationType   = simDocument[0].type
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-
-    simuationType = arguments.simulationType
     parametersOfNodes    = arguments.parametersOfNodes
     allParams     = arguments.allParameters
     jsonFormat    = arguments.json
 
     simulationList = wftk.listSimulations(simulationGroup=simulationGroup,
-                                          simuationType=simuationType,
+                                          simulationType=simuationType,
                                           parametersOfNodes=parametersOfNodes,
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
@@ -337,10 +361,8 @@ if __name__ == "__main__":
 
     ### ------------------------
     listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
-    listSimulations_parser.add_argument('--workflow', type=str, help='The workflow file to load',default=None)
-    listSimulations_parser.add_argument('--projectName', default =None,type=str, help='Provide the projectName to use')
-    listSimulations_parser.add_argument('--simulationGroup',default=None, type=str, help='The simulation group to use')
-    listSimulations_parser.add_argument('--simulationType', dest="simulationType", default=None, type=str, help='Use the simulation type as filter')
+    listSimulations_parser.add_argument('object', type=str, help='A workflow file, a case directory, a name of simulation, or a group name ')
+    listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help='The project name')
     listSimulations_parser.add_argument('--parametersOfNodes',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
     listSimulations_parser.add_argument('--all', dest="allParameters", default=False, type=bool, help='If exsists, return all the parameters, else, return only the differences between the different simulations.')
     listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,

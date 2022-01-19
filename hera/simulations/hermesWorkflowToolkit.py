@@ -61,6 +61,11 @@ class workflowToolkit(abstractToolkit):
             4. allows simple comparison.
             5. retrieve by initial name.
     """
+    DESC_GROUPNAME = "groupName"
+    DESC_GROUPID   = "groupID"
+    DESC_SIMULATIONNAME = "simulationName"
+    DESC_WORKFLOW = "workflow"
+    DESC_PARAMETERS = "parameters"
 
 
 
@@ -162,7 +167,21 @@ class workflowToolkit(abstractToolkit):
         doc = docList[0]
         return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=doc.type)
 
-    def getSimulationsInGroup(self, simulationGroup: str, simuationType: simulationTypes = None, **kwargs):
+    def getSimulationByCriteria(self,**kwargs):
+        """
+            Returns the simulation that meet the criteria in the kwargs.
+            These can be anything. From the type/resource to a complicated filter on the description.
+        Parameters
+        ----------
+        kwargs: filterint
+
+        Returns
+        -------
+            document
+        """
+        return self.getSimulationsDocuments(**kwargs)
+
+    def getSimulationsInGroup(self, simulationGroup: str, simulationType: simulationTypes = None, **kwargs):
         """
             Return a list of all the simulations with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
@@ -175,17 +194,21 @@ class workflowToolkit(abstractToolkit):
         simulationGroup : str
             The prefix name of all the runs.
 
-        simuationType : str
+        simulationType : str [optional]
             The type of the workflow.
-            if None, use simuationTypes.WORKFLOW
+            if None, return all.
+
+        kwargs: additional filtering criteria.
+                Use mongodb criteria.
 
         Returns
         -------
             list of mongo documents.
 
         """
-        theType = simulationTypes.WORKFLOW.value if simuationType is None else simuationType
-        return self.getSimulationsDocuments(groupName=simulationGroup, type=theType, **kwargs)
+        if  simulationType is not None:
+            kwargs['type'] = simulationType
+        return self.getSimulationsDocuments(groupName=simulationGroup, **kwargs)
 
     def findAvailableName(self, simulationGroup: str, simulationType: str = None, **kwargs):
         """
@@ -214,7 +237,7 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simuationType=simulationType, **kwargs)
+        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simulationType=simulationType, **kwargs)
         group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
@@ -368,18 +391,18 @@ class workflowToolkit(abstractToolkit):
         self.logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
-        docList = self.getSimulationsInGroup(simulationGroup=groupName, simuationType=theType, **currentQuery)
+        docList = self.getSimulationsInGroup(simulationGroup=groupName, simulationType=theType, **currentQuery)
 
-        if len(docList) > 0 and (not force) and (docList[0]['desc']['name'] != simulationName):
+        if len(docList) > 0 and (not force) and (docList[0]['desc']['simulationName'] != simulationName):
             doc = docList[0]
-            wrn = f"The requested workflow {simulationName} has similar parameters to the workflow **{doc['desc']['name']}** in simulation group {groupName}."
+            wrn = f"The requested workflow {simulationName} has similar parameters to the workflow **{doc['desc']['simulationName']}** in simulation group {groupName}."
             self.logger.warning(wrn)
             raise FileExistsError(wrn)
         else:
 
             #   b. Check if the name of the simulation already exists in the group
             self.logger.debug(f"Check if the name of the simulation {simulationName} already exists in the group")
-            docList = self.getSimulationsInGroup(simulationGroup=groupName, simuationType=theType, simulationName=simulationName)
+            docList = self.getSimulationsInGroup(simulationGroup=groupName, simulationType=theType, simulationName=simulationName)
 
             if len(docList) == 0:
                 self.logger.info("Simulation is not in the DB, adding... ")
@@ -487,14 +510,14 @@ class workflowToolkit(abstractToolkit):
 
         else:
             self.logger.debug("Workflow is a groupName. Get the simulations from the group")
-            simulationList = self.getSimulationsInGroup(simulationGroup=workFlows, simuationType=docType)
+            simulationList = self.getSimulationsInGroup(simulationGroup=workFlows, simulationType=docType)
             workflowList = [workflow(x['desc']['workflow'], WD_path=self.FilesDirectory) for x in simulationList]
 
         return workflowList
 
     def listSimulations(self,
                         simulationGroup:str,
-                        simuationType:str = None,
+                        simulationType:str = None,
                         parametersOfNodes:list = None,
                         allParams:bool = False,
                         jsonFormat:bool = False
@@ -515,7 +538,7 @@ class workflowToolkit(abstractToolkit):
         ----------
         simulationGroup : str
             The name of the group
-        simuationType : str, optional
+        simulationType : str, optional
             Additional filter according to the simulation type.
 
         parametersOfNodes  : list[str]
@@ -532,9 +555,8 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations and their values.
 
         """
-        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup,simuationType=simuationType)
+        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simulationType=simulationType)
         if parametersOfNodes is not None:
-
             qry = None
             if len(parametersOfNodes) > 0:
                 qry = "nodeName in @parametersOfNodes"
@@ -552,13 +574,14 @@ class workflowToolkit(abstractToolkit):
             if not allParams:
                 ret = self._compareConfigurationsPandas(res)
             else:
-                ret = res
+                ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
         else:
-            ret = pandas.DataFrame([x.desc['name'] for x in simulationList],columns=["name"])
+            ret = pandas.DataFrame([x.desc[self.DESC_SIMULATIONNAME] for x in simulationList],columns=[self.DESC_SIMULATIONNAME])
 
-        ret = ret.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
-        if jsonFormat:
-            ret = ret.to_json()
+        if len(simulationList) == 0:
+            ret =  {} if jsonFormat else pandas.DataFrame()
+        elif jsonFormat:
+                ret = ret.to_json()
 
         return ret
 
