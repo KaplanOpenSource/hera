@@ -23,7 +23,7 @@ except ImportError:
 class actionModes(Enum):
     ADD = auto()
     ADDBUILD = auto()
-    ADDBUILDRUN = auto()
+    ADDBUILDEXECUTE = auto()
 
 @unique
 class simulationTypes(Enum):
@@ -64,7 +64,6 @@ class workflowToolkit(abstractToolkit):
     DESC_GROUPNAME = "groupName"
     DESC_GROUPID   = "groupID"
     DESC_SIMULATIONNAME = "simulationName"
-    DESC_WORKFLOW = "workflow"
     DESC_PARAMETERS = "parameters"
 
 
@@ -278,7 +277,7 @@ class workflowToolkit(abstractToolkit):
                    overwrite: bool = False,
                    force: bool = False,
                    assignName: bool = False,
-                   action: actionModes = actionModes.ADDBUILDRUN,
+                   action: actionModes = actionModes.ADDBUILDEXECUTE,
                    parameters: dict = dict()):
         """
             1. Adds the workflow to the database in the requested group
@@ -327,7 +326,7 @@ class workflowToolkit(abstractToolkit):
             Otherwise, use the filename as the name of the simulation.
 
         action : buildModes enum.
-            ADDBUILDRUN : add the simulation to the db, builds the execution files (also saves the new tempalte) and executes it.
+            ADDBUILDEXECUTE : add the simulation to the db, builds the execution files (also saves the new tempalte) and executes it.
                           if the file already in the db -> overwrite if over
             ADDBUILD    : add to the db and build the template and execution files.
             ADD         : add to the db.
@@ -425,9 +424,8 @@ class workflowToolkit(abstractToolkit):
                 doc['desc']['parameters'] = hermesWF.parametersJSON
                 doc.save()
             else:
-                err = f"The simulation {simulationName} with type {theType} is already in the database in group {groupName}. use the overwrite=True to update the record."
-                self.logger.error(err)
-                raise FileExistsError(err)
+                info = f"The simulation {simulationName} with type {theType} is already in the database in group {groupName}. use the overwrite=True to update the record."
+                self.logger.info(info)
 
         # 3.  Building and running the workflow.
         if action.value > actionModes.ADD.value:
@@ -564,7 +562,7 @@ class workflowToolkit(abstractToolkit):
             simParamList = []
             for simulationDoc in simulationList:
                 wf = workflow(simulationDoc['desc']['workflow'])
-                simulationParameters = wf.getNodesParametersTable().assign(simulationName=simulationDoc.desc['name'])
+                simulationParameters = wf.getNodesParametersTable().assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
                 if qry is not None:
                     simulationParameters = simulationParameters.query(qry)
 
@@ -572,7 +570,7 @@ class workflowToolkit(abstractToolkit):
 
             res = pandas.concat(simParamList)
             if not allParams:
-                ret = self._compareConfigurationsPandas(res)
+                ret = self._compareConfigurationsPandas(res).set_index(self.DESC_SIMULATIONNAME).sort_index()
             else:
                 ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
         else:
@@ -607,10 +605,17 @@ class workflowToolkit(abstractToolkit):
         """
         self.logger.info("--- Start ---")
         diffList = []
+
+        simulationCount = configurations[self.DESC_SIMULATIONNAME].unique().shape[0]
+
         for grpid,grpdata in configurations.groupby(["parameterName","nodeName"]):
+            self.logger.debug(f"Testing {grpid} ")
             try:
                 if grpdata.value.unique().shape[0]> 1:
                     self.logger.debug(f"{grpid}:: Normal Field. Different  ")
+                    diffList.append(grpdata.copy())
+
+                if grpdata.value.count() < simulationCount:
                     diffList.append(grpdata.copy())
 
             except TypeError:

@@ -4,17 +4,15 @@ import argparse
 import json
 import shutil
 import os
+import hera.simulations.openFoam.datalayer.ExtractTransformLoadVTK as openfoam
+from   hera.simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
+
 
 import sys
 version = sys.version_info[0]
-if version == 2:
-    import hera.simulations.openFoam.datalayer.extractVTK as openfoam
-    from simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
-else:
+if version == 3:
     from hera.utils import loadJSON
 
-
-from hera.simulations.openFoam.datalayer.etlVTK import recurseNode
 
 VTKOutput_folder='VTKOutput'
 
@@ -33,23 +31,15 @@ def load_handler(args):
 
     projectName = args.projectName
     pipelineFile = args.pipelineFile
+    path=args.casePath
 
     pipelineFilebaseName = os.path.splitext(os.path.basename(pipelineFile))[0]
 
     jsondata = loadJSON(pipelineFile)
     pipelines = jsondata["pipelines"]  # Reading the pipelines
-    path=args.casePath
 
-    for i,node in enumerate(pipelines):
-        Tree=[]
-        Tree.append(node)
-        recurseNode(Tree,node,pipelines[node],metadata,pipelines, path=path,name=VTKOutput_folder,projectName=projectName,JSONName=JSONbaseName)
-
-    #   Delete hdf directory
-    if not args.keepHDF:
-        print("deleting HDF files")
-        shutil.rmtree("%s/%s/hdf" % (path, VTKOutput_folder), ignore_errors=True)
-        shutil.rmtree("%s/%s/meta.json" % (path, VTKOutput_folder), ignore_errors=True)
+    vtkpipe = openfoam.VTKpipeline(pipelineJSON=jsondata, casePath=path)
+    vtkpipe.loadToProject(projectName=projectName)
 
 
 def executePipeline_handler(args):
@@ -93,7 +83,7 @@ if __name__ =="__main__":
                              type=str,
                              help='[pipeline file name]')
 
-    parser_executePipeline.add_argument('-casePath',
+    parser_load.add_argument('-casePath',
                                         dest="casePath",
                                         type=str,
                                         required=True,
@@ -138,6 +128,10 @@ if __name__ =="__main__":
                                         help='If exists, write over the existing files.')
 
     parser_executePipeline.set_defaults(func=executePipeline_handler)
+
+
+
+
 
     ############################## arg parse
     args = parser.parse_args()

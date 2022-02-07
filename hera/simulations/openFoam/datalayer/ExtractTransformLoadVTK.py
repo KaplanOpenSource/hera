@@ -2,16 +2,17 @@ import pandas
 import os
 import json
 import glob
-import paraview.simple as pvsimple
-from .pvOpenFOAMBase import paraviewOpenFOAM
-from .. import DECOMPOSED_CASE, VTK_PIPELINE_FILTER
 
 import sys
+from .. import DECOMPOSED_CASE, VTK_PIPELINE_FILTER
 
 version = sys.version_info[0]
-if version == 3:
+if version ==2 :
+    import paraview.simple as pvsimple
+    from .pvOpenFOAMBase import paraviewOpenFOAM
+else: # version == 3:
     from hera.datalayer import Project, datatypes
-
+    from ...hermesWorkflowToolkit import workflowToolkit
 
 class VTKpipeline(object):
     """
@@ -120,6 +121,9 @@ class VTKpipeline(object):
 
         """
 
+        if version > 2:
+            raise NotImplementedError("The execution of the pipeline must take place in the python 2.7 environment.")
+
         # build the pipeline.
         reader = pvsimple.FindSource(source)
         filterWrite = {}
@@ -196,91 +200,93 @@ class VTKpipeline(object):
 
             self._buildFilterLayer(filter, structureJson[filterGuiName].get("downstream", None), filterWrite)
 
-        def load(projectName):
-            """
-                Loads the pipeline results to the database.
-                We assume that the pipeline was already executed, and that the
+    def loadToProject(self,projectName):
+        """
+            Loads the pipeline results to the database.
+            We assume that the pipeline was already executed, and that the
 
-            Parameters
-            ----------
-            projectName : str
-                    The project name to load the data to.
+        Parameters
+        ----------
+        projectName : str
+                The project name to load the data to.
 
-            Returns
-            -------
+        Returns
+        -------
 
-            """
-            proj = Project(projectName=projectName)
+        """
+        if version < 3:
+            raise NotImplementedError(
+                "Loading the result of the pipeline to the project must take place in the conda-python 3+ environment")
 
-            for filterName, filterData in VTKpipelineJSON["pipelines"].items():
-                self._recurseNode(filterName=filterName, filterParameters=filterData['parameters'], path="",
-                                  project=proj)
+        proj = Project(projectName=projectName)
 
-        def _recurseNode(self, filterName, filterData, path, project):
+        for filterName, filterData in self.VTKpipelineJSON["pipelines"].items():
+            self._recurseNode(filterName=filterName, filterData=filterData, path="",project=proj)
 
-            """
-            This function is recursively passed on the pipeline tree from json file and loads the filters to the database.
+    def _recurseNode(self, filterName, filterData, path, project):
 
-            Parameter
-            ----------
+        """
+        This function is recursively passed on the pipeline tree from json file and loads the filters to the database.
 
-            Tree : a list of filters applied in the current tree before the current node
-            nodeName : the current filter node name from the pipeline
-            nodeData : the current filter node properties from the pipeline
-            metadata : the metadata from the json file
-            pipelines : the pipelines from the json file
-            path : path to the main directory
-            name : output folder/ hdf files string
-            projectName : projectName string
+        Parameter
+        ----------
+
+        Tree : a list of filters applied in the current tree before the current node
+        nodeName : the current filter node name from the pipeline
+        nodeData : the current filter node properties from the pipeline
+        metadata : the metadata from the json file
+        pipelines : the pipelines from the json file
+        path : path to the main directory
+        name : output folder/ hdf files string
+        projectName : projectName string
 
 
-            """
-            formatName = nodeData.get('write', None)
-            if (formatName is not None) and (formatName is not "None"):
+        """
+        formatName = filterData.get('write', None)
+        if (formatName is not None) and (formatName != "None"):
 
-                # Find the flow document.
-                flowDoc = proj.getSimulationsDocumet(resource=self._casePath)
-                if len(flowDoc) == 0:
-                    raise ValueError(
-                        "The simulation in path %s is not found!. Load it to the database first" % self._casePath)
+            # Find the flow document.
+            flowDoc = project.getSimulationsDocuments(resource=self._casePath)
+            if len(flowDoc) == 0:
+                raise ValueError(
+                    "The simulation in path %s is not found!. Load it to the database first" % self._casePath)
 
-                # Create the new description
-                filterDesc = dict(flowDow['desc'])
+            flowDoc = flowDoc[0]
+            # Create the new description
+            filterDesc = dict(flowDoc['desc'])
 
-                # check if it is already loaded.
-                docList = proj.getCacheDocuments(type=VTK_PIPELINE_FILTER,
-                                                 simulationName=filterDesc['simulationName'],
-                                                 groupName = filterDesc['groupName'],
-                                                 filterName = filterName)
+            simqry = {
+                workflowToolkit.DESC_SIMULATIONNAME : filterDesc['simulationName'],
+                workflowToolkit.DESC_GROUPNAME : filterDesc['groupName'],
+                "filterName" : filterName
+            }
 
-                if len(docList) ==0:
-                    filterDesc['filterName'] = filterName
-                    filterDesc['filterParameters'] = filterData['parameters']
-                    filterDesc['pipeline'] = self.VTKpipelineJSON
-                    filterDesc['filterPath'] = path
+            # check if it is already loaded.
+            docList = project.getCacheDocuments(type=VTK_PIPELINE_FILTER,**simqry)
 
-                    if formatName == "netcdf":
-                        resource = glob.glob(os.path.join(self._netcdfdir, "%s_*.nc" % filterName))
-                        currentdatatype = datatypes.NETCDF_XARRAY
-                    elif formatName == "parquet":
-                        resource = os.path.join(self._parquetdir, "%s.parquet" % filterName)
-                        currentdatatype = datatypes.PARQUET
-                    else:
-                        raise ValueError(
-                            "Format type %s unknown for filter %s. Must be 'netcdf' or 'parquet' (case sensitive!)" % (
-                            formatName, filterName))
+            if len(docList) ==0:
+                filterDesc['filterName'] = filterName
+                filterDesc['filterParameters'] = filterData.get('parameters',{})
+                filterDesc['pipeline'] = self.VTKpipelineJSON
+                filterDesc['filterPath'] = path
 
-                    proj.addCacheDocument(projectName=projectName,
-                                               desc=filterDesc,
-                                               type=VTK_PIPELINE_FILTER,
-                                               resource=resource,
-                                               dataFormat = currentdatatype)
+                if formatName == "netcdf":
+                    resource = glob.glob(os.path.join(self._netcdfdir, "%s_*.nc" % filterName))
+                    currentdatatype = datatypes.NETCDF_XARRAY
+                elif formatName == "parquet":
+                    resource = os.path.join(self._parquetdir, "%s.parquet" % filterName)
+                    currentdatatype = datatypes.PARQUET
                 else:
-                    print("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
+                    raise ValueError(
+                        "Format type %s unknown for filter %s. Must be 'netcdf' or 'parquet' (case sensitive!)" % (
+                        formatName, filterName))
 
-            # processing the
-            ds = nodeData.get("downstream", {})
-            for filterName, filterData in ds.items():
-                path += "." + filterName
-                self._recurseNode(filterName=filterName, filterData=filterData, path=path,
-                                  project=proj)
+                project.addCacheDocument(desc=filterDesc,type=VTK_PIPELINE_FILTER,resource=resource,dataFormat = currentdatatype)
+            else:
+                print("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
+
+        # processing the
+        ds = filterData.get("downstream", {})
+        for filterName, filterData in ds.items():
+            path += "." + filterName
+            self._recurseNode(filterName=filterName, filterData=filterData, path=path,project=project)
