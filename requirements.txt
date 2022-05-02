@@ -1,1 +1,2 @@
 setuptools==49.6.0
+numpy==1.21.5
