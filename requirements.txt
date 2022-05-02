@@ -12,3 +12,4 @@ shapely==1.7.1
 scipy==1.6.0
 gdal==3.0.4
 unum==4.1.4
+vtk==8.2.0
