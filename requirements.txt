@@ -8,3 +8,4 @@ geopandas==0.8.2
 rasterio==1.2.6
 mongoengine==0.22.1
 seaborn==0.11.1
+shapely==1.7.1
