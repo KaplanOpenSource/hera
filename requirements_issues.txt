@@ -4,3 +4,4 @@ freecad==0.19.alpha2
 Mesh
 pyriskassessment
 evtk
+unicodedata
