@@ -5,3 +5,4 @@ Mesh
 pyriskassessment
 evtk
 unicodedata
+mpl_toolkits
