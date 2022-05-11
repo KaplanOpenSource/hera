@@ -20,7 +20,9 @@ Install from the requirements list:
 `pip install requirements.txt`
 
 
-Additional Installations: (need to see how to install them)
+Additional Installations: (not tested yet)
+
+`conda install --offline {path}`
 
 gdal-3.3.1-py36h77b1db5_3.tar.bz2
 
