@@ -19,6 +19,8 @@ Install from the requirements list:
 
 `pip install -r requirements.txt`
 
+Setup Hera
+python setup.py install
 
 Additional Installations: (not tested yet)
 
