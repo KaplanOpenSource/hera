@@ -17,7 +17,7 @@ Test if the pip is in the right path:
 
 Install from the requirements list:
 
-`pip install requirements.txt`
+`pip install -r requirements.txt`
 
 
 Additional Installations: (not tested yet)
