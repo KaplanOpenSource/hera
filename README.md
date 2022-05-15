@@ -31,3 +31,35 @@ gdal-3.3.1-py36h77b1db5_3.tar.bz2
 icu-68.1-h58526e2_0.tar.bz2
 
 nodejs-15.11.0-h92b4a50_0.tar.bz2
+
+Mongo DB Installation
+
+the installation should follow the standard installation:
+
+https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
+
+if installed in Ubuntu, the pacakged provided by Ubuntu must be uninstalled first
+
+1.First stop the MongoDB Process
+
+```sudo service mongod stop```
+
+2.Completely remove the installed MongoDB packages.
+
+```sudo apt-get purge mongodb-org*```
+
+3.Remove the data directories, MongoDB database(s), and log files.
+
+```sudo rm -r /var/log/mongodb /var/lib/mongodb```
+
+4.To verify that MongoDB has been successfully uninstalled, type the command below.
+
+```service mongod status```
+
+Afterwards Install MongoDB to the instructions in the link above.
+
+Need to add - How to setup MongoDB after installation.
+
+
+
+
