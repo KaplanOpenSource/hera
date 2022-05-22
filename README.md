@@ -1,9 +1,9 @@
 ## Hera
 
-## Introduction
+## 1. Introduction
 
-## Install
-### Installation of virtual environment
+## 2. Install
+### 2.1. Installation of virtual environment
 `python3 -m venv ./venv`
 
 activating the envrironment:
@@ -18,6 +18,10 @@ Test if the pip is in the right path:
 Install from the requirements list:
 
 `pip install -r requirements.txt`
+
+### 2.2. MiniConda installation
+
+To Be Added
 
 ### 2.3. Setup Hera
 
@@ -35,7 +39,7 @@ icu-68.1-h58526e2_0.tar.bz2
 
 nodejs-15.11.0-h92b4a50_0.tar.bz2
 
-Mongo DB Installation
+### 2.4. Mongo DB Installation
 
 the installation should follow the standard installation:
 
@@ -45,19 +49,19 @@ if installed in Ubuntu, the pacakged provided by Ubuntu must be uninstalled firs
 
 1.First stop the MongoDB Process
 
-```sudo service mongod stop```
+`sudo service mongod stop`
 
 2.Completely remove the installed MongoDB packages.
 
-```sudo apt-get purge mongodb-org*```
+`sudo apt-get purge mongodb-org*`
 
 3.Remove the data directories, MongoDB database(s), and log files.
 
-```sudo rm -r /var/log/mongodb /var/lib/mongodb```
+`sudo rm -r /var/log/mongodb /var/lib/mongodb`
 
 4.To verify that MongoDB has been successfully uninstalled, type the command below.
 
-```service mongod status```
+`service mongod status`
 
 Afterwards Install MongoDB to the instructions in the link above.
 
@@ -93,5 +97,9 @@ db.createUser(
   }
 )
 ```
+
+### 2.6. Setting up config.json
+
+!!! NEED TO SEE IN WHAT CONDITION CONFIG.JSON is CREATED
 
 
