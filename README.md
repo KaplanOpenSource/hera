@@ -19,8 +19,11 @@ Install from the requirements list:
 
 `pip install -r requirements.txt`
 
-Setup Hera
-python setup.py install
+### 2.3. Setup Hera
+
+`python setup.py install`
+
+Afterwards copy the folder into hera/venv/lib/python3.8/site-packages/
 
 Additional Installations: (not tested yet)
 
