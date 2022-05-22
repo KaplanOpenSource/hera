@@ -60,6 +60,35 @@ Afterwards Install MongoDB to the instructions in the link above.
 
 Need to add - How to setup MongoDB after installation.
 
+### 2.5. Setting up MongoDB Database
 
+Start mongo in the command line
+`mongosh`
+
+run the following command:
+
+!!!NEED to be tested in a clean environment
+
+```JavaScript
+use admin
+
+db.createUser(
+  {
+    user: "MathAdmin",
+    pwd: "MathAdmin",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" } , "readWriteAnyDatabase"]
+  }
+)
+
+use admin
+db.createUser(
+  {
+    user: "shai",
+    pwd:  "shai",   
+    roles: [ { role: "readWrite", db: "shai" } ]
+
+  }
+)
+```
 
 
