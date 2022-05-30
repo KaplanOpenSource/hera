@@ -65,7 +65,7 @@ the installation should follow the standard installation:
 
 https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
 
-if installed in Ubuntu, the pacakged provided by Ubuntu must be uninstalled first
+if installed in Ubuntu, the preinstalled pacakged in Ubuntu (clean installation) must be uninstalled first
 
 1.First stop the MongoDB Process
 
