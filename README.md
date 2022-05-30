@@ -120,7 +120,17 @@ db.createUser(
 
 ### 2.7. Setting up config.json
 
-!!! NEED TO SEE IN WHAT CONDITION CONFIG.JSON is CREATED
+The config file should be filled with similar parameters filled in the mongoDB database
+```JavaScript
+{
+    "shai": {
+        "dbIP": "127.0.0.1",
+        "dbName": "shai",
+        "password": "shai",
+        "username": "shai"
+    }
+}
+```
 
 ### 2.8. setting log folder
 creating log folder inside .pyhera
