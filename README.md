@@ -102,4 +102,5 @@ db.createUser(
 
 !!! NEED TO SEE IN WHAT CONDITION CONFIG.JSON is CREATED
 
-
+### 2.7. setting log folder
+creating log folder inside .pyhera
