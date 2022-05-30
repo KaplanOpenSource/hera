@@ -49,8 +49,6 @@ To Be Added
 
 `python setup.py install`
 
-Afterwards copy the folder into hera/venv/lib/python3.8/site-packages/
-
 Additional Installations: (not tested yet)
 
 `conda install --offline {path}`
