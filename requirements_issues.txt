@@ -6,3 +6,4 @@ pyriskassessment
 evtk
 unicodedata
 mpl_toolkits
+gdal==3.0.4
