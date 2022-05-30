@@ -49,6 +49,8 @@ To Be Added
 
 `python setup.py install`
 
+after installation the hera folder should be mvoed to `site-packages` within the venv
+
 Additional Installations: (not tested yet)
 
 `conda install --offline {path}`
