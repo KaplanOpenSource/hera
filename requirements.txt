@@ -18,3 +18,4 @@ pyfoam==2020.5
 jinja2==3.0.1
 netcdf4==1.5.5.1
 geojson==2.5.0
+fastparquet==0.8.1
