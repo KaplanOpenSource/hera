@@ -49,8 +49,6 @@ To Be Added
 
 `python setup.py install`
 
-after installation the hera folder should be mvoed to `site-packages` within the venv
-
 Additional Installations: (not tested yet)
 
 `conda install --offline {path}`
@@ -94,9 +92,9 @@ Need to add - How to setup MongoDB after installation.
 Start mongo in the command line
 `mongosh`
 
-run the following command:
+Create two databases and change the user name and password to anything in your preference
 
-!!!NEED to be tested in a clean environment
+Follow the the code bellow as an example.
 
 ```JavaScript
 use admin
