@@ -6,6 +6,10 @@
 ### 2.1. Installation of virtual environment
 `python3 -m venv ./venv`
 
+if the virtual environment package doesn't exist (on clean systems) run the following command to install it
+
+`apt install python3.8-venv`
+
 activating the envrironment:
 
 `source venv/bin/activate`
