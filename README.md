@@ -3,7 +3,7 @@
 ## 1. Introduction
 
 ## 2. Install
-### 2.1. Installation of virtual environment
+### 2.1. Installation of virtual environment and requirements
 `python3 -m venv ./venv`
 
 if the virtual environment package doesn't exist (on clean systems) run the following command to install it
