@@ -125,7 +125,7 @@ db.createUser(
 )
 ```
 
-### 2.7. Setting up config.json
+### 2.7. Setting up config.json (THIS FILE IS GENERATED AFTER RUNNING HERA ONCE)
 
 The config file should be filled with similar parameters filled in the mongoDB database
 ```JavaScript
