@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-## 2. Install
+## 2. Install on Ubuntu 20.04 system
 ### 2.1. Installation of virtual environment and requirements
 `python3 -m venv ./venv`
 
