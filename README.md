@@ -18,6 +18,13 @@ Test if the pip is in the right path:
 
 `which pip`
 
+Install Wheel
+
+`pip install wheel==0.37.1`
+
+Then run this command to setup the wheel
+
+`python setup.py bdist_wheel`
 
 Install from the requirements list:
 
