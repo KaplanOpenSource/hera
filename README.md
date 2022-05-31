@@ -30,29 +30,12 @@ Install from the requirements list:
 
 `pip install -r requirements.txt`
 
-### 2.2. Install GDAL
 
-if you are using a clean Ubuntu 20.4 version you shoudl run the following commands:
-
-Install python development tools:
-`apt-get install python3-dev`
-
-```
-sudo add-apt-repository ppa:ubuntugis/ppa && sudo apt-get update
-sudo apt-get update
-sudo apt-get install gdal-bin
-sudo apt-get install libgdal-dev
-export CPLUS_INCLUDE_PATH=/usr/include/gdal
-export C_INCLUDE_PATH=/usr/include/gdal
-pip install GDAL==3.0.4
-```
-
-
-### 2.3. MiniConda installation
+### 2.2. MiniConda installation
 
 To Be Added
 
-### 2.4. Setup Hera
+### 2.3. Setup Hera
 
 `python setup.py install`
 
@@ -66,7 +49,7 @@ icu-68.1-h58526e2_0.tar.bz2
 
 nodejs-15.11.0-h92b4a50_0.tar.bz2
 
-### 2.5. Mongo DB Installation
+### 2.4. Mongo DB Installation
 
 the installation should follow the standard installation:
 
@@ -94,7 +77,7 @@ Afterwards Install MongoDB to the instructions in the link above.
 
 Need to add - How to setup MongoDB after installation.
 
-### 2.6. Setting up MongoDB Database
+### 2.5. Setting up MongoDB Database
 
 Start mongo in the command line
 `mongosh`
@@ -125,7 +108,7 @@ db.createUser(
 )
 ```
 
-### 2.7. Setting up config.json (THIS FILE IS GENERATED AFTER RUNNING HERA ONCE)
+### 2.6. Setting up config.json (THIS FILE IS GENERATED AFTER RUNNING HERA ONCE)
 
 The config file should be filled with similar parameters filled in the mongoDB database
 ```JavaScript
@@ -139,5 +122,5 @@ The config file should be filled with similar parameters filled in the mongoDB d
 }
 ```
 
-### 2.8. setting log folder
+### 2.7. setting log folder
 creating log folder inside .pyhera
