@@ -55,44 +55,41 @@ Proceed with the python requirements installation:
 
 
 ### 2.4. Setup after installation 
+In order for the package to work the following steps are required.
 
+Create the following empty folders within the home folder
 
-### 2.5. Mongo DB setup
+`.pyhera/`
 
-the installation should follow the standard installation:
+`.pyhera/log/`
 
-https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
+Create the following json file within .pyhera folder
 
-if installed in Ubuntu, the preinstalled pacakged in Ubuntu (clean installation) must be uninstalled first
+`.pyhera/config.json`
 
-1.First stop the MongoDB Process
+```JavaScript
+{
+    "username": {
+        "dbIP": "{host}",
+        "dbName": "{database name}",
+        "password": "{password}",
+        "username": "{username}"
+    }
+}
+```
+TODO This shold be tested to see if any choice would work.
 
-`sudo service mongod stop`
+* username - should match the name of your user in the ubuntu system.
+* {host} - should be changed to the location of mongoDB, if ran locally it is typically "127.0.0.1"
+* {dbName} - name of database 
+* {password} - choose a password 
+* {username} - user name
 
-2.Completely remove the installed MongoDB packages.
+Afterwards save and exit.
 
-`sudo apt-get purge mongodb-org*`
+Startup mongoDB `mongosh`
 
-3.Remove the data directories, MongoDB database(s), and log files.
-
-`sudo rm -r /var/log/mongodb /var/lib/mongodb`
-
-4.To verify that MongoDB has been successfully uninstalled, type the command below.
-
-`service mongod status`
-
-Afterwards Install MongoDB to the instructions in the link above.
-
-Need to add - How to setup MongoDB after installation.
-
-### 2.6. Setting up MongoDB Database
-
-Start mongo in the command line
-`mongosh`
-
-Create two databases and change the user name and password to anything in your preference
-
-Follow the the code bellow as an example.
+Type in the following commands to enter both users:
 
 ```JavaScript
 use admin
@@ -108,27 +105,16 @@ db.createUser(
 use admin
 db.createUser(
   {
-    user: "shai",
-    pwd:  "shai",   
-    roles: [ { role: "readWrite", db: "shai" } ]
+    user: "{username}",
+    pwd:  "{password}",   
+    roles: [ { role: "readWrite", db: "{dbName}" } ]
 
   }
 )
 ```
+TODO: TEST/ASK if both configurations are necessary
+* {username} - should be replaced with the same username written in config.json (above)
+* {password} - should be replaced with the same password written in config.json (above)
+* {dbName} - should be replaced with the same dbName written in config.json (above)
 
-### 2.7. Setting up config.json (THIS FILE IS GENERATED AFTER RUNNING HERA ONCE)
-
-The config file should be filled with similar parameters filled in the mongoDB database
-```JavaScript
-{
-    "shai": {
-        "dbIP": "127.0.0.1",
-        "dbName": "shai",
-        "password": "shai",
-        "username": "shai"
-    }
-}
-```
-
-### 2.8. setting log folder
-creating log folder inside .pyhera
+Exit mongosh
