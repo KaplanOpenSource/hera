@@ -2,54 +2,61 @@
 
 ## 1. Introduction
 
-## 2. Install on Ubuntu 20.04 system
-### 2.1. Installation of virtual environment and requirements
-`python3 -m venv ./venv`
+## 2. Getting started
 
-if the virtual environment package doesn't exist (on clean systems) run the following command to install it
+### 2.1. Prerequisites
 
-`apt install python3.8-venv`
+1. Linux OS (currently checked: Ubuntu 20.04)
 
-activating the envrironment:
+2. python 3.8 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
 
-`source venv/bin/activate`
+3. MongoDB version 5.0 - [Download & follow instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/), and make sure it's running on the default port (27017).
 
-Test if the pip is in the right path:
 
-`which pip`
+### 2.2. Installation method
+### User Level:
+Proceed to the installation section.
 
-Install Wheel
+### Virtual Environment:
+Setup a virtual environment within hera folder and activate it and proceed to the  installation section.
 
-`pip install wheel==0.37.1`
+### 2.3. Installation
 
-Then run this command to setup the wheel
+### The minimum requirements for running Hera include:
 
-`python setup.py bdist_wheel`
+```python
+wheel
+setuptools
+numpy
+matplotlib
+pandas
+dask[dataframe]
+xarray
+geopandas
+rasterio
+mongoengine
+seaborn
+shapely
+scipy
+unum
+vtk
+pyfoam
+jinja2
+netcdf4
+geojson
+fastparquet
+descartes
+```
 
-Install from the requirements list:
+Proceed with the python requirements installation:
 
 `pip install -r requirements.txt`
 
 
-### 2.2. MiniConda installation
+### 2.4. Setup after installation 
 
-To Be Added
 
-### 2.3. Setup Hera
-
-`python setup.py install`
-
-Additional Installations: (not tested yet)
-
-`conda install --offline {path}`
-
-gdal-3.3.1-py36h77b1db5_3.tar.bz2
-
-icu-68.1-h58526e2_0.tar.bz2
-
-nodejs-15.11.0-h92b4a50_0.tar.bz2
-
-### 2.4. Mongo DB Installation
+### 2.5. Mongo DB setup
 
 the installation should follow the standard installation:
 
@@ -77,7 +84,7 @@ Afterwards Install MongoDB to the instructions in the link above.
 
 Need to add - How to setup MongoDB after installation.
 
-### 2.5. Setting up MongoDB Database
+### 2.6. Setting up MongoDB Database
 
 Start mongo in the command line
 `mongosh`
@@ -108,7 +115,7 @@ db.createUser(
 )
 ```
 
-### 2.6. Setting up config.json (THIS FILE IS GENERATED AFTER RUNNING HERA ONCE)
+### 2.7. Setting up config.json (THIS FILE IS GENERATED AFTER RUNNING HERA ONCE)
 
 The config file should be filled with similar parameters filled in the mongoDB database
 ```JavaScript
@@ -122,5 +129,5 @@ The config file should be filled with similar parameters filled in the mongoDB d
 }
 ```
 
-### 2.7. setting log folder
+### 2.8. setting log folder
 creating log folder inside .pyhera
