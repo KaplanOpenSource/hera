@@ -8,9 +8,11 @@
 
 1. Linux OS (currently checked: Ubuntu 20.04)
 
-2. python 3.8 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
+2. Python 3.8 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
 
-3. MongoDB version 5.0 - [Download & follow instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/), and make sure it's running on the default port (27017).
+3. pip 22.1.2 - [follow instructions](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#debian-ubuntu)
+
+4. MongoDB version 5.0 - [Download & follow instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/), and make sure it's running on the default port (27017).
 
 
 ### 2.2. Installation method
@@ -25,7 +27,6 @@ Setup a virtual environment within hera folder and activate it and proceed to th
 ### The minimum requirements for running Hera include:
 
 ```python
-testresources
 setuptools
 numpy
 matplotlib
