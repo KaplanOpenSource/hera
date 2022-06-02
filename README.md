@@ -25,7 +25,7 @@ Setup a virtual environment within hera folder and activate it and proceed to th
 ### The minimum requirements for running Hera include:
 
 ```python
-wheel
+testresources
 setuptools
 numpy
 matplotlib
