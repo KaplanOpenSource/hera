@@ -78,6 +78,26 @@ class TestAddingDataParquet(unittest.TestCase):
         return result_val
 
 
+    def insert_retrieve_dataframe(self,testID,projectName,dataset):
+        warnings.simplefilter("ignore", ResourceWarning)
+
+        # Get working direcotry
+        workingdir = os.getcwd()
+        datasetFile = os.path.join(workingdir,f"{projectName}_{testID}.parquet")
+
+        # Exporting to parquet
+        dataset.to_parquet(datasetFile,engine='fastparquet',compression='GZIP')
+        datalayer.Measurements.addDocument(projectName=projectName,
+                                type="Distribution",
+                                dataFormat=datalayer.datatypes.PARQUET,
+                                resource=datasetFile,
+                                desc=dict(test_id = testID))
+
+        # Retrieving data
+        result = datalayer.Measurements.getDocuments(projectName=projectName,test_id=testID)
+        dataset_read = pandas.read_parquet(result[len(result)-1].resource)
+        return dataset_read
+
     # def test_query_count(self):
     #     # The exact assertion should return 2, for the nubmer of returnred queries
     #     returnedItems = self.run_test_queries(0,'test_1')
