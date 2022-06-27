@@ -131,5 +131,19 @@ class TestAddingDataParquet(unittest.TestCase):
         result = self.insert_retrieve('test_close_values','unittest_parquet',number_close)
         self.assertAlmostEqual(number, result,5,'Number not almost equal')
 
+    def test_return_eqaul_lines(self):
+        """
+        The assertion should return a number rows of retrieved dataset, should be equal to inserted dataset number of rows
+        """
+
+        # Random number of rows
+        r = numpy.random.randint(2,10)
+
+        # Random List to populate rows
+        random_list = numpy.random.random(r)
+
+        df = pandas.DataFrame({'random_list':random_list})
+        result = self.insert_retrieve_dataframe('test_eqaul_lines','unittest_parquet',df)
+        self.assertEqual(r, len(result),'Number of rows not eqaul')
 if __name__ =='__main__':
     unittest.main(warnings='ignore')
