@@ -237,5 +237,21 @@ class TestDatalayerParquet(unittest.TestCase):
         self.assertEqual(overwrite_value,result_after_overwrite.loc[overwrite_index,'x'],'Value after overwrite not equal')
 
 
+    def test_update_metadata_and_retrieve(self):
+        """
+        The test modfies the metadata, afterwords the test reads the path to the parquet, the test will be successfull
+        if the read path returns same value after metadata was modified and queried correctly based on path value to parquet file
+        """
+        number = numpy.random.randint(0,10000)
+        self.insert_retrieve('test_update_metadata_1','unittest_parquet',number)
+        item_to_update = datalayer.Measurements.getDocuments(projectName='unittest_parquet',test_id='test_update_metadata_1')[0]
+        item_to_update.desc['test_id'] = "test_update_metadata_2"
+        item_to_update.save()
+        
+        result = datalayer.Measurements.getDocuments(projectName='unittest_parquet',test_id='test_update_metadata_2')
+        dataset_read = pandas.read_parquet(result[0].resource)
+        result_val = dataset_read.loc[0,'x']
+        self.assertEqual(number,result_val,'Return number not equal to given number after metadata update')
+
 if __name__ =='__main__':
     unittest.main(warnings='ignore')
