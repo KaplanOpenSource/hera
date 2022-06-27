@@ -146,7 +146,7 @@ class TestDatalayerParquet(unittest.TestCase):
         """
         The assertion should return True if the value is negative
         """
-        number = numpy.random.randint(-1, -1000000)
+        number = numpy.random.randint(-1000000, -1)
         result = self.insert_retrieve('test_negative_values','unittest_parquet',number)
         self.assertLess(result,0,'Number not negative')
 
