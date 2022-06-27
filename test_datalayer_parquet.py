@@ -93,7 +93,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
         # Retrieving data
         result = datalayer.Measurements.getDocuments(projectName=projectName,test_id=testID)
-        dataset_read = pandas.read_parquet(result[len(result)-1].resource)
+        dataset_read = pandas.read_parquet(result[0].resource)
         return dataset_read
 
     def overwrite_parquet(self,testID,projectName,newDataset):
@@ -102,7 +102,7 @@ class TestDatalayerParquet(unittest.TestCase):
         """
         warnings.simplefilter("ignore", ResourceWarning)
         to_update = datalayer.Measurements.getDocuments(projectName=projectName,test_id=testID)
-        datasetFille =to_update[len(to_update)-1].resource
+        datasetFille =to_update[0].resource
         newDataset.to_parquet(datasetFille,engine='fastparquet',compression='GZIP')
         
         # Retrieving data
