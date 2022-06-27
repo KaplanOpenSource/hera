@@ -8,7 +8,7 @@ from hera import datalayer
 import unittest
 import warnings
 
-class TestAddingDataParquet(unittest.TestCase):
+class TestDatalayerParquet(unittest.TestCase):
     
     def run_test_queries(self,y,projectName):
         # logging.getLogger(__name__).disabled = True
