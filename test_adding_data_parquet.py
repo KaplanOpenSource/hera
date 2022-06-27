@@ -145,5 +145,26 @@ class TestAddingDataParquet(unittest.TestCase):
         df = pandas.DataFrame({'random_list':random_list})
         result = self.insert_retrieve_dataframe('test_eqaul_lines','unittest_parquet',df)
         self.assertEqual(r, len(result),'Number of rows not eqaul')
+
+
+    def test_return_eqaul_columns(self):
+        """
+        The assertion should areturn a number columns in retrieved dataset, should be equal to inserted dataset number of columns
+        """
+
+        # Random number of rows and columns
+        r,c = numpy.random.randint(2,10,size=2)
+
+        # Random array for dataset
+        random_array = numpy.random.random([r,c])
+
+        # Creating Dataset
+        df = pandas.DataFrame(data = random_array,  columns = [str(i) for i in range(c)])
+
+        # Inserting and retrieving
+        result = self.insert_retrieve_dataframe('test_eqaul_columns','unittest_parquet',df)
+
+        self.assertEqual(c,len(result.columns),'Number of rows not eqaul')
+
 if __name__ =='__main__':
     unittest.main(warnings='ignore')
