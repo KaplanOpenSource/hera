@@ -96,6 +96,19 @@ class TestDatalayerParquet(unittest.TestCase):
         dataset_read = pandas.read_parquet(result[len(result)-1].resource)
         return dataset_read
 
+    def overwrite_parquet(self,testID,projectName,newDataset):
+        """
+        function retreives location of dataset via datalayer and overwrites existing value, with a new dataset and returns the new read parquet file
+        """
+        warnings.simplefilter("ignore", ResourceWarning)
+        to_update = datalayer.Measurements.getDocuments(projectName=projectName,test_id=testID)
+        datasetFille =to_update[len(to_update)-1].resource
+        newDataset.to_parquet(datasetFille,engine='fastparquet',compression='GZIP')
+        
+        # Retrieving data
+        dataset_read = pandas.read_parquet(datasetFille)
+        return dataset_read
+
     # def test_query_count(self):
     #     # The exact assertion should return 2, for the nubmer of returnred queries
     #     returnedItems = self.run_test_queries(0,'test_1')
@@ -190,6 +203,21 @@ class TestDatalayerParquet(unittest.TestCase):
         result = self.insert_retrieve_dataframe('test_random_value_in_df','unittest_parquet',df)
 
         self.assertEqual(random_value, result.loc[r1,str(c1)],'Random value not eqaul')
+    
+    def test_insert_value_overwrite_and_retrieve(self):
+        """
+        The assertion will be true if a dataset is stored in parquet and metadata,
+        aftewords the dataset and metadata are overwritten and retrieved the expected updated value
+        """
+        overwrite_value = 11
+        overwrite_index = 2
+        df = pandas.DataFrame({'x':[0,1,2,3,4]})
+        #inserting dataframe
+        result = self.insert_retrieve_dataframe('test_overwrite_value_in_df','unittest_parquet',df)
+        result.loc[overwrite_index,'x'] = overwrite_value
+        result_after_overwrite = self.overwrite_parquet('test_overwrite_value_in_df','unittest_parquet',result)
+        
+        self.assertEqual(overwrite_value,result_after_overwrite.loc[overwrite_index,'x'],'Value after overwrite not equal')
 
 
 if __name__ =='__main__':
