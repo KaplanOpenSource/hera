@@ -166,5 +166,33 @@ class TestAddingDataParquet(unittest.TestCase):
 
         self.assertEqual(c,len(result.columns),'Number of rows not eqaul')
 
+    
+    def test_return_random_row_column_value(self):
+        """
+        The assertion should areturn a value from a random row and column in retrieved dataset, value should be equal to inserted dataset at same location
+        """
+
+        # Random number of rows and columns
+        r,c = numpy.random.randint(2,10,size=2)
+
+        # Random row and column to extract tested value
+        r1 = numpy.random.randint(r)
+        c1 = numpy.random.randint(c)
+
+        # Random List for dataset
+        random_array = numpy.random.random([r,c])
+
+        # Creating Dataset
+        df = pandas.DataFrame(data = random_array, columns = [str(i) for i in range(c)])
+        
+        # Sample value
+        random_value = df.loc[r1,str(c1)]
+
+        # Inserting and retrieving
+        result = self.insert_retrieve_dataframe('test_random_value_in_df','unittest_parquet',df)
+
+        self.assertEqual(random_value, result.loc[r1,str(c1)],'Random value not eqaul')
+
+
 if __name__ =='__main__':
     unittest.main(warnings='ignore')
