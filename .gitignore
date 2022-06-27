@@ -9,3 +9,11 @@ __pycache__
 build 
 dist
 pyhera.egg-info/
+venv
+dataset*
+log_file.txt
+*.parquet
+test.ipynb
+test.py
+settings.json
+launch.json
