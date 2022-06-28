@@ -47,7 +47,6 @@ class TestDatalayerParquet(unittest.TestCase):
                                         resource=dataset3File,
                                         desc=dict(loc=0.5,scale=0.5))
         
-        # print(projectName)
 
         List1 = datalayer.Measurements.getDocuments(projectName=projectName,loc=y)
         return len(List1)
@@ -59,7 +58,6 @@ class TestDatalayerParquet(unittest.TestCase):
         dataset = pandas.DataFrame(dict(x=[x]))
 
         workingdir = os.getcwd()
-        # print(f"The current file directory is {workingdir}")
 
         datasetFile = os.path.join(workingdir,f"{projectName}_{testID}.parquet")
 
@@ -115,11 +113,10 @@ class TestDatalayerParquet(unittest.TestCase):
     #     self.assertEqual(returnedItems,2)
     
     def setUp(self):
-        print('setUp')
-        datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')     
+                datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')     
 
     def tearDown(self):
-        print('tearDown')
+
         datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')
         # Get working direcotry
         workingdir = os.getcwd()
