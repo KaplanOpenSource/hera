@@ -113,12 +113,10 @@ class TestDatalayerParquet(unittest.TestCase):
     #     self.assertEqual(returnedItems,2)
     
     def setUp(self):
-                datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')     
-
-    def tearDown(self):
-
-        datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')
-        # Get working direcotry
+        # Delete previous Tests
+        datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')     
+        
+        # Delete previous .parquet files
         workingdir = os.getcwd()
         files = os.listdir(workingdir)
         files = [file for file in files if ".parquet" in file]
@@ -126,6 +124,11 @@ class TestDatalayerParquet(unittest.TestCase):
             if file.split('.')[1]=='parquet':
                 os.remove(os.path.join(workingdir,file))
     
+
+    # def tearDown(self):
+
+    #     datalayer.Measurements.deleteDocuments(projectName='unittest_parquet')
+    #     # Get working direcotry
 
 
 
