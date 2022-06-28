@@ -134,7 +134,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
     def test_equal_returned_values(self):
         """
-        Generates a random number and returns if the number from dataset is the same
+        Generates a random number and returns True if the retrieved number from dataset is the same
         """
         number = numpy.random.randint(0,10000)
         result = self.insert_retrieve('test_exact_value','unittest_parquet',number)
@@ -144,7 +144,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
     def test_negative_nubmers(self):
         """
-        The assertion should return True if the value is negative
+        Generates a negative number returns True if the retrieved number from the dataset is also negative
         """
         number = numpy.random.randint(-1000000, -1)
         result = self.insert_retrieve('test_negative_values','unittest_parquet',number)
@@ -152,7 +152,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
     def test_almost_equal(self):
         """
-        The assertion should return a number close to the generated number
+        Generates two numbers with a small difference between them, returns True if the retrieved number is almost equal up to a threshold
         """
         number = numpy.random.uniform(0.1, 1000000)
         number_close = number- 0.000001
@@ -161,7 +161,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
     def test_return_eqaul_lines(self):
         """
-        The assertion should return a number rows of retrieved dataset, should be equal to inserted dataset number of rows
+        Generates a one column dataframe, returns True if the number of rows from retrieved dataframe is equal to inserted
         """
 
         # Random number of rows
@@ -177,7 +177,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
     def test_return_eqaul_columns(self):
         """
-        The assertion should areturn a number columns in retrieved dataset, should be equal to inserted dataset number of columns
+        Generates a two dimentional dataframe with random number of columns anr rows, returns True if the number of columns from retrieved dataframe is equal to inserted
         """
 
         # Random number of rows and columns
@@ -197,7 +197,7 @@ class TestDatalayerParquet(unittest.TestCase):
     
     def test_return_random_row_column_value(self):
         """
-        The assertion should areturn a value from a random row and column in retrieved dataset, value should be equal to inserted dataset at same location
+        Generates a two dimentional dataframe and selects a value from a random row and clumn, returns True, if value from retrieved dataframe with same row and column selected is the same
         """
 
         # Random number of rows and columns
@@ -223,8 +223,8 @@ class TestDatalayerParquet(unittest.TestCase):
     
     def test_insert_value_overwrite_and_retrieve(self):
         """
-        The assertion will be true if a dataset is stored in parquet and metadata,
-        aftewords the dataset and metadata are overwritten and retrieved the expected updated value
+        The test will insert a dataframe, retrieve it and overwrite it with a different dataframe
+        The test will return True if the overwritten retrieved dataframe slected value is the same as expected value
         """
         overwrite_value = 11
         overwrite_index = 2
@@ -239,7 +239,7 @@ class TestDatalayerParquet(unittest.TestCase):
 
     def test_update_metadata_and_retrieve(self):
         """
-        The test modfies the metadata, afterwords the test reads the path to the parquet, the test will be successfull
+        The test modfies the metadata, afterwords the test reads the path to the parquet, the test will return True
         if the read path returns same value after metadata was modified and queried correctly based on path value to parquet file
         """
         number = numpy.random.randint(0,10000)
