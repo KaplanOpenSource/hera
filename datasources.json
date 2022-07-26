@@ -1,0 +1,46 @@
+{
+  "general" : {
+    "baseDirectory" : "Data"
+  },
+  "dataType" : {
+    "GIS_Buildings" : {
+      "BNTL"      : {
+        "resource": "GIS_Data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/BUILDINGS/BLDG.shp",
+        "dataFormat": "geopandas",
+        "desc" : {}
+      }
+    },
+    "GIS_Topography" : {
+      "BNTL"      : {
+        "resource": "GIS_Data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/RELIEF/CONTOUR.shp",
+        "dataFormat": "geopandas",
+        "desc" : {}
+      },
+      "SRTM"      : {
+        "resource": "GIS_Data/SRTM/Israel30m.tif",
+        "dataFormat": "tif",
+        "desc" : {
+          "Bounds": [34.304583333361734,29.56402777777374,35.96347222225084,33.33069444444091]
+        }
+      },
+      "USGS"      : {
+        "resource": "GIS_Data/height",
+        "dataFormat": "string",
+        "desc" : {}
+      }
+    },
+    "GIS_Demography" : {
+      "lamas"    : {
+        "resource": "GIS_Data/demography/population_lamas.shp",
+        "dataFormat": "geopandas",
+        "desc" : {}
+      }
+    }
+
+
+
+  }
+
+
+
+}
