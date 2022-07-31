@@ -535,18 +535,36 @@ class Workflow_Flow(abstractWorkflow):
     def blockMeshHandler_objFile(self, configuration,overwrite=False):
         """
             Creates the vertices in the the blockMesh, and updates the workflow using the
-            bounds of the obj file.
+            bounds of the obj file. However, if the 'domainbounds' key exists, then replace the
+            domain value by the input.
+
             The location of the region was taken from the region that was defined in the configuration.
             Currently, we only support box-like blockMesh domains.
 
             Does not change the boundaries or makes the mesh cyclic.
 
-            Note that the obj file is given in millimeters and it is converted to meters.
+            Note that the obj file is assumed to be given in millimeters and it is converted to meters.
+            Therefore, we divide by 1000.
+
+
 
         Parameters
         ----------
         configuration : dict
             The configuration data.
+
+            A dict with the strucutre:
+            'mesh': {
+                <other nodes>
+                'blockmesh' : {
+                    "type": "objFile",
+                    "fileName": "buildings.obj",
+                    "absoluteDomainBounds" : {    <- optional
+                            [coordinate ] : 10000
+                    }
+                }
+            }
+                where [coordinate] is 'XMin','XMax','YMin','YMax','ZMin','ZMax'
 
 
         Returns
@@ -555,6 +573,10 @@ class Workflow_Flow(abstractWorkflow):
         """
         fileName = configuration['mesh']['blockMesh']['fileName']
         corners = getObjFileBoundaries(fileName)
+
+        # check if the user supplied corners explicitly
+        determinedCorners =  configuration['mesh']['blockMesh'].get("absoluteDomainBounds",{})
+        corners.update(determinedCorners)
 
         Xlist = [corners['XMin'],corners['XMax'],corners['XMax'],corners['XMin']]
         Ylist = [corners['YMin'], corners['YMin'], corners['YMax'], corners['YMax']]
