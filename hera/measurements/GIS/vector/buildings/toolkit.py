@@ -6,6 +6,8 @@ from hera.measurements.GIS.vector.buildings.analysis import analysis
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.datalayer import datatypes
 import geopandas
+import matplotlib.pyplot as plt
+
 
 class BuildingsToolkit(toolkit.VectorToolkit):
     """
@@ -246,16 +248,20 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
 
 if __name__ == "__main__":
-
-    bt = BuildingsToolkit('test4',FilesDirectory ='/home/hadas/Hadas_S/temp/')
-    bt.addRegion([177933,663923,187933,673923], 'new9',crs = 2039)
-    reg =[177933,663923,187933,673923]
+    fig, ax = plt.subplots()
+    bt = BuildingsToolkit('kaplan',filesDirectory ='/home/hadas/Hadas_S/Kaplan/')
+    reg = [177933, 663923, 178933, 664423]
+    # reg = bt.cutRegionFromSource(reg, 'BNTL', True)
+    # reg.to_file('/home/hadas/Hadas_S/Kaplan/BNTL.shp')
+    reg.plot(ax=ax)
+    bt.addRegion(reg, 'buildings',crs = 2039)
+    # reg =[177933,663923,178933,664923]
     # lis = vt.getRegionNameList()
     #reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
-    #data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
-    #lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
-    lm = bt._analysis.LambdaFromDatasource(270, 200, 'test', exteriorBlockNameOrData=reg, crs=2039)
-    p=1
+    data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
+    lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
+    # lm = bt._analysis.LambdaFromDatasource(270, 200, 'test', exteriorBlockNameOrData=reg, crs=2039)
+    # p=1
 
 # newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch3180')
 # newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 19.86), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
