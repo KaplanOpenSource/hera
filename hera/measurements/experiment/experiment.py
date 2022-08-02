@@ -20,8 +20,9 @@ class experimentToolKit(toolkit.abstractToolkit):
 
     DOCTYPE_ENTITIES = 'EntitiesData'
 
-    FILE = 'file'
-    WEB = 'web'
+    _experimentDataType = None
+    _experimentSetupSource = None
+    _configuration = None
 
     @property
     def trialSet(self):
@@ -223,6 +224,11 @@ class experimentToolKit(toolkit.abstractToolkit):
 
     def getExperiment(self,experimentName, experimentSetupSource = None, experimentDataType = EXPERIMENTDATALAYER_HERA, configuration = None):
         """
+        get the experiment data source.
+        get the experiemt path from data source
+        add it to the python path (sys.path.append)
+        get the handler class name
+        get the handler with pydoc.
 
         Parameters
         ----------
@@ -243,38 +249,32 @@ class experimentToolKit(toolkit.abstractToolkit):
         if experimentDataType not in [EXPERIMENTDATALAYER_HERA,EXPERIMENTDATALAYER_DB]:
             raise ValueError(f"experimentData type must be EXPERIMENTDATALAYER_HERA ({EXPERIMENTDATALAYER_HERA}) or EXPERIMENTDATALAYER_DB ({EXPERIMENTDATALAYER_DB})")
 
-
+        self._experimentDataType = experimentDataType
 
         L = self.getDatasourceDocument(datasourceName=experimentName)
         if L:
             path=L.desc['handlerPath']
             sys.path.append(path)
 
-            if path.exists(path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'):
-                experimentSetupSource = path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'
+            if  os.path.isfile(path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'):
+                self._experimentSetupSource = path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'
             else:
-                raise ValueError(f" The experiment setup file doesn't
+                raise ValueError(f" The experiment setup file doesn't exist in the target folder")
 
-            if configuration == None:
-                configuration = path + CONFIGURATION
+            if  os.path.isfile( path + CONFIGURATION):
+                self._configuration = path + CONFIGURATION
+            else:
+                raise ValueError(f" The configuration file doesn't exist in the target folder")
 
             toolkit=TOOLKIT_FILE +'.'+ L.desc['className'] #L.desc['handlerClass']
             toolkitCls=pydoc.locate(toolkit)
 
-            return toolkitCls(projctName = self.projectName,experimentSetup = experimentSetupSource,configuration = configuration,
-                              experimentDataType = experimentDataType)
+            return toolkitCls(self)
+        else:
+            raise ValueError(f"Please load first the experiment datasource to hera")
 
 
-        # get the experiment data source.
-        # get the experiemt path from data source
-        # add it to the python path (sys.path.append)
-        # get the handler class name
-        # get the handler with pydoc.
 
-        # if anything fails:
-        #       return the experimentDataLayer
-
-        # return experimentDataLayer(self.projectName, experimentName=experimentName)
 
     def keys(self):
         return [x for x in self.getExperimentsMap()]
@@ -298,11 +298,11 @@ class experimentToolKit(toolkit.abstractToolkit):
     def experimentDataType(self):
         return self._experimentDataType
 
-    def configuration(self):
-        return self._configuration
+    def getConfiguration(self):
+        return loadJSON(self._configuration)
 
-    def experimentSetup(self):
-        return self._experimentSetup
+    def getExperimentSetup(self):
+        return loadJSON(self._experimentSetupSource)
 
 
 
@@ -312,23 +312,22 @@ class experimentSetupWithData(argosDataObjects.Experiment):
     """
 
     def _initTrialSets(self):
-        for trialset in self._experimentSetup['trialSets']:
+        experimentSetup = self._toolkit.experimentSetup()
+        for trialset in experimentSetup['trialSets']:
             self._trialSetsDict[trialset['name']] = TrialSetWithData(experiment = self, TrialSetSetup=trialset,experimentData= self._experimentData)
 
     def _initEntitiesTypes(self):
-
-        for entityType in self._experimentSetup['entitiesTypes']:
+        experimentSetup = self._toolkit.experimentSetup()
+        for entityType in experimentSetup['entitiesTypes']:
             self._entitiesTypesDict[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
 
     def getExperimentData(self):
         return self._experimentData
 
     def __init__(self, toolkit): # The setup here is the dict already (choose the source in getExperiment)
-
-        self._experimentSetup = loadJSON(toolkit.experimentSetup())
+        self._toolkit = toolkit
         self._experimentData = None#dataEngine(toolkit,toolkit.experimentDataType())
-
-        super().__init__(self._experimentSetup)
+        super().__init__(toolkit.experimentSetup())
         #self.logger.info("Init experiment data")
 
 
