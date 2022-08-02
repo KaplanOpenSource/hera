@@ -30,27 +30,44 @@ class InjuryLevel(object):
 	def name(self): 
 		return self._name 
 
-	@property 
-	def calculator(self): 
-		return self._calculator
 
 	@property 
 	def units(self):
 		return self._units
 
-	def __init__(self,name,calculator,units=None,**parameters): 
+	def __init__(self,name,units=None,**parameters):
 		self._name = name
 		self._parameters = parameters
-		self._calculator = calculator
 		self._units = units
 
 
-	def calculate(self,concentrationField,field,time="datetime",x="x",y="y",sel={},isel={},breathingRate=10*L/min,**parameters): 
+	def calculateContours(self, toxicLoads, time="datetime", x="x", y="y"):
 		"""
-			Calculates the pandas with the fields: 
+			Calculates the contours of the current injury from the toxic loads.
+
+			Parameters
+			----------
+				toxicLoads : xarray.Dataset
+						The 2D map of the toxicloads in time.
+
+
+				time : str
+						The name of the time column
+
+				x : str
+						The name of the x column.
+
+				y : str
+						The name of the y column.
+
+
+
+			Return
+			-------
+			GeoPandas.GeoDataFrame with the fields:
 
 				time |  injury name | total polygon  | diff polygon 				| percentInjury
-           			     |   	    | the total area | a differance from the level above. 	| if necessary. 
+           			 |       	    | the total area | a differance from the level above. 	| if necessary.
 			
 	
 			The data returns in km because itm is in km. 
@@ -59,16 +76,16 @@ class InjuryLevel(object):
 		curBackend = plt.get_backend()	
 		plt.switch_backend("pdf")
 
-		valueField = self.calculator.calculate(concentrationField,field,breathingRate=breathingRate,time=time).sel(**sel).isel(**isel).compute()
-		if time in valueField.dims: 
-			if valueField[time].size == 1: 
-				timeList = [pandas.to_datetime(valueField[time].item())]
+
+		if time in toxicLoads.dims:
+			if toxicLoads[time].size == 1:
+				timeList = [pandas.to_datetime(toxicLoads[time].item())]
 				timesel  = False 
 			else: 
-				timeList = valueField[time]
+				timeList = toxicLoads[time]
 				timesel = True
-		elif hasattr(valueField,time): 
-			timeList = [pandas.to_datetime(getattr(valueField,time).item())]
+		elif hasattr(toxicLoads,time):
+			timeList = [pandas.to_datetime(getattr(toxicLoads,time).item())]
 			timesel  = False
 		else: 
 			timeList= [0] 
@@ -77,7 +94,7 @@ class InjuryLevel(object):
 		retList = []
 
 		for tt in timeList: 
-			concField = valueField.sel(**{time:tt}) if timesel else valueField
+			concField = toxicLoads.sel(**{time:tt}) if timesel else valueField
 
 			ret = self._getGeopandas(concField,x,y,**parameters)
 			if not ret.empty:
@@ -87,8 +104,8 @@ class InjuryLevel(object):
 
 				ret = ret.dissolve(by="Level").reset_index()
 
-				if "cloud_math_direction" in concentrationField.attrs: 
-					ret['contour'] = ret['contour'].rotate(-concentrationField.attrs["cloud_math_direction"],origin=(0,0))
+				if "cloud_math_direction" in toxicLoads.attrs:
+					ret['contour'] = ret['contour'].rotate(-toxicLoads.attrs["cloud_math_direction"], origin=(0, 0))
 
 				ret["severity"] = self.name
 				ret = ret.rename(columns={"Level" : "ToxicLoad","contour":"TotalPolygon",time : "datetime"}) 
@@ -100,19 +117,6 @@ class InjuryLevel(object):
 		plt.switch_backend(curBackend)
 		
 		return ret
-
-	def calculateRaw(self,concentrationField,field,time="datetime",x="x",y="y",sel={},isel={},breathingRate=10*L/min,**parameters): 
-		"""
-			Calculates Toxic load
-
-				time |  injury name | total polygon  | diff polygon 				| percentInjury
-           			 |   	    | the total area | a differance from the level above. 	| if necessary.
-			
-	
-			The data returns in km because itm is in km. 
-
-		"""
-		return self.calculator.calculate(concentrationField,field,breathingRate=breathingRate,time=time).sel(**sel).isel(**isel).compute()
 
 
 	def _getGeopandas(self,concentrationField,x,y,**parameters):
@@ -151,7 +155,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 	def sigma(self):
 		return self._parameters["sigma"]
 	
-	def __init__(self,name,calculator,**parameters): 
+	def __init__(self,name,**parameters):
 		"""
 			Initiates the injury level. 
 			
@@ -166,7 +170,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		if "sigma" not in parameters: 
 			raise ValueError("Must supply sigma (1/probit)") 
 
-		super(InjuryLevelLognormal10DoseResponse,self).__init__(name,calculator,**parameters) 
+		super(InjuryLevelLognormal10DoseResponse,self).__init__(name,**parameters)
 
 	def getPercent(self,ToxicLoad):
 		"""
@@ -245,7 +249,7 @@ class InjuryLevelThreshold(InjuryLevel):
 	def threshold(self): 
 		return self._parameters["threshold"]
 
-	def __init__(self,name,calculator,units=None,**parameters): 
+	def __init__(self,name,units=None,**parameters):
 
 		actualunit = mg/m**3 if units is None else units
 		if "threshold" not in parameters: 
@@ -255,7 +259,7 @@ class InjuryLevelThreshold(InjuryLevel):
 
 		parameters["threshold"] = thr if isinstance(thr,Unum) else tounit(eval(parameters["threshold"]),actualunit)
 
-		super(InjuryLevelThreshold,self).__init__(name,calculator,units=actualunit,**parameters)
+		super(InjuryLevelThreshold,self).__init__(name,units=actualunit,**parameters)
 
 	def getPercent(self,ToxicLoad):
 		threshold = self.threshold
@@ -289,12 +293,12 @@ class InjuryLevelExponential(InjuryLevel):
 	def k(self): 
 		return self._parameters["k"]
 
-	def __init__(self,name,calculator,**parameters): 
+	def __init__(self,name,**parameters):
 
 
 		parameters["k"] = float(parameters["k"])
 
-		super().__init__(name,calculator,**parameters)
+		super().__init__(name,**parameters)
 
 	def getPercent(self,ToxicLoad):
 		

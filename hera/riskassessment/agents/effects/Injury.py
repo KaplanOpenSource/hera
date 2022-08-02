@@ -63,7 +63,11 @@ class Injury(object):
 	_name = None
 	_levelsmap = None   # just a map of name->injury.
 	_levels = None 
-	_calculator = None 
+	_calculator = None
+
+	@property
+	def calculator(self):
+	    return self._calculator
 
 	@property 
 	def levels(self): 
@@ -71,7 +75,7 @@ class Injury(object):
 
 	@property
 	def levelNames(self): 
-		return [x.filterType for x in self._levels]
+		return [x.name for x in self._levels]
 
 	def __getitem__(self,name):
 		return self._levelsmap[name]
@@ -116,7 +120,7 @@ class Injury(object):
 			curindex = levelNames.index(lvl)
 			lvlparams["higher_severity"] = None if curindex == 0 else self.levels[curindex-1]
 
-			injry = injuryCLS(lvl, calculator=calculator, units=units, **lvlparams)
+			injry = injuryCLS(lvl, units=units, **lvlparams)
 			self._levels.append(injry)
 			self._levelsmap[lvl] = injry
 
@@ -135,62 +139,194 @@ class Injury(object):
 			val = self.levels[curindex].getPercent(ToxicLoad)  - self.levels[curindex-1].getPercent(ToxicLoad)
 		return val
 
-		
-
-	def _postCalculate(self,retList): 
+	def _postCalculate(self,retList,time):
 		"""
-			apply some post calculations on the results 
+			Apply some post calculations on the results.
+
+			The post calculation depends on the injury type, and therefore implemented in the inherited classes.
+
+			Parameters
+			----------
+				retList : list of pandas.
+						The values of the calculation in different levels.
+
+				time : str
+						The name of the time columns.
 			
+		"""
+		raise NotImplementedError("Abstract class")
+
+	def _postCalculatePointWise(self, retList):
+		"""
+			apply some post calculations on the results
+
 		"""
 		pass
 
-	def calculate(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*L/min,**parameters):
+	def calculate(self, concentrationField, field, time="datetime", x="x", y="y", breathingRate=10 * L / min,
+				  **parameters):
+		import warnings
+		warnings.warn("This function is obselete. Use calculateRegionOfInjured instead")
+		return self.calculateRegionOfInjured(concentrationField=concentrationField,
+											  field=field,
+											  time=time,
+											  x=x,
+											  y=y,
+											  breathingRate=breathingRate,
+											  **parameters)
+
+	def calculateRegionOfInjured(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*L/min,**parameters):
 		"""
-                        Calculates the number of people in the isopleths of the concentrationField. 
-                        The object itself determines which levels to draw. 
+			Calculates the fraction of the population that was effected in each point, and returns its contour.
+			The levels are determined by the injury type.
 
-                        :param: concentrationField: an xarray with the concentrations at each time. 
+			Parameters
+			----------
+			concentrationField:
+				an xarray with the concentrations at each time.
 
-                        :param: time: The time dimension. if None then don't look up for time (assume it is without time). 
-			:param: x: the x dimension. 
-			:param: y: the y dimension. 
-			:param: parameters: Additional parameters that are needed for the calculations. 
-			:param: breathingRate: The breathing rate used. The default is man at Rest. 
-                        :return 
-                                A pandas object with the columns: 
-                                time |  injury name | total polygon  | diff polygon                             |       addtional fields 
-                                     |              | the total area | a differance from the level above.       |       if necessary. 
+			time: str
+				The name time dimension. if None then don't look up for time (assume it is without time).
+
+			x:  str
+				The name x dimension.
+
+			y:  str
+				The name of the y dimension.
+
+			breathingRate:
+					The breathing rate used. The default is man at Rest.
+
+			parameters: kwargs
+					Additional parameters that are needed for the calculations.
+
+
+			Returns
+			--------
+
+            	A thresholdGeoDataFrame with the columns:
+
+				time |  injury name | total polygon  | diff polygon                             |       addtional fields
+					 |              | the total area | a differance from the level above.       |       if necessary.
 		"""
                 
 		retList = [] 
 
+		toxicLoads = self.calculateToxicLoads(concentrationField=concentrationField,
+											  time=time,
+											  breathingRate=breathingRate,
+											  field=field,
+											  **parameters).compute()
 		for lvl in self.levels:
-			data = lvl.calculate(concentrationField=concentrationField,
-					     field=field,
-					     time=time,
-					     x=x,
-					     y=y,
-					     breathingRate=breathingRate,
- 					     **parameters)
+			data = lvl.calculateContours(toxicLoads=toxicLoads,time=time,x=x,y=y)
 			if data is not None: 
 				retList.append(data)
 
 		ret = self._postCalculate(retList,time)
 		return thresholdGeoDataFrame(ret)
 
-	def calculateRaw(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*L/min,**parameters):
-		data = self.levels[0].calculateRaw(concentrationField=concentrationField,
-											field=field,
-											time=time,
-											x=x,
-											y=y,
-											breathingRate=breathingRate,
-											**parameters)
-		return data
+	def calculateToxicLoads(self,concentrationField,time="datetime",breathingRate=10*L/min,field=None):
+		"""
+			Calculates the toxic loads of the concetration field.
+
+			Paramters
+			---------
+					concentrationField : pandas or xarray.
+							The concentrations to calculate.
+
+							If xarray, then we assume that it is a 2D map with an additional 'time' coordinate.
+							If pandas, then we assume that it is a 'time' in the index and each other column is a point to calculate.
+
+					time : str
+							The name of the time column (or the name of the index column if it is pandas).
+
+					breathingRate: unum [L/min].
+							The breathing rate used. The default is man at Rest is 10L/min.
+
+					field : str
+							If xarray, the name of the field to use.
+							ignored if pandas
+
+		"""
+		return self.calculator.calculate(concentrationField, field, breathingRate=breathingRate, time=time)
 
 
-		
-	def calculateThresholdPolygon(self,data,time): 
+	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*L/min,field=None):
+		"""
+			Calculates the fraction of injury over time in each point.
+
+			Can be used with pandas.DataFrame or  xarray.Dataset [not implemented yet].
+
+			Parameters
+			----------
+
+				timeConcentration : pandas.DataFrame, or xarray.DataFrame.
+							Holds the concentration in time.
+
+							If xarray, also has a 'time' coordinate that will be calculated. [not implemented yet]
+
+							If DataFrame:
+								Each point is represeneted by a column, and the time is an index (with the name 'datetime').
+
+								So the structure of the input is :
+									  P1   P2   P3
+								time
+								00:00 0     0   0
+								00:01 0.1   0.1 0.01
+								00:02 0.4   0.1 0.01
+								00:05 0.5   0.1 0.01
+
+		    time  : str
+		    			The name of the time column (or the name of the index).
+
+		    breathingRate : unum, L/min
+		    			The breathing rate of the population.
+
+		    parameters: kwargs.
+		    			Additional parameter to the calculator (for example ten-berge coefficient).
+
+						selection parameters (xarray only):
+
+							sel - select according to the coordinates (see sel funcion of the xarray).
+							isel - select according to the coordinate index (see isel function of the xarray).
+
+		"""
+
+
+
+
+		# 2. For each injury level:
+		#      Create a dataframe with the fields:
+		#
+		#					P1        injury
+		#		datetime
+		#		  0  	[fraction]        level 1 name
+		#		  1  	[fraction]        level 1 name
+		#					...
+
+		if not isinstance(timeConcentration,pandas.DataFrame):
+			raise ValueError("Still not implemented....")
+
+		# 1. Calculate the toxic load for each point.
+		toxicLoads = self.calculateToxicLoads(concentrationField=timeConcentration,
+											  time=time,
+											  breathingRate=breathingRate,
+											  field=field)
+		retList = []
+		for lvl in self.levels:
+			data = pandas.DataFrame()
+
+			for device in toxicLoads:
+				prct = toxicLoads[device].apply(lambda x: self.getPercent(lvl.name,x))
+				data = prct.to_frame("injuryPercent").assign(deviceName=device,level=lvl.name)
+				if data is not None:
+					retList.append(data)
+
+		ret = pandas.concat(retList)
+		return ret
+
+
+	def calculateThresholdPolygon(self,data,time):
 		"""
 			Calculates the diff of the polygon based on the toxic load. 
 		"""
@@ -216,7 +352,7 @@ class Injury(object):
 	def toJSON(self):
 		ret = dict()
 		#ret['name']  = self._name
-		ret['levels'] = dict([(lvl.filterType, lvl.toJSON()) for lvl in self.levels])
+		ret['levels'] = dict([(lvl.name,lvl.toJSON()) for lvl in self.levels])
 		ret['calculator'] = self._calculator.toJSON()
 		return ret
 
@@ -224,10 +360,10 @@ class Injury(object):
 		json.dumps(self.toJSON(),indent=4)
 
 
+
+
 class InjuryLognormal10(Injury): 
-
-
-	def _postCalculate(self,retList,time): 
+	def _postCalculate(self,retList,time):
 		"""
                         Fill in the actual % that was effected. 
 
@@ -242,8 +378,7 @@ class InjuryLognormal10(Injury):
 
 
 class InjuryThreshold(Injury): 
-
-	def _postCalculate(self,retList,time): 
+	def _postCalculate(self,retList,time):
 		"""
                         Calculate the percent Effected and calculate the differential polygons. 
 		"""
@@ -257,8 +392,7 @@ class InjuryThreshold(Injury):
 
 
 class InjuryExponential(Injury):
-
-	def _postCalculate(self,retList,time): 
+	def _postCalculate(self,retList,time):
 		"""
                         Calculate the percent Effected and calculate the differential polygons. 
 		"""
