@@ -249,25 +249,20 @@ class experimentToolKit(toolkit.abstractToolkit):
         if L:
             path=L.desc['handlerPath']
             sys.path.append(path)
-            if experimentSetupSource == None:
+
+            if path.exists(path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'):
                 experimentSetupSource = path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'
+            else:
+                raise ValueError(f" The experiment setup file doesn't
+
             if configuration == None:
                 configuration = path + CONFIGURATION
+
             toolkit=TOOLKIT_FILE +'.'+ L.desc['className'] #L.desc['handlerClass']
             toolkitCls=pydoc.locate(toolkit)
+
             return toolkitCls(projctName = self.projectName,experimentSetup = experimentSetupSource,configuration = configuration,
                               experimentDataType = experimentDataType)
-
-        else:
-            self._experimentSetup = experimentSetupSource
-            self._configuration = configuration
-            self._experimentName = experimentName
-            self._experimentDataType = experimentDataType
-            return experimentSetupWithData(self)
-
-
-
-
 
 
         # get the experiment data source.
@@ -335,9 +330,6 @@ class experimentSetupWithData(argosDataObjects.Experiment):
 
         super().__init__(self._experimentSetup)
         #self.logger.info("Init experiment data")
-
-
-
 
 
     def getData(self):
