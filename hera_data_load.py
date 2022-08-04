@@ -33,8 +33,10 @@ def load(projectName, dataType, dataSourceName):
     if datasource is None:
         toolkit.addDataSource(dataSourceName=dataSourceName,**dataSourceDesc)
         print(f"Added source {dataSourceName} to tool {dataType} in project {projectName}")
+        return(f"Added source {dataSourceName} to tool {dataType} in project {projectName}")
     else:
         print(f"Source {dataSourceName} already exists in {projectName}")
+        return(f"Source {dataSourceName} already exists in {projectName}")
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
