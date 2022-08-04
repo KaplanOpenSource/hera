@@ -1,4 +1,4 @@
-__version__ = '2.4.1'
+__version__ = '2.5.1'
 
 import os
 import json
@@ -13,7 +13,11 @@ if version > 2:
     loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
+Issue#24: Handling domain size #25
+issue#28: Adding experimentSetupWithData class to the experiment modoule
+Issue#26: RiskAssessment - Enhancement - Adding point wise risk calculations
 
+2.5.1
  GIS_Buildings 
  --------------
     - Adding the i0,j0 index of the bloc to the lambda. 
