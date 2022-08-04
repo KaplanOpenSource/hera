@@ -68,3 +68,5 @@ if __name__ =="__main__":
 
     elif (args.subparser_name == 'load'):
         load(args.projectName, args.dataType, args.source)
+else:
+    pass
