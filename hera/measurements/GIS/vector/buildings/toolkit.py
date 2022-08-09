@@ -49,6 +49,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
         self._BuildingHeightColumn = "BLDG_HT"
         self._LandHeightColumns   = 'HT_LAND'
+        self.name   = projectName 
 
     @property
     def doctype(self):
