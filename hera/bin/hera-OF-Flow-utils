@@ -11,7 +11,7 @@ import json
 import os
 import pandas
 from hera.utils.jsonutils import loadJSON
-from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
+#from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
 from hera.simulations.openFoam import Workflow_Flow
 from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
 from itertools import product

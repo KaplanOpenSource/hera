@@ -39,7 +39,7 @@ class OFToolkit(abstractToolkit):
         """
         return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
-    def getHermesWorkflow(self,workflowfile):
+    def getHermesWorkflow_Flow(self,workflowfile):
         """
             Returns the workflow of the requested JSON file.
         Parameters
@@ -126,69 +126,3 @@ class OFToolkit(abstractToolkit):
         :return:
         """
         pass
-
-    def writeEmptyFieldFile(self,caseDirectory,time,fieldName,parallel=False,dimensions=None):
-        """
-            Writes an empty field file to the target case directory/time. If parallel, then write it in
-            every time directory.
-
-        Parameters
-        ----------
-        caseDirectory : str
-            The case directory
-        time  : str,int
-            The time to write to.
-
-        fieldName : str
-            The field name
-
-        parallel:  bool
-            If true, use parallel case. (write to every processor*/time directory)
-
-        dimensions : str
-            If None, take from the default of the field.
-
-        Returns
-        -------
-
-        """
-
-        fileStr = """
-/*--------------------------------*- C++ -*----------------------------------*\
-  =========                 |
-  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
-   \\    /   O peration     | Website:  https://openfoam.org
-    \\  /    A nd           | Version:  7
-     \\/     M anipulation  |
-\*---------------------------------------------------------------------------*/
-FoamFile
-{
-    version     2.0;
-    format      ascii;
-    class       volVectorField;
-    location    "0";
-    object      U;
-}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-dimensions      [ 0 1 -1 0 0 0 0 ];
-
-internalField   uniform {value};
-
-boundaryField
-{
-    "proc.*"
-    {
-        type            processor;
-    }
-
-}
-
-
-// ************************************************************************* //
-"""
-
-
-
-
-
