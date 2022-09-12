@@ -153,7 +153,6 @@ cleanCase
 
         self._workflowJSON[HERAMETADATA]['workflowType'] = value
 
-
 class Workflow_Flow(abstractWorkflow):
     """
         This class manages the hermes workflow of openFOAM that is designated to
