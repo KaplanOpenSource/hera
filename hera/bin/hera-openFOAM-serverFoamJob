@@ -229,8 +229,8 @@ then
     *OPENMPI)
         # add hostfile info
         for hostfile in \
-            hostfile \
-            machines \
+            serverHostfile \
+            serverMachines \
             system/hostfile \
             system/machines \
             ;
