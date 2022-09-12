@@ -11,7 +11,7 @@ import json
 import os
 import pandas
 from hera.utils.jsonutils import loadJSON
-#from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
+
 from hera.simulations.openFoam import Workflow_Flow
 from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
 from itertools import product
@@ -29,9 +29,15 @@ def createEmpty(args):
     os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
 
+    if os.path.exists(args.fieldData):
+        with open(args.fieldData) as infile:
+            fileaddition = json.load(infile)['fields']
+    else:
+        fileaddition = dict()
+
     # Makes the empty fields
     for fieldName in fieldList:
-        field = ofObjectHome().getField(fieldName)
+        field = ofObjectHome().getField(fieldName,simulationType=args.simulationType,additionalFields=fileaddition)
         field.write(caseDirectory=caseDir, location=0)
         field.emptyParallelField(caseDirectory=caseDir)
 
@@ -123,6 +129,7 @@ def windProfile(args):
     meshCells = of_tk.getMesh(caseDirectory)
 
     # 4. Calculate the Ux,Uy of each point in the mesh.
+    from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
     data = urbanLogNormalProfile(cellCenters=meshCells,lambdaGrid=lambdaBuildings,stations=wind)
     data = data.assign(Uz=0)
     # 5. Write in the constant/U0 file.
@@ -228,7 +235,8 @@ if __name__=="__main__":
                                     nargs='*',
                                     type=str,
                                     help='[list of field]')
-
+    parser_createEmpty.add_argument('--simulationType',nargs="?",choices=["compressible","incompressible","dispersion"],default='incompressible',const="incompressible",help="Is it a compressible simulation")
+    parser_createEmpty.add_argument('--fieldData', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
     parser_createEmpty.set_defaults(func=createEmpty)
 
     ########################################################

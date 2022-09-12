@@ -232,9 +232,9 @@ class OFworkflowToolkit(workflowToolkit):
                 fieldComponents = dispersionFields[dispersionFieldName].get("components", None)
                 self.logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
                 field = ofhome.getField(fieldName=dispersionFieldName,
-                                              fieldGroup=ofObjectHome.GROUP_DISPERSION,
-                                              dimensions=fieldDimensions,
-                                              componentNames=fieldComponents)
+                                        simulationType=ofObjectHome.GROUP_DISPERSION,
+                                        dimensions=fieldDimensions,
+                                        componentNames=fieldComponents)
 
                 for proc in glob.glob(os.path.join(orig, "processor*")):
                     procName = os.path.split(proc)[-1]
