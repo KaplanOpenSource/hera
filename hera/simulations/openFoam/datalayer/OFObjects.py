@@ -33,7 +33,11 @@ class ofObjectHome(loggedObject):
                                   k=dict(dimensions="[ 0 2 -2 0 0 0 0 ]", componentNames=None),
                                   )
 
-        compressibleDict = dict()
+        compressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
+                                p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
+
+
+        )
 
         dispersionDict = dict(Hmix=dict(dimensions=self.getDimensions(m=1), componentNames=None),
                               ustar=dict(dimensions=self.getDimensions(m=1,s=-1), componentNames=None),
@@ -803,7 +807,6 @@ class OFList(OFObject):
 #
 #
 #########################################################################
-
 def extractFieldFile(path, columnNames, **kwargs):
     """
         Extract data from openFOAM field file.
@@ -916,8 +919,6 @@ def extractFile(path, columnNames, vector=True, skiphead = 20,skipend = 4):
         newData = pandas.DataFrame(data)
 
     return newData.astype(float)
-
-
 
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
                          cloudName="kinematicCloud"):
