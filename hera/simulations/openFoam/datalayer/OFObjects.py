@@ -34,10 +34,10 @@ class ofObjectHome(loggedObject):
                                   )
 
         compressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
-                                p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
-
-
-        )
+                                p=dict(dimensions=self.getDimensions(kg=1,m=-1, s=-2), componentNames=None),
+                                p_rgh=dict(dimensions=self.getDimensions(kg=1, m=-1, s=-2), componentNames=None),
+                                T=dict(dimensions=self.getDimensions(K=1), componentNames=None)
+                            )
 
         dispersionDict = dict(Hmix=dict(dimensions=self.getDimensions(m=1), componentNames=None),
                               ustar=dict(dimensions=self.getDimensions(m=1,s=-1), componentNames=None),
@@ -83,7 +83,7 @@ class ofObjectHome(loggedObject):
         """
         return [x for x in self.predifinedFields[fieldGroup].keys()]
 
-    def getField(self,fieldName,fieldGroup="incompressible",componentNames=None,dimensions=None):
+    def getField(self, fieldName, simulationType="incompressible", componentNames=None, dimensions=None,additionalFields=dict()):
         """
             Return the field with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
@@ -96,7 +96,7 @@ class ofObjectHome(loggedObject):
         fieldName: str
             The field name
 
-        fieldGroup: str
+        simulationType: str
             The group to which the parameter belongs.
             Currently:
                 - compressible
@@ -123,13 +123,16 @@ class ofObjectHome(loggedObject):
         """
         self.logger.info("----- Start ----")
 
-        if fieldName not in self.predifinedFields[fieldGroup]:
+        fields = dict(self.predifinedFields[simulationType])
+        fields.update(additionalFields)
+
+        if fieldName not in fields:
             self.logger.warning(f"{fieldName} not found in pre-existing fields. Using inputs")
             if dimensions is  None:
                 raise ValueError(f"Must supply dimensions to the new field {fieldName}")
             objData = dict(dimensions= self.getDimensions(**dimensions),componentNames = componentNames)
         else:
-            objData = dict(self.predifinedFields[fieldGroup][fieldName])
+            objData = dict(fields[fieldName])
 
         objData['name'] = fieldName
 
