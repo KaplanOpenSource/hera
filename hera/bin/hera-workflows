@@ -49,6 +49,7 @@ def add(args):
     logger = loggedObject("bin.hera_workflows.add").logger
     logger.info(" -- Starting: adding workflow to the group --")
 
+
     conf = loadJSON(args.workflow)
     projectName = conf[HERAMETADATA]['projectName'] if args.projectName is None else args.projectName
 
@@ -125,7 +126,7 @@ def create(arguments):
 
         if not os.path.exists(simulationName) or arguments.overwrite:
             with open(f"{simulationName}.json","w") as newfile:
-                json.dump(conf,newfile)
+                json.dump(conf,newfile,indent=4)
         else:
             raise FileExistsError(f"The workflow {simulationName} exists in that directory. Use --overwrite to overwrite it.")
 
@@ -133,6 +134,41 @@ def create(arguments):
         # should load the combinations....
         raise NotImplementedError("Loading the combinations... Not implemented yet... ")
 
+
+def deleteSimulations(arguments):
+    """
+        deletes the simulation/list of simulations from the DB.
+        The default is to export them to the disk (unless no-export flag is supplied
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = loggedObject("bin.hera_workflows.delete").logger
+    logger.info(f" -- Starting: Deleting simulations --")
+
+    if os.path.isfile(arguments.object):
+
+        heraMetadata = loadJSON(arguments.object).get(HERAMETADATA, None)
+        if heraMetadata is None:
+            raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
+        projectName = heraMetadata['projectName']
+        simulationGroup = heraMetadata['simulationGroup']
+        simuationType = heraMetadata['workflowType']
+
+        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+
+    else:
+        if arguments.projectName is None:
+            raise ValueError(f"Must supply a projectName. use --projectName ")
+        projectName = arguments.projectName
+        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+
+    print(wftk.getSimulationDocumentFromWorkflow(arguments.object))
 
 def listSimulations(arguments):
     """
@@ -152,7 +188,6 @@ def listSimulations(arguments):
     logger = loggedObject("bin.hera_workflows.list").logger
     logger.info(f" -- Starting: Listing simulations --")
 
-    projectName = None
     simulationGroup = None
 
     if os.path.isfile(arguments.object):
@@ -208,11 +243,12 @@ def listSimulations(arguments):
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
 
-    title = f"The simulations in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}*"
+    title = f"The simulations in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}* will be deleted"
 
     print(title)
     print("-" * len(title))
     print(simulationList.to_string())
+
 
 def listWokflowNodes(arguments):
     """
@@ -388,6 +424,10 @@ if __name__ == "__main__":
 
     ### ------------------------
     delete_parser = subparsers.add_parser('delete', help='Delete the run. exports the simulation that was deleted ')
+    delete_parser.add_argument('object', type=str,help='A workflow file, a case directory, a name of simulation, or a group name ')
+    delete_parser.add_argument('--projectName', type=str, default=None, help='The project to load the data')
+    delete_parser.add_argument('--no-export', default=False, action="store_true", help='Does not save the deleted workflow to the disk')
+    delete_parser.set_defaults(func=deleteSimulations)
     # --includeRun - also deletes the run.
     # --group     - deletes all the simulation with that prefix.
     # --no-export  - does not save the deleted workflow to the disk.

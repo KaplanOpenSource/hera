@@ -125,6 +125,9 @@ class workflowToolkit(abstractToolkit):
 
         return hermesWFObj(workFlowJSON)
 
+
+
+
     def getHermesWorkflowFromDB(self,workflow : Union[dict,str]):
         """
                 Retrieve the hermes object from the DB.
@@ -165,6 +168,36 @@ class workflowToolkit(abstractToolkit):
 
         doc = docList[0]
         return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=doc.type)
+
+    def getSimulationDocumentFromWorkflow(self,workflow : Union[dict,str]):
+        """
+            Returns the simulation document from simulation name or JSON.
+
+        Parameters
+        ----------
+        workflow: simulation name, JSON file or JSON
+
+        Returns
+        -------
+            list of mongodb documents.
+        """
+        docList = []
+        if isinstance(workflow,str):
+            # try to find it as a name
+            self.logger.debug(f"Trying to get the workflow as a name.")
+            docList = self.getSimulationsDocuments(simulationName=workflow)
+            if len(docList) == 0:
+                self.logger.debug(f"... not found. Try to query as a json. ")
+                jsn = loadJSON(workflow)
+                wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
+                currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
+                docList = self.getSimulationsDocuments(**currentQuery)
+
+        elif isinstance(workflow,dict):
+            currentQuery = dictToMongoQuery(workflow, prefix="parameters")
+            docList = self.getSimulationsDocuments(**currentQuery)
+
+        return docList
 
     def getSimulationByCriteria(self,**kwargs):
         """
@@ -269,7 +302,6 @@ class workflowToolkit(abstractToolkit):
         return f"{baseName}_{formatted_number}"
 
 
-
     def addToGroup(self,
                    workflowJSON: str,
                    groupName: str = None,
@@ -364,7 +396,7 @@ class workflowToolkit(abstractToolkit):
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
 
-        #   c. Determining the simulation anem, group name and group id
+        #   c. Determining the simulation name, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
             self.logger.debug("Generating ID from the DB")
