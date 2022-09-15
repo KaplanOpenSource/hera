@@ -32,92 +32,15 @@ class abstractWorkflow(workflow):
         self.logger = loggedObject(loggerName=None).logger
         self.workflowType = workflowType
 
-    def buildCaseExecutionScript(self,caseDirectory,configuration):
-        """
-            Writes the allRun file that executes the workflow and the allClean file
-            that cleans the case to the case directory.
 
-        Parameters
-        ----------
-        caseDirectory: str
-            The directory to write the files to.
+    @property
+    def caseExecution(self):
+        return self._workflowJSON.get(HERAMETADATA,dict()).get('caseExecution',None)
 
-        configuration: dict
-            A configuration file that is used to build the execution of the node.
-            Specifically, includes a node 'caseExecution' with the structure:
-
-             {
-                "parallelCase": true|false             # Write the execution for parallel execution.
-                "runFile": [
-                            --------------- A list of nodes.
-                  {
-                    "name": "blockMesh",               # The name of the program to execute.
-                    "couldRunInParallel": false,       # Write as parallel (only if parallel case is True).
-                    "parameters": null                 # Parameters for each run.
-                  }
-                ]
-                            --------------- A list of nodes.
-             }
-
-        """
-        self.logger.info("---- Start ----")
-        try:
-            execConfiguration = configuration['caseExecution']
-        except KeyError:
-            err = "'caseExecution' node not found in configuration"
-            self.logger.error(err)
-            raise ValueError(err)
-
-
-        isParallel = execConfiguration['parallelCase']
-        self.logger.info(f"Running this case as parallel? {isParallel}")
-
-        execLine = ""
-
-        for execNode in execConfiguration['runFile']:
-            self.logger.execution(f"Processing Node {execNode['name']}")
-
-            parallelFlag = "-parallel" if (isParallel and execNode['couldRunInParallel']) else ""
-            progName = execNode['name']
-            parameters = execNode.get('parameters',None)
-
-            if parameters is not None:
-                params   = " ".join(numpy.atleast_1d(execNode['parameters']))
-            else:
-                params = ""
-
-            foamJob = execNode.get("foamJob",True)
-
-            if foamJob:
-                execLine += f"foamJob {parallelFlag} -screen -wait {progName} {params}\n"
-            else:
-                execLine += f"{progName} {params}\n"
-
-        allrunFile = os.path.join(caseDirectory,"Allrun")
-        with open(allrunFile,'w') as execFile:
-            execFile.write(execLine)
-        os.chmod(allrunFile, 0o777)
-
-        # Now write the allClean file.
-        allCleanContent = """
-#!/bin/sh
-cd ${0%/*} || exit 1    # Run from this directory
-
-# Source tutorial clean functions
-. $WM_PROJECT_DIR/bin/tools/CleanFunctions
-
-# Remove surface and features
-rm -f constant/triSurface/motorBike.obj.gz > /dev/null 2>&1
-rm -rf constant/extendedFeatureEdgeMesh > /dev/null 2>&1
-rm -f constant/triSurface/motorBike.eMesh > /dev/null 2>&1
-
-cleanCase
-        """
-        allcleanFile = os.path.join(caseDirectory,"Allclean")
-        with open(allcleanFile,'w') as allclean:
-            allclean.write(allCleanContent)
-
-        os.chmod(allcleanFile, 0o777)
+    @caseExecution.setter
+    def caseExecution(self, value):
+        self._workflowJSON.setdefault(HERAMETADATA,dict())
+        self._workflowJSON[HERAMETADATA]['caseExecution'] = value
 
     @property
     def projectName(self):

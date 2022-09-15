@@ -6,7 +6,9 @@ import os
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
 from hera.utils import loggedObject,loadJSON
+from hera.simulations.openFoam.utils import buildCaseExecutionScript
 from hermes import workflow
+from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
 
 def add(args):
@@ -168,7 +170,15 @@ def deleteSimulations(arguments):
         projectName = arguments.projectName
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    print(wftk.getSimulationDocumentFromWorkflow(arguments.object))
+    docList =wftk.getSimulationDocumentFromWorkflow(arguments.object)
+
+    if len(docList) == 0:
+        print("No simulations found!")
+    else:
+        for x in docList:
+            print(f"Deleting {x.desc['simulationName']} in Group {x.desc['groupName']}")
+            x.delete()
+
 
 def listSimulations(arguments):
     """
@@ -243,7 +253,7 @@ def listSimulations(arguments):
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
 
-    title = f"The simulations in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}* will be deleted"
+    title = f"The simulations in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}* "
 
     print(title)
     print("-" * len(title))
@@ -358,6 +368,36 @@ def compareSimulations(arguments):
     pass
 
 
+def expandWorkflow(arguments):
+    parser_expandWorkflow(arguments)
+
+def buildExecuter(arguments):
+    handler_build(arguments)
+    buildExecScriptsFromCaseName(arguments.caseName)
+
+def executeWorkflow(arguments):
+    handler_execute(arguments)
+    buildExecScriptsFromCaseName(arguments.caseName)
+
+def buildAndExecute(arguments):
+    handler_buildExecute(arguments)
+    buildExecScriptsFromCaseName(arguments.workflow)
+
+
+
+def buildExecScriptsFromCaseName(caseName):
+
+    if os.path.isdir(caseName):
+        configuration = os.path.basename(caseName) + ".json"
+    elif os.path.isfile(caseName):
+        configuration = caseName
+        caseName = configuration.split(".")[0]
+    else:
+        raise ValueError(f"{caseName} must be directory of workflow file")
+
+    buildCaseExecutionScript(caseDirectory=caseName, workflow=configuration)
+
+
 if __name__ == "__main__":
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING, projectName=None)
     tk.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
@@ -449,6 +489,36 @@ if __name__ == "__main__":
     nodes_list.add_argument('nodeName', type=str, help='The node to list the paramters')
     nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help='The project name')
     nodes_list.set_defaults(func=listWokflowNodeParameters)
+
+
+    ##### execuion of the workflows.
+
+    parser_expandWorkflow = subparsers.add_parser('expand',
+                                                  help='Expands the workflow JSON with the default values of the nodes')
+    parser_expandWorkflow.add_argument('workflow', type=str, help="base workflow")
+    parser_expandWorkflow.add_argument('caseName', type=str, help="the name of the case to run")
+    parser_expandWorkflow.set_defaults(func=expandWorkflow)
+
+    parser_buildExecuter = subparsers.add_parser('build',
+                                                 help='Builds the python execution file for the execution engine ')
+    parser_buildExecuter.add_argument('workflow', type=str, help="base workflow")
+    parser_buildExecuter.add_argument('caseName', type=str, help="the name of the case to run")
+    parser_buildExecuter.add_argument('--parameters', type=str, default=None, required=False,
+                                      help="A path to paremeters file (optional)")
+    parser_buildExecuter.set_defaults(func=buildExecuter)
+
+    parser_execute = subparsers.add_parser('execute',
+                                           help='Runs the python execution file with the appropriate execution engine')
+    parser_execute.add_argument('caseName', type=str, help="the name of the case to run")
+    parser_execute.add_argument('--force', dest="force", default=False, action="store_true",
+                                help="If exist, delete the execution files first")
+    parser_execute.set_defaults(func=executeWorkflow)
+
+    parser_runWorkflow = subparsers.add_parser('buildExecute', help='Expands, builds and executes the workflow JSON')
+    parser_runWorkflow.add_argument('workflow', type=str, help="base workflow")
+    parser_runWorkflow.add_argument('--force', dest="force", default=False, action="store_true",
+                                    help="If exist, delete the execution files first")
+    parser_execute.set_defaults(func=buildAndExecute)
 
     parsed = parser.parse_args()
     parsed.func(parsed)
