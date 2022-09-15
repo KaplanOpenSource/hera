@@ -75,6 +75,8 @@ def add(args):
                             overwrite=args.overwrite,
                             action=action,
                             force=args.force)
+
+            buildExecScriptsFromCaseName(workflowFile)
         except FileExistsError as e:
             print(e)
 
