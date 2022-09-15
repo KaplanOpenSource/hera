@@ -118,11 +118,7 @@ cd ${0%/*} || exit 1    # Run from this directory
 # Source tutorial clean functions
 . $WM_PROJECT_DIR/bin/tools/CleanFunctions
 
-# Remove surface and features
-rm -f constant/triSurface/motorBike.obj.gz > /dev/null 2>&1
-rm -rf constant/extendedFeatureEdgeMesh > /dev/null 2>&1
-rm -f constant/triSurface/motorBike.eMesh > /dev/null 2>&1
-
+cp 0.parallel/* 0
 cleanCase
     """
     allcleanFile = os.path.join(caseDirectory,"Allclean")
