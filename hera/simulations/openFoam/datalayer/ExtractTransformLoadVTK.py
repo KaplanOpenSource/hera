@@ -239,8 +239,6 @@ class VTKpipeline(object):
         path : path to the main directory
         name : output folder/ hdf files string
         projectName : projectName string
-
-
         """
         formatName = filterData.get('write', None)
         if (formatName is not None) and (formatName != "None"):
