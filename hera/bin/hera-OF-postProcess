@@ -69,6 +69,20 @@ def executePipeline_handler(args):
     vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, overwrite=args.overwrite)
 
 
+def executeLoadPipeline_handler(args):
+    """
+        Executes the pipeline and then loads it to hera.
+    Parameters
+    ----------
+    args
+
+    Returns
+    -------
+
+    """
+    executePipeline_handler(args)
+    load_handler(args)
+
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
@@ -129,8 +143,47 @@ if __name__ =="__main__":
 
     parser_executePipeline.set_defaults(func=executePipeline_handler)
 
+    ##### Execute and load.
+    parser_execload = subparsers.add_parser('executeLoad', help='executes pipeline and then loads it')
+    parser_execload.add_argument('projectName',
+                             type=str,
+                             help='The project name')
 
+    parser_execload.add_argument('pipelineFile',
+                             type=str,
+                             help='[pipeline file name]')
 
+    parser_execload.add_argument('-casePath',
+                                        dest="casePath",
+                                        type=str,
+                                        required=True,
+                                        help='[path to the case]')
+
+    parser_execload.add_argument('-parallelCase',
+                                        action='store_true',
+                                        dest="parallelCase",
+                                        default=True,
+                                        help='If exists, reads the decomposed case')
+
+    parser_execload.add_argument('-serverName',
+                                        type=str,
+                                        dest="serverName",
+                                        default=None,
+                                        help='If exists, uses the paraview server')
+
+    parser_execload.add_argument('-timeStepsInPartition',
+                                        type=int,
+                                        dest="timeStepsInPartition",
+                                        default=100,
+                                        help='The number of time steps in each NetCDF File/ the size of the batch to process')
+
+    parser_execload.add_argument('-overwrite',
+                                        action='store_true',
+                                        dest = "overwrite",
+                                        default=False,
+                                        help='If exists, write over the existing files.')
+
+    parser_execload.set_defaults(func=executeLoadPipeline_handler)
 
 
     ############################## arg parse
