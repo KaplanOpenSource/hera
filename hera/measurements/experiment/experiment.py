@@ -1,36 +1,25 @@
-from hera import toolkit
 import json
-from hera import datalayer
 import os
 import pydoc
-import pandas
-import dask
 import sys
-import argos.experimentSetup
+from ... import toolkit,toolkitHome,datalayer
 from argos.experimentSetup import dataObjects as argosDataObjects
-from .datalayer import dataEngine, EXPERIMENTDATALAYER_HERA, EXPERIMENTDATALAYER_DB
-import logging
+from argos import DESIGN,DEPLOY
+from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
 from hera.utils.jsonutils import loadJSON
 
-EXPERIMENT_SETUPFILE = '/runtimeExperimentData/experiment.json'
-CONFIGURATION = '/runtimeExperimentData/Datasources_Configurations.json'
-TOOLKIT_FILE = 'toolkit'
 
-class experimentToolKit(toolkit.abstractToolkit):
+class experimentHome(toolkit.abstractToolkit):
+    """
+        This is the object that function as a factory/home to the other experiments.
+        It is responsible for getting the right toolkit for the requested experiment.
+
+    """
 
     DOCTYPE_ENTITIES = 'EntitiesData'
 
-    _experimentDataType = None
-    _experimentSetupSource = None
-    _configuration = None
-
-    @property
-    def trialSet(self):
-        return self._trialSet
-
-    @trialSet.setter
-    def trialSet(self, value):
-        self._trialSet = value
+    TOOLKIT_FILE = 'toolkit'
+    CODE_DIRECTORY = 'code'
 
     def __init__(self, projectName, filesDirectory=None):
 
@@ -162,44 +151,8 @@ class experimentToolKit(toolkit.abstractToolkit):
                                                  resource=path,
                                                  desc=entityDict)
                 else:
-                    print(
-                        f' {entityDict["deviceName"]} DB list is not empty, but overWrite flag is {overWrite}')
+                    print(f'{entityDict["deviceName"]} DB list is not empty, but overWrite flag is {overWrite}')
                     print(f'{entityDict["deviceName"]} not stored to DB ')
-
-            # for asset,assetDict in experimentData['assets'].items():
-            #     for trial in assetDict['trials']:
-            #         for entity in assetDict['trials'][trial]['entities']:
-            #
-            #             entityDict = list(filter(lambda x: x['deviceName'] == entity, D))[0]
-            #
-            #             path = entityDict['deviceDataPath']
-            #
-            #             if not (os.path.exists(path)):
-            #                 raise FileNotFoundError("Wrong folder path")
-            #             else:
-            #                 print(f'{path} path to {entity} data from {assetDict["name"]} is O.K')
-            #
-            #             L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES, deviceName=entity)
-            #
-            #             if not (L) or (L and overWrite):
-            #
-            #                 delList = self.deleteMeasurementsDocuments(type=self.DOCTYPE_DEVICES,
-            #                                                            deviceName=entityDict['deviceName'])
-            #                 for deldoc in delList:
-            #                     print("delete document")
-            #                     print(json.dumps(deldoc, indent=4, sort_keys=True))
-            #
-            #                 print(f'Loading {entity} data to DB')
-            #                 entityDict['experiment'] = experiment
-            #
-            #                 self.addMeasurementsDocument(type=self.DOCTYPE_DEVICES,
-            #                                              dataFormat=datalayer.datatypes.PARQUET,
-            #                                              resource=path,
-            #                                              desc=entityDict)
-            #             else:
-            #                 print(
-            #                     f' {entityDict["deviceName"]} DB list is not empty, but overWrite flag is {overWrite}')
-            #                 print(f'{entityDict["deviceName"]} not stored to DB ')
 
     def getExperimentsMap(self):
         """
@@ -221,8 +174,11 @@ class experimentToolKit(toolkit.abstractToolkit):
     def getExperimentsTable(self):
         return self.getDataSourceTable()
 
-
-    def getExperiment(self,experimentName, experimentSetupSource = None, experimentDataType = EXPERIMENTDATALAYER_HERA, configuration = None):
+    def getExperiment(self, experimentName,
+                      experimentDataType = PARQUETHERA,
+                      dataSourceConfiguration = dict(),
+                      filesDirectory=None,
+                      defaultTrialSetName=None):
         """
         get the experiment data source.
         get the experiemt path from data source
@@ -235,41 +191,44 @@ class experimentToolKit(toolkit.abstractToolkit):
         experimentName : str
                 The name of the experiment
 
-        experimentSetupSource :
-
         experimentDataType : str
                 Can be either EXPERIMENTDATALAYER_HERA or EXPERIMENTDATALAYER_DB
+
+        dataSourceConfiguration: dict
+                overwrite the dataSourceConfiguration of the experiment.
+                see ... for details on its structure.
+
+        filesDirectory: str
+                The directory to save the cache/intermediate files.
+                If None, use the [current directory]/experimentCache.
+
+        defaultTrialSetName:str
+                The default trialSetName to use. (in procedures that require trialSetName).
 
         Returns
         -------
             Instance of the hera.measurements.experiment.experiment.experimentSetupWithData
             that was derived for the specific experiment.
         """
-
-        if experimentDataType not in [EXPERIMENTDATALAYER_HERA,EXPERIMENTDATALAYER_DB]:
-            raise ValueError(f"experimentData type must be EXPERIMENTDATALAYER_HERA ({EXPERIMENTDATALAYER_HERA}) or EXPERIMENTDATALAYER_DB ({EXPERIMENTDATALAYER_DB})")
+        if experimentDataType not in [PARQUETHERA, PANDASDB,DASKDB]:
+            raise ValueError(f"experimentData type must be EXPERIMENTDATALAYER_HERA ({PARQUETHERA}) or EXPERIMENTDATALAYER_DB ({PANDASDB})")
 
         self._experimentDataType = experimentDataType
 
         L = self.getDatasourceDocument(datasourceName=experimentName)
         if L:
-            path=L.desc['handlerPath']
-            sys.path.append(path)
+            experimentPath=L.desc['handlerPath']
+            sys.path.append(os.path.join(experimentPath,self.CODE_DIRECTORY))
+            toolkitName = self.TOOLKIT_FILE +'.'+ L.desc['className'] #L.desc['handlerClass']
 
-            if  os.path.isfile(path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'):
-                self._experimentSetupSource = path+'/runtimeExperimentData/'+experimentName+ '/experiment.json'
-            else:
-                raise ValueError(f" The experiment setup file doesn't exist in the target folder")
+            toolkitCls = pydoc.locate(toolkitName)
 
-            if  os.path.isfile( path + CONFIGURATION):
-                self._configuration = path + CONFIGURATION
-            else:
-                raise ValueError(f" The configuration file doesn't exist in the target folder")
-
-            toolkit=TOOLKIT_FILE +'.'+ L.desc['className'] #L.desc['handlerClass']
-            toolkitCls=pydoc.locate(toolkit)
-
-            return toolkitCls(self)
+            return toolkitCls(projectName=self.projectName,
+                              pathToExperiment=experimentPath,
+                              dataType=experimentDataType,
+                              dataSourceConfiguration = dataSourceConfiguration,
+                              filesDirectory=filesDirectory,
+                              defaultTrialSetName=defaultTrialSetName)
         else:
             raise ValueError(f"Please load first the experiment datasource to hera")
 
@@ -277,18 +236,18 @@ class experimentToolKit(toolkit.abstractToolkit):
     def keys(self):
         return [x for x in self.getExperimentsMap()]
 
-    def parserList(self):
-        """
-            Return the list of parsers_old.
-
-        Returns
-        -------
-            list of str
-        """
-        className = ".".join(__class__.__module__.split(".")[:-1])
-        parserPath = f"{className}.parsers"
-        mod = pydoc.locate(parserPath)
-        return [x.split("_")[1] for x in dir(mod) if x.startswith("Parser_")]
+    # def parserList(self):
+    #     """
+    #         Return the list of parsers_old.
+    #
+    #     Returns
+    #     -------
+    #         list of str
+    #     """
+    #     className = ".".join(__class__.__module__.split(".")[:-1])
+    #     parserPath = f"{className}.parsers"
+    #     mod = pydoc.locate(parserPath)
+    #     return [x.split("_")[1] for x in dir(mod) if x.startswith("Parser_")]
 
     def __getitem__(self, item):
         return self.getExperiment(item)
@@ -296,42 +255,155 @@ class experimentToolKit(toolkit.abstractToolkit):
     def experimentDataType(self):
         return self._experimentDataType
 
-    def getConfiguration(self):
-        return loadJSON(self._configuration)
-
-    def getExperimentSetup(self):
-        return loadJSON(self._experimentSetupSource)
-
-
-
-class experimentSetupWithData(argosDataObjects.Experiment):
+class experimentSetupWithData(argosDataObjects.Experiment,toolkit.abstractToolkit):
     """
         A class that unifies the argos.experiment setup with the data.
     """
 
+    _configuration = None
+    entityType = None
+    trialSet = None
+
+    _analysis = None
+    _presentation = None
+
+    @property
+    def analysis(self):
+        return self._analysis
+
+    @property
+    def presentation(self):
+        return self._presentation
+
+    @property
+    def configuration(self):
+        return self._configuration
+
     def _initTrialSets(self):
-        experimentSetup = self._toolkit.experimentSetup()
+        experimentSetup = self.setup
         for trialset in experimentSetup['trialSets']:
-            self._trialSetsDict[trialset['name']] = TrialSetWithData(experiment = self, TrialSetSetup=trialset,experimentData= self._experimentData)
+            self.trialSet[trialset['name']] = TrialSetWithData(experiment = self, TrialSetSetup=trialset,experimentData= self._experimentData)
 
     def _initEntitiesTypes(self):
-        experimentSetup = self._toolkit.experimentSetup()
+        experimentSetup = self.setup
         for entityType in experimentSetup['entitiesTypes']:
-            self._entitiesTypesDict[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
+            self.entityType[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
 
     def getExperimentData(self):
         return self._experimentData
 
-    def __init__(self, toolkit): # The setup here is the dict already (choose the source in getExperiment)
-        self._toolkit = toolkit
-        self._experimentData = None#dataEngine(toolkit,toolkit.experimentDataType())
-        super().__init__(toolkit.experimentSetup())
-        #self.logger.info("Init experiment data")
+    def __init__(self, projectName, pathToExperiment, dataType, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
+        """
+            Initializes the specific experiment toolkit.
+
+        Parameters
+        ----------
+        projectName: str
+                The project name to work with.
+
+        pathToExperiment:
+                The path to the experiment data.
+
+        dataType: str
+                Define how the data is retrieved: dask or pandas directly from the mongoDB, or through the
+                                                  parquet.
+
+        dataSourceConfiguration : dict
+                overwrite the datasources configuration of the experiment.
+                See ... for structure.
+
+        filesDirectory: str
+                The directory to save the cache/intermediate files.
+                If None, use the [current directory]/experimentCache.
+
+        defaultTrialSet: str
+                A default trialset to use if not supplied.
+
+        """
+        # setup the configuration file name
+        configurationFileName = os.path.join(pathToExperiment, 'runtimeExperimentData', "Datasources_Configurations.json")
+
+        if not os.path.isfile(configurationFileName):
+            raise ValueError(f" The configuration file doesn't exist. Looking for {configurationFileName}")
+        self._configuration = loadJSON(configurationFileName)
 
 
-    def getData(self):
+        dataSourceConfiguration = dict() if dataSourceConfiguration is None else dataSourceConfiguration
+        self._configuration.update(dataSourceConfiguration)
 
-        pass
+        experimentName = self.configuration['experimentName']
+        setupFile = os.path.join(pathToExperiment, 'runtimeExperimentData', experimentName, 'experiment.json')
+        if not os.path.isfile(setupFile):
+            raise ValueError(f"The experiment setup file doesn't exist. Looking for {setupFile}  ")
+
+        # Now initialize the data engine.
+        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration, dataType = dataType)
+        self.entityType = dict()
+        self.trialSet = dict()
+
+        if filesDirectory is None:
+            filesDirectory = os.getcwd()
+
+        cacheDir = os.path.join(filesDirectory, "experimentCache")
+        os.makedirs(cacheDir,exist_ok=True)
+
+        argosDataObjects.Experiment.__init__(self,setupFile)
+        toolkit.abstractToolkit.__init__(self,projectName=projectName,toolkitName=f"{experimentName}Toolkit",filesDirectory=cacheDir)
+
+        self._sonicHighFreqToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.METEOROLOGY_HIGHFREQ,
+                                                            projectName=projectName,
+                                                            filesDirectory=cacheDir)
+
+        self._defaultTrialSetName = defaultTrialSetName
+
+    @property
+    def defaultTrialSet(self):
+        return self._defaultTrialSetName
+
+    @property
+    def trialsOfDefaultTrialSet(self):
+        return self.trialSet[self.defaultTrialSet]
+
+    def _initAnalysisAndPresentation(self,analysisCLS,presentationCLS):
+        """
+            Initializes the analysis and the presentation classes
+            and sets the datalayer.
+
+        Parameters
+        ----------
+        analysisCLS :  class
+                The analysis class. It is recommended that it will inherit from
+                .analysis.experimentAnalysis
+
+        presentationCLS : class
+                The presentation class. It is recommended that it will inherit from
+                .presentation.experimentPresentation
+
+
+        Returns
+        -------
+
+        """
+        self._analysis = analysisCLS(self)
+        self._presentation = presentationCLS(self,self._analysis)
+
+    def getDataFromTrial(self,deviceType,deviceName = None,trialState = DEPLOY,startTime = None, endTime = None,withMetadata = True):
+
+        startTime = self.properties['TrialStart'] if startTime is None else startTime
+        endTime = self.properties['TrialEnd'] if endTime is None else endTime
+
+        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
+
+        if len(data) == 0:
+            raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
+
+        if withMetadata:
+            devicemetadata = self.entitiesTable(trialState)
+            if len(devicemetadata) > 0:
+                data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
+                    "timestamp")
+
+        return data
 
 class TrialSetWithData(argosDataObjects.TrialSet):
 
@@ -339,20 +411,32 @@ class TrialSetWithData(argosDataObjects.TrialSet):
         for trial in self._metadata['trials']:
             self[trial['name']] = TrialWithdata(trialSet=self,metadata=trial, experimentData =self._experimentData )
 
-    def __init__(self,experiment:experimentSetupWithData, TrialSetSetup: dict, experimentData: dataEngine):
+    def __init__(self, experiment:experimentSetupWithData, TrialSetSetup: dict, experimentData: dataEngineFactory):
         self._experimentData = experimentData
         super().__init__(experiment, TrialSetSetup)
 
 
-
 class TrialWithdata(argosDataObjects.Trial):
 
-    def getData(self,deviceType = None,deviceName = None,trialState = 'deploy',startTime = None, endTime = None,withMetadata = True):
-        return self._experimentData.getDataFromTrial(deviceType = deviceType,trialName = self.name(),trialSet = self.trialSet.name(),deviceName=deviceName,
-                                                     trialState=trialState,startTime=startTime,endTime=endTime, withMetadata=withMetadata)
+    def getData(self,deviceType,deviceName = None,trialState = DEPLOY,startTime = None, endTime = None,withMetadata = False):
+
+        startTime = self.properties['TrialStart'] if startTime is None else startTime
+        endTime = self.properties['TrialEnd'] if endTime is None else endTime
+
+        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
+
+        if len(data) == 0:
+            raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
+
+        if withMetadata:
+            devicemetadata = self.entitiesTable(trialState)
+            if len(devicemetadata) > 0:
+                data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
+
+        return data
 
 
-    def __init__(self, trialSet: TrialSetWithData, metadata: dict, experimentData: dataEngine):
+    def __init__(self, trialSet: TrialSetWithData, metadata: dict, experimentData: dataEngineFactory):
         self._experimentData = experimentData
         super().__init__(trialSet, metadata)
 
@@ -363,24 +447,20 @@ class EntityTypeWithData(argosDataObjects.EntityType):
         for entity in self._metadata['entities']:
             self[entity['name']] = EntityWithData(entityType=self, metadata=entity,experimentData =self._experimentData)
 
-    def __init__(self, experiment:experimentSetupWithData, metadata: dict, experimentData: dataEngine):
+    def __init__(self, experiment:experimentSetupWithData, metadata: dict, experimentData: dataEngineFactory):
         self._experimentData = experimentData
         super().__init__(experiment, metadata)
 
     def getData(self, startTime=None, endTime=None):
-        return self._experimentData.getData(self.name(),startTime = startTime,endTime = endTime )
+        return self._experimentData.getData(self.name,startTime = startTime,endTime = endTime )
 
 class EntityWithData(argosDataObjects.Entity):
 
-    def __init__(self, entityType: EntityTypeWithData, metadata: dict, experimentData: dataEngine):
+    def __init__(self, entityType: EntityTypeWithData, metadata: dict, experimentData: dataEngineFactory):
         self._experimentData = experimentData
         super().__init__(entityType, metadata)
 
 
     def getData(self,startTime=None, endTime=None):
-        return self._experimentData.getData(self.entityType().name(),self.name(),startTime,endTime)
+        return self._experimentData.getData(self.entityType.name,self.name,startTime,endTime)
 
-
-if __name__ =="__main__":
-
-    tool = experimentSetupWithData('ds','testDS', '/home/hadas/Projects/2022/DS2022/experiment.json',EXPERIMENTDATALAYER_DB)
