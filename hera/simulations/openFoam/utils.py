@@ -101,7 +101,7 @@ def buildCaseExecutionScript(caseDirectory, workflow, isParallel=None, isSlurm=N
                 execLine += f"salloc {procCount}\n"
 
         if foamJob:
-            execLine += f"{slurm} foamJob {parallelFlag} -screen -wait {progName} {params}\n"
+            execLine += f"{slurm} foamJob {parallelFlag} -append -screen -wait {progName} {params}\n"
         else:
             execLine += f"{slurm} {progName} {params}\n"
 

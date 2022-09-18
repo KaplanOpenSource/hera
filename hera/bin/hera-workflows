@@ -441,8 +441,8 @@ if __name__ == "__main__":
     listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
     listSimulations_parser.add_argument('object', type=str, help='A workflow file, a case directory, a name of simulation, or a group name ')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help='The project name')
-    listSimulations_parser.add_argument('--parametersOfNodes',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
-    listSimulations_parser.add_argument('--all', dest="allParameters", default=False, type=bool, help='If exsists, return all the parameters, else, return only the differences between the different simulations.')
+    listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
+    listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations of the requested nodes.')
     listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
                                         help='If exsists, return the results as JSON and not as pandas table')
     listSimulations_parser.set_defaults(func=listSimulations)
