@@ -595,6 +595,7 @@ class workflowToolkit(abstractToolkit):
             for simulationDoc in simulationList:
                 wf = workflow(simulationDoc['desc']['workflow'])
                 simulationParameters = wf.getNodesParametersTable().assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
+
                 if qry is not None:
                     simulationParameters = simulationParameters.query(qry)
 
