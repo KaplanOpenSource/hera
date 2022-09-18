@@ -1,18 +1,17 @@
 import warnings
 from enum import Enum, auto, unique
 from typing import Union
+from collections.abc import Iterable
 import pandas
 import shutil
 import os
 from ..toolkit import abstractToolkit
-from ..utils import loadJSON,convertJSONtoPandas
+from hermes import workflow
+from ..utils import loadJSON
 from ..utils.query import dictToMongoQuery
-from ..utils.dataframeutils import compareDataframeConfigurations
 from ..datalayer import datatypes
 import numpy
 import pydoc
-
-
 
 try:
     from hermes import workflow
@@ -551,7 +550,6 @@ class workflowToolkit(abstractToolkit):
                         simulationType:str = None,
                         parametersOfNodes:list = None,
                         allParams:bool = False,
-                        longFormat:bool=False,
                         jsonFormat:bool = False
                         ) -> Union[pandas.DataFrame,dict]:
         """
@@ -596,7 +594,8 @@ class workflowToolkit(abstractToolkit):
             simParamList = []
             for simulationDoc in simulationList:
                 wf = workflow(simulationDoc['desc']['workflow'])
-                simulationParameters = convertJSONtoPandas(wf.getNodesParametersTable()).assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
+                simulationParameters = wf.getNodesParametersTable().assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
+
                 if qry is not None:
                     simulationParameters = simulationParameters.query(qry)
 
@@ -604,11 +603,7 @@ class workflowToolkit(abstractToolkit):
 
             res = pandas.concat(simParamList)
             if not allParams:
-                ret =  compareDataframeConfigurations(res,
-                                                      datasetName="simulationName",
-                                                      parameterName="parameterName",
-                                                      indexList="nodeName",
-                                                      longFormat=longFormat)
+                ret = self._compareConfigurationsPandas(res).set_index(self.DESC_SIMULATIONNAME).sort_index()
             else:
                 ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
         else:
@@ -621,4 +616,108 @@ class workflowToolkit(abstractToolkit):
 
         return ret
 
+    def _compareConfigurationsPandas(self,configurations):
+        """
+            Compares the configurations of the simulations.
+
+            A configuration is a pandas with the columns:
+                - parameterName (the path of the parameter with '.' as a separator).
+                - value     - The value of the parameter
+                - nodeName  - The name of the node
+                - simulationName - The name of the simulation
+
+
+
+        Parameters
+        ----------
+        configurations : pandas.DataFrame.
+
+        Returns
+        -------
+
+        """
+        self.logger.info("--- Start ---")
+        diffList = []
+
+        simulationCount = configurations[self.DESC_SIMULATIONNAME].unique().shape[0]
+
+        for grpid,grpdata in configurations.groupby(["parameterName","nodeName"]):
+            self.logger.debug(f"Testing {grpid} ")
+            try:
+                if grpdata.value.unique().shape[0]> 1:
+                    self.logger.debug(f"{grpid}:: Normal Field. Different  ")
+                    diffList.append(grpdata.copy())
+
+                if grpdata.value.count() < simulationCount:
+                    diffList.append(grpdata.copy())
+
+            except TypeError:
+                self.logger.debug(f"{grpid}:: Compound Field, checking for differences ")
+                # A compound set.
+                difference = self._detectDifference(grpdata.value)
+                if difference:
+                    diffList.append(grpdata.copy())
+
+        return pandas.concat(diffList)
+
+    def _detectDifference(self,pandasValues,stopFlag=False):
+        """
+            Find difference in pandas dataframe where the values are dicts/lists and ect.
+            return True if all of the rows are equal, false otherwise.
+        Parameters
+        ----------
+        pandasValues
+
+        Returns
+        -------
+
+        """
+        self.logger.debug("--- Start ---")
+        baseRow = pandasValues.iloc[0]
+
+        if isinstance(baseRow,dict):
+            self.logger.debug("Compound data is a dict")
+            # key base comparison
+            # 1. get all the keys
+            keyList = [x for x in baseRow.keys()]
+            # 2. build for each key a list of all values.
+            for key in keyList:
+                values = []
+                for item in pandasValues:
+                    values.append(item[key])
+                self.logger.debug(f"Checking dict key {key} with values: {values} ")
+                if self._detectDifference(pandas.Series(values)):
+                    return True
+
+            # Could not detect any difference...
+            return False
+
+        elif isinstance(baseRow,str):
+            # This is because str is an iterable and we wish to keep it simple.
+            self.logger.debug("Compound data is a str")
+            # comparing the old fashion way.
+            if len(pandasValues.unique()) == 1:
+                return False
+            else:
+                return True
+
+        elif isinstance(baseRow,Iterable):
+            self.logger.debug("Compound data is a iterable")
+
+            # 2. build for each key a list of all values.
+            for indx in range(len(baseRow)):
+                values = []
+                for item in pandasValues:
+                    values.append(item[indx])
+                self.logger.debug(f"Checking iter ID {indx} with values: {values} ")
+                if self._detectDifference(pandas.Series(values)):
+                    return True
+            return False
+        else:
+            self.logger.debug("Compound data is a simple datatype ")
+            # comparing the old fashion way.
+            if len(pandasValues.unique()) == 1:
+                return False
+            else:
+                return True
 
