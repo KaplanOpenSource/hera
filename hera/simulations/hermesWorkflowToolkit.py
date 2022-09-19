@@ -66,8 +66,6 @@ class workflowToolkit(abstractToolkit):
     DESC_SIMULATIONNAME = "simulationName"
     DESC_PARAMETERS = "parameters"
 
-
-
     def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
         """
             Initializes the workflow toolkit.
@@ -126,8 +124,6 @@ class workflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON)
 
 
-
-
     def getHermesWorkflowFromDB(self,workflow : Union[dict,str]):
         """
                 Retrieve the hermes object from the DB.
@@ -169,49 +165,56 @@ class workflowToolkit(abstractToolkit):
         doc = docList[0]
         return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=doc.type)
 
-    def getSimulationDocumentFromWorkflow(self,workflow : Union[dict,str]):
+    def getSimulationDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str]):
         """
-            Returns the simulation document from simulation name or JSON.
+            Returns the simulation document from the DB.
+
+            Identify the simulation from :
+             - Resource (thedirectory name)
+             - Simulation name
+             - Its workflow
+             - workfolow dict.
+
+            Return the first item that was found.
 
         Parameters
         ----------
-        workflow: simulation name, JSON file or JSON
+        nameOrWorkflowFileOrJSONOrResource: str, dict
+
+        Can be
+             - Resource (thedirectory name)
+             - Simulation name
+             - Its workflow
+             - workfolow dict.
 
         Returns
         -------
-            list of mongodb documents.
+            A document, or None if not found. .
         """
         docList = []
-        if isinstance(workflow,str):
+        if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
             # try to find it as a name
-            self.logger.debug(f"Trying to get the workflow as a name.")
-            docList = self.getSimulationsDocuments(simulationName=workflow)
+            self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
+            docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource)
             if len(docList) == 0:
-                self.logger.debug(f"... not found. Try to query as a json. ")
-                jsn = loadJSON(workflow)
-                wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
-                currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
-                docList = self.getSimulationsDocuments(**currentQuery)
+                self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
+                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource)
+                if len(docList) == 0:
+                    self.logger.debug(f"... not found. Try to query as a json. ")
+                    jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
+                    wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
+                    currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
+                    docList = self.getSimulationsDocuments(**currentQuery)
+            else:
+                self.logger.debug(f"... Found it ")
 
-        elif isinstance(workflow,dict):
-            currentQuery = dictToMongoQuery(workflow, prefix="parameters")
+        elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
+            currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
             docList = self.getSimulationsDocuments(**currentQuery)
 
-        return docList
 
-    def getSimulationByCriteria(self,**kwargs):
-        """
-            Returns the simulation that meet the criteria in the kwargs.
-            These can be anything. From the type/resource to a complicated filter on the description.
-        Parameters
-        ----------
-        kwargs: filterint
+        return docList[0] if len(docList) >0 else None
 
-        Returns
-        -------
-            document
-        """
-        return self.getSimulationsDocuments(**kwargs)
 
     def getSimulationsInGroup(self, simulationGroup: str, simulationType: simulationTypes = None, **kwargs):
         """
@@ -533,10 +536,6 @@ class workflowToolkit(abstractToolkit):
                     workflowJSON = docList[0]['desc']['workflow']
 
                 workflowList.append(workflow(workflowJSON, WD_path=self.FilesDirectory))
-
-
-
-
 
         else:
             self.logger.debug("Workflow is a groupName. Get the simulations from the group")

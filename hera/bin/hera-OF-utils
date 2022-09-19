@@ -103,7 +103,7 @@ def windProfile(args):
     projectName = hwf.parameters['projectName']
 
     buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
-    of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.OPENFOAM, projectName=projectName)
+    of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
     buildingsData =  dict(hwf.parameters['domains'][args.buildingDomainName])
     buildingsData['crs'] = None
