@@ -163,9 +163,9 @@ class VTKpipeline(loggedObject):
 
             self._pvOFBase.parquetdir = os.path.abspath(os.path.join(casePath, 'parquet'))
             self._pvOFBase.netcdfdir = os.path.abspath(os.path.join(casePath, "netcdf"))
-        else:
-            self._parquetdir = os.path.abspath(os.path.join(casePath, 'parquet'))
-            self._netcdfdir = os.path.abspath(os.path.join(casePath, "netcdf"))
+
+        self._parquetdir = os.path.abspath(os.path.join(casePath, 'parquet'))
+        self._netcdfdir = os.path.abspath(os.path.join(casePath, "netcdf"))
 
         self._casePath = casePath
         self._fieldNames = pipelineJSON["metadata"].get("fieldNames", fieldNames)
@@ -209,7 +209,7 @@ class VTKpipeline(loggedObject):
         return self._reader
 
 
-    def execute(self, sourceOrName=None,timeList=None, tsBlockNum=100, overwrite=False):
+    def execute(self, sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False):
         """
             Executes the pipeline from the JSON vtk.
             Saves the output of the requested filters.
@@ -347,6 +347,7 @@ class VTKpipeline(loggedObject):
         ----------
 
         """
+        self.logger.info(f"Adding filter {filterName} in {path}")
         formatName = filterData.get('write', None)
         if (formatName is not None) and (formatName != "None"):
             self.logger.debug("Getting the simulation flow document. Use the path as identifier ")
@@ -358,11 +359,8 @@ class VTKpipeline(loggedObject):
                 raise ValueError(
                     "The simulation in path %s is not found!. Load it to the database first" % self._casePath)
 
-            import pdb
-            pdb.set_trace()
-
-            flowDoc = flowDoc[0]
             # Create the new description
+
             filterDesc = dict(flowDoc['desc'])
 
             simqry = {
@@ -372,10 +370,13 @@ class VTKpipeline(loggedObject):
             }
 
             # check if it is already loaded.
+            self.logger.debug("Checking if the filter is loaded in the project")
             docList = self.datalayer.getCacheDocuments(type="vtk_filter",**simqry)
 
             if len(docList) ==0 or overwrite:
-                filterDesc['filterName'] = filterName
+                self.logger.debug(f"Updating the filter data. Overwrite flag {overwrite}")
+
+                filterDesc = dict(simqry)
                 filterDesc['filterParameters'] = filterData.get('parameters',{})
                 filterDesc['pipeline'] = self.VTKpipelineJSON
                 filterDesc['filterPath'] = path
@@ -391,159 +392,22 @@ class VTKpipeline(loggedObject):
                         "Format type %s unknown for filter %s. Must be 'netcdf' or 'parquet' (case sensitive!)" % (
                         formatName, filterName))
 
-                self.datalayer.addCacheDocument(desc=filterDesc,type="vtk_filter",resource=resource,dataFormat = currentdatatype)
+                if len(docList) > 0:
+                    self.logger.debug("Updating the existing data")
+                    doc = docList[0]
+                    doc['desc'] = filterDesc
+                    doc['resource'] = resource
+                    doc['dataFormat'] =currentdatatype
+                    doc.update()
+                else:
+                    self.logger.debug("Adding a new record")
+                    self.datalayer.addCacheDocument(desc=filterDesc,type="vtk_filter",resource=resource,dataFormat = currentdatatype)
             else:
                 self.logger.warning("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
 
-        # processing the
+        self.logger.execution("Processing the downstream filters. ")
         ds = filterData.get("downstream", {})
         for filterName, filterData in ds.items():
             path += "." + filterName
             self._recurseNode(filterName=filterName, filterData=filterData, path=path,overwrite=overwrite)
 
-
-class VTKNode:
-
-    _name       = None
-    _filter     = None
-    _filterType   = None
-    _father     = None
-    _JSONpath       = None
-    _saveNode = None
-    _regularize = None
-
-    _children = None
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def filter(self):
-        return self._filter
-
-    @property
-    def father(self):
-        return self._father
-
-    @property
-    def JSONpath(self):
-        return self._JSONpath
-
-    @property
-    def filterType(self):
-        return self._filterType
-
-    @property
-    def saveNode(self):
-        return self._saveNode
-
-    @saveNode.setter
-    def saveNode(self, value):
-        self._saveNode = value
-
-    @property
-    def regularize(self):
-        return self._regularize
-
-    @regularize.setter
-    def regularize(self, value):
-        self._regularize = value
-
-    def __init__(self, name, father, JSONpath,saveNode=False,regularize=None):
-        """
-            Initializes a node.
-
-            The parameters in vtk are given in structured names :
-
-                a.b = 3
-
-                so we changed it to : a_b .
-
-        Parameters
-        ----------
-        nodeType : str
-            The type of the filter (i.e clip,slice and ect).
-        father : filter
-            The main fileter.
-
-        JSONpath: str
-            The path to the root (the list of all the nodes from the root to the current node).
-
-        saveNode : bool
-            If true save the data of the filter.
-            The format depends on the regularize data.
-
-        regularize : str/None/True
-            If None, save as raw data (in parquet)
-            if True, try to convert to xarray and save as netcdf
-            if 'str', use the function to regularize the data. [not implemented yet]
-        """
-        self._name = name
-        self._father = father
-        self._JSONpath = JSONpath
-        self._children = dict
-        self._saveNode = saveNode
-        self._regularize = regularize
-
-    def __call__(self, filterType, **kwargs):
-        self._filterType = filterType
-        filtobj = getattr(pvsimple, self.filterType)
-        if filtobj is None:
-            raise ValueError("%s is not a valid VTK object. The valid objects are: %s " % (item, '\n'.join(dir(pvsimple))))
-
-        self._filter= filtobj(Input=self.father, guiName=self.name)
-        for param, pvalue in kwargs.items():
-            #pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
-            paramnamelist = param.split("_")
-            paramobj = self._filter
-            for pname in paramnamelist[:-1]:
-                paramobj = getattr(paramobj, pname)
-            setattr(paramobj, paramnamelist[-1], pvalue)
-        self._filter.UpdatePipeline()
-
-    def addNode(self, item):
-        """
-            Define a new filter under this one.
-        Parameters
-        ----------
-        item
-
-        Returns
-        -------
-
-        """
-        if paraviewExists:
-            if item in self._children:
-                ret =  self._children[item]
-            else:
-                newnode = VTKNode(item, self.filter, self.JSONpath + "_" + self.filterType)
-                self._children[item] = newnode
-                ret = newnode
-            return ret
-        else:
-                raise ValueError("Cannot define VTK pipeline when paraview.simple is not installed. Install or switch to the right environment")
-
-    def __getitem__(self, item):
-        return self._children[item]
-
-    def keys(self):
-        return self._children.keys()
-
-    def getData(self):
-        """
-            Return the data of the filter from the hera datalayer.
-            Must write the filter first (use writeData in the root node) and load (use loadData) before using
-            this function.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-            pandas/dask of the results. or xarray.
-        """
-        if paraview:
-            raise NotImplementedError("Get data for a node is not implemented. Use the write at the root node. Then in the conda environment load it, and get it")
-        else:
-            pass
