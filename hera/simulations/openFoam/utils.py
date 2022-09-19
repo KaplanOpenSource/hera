@@ -126,6 +126,20 @@ cleanCase
         allclean.write(allCleanContent)
 
     os.chmod(allcleanFile, 0o777)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #
 # def getCellDataAndGroundData(casePath,ground="ground"):
 #     f = open(os.path.join(casePath, "0", "cellCenters"), "r")

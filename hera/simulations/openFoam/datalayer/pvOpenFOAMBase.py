@@ -1,7 +1,8 @@
-
+from ....utils import loggedObject
 from itertools import product
 import pandas
 import numpy
+import dask.dataframe as dd
 
 import os
 import vtk.numpy_interface.dataset_adapter as dsa
@@ -15,7 +16,7 @@ from paraview import servermanager
 pvsimple._DisableFirstRenderCameraReset()
 
 
-class paraviewOpenFOAM(object):
+class paraviewOpenFOAM(loggedObject):
     """
         A class to extract openFOAM file format
         using VTK filters and write as parquet or netcdf files.
@@ -98,7 +99,7 @@ class paraviewOpenFOAM(object):
                 The connection string is printed when the server is initialized.
 
         """
-
+        super().__init__()
         if servername is not None:
             pvsimple.Connect(servername)
 
@@ -168,6 +169,13 @@ class paraviewOpenFOAM(object):
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
 
+    def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
+
+    def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
+
+
     def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, xarray=False):
         """
             reads a list of datasource lists to a dictionary
@@ -199,13 +207,15 @@ class paraviewOpenFOAM(object):
         timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
         for timeslice in timelist:
             # read the timestep.
-            print("\r Reading time step %s" % timeslice)
+            self.logger.info("\r Reading time step %s" % timeslice)
 
             ret = {}
-
             for datasourcename in datasourcenamelist:
                 datasource = pvsimple.FindSource(datasourcename)
-                ret[datasourcename] = self._readTimeStep(datasource,timeslice,fieldnames,xarray)
+                self.logger.execution(f"Reading source {datasourcename}")
+                rt = self._readTimeStep(datasource, timeslice, fieldnames, xarray)
+                if rt is not None:
+                    ret[datasourcename] = rt
             yield ret
 
     def _readTimeStep(self, datasource, timeslice, fieldnames=None, xarray=False):
@@ -213,15 +223,16 @@ class paraviewOpenFOAM(object):
         datasource.UpdatePipeline(timeslice)
         rawData = servermanager.Fetch(datasource)
         data = dsa.WrapDataObject(rawData)
-        #print(data.PointData)
-        #print(type(data.PointData))
 
-        if isinstance(data.Points, dsa.VTKArray):
+        if isinstance(data.Points, dsa.VTKNoneArray):
+            self.logger.execution("No data exists for filter... return with None")
+            return None
+        elif isinstance(data.Points, dsa.VTKArray):
             points = numpy.array(data.Points).squeeze()
         else:
             points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
 
-
+        self.logger.execution(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
         curstep = pandas.DataFrame()
 
         # create index
@@ -232,7 +243,6 @@ class paraviewOpenFOAM(object):
 
         fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
-            field = str(field.decode("utf-8"))
             if isinstance(data.PointData[field], dsa.VTKNoneArray):
                 continue
             elif isinstance(data.PointData[field], dsa.VTKArray):
@@ -250,7 +260,7 @@ class paraviewOpenFOAM(object):
                 try:
                     curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
                 except ValueError:
-                    print("Field %s is problematic... ommiting" % field)
+                    self.logger.warning("Field %s is problematic... ommiting" % field)
 
         curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if xarray else curstep
 
@@ -346,9 +356,11 @@ class paraviewOpenFOAM(object):
             else:
                 writeList(L,blockID,blockDig,self.netcdfdir)
 
-    def write_parquet(self,datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=100,overwrite=None):
+    def write_parquet(self,datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=5,overwrite=False):
         """
                 Writes the requested fileters as parquet files.
+
+                if overwrite=False then  find the time that is saved. Assume that all the filters have the same timelist.
         Parameters
         ----------
         datasourcenamelist : list
@@ -368,41 +380,67 @@ class paraviewOpenFOAM(object):
         -------
 
         """
+        self.logger.info(f"Starting writing to parquet filters {','.join(numpy.atleast_1d(datasourcenamelist))}")
 
         def writeList(theList,filePath):
             filterList = [x for x in theList[0].keys()]
             for filtername in filterList:
-                outfile = os.path.join(filePath,filtername+".parquet") # rememebr that it should run in python 2.7 so no f'... '
+                outfile = os.path.join(filePath,f"{filtername}.parquet")
+                self.logger.info("\tWriting filter %s in file %s" % (filtername, outfile))
                 append = True if os.path.exists(outfile) else False
-                data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
-                print("\tWriting filter %s in file %s" % (filtername, outfile))
-                data.rename(columns=dict([(x,x.decode("utf-8")) for x in data.columns])).to_parquet(outfile) #,append=append)
+                block_data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,
+                                     sort=True)
+                if append:
+                    self.logger.info("Found previous file, appending")
+                    data = dd.from_pandas(block_data,npartitions=1)
+                else:
+                    data = dd.from_pandas(block_data,npartitions=1)
+                data.set_index("time").to_parquet(outfile,append=append)
+
+                self.logger.execution("Repartitioning to 100MB per partition")
+                dd.read_parquet(outfile).repartition(partition_size = "100MB").to_parquet(outfile)
 
         if not os.path.isdir(self.parquetdir):
+            self.logger.debug(f"Creating output directory {self.parquetdir}")
             os.makedirs(self.parquetdir)
 
+        maxTime = -1  # take all
+        if not overwrite:
+            # find the time that is saved. Assume that all the filters have the same timelist.
+            # find the first.
+            self.logger.execution("Appending to existing data, find the maximal time. ")
+            for filtername in datasourcenamelist:
+                prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")
+                if not os.path.exists(prqtFile):
+                    continue
+
+                maxTime = dd.read_parquet(prqtFile).index.max().compute()
+                break
+            self.logger.debug(f"The maximal time found is {maxTime}. Skipping all the timesteps beofre that.")
+        else:
+            self.logger.execution("Overwriting existing data... Deleting current parquets.")
+            import shutil
+            for filtername in datasourcenamelist:
+                prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")
+                if os.path.isfile(prqtFile):
+                    self.logger.debug(f"Parquet file {prqtFile} is a file. Removing it")
+                    os.remove(prqtFile)
+                else:
+                    self.logger.debug(f"Parquet file {prqtFile} is a directory. Removing the tree")
+                    shutil.rmtree(prqtFile)
+
         timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
+        self.logger.debug(f"Filtering out the timesteps. Original list includes: {timelist}")
+        timelist = [x for x in timelist if x>maxTime]
+        self.logger.debug(f"Filtering out the timesteps. After filteration: {timelist}")
         blockID = 0
         L = []
         for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,fieldnames=fieldnames):
             L.append(pnds)
-            if len(L) == tsBlockNum:
+            self.logger.debug(f"Current dataFrames in memory  {len(L)}")
+            if len(L) == 5:
                 writeList(L, self.parquetdir)
                 L=[]
                 blockID += 1
         if len(L) > 0:
             writeList(L, self.parquetdir)
-
-        # rearrange partitions by repartitioning and rewriting.
-        # filterList = [x for x in L[0].keys()]
-        # for filtername in filterList:
-        #     outfile = os.path.join(self.parquetdir,filtername + ".parquet")  # rememebr that it should run in python 2.7 so no f'... '
-        #     print("\tRepartitioning filter %s in file %s" % (filtername, outfile))
-        #     data = dask.dataframe.read_parquet(outfile)
-        #     data = data.repartition(partition_size="100MB")
-        #     data.to_parquet(outfile,overwrite=True)
-
-
-
-if __name__ == "__main__":
-    builder = paraviewOpenFOAM("/home/ofir/Projects/openFoamUsage/askervein", caseType="Reconstructed Case")

@@ -38,7 +38,7 @@ def load_handler(args):
     jsondata = loadJSON(pipelineFile)
     pipelines = jsondata["pipelines"]  # Reading the pipelines
 
-    vtkpipe = openfoam.VTKpipeline(pipelineJSON=jsondata, casePath=path)
+    vtkpipe = openfoam.VTKpipeline(pipelineJSON=jsondata, nameOrWorkflowFileOrJSONOrResource=path)
     vtkpipe.loadToProject(projectName=projectName)
 
 
@@ -65,7 +65,7 @@ def executePipeline_handler(args):
 
     caseType = DECOMPOSED_CASE if args.parallelCase else RECONSTRUCTED_CASE
 
-    vtkpipe = openfoam.VTKpipeline(pipelineJSON=data, casePath=args.casePath, caseType=caseType, servername=args.serverName)
+    vtkpipe = openfoam.VTKpipeline(pipelineJSON=data, nameOrWorkflowFileOrJSONOrResource=args.casePath, caseType=caseType, servername=args.serverName)
     vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, overwrite=args.overwrite)
 
 
