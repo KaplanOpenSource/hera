@@ -172,7 +172,7 @@ def deleteSimulations(arguments):
         projectName = arguments.projectName
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    docList =wftk.getSimulationDocumentFromWorkflow(arguments.object)
+    docList =wftk.getSimulationDocumentFromDB(arguments.object)
 
     if len(docList) == 0:
         print("No simulations found!")
@@ -221,7 +221,7 @@ def listSimulations(arguments):
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
         if os.path.isdir(arguments.object):
-            simDocument = wftk.getSimulation(resource=arguments.object)
+            simDocument = wftk.getSimulationsDocuments(resource=arguments.object)
             if len(simDocument) == 0:
                 searchAsGroupOrName = True
             else:
