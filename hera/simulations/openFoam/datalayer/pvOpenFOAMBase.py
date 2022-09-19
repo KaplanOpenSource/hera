@@ -266,7 +266,7 @@ class paraviewOpenFOAM(loggedObject):
 
         return curstep
 
-    def write_netcdf(self, datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=100, overwrite=False):
+    def write_netcdf(self, datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=50, overwrite=False):
         """
             Writes a list of datasources (vtk filters) to netcdf (with xarray).
 
@@ -356,7 +356,7 @@ class paraviewOpenFOAM(loggedObject):
             else:
                 writeList(L,blockID,blockDig,self.netcdfdir)
 
-    def write_parquet(self,datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=5,overwrite=False):
+    def write_parquet(self,datasourcenamelist, timelist=None, fieldnames=None, tsBlockNum=50,overwrite=False):
         """
                 Writes the requested fileters as parquet files.
 
@@ -388,8 +388,7 @@ class paraviewOpenFOAM(loggedObject):
                 outfile = os.path.join(filePath,f"{filtername}.parquet")
                 self.logger.info("\tWriting filter %s in file %s" % (filtername, outfile))
                 append = True if os.path.exists(outfile) else False
-                block_data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,
-                                     sort=True)
+                block_data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
                 if append:
                     self.logger.info("Found previous file, appending")
                     data = dd.from_pandas(block_data,npartitions=1)
@@ -438,7 +437,7 @@ class paraviewOpenFOAM(loggedObject):
         for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timelist,fieldnames=fieldnames):
             L.append(pnds)
             self.logger.debug(f"Current dataFrames in memory  {len(L)}")
-            if len(L) == 5:
+            if len(L) == tsBlockNum:
                 writeList(L, self.parquetdir)
                 L=[]
                 blockID += 1
