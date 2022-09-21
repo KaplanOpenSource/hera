@@ -124,7 +124,7 @@ class workflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON)
 
 
-    def getHermesWorkflowFromDB(self,workflow : Union[dict,str]):
+    def getHermesWorkflowFromDB(self,workflow : Union[dict,str],workflowType : simulationTypes = None):
         """
                 Retrieve the hermes object from the DB.
 
@@ -163,7 +163,8 @@ class workflowToolkit(abstractToolkit):
             warnings.warn("Got more than 1 simulation. Using the first onle only.")
 
         doc = docList[0]
-        return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=doc.type)
+        workflowType = simulationTypes.WORKFLOW.value if workflowType is None else workflowType.value
+        return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=workflowType)
 
     def getSimulationDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str]):
         """
@@ -195,28 +196,31 @@ class workflowToolkit(abstractToolkit):
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
             # try to find it as a name
             self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
-            docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource)
+            docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
             if len(docList) == 0:
                 self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
-                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource)
+                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
                 if len(docList) == 0:
                     self.logger.debug(f"... not found. Try to query as a json. ")
-                    jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
-                    wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
-                    currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
-                    docList = self.getSimulationsDocuments(**currentQuery)
+                    try:
+                        jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
+                        wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
+                        currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
+                        docList = self.getSimulationsDocuments(**currentQuery)
+                    except ValueError:
+                        return None
             else:
                 self.logger.debug(f"... Found it ")
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
             currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
-            docList = self.getSimulationsDocuments(**currentQuery)
+            docList = self.getSimulationsDocuments(**currentQuery,type=simulationTypes.WORKFLOW.value)
 
 
         return docList[0] if len(docList) >0 else None
 
 
-    def getSimulationsInGroup(self, simulationGroup: str, simulationType: simulationTypes = None, **kwargs):
+    def getSimulationsInGroup(self, simulationGroup: str, **kwargs):
         """
             Return a list of all the simulations with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
@@ -241,11 +245,10 @@ class workflowToolkit(abstractToolkit):
             list of mongo documents.
 
         """
-        if  simulationType is not None:
-            kwargs['type'] = simulationType
+        kwargs['type'] = simulationTypes.WORKFLOW.value
         return self.getSimulationsDocuments(groupName=simulationGroup, **kwargs)
 
-    def findAvailableName(self, simulationGroup: str, simulationType: str = None, **kwargs):
+    def findAvailableName(self, simulationGroup: str, **kwargs):
         """
             Finds the next availabe name of that prefix. The available name is the maximal ID + 1.
 
@@ -272,7 +275,7 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simulationType=simulationType, **kwargs)
+        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, **kwargs)
         group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
@@ -308,7 +311,6 @@ class workflowToolkit(abstractToolkit):
     def addToGroup(self,
                    workflowJSON: str,
                    groupName: str = None,
-                   simulationType: simulationTypes = None,
                    overwrite: bool = False,
                    force: bool = False,
                    assignName: bool = False,
@@ -391,7 +393,7 @@ class workflowToolkit(abstractToolkit):
 
         #    a. Make sure that there are no extensions.
         cleanName = workflowJSON.split(".")[0]
-        theType = simulationTypes.WORKFLOW.value if simulationType is None else simulationType
+        theType = simulationTypes.WORKFLOW.value
         self.logger.debug(f"The suggested simulation name is {cleanName} in the document {theType}")
 
         #   b. loading the workflow.
@@ -546,7 +548,6 @@ class workflowToolkit(abstractToolkit):
 
     def listSimulations(self,
                         simulationGroup:str,
-                        simulationType:str = None,
                         parametersOfNodes:list = None,
                         allParams:bool = False,
                         jsonFormat:bool = False
@@ -584,7 +585,7 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations and their values.
 
         """
-        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simulationType=simulationType)
+        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup)
         if parametersOfNodes is not None:
             qry = None
             if len(parametersOfNodes) > 0:

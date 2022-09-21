@@ -4,7 +4,7 @@ import json
 import glob
 
 import sys
-from .. import DECOMPOSED_CASE,RECONSTRUCTED_CASE
+from .. import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from ....utils import loadJSON,loggedObject
 from ....datalayer import datatypes
 paraviewExists = False
@@ -14,7 +14,7 @@ try:
 
     paraviewExists = True
 except ImportError:
-    print("paraview not Found. Cannot use the VTK pipeline.")
+    print("paraview not Found. Cannot execute the VTK pipeline.")
 
 class VTKpipeline(loggedObject):
     """
@@ -101,13 +101,15 @@ class VTKpipeline(loggedObject):
 
                                 }
                             ],
-                            "write" : ['dataFrame','dataArray'],
+                            "write" : ['parquet','netcdf'],
                             "downstream" : {
                                     .... filters...
                             }
                         }
                 }
             }
+
+        use parquet if non-regular data and netcdf for regular data.
 
 
         Parameters
@@ -170,7 +172,7 @@ class VTKpipeline(loggedObject):
         self._casePath = casePath
         self._fieldNames = pipelineJSON["metadata"].get("fieldNames", fieldNames)
 
-    def _initializeReader(self, readerName, casePath):
+    def _initializeReader(self, readerName):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -198,7 +200,7 @@ class VTKpipeline(loggedObject):
                 the reader
         """
         self._readerName  = readerName
-        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=self._caseType, guiName=readerName)
+        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self._casePath, CaseType=self._caseType, guiName=readerName)
         self._reader.MeshRegions.SelectAll()
         self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
@@ -209,10 +211,12 @@ class VTKpipeline(loggedObject):
         return self._reader
 
 
-    def execute(self, sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False):
+    def execute(self, sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False,append=False):
         """
             Executes the pipeline from the JSON vtk.
             Saves the output of the requested filters.
+
+            IF file exists, and it is without --append or --overwrite then raise exception.
 
         Parameters
         ----------
@@ -227,20 +231,25 @@ class VTKpipeline(loggedObject):
         tsBlockNum: int
                 The block number
         overwrite : bool
-                If true, overwrite on the parquet. Else append to it.
+               If true, overwrite on the parquet.
+
+        append : bool
+               If true, append to existing parquet
 
         Returns
         -------
             None
         """
         self.logger.info(f"Executing pipeline")
-        if isinstance(sourceOrName,str):
-
+        if sourceOrName is None:
+            reader = self._initializeReader(readerName="reader")
+        elif isinstance(sourceOrName,str):
             self.logger.debug(f"Getting the reader {sourceOrName}")
             reader = pvsimple.FindSource(sourceOrName)
             if reader is None:
-                reader = self._initializeReader(readerName="reader", casePath=self._casePath, timeList=timeList, caseType=self._casePath, fieldNames=self._fieldNames)
+                reader = self._initializeReader(readerName="reader")
         else:
+            self.logger.debug(f"Gor reader object:  {sourceOrName}")
             # assume server is connected.
             reader = sourceOrName
 
@@ -252,19 +261,18 @@ class VTKpipeline(loggedObject):
         if timeList is None:
             timelist = self._VTKpipelineJSON["metadata"].get("timelist", None)
 
-        if timelist is not None and isinstance(timelist, str):
+        if timeList is not None and isinstance(timeList, str):
             # a bit of parsing.
             readerTL = reader.TimestepValues
             BandA = [readerTL[0], readerTL[-1]]
 
-            for i, val in enumerate(timelist.split(":")):
+            for i, val in enumerate(timeList.split(":")):
                 BandA[i] = BandA[i] if len(val) == 0 else float(val)
 
             tl = pandas.Series(readerTL)
-            timelist = tl[tl.between(*BandA)].values
+            timeList = tl[tl.between(*BandA)].values
 
         # Get the mesh regions.
-
         if "MeshRegions" in self._VTKpipelineJSON["metadata"]:
             reader.MeshRegions = self._VTKpipelineJSON["metadata"]["MeshRegions"]
 
@@ -273,10 +281,11 @@ class VTKpipeline(loggedObject):
             if writer is None:
                 raise ValueError("The write %s is not found" % writer)
             writer(datasourcenamelist=datasourceslist,
-                   timelist=timelist,
+                   timeList=timeList,
                    fieldnames=self._fieldNames,
                    tsBlockNum=tsBlockNum,
-                   overwrite=overwrite)
+                   overwrite=overwrite,
+                   append=append)
 
     def _buildFilterLayer(self, father, structureJson, filterWrite):
         """
@@ -297,14 +306,17 @@ class VTKpipeline(loggedObject):
                 to be printed according to format.
 
         """
+        self.logger.info(f"building Filter layer {structureJson}")
         if structureJson is None:
             return
-
         for filterGuiName in structureJson:
+
             paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
             filtertype = structureJson[filterGuiName]['type']
             filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
+            self.logger.execution(f"Adding filter {filterGuiName} of type {filtertype} to {father}")
             for param, pvalue in paramPairList:
+                self.logger.debug(f"...Adding parameters {param} with value {pvalue}")
                 #pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
                 paramnamelist = param.split(".")
                 paramobj = filter
@@ -371,13 +383,13 @@ class VTKpipeline(loggedObject):
 
             # check if it is already loaded.
             self.logger.debug("Checking if the filter is loaded in the project")
-            docList = self.datalayer.getCacheDocuments(type="vtk_filter",**simqry)
+            docList = self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**simqry)
 
             if len(docList) ==0 or overwrite:
                 self.logger.debug(f"Updating the filter data. Overwrite flag {overwrite}")
 
                 filterDesc = dict(simqry)
-                filterDesc['filterParameters'] = filterData.get('parameters',{})
+                filterDesc['filterParameters'] = filterData.get('params',{})
                 filterDesc['pipeline'] = self.VTKpipelineJSON
                 filterDesc['filterPath'] = path
 
@@ -401,7 +413,7 @@ class VTKpipeline(loggedObject):
                     doc.update()
                 else:
                     self.logger.debug("Adding a new record")
-                    self.datalayer.addCacheDocument(desc=filterDesc,type="vtk_filter",resource=resource,dataFormat = currentdatatype)
+                    self.datalayer.addCacheDocument(desc=filterDesc,type=TYPE_VTK_FILTER,resource=resource,dataFormat = currentdatatype)
             else:
                 self.logger.warning("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
 
