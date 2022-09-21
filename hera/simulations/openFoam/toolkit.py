@@ -4,7 +4,7 @@ import glob
 from .datalayer.OFObjects import OFField
 from .datalayer.hermesWorkflow import Workflow_Flow
 from .datalayer.OFObjects import ofObjectHome
-from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE
+from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit,simulationTypes
 from ...utils import loadJSON
 from .analysis.VTKPipeline import VTKpipeline
@@ -466,7 +466,7 @@ class analysis:
         self._datalayer = datalayer
 
 
-    def getVTKPipeline(self,nameOrWorkflowFileOrJSONOrResource,vtkPipeline,caseType=DECOMPOSED_CASE,servername=None,fieldNames=None):
+    def makeVTKPipeline(self, nameOrWorkflowFileOrJSONOrResource, vtkPipeline, caseType=DECOMPOSED_CASE, servername=None, fieldNames=None):
         """
             Creates a new VTK pipeline from the simulation.
 
@@ -502,7 +502,40 @@ class analysis:
         if os.path.exists(nameOrWorkflowFileOrJSONOrResource):
             casePath = nameOrWorkflowFileOrJSONOrResource
         else:
-            wrkflow = self.datalayer.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            wrkflow = self.datalayer.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
             casePath = wrkflow.resource
 
         return VTKpipeline(datalayer=self.datalayer,pipelineJSON=pipelineVTK, nameOrWorkflowFileOrJSONOrResource=casePath, caseType = caseType, serverName = servername, fieldNames = fieldNames)
+
+
+    def getFiltersDocuments(self,nameOrWorkflowFileOrJSONOrResource,filterName=None):
+        """
+                Returns the cache documents of the filters.
+
+                nameOrWorkflowFileOrJSONOrResource identifies the simulation and can be:
+                    - The path to the directory,
+                    - The name of the simulation
+                    - The workflow file.
+                    - The workflow dict.
+
+                If filterName is None, will return all the filters of the case.
+                If nameOrWorkflowFileOrJSONOrResource is None, will return all the
+
+        Parameters
+        ----------
+        filterName : str
+                The name of the filter to retrieve
+        nameOrWorkflowFileOrJSONOrResource : str
+                The identifier of the simulation.
+
+
+        Returns
+        -------
+            list of DB documents.
+        """
+        wrkflow = self.datalayer.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if wrkflow is None:
+            raise ValueError(f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
+        simulationName = wrkflow['desc']['simulationName']
+
+        return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,filterName=filterName,simulationName=simulationName)

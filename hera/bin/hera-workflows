@@ -58,19 +58,17 @@ def add(args):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if args.simulationGroup is None else args.simulationGroup
-    workflowType            = conf[HERAMETADATA].get('workflowType',simulationTypes.WORKFLOW.value)
 
     if args.variations is None:
         logger.info("No variations supplied. Adding one simulation. ")
         workflowFile = args.workflow
-        logger.info(f"Adding workflow in {workflowFile} to group {simulationGroup}. Using workflow type: {workflowType}.")
+        logger.info(f"Adding workflow in {workflowFile} to group {simulationGroup}.")
 
         action = getattr(actionModes, args.action.upper())
 
         try:
             wftk.addToGroup(workflowJSON=workflowFile,
                             groupName=simulationGroup,
-                            simulationType=workflowType,
                             assignName=args.assignName,
                             overwrite=args.overwrite,
                             action=action,
@@ -120,7 +118,7 @@ def create(arguments):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if arguments.simulationGroup is None else arguments.simulationGroup
-    workflowType            = conf[HERAMETADATA].get('workflowType',simulationTypes.WORKFLOW.value)
+    workflowType            = simulationTypes.WORKFLOW.value
 
 
     if arguments.variations is None:
@@ -203,7 +201,6 @@ def listSimulations(arguments):
     simulationGroup = None
 
     if os.path.isfile(arguments.object):
-
         heraMetadata = loadJSON(arguments.object).get(HERAMETADATA, None)
         if heraMetadata is None:
             raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
@@ -220,37 +217,22 @@ def listSimulations(arguments):
         projectName = arguments.projectName
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-        if os.path.isdir(arguments.object):
-            simDocument = wftk.getSimulationsDocuments(resource=arguments.object)
+        simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
+        if simDocument is not None:
+            simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+            simuationType = simDocument[0].type
+        else:
+            simDocument = wftk.getSimulationsInGroup(arguments.object)
             if len(simDocument) == 0:
-                searchAsGroupOrName = True
-            else:
-                searchAsGroupOrName = False
-                simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
-                simuationType   = simDocument[0].type
-
-    if searchAsGroupOrName:
-        ## The wftk
-        # Could be a group name or a simulation name.
-        grpqry = { wftk.DESC_GROUPNAME :  arguments.object}
-        simDocument = wftk.getSimulation(**grpqry)
-        if len(simDocument) == 0:
-            # check if simulation name
-            simqry = {wftk.DESC_SIMULATIONNAME : arguments.object}
-            simDocument = wftk.getSimulation(**simqry)
-            if len(simDocument) == 0:
-                print(f"Requested {arguments.object} is not a workflow file, case directory, simulation group name or simulation name... ")
-                exit()
-
-        simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
-        simuationType   = simDocument[0].type
+                print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+            simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+            simuationType   = simDocument[0].type
 
     parametersOfNodes    = arguments.parametersOfNodes
     allParams     = arguments.allParameters
     jsonFormat    = arguments.json
 
     simulationList = wftk.listSimulations(simulationGroup=simulationGroup,
-                                          simulationType=simuationType,
                                           parametersOfNodes=parametersOfNodes,
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
