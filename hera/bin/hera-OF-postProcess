@@ -2,19 +2,9 @@
 
 import argparse
 import json
-import shutil
 import os
-import hera.simulations.openFoam.datalayer.ExtractTransformLoadVTK as openfoam
 from   hera.simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
-
-
-import sys
-version = sys.version_info[0]
-if version == 3:
-    from hera.utils import loadJSON
-
-
-VTKOutput_folder='VTKOutput'
+from hera import toolkitHome,loggingHome
 
 def load_handler(args):
 
@@ -25,22 +15,22 @@ def load_handler(args):
         Parameters
         ----------
 
-    """
-    if version < 3:
-        raise ValueError("Must run the loader with python 3+. ")
+        args.
+            projectName : str
+                    The name of the project to load to.
+            pipelineFile : str
+                    The name of the file that contains the pipeline.
+            casePath  : str
+                    The path to the case, its name, or the workflow file.
 
+    """
     projectName = args.projectName
     pipelineFile = args.pipelineFile
-    path=args.casePath
+    casePath=args.casePath
 
-    pipelineFilebaseName = os.path.splitext(os.path.basename(pipelineFile))[0]
-
-    jsondata = loadJSON(pipelineFile)
-    pipelines = jsondata["pipelines"]  # Reading the pipelines
-
-    vtkpipe = openfoam.VTKpipeline(pipelineJSON=jsondata, nameOrWorkflowFileOrJSONOrResource=path)
-    vtkpipe.loadToProject(projectName=projectName)
-
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    pipe = tk.analysis.makeVTKPipeline(nameOrWorkflowFileOrJSONOrResource=casePath, vtkPipeline=pipelineFile)
+    pipe.loadToProject()
 
 def executePipeline_handler(args):
 
@@ -51,22 +41,19 @@ def executePipeline_handler(args):
         ----------
 
     """
-    if version > 2:
-        raise ValueError("Must run the pipeline execution with python 2.7 ")
-
-    JSONpath = args.pipelineFile
-    JSONbaseName= os.path.splitext(os.path.basename(JSONpath))[0]
-
-    with open(JSONpath) as json_file:
-        data = json.load(json_file)
-
-    if args.casePath is None:
-        raise ValueError("Must supply the casePath in the command line ")
-
+    projectName = args.projectName
+    pipelineFile = args.pipelineFile
+    casePath=args.casePath
     caseType = DECOMPOSED_CASE if args.parallelCase else RECONSTRUCTED_CASE
+    tsBlockNum = args.timeStepsInPartition
+    overwrite = args.overwrite
+    servername = args.serverName
+    timeList = args.timeList
+    append = args.append
 
-    vtkpipe = openfoam.VTKpipeline(pipelineJSON=data, nameOrWorkflowFileOrJSONOrResource=args.casePath, caseType=caseType, servername=args.serverName)
-    vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, overwrite=args.overwrite)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    pipe = tk.analysis.makeVTKPipeline(nameOrWorkflowFileOrJSONOrResource=casePath, vtkPipeline=pipelineFile, servername=servername)
+    pipe.execute(sourceOrName=None,timeList=timeList, tsBlockNum=tsBlockNum, overwrite=overwrite,append=append)
 
 
 def executeLoadPipeline_handler(args):
@@ -87,8 +74,10 @@ if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
+    #loggingHome.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
+
     ##### Load results to the hera DB
-    parser_load = subparsers.add_parser('load', help='load help')
+    parser_load = subparsers.add_parser('load', help='loading the results to the Project')
     parser_load.add_argument('projectName',
                              type=str,
                              help='The project name')
@@ -97,49 +86,51 @@ if __name__ =="__main__":
                              type=str,
                              help='[pipeline file name]')
 
-    parser_load.add_argument('-casePath',
-                                        dest="casePath",
-                                        type=str,
-                                        required=True,
-                                        help='[path to the case]')
+    parser_load.add_argument('casePath',help='[path to the case]')
 
     parser_load.set_defaults(func=load_handler)
 
     ##### executePipeline parameters
-    parser_executePipeline = subparsers.add_parser('executePipeline', help='executePipeline help')
+    parser_executePipeline = subparsers.add_parser('executePipeline', help='executing the pipeline filters (writing to parquet/netcdf files)')
+    parser_executePipeline.add_argument('projectName',
+                             type=str,
+                             help='The project name')
+
     parser_executePipeline.add_argument('pipelineFile',
-                                        type=str,
-                                        help='[path to VTK pipeline JSON]')
+                             type=str,
+                             help='[pipeline file name]')
 
-    parser_executePipeline.add_argument('-casePath',
-                                        dest="casePath",
-                                        type=str,
-                                        required=True,
-                                        help='[path to the case]')
+    parser_executePipeline.add_argument('casePath',help='[path to the case]')
 
-    parser_executePipeline.add_argument('-parallelCase',
+    parser_executePipeline.add_argument('--parallelCase',
                                         action='store_true',
                                         dest="parallelCase",
                                         default=True,
                                         help='If exists, reads the decomposed case')
 
-    parser_executePipeline.add_argument('-serverName',
+    parser_executePipeline.add_argument('--serverName',
                                         type=str,
                                         dest="serverName",
                                         default=None,
                                         help='If exists, uses the paraview server')
 
-    parser_executePipeline.add_argument('-timeStepsInPartition',
+    parser_executePipeline.add_argument('--timeStepsInPartition',
                                         type=int,
                                         dest="timeStepsInPartition",
-                                        default=100,
+                                        default=50,
                                         help='The number of time steps in each NetCDF File/ the size of the batch to process')
 
-    parser_executePipeline.add_argument('-overwrite',
+    parser_executePipeline.add_argument('--overwrite',
                                         action='store_true',
                                         dest = "overwrite",
                                         default=False,
-                                        help='If exists, write over the existing files.')
+                                        help='Write over the existing files.')
+
+    parser_executePipeline.add_argument('--append',
+                                        action='store_true',
+                                        dest = "append",
+                                        default=False,
+                                        help='Append to the existing files.')
 
     parser_executePipeline.set_defaults(func=executePipeline_handler)
 
@@ -153,35 +144,38 @@ if __name__ =="__main__":
                              type=str,
                              help='[pipeline file name]')
 
-    parser_execload.add_argument('-casePath',
-                                        dest="casePath",
-                                        type=str,
-                                        required=True,
-                                        help='[path to the case]')
+    parser_execload.add_argument('casePath',help='[path to the case]')
 
-    parser_execload.add_argument('-parallelCase',
+    parser_execload.add_argument('--parallelCase',
+                                action='store_true',
+                                dest="parallelCase",
+                                default=True,
+                                help='If exists, reads the decomposed case')
+
+    parser_execload.add_argument('--serverName',
+                                type=str,
+                                dest="serverName",
+                                default=None,
+                                help='If exists, uses the paraview server')
+
+    parser_execload.add_argument('--timeStepsInPartition',
+                                type=int,
+                                dest="timeStepsInPartition",
+                                default=50,
+                                help='The number of time steps in each NetCDF File/ the size of the batch to process')
+
+    parser_execload.add_argument('--overwrite',
+                                    action='store_true',
+                                    dest = "overwrite",
+                                    default=False,
+                                    help='Write over the existing files.')
+
+    parser_execload.add_argument('--append',
                                         action='store_true',
-                                        dest="parallelCase",
-                                        default=True,
-                                        help='If exists, reads the decomposed case')
-
-    parser_execload.add_argument('-serverName',
-                                        type=str,
-                                        dest="serverName",
-                                        default=None,
-                                        help='If exists, uses the paraview server')
-
-    parser_execload.add_argument('-timeStepsInPartition',
-                                        type=int,
-                                        dest="timeStepsInPartition",
-                                        default=100,
-                                        help='The number of time steps in each NetCDF File/ the size of the batch to process')
-
-    parser_execload.add_argument('-overwrite',
-                                        action='store_true',
-                                        dest = "overwrite",
+                                        dest = "append",
                                         default=False,
-                                        help='If exists, write over the existing files.')
+                                        help='Append to the existing files.')
+
 
     parser_execload.set_defaults(func=executeLoadPipeline_handler)
 
