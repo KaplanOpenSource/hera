@@ -7,9 +7,8 @@ from .datalayer.OFObjects import ofObjectHome
 from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit,simulationTypes
 from ...utils import loadJSON
-from ...datalayer import datatypes
 from .analysis.VTKPipeline import VTKpipeline
-import shutil
+
 
 class OFToolkit(workflowToolkit):
     """
@@ -137,7 +136,7 @@ class OFToolkit(workflowToolkit):
         """
         pass
 
-    def prepareFlowFieldForDispersion(self, flowData, simulationGroup:str,overwrite:bool=False, useDBSupport: bool = True):
+    def prepareFlowFieldForDispersion(self, flowData, simulationGroup:str,overwrite:bool=False):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
             Currently, assumes the case is parallel.
@@ -217,10 +216,6 @@ class OFToolkit(workflowToolkit):
             simulationGroup : str
                     The name of the group.
 
-            useDBSupport : bool
-                    If False, does not access the DB to check if the flow exists.
-                    and does not add it. Used in the hermes module, when each dispersion case has its own flow (as it is soft link, it does not take space).
-
         Returns
         -------
             A list of str
@@ -250,7 +245,7 @@ class OFToolkit(workflowToolkit):
             # find maximal TS, assume it is parallel:
             uts = str(TS[-1])
         else:
-            # find the closest TS.
+            # find the closes TS.
             request = float(useTime)
             uts = TS[min(range(len(TS)), key=lambda i: abs(float(TS[i]) - request))]
 
@@ -263,46 +258,36 @@ class OFToolkit(workflowToolkit):
         # 2. same Hmix/ustar/... other fields.
         # 3. the requested start and end are within the existing start and end.
 
-        if useDBSupport:
-
-            querydict = dict(
-                groupName=simulationGroup,
-                flowParameters=dict(
-                    baseFlowDirectory = orig,
-                    flowFields=flowData['dispersionFields'],
-                    usingTimeStep = uts,
-                    baseFlow = baseFlow
-                )
+        querydict = dict(
+            groupName=simulationGroup,
+            flowParameters=dict(
+                baseFlowDirectory = orig,
+                flowFields=flowData['dispersionFields'],
+                usingTimeStep = uts,
+                baseFlow = baseFlow
             )
+        )
 
-            self.logger.debug(f"Test if the requested flow field already exists in the project")
-            docList = self.getSimulationsDocuments(type=simulationTypes.OF_FLOWDISPERSION.value,**querydict)
-        else:
-            self.logger.debug(f"Running without DB support, so does not query the db ")
-            docList = []
+        self.logger.debug(f"Test if the requested flow field already exists in the project")
+        docList = self.getSimulationsDocuments(type=simulationTypes.OF_FLOWDISPERSION.value,**querydict)
 
         if len(docList) == 0 or overwrite:
             self.logger.info(f"Flow field not found, creating new and adding to the DB. ")
             ofhome = ofObjectHome()
-
-            if useDBSupport:
-                if len(docList) == 0:
-                    self.logger.debug("Getting a new name")
-                    groupID,simulationName = self.findAvailableName(simulationGroup, simulationType=simulationTypes.OF_FLOWDISPERSION.value)
-                else:
-                    resource = docList[0].resource
-                    simulationName = docList[0].desc['name']
-                    groupID= docList[0].desc['groupID']
-                    self.logger.debug(f"The flow exists with the name {simulationName}, so deleting {resource}, and writing over it")
-                    shutil.rmtree(resource)
-
-                self.logger.info(
-                    f"Creating new name for the flow simulation.... Got ID {groupID} with simulation name {simulationName}")
+            if len(docList) == 0:
+                self.logger.debug("Getting a new name")
+                groupID,simulationName = self.findAvailableName(simulationGroup,
+                                                                simulationType=simulationTypes.OF_FLOWDISPERSION.value)
             else:
-                groupID = "1"
-                simulationName = simulationGroup
-                self.logger.info(f"Creating flow simulation with {simulationName}")
 
+                resource = docList[0].resource
+                simulationName = docList[0].desc['name']
+                groupID= docList[0].desc['groupID']
+                self.logger.debug(f"The flow exists with the name {simulationName}, so deleting {resource}, and writing over it")
+                shutil.rmtree(resource)
+
+
+            self.logger.info(f"Creating new name for the simulation.... Got ID {groupID} with simulation name {simulationName}")
             dest = os.path.abspath(os.path.join(self.FilesDirectory,simulationName))
 
             try:
@@ -318,9 +303,9 @@ class OFToolkit(workflowToolkit):
                 orig_general = os.path.join(orig, general)
                 dest_general = os.path.join(dest, general)
                 if os.path.exists(dest_general):
-                    self.logger.debug(f"path {dest_general} exists... removing before copy")
-                    shutil.rmtree(dest_general)
-                shutil.copytree(orig_general, dest_general)
+                    copy_tree(orig_general, dest_general)
+                else:
+                    shutil.copytree(orig_general, dest_general)
 
             self.logger.info(f"Copy the parallel directories")
             for proc in glob.glob(os.path.join(orig,"processor*")):
@@ -329,7 +314,7 @@ class OFToolkit(workflowToolkit):
                 # The directories in round times are int and not float.
                 # that is 10 and not 10.0. Therefore, we must check and correct if does not exist.
                 if not os.path.exists(orig_proc):
-                    self.logger.debug("Source does not exist, probably due to float/int issues. Recreating the source with int format")
+                    self.logger.debug("Source does not exist, probably de to float/int issues. Recreating the source with int format")
                     orig_proc = os.path.join(proc, str(int(uts)))
                     if not os.path.exists(orig_proc):
                         self.logger.error(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
@@ -338,9 +323,6 @@ class OFToolkit(workflowToolkit):
                 for dest_time in [fromTime, maximalDispersionTime]:
                     self.logger.debug(f"Handling {proc} - time {dest_time}")
                     dest_proc = os.path.join(dest,os.path.basename(proc),str(dest_time))
-                    if os.path.exists(dest_proc):
-                        self.logger.debug(f"path {dest_proc} exists... removing before copy")
-                        shutil.rmtree(dest_proc)
                     shutil.copytree(orig_proc,dest_proc)
 
                 self.logger.info(f"Copying the mesh")
@@ -381,17 +363,17 @@ class OFToolkit(workflowToolkit):
                     os.makedirs(os.path.join(dest,str(dest_time)),exist_ok=True)
 
 
-            self.logger.info("Finished creating the flow field for the dispersion. ")
-            if useDBSupport:
-                self.logger.info("Adding to the database.")
-                if len(docList) ==0:
-                    self.logger.debug("Updating the metadata of the record with the new group ID and simulation name")
-                    querydict.update(dict(
-                        groupID=groupID,
-                        name=simulationName,
-                    ))
-                    self.logger.debug("Adding record to the database")
-                    self.addSimulationsDocument(resource=dest,type=simulationTypes.OF_FLOWDISPERSION.value,dataFormat=datatypes.STRING,desc=querydict)
+            self.logger.info("Finished creating the flow field for the dispersion. Adding to the database. ")
+
+            if len(docList) ==0:
+                self.logger.debug("Updating the metadata of the record with the new group ID and simulation name")
+                querydict.update(dict(
+                    groupID=groupID,
+                    name=simulationName,
+                ))
+
+                self.logger.debug("Adding record to the database")
+                self.addSimulationsDocument(resource=dest,type=simulationTypes.OF_FLOWDISPERSION.value,dataFormat=datatypes.STRING,desc=querydict)
 
             ret = dest
         else:
@@ -556,8 +538,4 @@ class analysis:
             raise ValueError(f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
         simulationName = wrkflow['desc']['simulationName']
 
-        qry = dict(simulationName=simulationName)
-        if filterName is not None:
-            qry['filterName'] = filterName
-
-        return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
+        return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,filterName=filterName,simulationName=simulationName)
