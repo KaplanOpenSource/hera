@@ -31,29 +31,27 @@ def prepareAll(arguments):
     """
     logger = loggedObject("bin.hera_OF_workflows.add").logger
     logger.info(" -- Starting: adding workflow to the group --")
-
-    logger.info("---- Start ----")
     logger.info(f"Loading the workflow {arguments.workflow} and the configuration file {arguments.configurationFile}")
     configuration = loadJSON(arguments.configurationFile)
     hwf = Workflow_Flow(workflowJSON=arguments.workflow)
 
     templateName =configuration["specializedTemplateName"]
-    logger.info(f"Creating the specialized template {templateName}")
+    logger.info(f"Specializing template {templateName}")
 
-    logger.debug("Making directory")
+    logger.debug("...Making directory")
     os.makedirs(templateName,exist_ok=True)
 
     # 1. Prepare the geometry. Build the STL
-    logger.debug("Preparing geometry")
+    logger.debug("...Preparing geometry")
     hwf.prepareGeometry(templateName, configuration,arguments.overwrite)
 
     # 2. Prepare the mesh
-    logger.debug("Preparing mesh")
+    logger.debug("...Preparing mesh")
     hwf.prepareMesh(configurationFile=configuration)
 
     # 3. Prepare the boundary conditions and initial conditinos .
     #    changes the dict change node.
-    logger.debug("Preparing Initial and boundary conditions")
+    logger.debug("...Preparing Initial and boundary conditions")
     hwf.prepareICandBC(configurationFile=configuration)
 
     if arguments.noParallel:
@@ -84,7 +82,7 @@ if __name__=="__main__":
     ### ---- Debugging
     from hera import toolkitHome
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
-    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
+    tk.addLogger(loggerName="simulations",handlers=['console'],level='DEBUG',propagate=False)
     tk.addLogger(loggerName="bin",handlers=['console'],level='DEBUG',propagate=False)
     ### ---- Debugging
 
