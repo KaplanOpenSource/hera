@@ -7,8 +7,9 @@ from .datalayer.OFObjects import ofObjectHome
 from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit,simulationTypes
 from ...utils import loadJSON
+from ...datalayer import datatypes
 from .analysis.VTKPipeline import VTKpipeline
-
+import shutil
 
 class OFToolkit(workflowToolkit):
     """
@@ -245,7 +246,7 @@ class OFToolkit(workflowToolkit):
             # find maximal TS, assume it is parallel:
             uts = str(TS[-1])
         else:
-            # find the closes TS.
+            # find the closest TS.
             request = float(useTime)
             uts = TS[min(range(len(TS)), key=lambda i: abs(float(TS[i]) - request))]
 
@@ -303,9 +304,9 @@ class OFToolkit(workflowToolkit):
                 orig_general = os.path.join(orig, general)
                 dest_general = os.path.join(dest, general)
                 if os.path.exists(dest_general):
-                    copy_tree(orig_general, dest_general)
-                else:
-                    shutil.copytree(orig_general, dest_general)
+                    self.logger.debug(f"path {dest_general} exists... removing before copy")
+                    shutil.rmtree(dest_general)
+                shutil.copytree(orig_general, dest_general)
 
             self.logger.info(f"Copy the parallel directories")
             for proc in glob.glob(os.path.join(orig,"processor*")):
@@ -323,6 +324,9 @@ class OFToolkit(workflowToolkit):
                 for dest_time in [fromTime, maximalDispersionTime]:
                     self.logger.debug(f"Handling {proc} - time {dest_time}")
                     dest_proc = os.path.join(dest,os.path.basename(proc),str(dest_time))
+                    if os.path.exists(dest_proc):
+                        self.logger.debug(f"path {dest_proc} exists... removing before copy")
+                        shutil.rmtree(dest_proc)
                     shutil.copytree(orig_proc,dest_proc)
 
                 self.logger.info(f"Copying the mesh")

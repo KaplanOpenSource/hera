@@ -139,22 +139,15 @@ def prepareIndoorsFlowField(arguments):
 
     overwrite = arguments.overwrite
     if overwrite is None:
-        logger.debug("Rewriting is None: do not rewrite")
         overwriteFlag = False
         overwrite = []
     elif len(overwrite) == 0:
-        logger.debug("Rewriting all flows")
         overwriteFlag = True
 
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        logger.debug(f"Preparing field {flowid}")
         if len(overwrite) > 0:
                 overwriteFlag = True if str(flowid+1) in overwrite else False
         case = tk.prepareFlowFieldForDispersion(flowData=flowdata, simulationGroup=basename,overwrite=overwriteFlag)
-
-        logger.info(f"Preparing the Cell heights with:")
-        logger.info(f" foamJob -parallel -wait indoorDistanceFromWalls  -case {case} -time 0:")
-        logger.info("If Openfoam is not Loaded, run it explitely. ")
         ret = os.system(f"cd {case};foamJob -parallel -wait indoorDistanceFromWalls  -case {case} -time 0: ;cd ..")
         if ret != 0:
             raise ValueError("Openfoam not installed, or indoorDistanceFromWalls does not exist!. ")
