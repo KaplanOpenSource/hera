@@ -21,6 +21,7 @@ def createEmpty(args):
 
     caseDir = args.caseDirectory
     fieldList = args.fields
+    additionalFields = args.fieldData
     print(f"Making case {caseDir} with fields {','.join(fieldList)}")
 
     # Make the case :
@@ -30,11 +31,11 @@ def createEmpty(args):
     os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
 
-    if os.path.exists(args.fieldData):
-        with open(args.fieldData) as infile:
-            fileaddition = json.load(infile)['fields']
-    else:
-        fileaddition = dict()
+    fileaddition = dict()
+    if additionalFields is not None:
+        if os.path.exists(args.fieldData):
+            with open(args.fieldData) as infile:
+                fileaddition = json.load(infile)['fields']
 
     # Makes the empty fields
     for fieldName in fieldList:

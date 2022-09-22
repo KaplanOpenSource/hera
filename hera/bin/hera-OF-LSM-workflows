@@ -136,9 +136,12 @@ def prepareIndoorsFlowField(arguments):
     basename = configuration["flowFields"]['prefixName']
     tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
-    overwriteFlag = False
+
     overwrite = arguments.overwrite
-    if len(overwrite) == 0:
+    if overwrite is None:
+        overwriteFlag = False
+        overwrite = []
+    elif len(overwrite) == 0:
         overwriteFlag = True
 
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
