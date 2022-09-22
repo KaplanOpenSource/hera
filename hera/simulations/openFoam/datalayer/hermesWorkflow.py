@@ -5,6 +5,7 @@ import json
 from distutils.dir_util import copy_tree
 from hera import toolkitHome
 from ....utils import loadJSON,loggedObject
+from ....utils.freeCAD import getObjFileBoundaries
 #from ....datalayer import Project
 from itertools import product
 from ...openFoam import ofObjectHome
@@ -16,7 +17,7 @@ except ImportError:
     raise ImportError("Cannot use this module without hermes... Install it. ")
 
 
-class abstractWorkflow(workflow):
+class abstractWorkflow(workflow,loggedObject):
     """
             An abstract specialization of the hermes workflow to the
             openfoam workflow.
@@ -28,8 +29,8 @@ class abstractWorkflow(workflow):
         return self['Parameters']
 
     def __init__(self, workflowJSON, workflowType=simulationTypes.WORKFLOW):
+        loggedObject.__init__(self)
         super().__init__(workflowJSON=workflowJSON)
-        self.logger = loggedObject(loggerName=None).logger
         self.workflowType = workflowType
 
 
@@ -237,7 +238,7 @@ class Workflow_Flow(abstractWorkflow):
         """
             Reads the configuration file and:
 
-            Adapt the following workflow nodes:
+            Adapt the fo    llowing workflow nodes:
 
                 1. blockMesh
                 2. Snappy
@@ -470,7 +471,6 @@ class Workflow_Flow(abstractWorkflow):
 
         """
         self.logger.info(" -- Start -- ")
-
         objectName = geometryJSON['source']['fileName']
         objectType = geometryJSON['source']['fileType']
         # Updating the snappyHexMesh object:
@@ -572,28 +572,8 @@ class Workflow_Flow(abstractWorkflow):
         -------
             None, updates the blockMesh node.
         """
-        try:
-            from freecad import app as FreeCAD
-            import Mesh
-        except ImportError:
-            self.logger.error("freecad module  is not installed in the environment")
-            raise ImportError("freecad is not installed. please install it before trying again.")
-
-        # Load the file
         fileName = configuration['mesh']['blockMesh']['fileName']
-        Mesh.open(fileName)
-        objFile = FreeCAD.getDocument("Unnamed")
-
-        bboxes = [x.Mesh.BoundBox for x in objFile.findObjects()]
-
-        maxPropList = ['XMax','YMax','ZMax']
-        corners = dict()
-        for propName in maxPropList:
-             corners[propName] = numpy.max([getattr(x,propName) for x in bboxes])/1000
-
-        minPropList = ['XMin', 'YMin', 'ZMin']
-        for propName in minPropList:
-             corners[propName] = numpy.min([getattr(x,propName) for x in bboxes])/1000
+        corners = getObjFileBoundaries(fileName)
 
         # check if the user supplied corners explicitly
         determinedCorners =  configuration['mesh']['blockMesh'].get("absoluteDomainBounds",{})
@@ -631,18 +611,60 @@ class Workflow_Flow(abstractWorkflow):
         -------
 
         """
-        regionName = configuration['mesh']['blockMesh']['region']
-        height = configuration['mesh']['blockMesh']['height']
+        meshType = configuration['mesh']['blockMesh']['type']
 
-        corners = configuration['regions'][regionName]['parameters']
+        func = getattr(self,f"locationInMeshHandlerRelative_{meshType}")
+        func(configuration)
 
+
+
+    def locationInMeshHandlerRelative_objFile(self,configuration):
+        """
+            Finds the relative point in the objFile, and update the snappyHexMesh node.
+        Returns
+        -------
+
+        """
+        self.logger.info("Calculating relative location for objFile")
+
+        fileName = configuration['mesh']['blockMesh']['fileName']
+        corners = getObjFileBoundaries(fileName)
+        self.logger.debug("Got the corners {corners}")
         x_frac = configuration['mesh']['locationInMesh']['x']
         y_frac = configuration['mesh']['locationInMesh']['y']
         z_frac = configuration['mesh']['locationInMesh']['z']
 
+        self.logger.debug(f"Got the fractions x: {x_frac}, y: {y_frac}, z: {z_frac}")
 
-        x = corners['xmin'] + x_frac *(corners['xmax']-corners['xmin'])
-        y = corners['ymin'] + y_frac *(corners['ymax']-corners['ymin'])
+        x = corners['XMin'] + x_frac *(corners['XMax']-corners['XMin'])
+        y = corners['YMin'] + y_frac *(corners['YMax']-corners['YMin'])
+        z = corners['ZMin'] + z_frac * (corners['ZMax'] - corners['ZMin'])
+
+        self.logger.debug(f"Got the ceners x: {x}, y: {y}, z: {z}")
+
+        snappyNode = self.snappyHexMesh
+
+        if snappyNode is not None:
+            snappyNode["castellatedMeshControls"]["locationInMesh"] = [x,y,z]
+
+    def locationInMeshHandlerRelative_region(self,configuration):
+        """
+            Finds the relative point in the region, and update the snappyHexMesh node.
+        Returns
+        -------
+
+        """
+
+        regionName = configuration['mesh']['blockMesh']['region']
+        height = configuration['mesh']['blockMesh']['height']
+
+        corners = configuration['regions'][regionName]['parameters']
+        x_frac = configuration['mesh']['locationInMesh']['x']
+        y_frac = configuration['mesh']['locationInMesh']['y']
+        z_frac = configuration['mesh']['locationInMesh']['z']
+
+        x = corners['XMin'] + x_frac *(corners['XMax']-corners['XMin'])
+        y = corners['YMin'] + y_frac *(corners['YMax']-corners['YMin'])
         z = height[0] + z_frac * (height[1] -height[0])
 
         snappyNode = self.snappyHexMesh
