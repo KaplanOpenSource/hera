@@ -1,4 +1,5 @@
 from mongoengine import *
+from mongoengine.connection import disconnect
 import os
 import json
 import getpass
@@ -88,6 +89,8 @@ def connectToDatabase(mongoConfig,alias=None):
         mongoConfig = parseConnectionString(mongoConfig)
 
     alias = '%s-alias' % mongoConfig['dbName'] if alias is None else alias
+
+    disconnect(alias)
 
     con = connect(alias=alias,
             host=mongoConfig['dbIP'],
