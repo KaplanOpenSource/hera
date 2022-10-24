@@ -405,14 +405,12 @@ class paraviewOpenFOAM(loggedObject):
                 data = dd.from_pandas(block_data, npartitions=1)
                 data.set_index("time").to_parquet(outfile,append=append,overwrite=overwrite)
 
-                self.logger.execution("Repartitioning to 100MB per partition")
-                dd.read_parquet(outfile).repartition(partition_size = "100MB").reset_index().sort_values("time").set_index("time").to_parquet(outfile)
 
         if not os.path.isdir(self.parquetdir):
             self.logger.debug(f"Creating output directory {self.parquetdir}")
             os.makedirs(self.parquetdir)
 
-        maxTime = -1  # take all
+        maxTime = -1  # take all time steps.
         if not overwrite:
             # find the time that is saved. Assume that all the filters have the same timelist.
             # find the first.
@@ -421,7 +419,6 @@ class paraviewOpenFOAM(loggedObject):
                 prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")
                 if not os.path.exists(prqtFile):
                     continue
-
                 maxTime = dd.read_parquet(prqtFile).index.max().compute()
                 break
             self.logger.debug(f"The maximal time found is {maxTime}. Skipping all the timesteps beofre that.")
@@ -449,7 +446,19 @@ class paraviewOpenFOAM(loggedObject):
             self.logger.debug(f"Current dataFrames in memory  {len(L)}")
             if len(L) == tsBlockNum:
                 writeList(L, self.parquetdir,append=append,overwrite=overwrite)
+
+                # From the second iteration, we must append to the newly created file.
+                overwrite = False
+                append = True
                 L=[]
                 blockID += 1
         if len(L) > 0:
             writeList(L, self.parquetdir,append=append,overwrite=overwrite)
+
+        filterList = [x for x in L[0].keys()]
+        for filtername in filterList:
+            outfile = os.path.join(self.parquetdir,f"{filtername}.parquet")
+            if os.path.exists(outfile):
+                self.logger.execution("Repartitioning to 100MB per partition")
+                dd.read_parquet(outfile).repartition(partition_size="100MB").reset_index().sort_values("time").set_index(
+                    "time").to_parquet(outfile)
