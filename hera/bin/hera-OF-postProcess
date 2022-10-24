@@ -28,6 +28,18 @@ def load_handler(args):
     pipelineFile = args.pipelineFile
     casePath=args.casePath
 
+    if projectName is None:
+        print("ProjectName not supplied, try to read it from the workflow file (if exists)")
+        if os.path.exists(f"{casePath}.json"):
+            from hera.utils import loadJSON
+            res = loadJSON(f"{casePath}.json")
+            projectName = res['heraMetaData']['projectName']
+            print(f"Found projectName {projectName}")
+        else:
+            raise ValueError("ProjectName is not supplied")
+
+
+
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     pipe = tk.analysis.makeVTKPipeline(nameOrWorkflowFileOrJSONOrResource=casePath, vtkPipeline=pipelineFile)
     pipe.loadToProject()
@@ -51,10 +63,20 @@ def executePipeline_handler(args):
     timeList = args.timeList
     append = args.append
 
+    if projectName is None:
+
+        print(f"ProjectName not supplied, try to read it from the workflow file {casePath}.json (if exists)")
+        if os.path.exists(f"{casePath}.json"):
+            from hera.utils import loadJSON
+            res = loadJSON(f"{casePath}.json")
+            projectName = res['heraMetaData']['projectName']
+            print(f"Found projectName {projectName}")
+        else:
+            raise ValueError("ProjectName is not supplied")
+
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     pipe = tk.analysis.makeVTKPipeline(nameOrWorkflowFileOrJSONOrResource=casePath, vtkPipeline=pipelineFile, servername=servername)
     pipe.execute(sourceOrName=None,timeList=timeList, tsBlockNum=tsBlockNum, overwrite=overwrite,append=append)
-
 
 def executeLoadPipeline_handler(args):
     """
@@ -74,13 +96,10 @@ if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    #loggingHome.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
+    loggingHome.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
 
     ##### Load results to the hera DB
     parser_load = subparsers.add_parser('load', help='loading the results to the Project')
-    parser_load.add_argument('projectName',
-                             type=str,
-                             help='The project name')
 
     parser_load.add_argument('pipelineFile',
                              type=str,
@@ -88,19 +107,25 @@ if __name__ =="__main__":
 
     parser_load.add_argument('casePath',help='[path to the case]')
 
+    parser_load.add_argument('--projectName',
+                                 dest="projectName",
+                                 default=None,
+                                 type=str,
+                                 help='The project name')
+
+
     parser_load.set_defaults(func=load_handler)
 
     ##### executePipeline parameters
     parser_executePipeline = subparsers.add_parser('executePipeline', help='executing the pipeline filters (writing to parquet/netcdf files)')
-    parser_executePipeline.add_argument('projectName',
-                             type=str,
-                             help='The project name')
 
     parser_executePipeline.add_argument('pipelineFile',
                              type=str,
                              help='[pipeline file name]')
 
     parser_executePipeline.add_argument('casePath',help='[path to the case]')
+
+
 
     parser_executePipeline.add_argument('--parallelCase',
                                         action='store_true',
@@ -120,6 +145,19 @@ if __name__ =="__main__":
                                         default=50,
                                         help='The number of time steps in each NetCDF File/ the size of the batch to process')
 
+    parser_executePipeline.add_argument('--projectName',
+                                 dest="projectName",
+                                 default=None,
+                                 type=str,
+                                 help='The project name')
+
+    parser_executePipeline.add_argument('--timeList',
+                                        nargs="*",
+                                        type=int,
+                                        dest="timeList",
+                                        default=None,
+                                        help='The time steps to process')
+
     parser_executePipeline.add_argument('--overwrite',
                                         action='store_true',
                                         dest = "overwrite",
@@ -132,19 +170,24 @@ if __name__ =="__main__":
                                         default=False,
                                         help='Append to the existing files.')
 
+
+
     parser_executePipeline.set_defaults(func=executePipeline_handler)
 
     ##### Execute and load.
     parser_execload = subparsers.add_parser('executeLoad', help='executes pipeline and then loads it')
-    parser_execload.add_argument('projectName',
-                             type=str,
-                             help='The project name')
 
     parser_execload.add_argument('pipelineFile',
                              type=str,
                              help='[pipeline file name]')
 
     parser_execload.add_argument('casePath',help='[path to the case]')
+
+    parser_execload.add_argument('--projectName',
+                                 dest="projectName",
+                                 default=None,
+                                 type=str,
+                                 help='The project name')
 
     parser_execload.add_argument('--parallelCase',
                                 action='store_true',
@@ -163,6 +206,14 @@ if __name__ =="__main__":
                                 dest="timeStepsInPartition",
                                 default=50,
                                 help='The number of time steps in each NetCDF File/ the size of the batch to process')
+
+    parser_execload.add_argument('--timeList',
+                                        nargs="*",
+                                        type=int,
+                                        dest="timeList",
+                                        default=None,
+                                        help='The time steps to process')
+
 
     parser_execload.add_argument('--overwrite',
                                     action='store_true',

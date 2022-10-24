@@ -1,14 +1,13 @@
 import numpy
 import os
-import glob
 import json
-from distutils.dir_util import copy_tree
 from hera import toolkitHome
 from ....utils import loadJSON,loggedObject
-from ....utils.freeCAD import getObjFileBoundaries
-#from ....datalayer import Project
+try:
+    from ....utils.freeCAD import getObjFileBoundaries
+except ImportError:
+    print("Cant find FreeCAD. Cannot perform STL actions ")
 from itertools import product
-from ...openFoam import ofObjectHome
 from ...hermesWorkflowToolkit import simulationTypes,HERAMETADATA
 
 try:
