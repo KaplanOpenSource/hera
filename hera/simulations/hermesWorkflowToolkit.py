@@ -195,22 +195,25 @@ class workflowToolkit(abstractToolkit):
         docList = []
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
             # try to find it as a name
-            self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
+            self.logger.execution(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
             docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
             if len(docList) == 0:
-                self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
+                self.logger.execution(f"name not found. ...Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
                 docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
                 if len(docList) == 0:
-                    self.logger.debug(f"... not found. Try to query as a json. ")
+                    self.logger.execution(f"... resource not found. Try to query as a json. ")
                     try:
                         jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
                         wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
                         currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
                         docList = self.getSimulationsDocuments(**currentQuery)
                     except ValueError:
+                        self.logger.warning(f"{currentQuery} does not exist in project {self.projectName} ")
                         return None
+                else:
+                    self.logger.execution(f"... Found as Resource")
             else:
-                self.logger.debug(f"... Found it ")
+                self.logger.execution(f"... Found as Name")
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
             currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
