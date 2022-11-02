@@ -213,6 +213,9 @@ def listSimulations(arguments):
 
     else:
         if arguments.projectName is None:
+            logger.info("Project Name not supplied with --projectName, try to guess it from the caseConfiguration.json file.")
+            cse = loadJSON("caseConfiguration.json")
+
             raise ValueError(f"Must supply a projectName. use --projectName ")
         projectName = arguments.projectName
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
@@ -319,13 +322,18 @@ def listWokflowNodeParameters(arguments):
 
         hermesObject = wftk.getHermesWorkflowFromDB(arguments.workflowName)
 
-    if arguments.filterType not in hermesObject.nodeList:
-        raise ValueError(f" Node {arguments.filterType} not found in workflow {arguments.workflowName}. Existing nodes are: {','.join(hermesObject.nodeList)}")
+    if arguments.nodeName not in hermesObject.nodeList:
+        raise ValueError(f" Node {arguments.nodeName} not found in workflow {arguments.workflowName}. Existing nodes are: {','.join(hermesObject.nodeList)}")
 
-    tlte = f"The parameters of the node {arguments.filterType} in the workflow {arguments.workflowName}"
+    tlte = f"The parameters of the node {arguments.nodeName} in the workflow {arguments.workflowName}"
     print(tlte)
     print("-"*len(tlte))
-    print("\t - " +"\n\t - ".join(hermesObject[arguments.filterType].parameters.keys()))
+    for nd,pm in hermesObject[arguments.nodeName].parameters.items():
+        import pdb
+        pdb.set_trace()
+        print(f"-\t {nd} \n\t {json.dumps(pm,indent=4)}")
+
+    #print("\t - " +"\n\t - ".join(hermesObject[arguments.nodeName].parameters.keys()))
 
 
 def compareSimulations(arguments):
@@ -468,7 +476,7 @@ if __name__ == "__main__":
     nodes_list.set_defaults(func=listWokflowNodes)
 
     ###             +++++++++++++++++++
-    nodes_list = noded_subparsers.add_parser('nodeParameters', help='Lists the parameters of the nodes.')
+    nodes_list = noded_subparsers.add_parser('parameters', help='Lists the parameters of the nodes.')
     nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
     nodes_list.add_argument('nodeName', type=str, help='The node to list the paramters')
     nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help='The project name')
@@ -476,7 +484,6 @@ if __name__ == "__main__":
 
 
     ##### execuion of the workflows.
-
     parser_expandWorkflow = subparsers.add_parser('expand',
                                                   help='Expands the workflow JSON with the default values of the nodes')
     parser_expandWorkflow.add_argument('workflow', type=str, help="base workflow")
