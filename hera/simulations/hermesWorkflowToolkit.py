@@ -158,7 +158,7 @@ class workflowToolkit(abstractToolkit):
             self.logger.error(f"... not found. ")
             raise ValueError(f"Simulation not found.")
 
-        if len(docList) > 0:
+        if len(docList) > 1:
             self.logger.warning("Got more than 1 simulation. Using the first onle only.")
             warnings.warn("Got more than 1 simulation. Using the first onle only.")
 
@@ -208,7 +208,7 @@ class workflowToolkit(abstractToolkit):
                         currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
                         docList = self.getSimulationsDocuments(**currentQuery)
                     except ValueError:
-                        self.logger.warning(f"{currentQuery} does not exist in project {self.projectName} ")
+                        self.logger.warning(f"{nameOrWorkflowFileOrJSONOrResource} does not exist in project {self.projectName} ")
                         return None
                 else:
                     self.logger.execution(f"... Found as Resource")
