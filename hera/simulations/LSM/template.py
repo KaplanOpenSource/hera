@@ -9,7 +9,7 @@ import pandas
 import numpy
 from unum.units import *
 from ... import toolkit
-from ... utils.jsonutils import ConvertJSONtoConf
+from ... utils.jsonutils import convertJSONtoConf
 from ... utils import dictToMongoQuery
 
 
@@ -112,7 +112,7 @@ class LSMTemplate:
         updated_params = dict(self._document['desc']['params'])
         updated_params.update(params)
         updated_params.update(descriptor)
-        updated_params = ConvertJSONtoConf(updated_params)
+        updated_params = convertJSONtoConf(updated_params)
         for key in self._document['desc']["units"].keys():
             updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
 
@@ -381,7 +381,7 @@ class LSMTemplate:
             Simulation object
         """
 
-        updated_params = ConvertJSONtoConf(query)
+        updated_params = convertJSONtoConf(query)
         for key in updated_params.keys():
             unt = self._document['desc']["units"].get(key,None)
             if unt is not None:
@@ -410,7 +410,7 @@ class LSMTemplate:
         :return:
         """
 
-        updated_params = ConvertJSONtoConf(query)
+        updated_params = convertJSONtoConf(query)
         for key in updated_params.keys():
             updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
 
