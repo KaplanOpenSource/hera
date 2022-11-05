@@ -1,17 +1,18 @@
 import warnings
 from enum import Enum, auto, unique
 from typing import Union
-from collections.abc import Iterable
 import pandas
 import shutil
 import os
 from ..toolkit import abstractToolkit
-from hermes import workflow
-from ..utils import loadJSON
+from ..utils import loadJSON,convertJSONtoPandas
 from ..utils.query import dictToMongoQuery
+from ..utils.dataframeutils import compareDataframeConfigurations
 from ..datalayer import datatypes
 import numpy
 import pydoc
+
+
 
 try:
     from hermes import workflow
@@ -65,6 +66,8 @@ class workflowToolkit(abstractToolkit):
     DESC_GROUPID   = "groupID"
     DESC_SIMULATIONNAME = "simulationName"
     DESC_PARAMETERS = "parameters"
+
+
 
     def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
         """
@@ -123,8 +126,7 @@ class workflowToolkit(abstractToolkit):
 
         return hermesWFObj(workFlowJSON)
 
-
-    def getHermesWorkflowFromDB(self,workflow : Union[dict,str],workflowType : simulationTypes = None):
+    def getHermesWorkflowFromDB(self,workflow : Union[dict,str]):
         """
                 Retrieve the hermes object from the DB.
 
@@ -158,72 +160,28 @@ class workflowToolkit(abstractToolkit):
             self.logger.error(f"... not found. ")
             raise ValueError(f"Simulation not found.")
 
-        if len(docList) > 1:
+        if len(docList) > 0:
             self.logger.warning("Got more than 1 simulation. Using the first onle only.")
             warnings.warn("Got more than 1 simulation. Using the first onle only.")
 
         doc = docList[0]
-        workflowType = simulationTypes.WORKFLOW.value if workflowType is None else workflowType.value
-        return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=workflowType)
+        return self.getHermesWorkflowFromJSON(doc.desc['workflow'],simulationType=doc.type)
 
-    def getSimulationDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str]):
+    def getSimulationByCriteria(self,**kwargs):
         """
-            Returns the simulation document from the DB.
-
-            Identify the simulation from :
-             - Resource (thedirectory name)
-             - Simulation name
-             - Its workflow
-             - workfolow dict.
-
-            Return the first item that was found.
-
+            Returns the simulation that meet the criteria in the kwargs.
+            These can be anything. From the type/resource to a complicated filter on the description.
         Parameters
         ----------
-        nameOrWorkflowFileOrJSONOrResource: str, dict
-
-        Can be
-             - Resource (thedirectory name)
-             - Simulation name
-             - Its workflow
-             - workfolow dict.
+        kwargs: filterint
 
         Returns
         -------
-            A document, or None if not found. .
+            document
         """
-        docList = []
-        if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
-            # try to find it as a name
-            self.logger.execution(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
-            docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
-            if len(docList) == 0:
-                self.logger.execution(f"name not found. ...Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
-                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
-                if len(docList) == 0:
-                    self.logger.execution(f"... resource not found. Try to query as a json. ")
-                    try:
-                        jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
-                        wf = self.getHermesWorkflowFromJSON(jsn ,simulationTypes.WORKFLOW.value)
-                        currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
-                        docList = self.getSimulationsDocuments(**currentQuery)
-                    except ValueError:
-                        self.logger.warning(f"{nameOrWorkflowFileOrJSONOrResource} does not exist in project {self.projectName} ")
-                        return None
-                else:
-                    self.logger.execution(f"... Found as Resource")
-            else:
-                self.logger.execution(f"... Found as Name")
+        return self.getSimulationsDocuments(**kwargs)
 
-        elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
-            currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
-            docList = self.getSimulationsDocuments(**currentQuery,type=simulationTypes.WORKFLOW.value)
-
-
-        return docList[0] if len(docList) >0 else None
-
-
-    def getSimulationsInGroup(self, simulationGroup: str, **kwargs):
+    def getSimulationsInGroup(self, simulationGroup: str, simulationType: simulationTypes = None, **kwargs):
         """
             Return a list of all the simulations with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
@@ -248,10 +206,11 @@ class workflowToolkit(abstractToolkit):
             list of mongo documents.
 
         """
-        kwargs['type'] = simulationTypes.WORKFLOW.value
+        if  simulationType is not None:
+            kwargs['type'] = simulationType
         return self.getSimulationsDocuments(groupName=simulationGroup, **kwargs)
 
-    def findAvailableName(self, simulationGroup: str, **kwargs):
+    def findAvailableName(self, simulationGroup: str, simulationType: str = None, **kwargs):
         """
             Finds the next availabe name of that prefix. The available name is the maximal ID + 1.
 
@@ -278,7 +237,7 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, **kwargs)
+        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simulationType=simulationType, **kwargs)
         group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
@@ -311,9 +270,11 @@ class workflowToolkit(abstractToolkit):
         return f"{baseName}_{formatted_number}"
 
 
+
     def addToGroup(self,
                    workflowJSON: str,
                    groupName: str = None,
+                   simulationType: simulationTypes = None,
                    overwrite: bool = False,
                    force: bool = False,
                    assignName: bool = False,
@@ -396,7 +357,7 @@ class workflowToolkit(abstractToolkit):
 
         #    a. Make sure that there are no extensions.
         cleanName = workflowJSON.split(".")[0]
-        theType = simulationTypes.WORKFLOW.value
+        theType = simulationTypes.WORKFLOW.value if simulationType is None else simulationType
         self.logger.debug(f"The suggested simulation name is {cleanName} in the document {theType}")
 
         #   b. loading the workflow.
@@ -404,7 +365,7 @@ class workflowToolkit(abstractToolkit):
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
 
-        #   c. Determining the simulation name, group name and group id
+        #   c. Determining the simulation anem, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
             self.logger.debug("Generating ID from the DB")
@@ -542,6 +503,10 @@ class workflowToolkit(abstractToolkit):
 
                 workflowList.append(workflow(workflowJSON, WD_path=self.FilesDirectory))
 
+
+
+
+
         else:
             self.logger.debug("Workflow is a groupName. Get the simulations from the group")
             simulationList = self.getSimulationsInGroup(simulationGroup=workFlows, simulationType=docType)
@@ -551,8 +516,10 @@ class workflowToolkit(abstractToolkit):
 
     def listSimulations(self,
                         simulationGroup:str,
+                        simulationType:str = None,
                         parametersOfNodes:list = None,
                         allParams:bool = False,
+                        longFormat:bool=False,
                         jsonFormat:bool = False
                         ) -> Union[pandas.DataFrame,dict]:
         """
@@ -588,7 +555,7 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations and their values.
 
         """
-        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup)
+        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup, simulationType=simulationType)
         if parametersOfNodes is not None:
             qry = None
             if len(parametersOfNodes) > 0:
@@ -597,8 +564,7 @@ class workflowToolkit(abstractToolkit):
             simParamList = []
             for simulationDoc in simulationList:
                 wf = workflow(simulationDoc['desc']['workflow'])
-                simulationParameters = wf.getNodesParametersTable().assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
-
+                simulationParameters = convertJSONtoPandas(wf.getNodesParametersTable()).assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
                 if qry is not None:
                     simulationParameters = simulationParameters.query(qry)
 
@@ -606,7 +572,11 @@ class workflowToolkit(abstractToolkit):
 
             res = pandas.concat(simParamList)
             if not allParams:
-                ret = self._compareConfigurationsPandas(res).set_index(self.DESC_SIMULATIONNAME).sort_index()
+                ret =  compareDataframeConfigurations(res,
+                                                      datasetName="simulationName",
+                                                      parameterName="parameterName",
+                                                      indexList="nodeName",
+                                                      longFormat=longFormat)
             else:
                 ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
         else:
@@ -619,108 +589,4 @@ class workflowToolkit(abstractToolkit):
 
         return ret
 
-    def _compareConfigurationsPandas(self,configurations):
-        """
-            Compares the configurations of the simulations.
-
-            A configuration is a pandas with the columns:
-                - parameterName (the path of the parameter with '.' as a separator).
-                - value     - The value of the parameter
-                - nodeName  - The name of the node
-                - simulationName - The name of the simulation
-
-
-
-        Parameters
-        ----------
-        configurations : pandas.DataFrame.
-
-        Returns
-        -------
-
-        """
-        self.logger.info("--- Start ---")
-        diffList = []
-
-        simulationCount = configurations[self.DESC_SIMULATIONNAME].unique().shape[0]
-
-        for grpid,grpdata in configurations.groupby(["parameterName","nodeName"]):
-            self.logger.debug(f"Testing {grpid} ")
-            try:
-                if grpdata.value.unique().shape[0]> 1:
-                    self.logger.debug(f"{grpid}:: Normal Field. Different  ")
-                    diffList.append(grpdata.copy())
-
-                if grpdata.value.count() < simulationCount:
-                    diffList.append(grpdata.copy())
-
-            except TypeError:
-                self.logger.debug(f"{grpid}:: Compound Field, checking for differences ")
-                # A compound set.
-                difference = self._detectDifference(grpdata.value)
-                if difference:
-                    diffList.append(grpdata.copy())
-
-        return pandas.concat(diffList)
-
-    def _detectDifference(self,pandasValues,stopFlag=False):
-        """
-            Find difference in pandas dataframe where the values are dicts/lists and ect.
-            return True if all of the rows are equal, false otherwise.
-        Parameters
-        ----------
-        pandasValues
-
-        Returns
-        -------
-
-        """
-        self.logger.debug("--- Start ---")
-        baseRow = pandasValues.iloc[0]
-
-        if isinstance(baseRow,dict):
-            self.logger.debug("Compound data is a dict")
-            # key base comparison
-            # 1. get all the keys
-            keyList = [x for x in baseRow.keys()]
-            # 2. build for each key a list of all values.
-            for key in keyList:
-                values = []
-                for item in pandasValues:
-                    values.append(item[key])
-                self.logger.debug(f"Checking dict key {key} with values: {values} ")
-                if self._detectDifference(pandas.Series(values)):
-                    return True
-
-            # Could not detect any difference...
-            return False
-
-        elif isinstance(baseRow,str):
-            # This is because str is an iterable and we wish to keep it simple.
-            self.logger.debug("Compound data is a str")
-            # comparing the old fashion way.
-            if len(pandasValues.unique()) == 1:
-                return False
-            else:
-                return True
-
-        elif isinstance(baseRow,Iterable):
-            self.logger.debug("Compound data is a iterable")
-
-            # 2. build for each key a list of all values.
-            for indx in range(len(baseRow)):
-                values = []
-                for item in pandasValues:
-                    values.append(item[indx])
-                self.logger.debug(f"Checking iter ID {indx} with values: {values} ")
-                if self._detectDifference(pandas.Series(values)):
-                    return True
-            return False
-        else:
-            self.logger.debug("Compound data is a simple datatype ")
-            # comparing the old fashion way.
-            if len(pandasValues.unique()) == 1:
-                return False
-            else:
-                return True
 
