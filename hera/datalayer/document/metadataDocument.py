@@ -16,13 +16,9 @@ class MetadataFrame(object):
 
         - dataFormat : str: The format of the data. Taken from ::class:`..datatypes.datatypes`
 
-        - desc: dict: A dictionary of arbitrary format tha tholds the metadata of the record.
+        - desc: dict: A dictionary of arbitrary format that holds the metadata of the record.
 
         - id : str : The id of the record in the DB.
-
-
-
-
 
     """
     projectName = StringField(required=True)
@@ -54,6 +50,9 @@ class MetadataFrame(object):
             object according to the datahandler. 
         """
         return getHandler(self.dataFormat).getData(self.resource,self.desc, **kwargs)
+
+    def __str__(self):
+        return json.dumps(self.asDict(with_id=False),indent=4)
 
 
 class nonDBMetadataFrame(object):
