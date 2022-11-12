@@ -27,7 +27,7 @@ The hera package has two parts.
 
 
  - :ref:`Toolkit <toolkitPage>`: Interfaces to manage different types of data.
-
+master
 
 Installing & setup
 ==================
@@ -67,6 +67,7 @@ Usage and API
    :caption: Contents:
 
    datalayer
+   project
    toolkit
    instructions_for_dev
    how_to

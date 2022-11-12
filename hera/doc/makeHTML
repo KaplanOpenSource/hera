@@ -1,4 +1,6 @@
 jupyter-nbconvert --execute source/datalayer/addgetdata.ipynb --to rst
+jupyter-nbconvert --execute source/datalayer/usage.ipynb --to rst
+
 #jupyter-nbconvert --execute source/measurements/meteorology/lowfreqdata/lowfreqdata.ipynb --to rst
 #jupyter-nbconvert --execute source/measurements/meteorology/lowfreqdata/Analysis.ipynb --to rst
 

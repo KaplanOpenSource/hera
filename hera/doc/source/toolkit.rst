@@ -3,7 +3,20 @@
 Toolkits
 ********
 
+Overview
+========
+
 Toolkit is a code to load, analyze and present a certain type of data.
+Because all the data in hera is attached to project, it is necessary
+to supply a projectName when initializing one. Then, the functions
+of the toolkit will be performed on the data that exists in that project.
+
+The structure and function of  toolkits
+================
+
+A toolkit is a component that can handle a certain type of data. For example a
+BUILDING toolkit will allow the user to use the GIS function that were programmed
+in hera, like compting :math:`\lambda_f` or :math:`\lambda_p` of a city.
 
 Generally, each toolkit has 3 components.
 
@@ -16,7 +29,10 @@ Generally, each toolkit has 3 components.
 
 
 
-Managing toolkits
+
+
+
+How to use toolkits
 ================
 
 Access to the toolkits is done through the tookitHome class:
@@ -27,6 +43,8 @@ Access to the toolkits is done through the tookitHome class:
 
 Getting a toolkit
 -----------------
+
+In order to get a toolkit use the following
 
 .. code-block:: python
 

@@ -1,5 +1,15 @@
+Listing all projects
+--------------------
+
+List all the project by calling the geProjectList function.
+
+.. code:: ipython3
+
+    from hera import datalayer
+    projectList = datalayer.getProjectList()
+
 Adding data
-===========
+-----------
 
 First lets define some mock-up data. Lets create 3 data from 3
 distributions with different mean and std.
@@ -51,7 +61,7 @@ First, we create the file name that we we want to save to.
 
 .. parsed-literal::
 
-    The current file directory is /raid/users/mattyab/Development/pyhera/hera/doc/source
+    The current file directory is /home/yehudaa/Development/hera/hera/doc/source
 
 
 It is very important to save the **absolute path** (using
@@ -72,13 +82,6 @@ can be any other format.
     dataset1.to_parquet(dataset1File,engine='fastparquet',compression='GZIP')
     dataset2.to_parquet(dataset2File,engine='fastparquet',compression='GZIP')
     dataset3.to_parquet(dataset3File,engine='fastparquet',compression='GZIP')
-
-
-.. parsed-literal::
-
-    /raid/opt/anaconda3/envs/Math-20-05/lib/python3.6/site-packages/fastparquet/dataframe.py:5: FutureWarning: pandas.core.index is deprecated and will be removed in a future version.  The public classes are available in the top-level namespace.
-      from pandas.core.index import CategoricalIndex, RangeIndex, Index, MultiIndex
-
 
 When we save the data to the database we need to specify the project
 name that the record is related to. we use
@@ -137,10 +140,10 @@ Each data is classified into one of the following categories.
    cached to accelerate the computations.
 
 Getting the data
-================
+----------------
 
 Getting one record back
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Now we will query the database for all the records in which loc=0 and
 scale=1.
@@ -206,7 +209,7 @@ Now, we will extract the data.
 
 
 Getting multiple records back
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If the query is specified in a more general way. Lets get all the
 records in which loc=0
@@ -224,7 +227,7 @@ records in which loc=0
 
 
 Updating the data.
-==================
+------------------
 
 The hera system holds the name of the file on the disk and loads the
 data from it. Therefore, if the datafile on the disk is overwitten, then
@@ -265,7 +268,7 @@ resource attribute.
 
 
 Updating the metadata.
-======================
+----------------------
 
 Lets assume we want to add another property to the first record. To so
 we wiill no update item0
@@ -299,35 +302,8 @@ we wiill no update item0
     }
 
 
-Using Project
-=============
-
-Using the Project class simplifies the access to the different documents
-of the project.
-
-Define the project with
-
-.. code:: ipython3
-
-    from hera.datalayer import Project 
-    
-    p = Project(projectName=projectName)
-    
-    results = p.getMeasurementsDocuments(loc=0)
-    [x.desc for x in results]
-
-
-
-
-.. parsed-literal::
-
-    [{'loc': 0, 'scale': 1, 'new_attribute': 'some data'},
-     {'loc': 0, 'scale': 0.5}]
-
-
-
 Deleting the metadata entry.
-============================
+----------------------------
 
 We delete the metadata records similarly to the way we add them
 
@@ -346,7 +322,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "608919b9fa2892158bd83663"
+            "$oid": "636f89920b4f89d72ba84c15"
         },
         "dataFormat": "parquet",
         "desc": {
@@ -354,7 +330,7 @@ The following will delete one record
             "scale": 0.5
         },
         "projectName": "ExampleProject",
-        "resource": "/raid/users/mattyab/Development/pyhera/hera/doc/source/dataset3.parquet",
+        "resource": "/home/yehudaa/Development/hera/hera/doc/source/dataset3.parquet",
         "type": "Distribution"
     }
 
