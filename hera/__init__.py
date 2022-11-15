@@ -1,4 +1,4 @@
-__version__ = '2.5.2'
+__version__ = '2.6.0'
 
 import os
 import json
@@ -13,6 +13,11 @@ if version > 2:
     loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
+2.6.0
+---------
+    Issue#46: Updating the documentation to the datalayer. 
+    Issue#44: Improved comparison of n-JSON files. 
+
 2.5.2   
     ______________________
     Issue#40: DS changes to measurments.experiment
