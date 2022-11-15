@@ -5,6 +5,10 @@ import sys
 version = sys.version_info[0]
 
 class AbstractCollection(object):
+    """
+        Abstract collection that contains documents of a certain type
+    """
+
     _metadataCol = None
     _type = None
 
@@ -178,36 +182,17 @@ class AbstractCollection(object):
         The record that was deleted.
 
         """
-
-
-
         doc = self.getDocumentByID(id=id)
         deletedDoc = doc.asDict(with_id=True)
         doc.delete()
 
         return deletedDoc
 
-    def getData(self, projectName, usePandas=None, **kwargs):
-        """
-        Returns the data by the given parameters.
-
-        This is obeselete. Use getDocuments and the get the data from the desired document.
-
-        :param projectName: The name of the project.
-        :param usePandas: Return the data as pandas if True, dask if False. Default is None, and returns the data depends on the data format.
-        :param kwargs: Other properties of the data.
-        :return: pandas/dask dataframe.
-        """
-        warnings.warn('getData is going to be deprecated in the next version.'
-                      'use getDocuments to get documents and use getData of the document object' ,DeprecationWarning)
-        docList = self.getDocuments(projectName=projectName, **kwargs)
-        if usePandas is None:
-            return [doc.getDocFromDB() for doc in docList]
-        else:
-            return [doc.getDocFromDB(usePandas=usePandas) for doc in docList]
-
 
 class Measurements_Collection(AbstractCollection):
+    """
+        Abstract collection that contains documents of measurements
+    """
 
     def __init__(self, user=None):
         if version == 2:
@@ -220,6 +205,9 @@ class Measurements_Collection(AbstractCollection):
 
 
 class Simulations_Collection(AbstractCollection):
+    """
+        Abstract collection that contains documents of Simulations
+    """
 
     def __init__(self, user=None):
         if version == 2:
@@ -228,6 +216,9 @@ class Simulations_Collection(AbstractCollection):
             super().__init__(ctype='Simulations', user=user)
 
 class Cache_Collection(AbstractCollection):
+    """
+        Abstract collection that contains documents of Cache
+    """
 
     def __init__(self, user=None):
         if version == 2:
