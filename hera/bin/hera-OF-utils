@@ -16,6 +16,7 @@ from hera.simulations.openFoam import Workflow_Flow, Workflow_Dispersion
 from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
 from hera import toolkitHome
 from hera.simulations.openFoam.utils import buildCaseExecutionScript
+import glob
 
 def createEmpty(args):
 
