@@ -328,12 +328,11 @@ def listWokflowNodeParameters(arguments):
     tlte = f"The parameters of the node {arguments.nodeName} in the workflow {arguments.workflowName}"
     print(tlte)
     print("-"*len(tlte))
-    for nd,pm in hermesObject[arguments.nodeName].parameters.items():
-        import pdb
-        pdb.set_trace()
-        print(f"-\t {nd} \n\t {json.dumps(pm,indent=4)}")
+    import json
 
-    #print("\t - " +"\n\t - ".join(hermesObject[arguments.nodeName].parameters.keys()))
+    for nd,pm in hermesObject[arguments.nodeName].parameters.items():
+        vls = json.dumps(pm,indent=4)
+        print(f"-\t {nd}:  {vls}")
 
 
 def compareSimulations(arguments):
