@@ -188,7 +188,12 @@ class analysis():
 
         else:
             self.logger.debug("Return found data in DB")
-            domainLambda = dataDoc[0].getData()
+            try:
+                domainLambda = dataDoc[0].getData()
+            except fiona.errors.DriverError:
+                errmsg = f"The cached data in location {dataDoc[0].resource} is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache."
+                self.logger.error(errmsg)
+                raise FileNotFoundError(errmsg)
 
         self.logger.info("---- End ----")
         return domainLambda

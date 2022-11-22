@@ -58,6 +58,10 @@ class VectorToolkit(toolkit.abstractToolkit):
         else:
             raise ValueError("Function receives only GeoDataFrame")
 
+    @property
+    def _docType(self):
+        return  f"{self.toolkitName}_region"
+
     def _RegionToGeopandas(self, regionData, crs = None):
         """
             Converts a shape to geopandas.
@@ -124,11 +128,18 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         """
         desc ={TOOLKIT_VECTOR_REGIONNAME: regionName,'crs':crs}
+        docType = self._docType
 
         data = self._RegionToGeopandas(regionData, crs = crs).to_json()
         # data = self.geopandasToGeoJson(data)
 
-        self.addCacheDocument(resource = data, dataFormat=datatypes.GEOPANDAS, desc=desc)
+        docList = self.getCacheDocuments(type=docType,**desc) # regionName=regionName,crs=crs
+        if len(docList) == 0:
+            self.addCacheDocument(resource = data,type=docType, dataFormat=datatypes.JSON_GEOPANDAS, desc=desc)
+        else:
+            docList[0].resouce = data
+            docList[0].save()
+
 
 
     def cutRegionFromSource(self, shapeDataOrName, datasourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
@@ -157,7 +168,6 @@ class VectorToolkit(toolkit.abstractToolkit):
         """
         self.logger.info("-- Start --")
 
-
         if isinstance(shapeDataOrName, str):
             shape= self.getRegionData(shapeDataOrName)
         else:
@@ -175,6 +185,8 @@ class VectorToolkit(toolkit.abstractToolkit):
                 raise ValueError(f"datasource {datasourceName} not found in project {self.projectName}")
 
             self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
+
+            doc.desc['desc'].update({'crs': 2039})
             if 'crs' not in doc.desc['desc']:
                 self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
                 raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
@@ -202,8 +214,8 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         :return:
         """
-
-        return [doc.desc[TOOLKIT_VECTOR_REGIONNAME] for doc in self.getMeasurementsDocuments()]
+        docType = self._docType
+        return [doc.desc[TOOLKIT_VECTOR_REGIONNAME] for doc in self.getCacheDocuments(type=doc)]
 
     def getRegionData(self, regionName):
 
@@ -217,10 +229,9 @@ class VectorToolkit(toolkit.abstractToolkit):
                 Returns
                 -------
                     Return the vectorData with the region anme
-                """
-        qry ={TOOLKIT_VECTOR_REGIONNAME: regionName}
-        shapeDoc = self.getCacheDocuments(**qry)
-        return None if len(shapeDoc)==0 else shapeDoc[0].getData()
+        """
+        doc = self.getRegionDocumentByName(regionName=regionName)
+        return None if doc is None else doc.getData()
 
     def getRegionDocumentByName(self, regionName):
         """
@@ -234,15 +245,15 @@ class VectorToolkit(toolkit.abstractToolkit):
         -------
             Return the vectorData with the region anme
         """
+        qry ={TOOLKIT_VECTOR_REGIONNAME: regionName}
+        qry['type'] = self._docType
+        shapeDoc = self.getCacheDocuments(**qry)
+        return None if len(shapeDoc)==0 else shapeDoc[0]
 
-        return self.getDatasourceDocument(regionName)
-
-    def getRegionsTable(self):
-
-        return self.getDataSourceTable()
 
     def deleteRegion(self,regionName):
-        self.deleteCacheDocuments(desc ={TOOLKIT_VECTOR_REGIONNAME: regionName})
+
+        self.deleteCacheDocuments(desc ={TOOLKIT_VECTOR_REGIONNAME: regionName},type=self._docType)
 
 
 
