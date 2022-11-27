@@ -65,6 +65,11 @@ class VTKpipeline(loggedObject):
 
     @property
     def simulationDocument(self):
+
+        if self._simulationDocument is None:
+            if self.datalayer is not None:
+                self._simulationDocument = self.datalayer.getSimulationDocumentFromDB(self._nameOrWorkflowFileOrJSONOrResource)
+
         return self._simulationDocument
 
     @property
@@ -145,17 +150,17 @@ class VTKpipeline(loggedObject):
         self._datalayer = datalayer
         self._serverName = serverName
         self._caseType = caseType
+        self._nameOrWorkflowFileOrJSONOrResource = nameOrWorkflowFileOrJSONOrResource
 
-
-        self._simulationDocument = self.datalayer.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-
-        if os.path.exists(nameOrWorkflowFileOrJSONOrResource) and self._simulationDocument is None:
-            # the simulation is not in the DB, but we wish to analyze it.
+        if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
             casePath = nameOrWorkflowFileOrJSONOrResource
-        elif self._simulationDocument is not None:
-            casePath = self._simulationDocument.resource
         else:
-            raise ValueError(f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
+            simDoc = self.simulationDocument
+            if simDoc is not None:
+                casePath = simDoc.resource
+            else:
+                raise ValueError(f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
+
 
         if paraviewExists:
             self._pvOFBase = paraviewOpenFOAM(casePath=nameOrWorkflowFileOrJSONOrResource,
