@@ -373,7 +373,6 @@ if __name__ == "__main__":
     export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
     # --build - also builds the python executer
 
-
     ### ------------------------
     compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations. ')
     compare_parser.add_argument('projectName', type=str, help='The project name')

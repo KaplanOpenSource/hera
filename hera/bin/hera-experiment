@@ -1,0 +1,36 @@
+#! /usr/bin/env python
+import json
+import argparse
+from hera import toolkitHome
+import pathlib
+import os
+
+#  Load the path to th experiment to hera
+
+def addExperiment(projectName,experimentName, experimentPath):
+
+    dataSourceDesc = dict()
+    dataSourceDesc['handlerPath'] = os.path.abspath(experimentPath)
+
+    dataSourceDesc['className'] = experimentName + 'Toolkit'
+
+    toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
+
+    datasource = toolkit.getDatasourceDocument(datasourceName=experimentName)
+
+    if datasource is not None:
+        toolkit.addDataSource(dataSourceName=experimentName,resource = "t", dataFormat = 'str',**dataSourceDesc)
+        print(f"Added source {experimentName} to tool  in project {projectName}")
+    else:
+        toolkit.deleteDataSourceDocuments(datasourceName=experimentName)
+        toolkit.addDataSource(dataSourceName=experimentName, resource = "t", dataFormat = 'str', **dataSourceDesc)
+        print(f"Source {experimentName} already exists in {projectName}, delete current source")
+
+
+if __name__ =="__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('experimentName', type=str,help='The project to load the data')
+    parser.add_argument('experimentPath', type=str, help='The experiment name')
+    parser.add_argument('projectName', type=str, help='The path to the experiment files')
+    args = parser.parse_args()
+    addExperiment(args.projectName,args.experimentName, args.experimentPath)
