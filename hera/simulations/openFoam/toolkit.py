@@ -542,17 +542,12 @@ class analysis:
         -------
             analysis.VTKPipeline.VTKpipeline
         """
-        pipelineVTK = loadJSON(vtkPipeline)
-
-
-        if os.path.exists(nameOrWorkflowFileOrJSONOrResource):
-            casePath = nameOrWorkflowFileOrJSONOrResource
-        else:
-            wrkflow = self.datalayer.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource,type=simulationTypes.WORKFLOW.value)
-            casePath = wrkflow.resource
-
-        return VTKpipeline(datalayer=self.datalayer,pipelineJSON=pipelineVTK, nameOrWorkflowFileOrJSONOrResource=casePath, caseType = caseType, serverName = servername, fieldNames = fieldNames)
-
+        return VTKpipeline(datalayer=self.datalayer,
+                           pipelineJSON=vtkPipeline,
+                           nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResource,
+                           caseType = caseType,
+                           serverName = servername,
+                           fieldNames = fieldNames)
 
     def getFiltersDocuments(self,nameOrWorkflowFileOrJSONOrResource,filterName=None):
         """
