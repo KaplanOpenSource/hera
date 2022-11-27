@@ -6,10 +6,8 @@ import os
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
 from hera.utils import loggedObject,loadJSON
-from hera.simulations.openFoam.utils import buildCaseExecutionScript
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
-
 
 def add(args):
     """
@@ -57,24 +55,21 @@ def add(args):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if args.simulationGroup is None else args.simulationGroup
-
     if args.variations is None:
         logger.info("No variations supplied. Adding one simulation. ")
         workflowFile = args.workflow
-        logger.info(f"Adding workflow in {workflowFile} to group {simulationGroup}.")
+        logger.info(f"Adding workflow in {workflowFile}  to DB")
 
         action = getattr(actionModes, args.action.upper())
 
         try:
             wftk.addToGroup(workflowJSON=workflowFile,
-                            groupName=simulationGroup,
+                            groupName=args.simulationGroup,
                             assignName=args.assignName,
                             overwrite=args.overwrite,
                             action=action,
                             force=args.force)
 
-            buildExecScriptsFromCaseName(workflowFile)
         except FileExistsError as e:
             print(e)
 
@@ -364,29 +359,12 @@ def expandWorkflow(arguments):
 
 def buildExecuter(arguments):
     handler_build(arguments)
-    buildExecScriptsFromCaseName(arguments.caseName)
 
 def executeWorkflow(arguments):
     handler_execute(arguments)
-    buildExecScriptsFromCaseName(arguments.caseName)
 
 def buildAndExecute(arguments):
     handler_buildExecute(arguments)
-    buildExecScriptsFromCaseName(arguments.workflow)
-
-
-
-def buildExecScriptsFromCaseName(caseName):
-
-    if os.path.isdir(caseName):
-        configuration = os.path.basename(caseName) + ".json"
-    elif os.path.isfile(caseName):
-        configuration = caseName
-        caseName = configuration.split(".")[0]
-    else:
-        raise ValueError(f"{caseName} must be directory of workflow file")
-
-    buildCaseExecutionScript(caseDirectory=caseName, workflow=configuration)
 
 
 if __name__ == "__main__":
