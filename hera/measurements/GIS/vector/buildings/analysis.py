@@ -498,7 +498,29 @@ class Blocks(object):
         # topography.analysis.addHeight(self,'data', 'groundData')
 
         for i in indexes:
-            if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14):
+
+
+            if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
+                farest = 99999999999
+                farheight=0
+                for j in indexes:
+                    try:
+                        walls = self._Buildings['geometry'][j].exterior.xy
+                    except:
+                        continue
+                    if (self._Buildings['HT_LAND'][j]!=0.0):
+                        far = ((self._Buildings['geometry'][i].exterior.xy[0][0]-self._Buildings['geometry'][j].exterior.xy[0][0])**2+
+                               (self._Buildings['geometry'][i].exterior.xy[1][0]-self._Buildings['geometry'][j].exterior.xy[1][0])**2)
+                        if (farest**2.>far):
+                            farest = far
+                            farheight= self._Buildings['HT_LAND'][j]
+                print('hhhcccc>',i,area,self._Buildings['BLDG_HT'][i],self._Buildings['HT_LAND'][i],Map_A_p,self._Buildings['geometry'][i].exterior.xy[0][0],self._Buildings['geometry'][i].exterior.xy[1][0], farest, farheight,max((self._Buildings['BLDG_HT'][i]-farheight),0.0))
+                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
+            else:
+                building_height = self._Buildings['BLDG_HT'][i]
+
+
+            if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14) or (building_height==0):
  #               bldHeightToReduce = bldHeightToReduce + self._Buildings['BLDG_HT'][i]
  #               numberOfBld = numberOfBld - 1
                 pass
