@@ -396,6 +396,18 @@ class Blocks(object):
         return Blocks(level=(self._Level + 1), exteriorBlock=self, df=self._Df, **kwargs)._BuildIndexList()
 
     def initBuildingsBlock(self, blockDict):
+        """
+            Initializes the ... .
+
+        Parameters
+        ----------
+        blockDict : dict
+                The dictionary that ....
+
+        Returns
+        -------
+
+        """
 
         extent = box(blockDict['xMin%s' % self._Level][0], blockDict['yMin%s' % self._Level][0],
                            blockDict['xMax%s' % self._Level][0], blockDict['yMax%s' % self._Level][0])
@@ -437,7 +449,6 @@ class Blocks(object):
                         if (farest**2.>far):
                             farest = far
                             farheight= self._Buildings['HT_LAND'][j]
-                print('hhhcccc>',i,area,self._Buildings['BLDG_HT'][i],self._Buildings['HT_LAND'][i],Map_A_p,self._Buildings['geometry'][i].exterior.xy[0][0],self._Buildings['geometry'][i].exterior.xy[1][0], farest, farheight,max((self._Buildings['BLDG_HT'][i]-farheight),0.0))
                 building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
             else:
                 building_height = self._Buildings['BLDG_HT'][i]
@@ -463,7 +474,6 @@ class Blocks(object):
         lambdaP = Map_A_p / self._blockArea
         if (Map_A_p != 0):
             self._hc = sum_area_mltp_h / Map_A_p
-            print('hhhcccc',self._hc, sum_area_mltp_h , Map_A_p)
 
         return lambdaP
 
@@ -514,7 +524,6 @@ class Blocks(object):
                         if (farest**2.>far):
                             farest = far
                             farheight= self._Buildings['HT_LAND'][j]
-                print('hhhcccc>',i,area,self._Buildings['BLDG_HT'][i],self._Buildings['HT_LAND'][i],Map_A_p,self._Buildings['geometry'][i].exterior.xy[0][0],self._Buildings['geometry'][i].exterior.xy[1][0], farest, farheight,max((self._Buildings['BLDG_HT'][i]-farheight),0.0))
                 building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
             else:
                 building_height = self._Buildings['BLDG_HT'][i]
