@@ -589,3 +589,65 @@ class Blocks(object):
         return geopandas.GeoDataFrame(df, geometry=df['geometry'])
 
 
+if __name__ == "__main__":
+    from hera import toolkitHome
+    bt = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName="testbamba") # tlvbig
+    tlvbounding = [175000, 658000, 185000, 668000]  #
+    tlvbounding = [175500, 658000, 185000, 668000]
+    bsbounding = [175000, 569000, 189000, 579000]
+    bsboundingsmall = [181000, 577000, 182000, 578000]
+    ashkelonbounding = [156000, 616000, 164000, 625000]
+    natanyabounding = [184000, 689000, 192000, 697000]
+
+    bounding = tlvbounding
+    cityname = 'tlv1'
+
+    bounding = bsboundingsmall
+    cityname = 'bssm'
+
+    bt.addRegion(bounding, cityname, crs=2039)
+    if 5 == 5:
+        reg = bt.cutRegionFromSource(cityname, datasourceName='BNTL', isBounds=True, crs=2039)
+        #	    bt.regionToSTL(cityname,cityname+'-buildings.stl','BNTL')
+        print('dddeeebbb')
+        lm = bt.analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=2039, overwrite=True)
+        print(lm)
+        file = open(cityname + '-lambda1.csv', 'w')
+        file.writelines('[')
+        for i in range(len(lm)):
+            lines = ['[', str(min(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(min(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(lm.iloc[i]['lambdaF']), ', ',
+                     str(lm.iloc[i]['lambdaP']), ', ',
+                     str(lm.iloc[i]['hc']), '],\n']
+            file.writelines(lines)
+        file.writelines(']')
+        file.close()
+
+    if 5 == 6:
+        lm = bt._analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=2039)
+        print(lm)
+        file = open(cityname + '-lambda.csv', 'w')
+        file.writelines('[')
+        for i in range(len(lm)):
+            lines = ['[', str(min(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(min(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(round(lm.iloc[i]['lambdaF'], 3)), ', ',
+                     str(round(lm.iloc[i]['lambdaP'], 3)), ', ',
+                     str(round(lm.iloc[i]['hc'], 3)), '],\n']
+            file.writelines(lines)
+        file.writelines(']')
+        file.close()
+
+    if 5 == 6:
+        bt2 = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY, projectName="testbamba")
+        bt2.addRegion(bounding, cityname, crs=2039)
+        # reg = bt2.cutRegionFromSource('bs',datasourceName='BNTL',isBounds = True, crs = 2039)
+        topo = bt2.regionToSTL(bounding, 50, 'BNTL')
+        file1 = open(cityname + '-topo.stl', 'w')
+        file1.write(topo)
+        file1.close()
