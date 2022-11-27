@@ -9,6 +9,9 @@ import shapely.wkt
 from shapely.geometry import box, Polygon
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.datalayer import datatypes,nonDBMetadataFrame
+from hera.measurements.GIS.vector import topography
+
+
 import logging
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
@@ -415,12 +418,33 @@ class Blocks(object):
         area_mltp_h = 0
         sum_area_mltp_h = 0
         indexes = self._Buildings['BLDG_HT'].index
-        numberOfBld = len(indexes)
+#        numberOfBld = len(indexes)
 
         for i in indexes:
             area = 0
+
+            if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
+                farest = 99999999999
+                farheight=0
+                for j in indexes:
+                    try:
+                        walls = self._Buildings['geometry'][j].exterior.xy
+                    except:
+                        continue
+                    if (self._Buildings['HT_LAND'][j]!=0.0):
+                        far = ((self._Buildings['geometry'][i].exterior.xy[0][0]-self._Buildings['geometry'][j].exterior.xy[0][0])**2+
+                               (self._Buildings['geometry'][i].exterior.xy[1][0]-self._Buildings['geometry'][j].exterior.xy[1][0])**2)
+                        if (farest**2.>far):
+                            farest = far
+                            farheight= self._Buildings['HT_LAND'][j]
+                print('hhhcccc>',i,area,self._Buildings['BLDG_HT'][i],self._Buildings['HT_LAND'][i],Map_A_p,self._Buildings['geometry'][i].exterior.xy[0][0],self._Buildings['geometry'][i].exterior.xy[1][0], farest, farheight,max((self._Buildings['BLDG_HT'][i]-farheight),0.0))
+                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
+            else:
+                building_height = self._Buildings['BLDG_HT'][i]
+
+
             if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14) or (
-                    self._Buildings['BLDG_HT'][i] == 0):
+                    self._Buildings['BLDG_HT'][i] == 0) or (building_height==0):
                 Map_A_p = Map_A_p
             else:
                 if self._Buildings.geometry[i].geom_type == 'MultiPolygon':
@@ -431,12 +455,15 @@ class Blocks(object):
                     Map_A_p = Map_A_p + self._Buildings.geometry[i].area
                     area = self._Buildings.geometry[i].area
 
-            area_mltp_h = area * self._Buildings['BLDG_HT'][i]
+
+
+            area_mltp_h = area * building_height
             sum_area_mltp_h = sum_area_mltp_h + area_mltp_h
 
         lambdaP = Map_A_p / self._blockArea
         if (Map_A_p != 0):
             self._hc = sum_area_mltp_h / Map_A_p
+            print('hhhcccc',self._hc, sum_area_mltp_h , Map_A_p)
 
         return lambdaP
 
@@ -460,25 +487,28 @@ class Blocks(object):
         """
         # Calculate average lambda F of a block
         """
-        bldHeightToReduce = 0
-        errorBuildings = 0
+        # bldHeightToReduce = 0
+#        errorBuildings = 0
         if self._Buildings.empty:
             return 0
         Map_A_f = 0
         indexes = self._Buildings['BLDG_HT'].index
-        numberOfBld = len(indexes)
+#        numberOfBld = len(indexes)
+
+        # topography.analysis.addHeight(self,'data', 'groundData')
 
         for i in indexes:
             if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14):
-                bldHeightToReduce = bldHeightToReduce + self._Buildings['BLDG_HT'][i]
-                numberOfBld = numberOfBld - 1
+ #               bldHeightToReduce = bldHeightToReduce + self._Buildings['BLDG_HT'][i]
+ #               numberOfBld = numberOfBld - 1
+                pass
             else:
                 bldHeight = self._Buildings['BLDG_HT'][i]
                 if bldHeight < 2:
                     bldHeight = self._Buildings['HI_PNT_Z'][i] - self._Buildings['HT_LAND'][i]
                     if bldHeight < 2:
                         self._Buildings.at[i, 'BLDG_HT'] = 0
-                        errorBuildings = errorBuildings + 1
+#                        errorBuildings = errorBuildings + 1
                         continue
                     else:
                         self._Buildings.at[i, 'BLDG_HT'] = bldHeight
