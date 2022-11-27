@@ -15,7 +15,6 @@ from hera.utils.jsonutils import loadJSON
 from hera.simulations.openFoam import Workflow_Flow, Workflow_Dispersion
 from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
 from hera import toolkitHome
-from hera.simulations.openFoam.utils import buildCaseExecutionScript
 import glob
 
 def createEmpty(args):
@@ -331,22 +330,6 @@ def makeEscapedMassFile(args):
     f.write(newstr)
     f.close()
 
-def createRunscripts(args):
-
-    caseName = args.caseName
-
-    if os.path.isdir(caseName):
-        configuration = os.path.basename(caseName) + ".json" if args.configurationFile is None else args.configurationFile
-    elif os.path.isfile(caseName):
-        configuration = caseName
-        caseName = configuration.split(".")[0]
-    else:
-        raise ValueError(f"{caseName} must be directory of workflow file")
-
-    isParallel    = args.isParallel
-    isSlurm       = args.isSlurm
-
-    buildCaseExecutionScript(caseDirectory=caseName, workflow=configuration, isParallel=isParallel,isSlurm=isSlurm)
 
 
 if __name__=="__main__":
@@ -407,15 +390,6 @@ if __name__=="__main__":
     parser_createTopography.add_argument('objectFile', type=str, help='The objectFile file')
     parser_createTopography.add_argument('--f', '--fields', dest="fields", type=str, nargs='+', required=True,help="The list of the fields to create")
     parser_createTopography.set_defaults(func=createBoundaryConditions)
-
-    ########################################################
-    parser_createRunsScripts  = subparsers.add_parser('createRunsScripts', help='Create the scripts that run/clean the case. Parallel/single processor and with slurm support')
-    parser_createRunsScripts.add_argument('caseName', type=str, help='The workflow or case directory')
-    parser_createRunsScripts.add_argument('--configurationFile', default=None,help='The case configuration specifics',required=False)
-    parser_createRunsScripts.add_argument('--isParallel', default=None,type=bool,help='Force parallel run')
-    parser_createRunsScripts.add_argument('--isSlurm', default=False, type=bool, help='Force parallel run')
-    parser_createRunsScripts.set_defaults(func=createRunscripts)
-
 
     ########################################################
     #########################  Flow ########################
