@@ -1,0 +1,10 @@
+# This file includes the requirements for building the docs
+
+-r requirements.txt   # Include operational requirements
+nbconvert
+jupyter-core
+ipykernel
+sphinx
+nbsphinx
+numpydoc
+sphinx_gallery
