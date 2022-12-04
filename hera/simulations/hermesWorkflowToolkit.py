@@ -596,13 +596,14 @@ class workflowToolkit(abstractToolkit):
             simParamList = []
             for simulationDoc in simulationList:
                 wf = workflow(simulationDoc['desc']['workflow'])
-                simulationParameters = convertJSONtoPandas(wf.getNodesParametersTable()).assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
+                simulationParameters = convertJSONtoPandas(wf.parametersJSON).assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
                 if qry is not None:
                     simulationParameters = simulationParameters.query(qry)
 
                 simParamList.append(simulationParameters)
 
             res = pandas.concat(simParamList)
+            res = res.assign(nodeName=res.apply(lambda x: x.parameterName.split(".")[0],axis=1))
             if not allParams:
                 ret =  compareDataframeConfigurations(res,
                                                       datasetName="simulationName",
@@ -617,7 +618,7 @@ class workflowToolkit(abstractToolkit):
         if len(simulationList) == 0:
             ret =  {} if jsonFormat else pandas.DataFrame()
         elif jsonFormat:
-                ret = ret.to_json()
+            ret = ret.to_json()
 
         return ret
 

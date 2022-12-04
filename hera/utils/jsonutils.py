@@ -132,7 +132,6 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
             The name of the value
 
     """
-
     pnds = pandas.json_normalize(jsonData).T.reset_index().rename(columns={'index': nameColumn, 0: valueColumn})\
         .explode(valueColumn)\
         .reset_index()
@@ -200,7 +199,7 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value
             newdata = newdata.assign(parameterName=newdata.parameterName.apply(lambda x: f"{pname}.{x}"))
             base.append(newdata)
 
-        param1 = pandas.concat(base,ignore_index=True)
-        dictIndex = param1.apply(lambda x: isinstance(x.value, dict), axis=1)
+        pnds1 = pandas.concat(base,ignore_index=True)
+        dictIndex = pnds1.apply(lambda x: isinstance(x.value, dict), axis=1)
 
-    return param1
+    return pnds1
