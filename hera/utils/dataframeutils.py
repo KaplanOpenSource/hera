@@ -71,7 +71,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         <index 1> .... <index 2> <parameter name> |
 
     """
-    logger = loggedObject("utils.compareConfigurationsPandas(").logger
+    logger = loggedObject("utils.compareConfigurationsPandas").logger
     logger.info("--- Start ---")
     diffList = []
     indexList = [] if indexList is None else [x for x in numpy.atleast_1d(indexList)]
@@ -117,6 +117,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
     for grpid, grpdata in configurations.groupby([parameterName]+indexList):
 
         logger.debug(f"Testing {grpid} ")
+        print(grpid)
         if grpdata[valueName].unique().shape[0] > 1:
             logger.debug(f"{grpid}:: Normal Field. Different  ")
             diffList.append(grpdata.copy())
