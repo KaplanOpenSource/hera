@@ -200,7 +200,8 @@ def listSimulations(arguments):
         if heraMetadata is None:
             raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
         projectName = heraMetadata['projectName']
-        simulationGroup = heraMetadata['simulationGroup']
+
+        simulationGroup = arguments.simulationGroup if 'simulationGroup' in arguments else arguments.object.split("_")[0]
         simuationType = heraMetadata['workflowType']
 
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
@@ -368,10 +369,12 @@ def buildAndExecute(arguments):
 
 
 if __name__ == "__main__":
+
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING, projectName=None)
     tk.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
     tk.addLogger(loggerName="simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False)
     tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
+    tk.addLogger(loggerName="utils", handlers=['console'], level='DEBUG', propagate=False)
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
