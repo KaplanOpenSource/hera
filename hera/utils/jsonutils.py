@@ -4,6 +4,7 @@ import json
 import pandas
 from json.decoder import JSONDecodeError
 
+
 def convertJSONtoConf(JSON):
     """
         Traverse the JSON and replace all the unum values with objects.
@@ -133,17 +134,34 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
 
     """
     pnds = pandas.json_normalize(jsonData).T.reset_index().rename(columns={'index': nameColumn, 0: valueColumn})\
-        .explode(valueColumn)\
+        .explode(valueColumn,ignore_index=True)\
         .reset_index()
 
-    listParameters = pnds.groupby(nameColumn).count().query(f"{valueColumn}>1").index
+    # Handles nested lists. keep on exploding until all is flat!.
+    while True:
+        listParameters = pnds.groupby(nameColumn).count().query(f"{valueColumn}>1").index
+        for pname in listParameters:
+            counter = 0
+            for I, dta in pnds.iterrows():
+                if dta.loc[nameColumn] == pname:
+                    pnds.loc[I, nameColumn] = f"{pname}_{counter}"
+                    counter += 1
 
-    for pname in listParameters:
-        counter = 0
+        # Handles lists with 1 item.
         for I, dta in pnds.iterrows():
-            if dta.loc[nameColumn] == pname:
-                pnds.loc[I, nameColumn] = f"{pname}_{counter}"
-                counter += 1
+            if isinstance(dta[valueColumn],list):
+                if len(dta[valueColumn]) ==1:
+                    pnds.loc[I, nameColumn] = f"{pnds.loc[I][nameColumn]}_{0}"
+                    pnds.at[I, valueColumn] = pnds.loc[I][valueColumn][0]
+
+        # Handling nested lists.
+        tmp = pnds.explode(valueColumn,ignore_index=True)
+        if len(tmp) == len(pnds):
+            break
+        else:
+            pnds = tmp
+
+
 
     return pnds[[nameColumn,valueColumn]]
 
@@ -203,3 +221,6 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value
         dictIndex = pnds1.apply(lambda x: isinstance(x.value, dict), axis=1)
 
     return pnds1
+
+
+
