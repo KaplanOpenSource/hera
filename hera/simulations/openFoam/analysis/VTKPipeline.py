@@ -1,3 +1,5 @@
+import pdb
+
 import pandas
 import os
 import json
@@ -163,7 +165,7 @@ class VTKpipeline(loggedObject):
 
 
         if paraviewExists:
-            self._pvOFBase = paraviewOpenFOAM(casePath=nameOrWorkflowFileOrJSONOrResource,
+            self._pvOFBase = paraviewOpenFOAM(casePath=casePath,
                                               caseType=caseType,
                                               servername=self._serverName,
                                               fieldNames=fieldNames)
@@ -175,7 +177,7 @@ class VTKpipeline(loggedObject):
         self._netcdfdir = os.path.abspath(os.path.join(casePath, "netcdf"))
 
         self._casePath = casePath
-        self._fieldNames = pipelineJSON["metadata"].get("fieldNames", fieldNames)
+        self._fieldNames = self._VTKpipelineJSON["metadata"].get("fieldNames", fieldNames)
 
     def _initializeReader(self, readerName):
         """
