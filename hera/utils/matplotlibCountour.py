@@ -24,6 +24,7 @@ def toGeopandas(ContourData, inunits=m):
     for col, level in zip(ContourData.collections, ContourData.levels):
         # Loop through all polygons that have the same intensity level
         for contour_path in col.get_paths():
+            poly = None
             # Create the polygon for this intensity level
             # The first polygon in the path is the main one, the following ones are "holes"
             for ncp, cp in enumerate(contour_path.to_polygons()):
@@ -40,8 +41,10 @@ def toGeopandas(ContourData, inunits=m):
                     # Remove the holes if there are any
                     poly = poly.difference(new_shape)
                     # Can also be left out if you want to include all rings
-            levelsList.append(level)
-            polyList.append(poly)
+
+            if poly is not None:
+                levelsList.append(level)
+                polyList.append(poly)
 
     ret = geopandas.GeoDataFrame({"Level": levelsList, "contour": polyList}, geometry="contour")
     return ret
