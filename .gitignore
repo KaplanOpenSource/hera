@@ -1,6 +1,7 @@
 .idea
 hera/doc/build
 hera/doc/source/auto_examples
+hera/doc/source/datalayer/addgetdata.rst
 hera/logging/log
 __pycache__
 *.pyc
@@ -9,3 +10,4 @@ __pycache__
 build 
 dist
 pyhera.egg-info/
+
