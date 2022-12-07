@@ -41,7 +41,7 @@ def toGeopandas(ContourData, inunits=m):
                 pass
             else:
                 # There was "shell" and maybe some "holes"
-                shape = geometry.polygon(shell, holes)
+                shape = geometry.Polygon(shell, holes)
                 levelsList.append(level)
                 polyList.append(shape)
 
