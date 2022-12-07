@@ -3,6 +3,14 @@ import geopandas
 
 from unum.units import *
 
+def standardize_polygon(poly, units_conversion):
+    if isinstance(poly, list):
+        xs = [p[0] for p in poly]
+        ys = [p[1] for p in poly]
+    else:
+        xs = poly[:, 0]
+        ys = poly[:, 1]
+    return [(x * units_conversion, y * units_conversion) for (x, y) in zip(xs, ys)]
 
 def toGeopandas(ContourData, inunits=m):
     """
@@ -12,7 +20,7 @@ def toGeopandas(ContourData, inunits=m):
     :param ContourData:
                 The output of a matplotlib counrour (maybe also contourf)
     :param inunits:
-        The output will be in meters, but input can be in other units.
+        The output will be in meters, but input can be in other units.x
         So use this to generate a utilsOld factor.
     :return:
         A geopandas object with the contours as polygons and levels as attributes.
@@ -24,27 +32,18 @@ def toGeopandas(ContourData, inunits=m):
     for col, level in zip(ContourData.collections, ContourData.levels):
         # Loop through all polygons that have the same intensity level
         for contour_path in col.get_paths():
-            poly = None
-            # Create the polygon for this intensity level
-            # The first polygon in the path is the main one, the following ones are "holes"
-            for ncp, cp in enumerate(contour_path.to_polygons()):
-                if isinstance(cp,list):
-                    x = [x[0] for x in cp]
-                    y = [x[1] for x in cp]
-                else:
-                    x = cp[:, 0]
-                    y = cp[:, 1]
-                new_shape = geometry.Polygon([(i[0]* unitsconversion, i[1]* unitsconversion) for i in zip(x, y)])
-                if ncp == 0:
-                    poly = new_shape
-                else:
-                    # Remove the holes if there are any
-                    poly = poly.difference(new_shape)
-                    # Can also be left out if you want to include all rings
-
-            if poly is not None:
+            polygons = (standardize_polygon(p,units_conversion) for p in contour_path.to_polygons())
+            try:
+                # break the list -- "shell" takes the first, "holes" takes the rest
+                (shell, *holes) = polygons
+            except ValueError:
+                # There was nothing in the list
+                pass
+            else:
+                # There was "shell" and maybe some "holes"
+                shape = geometry.polygon(shell, holes)
                 levelsList.append(level)
-                polyList.append(poly)
+                polyList.append(shape)
 
     ret = geopandas.GeoDataFrame({"Level": levelsList, "contour": polyList}, geometry="contour")
     return ret
