@@ -434,7 +434,7 @@ class Blocks(object):
 
         for i in indexes:
             area = 0
-
+            # if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building
             if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
                 farest = 99999999999
                 farheight=0
@@ -509,7 +509,7 @@ class Blocks(object):
 
         for i in indexes:
 
-
+            # if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building
             if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
                 farest = 99999999999
                 farheight=0
