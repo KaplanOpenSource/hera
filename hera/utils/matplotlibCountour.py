@@ -26,7 +26,7 @@ def toGeopandas(ContourData, inunits=m):
         A geopandas object with the contours as polygons and levels as attributes.
 
     """
-    unitsconversion = inunits.asNumber(m)
+    units_conversion = inunits.asNumber(m)
     polyList = []
     levelsList = []
     for col, level in zip(ContourData.collections, ContourData.levels):
@@ -45,5 +45,8 @@ def toGeopandas(ContourData, inunits=m):
                 levelsList.append(level)
                 polyList.append(shape)
 
+
     ret = geopandas.GeoDataFrame({"Level": levelsList, "contour": polyList}, geometry="contour")
     return ret
+
+
