@@ -64,6 +64,7 @@ class TopographyToolkit(toolkit.VectorToolkit):
             shape = self._RegionToGeopandas(shapeDataOrName, crs=crs)
             doc = self.getDatasourceDocument(datasourceName=datasourceName)
             self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
+            doc.desc['desc'].update({'crs': 2039})
             if 'crs' not in doc.desc['desc']:
                 self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
                 raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
