@@ -8,7 +8,7 @@ openfoam API
 openfoam utils
 ##############
 
-.. automodule:: hera.simulations.openfoam.utils
+.. automodule:: hera.simulations.openFoam.utils
     :members:
     :undoc-members:
 
