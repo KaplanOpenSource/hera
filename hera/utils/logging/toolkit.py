@@ -73,8 +73,8 @@ class loggingToolkit(abstractToolkit):
         self.initializeLogger(resetToDefault=True, loggingConfig=loggingConfig)
 
     @property
-    def defaultHeraHome(self):
-        return os.path.join(pathlib.Path.home(), ".pyhera")
+    def defaultHeraLogDir(self):
+        return os.path.join(pathlib.Path.home(), ".pyhera", "log")
 
     def getDefaultLoggingConfig(self):
         """
@@ -87,7 +87,7 @@ class loggingToolkit(abstractToolkit):
         """
         with open(os.path.join(os.path.dirname(__file__), 'heraLogging.config'), 'r') as logconfile:
             log_conf_str = logconfile.read().replace("\n", "")
-            log_conf_str = log_conf_str.replace("{herapath}", self.defaultHeraHome)
+            log_conf_str = log_conf_str.replace("{hera_log}", self.defaultHeraLogDir)
             log_conf = json.loads(log_conf_str)
 
         return log_conf
@@ -114,6 +114,7 @@ class loggingToolkit(abstractToolkit):
                 None
         """
         if resetToDefault:
+            os.makedirs(self.defaultHeraLogDir, exist_ok=True)  # if this fails, let the exception be raised
             log_conf = self.getDefaultLoggingConfig()
         else:
             # It will always exist, because we call the initialize project with resetToDefault when we initialize the toolkit.
@@ -136,8 +137,12 @@ class loggingToolkit(abstractToolkit):
         # setup the config.
         try:
             logging.config.dictConfig(log_conf)
-        except ValueError:
-            raise RuntimeError(f"Unable to initialized logger. Make sure that the logging subdirectoryis (usually 'log', see utils/logging/heraLogging.config file) exists in {self.defaultHeraHome}")
+        except ValueError as e:
+            raise RuntimeError(
+                f"Unable to initialize logger.\n"
+                f"Make sure that the logging subdirectory "
+                f"(by default, {self.defaultHeraLogDir}) exists and is writable."
+            ) from e
 
         self._config = log_conf
 
