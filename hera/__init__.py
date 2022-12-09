@@ -17,11 +17,11 @@ if version > 2:
 ------
     Issue#47: Updating the datalayer 
     Issue#48: The new requirement type
-    Issue#51: Fix bug in the in demography  demography.analysis.createNewArea
-    Issue#52: Initial setup files 
-    Issue#53: Create log file if it does not already exist
-    Issue#56: Fixed the bug, hope that well.
-    Issue#58: Minor doc build fixes
+    PullRequest#51: Fix bug in the in demography  demography.analysis.createNewArea
+    PullRequest#52: Initial setup files 
+    Issue#13 (pull request #53): Create log file if it does not already exist
+    Issue#55 (pull request #56): Fixed the bug, hope that well.
+    PullRequest#58: Minor doc build fixes
     Issue#49/#59: Issues with building 
 
 2.6.0
