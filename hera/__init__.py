@@ -1,4 +1,4 @@
-__version__ = '2.6.0'
+__version__ = '2.7.0'
 
 import os
 import json
@@ -13,8 +13,19 @@ if version > 2:
     loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
+2.7.0
+------
+    Issue#47: Updating the datalayer 
+    Issue#48: The new requirement type
+    Issue#51: Fix bug in the in demography  demography.analysis.createNewArea
+    Issue#52: Initial setup files 
+    Issue#53: Create log file if it does not already exist
+    Issue#56: Fixed the bug, hope that well.
+    Issue#58: Minor doc build fixes
+    Issue#49/#59: Issues with building 
+
 2.6.0
----------
+-----
     Issue#46: Updating the documentation to the datalayer. 
     Issue#44: Improved comparison of n-JSON files. 
 
