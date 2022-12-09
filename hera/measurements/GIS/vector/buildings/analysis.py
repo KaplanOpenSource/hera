@@ -9,6 +9,9 @@ import shapely.wkt
 from shapely.geometry import box, Polygon
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.datalayer import datatypes,nonDBMetadataFrame
+from hera.measurements.GIS.vector import topography
+
+
 import logging
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
@@ -188,7 +191,12 @@ class analysis():
 
         else:
             self.logger.debug("Return found data in DB")
-            domainLambda = dataDoc[0].getData()
+            try:
+                domainLambda = dataDoc[0].getData()
+            except fiona.errors.DriverError:
+                errmsg = f"The cached data in location {dataDoc[0].resource} is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache."
+                self.logger.error(errmsg)
+                raise FileNotFoundError(errmsg)
 
         self.logger.info("---- End ----")
         return domainLambda
@@ -388,6 +396,18 @@ class Blocks(object):
         return Blocks(level=(self._Level + 1), exteriorBlock=self, df=self._Df, **kwargs)._BuildIndexList()
 
     def initBuildingsBlock(self, blockDict):
+        """
+            Initializes the ... .
+
+        Parameters
+        ----------
+        blockDict : dict
+                The dictionary that ....
+
+        Returns
+        -------
+
+        """
 
         extent = box(blockDict['xMin%s' % self._Level][0], blockDict['yMin%s' % self._Level][0],
                            blockDict['xMax%s' % self._Level][0], blockDict['yMax%s' % self._Level][0])
@@ -410,12 +430,32 @@ class Blocks(object):
         area_mltp_h = 0
         sum_area_mltp_h = 0
         indexes = self._Buildings['BLDG_HT'].index
-        numberOfBld = len(indexes)
+#        numberOfBld = len(indexes)
 
         for i in indexes:
             area = 0
+            # if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building
+            if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
+                farest = 99999999999
+                farheight=0
+                for j in indexes:
+                    try:
+                        walls = self._Buildings['geometry'][j].exterior.xy
+                    except:
+                        continue
+                    if (self._Buildings['HT_LAND'][j]!=0.0):
+                        far = ((self._Buildings['geometry'][i].exterior.xy[0][0]-self._Buildings['geometry'][j].exterior.xy[0][0])**2+
+                               (self._Buildings['geometry'][i].exterior.xy[1][0]-self._Buildings['geometry'][j].exterior.xy[1][0])**2)
+                        if (farest**2.>far):
+                            farest = far
+                            farheight= self._Buildings['HT_LAND'][j]
+                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
+            else:
+                building_height = self._Buildings['BLDG_HT'][i]
+
+
             if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14) or (
-                    self._Buildings['BLDG_HT'][i] == 0):
+                    self._Buildings['BLDG_HT'][i] == 0) or (building_height==0):
                 Map_A_p = Map_A_p
             else:
                 if self._Buildings.geometry[i].geom_type == 'MultiPolygon':
@@ -426,7 +466,9 @@ class Blocks(object):
                     Map_A_p = Map_A_p + self._Buildings.geometry[i].area
                     area = self._Buildings.geometry[i].area
 
-            area_mltp_h = area * self._Buildings['BLDG_HT'][i]
+
+
+            area_mltp_h = area * building_height
             sum_area_mltp_h = sum_area_mltp_h + area_mltp_h
 
         lambdaP = Map_A_p / self._blockArea
@@ -455,25 +497,49 @@ class Blocks(object):
         """
         # Calculate average lambda F of a block
         """
-        bldHeightToReduce = 0
-        errorBuildings = 0
+        # bldHeightToReduce = 0
+#        errorBuildings = 0
         if self._Buildings.empty:
             return 0
         Map_A_f = 0
         indexes = self._Buildings['BLDG_HT'].index
-        numberOfBld = len(indexes)
+#        numberOfBld = len(indexes)
+
+        # topography.analysis.addHeight(self,'data', 'groundData')
 
         for i in indexes:
-            if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14):
-                bldHeightToReduce = bldHeightToReduce + self._Buildings['BLDG_HT'][i]
-                numberOfBld = numberOfBld - 1
+
+            # if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building
+            if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
+                farest = 99999999999
+                farheight=0
+                for j in indexes:
+                    try:
+                        walls = self._Buildings['geometry'][j].exterior.xy
+                    except:
+                        continue
+                    if (self._Buildings['HT_LAND'][j]!=0.0):
+                        far = ((self._Buildings['geometry'][i].exterior.xy[0][0]-self._Buildings['geometry'][j].exterior.xy[0][0])**2+
+                               (self._Buildings['geometry'][i].exterior.xy[1][0]-self._Buildings['geometry'][j].exterior.xy[1][0])**2)
+                        if (farest**2.>far):
+                            farest = far
+                            farheight= self._Buildings['HT_LAND'][j]
+                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
+            else:
+                building_height = self._Buildings['BLDG_HT'][i]
+
+
+            if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14) or (building_height==0):
+ #               bldHeightToReduce = bldHeightToReduce + self._Buildings['BLDG_HT'][i]
+ #               numberOfBld = numberOfBld - 1
+                pass
             else:
                 bldHeight = self._Buildings['BLDG_HT'][i]
                 if bldHeight < 2:
                     bldHeight = self._Buildings['HI_PNT_Z'][i] - self._Buildings['HT_LAND'][i]
                     if bldHeight < 2:
                         self._Buildings.at[i, 'BLDG_HT'] = 0
-                        errorBuildings = errorBuildings + 1
+#                        errorBuildings = errorBuildings + 1
                         continue
                     else:
                         self._Buildings.at[i, 'BLDG_HT'] = bldHeight
@@ -523,3 +589,65 @@ class Blocks(object):
         return geopandas.GeoDataFrame(df, geometry=df['geometry'])
 
 
+if __name__ == "__main__":
+    from hera import toolkitHome
+    bt = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName="testbamba") # tlvbig
+    tlvbounding = [175000, 658000, 185000, 668000]  #
+    tlvbounding = [175500, 658000, 185000, 668000]
+    bsbounding = [175000, 569000, 189000, 579000]
+    bsboundingsmall = [181000, 577000, 182000, 578000]
+    ashkelonbounding = [156000, 616000, 164000, 625000]
+    natanyabounding = [184000, 689000, 192000, 697000]
+
+    bounding = tlvbounding
+    cityname = 'tlv1'
+
+    bounding = bsboundingsmall
+    cityname = 'bssm'
+
+    bt.addRegion(bounding, cityname, crs=2039)
+    if 5 == 5:
+        reg = bt.cutRegionFromSource(cityname, datasourceName='BNTL', isBounds=True, crs=2039)
+        #	    bt.regionToSTL(cityname,cityname+'-buildings.stl','BNTL')
+        print('dddeeebbb')
+        lm = bt.analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=2039, overwrite=True)
+        print(lm)
+        file = open(cityname + '-lambda1.csv', 'w')
+        file.writelines('[')
+        for i in range(len(lm)):
+            lines = ['[', str(min(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(min(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(lm.iloc[i]['lambdaF']), ', ',
+                     str(lm.iloc[i]['lambdaP']), ', ',
+                     str(lm.iloc[i]['hc']), '],\n']
+            file.writelines(lines)
+        file.writelines(']')
+        file.close()
+
+    if 5 == 6:
+        lm = bt._analysis.LambdaFromDatasource(270, 250, reg, 'BNTL', crs=2039)
+        print(lm)
+        file = open(cityname + '-lambda.csv', 'w')
+        file.writelines('[')
+        for i in range(len(lm)):
+            lines = ['[', str(min(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[0])), ', ',
+                     str(min(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(max(lm.iloc[i]['geometry'].exterior.coords.xy[1])), ', ',
+                     str(round(lm.iloc[i]['lambdaF'], 3)), ', ',
+                     str(round(lm.iloc[i]['lambdaP'], 3)), ', ',
+                     str(round(lm.iloc[i]['hc'], 3)), '],\n']
+            file.writelines(lines)
+        file.writelines(']')
+        file.close()
+
+    if 5 == 6:
+        bt2 = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY, projectName="testbamba")
+        bt2.addRegion(bounding, cityname, crs=2039)
+        # reg = bt2.cutRegionFromSource('bs',datasourceName='BNTL',isBounds = True, crs = 2039)
+        topo = bt2.regionToSTL(bounding, 50, 'BNTL')
+        file1 = open(cityname + '-topo.stl', 'w')
+        file1.write(topo)
+        file1.close()

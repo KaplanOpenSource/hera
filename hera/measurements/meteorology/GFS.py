@@ -61,12 +61,12 @@ class GFS:
 
 
 if __name__ == "__main__":
-    mygfs = gfs()
+    mygfs = GFS()
     filename2 = '/ibdata2/nirb/testme.grib'
-    gfs.get_gfs_list(filename2)
+    mygfs.get_gfs_list(filename2)
     lat = 31.76
     lon = 35.21
     band_num = 442
-    data = gfs.get_gfs_data(filename2, lat=lat, lon=lon, band_num=band_num)
+    data = mygfs.get_gfs_data(filename2, lat=lat, lon=lon, band_num=band_num)
     print('at lat:',lat, 'lon:', lon, 'the data of band ', band_num, 'is ', data)
 
