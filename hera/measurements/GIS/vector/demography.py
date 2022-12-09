@@ -253,7 +253,7 @@ class analysis:
 
 
         doc = None
-        if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
+        if saveMode != TOOLKIT_SAVEMODE_NOSAVE:
 
             filename = regionName if "." in regionName else f"{regionName}.shp"
 
