@@ -1,11 +1,12 @@
 #! /usr/bin/env python
 import argparse
 import json
+import logging
 import sys
 import shutil
 import os
 from hera.simulations.openFoam import Workflow_Flow
-from hera.utils import loadJSON,loggedObject
+from hera.utils import loadJSON
 from hera.simulations.hermesWorkflowToolkit import simulationTypes
 
 def prepareAll(arguments):
@@ -30,7 +31,7 @@ def prepareAll(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_OF_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_OF_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
     logger.info("---- Start ----")
@@ -84,7 +85,7 @@ def prepareAll(arguments):
     logger.info("--- End ---")
 
 def prepareExecution(arguments):
-    logger = loggedObject("bin.hera_OF_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_OF_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
     logger.info("---- Start ----")

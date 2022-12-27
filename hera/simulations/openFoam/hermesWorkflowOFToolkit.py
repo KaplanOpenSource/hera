@@ -4,8 +4,6 @@ import os
 import glob
 import shutil
 from distutils.dir_util import copy_tree
-from utils import loadJSON
-from utils import loggedObject
 from simulations.hermesWorkflowToolkit import workflowToolkit,simulationTypes
 from simulations.openFoam import ofObjectHome
 from hera.datalayer import datatypes

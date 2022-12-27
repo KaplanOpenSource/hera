@@ -1,13 +1,13 @@
 #! /usr/bin/env python
 import argparse
 import json
+import logging
 import sys
 import shutil
 import os
 from distutils.dir_util import copy_tree
 from hera.simulations.openFoam.datalayer.hermesWorkflow import Workflow_Dispersion
 from hera.simulations.hermesWorkflowToolkit import simulationTypes
-from hera.utils import loggedObject
 from hera.utils.jsonutils import loadJSON
 from hera import toolkitHome
 
@@ -39,7 +39,7 @@ def makeDispersionWorkflow(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_of_lsm_workflows.makeDispersion").logger
+    logger = logging.getLogger("hera.bin.hera_of_lsm_workflows.makeDispersion")
     logger.info("--- Start ---")
     logger.debug(f"Loading workflow {arguments.dispersionWorkflow} and configuration {arguments.configurationFile}")
 
@@ -90,7 +90,7 @@ def prepareFlowField(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_of_lsm_workflows").logger
+    logger = logging.getLogger("hera.bin.hera_of_lsm_workflows")
     logger.info(" -- Starting: prepare workflow --")
 
     configuration = loadJSON(arguments.configurationFile)
@@ -126,7 +126,7 @@ def prepareIndoorsFlowField(arguments):
     -------
         The case direcory of the flowfield.
     """
-    logger = loggedObject("bin.hera_of_lsm_workflows").logger
+    logger = logging.getLogger("hera.bin.hera_of_lsm_workflows")
     logger.info(" -- Starting: prepare flow indoors --")
 
 
