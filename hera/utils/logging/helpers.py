@@ -41,6 +41,29 @@ def _define_logger_execution():
 
 
 def initialize_logging(*logger_overrides: (str, dict), disable_existing_loggers: bool = True) -> None:
+    """
+    Initialize logging for the Hera library
+
+    Calling this function configures loggers for the hera library, according to
+    the default configuration, with modifications you can add using :py:func:`with_logger` calls.
+
+    The function is called automatically when hera is imported, so you only need
+    to call it explicitly if you really want to add such modifications.
+
+    To override e.g. the ``hera.bin`` logger's level to ``DEBUG``, call like so::
+
+        initialize_logging(
+            with_logger("hera.bin", level="DEBUG"),
+        )
+
+    This will use the rest of the definitions for this logger (handlers, formatters,
+    whatever other parameters the logger class takes) from the default configuration,
+    if such definitions exist.
+
+    As the ``initialize`` in the name implies, you're expected to call this
+    function, if at all, before you start getting logger objects. If you call it
+    after some loggers were created, consider passing ``disable_existing_loggers=False``.
+    """
     _define_logger_execution()
     config = get_default_logging_config(disable_existing_loggers=disable_existing_loggers)
     for logger_name, logger_dict in logger_overrides:
