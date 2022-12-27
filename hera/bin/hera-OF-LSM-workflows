@@ -11,6 +11,7 @@ from hera.simulations.hermesWorkflowToolkit import simulationTypes
 from hera.utils.jsonutils import loadJSON
 from hera import toolkitHome
 
+
 def makeDispersionWorkflow(arguments):
     """
     Prepare the dispersion simulation by specializing the
@@ -153,12 +154,12 @@ def prepareIndoorsFlowField(arguments):
 if __name__=="__main__":
 
     ### ---- Debugging
-    from hera import toolkitHome
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
-    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
-    tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
-
-    #tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False)
+    from hera.utils.logging.helpers import initialize_logging, with_logger
+    initialize_logging(
+        with_logger("hera.simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False),
+        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        #with_logger("hera.measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False),
+    )
     ### ---- Debugging
 
     parser = argparse.ArgumentParser()
