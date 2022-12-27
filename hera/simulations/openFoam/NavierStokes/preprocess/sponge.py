@@ -5,7 +5,7 @@ import json
 from scipy.interpolate import interp1d
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
 from  PyFoam.Basics.DataStructures import Field
-from utils import loggedObject
+from hera.utils.logging import helpers as hera_logging
 
 
 class sponge_handler(object):
@@ -19,7 +19,7 @@ class sponge_handler(object):
         spongeLayerObj.CreateAlphaFile()
 
 
-class spongeLayer(loggedObject):
+class spongeLayer:
     """
     This class manages the creation of an alpha file which will be used in the run to create a sponge layer.
     The class receives 'params' as a dict, string or path to json file with the parameters in the following structure:
@@ -70,7 +70,7 @@ class spongeLayer(loggedObject):
         ScalarFieldFile: the path to scalar tamplate file
         """
 
-        super().__init__()
+        self.logger = hera_logging.get_logger(self)
 
         self.logger.info("Initialize spongeLayer")
         self.logger.info("Loading configuration")

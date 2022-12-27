@@ -1,11 +1,12 @@
 #! /usr/bin/env python
 import argparse
 import json
+import logging
 import os
 
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
-from hera.utils import loggedObject,loadJSON
+from hera.utils import loadJSON
 from hermes import workflow
 
 
@@ -46,7 +47,7 @@ def add(args):
     -------
         None
     """
-    logger = loggedObject("bin.hera_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
     conf = loadJSON(args.workflow)
@@ -106,7 +107,7 @@ def create(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
     conf = loadJSON(arguments.workflow)
@@ -149,7 +150,7 @@ def listSimulations(arguments):
     -------
         A list of all the simulations in the group.
     """
-    logger = loggedObject("bin.hera_workflows.list").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.list")
     logger.info(f" -- Starting: Listing simulations --")
 
     projectName = None
@@ -230,7 +231,7 @@ def listWokflowNodes(arguments):
     -------
         prints a list of all the nodes of the workflow.
     """
-    logger = loggedObject("bin.hera_workflows.listNodes").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.listNodes")
     logger.info(f" -- Starting: Listing workflow nodes --")
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
@@ -275,7 +276,7 @@ def listWokflowNodeParameters(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_workflows.listNodeParameters").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.listNodeParameters")
     logger.info(f" -- Starting: Listing node parameters --")
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
