@@ -1,15 +1,16 @@
 #! /usr/bin/env python
 import argparse
 import json
+import logging
 import sys
 import shutil
 import os
 from distutils.dir_util import copy_tree
 from hera.simulations.openFoam.datalayer.hermesWorkflow import Workflow_Dispersion
 from hera.simulations.hermesWorkflowToolkit import simulationTypes
-from hera.utils import loggedObject
 from hera.utils.jsonutils import loadJSON
 from hera import toolkitHome
+
 
 def makeDispersionWorkflow(arguments):
     """
@@ -39,7 +40,7 @@ def makeDispersionWorkflow(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_of_lsm_workflows.makeDispersion").logger
+    logger = logging.getLogger("hera.bin.hera_of_lsm_workflows.makeDispersion")
     logger.info("--- Start ---")
     logger.debug(f"Loading workflow {arguments.dispersionWorkflow} and configuration {arguments.configurationFile}")
 
@@ -90,7 +91,7 @@ def prepareFlowField(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_of_lsm_workflows").logger
+    logger = logging.getLogger("hera.bin.hera_of_lsm_workflows")
     logger.info(" -- Starting: prepare workflow --")
 
     configuration = loadJSON(arguments.configurationFile)
@@ -126,7 +127,7 @@ def prepareIndoorsFlowField(arguments):
     -------
         The case direcory of the flowfield.
     """
-    logger = loggedObject("bin.hera_of_lsm_workflows").logger
+    logger = logging.getLogger("hera.bin.hera_of_lsm_workflows")
     logger.info(" -- Starting: prepare flow indoors --")
 
 
@@ -156,12 +157,12 @@ def prepareIndoorsFlowField(arguments):
 if __name__=="__main__":
 
     ### ---- Debugging
-    from hera import toolkitHome
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
-    tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
-    tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
-
-    #tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False)
+    from hera.utils.logging.helpers import initialize_logging, with_logger
+    initialize_logging(
+        with_logger("hera.simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False),
+        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        #with_logger("hera.measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False),
+    )
     ### ---- Debugging
 
     parser = argparse.ArgumentParser()

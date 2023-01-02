@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 import argparse
 import json
+import logging
 import os
 
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
-from hera.utils import loggedObject,loadJSON
+from hera.utils import loadJSON
+from hera.utils.logging.helpers import initialize_logging, with_logger
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
@@ -46,7 +48,7 @@ def add(args):
     -------
         None
     """
-    logger = loggedObject("bin.hera_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
 
@@ -104,7 +106,7 @@ def create(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
     conf = loadJSON(arguments.workflow)
@@ -190,7 +192,7 @@ def listSimulations(arguments):
     -------
         A list of all the simulations in the group.
     """
-    logger = loggedObject("bin.hera_workflows.list").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.list")
     logger.info(f" -- Starting: Listing simulations --")
 
     simulationGroup = None
@@ -259,7 +261,7 @@ def listWokflowNodes(arguments):
     -------
         prints a list of all the nodes of the workflow.
     """
-    logger = loggedObject("bin.hera_workflows.listNodes").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.listNodes")
     logger.info(f" -- Starting: Listing workflow nodes --")
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
@@ -304,7 +306,7 @@ def listWokflowNodeParameters(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_workflows.listNodeParameters").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.listNodeParameters")
     logger.info(f" -- Starting: Listing node parameters --")
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
@@ -369,12 +371,11 @@ def buildAndExecute(arguments):
 
 
 if __name__ == "__main__":
-
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING, projectName=None)
-    tk.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
-    tk.addLogger(loggerName="simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False)
-    tk.addLogger(loggerName="bin", handlers=['console'], level='DEBUG', propagate=False)
-    tk.addLogger(loggerName="utils", handlers=['console'], level='DEBUG', propagate=False)
+    initialize_logging(
+        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+    )
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
