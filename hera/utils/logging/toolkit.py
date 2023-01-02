@@ -6,6 +6,16 @@ import logging.config
 import json
 import os
 
+DEPRECATION_WARNING_TEXT = """
+        ############################################################
+        # WARNING:                                                 #
+        #                                                          #
+        # The Logging toolkit is deprecated                        #
+        # Please change your code                                  #
+        # to use hera.utils.logging.helpers.initialize_logging()   #
+        # instead.                                                 #
+        ############################################################
+"""
 
 EXECUTION = 15
 logging.addLevelName(EXECUTION, 'EXECUTION')
@@ -69,6 +79,7 @@ class loggingToolkit(abstractToolkit):
         loggingConfig: dict
                 Dictionary to update the default configuration with.
         """
+        print(DEPRECATION_WARNING_TEXT)
         super().__init__(toolkitName="loggingToolkit",projectName="loggingData",filesDirectory=filesDirectory)
         self.initializeLogger(resetToDefault=True, loggingConfig=loggingConfig)
 

@@ -1,17 +1,16 @@
 __version__ = '2.8.0'
 
-import os
-import json
 import sys
-version = sys.version_info[0]
-if version > 2:
-    from .toolkit import ToolkitHome
-    toolkitHome =ToolkitHome()
+python_version = sys.version_info
+if python_version < (3, 8):
+    raise NotImplementedError("Hera does not support Python versions lower than 3.8")
 
-    # Setup the units for the model
-    # The project name is not imporant becuase logging is universal for user.
-    loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
+# Have some initial default logging configuration in case the user hasn't set any
+from .utils.logging.helpers import initialize_logging
+initialize_logging(disable_existing_loggers=False)
 
+from .toolkit import ToolkitHome
+toolkitHome = ToolkitHome()
 """
 2.8.0
 ------

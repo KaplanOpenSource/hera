@@ -1,8 +1,7 @@
-from collections.abc import Iterable
+import logging
 import numpy
 import pandas
 
-from . import loggedObject
 
 def compareDataframeConfigurations(data,datasetName="datasetName",parameterName="parameterName",valueName="value",indexList=None,longFormat=False):
     """
@@ -71,7 +70,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         <index 1> .... <index 2> <parameter name> |
 
     """
-    logger = loggedObject("utils.compareConfigurationsPandas(").logger
+    logger = logging.getLogger("hera.utils.compareConfigurationsPandas")
     logger.info("--- Start ---")
     diffList = []
     indexList = [] if indexList is None else [x for x in numpy.atleast_1d(indexList)]

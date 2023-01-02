@@ -4,7 +4,8 @@ import glob
 import json
 from distutils.dir_util import copy_tree
 from hera import toolkitHome
-from ....utils import loadJSON,loggedObject
+from ....utils import loadJSON
+from ....utils.logging import helpers as hera_logging
 #from ....datalayer import Project
 from itertools import product
 from ...openFoam import ofObjectHome
@@ -29,7 +30,7 @@ class abstractWorkflow(workflow):
 
     def __init__(self, workflowJSON, workflowType=simulationTypes.WORKFLOW):
         super().__init__(workflowJSON=workflowJSON)
-        self.logger = loggedObject(loggerName=None).logger
+        self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowType = workflowType
 
     def buildCaseExecutionScript(self,caseDirectory,configuration):
