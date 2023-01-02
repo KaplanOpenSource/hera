@@ -1,4 +1,4 @@
-__version__ = '2.7.0'
+__version__ = '2.8.0'
 
 import os
 import json
@@ -13,6 +13,13 @@ if version > 2:
     loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
 
 """
+2.8.0
+------
+    #63: Issue#38- Working with openfoam 
+    #61: Simpler logging method. 
+    #34: A starting point for the unittest. 
+    
+
 2.7.0
 ------
     Issue#47: Updating the datalayer 
