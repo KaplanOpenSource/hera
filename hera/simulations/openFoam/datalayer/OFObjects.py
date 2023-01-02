@@ -6,9 +6,9 @@ from dask.delayed import delayed
 import dask
 from itertools import product,islice
 from io import StringIO
-from ....utils import loggedObject
+from ....utils.logging import helpers as hera_logging
 
-class ofObjectHome(loggedObject):
+class ofObjectHome:
     """
         A factory for field classes.
 
@@ -24,7 +24,7 @@ class ofObjectHome(loggedObject):
         return self._predefinedfields
 
     def __init__(self):
-        super().__init__(loggerName=None)
+        self.logger = hera_logging.get_logger(self)
 
         incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
                                   p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
@@ -209,7 +209,7 @@ class ofObjectHome(loggedObject):
 
 
 
-class OFObject(loggedObject):
+class OFObject:
     """
         Represents an OF object. i.e a field or a list.
 
@@ -261,7 +261,7 @@ class OFObject(loggedObject):
             If None, then it is a scalar.
             If list, then it is a list.
         """
-        super().__init__(loggerName=None)
+        self.logger = hera_logging.get_logger(self)
         self._name = name
         self._componentNames =componentNames
 
