@@ -13,7 +13,8 @@ def prepareAll(arguments):
         Prepares the workflow to the specific case by using the
         caseConfiguration file.
 
-        Its structure is given in the examples ...
+
+        Its strucuture is given in the examples ...
 
 
     Parameters
@@ -29,7 +30,7 @@ def prepareAll(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_OF_workflows.add").logger
+    logger = logging.getLogger("hera.bin.hera_OF_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
     logger.info(f"Loading the workflow {arguments.workflow} and the configuration file {arguments.configurationFile}")
     configuration = loadJSON(arguments.configurationFile)
@@ -90,6 +91,8 @@ if __name__=="__main__":
     subparsers = parser.add_subparsers(help='sub-command help')
 
     #parser_make  = subparsers.add_parser('make', help='Makes the relevant template')
+
+
     # Make - makes the case from requested template type.
     #        1. The template types should be datasource in the OF toolkit.
     #        2. Creates a default parameter file for the simulation runs.

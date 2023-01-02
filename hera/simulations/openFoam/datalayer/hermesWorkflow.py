@@ -4,7 +4,8 @@ import glob
 import json
 from distutils.dir_util import copy_tree
 from hera import toolkitHome
-from ....utils import loadJSON,loggedObject
+from ....utils import loadJSON
+from ....utils.logging import helpers as hera_logging
 from ....utils.freeCAD import getObjFileBoundaries
 #from ....datalayer import Project
 from itertools import product
@@ -17,7 +18,7 @@ except ImportError:
     raise ImportError("Cannot use this module without hermes... Install it. ")
 
 
-class abstractWorkflow(workflow,loggedObject):
+class abstractWorkflow(workflow):
     """
             An abstract specialization of the hermes workflow to the
             openfoam workflow.
@@ -29,8 +30,8 @@ class abstractWorkflow(workflow,loggedObject):
         return self['Parameters']
 
     def __init__(self, workflowJSON, workflowType=simulationTypes.WORKFLOW):
-        loggedObject.__init__(self)
         super().__init__(workflowJSON=workflowJSON)
+        self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowType = workflowType
 
 
@@ -238,7 +239,7 @@ class Workflow_Flow(abstractWorkflow):
         """
             Reads the configuration file and:
 
-            Adapt the fo    llowing workflow nodes:
+            Adapt the following workflow nodes:
 
                 1. blockMesh
                 2. Snappy

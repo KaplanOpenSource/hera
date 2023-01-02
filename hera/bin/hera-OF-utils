@@ -335,11 +335,12 @@ def makeEscapedMassFile(args):
 if __name__=="__main__":
 
     # ### ---- Debugging
-    # from hera import toolkitHome
-    # tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
-    # tk.addLogger(loggerName="simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False)
-    # tk.addLogger(loggerName="measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False)
-    # tk.addLogger(loggerName="measurements.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False)
+    # from hera.utils.logging.helpers import initialize_logging, with_logger
+    # initialize_logging(
+    #     with_logger("hera.simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False),
+    #     with_logger("hera.measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False),
+    #     with_logger("hera.measurements.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False),
+    # )
     # ### ---- Debugging
 
     parser = argparse.ArgumentParser()

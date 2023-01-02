@@ -1,20 +1,37 @@
-__version__ = '2.6.0'
+__version__ = '2.8.0'
 
-import os
-import json
 import sys
-version = sys.version_info[0]
-if version > 2:
-    from .toolkit import ToolkitHome
-    toolkitHome =ToolkitHome()
+python_version = sys.version_info
+if python_version < (3, 8):
+    raise NotImplementedError("Hera does not support Python versions lower than 3.8")
 
-    # Setup the units for the model
-    # The project name is not imporant becuase logging is universal for user.
-    loggingHome = toolkitHome.getToolkit(toolkitName="Logging",projectName=None)
+# Have some initial default logging configuration in case the user hasn't set any
+from .utils.logging.helpers import initialize_logging
+initialize_logging(disable_existing_loggers=False)
 
+from .toolkit import ToolkitHome
+toolkitHome = ToolkitHome()
 """
+2.8.0
+------
+    #63: Issue#38- Working with openfoam 
+    #61: Simpler logging method. 
+    #34: A starting point for the unittest. 
+    
+
+2.7.0
+------
+    Issue#47: Updating the datalayer 
+    Issue#48: The new requirement type
+    PullRequest#51: Fix bug in the in demography  demography.analysis.createNewArea
+    PullRequest#52: Initial setup files 
+    Issue#13 (pull request #53): Create log file if it does not already exist
+    Issue#55 (pull request #56): Fixed the bug, hope that well.
+    PullRequest#58: Minor doc build fixes
+    Issue#49/#59: Issues with building 
+
 2.6.0
----------
+-----
     Issue#46: Updating the documentation to the datalayer. 
     Issue#44: Improved comparison of n-JSON files. 
 

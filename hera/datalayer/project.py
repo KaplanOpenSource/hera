@@ -1,5 +1,6 @@
 import pandas
-from hera.utils.logging.loggedObject import loggedObject
+
+import hera.utils.logging.helpers as hera_logging
 
 
 from .collection import AbstractCollection,\
@@ -22,7 +23,7 @@ def getProjectList(user=None):
 
 
 
-class Project(loggedObject):
+class Project:
     """
         Provides a simple interface to the data of a specific project.
 
@@ -121,7 +122,7 @@ class Project(loggedObject):
         :param loggerName: str
                 Determine the name of the logger. if None, use the classpath of the current class.
         """
-        super().__init__(loggerName=loggerName)
+        self.logger = hera_logging.get_logger(self, loggerName)
         self._projectName = projectName
 
         self._measurements  = Measurements_Collection(user=databaseName)
