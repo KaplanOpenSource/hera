@@ -6,6 +6,7 @@ from distutils.dir_util import copy_tree
 from hera import toolkitHome
 from ....utils import loadJSON
 from ....utils.logging import helpers as hera_logging
+from ....utils.freeCAD import getObjFileBoundaries
 #from ....datalayer import Project
 from itertools import product
 from ...openFoam import ofObjectHome
@@ -33,92 +34,15 @@ class abstractWorkflow(workflow):
         self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowType = workflowType
 
-    def buildCaseExecutionScript(self,caseDirectory,configuration):
-        """
-            Writes the allRun file that executes the workflow and the allClean file
-            that cleans the case to the case directory.
 
-        Parameters
-        ----------
-        caseDirectory: str
-            The directory to write the files to.
+    @property
+    def caseExecution(self):
+        return self._workflowJSON.get(HERAMETADATA,dict()).get('caseExecution',None)
 
-        configuration: dict
-            A configuration file that is used to build the execution of the node.
-            Specifically, includes a node 'caseExecution' with the structure:
-
-             {
-                "parallelCase": true|false             # Write the execution for parallel execution.
-                "runFile": [
-                            --------------- A list of nodes.
-                  {
-                    "name": "blockMesh",               # The name of the program to execute.
-                    "couldRunInParallel": false,       # Write as parallel (only if parallel case is True).
-                    "parameters": null                 # Parameters for each run.
-                  }
-                ]
-                            --------------- A list of nodes.
-             }
-
-        """
-        self.logger.info("---- Start ----")
-        try:
-            execConfiguration = configuration['caseExecution']
-        except KeyError:
-            err = "'caseExecution' node not found in configuration"
-            self.logger.error(err)
-            raise ValueError(err)
-
-
-        isParallel = execConfiguration['parallelCase']
-        self.logger.info(f"Running this case as parallel? {isParallel}")
-
-        execLine = ""
-
-        for execNode in execConfiguration['runFile']:
-            self.logger.execution(f"Processing Node {execNode['name']}")
-
-            parallelFlag = "-parallel" if (isParallel and execNode['couldRunInParallel']) else ""
-            progName = execNode['name']
-            parameters = execNode.get('parameters',None)
-
-            if parameters is not None:
-                params   = " ".join(numpy.atleast_1d(execNode['parameters']))
-            else:
-                params = ""
-
-            foamJob = execNode.get("foamJob",True)
-
-            if foamJob:
-                execLine += f"foamJob {parallelFlag} -screen -wait {progName} {params}\n"
-            else:
-                execLine += f"{progName} {params}\n"
-
-        allrunFile = os.path.join(caseDirectory,"Allrun")
-        with open(allrunFile,'w') as execFile:
-            execFile.write(execLine)
-        os.chmod(allrunFile, 0o777)
-
-        # Now write the allClean file.
-        allCleanContent = """
-#!/bin/sh
-cd ${0%/*} || exit 1    # Run from this directory
-
-# Source tutorial clean functions
-. $WM_PROJECT_DIR/bin/tools/CleanFunctions
-
-# Remove surface and features
-rm -f constant/triSurface/motorBike.obj.gz > /dev/null 2>&1
-rm -rf constant/extendedFeatureEdgeMesh > /dev/null 2>&1
-rm -f constant/triSurface/motorBike.eMesh > /dev/null 2>&1
-
-cleanCase
-        """
-        allcleanFile = os.path.join(caseDirectory,"Allclean")
-        with open(allcleanFile,'w') as allclean:
-            allclean.write(allCleanContent)
-
-        os.chmod(allcleanFile, 0o777)
+    @caseExecution.setter
+    def caseExecution(self, value):
+        self._workflowJSON.setdefault(HERAMETADATA,dict())
+        self._workflowJSON[HERAMETADATA]['caseExecution'] = value
 
     @property
     def projectName(self):
@@ -153,7 +77,6 @@ cleanCase
             value = value.value # get the string value of the enum.
 
         self._workflowJSON[HERAMETADATA]['workflowType'] = value
-
 
 class Workflow_Flow(abstractWorkflow):
     """
@@ -549,7 +472,6 @@ class Workflow_Flow(abstractWorkflow):
 
         """
         self.logger.info(" -- Start -- ")
-
         objectName = geometryJSON['source']['fileName']
         objectType = geometryJSON['source']['fileType']
         # Updating the snappyHexMesh object:
@@ -651,28 +573,8 @@ class Workflow_Flow(abstractWorkflow):
         -------
             None, updates the blockMesh node.
         """
-        try:
-            from freecad import app as FreeCAD
-            import Mesh
-        except ImportError:
-            self.logger.error("freecad module  is not installed in the environment")
-            raise ImportError("freecad is not installed. please install it before trying again.")
-
-        # Load the file
         fileName = configuration['mesh']['blockMesh']['fileName']
-        Mesh.open(fileName)
-        objFile = FreeCAD.getDocument("Unnamed")
-
-        bboxes = [x.Mesh.BoundBox for x in objFile.findObjects()]
-
-        maxPropList = ['XMax','YMax','ZMax']
-        corners = dict()
-        for propName in maxPropList:
-             corners[propName] = numpy.max([getattr(x,propName) for x in bboxes])/1000
-
-        minPropList = ['XMin', 'YMin', 'ZMin']
-        for propName in minPropList:
-             corners[propName] = numpy.min([getattr(x,propName) for x in bboxes])/1000
+        corners = getObjFileBoundaries(fileName)
 
         # check if the user supplied corners explicitly
         determinedCorners =  configuration['mesh']['blockMesh'].get("absoluteDomainBounds",{})
@@ -710,18 +612,60 @@ class Workflow_Flow(abstractWorkflow):
         -------
 
         """
-        regionName = configuration['mesh']['blockMesh']['region']
-        height = configuration['mesh']['blockMesh']['height']
+        meshType = configuration['mesh']['blockMesh']['type']
 
-        corners = configuration['regions'][regionName]['parameters']
+        func = getattr(self,f"locationInMeshHandlerRelative_{meshType}")
+        func(configuration)
 
+
+
+    def locationInMeshHandlerRelative_objFile(self,configuration):
+        """
+            Finds the relative point in the objFile, and update the snappyHexMesh node.
+        Returns
+        -------
+
+        """
+        self.logger.info("Calculating relative location for objFile")
+
+        fileName = configuration['mesh']['blockMesh']['fileName']
+        corners = getObjFileBoundaries(fileName)
+        self.logger.debug("Got the corners {corners}")
         x_frac = configuration['mesh']['locationInMesh']['x']
         y_frac = configuration['mesh']['locationInMesh']['y']
         z_frac = configuration['mesh']['locationInMesh']['z']
 
+        self.logger.debug(f"Got the fractions x: {x_frac}, y: {y_frac}, z: {z_frac}")
 
-        x = corners['xmin'] + x_frac *(corners['xmax']-corners['xmin'])
-        y = corners['ymin'] + y_frac *(corners['ymax']-corners['ymin'])
+        x = corners['XMin'] + x_frac *(corners['XMax']-corners['XMin'])
+        y = corners['YMin'] + y_frac *(corners['YMax']-corners['YMin'])
+        z = corners['ZMin'] + z_frac * (corners['ZMax'] - corners['ZMin'])
+
+        self.logger.debug(f"Got the ceners x: {x}, y: {y}, z: {z}")
+
+        snappyNode = self.snappyHexMesh
+
+        if snappyNode is not None:
+            snappyNode["castellatedMeshControls"]["locationInMesh"] = [x,y,z]
+
+    def locationInMeshHandlerRelative_region(self,configuration):
+        """
+            Finds the relative point in the region, and update the snappyHexMesh node.
+        Returns
+        -------
+
+        """
+
+        regionName = configuration['mesh']['blockMesh']['region']
+        height = configuration['mesh']['blockMesh']['height']
+
+        corners = configuration['regions'][regionName]['parameters']
+        x_frac = configuration['mesh']['locationInMesh']['x']
+        y_frac = configuration['mesh']['locationInMesh']['y']
+        z_frac = configuration['mesh']['locationInMesh']['z']
+
+        x = corners['XMin'] + x_frac *(corners['XMax']-corners['XMin'])
+        y = corners['YMin'] + y_frac *(corners['YMax']-corners['YMin'])
         z = height[0] + z_frac * (height[1] -height[0])
 
         snappyNode = self.snappyHexMesh

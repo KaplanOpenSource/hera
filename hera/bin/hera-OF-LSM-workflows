@@ -49,7 +49,7 @@ def makeDispersionWorkflow(arguments):
 
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
-    tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OF_WORKFLOWS,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
     simulationGroup =configuration["specializedTemplateName"]
 
@@ -97,7 +97,7 @@ def prepareFlowField(arguments):
     configuration = loadJSON(arguments.configurationFile)
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OF_WORKFLOWS,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
         case = tk.prepareFlowFieldForDispersion(flowData=flowdata, simulationGroup=basename)
 
@@ -135,11 +135,14 @@ def prepareIndoorsFlowField(arguments):
 
     projectName = configuration['projectName']
     basename = configuration["flowFields"]['prefixName']
-    tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OF_WORKFLOWS,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName = toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
-    overwriteFlag = False
+
     overwrite = arguments.overwrite
-    if len(overwrite) == 0:
+    if overwrite is None:
+        overwriteFlag = False
+        overwrite = []
+    elif len(overwrite) == 0:
         overwriteFlag = True
 
     for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):

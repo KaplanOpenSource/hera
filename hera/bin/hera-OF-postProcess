@@ -1,20 +1,9 @@
 #! /usr/bin/env python
 
 import argparse
-import json
-import shutil
 import os
-import hera.simulations.openFoam.datalayer.ExtractTransformLoadVTK as openfoam
 from   hera.simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
-
-
-import sys
-version = sys.version_info[0]
-if version == 3:
-    from hera.utils import loadJSON
-
-
-VTKOutput_folder='VTKOutput'
+from hera import toolkitHome,loggingHome
 
 def load_handler(args):
 
@@ -25,24 +14,35 @@ def load_handler(args):
         Parameters
         ----------
 
-    """
-    if version < 3:
-        raise ValueError("Must run the loader with python 3+. ")
+        args.
+            projectName : str
+                    The name of the project to load to.
+            pipelineFile : str
+                    The name of the file that contains the pipeline.
+            casePath  : str
+                    The path to the case, its name, or the workflow file.
 
+    """
     projectName = args.projectName
     pipelineFile = args.pipelineFile
-    path=args.casePath
+    casePath=args.workflowNamePath
 
-    pipelineFilebaseName = os.path.splitext(os.path.basename(pipelineFile))[0]
+    if projectName is None:
+        print("ProjectName not supplied, try to read it from the workflow file (if exists)")
+        fn = casePath if '.json' in casePath else f"{casePath}.json"
+        if os.path.exists(fn):
+            from hera.utils import loadJSON
+            res = loadJSON(fn)
+            projectName = res['heraMetaData']['projectName']
+            print(f"Found projectName {projectName}")
+        else:
+            raise ValueError("ProjectName is not supplied, use --projectName")
 
-    jsondata = loadJSON(pipelineFile)
-    pipelines = jsondata["pipelines"]  # Reading the pipelines
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    pipe = tk.analysis.makeVTKPipeline(nameOrWorkflowFileOrJSONOrResource=casePath, vtkPipeline=pipelineFile)
+    pipe.loadToProject()
 
-    vtkpipe = openfoam.VTKpipeline(pipelineJSON=jsondata, casePath=path)
-    vtkpipe.loadToProject(projectName=projectName)
-
-
-def executePipeline_handler(args):
+def executePipeline_handler(args,projectName="vtkPipelineExecution"):
 
     """
             This function handles the execution of the pipeline.
@@ -51,86 +51,172 @@ def executePipeline_handler(args):
         ----------
 
     """
-    if version > 2:
-        raise ValueError("Must run the pipeline execution with python 2.7 ")
-
-    JSONpath = args.pipelineFile
-    JSONbaseName= os.path.splitext(os.path.basename(JSONpath))[0]
-
-    with open(JSONpath) as json_file:
-        data = json.load(json_file)
-
-    if args.casePath is None:
-        raise ValueError("Must supply the casePath in the command line ")
-
+    pipelineFile = args.pipelineFile
+    casePath=args.workflowNamePath
     caseType = DECOMPOSED_CASE if args.parallelCase else RECONSTRUCTED_CASE
+    tsBlockNum = args.timeStepsInPartition
+    overwrite = args.overwrite
+    servername = args.serverName
+    timeList = args.timeList
+    append = args.append
 
-    vtkpipe = openfoam.VTKpipeline(pipelineJSON=data, casePath=args.casePath, caseType=caseType, servername=args.serverName)
-    vtkpipe.execute("mainReader", tsBlockNum=args.timeStepsInPartition, overwrite=args.overwrite)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    pipe = tk.analysis.makeVTKPipeline(nameOrWorkflowFileOrJSONOrResource=casePath, vtkPipeline=pipelineFile, servername=servername)
+    pipe.execute(sourceOrName=None,timeList=timeList, tsBlockNum=tsBlockNum, overwrite=overwrite,append=append)
 
+def executeLoadPipeline_handler(args):
+    """
+        Executes the pipeline and then loads it to hera.
+    Parameters
+    ----------
+    args
+
+    Returns
+    -------
+
+    """
+    casePath = args.workflowNamePath
+    projectName = args.projectName
+    if projectName is None:
+        print("ProjectName not supplied, try to read it from the workflow file (if exists)")
+        fn = casePath if '.json' in casePath else f"{casePath}.json"
+        if os.path.exists(fn):
+            from hera.utils import loadJSON
+            res = loadJSON(fn)
+            projectName = res['heraMetaData']['projectName']
+            print(f"Found projectName {projectName}")
+        else:
+            raise ValueError("ProjectName is not supplied, use --projectName")
+
+    executePipeline_handler(args,projectName=projectName)
+    load_handler(args)
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
+    loggingHome.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
+
     ##### Load results to the hera DB
-    parser_load = subparsers.add_parser('load', help='load help')
-    parser_load.add_argument('projectName',
-                             type=str,
-                             help='The project name')
+    parser_load = subparsers.add_parser('load', help='loading the results to the Project')
 
     parser_load.add_argument('pipelineFile',
                              type=str,
                              help='[pipeline file name]')
 
-    parser_load.add_argument('-casePath',
-                                        dest="casePath",
-                                        type=str,
-                                        required=True,
-                                        help='[path to the case]')
+    parser_load.add_argument('workflowNamePath',help='[workflow file, simulation name, or path to the case]')
+
+    parser_load.add_argument('--projectName',
+                                 dest="projectName",
+                                 default=None,
+                                 type=str,
+                                 help='The project name')
+
 
     parser_load.set_defaults(func=load_handler)
 
     ##### executePipeline parameters
-    parser_executePipeline = subparsers.add_parser('executePipeline', help='executePipeline help')
+    parser_executePipeline = subparsers.add_parser('execute', help='executing the pipeline filters (writing to parquet/netcdf files)')
+
     parser_executePipeline.add_argument('pipelineFile',
-                                        type=str,
-                                        help='[path to VTK pipeline JSON]')
+                             type=str,
+                             help='[pipeline file name]')
 
-    parser_executePipeline.add_argument('-casePath',
-                                        dest="casePath",
-                                        type=str,
-                                        required=True,
-                                        help='[path to the case]')
+    parser_load.add_argument('workflowNamePath',help='[workflow file, simulation name, or path to the case]')
 
-    parser_executePipeline.add_argument('-parallelCase',
+    parser_executePipeline.add_argument('--parallelCase',
                                         action='store_true',
                                         dest="parallelCase",
                                         default=True,
                                         help='If exists, reads the decomposed case')
 
-    parser_executePipeline.add_argument('-serverName',
+    parser_executePipeline.add_argument('--serverName',
                                         type=str,
                                         dest="serverName",
                                         default=None,
                                         help='If exists, uses the paraview server')
 
-    parser_executePipeline.add_argument('-timeStepsInPartition',
+    parser_executePipeline.add_argument('--timeStepsInPartition',
                                         type=int,
                                         dest="timeStepsInPartition",
-                                        default=100,
+                                        default=50,
                                         help='The number of time steps in each NetCDF File/ the size of the batch to process')
 
-    parser_executePipeline.add_argument('-overwrite',
+    parser_executePipeline.add_argument('--timeList',
+                                        nargs="*",
+                                        type=int,
+                                        dest="timeList",
+                                        default=None,
+                                        help='The time steps to process')
+
+    parser_executePipeline.add_argument('--overwrite',
                                         action='store_true',
                                         dest = "overwrite",
                                         default=False,
-                                        help='If exists, write over the existing files.')
+                                        help='Write over the existing files.')
+
+    parser_executePipeline.add_argument('--append',
+                                        action='store_true',
+                                        dest = "append",
+                                        default=False,
+                                        help='Append to the existing files.')
+
+
 
     parser_executePipeline.set_defaults(func=executePipeline_handler)
 
+    ##### Execute and load.
+    parser_execload = subparsers.add_parser('executeLoad', help='executes pipeline and then loads it')
+
+    parser_execload.add_argument('pipelineFile',type=str,help='[pipeline file name]')
+    parser_execload.add_argument('workflowNamePath',type=str,help='[workflow file, simulation name, or path to the case]')
+
+    parser_execload.add_argument('--projectName',
+                                 dest="projectName",
+                                 default=None,
+                                 type=str,
+                                 help='The project name')
+
+    parser_execload.add_argument('--singleProcessCase',
+                                action='store_false',
+                                dest="parallelCase",
+                                default=True,
+                                help='If exists, reads the decomposed case')
+
+    parser_execload.add_argument('--serverName',
+                                type=str,
+                                dest="serverName",
+                                default=None,
+                                help='If exists, uses the paraview server')
+
+    parser_execload.add_argument('--timeStepsInPartition',
+                                type=int,
+                                dest="timeStepsInPartition",
+                                default=50,
+                                help='The number of time steps in each NetCDF File/ the size of the batch to process')
+
+    parser_execload.add_argument('--timeList',
+                                        nargs="*",
+                                        type=int,
+                                        dest="timeList",
+                                        default=None,
+                                        help='The time steps to process')
 
 
+    parser_execload.add_argument('--overwrite',
+                                    action='store_true',
+                                    dest = "overwrite",
+                                    default=False,
+                                    help='Write over the existing files.')
+
+    parser_execload.add_argument('--append',
+                                        action='store_true',
+                                        dest = "append",
+                                        default=False,
+                                        help='Append to the existing files.')
+
+
+    parser_execload.set_defaults(func=executeLoadPipeline_handler)
 
 
     ############################## arg parse

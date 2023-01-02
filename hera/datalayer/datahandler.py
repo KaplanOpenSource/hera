@@ -242,7 +242,7 @@ class DataHandler_geopandas(object):
 class DataHandler_parquet(object):
 
     @staticmethod
-    def getData(resource,desc=None, usePandas=False):
+    def getData(resource,desc=None, usePandas=False,**kwargs):
         """
         Loads a parquet file to dask/pandas.
 
@@ -259,12 +259,12 @@ class DataHandler_parquet(object):
         dask.Dataframe or pandas.DataFrame
         """
         try:
-            df = dask.dataframe.read_parquet(resource)
+            df = dask.dataframe.read_parquet(resource,**kwargs)
             if usePandas:
                 df = df.compute()
         except ValueError:
             # dask cannot read parquet with multi index. so we try to load it with pandas.
-            df = pandas.read_parquet(resource)
+            df = pandas.read_parquet(resource,**kwargs)
 
         return df
 
