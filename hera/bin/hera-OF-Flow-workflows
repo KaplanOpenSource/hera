@@ -1,12 +1,11 @@
 #! /usr/bin/env python
 import argparse
 import json
-import logging
 import sys
 import shutil
 import os
 from hera.simulations.openFoam import Workflow_Flow
-from hera.utils import loadJSON
+from hera.utils import loadJSON,loggedObject
 from hera.simulations.hermesWorkflowToolkit import simulationTypes
 
 def prepareAll(arguments):
@@ -33,29 +32,27 @@ def prepareAll(arguments):
     """
     logger = logging.getLogger("hera.bin.hera_OF_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
-
-    logger.info("---- Start ----")
     logger.info(f"Loading the workflow {arguments.workflow} and the configuration file {arguments.configurationFile}")
     configuration = loadJSON(arguments.configurationFile)
     hwf = Workflow_Flow(workflowJSON=arguments.workflow)
 
     templateName =configuration["specializedTemplateName"]
-    logger.info(f"Creating the specialized template {templateName}")
+    logger.info(f"Specializing template {templateName}")
 
-    logger.debug("Making directory")
+    logger.debug("...Making directory")
     os.makedirs(templateName,exist_ok=True)
 
     # 1. Prepare the geometry. Build the STL
-    logger.debug("Preparing geometry")
+    logger.debug("...Preparing geometry")
     hwf.prepareGeometry(templateName, configuration,arguments.overwrite)
 
     # 2. Prepare the mesh
-    logger.debug("Preparing mesh")
+    logger.debug("...Preparing mesh")
     hwf.prepareMesh(configurationFile=configuration)
 
     # 3. Prepare the boundary conditions and initial conditinos .
     #    changes the dict change node.
-    logger.debug("Preparing Initial and boundary conditions")
+    logger.debug("...Preparing Initial and boundary conditions")
     hwf.prepareICandBC(configurationFile=configuration)
 
     if arguments.noParallel:
@@ -63,6 +60,7 @@ def prepareAll(arguments):
 
     projectName = configuration.get("projectName",None)
     simulationGroup    = configuration.get("specializedTemplateName",None)
+    caseExecution = configuration.get("caseExecution", None)
 
     logger.debug(f"Setting hera metadata: project name is {projectName} and simulation group is {simulationGroup}")
     if projectName is not None:
@@ -71,42 +69,22 @@ def prepareAll(arguments):
     if simulationGroup is not None:
         hwf.simulationGroup = simulationGroup
 
+    if caseExecution is not None:
+        hwf.caseExecution = caseExecution
+
     hwf.workflowType = simulationTypes.OF_FLOWFIELD
 
     logger.debug(f"Writing specialized workflow to file {templateName}.json")
     hwf.write(f"{templateName}.json",arguments.overwrite)
 
 
-    # 3. Make runfile.
-    logger.debug("Writing the execution files. ")
-    hwf.buildCaseExecutionScript(templateName,configuration)
-
-
-    logger.info("--- End ---")
-
-def prepareExecution(arguments):
-    logger = logging.getLogger("hera.bin.hera_OF_workflows.add")
-    logger.info(" -- Starting: adding workflow to the group --")
-
-    logger.info("---- Start ----")
-    logger.info(f"Using the configuration file {arguments.configurationFile}")
-    configuration = loadJSON(arguments.configurationFile)
-    hwf = Workflow_Flow(workflowJSON=arguments.workflow)
-
-    directory = arguments.workflow.split(".")[0]
-
-    logger.info("Writing the execution files. ")
-    hwf.buildCaseExecutionScript(directory,configuration)
-
-
 if __name__=="__main__":
 
     ### ---- Debugging
-    from hera.utils.logging.helpers import initialize_logging, with_logger
-    initialize_logging(
-        with_logger("hera.simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False),
-        with_logger("hera.bin",handlers=['console'],level='DEBUG',propagate=False),
-    )
+    from hera import toolkitHome
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.LOGGING,projectName=None)
+    tk.addLogger(loggerName="simulations",handlers=['console'],level='DEBUG',propagate=False)
+    tk.addLogger(loggerName="bin",handlers=['console'],level='DEBUG',propagate=False)
     ### ---- Debugging
 
     parser = argparse.ArgumentParser()
@@ -133,17 +111,13 @@ if __name__=="__main__":
 
     parser_prepare = subparsers_prepare.add_parser('all',help='Specialized the template according to specific configuration of the case')
     parser_prepare.add_argument('workflow', type=str,help='The project to load the data')
-    parser_prepare.add_argument('configurationFile', type=str,help='The name of the datasource to load')
+    parser_prepare.add_argument('configurationFile', type=str,default="caseConfiguration.json",help='The name of the datasource to load')
     parser_prepare.add_argument('--noParallel', dest="noParallel", action="store_true",default=False, help='Run as single processor even if template is parallel')
     parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='Run as single processor even if template is parallel')
     parser_prepare.set_defaults(func=prepareAll)
 
-    # -------------------------------------------------------------------------
+    ############################################################################
 
-    parser_execution = subparsers_prepare.add_parser('executionScripts',help='Specialized the template according to specific configuration of the case')
-    parser_execution.add_argument('workflow', type=str, help='The project to load the data')
-    parser_execution.add_argument('configurationFile', type=str, help='The name of the datasource to load')
-    parser_execution.set_defaults(func=prepareExecution)
 
     ############################################################################
 

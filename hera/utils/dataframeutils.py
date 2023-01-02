@@ -1,7 +1,8 @@
-import logging
+from collections.abc import Iterable
 import numpy
 import pandas
 
+from . import loggedObject
 
 def compareDataframeConfigurations(data,datasetName="datasetName",parameterName="parameterName",valueName="value",indexList=None,longFormat=False):
     """
@@ -115,7 +116,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
 
     for grpid, grpdata in configurations.groupby([parameterName]+indexList):
 
-        logger.debug(f"Testing {grpid} ")
+        logger.debug(f"Testing {grpid} --> {grpdata[valueName]} ")
         if grpdata[valueName].unique().shape[0] > 1:
             logger.debug(f"{grpid}:: Normal Field. Different  ")
             diffList.append(grpdata.copy())

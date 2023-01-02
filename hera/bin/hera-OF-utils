@@ -6,20 +6,22 @@
     uses the configuration file.
 
 """
+import numpy
 import argparse
 import json
 import os
 import pandas
 from hera.utils.jsonutils import loadJSON
-from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
-from hera.simulations.openFoam import Workflow_Flow
+from hera.simulations.openFoam import Workflow_Flow, Workflow_Dispersion
 from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
-from itertools import product
+from hera import toolkitHome
+import glob
 
 def createEmpty(args):
 
     caseDir = args.caseDirectory
     fieldList = args.fields
+    additionalFields = args.fieldData
     print(f"Making case {caseDir} with fields {','.join(fieldList)}")
 
     # Make the case :
@@ -29,12 +31,17 @@ def createEmpty(args):
     os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
 
+    fileaddition = dict()
+    if additionalFields is not None:
+        if os.path.exists(args.fieldData):
+            with open(args.fieldData) as infile:
+                fileaddition = json.load(infile)['fields']
+
     # Makes the empty fields
     for fieldName in fieldList:
-        field = ofObjectHome().getField(fieldName)
+        field = ofObjectHome().getField(fieldName,simulationType=args.simulationType,additionalFields=fileaddition)
         field.write(caseDirectory=caseDir, location=0)
         field.emptyParallelField(caseDirectory=caseDir)
-
 
 def createBuildings(args):
 
@@ -58,7 +65,6 @@ def createBuildings(args):
                    flat=None,
                    datasourceName=args.datasource,
                    saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
-
 
 def createTopography(args):
     configuration = loadJSON(args.configurationFile)
@@ -98,7 +104,7 @@ def windProfile(args):
     projectName = hwf.parameters['projectName']
 
     buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
-    of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.OPENFOAM, projectName=projectName)
+    of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
     buildingsData =  dict(hwf.parameters['domains'][args.buildingDomainName])
     buildingsData['crs'] = None
@@ -123,13 +129,13 @@ def windProfile(args):
     meshCells = of_tk.getMesh(caseDirectory)
 
     # 4. Calculate the Ux,Uy of each point in the mesh.
+    from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
     data = urbanLogNormalProfile(cellCenters=meshCells,lambdaGrid=lambdaBuildings,stations=wind)
     data = data.assign(Uz=0)
     # 5. Write in the constant/U0 file.
     dims = of_tk.ofObjectHome.getDimensions(m=1,s=-1)
     newField = of_tk.ofObjectHome.getField(fieldName="U0",componentNames=['Ux','Uy','Uz'],dimensions=dims)
     newField.write(caseDirectory=caseDirectory, location="constant", data=data)
-
 
 def listRegions(args):
     """
@@ -166,7 +172,6 @@ def listRegions(args):
         outputDict[regionObj.Name] = dict(name=regionObj.Name,type="wall|patch")
 
     print(json.dumps(outputDict,indent=4,sort_keys=True))
-
 
 def createBoundaryConditions(args):
     """
@@ -207,6 +212,124 @@ def createBoundaryConditions(args):
 
     print(json.dumps(ret, indent=4, sort_keys=True))
 
+def prepareDispersionCase(args):
+    """
+        Prepares the dispersion case:
+
+         * Copies a template to the new directory,
+         * Sets up references to the root directory.
+
+
+         Assumes the root directory is parallel.
+
+
+    :param args:
+             - args : a list :
+                Location:
+                   0 : The name of the dispersion template
+                   1 : The name of the new dispersion case.
+                   2 : The name of the root case.
+    :return:
+    """
+    case     = os.path.abspath(args.dispersionCase)
+    flowCase = os.path.abspath(args.baseFlow)
+
+    constantDir = os.path.join(case,"constant")
+    systemDir   = os.path.join(case, "system")
+    os.makedirs(constantDir,exist_ok=True)
+    os.makedirs(systemDir, exist_ok=True)
+
+    for fls in glob.glob(os.path.join(flowCase,"constant","*")):
+        os.system(f"ln -s {fls} {constantDir}")
+
+    for fls in glob.glob(os.path.join(flowCase,"system","*")):
+        os.system(f"ln -s {fls} {systemDir}")
+
+    for proc in glob.glob(os.path.join(flowCase,"processor*")):
+        fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
+        destination = os.path.join(case, os.path.basename(proc), "constant", "polyMesh")
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        os.system(f"ln -s {fullpath} {destination}")
+        os.system(f"ln -s {os.path.abspath(proc)} {os.path.join(case, os.path.basename(proc))}/rootCase")
+
+        # create the 0 directory in all processors.
+        os.makedirs(os.path.join(case, os.path.basename(proc), '0'), exist_ok=True)
+
+
+
+    # linking the decpomposePar dict from the root.
+    #root_decomposePar = os.path.abspath(os.path.join(flowCase,"system","decomposeParDict"))
+    #decompose_dest    = os.path.abspath(os.path.join(case,"system"))
+    #os.system(f"ln -s {root_decomposePar} {decompose_dest}")
+
+    # linking the rootCase in the root directory of the dispersion case.
+    os.system(f"ln -s {flowCase} {os.path.join(case,'rootCase')}")
+
+    # create the 0 directory in the root.
+    os.makedirs(os.path.join(case,'0'),exist_ok=True)
+
+def makeSourceCylinder(args):
+
+    center = args.center
+    params = dict(x=center[0],
+                  y=center[1],
+                  z=center[2],
+                  radius = args.radius,
+                  height = args.height,
+                  nParticles=args.particles
+                  )
+    case   = os.path.abspath(args.case[0])
+
+    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
+
+    LSMtoolkit.makeSource(type="Cylinder", **params)
+
+def makeEscapedMassFile(args):
+    """
+        Creates an openfoam mass overtime file for the lagrangian output
+        from a dataframe.
+
+    Parameters
+    ----------
+    args
+
+    Returns
+    -------
+
+    """
+
+    case   = os.path.abspath(args.casePath)
+    massFileName = f"{args.patch}Mass" if args.massFileName is None else args.massFileName
+    dt = args.dt
+    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
+    data = LSMtoolkit.analysis.getMassFromLog(logFile=args.logFile,solver=args.solver)
+    data = data.loc[data.filterType == args.patch].loc[data.action == args.action]
+    data["diffMass"] = data.mass.diff()
+    data = data.fillna(0)
+    if dt is None:
+        timesteps = data.time
+    else:
+        timesteps = numpy.arange(data.time.min(),data.time.max(),float(dt))
+        times = pandas.DataFrame({"time":timesteps})
+        data = data.set_index("time").join(times.set_index("time"),how="outer").reset_index()
+        data = data.interpolate()
+    newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
+             "| =========                 |                                                 |\n" \
+             "| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
+             "|  \    /   O peration     | Version:  dev                                   |\n" \
+             "|   \  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
+             "|    \/     M anipulation  |                                                 |\n" \
+             "\*---------------------------------------------------------------------------*/\n" \
+             "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
+             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
+    for time in timesteps:
+        newstr += f"{float(data.loc[data.time==time].diffMass)}\n"
+    newstr += ")"
+    print("saving in ",os.path.join(case,"constant",massFileName))
+    f = open(os.path.join(case,"constant",massFileName), "w")
+    f.write(newstr)
+    f.close()
+
 
 
 if __name__=="__main__":
@@ -223,14 +346,17 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
+    ########################################################
     parser_createEmpty  = subparsers.add_parser('createEmpty', help='Creates an empty case with empty fields')
     parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     parser_createEmpty.add_argument('--fields',
                                     nargs='*',
                                     type=str,
                                     help='[list of field]')
-
+    parser_createEmpty.add_argument('--simulationType',nargs="?",choices=["compressible","incompressible","dispersion"],default='incompressible',const="incompressible",help="Is it a compressible simulation")
+    parser_createEmpty.add_argument('--fieldData', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
     parser_createEmpty.set_defaults(func=createEmpty)
+
 
     ########################################################
     ######################################################## STLOBJFiles
@@ -266,17 +392,55 @@ if __name__=="__main__":
     parser_createTopography.add_argument('--f', '--fields', dest="fields", type=str, nargs='+', required=True,help="The list of the fields to create")
     parser_createTopography.set_defaults(func=createBoundaryConditions)
 
-
     ########################################################
+    #########################  Flow ########################
+    ########################################################
+
+    flowParser   = subparsers.add_parser('flow', help='Utilities for flow scenarios ')
     ######################################################## Initial conditions
-    ########################################################
-    parser_initial = subparsers.add_parser('initialConditions', help='Utilities for debugging STL and obj files ')
-    initial_subparsers = parser_initial.add_subparsers(help='Utilities for debugging STL and obj files ')
+    flowParserP    = flowParser.add_subparsers(help='Utilities for Flow workflows')
+    parser_initial = flowParserP.add_parser('initialConditions', help='Utilities for debugging STL and obj files ')
 
-    parser_createWind = subparsers.add_parser('windProfile',help='Creates a wind profile on an existing case')
+    initial_subparsers = parser_initial.add_subparsers(help='Utilities for debugging STL and obj files ')
+    parser_createWind = initial_subparsers.add_parser('windProfile',help='Creates a wind profile on an existing case')
     parser_createWind.add_argument('workflowFile', type=str, help='The workflow file')
     parser_createWind.add_argument('buildingDomainName', type=str, help='The name of the geometry region to use from the params node')
     parser_createWind.set_defaults(func=windProfile)
+
+    ########################################################
+    #########################  Dispersion ##################
+    ########################################################
+    dispersionParser   = subparsers.add_parser('dispersion', help='Utilities for dispersion scenarios ')
+    dispersionParserP = dispersionParser.add_subparsers(help='Utilities for Dispersion workflows')
+    #### Prepare dispersion
+    parser_prepareDisperionCase = dispersionParserP.add_parser('prepareDispersionCase', help='executePipeline help')
+    parser_prepareDisperionCase.add_argument("dispersionCase",type=str,help="The target flow case")
+    parser_prepareDisperionCase.add_argument("baseFlow",type=str,help="the flow field to use")
+    parser_prepareDisperionCase.set_defaults(func=prepareDispersionCase)
+
+    ############################ Source
+    ########## Cylinder
+    parser_makeSourceCylinder = dispersionParserP.add_parser('makeSourceCylinder', help='executePipeline help')
+    parser_makeSourceCylinder.add_argument('case',
+                             nargs=1,
+                             type=str,
+                             help='[dispersion case dir]')
+    parser_makeSourceCylinder.add_argument('--radius', dest="radius", required=True,type=float)
+    parser_makeSourceCylinder.add_argument('--center',nargs=3, dest="center",type=float, required=True)
+    parser_makeSourceCylinder.add_argument('--height', dest="height", required=True,type=float)
+    parser_makeSourceCylinder.add_argument('--particles', dest="particles", required=True,type=int)
+    parser_makeSourceCylinder.set_defaults(func=makeSourceCylinder)
+
+    # makeEscapedMassFile
+    parser_makeEscapedMassFile = dispersionParserP.add_parser('makeEscapedMassFile', help='makeEscapedMassFile help')
+    parser_makeEscapedMassFile.add_argument('logFile',type=str)
+    parser_makeEscapedMassFile.add_argument('casePath', type=str)
+    parser_makeEscapedMassFile.add_argument('patch', type=str)
+    parser_makeEscapedMassFile.add_argument('-dt', type=str)
+    parser_makeEscapedMassFile.add_argument('-massFileName', type=str)
+    parser_makeEscapedMassFile.add_argument('-solver', type=str,default="StochasticLagrangianSolver")
+    parser_makeEscapedMassFile.add_argument('-action', type=str, default="escape")
+    parser_makeEscapedMassFile.set_defaults(func=makeEscapedMassFile)
 
 
     ########################################################
