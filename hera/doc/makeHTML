@@ -1,6 +1,14 @@
-jupyter-nbconvert --execute source/datalayer/addgetdata.ipynb --to rst
-jupyter-nbconvert --execute source/datalayer/usage.ipynb --to rst
 
+# The use of jupyter-nbconvert here is specifically to allow the use of
+# a notebook in a reST "..include" directive.
+# See https://github.com/spatialaudio/nbsphinx/issues/181, specifically the closing comment
+
+jupyter-nbconvert --execute source/datalayer/addgetdata.ipynb --to rst
+
+# Notebooks used as complete documents (e.g. referenced in "..toctree" directives)
+# are handled by the nbsphinx extension and do not need to be explicitly converted.
+
+#jupyter-nbconvert --execute source/datalayer/usage.ipynb --to rst
 #jupyter-nbconvert --execute source/measurements/meteorology/lowfreqdata/lowfreqdata.ipynb --to rst
 #jupyter-nbconvert --execute source/measurements/meteorology/lowfreqdata/Analysis.ipynb --to rst
 
