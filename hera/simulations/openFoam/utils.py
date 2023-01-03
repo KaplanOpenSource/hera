@@ -2,7 +2,7 @@
 import numpy
 import os
 from . import HERAMETADATA
-from ...utils import loggedObject,loadJSON
+from ...utils import loadJSON
 # from ..utils.coordinateHandler import coordinateHandler
 # handler = coordinateHandler()
 

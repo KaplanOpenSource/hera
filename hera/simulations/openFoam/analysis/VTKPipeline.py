@@ -7,7 +7,8 @@ import glob
 
 import sys
 from .. import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
-from ....utils import loadJSON,loggedObject
+from ....utils import loadJSON
+from ....utils.logging import helpers as hera_logging
 from ....datalayer import datatypes
 paraviewExists = False
 try:
@@ -18,7 +19,7 @@ try:
 except ImportError:
     print("paraview not Found. Cannot execute the VTK pipeline.")
 
-class VTKpipeline(loggedObject):
+class VTKpipeline:
     """
 
     This is a helper class to handle VTK pipelines.
@@ -147,7 +148,7 @@ class VTKpipeline(loggedObject):
 
                 The connection string is printed when the server is initialized.
         """
-        super().__init__()
+        self.logger = hera_logging.get_logger(self)
         self._VTKpipelineJSON = loadJSON(pipelineJSON)
         self._datalayer = datalayer
         self._serverName = serverName

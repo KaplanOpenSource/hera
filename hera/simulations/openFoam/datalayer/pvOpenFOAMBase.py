@@ -1,4 +1,3 @@
-from ....utils import loggedObject
 from itertools import product
 import pandas
 import numpy
@@ -12,11 +11,13 @@ import xarray
 import paraview.simple as pvsimple
 from paraview import servermanager
 
+from hera.utils.logging import helpers as hera_logging
+
 #### disable automatic camera reset on 'Show'
 pvsimple._DisableFirstRenderCameraReset()
 
 
-class paraviewOpenFOAM(loggedObject):
+class paraviewOpenFOAM:
     """
         A class to extract openFOAM file format
         using VTK filters and write as parquet or netcdf files.
@@ -99,7 +100,7 @@ class paraviewOpenFOAM(loggedObject):
                 The connection string is printed when the server is initialized.
 
         """
-        super().__init__()
+        self.logger = hera_logging.get_logger(self)
         if servername is not None:
             pvsimple.Connect(servername)
 
