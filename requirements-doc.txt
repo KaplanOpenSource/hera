@@ -8,3 +8,5 @@ sphinx
 nbsphinx
 numpydoc
 sphinx_gallery
+# For testing the notebooks
+nbmake

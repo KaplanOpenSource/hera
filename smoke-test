@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Invocation: execute from shell without arguments
+#
+# ~/hera > ./smoke-test
+#
+
+# This is a very basic smoke-test. It checks that all python files are valid,
+# and then invokes executable scripts with the '-h' flag -- essentially,
+# only making sure they can display their help.
+
+# Note it relies on being placed at the root of the Hera project code;
+# it uses its own location to find this root. Thus, it does not depend
+# on the current working directory.
+
+
+
+script_dir=$(dirname "$0")
+
+python -m compileall -x /doc/ -x /.git/ "$script_dir" \
+    | grep -ve '^Listing' \
+    | grep -ve '^Compiling' 
+	   
+error=$?
+
+for exe in $(find "$script_dir"/hera/bin -type f -executable); do
+    $exe -h >& /dev/null || \
+	( echo "Error: Could not minimally execute $exe"; error=1)
+done
+
+exit $error
