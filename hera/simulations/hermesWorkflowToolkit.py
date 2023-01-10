@@ -18,6 +18,7 @@ try:
 except ImportError:
 #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     warnings.warn("hermes is not installed. some features will not work.")
+    workflow = None
 
 
 @unique
@@ -388,6 +389,8 @@ class workflowToolkit(abstractToolkit):
         -------
             None
         """
+        if workflow is None:
+            raise NotImplementedError("addToGroup() requires the 'hermes' library, which is nor installed")
         self.logger.info("-- Start --")
 
         # 1. Getting the names of the simulation and the groups.
@@ -520,7 +523,9 @@ class workflowToolkit(abstractToolkit):
             pandas.DataFrame, json (depends on the input flags).
             Return the differences between the parametrs of the requested cases.
         """
-        self.logger.infor("--- Start ---")
+        if workflow is None:
+            raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
+        self.logger.info("--- Start ---")
 
         # 1. Get all the simulations
         if isinstance(workFlows, Iterable):
@@ -588,7 +593,13 @@ class workflowToolkit(abstractToolkit):
 
         """
         simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup)
+        if not simulationList:
+            return {} if jsonFormat else pandas.DataFrame()
         if parametersOfNodes is not None:
+            if workflow is None:
+                raise NotImplementedError(
+                    "listSimulations() with parametersOfNodes requires the 'hermes' library, which is nor installed"
+                )
             qry = None
             if len(parametersOfNodes) > 0:
                 qry = "nodeName in @parametersOfNodes"
@@ -615,9 +626,7 @@ class workflowToolkit(abstractToolkit):
         else:
             ret = pandas.DataFrame([x.desc[self.DESC_SIMULATIONNAME] for x in simulationList],columns=[self.DESC_SIMULATIONNAME])
 
-        if len(simulationList) == 0:
-            ret =  {} if jsonFormat else pandas.DataFrame()
-        elif jsonFormat:
+        if jsonFormat:
             ret = ret.to_json()
 
         return ret
