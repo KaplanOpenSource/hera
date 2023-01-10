@@ -11,13 +11,13 @@ from ..utils.dataframeutils import compareDataframeConfigurations
 from ..datalayer import datatypes
 import numpy
 import pydoc
-
-
+import warnings
 
 try:
     from hermes import workflow
 except ImportError:
-    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
+#    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
+    warnings.warn("hermes is not installed. some features will not work.")
 
 
 @unique

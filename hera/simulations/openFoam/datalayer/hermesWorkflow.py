@@ -1,5 +1,6 @@
 import numpy
 import os
+import warnings
 import glob
 import json
 from distutils.dir_util import copy_tree
@@ -15,7 +16,8 @@ from ...hermesWorkflowToolkit import simulationTypes,HERAMETADATA
 try:
     from hermes import workflow
 except ImportError:
-    raise ImportError("Cannot use this module without hermes... Install it. ")
+   # raise ImportError("Cannot use this module without hermes... Install it. ")
+    warnings.warn("hermes is not installed. some features will not work.")
 
 
 class abstractWorkflow(workflow):
