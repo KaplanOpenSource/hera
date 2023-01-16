@@ -1,3 +1,97 @@
+
+Python
+*******
+
+Formatting string
+=================
+
+    In python >= 3.6 it is possible to format a string with the 'f""' directive:
+
+.. code-block:: python
+
+    a = 5
+    s = f"The value of a is {a}"
+
+
+will result in ``s`` holding ``"The value of a is 5"``
+
+Python 3.8 added the ``=`` suffix for debug printings:
+
+.. code-block:: python
+
+    a = 5
+    s = f"Now {a=}"
+
+will result in an error with Python < 3.8, but newer
+Pythons will give ``"Now a=5"``
+
+Debug logging
+=============
+
+To enable debug in specific loggers, see
+:py:func:`hera.utils.logging.helpers.initialize_logging`.
+
+.. automodule:: hera.utils.logging.helpers
+
+
+Creating objects during code execution
+=======================================
+
+Sometimes (very rarely) it is important to derive objects in realtime.
+In Hera we use it to create object for the ORM (object relation mapping) of MongoDB.
+
+For example to create a new class that derives form myFather:
+
+.. code-block:: python
+
+    newClass = type('mynewclass', (Son,Father,), {})
+
+    newClassInstance = newClass()
+
+is Equivalent to
+
+.. code-block:: python
+
+    class mynewclass(Son,Father):
+        ...
+
+
+How to convert HDF file to Parquet format:
+============================================
+
+ like this:
+
+.. code-block:: python
+
+    import pandas
+    import os
+    import dask.dataframe
+    datafold='/data3/Campaigns_Data/hdfData/2006-12_IMS/'
+    newdatafold='/data3/Campaigns_Data/parqueData/IMSdata/'
+    datafilename='IMS.h5'
+    if not os.path.exists(newdatafold):
+        os.makedirs(newdatafold)
+
+    np=1
+
+    with pandas.HDFStore (datafilename) as file:
+        keys = [x for x in file]
+
+    del file
+
+    for key in keys:
+        newfold = os.path.join(newdatafold, key[1:])
+        if not os.path.exists(newfold):
+            print(key)
+            os.makedirs(newfold)
+
+            tmppandas=pandas.read_hdf(datafilename,key=key)
+            tmpdata = dask.dataframe.from_pandas(tmppandas, npartitions=np)
+            FileNameToSave=key[1:]+'.parquet'
+            tmpdata.to_parquet(os.path.join(newfold,FileNameToSave), engine='pyarrow')
+        else:
+            print(key + ' fold exist')
+
 How to correct HDF file data with bad/broken data cells:
 ========================================================
 If your data have a mix of float and string data (for any reason) the '.parquet' save will fail.
@@ -71,4 +165,5 @@ and save the data:
 
         FileNameToSave = stn + '.parquet'
         tmpdata.to_parquet(os.path.join(newfold, FileNameToSave), engine='pyarrow')
+
 
