@@ -1,4 +1,4 @@
-__version__ = '2.8.0'
+__version__ = '2.9.0'
 
 import sys
 python_version = sys.version_info
@@ -12,6 +12,10 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+2.9.0
+------
+     #68: fix import of non existing packages like FreeCAD and hermes. 
+     #65: Refix logging 
 2.8.0
 ------
     #63: Issue#38- Working with openfoam 
