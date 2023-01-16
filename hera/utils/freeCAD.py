@@ -1,9 +1,13 @@
 import numpy
+import warnings
+
 try:
     from freecad import app as FreeCAD
     import Mesh
 except ImportError:
-    raise ImportError("freecad is not installed. please install it before trying again.")
+    # I changed the raise error to warning to allow partial usage.
+    #raise ImportError("freecad is not installed. please install it before trying again.")
+    warnings.warn("freecad is not installed. some features will not work.")
 
 
 def getObjFileBoundaries(fileName):
