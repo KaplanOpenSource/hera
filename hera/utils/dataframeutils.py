@@ -1,8 +1,8 @@
-from collections.abc import Iterable
+import logging
 import numpy
 import pandas
 
-from . import loggedObject
+
 
 def compareDataframeConfigurations(data,datasetName="datasetName",parameterName="parameterName",valueName="value",indexList=None,longFormat=False):
     """

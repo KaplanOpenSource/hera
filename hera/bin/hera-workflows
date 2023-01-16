@@ -147,7 +147,7 @@ def deleteSimulations(arguments):
     -------
 
     """
-    logger = loggedObject("bin.hera_workflows.delete").logger
+    logger = logging.getLogger("hera.bin.hera_workflows.delete")
     logger.info(f" -- Starting: Deleting simulations --")
 
     if os.path.isfile(arguments.object):
