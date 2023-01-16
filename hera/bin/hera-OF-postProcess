@@ -2,8 +2,10 @@
 
 import argparse
 import os
-from   hera.simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
-from hera import toolkitHome,loggingHome
+from hera.simulations.openFoam import DECOMPOSED_CASE, RECONSTRUCTED_CASE
+from hera import toolkitHome
+from hera.utils.logging.helpers import initialize_logging, with_logger
+
 
 def load_handler(args):
 
@@ -92,10 +94,13 @@ def executeLoadPipeline_handler(args):
     load_handler(args)
 
 if __name__ =="__main__":
+
+    initialize_logging(
+        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+    )
+
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
-
-    loggingHome.addLogger(loggerName="simulations", handlers=['console'], level='DEBUG', propagate=False)
 
     ##### Load results to the hera DB
     parser_load = subparsers.add_parser('load', help='loading the results to the Project')
