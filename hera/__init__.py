@@ -1,4 +1,4 @@
-__version__ = '2.9.0'
+__version__ = '2.9.1'
 
 import sys
 python_version = sys.version_info
@@ -12,6 +12,11 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+
+2.9.1
+------
+     Issue#38: Updating the documentation. 
+     
 2.9.0
 ------
      #68: fix import of non existing packages like FreeCAD and hermes. 
