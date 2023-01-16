@@ -57,7 +57,6 @@ example configuration file  can be downloaded :download:`here <examples/configfi
 
 The default database name is the linux username and it **must** exist.
 
-
 Usage and API
 =============
 
@@ -67,10 +66,8 @@ Usage and API
    :caption: Contents:
 
    datalayer
-   project
    toolkit
    instructions_for_dev
-   how_to
    auto_examples/index
 
 
