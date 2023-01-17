@@ -96,53 +96,53 @@ class interpulations():
 
 
     def windprofile(self, z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3):
-	    
-	# This function will return the wind velocity at height z 
+            
+        # This function will return the wind velocity at height z 
 
-	# parameters:
-	# z is the predicted height [m] above the ground
-	# uref is the velocity reference [m/s] at height href
-	# href is the reference height [m] of uref
-	# he is the mean building height [m] above the ground
-	# lambdap is the building percent when looking from top
-	# lambdaf is the building percent when looking from the side
-	# beta is the ratio between ustar and Uh
+        # parameters:
+        # z is the predicted height [m] above the ground
+        # uref is the velocity reference [m/s] at height href
+        # href is the reference height [m] of uref
+        # he is the mean building height [m] above the ground
+        # lambdap is the building percent when looking from top
+        # lambdaf is the building percent when looking from the side
+        # beta is the ratio between ustar and Uh
 
-	# return
-	# u is the predicted velocity [m/s] that is calculated in this function
+        # return
+        # u is the predicted velocity [m/s] that is calculated in this function
 
-	# variables:
-	# l is the mixing length [m]
+        # variables:
+        # l is the mixing length [m]
 
-	###############################
-	##    z=24
-	#    uref=3
-	#    href=24
-	#    he=24
-	#    lambdap=0.3
-	#    lambdaf=0.3
-	###############################
+        ###############################
+        ##    z=24
+        #    uref=3
+        #    href=24
+        #    he=24
+        #    lambdap=0.3
+        #    lambdaf=0.3
+        ###############################
 
          k = 0.41 # von Karman constant
-	    # beta = beta# For closed uniform natural canopies, Raupach 1996
-	    # beta = ustar / uh
-	    # LA commercial area has lambdap=0.28, lambdaf=0.27 he=24.5m, LC=66, Coceal 2004
+            # beta = beta# For closed uniform natural canopies, Raupach 1996
+            # beta = ustar / uh
+            # LA commercial area has lambdap=0.28, lambdaf=0.27 he=24.5m, LC=66, Coceal 2004
          lc = he*(1-lambdap)/lambdaf
-	    # calculating the mixing length at the canopy only to know d
+            # calculating the mixing length at the canopy only to know d
          l = 2. * beta**3 * lc # mixing length in the canopy
          d = l/k  # displacement height
          z0 = l/k*math.exp(-k/beta) # surface roughness
 
          if href>=he: 
-	       uh  = uref * k /beta / math.log(((href-he)+d)/z0)
+               uh  = uref * k /beta / math.log(((href-he)+d)/z0)
          else: # href<he
-	       uh  = uref / math.exp(beta*(href-he)/l)
-	       print ('there is no sense of giving uref below building mean height because we have to give mean velocity, above he, one point represent the mean value, below, it is not represent')
-		
+               uh  = uref / math.exp(beta*(href-he)/l)
+               print ('there is no sense of giving uref below building mean height because we have to give mean velocity, above he, one point represent the mean value, below, it is not represent')
+                
          if z <= he: # below the canopy
             u = uh * math.exp(beta*((z-he))/l)
          else: # above the canopy
-	       u = uh*beta/k*math.log(((z-he)+d)/z0)
+               u = uh*beta/k*math.log(((z-he)+d)/z0)
 
          return u
 
