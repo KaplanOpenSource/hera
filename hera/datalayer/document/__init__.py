@@ -153,6 +153,7 @@ def createDBConnection(user, mongoConfig,alias=None):
                         )
 
     dbDict['connection'] = con
+    dbDict['db_name'] = dbName
     dbDict['Metadata'] = new_Metadata
 
     new_Measurements = type('Measurements', (new_Metadata,), {})
