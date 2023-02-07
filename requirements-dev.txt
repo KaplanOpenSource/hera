@@ -1,0 +1,18 @@
+### This file includes the requirements for developing Hera
+
+-r requirements-doc.txt   # Include doc-building requirements
+-r requirements.txt   # Include operational requirements
+
+## Basic pytest
+pytest==7.2.0
+exceptiongroup==1.0.4
+iniconfig==1.1.1
+pluggy==1.0.0
+tomli==2.0.1
+
+## Pytest plugins
+# For testing the notebooks
+nbmake
+# For regression tests
+pytest-regressions
+pytest-datadir
