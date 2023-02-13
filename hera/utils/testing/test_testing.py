@@ -21,23 +21,24 @@ def pytester_with_hera_config(pytester):
     pytester.mkdir('.pyhera/log')
     config_file = original_home / '.pyhera' / 'config.json'
     shutil.copy(config_file, pytester.path / '.pyhera' / 'config.json')
+    # Activate the utilities we test here
+    pytester.makeconftest("""
+        from hera.utils.testing.mongo import *  # noqa
+    """)
+    # Now go
     return pytester
 
 
 def test_session_hooks_prefix(pytester_with_hera_config):
 
     pytester = pytester_with_hera_config
-    pytester.makeconftest("""
-        from hera.utils.testing.mongo import *  # noqa
-    """)
     pytester.makepyfile("""
         from hera.utils.testing.mongo import HERA_TEST_DB_PREFIX
         from hera.datalayer import getDBObject
     
         def test_db_has_prefix():
             db_name = getDBObject('db_name')
-            assert db_name.startswith(HERA_TEST_DB_PREFIX)
-    
+            assert db_name.startswith(HERA_TEST_DB_PREFIX)    
     """)
 
     result = pytester.runpytest()
@@ -45,44 +46,9 @@ def test_session_hooks_prefix(pytester_with_hera_config):
     result.assert_outcomes(passed=1)
 
 
-# TODO: add test-session-leaves-db-in-place-when-tests-fail
-# TODO: and while at it, consider code duplications
-def test_session_hooks_remove_db_on_success(pytester_with_hera_config):
+@pytest.mark.parametrize("is_failure", [True, False])
+def test_session_hooks_keep_db_only_on_fail(pytester_with_hera_config, is_failure):
     pytester = pytester_with_hera_config
-    pytester.makeconftest("""
-       from hera.utils.testing.mongo import *  # noqa
-    """)
-    pytester.makepyfile("""
-        import warnings
-        from hera.utils.testing.mongo import HERA_TEST_DB_PREFIX
-        from hera.datalayer import getDBObject
-
-        def test_tell_db_prefix():
-            conn = getDBObject("connection")
-            db_name = getDBObject("db_name")
-            conn[db_name]['test_collection'].insert_one({'This is a': 'test'})
-            warnings.warn(f'HERA TEST DB PREFIX: {HERA_TEST_DB_PREFIX}') 
-    """)
-
-    # Run in a subprocess so we have a separate pid and a separate DB
-    result = pytester.runpytest_subprocess("-W", "ignore::DeprecationWarning")
-    result.assert_outcomes(passed=1)
-    output = result.stdout
-    prefix_match = re.search(r"HERA TEST DB PREFIX: (hera@test@\S+)", str(output))
-    assert prefix_match
-    tested_prefix = prefix_match.group(1)
-    # warnings.warn(f"Tested prefix: {tested_prefix}")
-    conn = getDBObject('connection')
-    databases = conn.list_database_names()
-    assert not any(db.startswith(tested_prefix) for db in databases)
-    # warnings.warn(f"Databases after removal test: {databases}")
-
-
-def test_session_hooks_dont_remove_db_on_failure(pytester_with_hera_config):
-    pytester = pytester_with_hera_config
-    pytester.makeconftest("""
-       from hera.utils.testing.mongo import *
-    """)
     pytester.makepyfile("""
         import warnings
         from hera.utils.testing.mongo import HERA_TEST_DB_PREFIX
@@ -93,12 +59,13 @@ def test_session_hooks_dont_remove_db_on_failure(pytester_with_hera_config):
             db_name = getDBObject("db_name")
             conn[db_name]['test_collection'].insert_one({'This is a': 'test'})
             warnings.warn(f'HERA TEST DB PREFIX: {HERA_TEST_DB_PREFIX}')
-            assert False, "Failing internally for the bigger test" 
-    """)
+            assert %(expr)s 
+    """ % {'expr': not is_failure})  # We use old formatting because the contents uses f-strings and {}
 
     # Run in a subprocess so we have a separate pid and a separate DB
     result = pytester.runpytest_subprocess("-W", "ignore::DeprecationWarning")
-    result.assert_outcomes(failed=1)
+    expect_outcome = "failed" if is_failure else "passed"
+    result.assert_outcomes(**{expect_outcome: 1})
     output = result.stdout
     prefix_match = re.search(r"HERA TEST DB PREFIX: (hera@test@\S+)", str(output))
     assert prefix_match
@@ -106,22 +73,20 @@ def test_session_hooks_dont_remove_db_on_failure(pytester_with_hera_config):
     # warnings.warn(f"Tested prefix: {tested_prefix}")
     conn = getDBObject('connection')
     databases = conn.list_database_names()
-    assert any(db.startswith(tested_prefix) for db in databases)
+    assert is_failure == any(db.startswith(tested_prefix) for db in databases)
     # warnings.warn(f"Databases after non-removal test: {databases}")
 
     # Cleanup -- take some care that the prefix is real
-    assert len(tested_prefix)>10
-    from .mongo import drop_databases_by_prefix
-    drop_databases_by_prefix(tested_prefix)
-    databases = conn.list_database_names()
-    # warnings.warn(f"Databases after non-removal test cleanup: {databases}")
+    if is_failure:
+        assert len(tested_prefix)>10
+        from .mongo import drop_databases_by_prefix
+        drop_databases_by_prefix(tested_prefix)
+        # databases = conn.list_database_names()
+        # warnings.warn(f"Databases after non-removal test cleanup: {databases}")
 
 
 def test_fixture_cleans_database(pytester_with_hera_config):
     pytester = pytester_with_hera_config
-    pytester.makeconftest("""
-        from hera.utils.testing.mongo import *  # noqa
-    """)
     pytester.makepyfile("""
         # Add two tests, each asserting it starts clean and leaving something behind,
         # so that the whole suite fails no matter what order they run in, unless
@@ -153,12 +118,4 @@ def test_fixture_cleans_database(pytester_with_hera_config):
     """)
 
     result = pytester.runpytest()
-    print("Test output")
-    print(result.stdout)
-    print("Test error")
-    print(result.stderr)
-
     result.assert_outcomes(passed=2)
-
-
-
