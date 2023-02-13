@@ -11,3 +11,4 @@ How to
 
 .. include:: instructions_for_developments/pythonHelp.rst
 
+.. include:: instructions_for_developments/testing.rst
