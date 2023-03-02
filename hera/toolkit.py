@@ -72,7 +72,7 @@ class ToolkitHome:
 
             MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
 
-            experiment =dict(cls="hera.measurements.experiment.experiment.experimentToolKit"),
+            experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
             hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit"),
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
