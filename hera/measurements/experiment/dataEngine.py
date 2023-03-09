@@ -3,7 +3,7 @@ import json
 from hera import datalayer
 import pymongo
 import pandas
-import dask_mongo
+#import dask_mongo
 from argos.manager import experimentSetup, DEPLOY, DESIGN
 
 PARQUETHERA = 'parquetDataEngingHera'
@@ -386,7 +386,7 @@ class parquetDataEngineHera(datalayer.Project):
         if len(collection) == 0:
             return pandas.DataFrame()
 
-        data = collection[0].getData(engine="fastparquet") # engine="fastparquet"
+        data = collection[0].getData() # engine="fastparquet"
 
         if deviceName is not None:
             data = data.query(f"deviceName == '{deviceName}'")
