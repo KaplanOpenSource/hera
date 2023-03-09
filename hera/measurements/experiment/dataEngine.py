@@ -307,9 +307,12 @@ class daskDataEngineDB:
         return Table[device]
 
 class parquetDataEngineHera(datalayer.Project):
+    experimentName = None
 
     def __init__(self, projectName, datasourceConfiguration):
         super().__init__(projectName=projectName)
+
+        self.experimentName = datasourceConfiguration['experimentName']
 
     def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
                          trialState=DEPLOY, startTime=None, endTime=None):
@@ -379,11 +382,11 @@ class parquetDataEngineHera(datalayer.Project):
 
     def getData(self, deviceType, deviceName=None, startTime=None, endTime=None):
 
-        collection = self.getMeasurementsDocuments(type = 'rawData',deviceType = deviceType)
+        collection = self.getMeasurementsDocuments(type = 'rawData',experimentName=self.experimentName,deviceType = deviceType)
         if len(collection) == 0:
             return pandas.DataFrame()
 
-        data = collection[0].getData()
+        data = collection[0].getData(engine="fastparquet") # engine="fastparquet"
 
         if deviceName is not None:
             data = data.query(f"deviceName == '{deviceName}'")

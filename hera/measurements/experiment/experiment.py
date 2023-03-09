@@ -213,8 +213,6 @@ class experimentHome(toolkit.abstractToolkit):
         if experimentDataType not in [PARQUETHERA, PANDASDB,DASKDB]:
             raise ValueError(f"experimentData type must be EXPERIMENTDATALAYER_HERA ({PARQUETHERA}) or EXPERIMENTDATALAYER_DB ({PANDASDB})")
 
-        self._experimentDataType = experimentDataType
-
         L = self.getDatasourceDocument(datasourceName=experimentName)
         if L:
             experimentPath=L.desc['handlerPath']
@@ -230,7 +228,7 @@ class experimentHome(toolkit.abstractToolkit):
                               filesDirectory=filesDirectory,
                               defaultTrialSetName=defaultTrialSetName)
         else:
-            raise ValueError(f"Please load first the experiment datasource to hera")
+            raise ValueError(f"Experiment {experimentName} not found in Project {self.projectName}. Please load the experiment to the project. ")
 
 
     def keys(self):
