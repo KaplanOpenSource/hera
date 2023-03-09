@@ -61,7 +61,7 @@ First, we create the file name that we we want to save to.
 
 .. parsed-literal::
 
-    The current file directory is /home/yehudaa/Development/hera/hera/doc/source
+    The current file directory is /home/jmilo/Development/hera/hera/doc/source
 
 
 It is very important to save the **absolute path** (using
@@ -322,7 +322,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "63c5a8c0ec195fac13083068"
+            "$oid": "63d630df76efbfc8a1e1ed52"
         },
         "dataFormat": "parquet",
         "desc": {
@@ -330,7 +330,7 @@ The following will delete one record
             "scale": 0.5
         },
         "projectName": "ExampleProject",
-        "resource": "/home/yehudaa/Development/hera/hera/doc/source/dataset3.parquet",
+        "resource": "/home/jmilo/Development/hera/hera/doc/source/dataset3.parquet",
         "type": "Distribution"
     }
 
