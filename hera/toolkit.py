@@ -72,14 +72,14 @@ class ToolkitHome:
 
             MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
 
-            experiment =dict(cls="hera.measurements.experiment.experiment.experimentToolKit"),
+            experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
             hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit"),
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
         )
 
 
-    def getToolkit(self,toolkitName,projectName,FilesDirectory=None,**kwargs):
+    def getToolkit(self, toolkitName, projectName, filesDirectory=None, **kwargs):
         """
             Returns a toolkit for the requested project.
 
@@ -89,7 +89,7 @@ class ToolkitHome:
             The name of the project
 
 
-        FilesDirectory: str
+        filesDirectory: str
             The directory to save file (if necessary).
             If None, use the current directory.
 
@@ -105,7 +105,7 @@ class ToolkitHome:
             raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
         clsName = self._toolkits[toolkitName]['cls']
 
-        tookit = pydoc.locate(clsName)(projectName,filesDirectory=FilesDirectory,**kwargs)
+        tookit = pydoc.locate(clsName)(projectName, filesDirectory=filesDirectory, **kwargs)
         return tookit
 
 
@@ -306,7 +306,7 @@ class abstractToolkit(Project):
             table = pandas.json_normalize(sourceMap)
             Table.append(table)
 
-        return pandas.concat((Table))
+        return pandas.concat((Table),ignore_index=True)
 
     def getDatasourceDocumentsList(self, **kwargs):
         """
@@ -350,8 +350,10 @@ class abstractToolkit(Project):
             filters[TOOLKIT_DATASOURCE_NAME] = datasourceName
         if version is not None:
             filters[TOOLKIT_DATASOURCE_VERSION] = version
-        docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
-                                                toolkit=self.toolkitName, **filters)
+
+        filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
+
+        docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE, **filters)
 
         if len(docList) ==0:
             ret =  None
@@ -388,12 +390,12 @@ class abstractToolkit(Project):
         -------
                 The data of the source. (None if not found)
         """
-
+        filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
         doc = self.getDatasourceDocument(datasourceName=datasourceName, version=version,**filters)
 
         return None if doc is None else doc.getData()
 
-    def addDataSource(self,dataSourceName,resource,dataFormat,version=(0,0,1),**kwargs):
+    def addDataSource(self,dataSourceName,resource,dataFormat,version=(0,0,1),overwrite=False,**kwargs):
         """
             Adds a resource to the toolkit.
             The type is always TOOLKIT_DATASOURCE_TYPE.
@@ -425,13 +427,30 @@ class abstractToolkit(Project):
         kwargs[TOOLKIT_DATASOURCE_NAME] = dataSourceName
         kwargs[TOOLKIT_DATASOURCE_VERSION] = version
 
-        doc  = self.addMeasurementsDocument(type=TOOLKIT_DATASOURCE_TYPE,
-                                     resource=resource,
-                                     dataFormat=dataFormat,
-                                     desc=kwargs)
+        if (self.getDatasourceDocument(dataSourceName,version=version) is None) or overwrite:
+            if self.getDatasourceDocument(dataSourceName,version=version) is not None:  # not None = Exist
+                # print("Delete existing, and add new data source.")
+                delargs = {TOOLKIT_DATASOURCE_NAME : dataSourceName,
+                           TOOLKIT_DATASOURCE_VERSION :  version}
+
+                self.deleteDataSourceDocuments(**delargs)
+            #else:
+                # print("Does not exist: add data source.")
+
+            doc = self.addMeasurementsDocument(type=TOOLKIT_DATASOURCE_TYPE,
+                                               resource=resource,
+                                               dataFormat=dataFormat,
+                                               desc=kwargs)
+        else:
+            raise ValueError(f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
+            print("exist: Raise exception (ValueError) that the record with the name that was given in the input already exists")
+
         return doc
 
+
     def deleteDataSourceDocuments(self,**filters):
+
+        filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName # {'toolkit' : self.toolkitName}
 
         return self.deleteMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,**filters)
 

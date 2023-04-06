@@ -322,7 +322,7 @@ The following will delete one record
     {
         "_cls": "Metadata.Measurements",
         "_id": {
-            "$oid": "63d6d8ba3fb5fca369d5f068"
+            "$oid": "63c5a8c0ec195fac13083068"
         },
         "dataFormat": "parquet",
         "desc": {
