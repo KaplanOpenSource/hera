@@ -27,7 +27,7 @@ class Project:
     """
         Provides a simple interface to the data of a specific project.
 
-        The class has all the following functions for the measurements, simulations and cache.
+        The class has all the following functions for the measurements.old, simulations.old and cache.
 
         **Measurements**
 
@@ -148,7 +148,7 @@ class Project:
 
     def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
         """
-            Querying the DB for measurements documents and return the results as a list of dict
+            Querying the DB for measurements.old documents and return the results as a list of dict
 
         Parameters
         ----------
@@ -168,7 +168,7 @@ class Project:
 
     def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
         """
-            Query measurements documents.
+            Query measurements.old documents.
 
         Parameters
         ----------
@@ -216,7 +216,7 @@ class Project:
 
     def deleteMeasurementsDocuments(self, **kwargs):
         """
-            Delete the measurements documents that fit the query.
+            Delete the measurements.old documents that fit the query.
 
         Parameters
         -----------
@@ -274,7 +274,7 @@ class Project:
 
     def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
-            Adds a new simulations document.
+            Adds a new simulations.old document.
 
         Parameters
         ----------
@@ -299,7 +299,7 @@ class Project:
 
     def deleteSimulationsDocuments(self, **kwargs):
         """
-            Delete the simulations documents that fit the query.
+            Delete the simulations.old documents that fit the query.
 
         Parameters
         -----------
@@ -402,7 +402,7 @@ class Project:
     #     :return:
     #         document.
     #     """
-    #     return self.measurements.getDocumentByID(rcrdID)
+    #     return self.measurements.old.getDocumentByID(rcrdID)
     #
     # def getSimulationsDocumentByID(self,rcrdID):
     #     """
@@ -412,7 +412,7 @@ class Project:
     #     :return:
     #         document.
     #     """
-    #     return self.simulations.getDocumentByID(rcrdID)
+    #     return self.simulations.old.getDocumentByID(rcrdID)
     #
     #
     # def getCacheDocumentByID(self,rcrdID):

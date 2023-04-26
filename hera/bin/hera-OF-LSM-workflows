@@ -159,9 +159,9 @@ if __name__=="__main__":
     ### ---- Debugging
     from hera.utils.logging.helpers import initialize_logging, with_logger
     initialize_logging(
-        with_logger("hera.simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False),
+        with_logger("hera.simulations.old.openFoam",handlers=['console'],level='DEBUG',propagate=False),
         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-        #with_logger("hera.measurements.GIS.vector",handlers=['console'],level='DEBUG',propagate=False),
+        #with_logger("hera.measurements.old.GIS.vector",handlers=['console'],level='DEBUG',propagate=False),
     )
     ### ---- Debugging
 
@@ -186,7 +186,7 @@ if __name__=="__main__":
     parser_indoors_flowField.add_argument('--overwrite', dest="overwrite",nargs="*", default=None,help='overwrite the existing workflow, if file already exists')
     parser_indoors_flowField.set_defaults(func=prepareIndoorsFlowField)
 
-    ## list and manage the db simulations.
+    ## list and manage the db simulations.old.
 
     ##          2. Prepare the dispersion case:
 

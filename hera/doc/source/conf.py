@@ -36,7 +36,8 @@ extensions = ['sphinx.ext.autodoc',
 	      'numpydoc',
 		  'sphinx.ext.mathjax',
 		  'sphinx_gallery.gen_gallery',
-		  'sphinx.ext.autosectionlabel'
+		  'sphinx.ext.autosectionlabel',
+		  'sphinx-jsonschema'
 	     ]
 
 autosummary_generate = True

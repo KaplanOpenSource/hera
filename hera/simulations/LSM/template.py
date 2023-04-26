@@ -93,12 +93,12 @@ class LSMTemplate:
             False: execute the simulation event if it is in DB (the to_database is True).
             True : retrieve simulation from DB (if to_database is True)
 
-            The retrieval will work only if the simulations were converted to xarray (to_xarray was true when they were calculated).
+            The retrieval will work only if the simulations.old were converted to xarray (to_xarray was true when they were calculated).
 
         params: dict
             overweriting the parameters of the simulation
 
-        descriptors : a list of key/value that describe that simulations.
+        descriptors : a list of key/value that describe that simulations.old.
 
         Return:
             the xarray (if it is in the DB, or the simulation was converted to xarray)
@@ -451,4 +451,4 @@ class LSMTemplate:
 
             return df
         except ValueError:
-            raise FileNotFoundError('No simulations found')
+            raise FileNotFoundError('No simulations.old found')

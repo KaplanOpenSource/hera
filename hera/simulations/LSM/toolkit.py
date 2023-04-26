@@ -81,7 +81,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             The name of the project that contains the
 
         filesDirectory: str
-            The directory to save the simulations.
+            The directory to save the simulations.old.
 
 
         to_xarray: bool
@@ -125,7 +125,7 @@ class LSMToolkit(toolkit.abstractToolkit):
                 The name of the template.
 
         to_xarray: bool
-                Convert the simulations to xarray
+                Convert the simulations.old to xarray
                 default: True
 
         to_database: bool
@@ -290,7 +290,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             else:
                 return df
         except ValueError:
-            raise FileNotFoundError('No simulations found')
+            raise FileNotFoundError('No simulations.old found')
 
 class analysis:
     """
