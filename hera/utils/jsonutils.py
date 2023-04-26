@@ -14,7 +14,6 @@ def convertJSONtoConf(JSON):
     """
     ret ={}
     for key,value in JSON.items():
-        print(key,value)
         if isinstance(value,dict):
             ret[key] = convertJSONtoConf(JSON[key])
         elif isinstance(value,list):
