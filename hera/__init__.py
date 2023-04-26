@@ -100,13 +100,13 @@ toolkitHome = ToolkitHome()
 Datalayer
 ---------
 
-- Project: Added get<simulation/cache/measurements>DocumentByID to the interface. 
+- Project: Added get<simulation/cache/measurements.old>DocumentByID to the interface. 
 
 
 2.4.0
 -----
 
-   -measurements.meteorology.highfreqdata:
+   -measurements.old.meteorology.highfreqdata:
     - Added an AveragingCalculator class to deal with TRH data
     - Major revision of MeanDataCalculator
     - Added a few new functions to singlePointTurbulenceStatistics
@@ -138,7 +138,7 @@ Datalayer
     - removed the simulation.util.toUnum and toNumber. Use util tounit and tonumber. 
     - Extended the GIS.location.raster to save the image locally only if it is not a local image. 
     - Added the TOOLKIT save modes to the toolkit home. 
-    - measurements.demography was extended to allow loading an existing demography shp file. 
+    - measurements.old.demography was extended to allow loading an existing demography shp file. 
     
       
 
@@ -219,7 +219,7 @@ Experiment:
 
  1.1.2
 ------
-  - Changes to the intepolations in the simulations module. 
+  - Changes to the intepolations in the simulations.old module. 
   - updated documentations. 
    
 
@@ -249,12 +249,12 @@ Experiment:
  0.7.0
  -----
   - Adding the riskassessment package. 
-  - Adding the simulations/gaussian package. 
+  - Adding the simulations.old/gaussian package. 
   - adding the simulation/evaporation package. 
 
  0.6.1
  -----
-  - Fixing the simulations.interpolations package. 
+  - Fixing the simulations.old.interpolations package. 
   - Renanimg interpolation->spatialInterpolations.  
   
  0.6.0

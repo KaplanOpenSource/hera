@@ -96,7 +96,7 @@ def executeLoadPipeline_handler(args):
 if __name__ =="__main__":
 
     initialize_logging(
-        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.simulations.old", handlers=['console'], level='DEBUG', propagate=False),
     )
 
     parser = argparse.ArgumentParser()

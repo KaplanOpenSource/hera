@@ -136,7 +136,7 @@ def create(arguments):
 
 def deleteSimulations(arguments):
     """
-        deletes the simulation/list of simulations from the DB.
+        deletes the simulation/list of simulations.old from the DB.
         The default is to export them to the disk (unless no-export flag is supplied
     Parameters
     ----------
@@ -148,7 +148,7 @@ def deleteSimulations(arguments):
 
     """
     logger = logging.getLogger("hera.bin.hera_workflows.delete")
-    logger.info(f" -- Starting: Deleting simulations --")
+    logger.info(f" -- Starting: Deleting simulations.old --")
 
     if os.path.isfile(arguments.object):
 
@@ -170,7 +170,7 @@ def deleteSimulations(arguments):
     docList =wftk.getSimulationDocumentFromDB(arguments.object)
 
     if len(docList) == 0:
-        print("No simulations found!")
+        print("No simulations.old found!")
     else:
         for x in docList:
             print(f"Deleting {x.desc['simulationName']} in Group {x.desc['groupName']}")
@@ -179,7 +179,7 @@ def deleteSimulations(arguments):
 
 def listSimulations(arguments):
     """
-            Lists the simulations in the group.
+            Lists the simulations.old in the group.
     Parameters
     ----------
     arguments
@@ -190,10 +190,10 @@ def listSimulations(arguments):
 
     Returns
     -------
-        A list of all the simulations in the group.
+        A list of all the simulations.old in the group.
     """
     logger = logging.getLogger("hera.bin.hera_workflows.list")
-    logger.info(f" -- Starting: Listing simulations --")
+    logger.info(f" -- Starting: Listing simulations.old --")
 
     simulationGroup = None
 
@@ -238,7 +238,7 @@ def listSimulations(arguments):
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
 
-    title = f"The simulations in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}* "
+    title = f"The simulations.old in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}* "
 
     print(title)
     print("-" * len(title))
@@ -335,7 +335,7 @@ def listWokflowNodeParameters(arguments):
 
 def compareSimulations(arguments):
     """
-            Compares two or more simulations.
+            Compares two or more simulations.old.
 
 
     Parameters
@@ -343,12 +343,12 @@ def compareSimulations(arguments):
     arguments
         projectName : str, the name of the projet
 
-        simulations: [groupName] - compare all the simulations,
-                     [sim1,sim2,..] compare the different simulations. simX is either a simulation name in the DB or a file on the disk
+        simulations.old: [groupName] - compare all the simulations.old,
+                     [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk
 
         change     : show only the changes between the different parameters.
         nodes      : show only the parameters associated with a specific set of nodes.
-        type       : query only simulations of a specific type.
+        type       : query only simulations.old of a specific type.
 
     Returns
     -------
@@ -372,15 +372,15 @@ def buildAndExecute(arguments):
 
 if __name__ == "__main__":
     initialize_logging(
-        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
-        with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+        with_logger("hera.simulations.old", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.simulations.old.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
     )
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    parser_prepare = subparsers.add_parser('add', help='Adds simulations to the group.')
+    parser_prepare = subparsers.add_parser('add', help='Adds simulations.old to the group.')
     parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
     parser_prepare.add_argument('--projectName', type=str, default=None, help='The project to load the data')
     parser_prepare.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group to associate the ')
@@ -409,11 +409,11 @@ if __name__ == "__main__":
     parser_create.set_defaults(func=create)
 
     ### ------------------------
-    listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
+    listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations.old in the simulation group of that project.')
     listSimulations_parser.add_argument('object', type=str, help='A workflow file, a case directory, a name of simulation, or a group name ')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help='The project name')
     listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
-    listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations of the requested nodes.')
+    listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations.old of the requested nodes.')
     listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
                                         help='If exsists, return the results as JSON and not as pandas table')
     listSimulations_parser.set_defaults(func=listSimulations)
@@ -423,10 +423,10 @@ if __name__ == "__main__":
     # --build - also builds the python executer
 
     ### ------------------------
-    compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations. ')
+    compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations.old. ')
     compare_parser.add_argument('projectName', type=str, help='The project name')
-    compare_parser.add_argument('simulations', nargs="+", type=str,
-                                help='[groupName] - compare all the simulations, [sim1,sim2,..] compare the different simulations. simX is either a simulation name in the DB or a file on the disk')
+    compare_parser.add_argument('simulations.old', nargs="+", type=str,
+                                help='[groupName] - compare all the simulations.old, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
     compare_parser.add_argument('--JSON', dest="JSON", action="store_true", default=False,
                                 help='Return the results in JSON format')
     compare_parser.add_argument('--all', default=False, action="store_true", help='Return all the parameters fields')

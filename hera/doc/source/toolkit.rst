@@ -6,13 +6,15 @@ Toolkits
 Overview
 ========
 
-Toolkit is a code to load, analyze and present a certain type of data.
+A Toolkit is collection of procedures that are used work with a dtat of a certain type
+(like Urban GIS, topography, simulations and ect.).
+
+The structure and function of  toolkits
+========================================
+
 Because all the data in hera is attached to project, it is necessary
 to supply a projectName when initializing one. Then, the functions
 of the toolkit will be performed on the data that exists in that project.
-
-The structure and function of  toolkits
-================
 
 A toolkit is a component that can handle a certain type of data. For example a
 BUILDING toolkit will allow the user to use the GIS function that were programmed
@@ -77,6 +79,7 @@ Listing toolkits
 |           .. centered:: Simulations                                                     |
 +--------------------------------------------+--------------------------------------------+
 |:ref:`LSM <LSMPage>`                        | Stochastic lagrangian simulation (fortran) |
+|:ref:`Hermes workflow <_HermesWorkflow>`    | The hermes workflow toolkit                |
 +--------------------------------------------+--------------------------------------------+
 |           .. centered:: Risk assessment                                                 |
 +--------------------------------------------+--------------------------------------------+
@@ -99,6 +102,7 @@ Toolkits has datasource
    toolkits/GIS_Shape
    toolkits/GIS_Topography
    toolkits/LSM
+   toolkits/simulations/HermesWorkflow
    toolkits/riskAssessment
 
 

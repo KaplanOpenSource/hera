@@ -88,8 +88,8 @@ class workflowToolkit(abstractToolkit):
 
         self._simulationTypeMap = {
                         simulationTypes.WORKFLOW : "hermes.workflow",
-                        simulationTypes.OF_DISPERSION : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
-                        simulationTypes.OF_FLOWFIELD: "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow",
+                        simulationTypes.OF_DISPERSION : "hera.simulations.old.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
+                        simulationTypes.OF_FLOWFIELD: "hera.simulations.old.openFoam.datalayer.hermesWorkflow.Workflow_Flow",
         }
 
 
@@ -224,7 +224,7 @@ class workflowToolkit(abstractToolkit):
 
     def getSimulationsInGroup(self, simulationGroup: str, **kwargs):
         """
-            Return a list of all the simulations with the name as a prefic, and of the requested simuationType.
+            Return a list of all the simulations.old with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
 
             If the simuationType is None use the default simuationType (WORKFLOW).
@@ -497,7 +497,7 @@ class workflowToolkit(abstractToolkit):
     def compare(self, workFlows: Union[list, str], docType: str = None, nodes: Union[list, str] = None,
                 allParameters: bool = True, JSON: bool = False) -> Union[dict, pandas.DataFrame]:
         """
-            Compares two or more simulations.
+            Compares two or more simulations.old.
 
 
         Parameters
@@ -507,13 +507,13 @@ class workflowToolkit(abstractToolkit):
                 a list is the list of cases to compare.
 
         docType : str
-                The type of simulations. If not supplied use DOCTYPE_WORKFLOW
+                The type of simulations.old. If not supplied use DOCTYPE_WORKFLOW
 
         nodes  : str,list
                 The node name or a list of nodes to dislay
 
         allParameters: bool
-                If true, then display all the parameters and not only those that are differ between two simulations.
+                If true, then display all the parameters and not only those that are differ between two simulations.old.
 
         JSON: bool
                 If true, return the results as a JSON and not pandas.DataFrame.
@@ -527,7 +527,7 @@ class workflowToolkit(abstractToolkit):
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         self.logger.info("--- Start ---")
 
-        # 1. Get all the simulations
+        # 1. Get all the simulations.old
         if isinstance(workFlows, Iterable):
             self.logger.debug("Workflow is iterable. Trying to retrieve the parameters for each item individually. ")
 
@@ -546,7 +546,7 @@ class workflowToolkit(abstractToolkit):
                 workflowList.append(workflow(workflowJSON, WD_path=self.FilesDirectory))
 
         else:
-            self.logger.debug("Workflow is a groupName. Get the simulations from the group")
+            self.logger.debug("Workflow is a groupName. Get the simulations.old from the group")
             simulationList = self.getSimulationsInGroup(simulationGroup=workFlows, simulationType=docType)
             workflowList = [workflow(x['desc']['workflow'], WD_path=self.FilesDirectory) for x in simulationList]
 
@@ -560,7 +560,7 @@ class workflowToolkit(abstractToolkit):
                         jsonFormat:bool = False
                         ) -> Union[pandas.DataFrame,dict]:
         """
-            Lists all the simulations in the simulation group (of this project).
+            Lists all the simulations.old in the simulation group (of this project).
 
             Allows additional filters using the simulationType.
 
@@ -579,17 +579,17 @@ class workflowToolkit(abstractToolkit):
             Additional filter according to the simulation type.
 
         parametersOfNodes  : list[str]
-            If None, just return the names of the simulations. Otherwise add the parameters from the requested nodes.
+            If None, just return the names of the simulations.old. Otherwise add the parameters from the requested nodes.
 
         allParams: bool
-            If true, list all the parameters and not just the parameters that were different between the simulations.
+            If true, list all the parameters and not just the parameters that were different between the simulations.old.
         jsonFormat: bool
             If true, return JSON and not a normalized pandas.DataFrame.
 
         Returns
         -------
             pandas.DataFrame or dict
-            A list of the simulations and their values.
+            A list of the simulations.old and their values.
 
         """
         simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup)

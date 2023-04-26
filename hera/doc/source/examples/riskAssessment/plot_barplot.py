@@ -28,7 +28,7 @@ katsrinBuildings = geopandas.read_file("KatsrinBuildings")
 KatsrinCityOnly = Demography.analysis.createNewArea(shapeNameOrData=katsrinBuildings,dataSourceOrData="KatsrinDemography/Katsrin.shp").getData()
 
 #######################
-# Then, we load the LSM simulations.
+# Then, we load the LSM simulations.old.
 
 LSM  = toolkitHome.getToolkit(projectName=projectName,toolkitName="LSM")
 simulation = LSM.singleSimulation(resource="netcdf")

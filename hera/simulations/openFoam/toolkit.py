@@ -229,7 +229,7 @@ class OFToolkit(workflowToolkit):
                             - directory
                             - simulationName (without filters).
 
-                        To implement the rst, we might need to extend the scripts to use multiple baseFlow simulations.
+                        To implement the rst, we might need to extend the scripts to use multiple baseFlow simulations.old.
 
             simulationGroup : str
                     The name of the group.
@@ -480,7 +480,7 @@ class OFToolkit(workflowToolkit):
                 warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
             return docList[0].resource
         else:
-            raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.")
+            raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
 
 
 

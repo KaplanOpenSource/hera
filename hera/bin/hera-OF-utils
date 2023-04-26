@@ -337,9 +337,9 @@ if __name__=="__main__":
     # ### ---- Debugging
     # from hera.utils.logging.helpers import initialize_logging, with_logger
     # initialize_logging(
-    #     with_logger("hera.simulations.openFoam",handlers=['console'],level='DEBUG',propagate=False),
-    #     with_logger("hera.measurements.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False),
-    #     with_logger("hera.measurements.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False),
+    #     with_logger("hera.simulations.old.openFoam",handlers=['console'],level='DEBUG',propagate=False),
+    #     with_logger("hera.measurements.old.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False),
+    #     with_logger("hera.measurements.old.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False),
     # )
     # ### ---- Debugging
 
