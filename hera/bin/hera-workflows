@@ -62,7 +62,6 @@ def add(args):
     else:
         logger.info(f"Using project name {projectName}. ")
 
-
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     if args.variations is None:
