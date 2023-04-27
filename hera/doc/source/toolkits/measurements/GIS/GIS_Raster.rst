@@ -16,8 +16,3 @@ Usage
 
 API
 ---
-
-.. autoclass:: hera.measurements.GIS.locations.raster.RasterToolkit
-    :members:
-    :undoc-members:
-    :inherited-members:

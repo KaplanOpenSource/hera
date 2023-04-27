@@ -68,7 +68,6 @@ Usage and API
    datalayer
    toolkit
    instructions_for_dev
-   auto_examples/index
 
 
 Indices and tables

@@ -41,7 +41,7 @@ Usage
 API
 ---
 
-.. autoclass:: hera.measurements.GIS.locations.buildings.BuildingsToolkit
+.. autoclass:: hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit
     :members:
     :undoc-members:
     :inherited-members:

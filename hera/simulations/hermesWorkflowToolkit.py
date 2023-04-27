@@ -457,11 +457,10 @@ class workflowToolkit(abstractToolkit):
                                                       parameters=hermesWF.parametersJSON)
                                                   )
 
-
             elif overwrite:
                 self.logger.info("Simulation in the DB, overwrite=True.  Updating... ")
                 doc = docList[0]
-                doc['desc']['workflow'] = hermesWF.json
+                doc['resource'] = hermesWF.json
                 doc['desc']['parameters'] = hermesWF.parametersJSON
                 doc.save()
             else:
