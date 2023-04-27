@@ -51,7 +51,7 @@ class simulationTypes(Enum):
             raise False
 
     @classmethod
-    def workflowsStirng(cls):
+    def workflowsString(cls):
         """
             Returns a mongo string with the names of all the types.
             This is used to get all the documents of the types.
@@ -59,6 +59,8 @@ class simulationTypes(Enum):
         -------
 
         """
+        vals = [v for k, v in cls.__members__.items()]
+        return = f"[{','.join(vals)}]"
 
 HERAMETADATA = 'heraMetaData'  # The name of the node in the workflow to which the hera meta data is added.
 
@@ -412,9 +414,11 @@ class workflowToolkit(abstractToolkit):
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
 
-        hermesWF
+        if not simulationTypes.isvalid(hermesWF.workflowType):
+            raise ValueError(f"The workflow type (in workflow.workflowType key) must be one of: {simulationTypes.workflowsString}")
+        else:
+            theType = hermesWF.workflowType
 
-        theType = simulationTypes.WORKFLOW.value
         self.logger.debug(f"The suggested simulation name is {cleanName} as a workflow type {theType} (in file {workflowJSON})")
 
         #   c. Determining the simulation name, group name and group id
