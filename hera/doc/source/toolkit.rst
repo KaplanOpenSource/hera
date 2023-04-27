@@ -35,7 +35,7 @@ Generally, each toolkit has 3 components.
 
 
 How to use toolkits
-================
+===================
 
 Access to the toolkits is done through the tookitHome class:
 
@@ -66,20 +66,12 @@ Listing toolkits
 +--------------------------------------------+--------------------------------------------+
 |Toolkit                                     |    Usage                                   |
 +============================================+============================================+
-|:ref:`Buildings <BuildingsPage>`            |    Manages building shapes (vector data)   |
-+--------------------------------------------+--------------------------------------------+
-|:ref:`Shapes   <ShapesPage>`                |    Manages location shapes (vector data)   |
-+--------------------------------------------+--------------------------------------------+
-|:ref:`Raster <RasterPage>`                  |    Manages Raster of geogrpaphic places    |
-+--------------------------------------------+--------------------------------------------+
-|:ref:`Topography <TopographyPage>`          |    Manages topography      (vector data)   |
-+--------------------------------------------+--------------------------------------------+
-|:ref:`Demography <DemographyPage>`          |    Manages demography      (vector data)   |
 +--------------------------------------------+--------------------------------------------+
 |           .. centered:: Simulations                                                     |
 +--------------------------------------------+--------------------------------------------+
 |:ref:`LSM <LSMPage>`                        | Stochastic lagrangian simulation (fortran) |
-|:ref:`Hermes workflow <_HermesWorkflow>`    | The hermes workflow toolkit                |
++--------------------------------------------+--------------------------------------------+
+|:ref:`Hermes workflow <HermesWorkflow>`     | The hermes workflow toolkit                |
 +--------------------------------------------+--------------------------------------------+
 |           .. centered:: Risk assessment                                                 |
 +--------------------------------------------+--------------------------------------------+
@@ -96,14 +88,8 @@ Toolkits has datasource
    :maxdepth: 3
    :caption: Contents:
 
-   toolkits/GIS_Buildings
-   toolkits/GIS_Raster
-   toolkits/GIS_Demography
-   toolkits/GIS_Shape
-   toolkits/GIS_Topography
-   toolkits/LSM
+   toolkits/simulations/LSM
    toolkits/simulations/HermesWorkflow
-   toolkits/riskAssessment
 
 
 Indices and tables

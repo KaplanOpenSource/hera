@@ -57,6 +57,8 @@ def add(args):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
+
+
     if args.variations is None:
         logger.info("No variations supplied. Adding one simulation. ")
         workflowFile = args.workflow
@@ -66,7 +68,7 @@ def add(args):
 
         try:
             wftk.addToGroup(workflowJSON=workflowFile,
-                            groupName=args.simulationGroup,
+                            groupName= args.simulationGroup,
                             assignName=args.assignName,
                             overwrite=args.overwrite,
                             action=action,

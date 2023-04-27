@@ -34,19 +34,19 @@ The library uses a connection to the database that is defined in the path
 ..  code-block:: javascript
 
     {
-    <connection name 1> : {
-        "dbIP": "DB IP",
-        "dbName": "...",
-        "password": "..." ,
-        "username": "..."
-    },
-    <connection name 1> : {
-        "dbIP": "DB IP",
-        "dbName": "...",
-        "password": "..." ,
-        "username": "..."
+        <connection name 1> : {
+            "dbIP": "DB IP",
+            "dbName": "...",
+            "password": "..." ,
+            "username": "..."
+        },
+        <connection name 1> : {
+            "dbIP": "DB IP",
+            "dbName": "...",
+            "password": "..." ,
+            "username": "..."
+        }
     }
-}
 
 The default connection is the **default with the linux user name**.
 It is possible to add other database connections. See below on how
@@ -62,8 +62,6 @@ Each document is to a project. That is, the projectName property
 of the document cannot be empty.
 
 .. include:: datalayer/addgetdata.rst
-
-
 
 
 Usage

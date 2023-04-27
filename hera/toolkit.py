@@ -51,31 +51,31 @@ class ToolkitHome:
 
             Logging        = dict(cls = "hera.utils.logging.toolkit.loggingToolkit"),
 
-            GIS_Vector=dict(cls="hera.measurements.old.GIS.vector.vector.VectorToolkit",desc=None),
+            GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",desc=None),
 
-            GIS_Buildings  = dict(cls = "hera.measurements.old.GIS.vector.buildings.toolkit.BuildingsToolkit",desc=None),
+            GIS_Buildings  = dict(cls = "hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit",desc=None),
 
-            GIS_Raster     = dict(cls = "hera.measurements.old.GIS.raster.toolkit.RasterToolkit",desc=None),
+            GIS_Raster     = dict(cls = "hera.measurements.GIS.raster.toolkit.RasterToolkit",desc=None),
 
-            GIS_Topography = dict(cls = "hera.measurements.old.GIS.vector.topography.TopographyToolkit",desc=None),
+            GIS_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",desc=None),
 
-            GIS_Demography = dict(cls = "hera.measurements.old.GIS.vector.demography.DemographyToolkit",desc=None),
+            GIS_Demography = dict(cls = "hera.measurements.GIS.vector.demography.DemographyToolkit",desc=None),
 
-            GIS_Shapes     = dict(cls = "hera.measurements.old.GIS.shapes.ShapesToolKit",desc=None),
+            GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",desc=None),
 
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
-            LSM            = dict(cls = "hera.simulations.old.LSM.toolkit.LSMToolkit",desc=None),
+            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
 
-            OF_LSM         = dict(cls="hera.simulations.old.openFoam.LSM.toolkit.OFLSMToolkit"),
+            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
 
-            MeteoHighFreq  = dict(cls="hera.measurements.old.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
+            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
 
-            MeteoLowFreq = dict(cls="hera.measurements.old.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
+            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
 
-            experiment =dict(cls="hera.measurements.old.experiment.experiment.experimentHome"),
+            experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
-            hermesWorkflows = dict(cls="hera.simulations.old.hermesWorkflowToolkit.workflowToolkit"),
-            OpenFOAM = dict(cls="hera.simulations.old.openFoam.toolkit.OFToolkit")
+            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit"),
+            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
         )
 
 
@@ -84,7 +84,7 @@ class ToolkitHome:
             Returns a toolkit for the requested project.
 
         Parameters
-        -----------
+        ----------
         projectName: str
             The name of the project
 
@@ -329,7 +329,7 @@ class abstractToolkit(Project):
             Returns a single document.
 
         Parameters
-        ------
+        ----------
         datasourceName: str
             The datasourceName of the source
             if None, return the default source (if set).
@@ -373,7 +373,8 @@ class abstractToolkit(Project):
             Returns the data from the datasource.
 
         Parameters
-        ------
+        ----------
+
         datasourceName: str
             The datasourceName of the source
             if None, return the default source (if set).

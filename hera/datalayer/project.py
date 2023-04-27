@@ -16,7 +16,8 @@ def getProjectList(user=None):
     :param user: str
         The name of the database.
 
-    :return:
+    Returns
+    -------
         list.
     """
     return list(set(AbstractCollection(user=user).getProjectList()))
@@ -63,8 +64,8 @@ class Project:
         """
             Access the measurement type documents.
 
-        :return:
-
+    Returns
+    -------
             hera.datalayer.collection.Measurements_Collection
         """
         return self._measurements
@@ -74,7 +75,8 @@ class Project:
         """
             Access the Cache type documents.
 
-        :return:
+    Returns
+    -------
             hera.datalayer.collection.Cache_Collection
 
         """
@@ -85,7 +87,8 @@ class Project:
         """
             Access to all document types.
 
-        :return:
+    Returns
+    -------
             hera.datalayer.collection.AbstractCollection
 
         """
@@ -101,7 +104,8 @@ class Project:
         """
             Access the simulation type documents.
 
-        :return:
+    Returns
+    -------
             hera.datalayer.collection.Simulation_Collection
 
         """
@@ -137,7 +141,8 @@ class Project:
         Return the description of all ot the documents in the current project.
         It assumes that description is a key-value format (does not support more complex structures).
 
-        Returns:
+    Returns
+    -------
              pandas.DataFrame
         """
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
@@ -185,7 +190,7 @@ class Project:
             query by the measurement document
 
         Returns
-        --------
+        -------
             List of documents.
         """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
@@ -219,7 +224,7 @@ class Project:
             Delete the measurements.old documents that fit the query.
 
         Parameters
-        -----------
+        ----------
         kwargs: query dicts.
 
         Returns
@@ -266,7 +271,7 @@ class Project:
             query by the measurement document
 
         Returns
-        --------
+        -------
             List of documents.
         """
         return self.simulations.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
@@ -302,7 +307,7 @@ class Project:
             Delete the simulations.old documents that fit the query.
 
         Parameters
-        -----------
+        ----------
         kwargs: query dicts.
 
         Returns
@@ -383,7 +388,7 @@ class Project:
             Delete the cache documents that fit the query.
 
         Parameters
-        -----------
+        ----------
         kwargs: query dicts.
 
         Returns
@@ -393,34 +398,3 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
-
-    # def getMeasuredDocumentByID(self,rcrdID):
-    #     """
-    #         Return the document with the request ID.
-    #     :param rcrdID: str
-    #             The record index.
-    #     :return:
-    #         document.
-    #     """
-    #     return self.measurements.old.getDocumentByID(rcrdID)
-    #
-    # def getSimulationsDocumentByID(self,rcrdID):
-    #     """
-    #         Return the document with the request ID.
-    #     :param rcrdID: str
-    #             The record index.
-    #     :return:
-    #         document.
-    #     """
-    #     return self.simulations.old.getDocumentByID(rcrdID)
-    #
-    #
-    # def getCacheDocumentByID(self,rcrdID):
-    #     """
-    #         Return the document with the request ID.
-    #     :param rcrdID: str
-    #             The record index.
-    #     :return:
-    #         document.
-    #     """
-    #     return self.cache.getDocumentByID(rcrdID)
