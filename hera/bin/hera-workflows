@@ -51,13 +51,19 @@ def add(args):
     logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
+    projectName = args.projectName
 
-    conf = loadJSON(args.workflow)
-    projectName = conf[HERAMETADATA]['projectName'] if args.projectName is None else args.projectName
+    if projectName is None:
+        logger.info(f"Project name is not found. Trying to load from caseConfiguration ")
+        cse = loadJSON("caseConfiguration.json")
+        projectName = cse.get('projectName')
+        if projectName is None:
+            raise ValueError(f"Project name not supplied. Provide projectName using --projectName, or in the caseConfiguration.json, projectName key ")
+    else:
+        logger.info(f"Using project name {projectName}. ")
+
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-
-
 
     if args.variations is None:
         logger.info("No variations supplied. Adding one simulation. ")
@@ -76,60 +82,6 @@ def add(args):
 
         except FileExistsError as e:
             print(e)
-
-    else:
-        # should load the combinations....
-        raise NotImplementedError("Loading the combinations... Not implemented yet... ")
-
-def create(arguments):
-    """
-            Create a JSON from the name of the simulation (or from a JSON file) and assignes a new empty name to it.
-            It does NOT build or adds it to the DB. to do so, use the add subcommand
-
-    Parameters
-    ----------
-    arguments
-        workflow : The workflow file that will be prepared.
-        groupName : The group of the simulation.
-        variations : Json with the parameter variations on the requested workflow.
-                    The structure of the JSON is:
-                    {
-                        "parameterVariation" : {
-                                TBD
-                        }
-                    }
-        simulationType: the type of the simulation.
-
-        overwrite : bool,
-                overwite thw workflow with the given name
-
-
-    Returns
-    -------
-
-    """
-    logger = logging.getLogger("hera.bin.hera_workflows.add")
-    logger.info(" -- Starting: adding workflow to the group --")
-
-    conf = loadJSON(arguments.workflow)
-    projectName = conf[HERAMETADATA]['projectName'] if arguments.projectName is None else arguments.projectName
-
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-
-    simulationGroup         = conf[HERAMETADATA]['simulationGroup'] if arguments.simulationGroup is None else arguments.simulationGroup
-    workflowType            = simulationTypes.WORKFLOW.value
-
-
-    if arguments.variations is None:
-        logger.info("No variations supplied. Creating one simulation. ")
-        groupID, simulationName = wftk.findAvailableName(simulationGroup=simulationGroup, simulationType=workflowType)
-        logger.info(f"Creating workflow in {simulationName} (group ID {groupID}) to group {simulationGroup}. Using workflow type: {workflowType}.")
-
-        if not os.path.exists(simulationName) or arguments.overwrite:
-            with open(f"{simulationName}.json","w") as newfile:
-                json.dump(conf,newfile,indent=4)
-        else:
-            raise FileExistsError(f"The workflow {simulationName} exists in that directory. Use --overwrite to overwrite it.")
 
     else:
         # should load the combinations....
@@ -195,7 +147,7 @@ def listSimulations(arguments):
         A list of all the simulations.old in the group.
     """
     logger = logging.getLogger("hera.bin.hera_workflows.list")
-    logger.info(f" -- Starting: Listing simulations.old --")
+    logger.info(f" -- Starting: Listing simulations --")
 
     simulationGroup = None
 
@@ -213,11 +165,15 @@ def listSimulations(arguments):
 
     else:
         if arguments.projectName is None:
-            logger.info("Project Name not supplied with --projectName, try to guess it from the caseConfiguration.json file.")
+            logger.info("Project Name not supplied with --projectName, try to get it from the caseConfiguration.json file.")
             cse = loadJSON("caseConfiguration.json")
+            projectName = cse.get('projectName')
+            if projectName is None:
+                raise ValueError(
+                    f"Project name not supplied. Provide projectName using --projectName, or in the workflow file (under {HERAMETADATA}.projectName, or in the caseConfiguration.json in projectName ")
+        else:
+            projectName = arguments.projectName
 
-            raise ValueError(f"Must supply a projectName. use --projectName ")
-        projectName = arguments.projectName
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
         simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
@@ -374,8 +330,8 @@ def buildAndExecute(arguments):
 
 if __name__ == "__main__":
     initialize_logging(
-        with_logger("hera.simulations.old", handlers=['console'], level='DEBUG', propagate=False),
-        with_logger("hera.simulations.old.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
     )
 
@@ -400,19 +356,8 @@ if __name__ == "__main__":
     parser_prepare.set_defaults(func=add)
 
     ### ------------------------
-    parser_create = subparsers.add_parser('create', help='Creates a one or more new simulation and assignes their name from the ID of the database. Does not build or add to the DB')
-    parser_create.add_argument('workflow', type=str, help='The workflow file to load')
-    parser_create.add_argument('--projectName', type=str, default=None, help='The project to load the data')
-    parser_create.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group to associate the ')
-    parser_create.add_argument('--variations', default=None, type=str, help='A file with all the variations.')
-    parser_create.add_argument('--simulationType', dest="workflowType", default=None, type=str, help='The type of simulation ')
-    parser_create.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                help='overwrite the existing workflow, if file already exists')
-    parser_create.set_defaults(func=create)
-
-    ### ------------------------
-    listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations.old in the simulation group of that project.')
-    listSimulations_parser.add_argument('object', type=str, help='A workflow file, a case directory, a name of simulation, or a group name ')
+    listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
+    listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project (must supply project name) ')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help='The project name')
     listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
     listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations.old of the requested nodes.')

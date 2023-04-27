@@ -50,6 +50,15 @@ class simulationTypes(Enum):
         else:
             raise False
 
+    @classmethod
+    def workflowsStirng(cls):
+        """
+            Returns a mongo string with the names of all the types.
+            This is used to get all the documents of the types.
+        Returns
+        -------
+
+        """
 
 HERAMETADATA = 'heraMetaData'  # The name of the node in the workflow to which the hera meta data is added.
 
@@ -397,13 +406,16 @@ class workflowToolkit(abstractToolkit):
 
         #    a. Make sure that there are no extensions.
         cleanName = workflowJSON.split(".")[0]
-        theType = simulationTypes.WORKFLOW.value
-        self.logger.debug(f"The suggested simulation name is {cleanName} in the document {theType}")
 
         #   b. loading the workflow.
         self.logger.debug(f"Loading the workflow JSON {workflowJSON}")
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
+
+        hermesWF
+
+        theType = simulationTypes.WORKFLOW.value
+        self.logger.debug(f"The suggested simulation name is {cleanName} as a workflow type {theType} (in file {workflowJSON})")
 
         #   c. Determining the simulation name, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]

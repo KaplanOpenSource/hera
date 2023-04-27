@@ -187,6 +187,8 @@ then execute it.
 List workflows in the project
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+List all the simulations
+
 
 
 
