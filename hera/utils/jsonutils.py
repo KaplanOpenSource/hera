@@ -73,7 +73,7 @@ def JSONToConfiguration(JSON):
     ret ={}
     for key,value in JSON.items():
         if isinstance(value,dict):
-            ret[key] = convertJSONtoConf(JSON[key])
+            ret[key] = JSONToConfiguration(JSON[key])
         elif isinstance(value,list):
             ret[key] = [strToUnum(x) for x in value]
         elif "'" in str(value):
