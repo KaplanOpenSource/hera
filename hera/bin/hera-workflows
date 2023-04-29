@@ -132,18 +132,51 @@ def deleteSimulations(arguments):
 
 def listSimulations(arguments):
     """
-            Lists the simulations.old in the group.
-    Parameters
-    ----------
-    arguments
-        projectName : the name of the project
-        groupName   : the group
-        type : the document type to query [optional]
+            Lists the simulations of the project.
+
+            Parameters
+            ----------
+            arguments : argument struct with the field:
+
+                - groupName : str, optional
+                            List only the group name if exists.
+.
+                - projectName: str, optional
+                            If not supplied, use the project name in caseConfiguration.json.
+
+                - no-nodes    : bool [default : true].
+                            If exists, does not list the node names.
+                            if --parameters exists, then this option is ignored.
+
+                - parameters [node list]: list of string, optional
+                            If flag exists lists only the parameters that are different between different simulations.
+                            unless --all exists. In that case, list all nodes.
+
+                            if [node list] is not empty, lists all the parameters of this node.
+
+                - all : boolean, [optional]
+                        If --parameters flag is used, lists all the parameters if exists. Otherwise
+                        list only the nodes that were changed.
+
+            Returns
+            -------
+                    A string.
+
+                    * without --parameters flag:
+
+                    <work-flow type>
+                    ----------------
+                            + <group name>
+                                    - simulation name : [node list]
+                                    .
+                                    .
 
 
-    Returns
-    -------
-        A list of all the simulations.old in the group.
+                    * with --parameters exists:
+
+                    <work-flow type> - <group name>
+                     |   simulation name |  <parameters>   |
+                     +-------------------+-----------------+
     """
     logger = logging.getLogger("hera.bin.hera_workflows.list")
     logger.info(f" -- Starting: Listing simulations --")
@@ -289,18 +322,18 @@ def listWokflowNodeParameters(arguments):
         vls = json.dumps(pm,indent=4)
         print(f"-\t {nd}:  {vls}")
 
-
 def compareSimulations(arguments):
     """
-            Compares two or more simulations.old.
-
+            Compares the parameters of the list of simulations that were supplied.
+            Specifically for a list of simulations. Comparing all the simulations of a group is
+            achieved with list simulations.
 
     Parameters
     ----------
     arguments
         projectName : str, the name of the projet
 
-        simulations.old: [groupName] - compare all the simulations.old,
+        simulations: [groupName] - compare all the simulations.old,
                      [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk
 
         change     : show only the changes between the different parameters.
@@ -359,7 +392,7 @@ if __name__ == "__main__":
     listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project (must supply project name) ')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help='The project name')
     listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
-    listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations.old of the requested nodes.')
+    listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations of the requested nodes.')
     listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
                                         help='If exsists, return the results as JSON and not as pandas table')
     listSimulations_parser.set_defaults(func=listSimulations)
@@ -439,3 +472,5 @@ if __name__ == "__main__":
 
     parsed = parser.parse_args()
     parsed.func(parsed)
+
+    # todo: add printint of the workflows.

@@ -29,10 +29,10 @@ class actionModes(Enum):
 
 @unique
 class simulationTypes(Enum):
-    WORKFLOW = "hermes_workflow"
-    OF_FLOWFIELD = "OF_FlowField"  # OpenFoam: calculation of the flow field.
-    OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
-    OF_FLOWDISPERSION = "OF_flowDispersion"
+    WORKFLOW = "hermesWorkflow_general"
+    OF_FLOWFIELD = "hermesWorkflow_OF_FlowField"  # OpenFoam: calculation of the flow field.
+    OF_DISPERSION = "hermesWorkflow_OF_dispersion"  # OpenFoam: The dispersion itself.
+    OF_FLOWDISPERSION = "hermesWorkflow_OF_flowDispersionClone"
 
     @classmethod
     def value_of(cls, value):
