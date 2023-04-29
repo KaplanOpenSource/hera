@@ -3,30 +3,83 @@ import os
 import json
 import pandas
 from json.decoder import JSONDecodeError
+from .unum import *
+from unum import Unum
 
-
-def convertJSONtoConf(JSON):
+def ConfigurationToJSON(conf):
     """
-        Traverse the JSON and replace all the unum values with objects.
+        Converts a configuration dict (that might include unum objects) to
+        JSON dict (where all the values are strings).
 
-    :param JSON:
-    :return:
+        The unum objects are converted to Str in a way that allows for their
+        retrieval. (see the JSONToConfiguration function)
+
+    Parameters
+    ----------
+    conf : dict
+        A key-value dict where the values are string.
+        Converts unum objects to string like representations:
+            1*m/s --> '1*m/s'.
+    Returns
+    -------
+        dict with all the values as string
+
     """
+    def unumToStr(obj):
+        if isinstance(obj,Unum):
+            ret = str(obj).replace(" [","*").replace("]","")
+        else:
+            ret = str(obj)
+        return ret
+
+    ret = {}
+    for key,value in conf.items():
+        if isinstance(value,dict):
+            ret[key] = ConfigurationToJSON(value)
+        elif isinstance(value,list):
+            ret[key] = [unumToStr(x) for x in value]
+        elif "'" in str(value):
+            ret[key] = value
+        else:
+            ret[key] = unumToStr(value)
+
+    return ret
+
+def JSONToConfiguration(JSON):
+    """
+        Converts a dictionary (all the values are string) to
+        a JSON where all the values are string.
+
+        Convert the JSON back to configuration object using  the ConfigurationToJSON function.
+
+    Parameters
+    ----------
+        JSON : dict
+        A key-value where all the values are strings.
+        The unum objects has the format '1*<unit>' (for exampe '1*m/s')
+
+    Returns
+    -------
+        A dict with the values convected to unum.
+
+    """
+    def strToUnum(obj):
+        try:
+            ret = eval(str(value))
+        except:
+            ret = value
+        return ret
+
     ret ={}
     for key,value in JSON.items():
         if isinstance(value,dict):
             ret[key] = convertJSONtoConf(JSON[key])
         elif isinstance(value,list):
+            ret[key] = [strToUnum(x) for x in value]
+        elif "'" in str(value):
             ret[key] = value
         else:
-
-            if "'" in str(value):
-                ret[key] = value
-            else:
-                try:
-                    ret[key] = eval(str(value))
-                except:
-                    ret[key] = value
+            ret[key] = strToUnum(value)
 
     return ret
 
