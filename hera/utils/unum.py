@@ -40,3 +40,19 @@ try:
     cpoise = Unum.unit('cpoise',poise/10.,'centipoise')
 except NameConflictError as e:
     cpoise = Unum.unit('cpoise',conv=None,name='centipoise')
+
+try:
+    mL = Unum.unit('mL', 1e-3 * L)
+except NameConflictError:
+    pass
+
+try:
+    uL = Unum.unit('uL', 1e-6 * L)
+except NameConflictError:
+    pass
+
+try:
+    nL = Unum.unit('nL', 1e-9 * L)
+except NameConflictError:
+    pass
+
