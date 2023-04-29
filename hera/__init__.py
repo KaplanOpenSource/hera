@@ -13,6 +13,11 @@ from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
 
+    #77: serialization and de-serialization of JSON that include unum objects.
+          These functions handles the dictionary with unum object (to string and from string). 
+    
+        - changed to convertJSONtoConf to JSONToConfiguration 
+
 2.9.1
 ------
      Issue#38: Updating the documentation. 
