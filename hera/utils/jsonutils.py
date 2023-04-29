@@ -6,6 +6,21 @@ from json.decoder import JSONDecodeError
 from .unum import *
 from unum import Unum
 
+
+def unumToStr(obj):
+    if isinstance(obj, Unum):
+        ret = str(obj).replace(" [", "*").replace("]", "")
+    else:
+        ret = str(obj)
+    return ret
+
+def strToUnum(value):
+    try:
+        ret = eval(str(value))
+    except:
+        ret = value
+    return ret
+
 def ConfigurationToJSON(conf):
     """
         Converts a configuration dict (that might include unum objects) to
@@ -25,12 +40,6 @@ def ConfigurationToJSON(conf):
         dict with all the values as string
 
     """
-    def unumToStr(obj):
-        if isinstance(obj,Unum):
-            ret = str(obj).replace(" [","*").replace("]","")
-        else:
-            ret = str(obj)
-        return ret
 
     ret = {}
     for key,value in conf.items():
@@ -63,17 +72,11 @@ def JSONToConfiguration(JSON):
         A dict with the values convected to unum.
 
     """
-    def strToUnum(obj):
-        try:
-            ret = eval(str(value))
-        except:
-            ret = value
-        return ret
 
     ret ={}
     for key,value in JSON.items():
         if isinstance(value,dict):
-            ret[key] = convertJSONtoConf(JSON[key])
+            ret[key] = JSONToConfiguration(JSON[key])
         elif isinstance(value,list):
             ret[key] = [strToUnum(x) for x in value]
         elif "'" in str(value):
