@@ -47,10 +47,11 @@ def ConfigurationToJSON(conf):
             ret[key] = ConfigurationToJSON(value)
         elif isinstance(value,list):
             ret[key] = [unumToStr(x) for x in value]
-        elif "'" in str(value):
-            ret[key] = value
-        else:
+        elif isinstance(value,Unum):
             ret[key] = unumToStr(value)
+        else:
+            ret[key] = value
+
 
     return ret
 
@@ -72,17 +73,16 @@ def JSONToConfiguration(JSON):
         A dict with the values convected to unum.
 
     """
-
     ret ={}
     for key,value in JSON.items():
         if isinstance(value,dict):
             ret[key] = JSONToConfiguration(JSON[key])
         elif isinstance(value,list):
             ret[key] = [strToUnum(x) for x in value]
-        elif "'" in str(value):
-            ret[key] = value
+        elif isinstance(value, Unum):
+            ret[key] = unumToStr(value)
         else:
-            ret[key] = strToUnum(value)
+            ret[key] = value
 
     return ret
 
