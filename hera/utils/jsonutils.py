@@ -79,8 +79,8 @@ def JSONToConfiguration(JSON):
             ret[key] = JSONToConfiguration(JSON[key])
         elif isinstance(value,list):
             ret[key] = [strToUnum(x) for x in value]
-        elif isinstance(value, Unum):
-            ret[key] = unumToStr(value)
+        elif isinstance(value, str):
+            ret[key] = strToUnum(value)
         else:
             ret[key] = value
 
