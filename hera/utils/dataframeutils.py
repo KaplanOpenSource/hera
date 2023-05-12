@@ -2,8 +2,6 @@ import logging
 import numpy
 import pandas
 
-
-
 def compareDataframeConfigurations(data,datasetName="datasetName",parameterName="parameterName",valueName="value",indexList=None,longFormat=False):
     """
         Compares datasets and outputs the keys that differ between them.
@@ -124,10 +122,14 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         if grpdata[valueName].count() < datasetCount:
             diffList.append(grpdata.copy())
 
-    ret = pandas.concat(diffList)
+    if len(diffList) > 0:
+        ret = pandas.concat(diffList)
+        if longFormat is False:
+            ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
-    if longFormat is False:
-        ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
+    else:
+        ret = data[['simulationName']].drop_duplicates()
+
 
     return ret
 

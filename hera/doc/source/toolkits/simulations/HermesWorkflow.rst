@@ -151,10 +151,10 @@ Adding a workflow to the project using the CLI has  ... stages.
         parameters: <The parameters of all the nodes>
     }
 
-    The resource of the document is the dicrecotry of the simulation, the type is STRING
-    and the type is the type of the workflow.
+The resource of the document is the dicrecotry of the simulation, the type is STRING
+and the type is the type of the workflow.
 
-#. Perform addition actions that the user requested (using the
+#. Perform addition actions that the user requested (using the action flag).
 
 
 Using the CLI is as follows:
@@ -187,7 +187,9 @@ then execute it.
 List workflows in the project
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-List all the simulations
+List all the simulations in the group.
+
+
 
 
 
