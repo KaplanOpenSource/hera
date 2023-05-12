@@ -5,7 +5,7 @@ import logging
 import os
 
 from hera import toolkitHome
-from hera.simulations.hermesWorkflowToolkit import actionModes,simulationTypes,HERAMETADATA
+from hera.simulations.hermesWorkflowToolkit import actionModes
 from hera.utils import loadJSON
 from hera.utils.logging.helpers import initialize_logging, with_logger
 from hermes import workflow
@@ -138,11 +138,14 @@ def listSimulations(arguments):
             ----------
             arguments : argument struct with the field:
 
-                - groupName : str, optional
+                - object : str, optional
                             List only the group name if exists.
 .
                 - projectName: str, optional
                             If not supplied, use the project name in caseConfiguration.json.
+
+                - simulationGroup: str, optional
+                            If not supplied, use the file name.
 
                 - no-nodes    : bool [default : true].
                             If exists, does not list the node names.
@@ -181,43 +184,35 @@ def listSimulations(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.list")
     logger.info(f" -- Starting: Listing simulations --")
 
-    simulationGroup = None
+    if arguments.projectName is None:
+        logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        caseConfiguration = loadJSON("caseConfiguration.json")
+        projectName = caseConfiguration['projectName']
 
-    if os.path.isfile(arguments.object):
-        heraMetadata = loadJSON(arguments.object).get(HERAMETADATA, None)
-        if heraMetadata is None:
-            raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
-        projectName = heraMetadata['projectName']
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-        simulationGroup = arguments.simulationGroup if 'simulationGroup' in arguments else arguments.object.split("_")[0]
-        simuationType = heraMetadata['workflowType']
-
-        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-        searchAsGroupOrName = False
-
+    # if arguments.object is None:
+    #     # Listing all the groups in the toolkit.
+    #     docList =  wftk.getSimulationsDocuments(type=wftk.WORKFLOW)
+    #     if docList is None:
+    #         logger.info(f"There are no hermes workflows in project {projectName}")
+    #
+    #     groupNameList = set([x['desc']['groupName'] for x in docList])
+    #
+    #     title = f"The simulation groups in project *{projectName}* "
+    #     print(title)
+    #     print("-" * len(title))
+    #     print("\n".join([x for x in groupNameList]))
+    #
+    # else:
+    simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
+    if simDocument is not None:
+        simulationGroup = simDocument.desc[wftk.DESC_GROUPNAME]
     else:
-        if arguments.projectName is None:
-            logger.info("Project Name not supplied with --projectName, try to get it from the caseConfiguration.json file.")
-            cse = loadJSON("caseConfiguration.json")
-            projectName = cse.get('projectName')
-            if projectName is None:
-                raise ValueError(
-                    f"Project name not supplied. Provide projectName using --projectName, or in the workflow file (under {HERAMETADATA}.projectName, or in the caseConfiguration.json in projectName ")
-        else:
-            projectName = arguments.projectName
-
-        wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-
-        simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
-        if simDocument is not None:
-            simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
-            simuationType = simDocument[0].type
-        else:
-            simDocument = wftk.getSimulationsInGroup(arguments.object)
-            if len(simDocument) == 0:
-                print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
-            simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
-            simuationType   = simDocument[0].type
+        simDocument = wftk.getSimulationsInGroup(arguments.object)
+        if len(simDocument) == 0:
+            print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+        simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     parametersOfNodes    = arguments.parametersOfNodes
     allParams     = arguments.allParameters
@@ -228,8 +223,7 @@ def listSimulations(arguments):
                                           allParams=allParams,
                                           jsonFormat=jsonFormat)
 
-    title = f"The simulations.old in group *{simulationGroup}* of the type *{simuationType}* in project *{projectName}* "
-
+    title = f"The simulations in group *{simulationGroup}*  in project *{projectName}* "
     print(title)
     print("-" * len(title))
     print(simulationList.to_string())
@@ -389,7 +383,7 @@ if __name__ == "__main__":
 
     ### ------------------------
     listSimulations_parser = subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
-    listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project (must supply project name) ')
+    listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project.')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help='The project name')
     listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
     listSimulations_parser.add_argument('--all', dest="allParameters",action="store_true", default=False, help='If exsists, return all the parameters of requested nodes. Else, return only the differences between the different simulations of the requested nodes.')

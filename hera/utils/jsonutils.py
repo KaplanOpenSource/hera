@@ -221,7 +221,7 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
     return pnds[[nameColumn,valueColumn]]
 
 
-def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value"):
+def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColumn="value"):
     """
         converts a JSON (either in file or loaded, or json str) to pandas.
         The pandas flattens the JSON using the json path convection.
