@@ -43,8 +43,6 @@ The  Hermes-workflow JSON has two parts:
 
     {
         "workflowType": "OF_FlowField" ,
-        "projectName": "NTA2022",
-        "simulationGroup": "simpleStation",
         "caseExecution": {...}
     }
 
@@ -55,46 +53,10 @@ be used in for more specialized workflows.
 
 Currently we support:
 
+#. ..            : A general workflow.
 #. OF_FlowField  : A specialized workflow for solving flow fields with OpenFOAM.
 #. OF_Dispersion : A specialized workflow for solving lagrangian dispersion
 
-* projectName is the default project name to use
-
-* simulationGroup : The name of the group to add the simulations to.
-
-* caseExecution : Information on how to run the simulation (and instruction of
-how to build the runtime).
-
-..  code-block:: javascript
-
-    {
-        "caseExecution": {
-            "parallelCase": true,
-            "runFile": [
-                {
-                    "name": "blockMesh",
-                    "couldRunInParallel": false,
-                    "parameters": null
-                    "foamJob": true
-                },
-                .
-                .
-                .
-        }
-    }
-
-Where:
-
-* parallelCase : a flag to determine whether to use parallel execution if the node supports it.
-
-* runFile : A list of programs to run.
-        each program is determined by:
-
-    * name: The name of the program to run.
-    * couldRunInParallel: If true and the case can run in parallel, then
-                          use foamJob -parallel
-    * parameters: A string of parameters to add to the execution. Currently it is not dynamic.
-    * foamJob: if true use foamJob, else just use the string in the name.
 
 Usage (CLI)
 -----------

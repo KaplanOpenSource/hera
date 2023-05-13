@@ -27,6 +27,54 @@ class actionModes(Enum):
     ADDBUILD = auto()
     ADDBUILDEXECUTE = auto()
 
+
+@unique
+class simulationTypes(Enum):
+    WORKFLOW = "hermes_workflow"
+    OF_FLOWFIELD = "OF_FlowField"  # OpenFoam: calculation of the flow field.
+    OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
+    OF_FLOWDISPERSION = "OF_flowDispersion"
+
+    @classmethod
+    def value_of(cls, value):
+        for k, v in cls.__members__.items():
+            if value == v.value:
+                return getattr(cls,k)
+        else:
+            raise ValueError(f"'{cls.__name__}' enum not found for '{value}'")
+
+    @classmethod
+    def isvalid(cls,value):
+        for k, v in cls.__members__.items():
+            if value == v.value:
+                return True
+        else:
+            raise False
+
+    @classmethod
+    def listTypes(cls,self):
+        """
+            Lists the workflow types.
+        Returns
+        -------
+
+        """
+        return [v for k, v in cls.__members__.items()]
+
+
+    @classmethod
+    def workflowsString(cls):
+        """
+            Returns a mongo string with the names of all the types.
+            This is used to get all the documents of the types.
+        Returns
+        -------
+
+        """
+        vals = [v for k, v in cls.__members__.items()]
+        return  f"[{','.join(vals)}]"
+
+
 class workflowToolkit(abstractToolkit):
     """
         Manages the hermes worflows:
@@ -41,7 +89,6 @@ class workflowToolkit(abstractToolkit):
     DESC_GROUPID   = "groupID"
     DESC_SIMULATIONNAME = "simulationName"
     DESC_PARAMETERS = "parameters"
-    WORKFLOW = "hermes_workflow"
 
     def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
         """
@@ -61,9 +108,9 @@ class workflowToolkit(abstractToolkit):
 
         ## Create the simulationType->object map
         self._simulationTypeMap = {
-                        "HermesWorkflow" : "hermes.workflow",
-                         "OF_DispersionWorkflow"  : "hera.simulations.old.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
-                         "OF_FlowFieldWorkflow"  : "hera.simulations.old.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
+                        simulationTypes.WORKFLOW : "hermes.workflow",
+                         simulationTypes.OF_DISPERSION  : "hera.simulations.old.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
+                         simulationTypes.OF_FLOWFIELD  : "hera.simulations.old.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
         }
 
 
@@ -573,6 +620,7 @@ class workflowToolkit(abstractToolkit):
                 raise NotImplementedError(
                     "listSimulations() with parametersOfNodes requires the 'hermes' library, which is nor installed"
                 )
+
             qry = None
             if len(parametersOfNodes) > 0:
                 qry = "nodeName in @parametersOfNodes"
@@ -600,8 +648,8 @@ class workflowToolkit(abstractToolkit):
             #                                           parameterName="parameterName",
             #                                           indexList="nodeName",
             #                                           longFormat=longFormat)
-            else:
-                ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
+            #else:
+            #    ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
         else:
             ret = pandas.DataFrame([x.desc[self.DESC_SIMULATIONNAME] for x in simulationList],columns=[self.DESC_SIMULATIONNAME])
 
@@ -609,5 +657,63 @@ class workflowToolkit(abstractToolkit):
             ret = ret.to_json()
 
         return ret
+
+    def listSimulationGroups(self,workflowType=None,simulationName=True):
+        """
+            Lists all the simulation groups of the current project.
+
+        Parameters
+        ----------
+
+        workflowType : str
+                    The type of workflow to list.
+                    If None, print all of them.
+
+        simulationName : bool
+                    if true, also lists all the simulations in that group.
+
+        Returns
+        -------
+
+        """
+        if workflowType is None:
+            qry = dict(type=workflowType)
+        else:
+            if not simulationTypes.isvalid(workflowType):
+                raise ValueError(f"The workflow type (in workflow.workflowType key) must be one of: {simulationTypes.workflowsString}")
+            qry = dict(type_in=simulationTypes.listTypes())
+
+        docLists = self.getSimulationsDocuments(**qry)
+        if docLists is None:
+            print(f"There are no simulations in project {self.projectName}")
+        else:
+            data = pandas.DataFrame([dict(type=doc['type'],simulationName=doc['desc']['simulationName'],groupName=doc['desc']['groupName']) for doc in docLists])
+
+            for (groupType,groupName),grpdata in data.groupby(["type","groupName"]):
+                ttl = f"{groupType}"
+                print(ttl)
+                print("-"*(len(ttl)))
+                print(f"\t* {groupName}")
+                if simulationName:
+                    for simName in grpdata.simulationName.unique():
+                        print(f"\t\t + {simName}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
