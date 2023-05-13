@@ -572,26 +572,26 @@ if __name__ == "__main__":
                                     help="If exist, delete the execution files first")
     parser_execute.set_defaults(func=workflow_buildExecute)
 
-
-    ##
-    #   Nodes
-    ###
-    nodes = subparsers.add_parser('nodes', help='Information about the nodes in the workflow')
-    noded_subparsers = nodes.add_subparsers(help='sub-command help')
-
-    ##             +++++++++++++++++++
-    nodes_list = noded_subparsers.add_parser('list', help='Lists the nodes in the workflow.')
-    nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
-    nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help=projectNameHelpDesc)
-    nodes_list.add_argument('--parameters', dest="parameters", action="store_true", default=False,help='Also pring the paramters of each node')
-    nodes_list.set_defaults(func=workflowNodes_list)
-
-    ###             +++++++++++++++++++
-    nodes_list = noded_subparsers.add_parser('parameters', help='Lists the parameters of the nodes.')
-    nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
-    nodes_list.add_argument('nodeName', type=str, help='The node to list the paramters')
-    nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help=projectNameHelpDesc)
-    nodes_list.set_defaults(func=workflowNodes_listParameters)
+    #
+    # ##
+    # #   Nodes
+    # ###
+    # nodes = subparsers.add_parser('nodes', help='Information about the nodes in the workflow')
+    # noded_subparsers = nodes.add_subparsers(help='sub-command help')
+    #
+    # ##             +++++++++++++++++++
+    # nodes_list = noded_subparsers.add_parser('list', help='Lists the nodes in the workflow.')
+    # nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
+    # nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help=projectNameHelpDesc)
+    # nodes_list.add_argument('--parameters', dest="parameters", action="store_true", default=False,help='Also pring the paramters of each node')
+    # nodes_list.set_defaults(func=workflowNodes_list)
+    #
+    # ###             +++++++++++++++++++
+    # nodes_list = noded_subparsers.add_parser('parameters', help='Lists the parameters of the nodes.')
+    # nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
+    # nodes_list.add_argument('nodeName', type=str, help='The node to list the paramters')
+    # nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help=projectNameHelpDesc)
+    # nodes_list.set_defaults(func=workflowNodes_listParameters)
 
 
     parsed = parser.parse_args()
