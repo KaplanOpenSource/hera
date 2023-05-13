@@ -235,13 +235,32 @@ class workflowToolkit(abstractToolkit):
             else:
                 self.logger.debug(f"... Found it ")
 
+            docList = docList[0] if len(docList) > 0 else None
+
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
             currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
             docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW)
-        else:
-            raise ValueError("nameOrWorkflowFileOrJSONOrResource must be ")
 
-        return docList[0] if len(docList) >0 else None
+            docList = docList[0] if len(docList) > 0 else None
+
+        elif isinstance(nameOrWorkflowFileOrJSONOrResource,list):
+            docList = []
+            for simulationItem in nameOrWorkflowFileOrJSONOrResource:
+                docs = self.getSimulationsInGroup(simulationItem)
+                if docs is not None:
+                    docList += docs
+                else:
+                    doc = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW, simulationName=simulationItem)
+                    if doc is None:
+                        doc = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW, resource=simulationItem)
+                        if doc is None:
+                            self.logger.info(f"{simulationItem} is not found in project {self.projectName}")
+                    docList.append(doc)
+
+        else:
+            raise ValueError("nameOrWorkflowFileOrJSONOrResource must be a str, dict or list ")
+
+        return docList
 
 
     def getSimulationsInGroup(self, simulationGroup: str, **kwargs):
@@ -514,6 +533,9 @@ class workflowToolkit(abstractToolkit):
             self.logger.debug(executionStr)
             os.system(executionStr)
 
+
+
+
     def compareWorkflows(self,
                          workFlows: Union[list, str],
                          diffParams : bool = True,
@@ -543,20 +565,7 @@ class workflowToolkit(abstractToolkit):
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         self.logger.info("--- Start ---")
 
-        simulationList = []
-        for simulationItem in numpy.atleast_1d(workFlows):
-
-            docs = self.getSimulationsInGroup(simulationItem)
-            if docs is not None:
-                simulationList += docs
-            else:
-                doc = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW,simulationName=simulationItem)
-                if doc is None:
-                    doc = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW,resource=simulationItem)
-                    if doc is None:
-                        self.logger.info(f"{simulationItem} is not found in project {self.projectName}")
-                simulationList.append(doc)
-
+        simulationList = self.getSimulationDocumentFromDB(list(workFlows))
         simParamList = []
 
         for simulationDoc in simulationList:
