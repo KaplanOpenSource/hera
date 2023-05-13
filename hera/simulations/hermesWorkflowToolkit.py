@@ -12,6 +12,8 @@ from ..datalayer import datatypes
 import numpy
 import pydoc
 import warnings
+from collections.abc import Iterable
+
 
 try:
     from hermes import workflow
@@ -89,6 +91,8 @@ class workflowToolkit(abstractToolkit):
     DESC_GROUPID   = "groupID"
     DESC_SIMULATIONNAME = "simulationName"
     DESC_PARAMETERS = "parameters"
+
+    DOCTYPE_WORKFLOW = "hermesWorkflow"
 
     def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
         """
@@ -215,17 +219,17 @@ class workflowToolkit(abstractToolkit):
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
             # try to find it as a name
             self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
-            docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource,type=self.WORKFLOW)
+            docList = self.getSimulationsDocuments(simulationName=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW)
             if len(docList) == 0:
                 self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
-                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource,type=self.WORKFLOW)
+                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW)
                 if len(docList) == 0:
                     self.logger.debug(f"... not found. Try to query as a json. ")
                     try:
                         jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
                         wf = self.getHermesWorkflowFromJSON(jsn)
                         currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
-                        docList = self.getSimulationsDocuments(type=self.WORKFLOW, **currentQuery)
+                        docList = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW, **currentQuery)
                     except ValueError:
                         return None
             else:
@@ -233,7 +237,7 @@ class workflowToolkit(abstractToolkit):
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
             currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
-            docList = self.getSimulationsDocuments(**currentQuery,type=self.WORKFLOW)
+            docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW)
         else:
             raise ValueError("nameOrWorkflowFileOrJSONOrResource must be ")
 
@@ -265,7 +269,7 @@ class workflowToolkit(abstractToolkit):
             list of mongo documents.
 
         """
-        return self.getSimulationsDocuments(groupName=simulationGroup,type=self.WORKFLOW, **kwargs)
+        return self.getSimulationsDocuments(groupName=simulationGroup, type=self.DOCTYPE_WORKFLOW, **kwargs)
 
     def findAvailableName(self, simulationGroup: str, **kwargs):
         """
@@ -282,7 +286,6 @@ class workflowToolkit(abstractToolkit):
 
         simulationType : str
             The type of the workflow.
-            if None, use DOCTYPE_WORKFLOW
 
         **kwargs : dict
                 additional fileters.
@@ -365,10 +368,6 @@ class workflowToolkit(abstractToolkit):
             If None, parse the name under the format
                 <groupname>_<id> to get the group and the ID.
 
-        simulationType : simulationTypes
-            The type of the workflow. [optional]
-            If none, use the WORKFLOW type.
-
         overwrite : bool
             If true, update the record if it exists.
             If false, throw an exception if the record exists.
@@ -431,7 +430,7 @@ class workflowToolkit(abstractToolkit):
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
             self.logger.debug("Generating ID from the DB")
-            groupID, simulationName = self.findAvailableName(simulationGroup=groupName, simulationType=theType)
+            groupID, simulationName = self.findAvailableName(simulationGroup=groupName, workflowType=theType)
             self.logger.debug(f" Got id : {groupID} and suggested name {simulationName}")
         else:
             simulationName = cleanName
@@ -452,7 +451,7 @@ class workflowToolkit(abstractToolkit):
         self.logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
-        docList = self.getSimulationsInGroup(simulationGroup=groupName, simulationType=theType, **currentQuery)
+        docList = self.getSimulationsInGroup(simulationGroup=groupName, workflowType=theType, **currentQuery)
 
         if len(docList) > 0 and (not force) and (docList[0]['desc']['simulationName'] != simulationName):
             doc = docList[0]
@@ -463,17 +462,18 @@ class workflowToolkit(abstractToolkit):
 
             #   b. Check if the name of the simulation already exists in the group
             self.logger.debug(f"Check if the name of the simulation {simulationName} already exists in the group")
-            docList = self.getSimulationsInGroup(simulationGroup=groupName, simulationType=theType, simulationName=simulationName)
+            docList = self.getSimulationsInGroup(simulationGroup=groupName, workflowType=theType, simulationName=simulationName)
 
             if len(docList) == 0:
                 self.logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, simulationName),
                                                   dataFormat=datatypes.STRING,
-                                                  type=theType,
+                                                  type=self.DOCTYPE_WORKFLOW,
                                                   desc=dict(
                                                       groupName=groupName,
                                                       groupID=groupID,
                                                       simulationName=simulationName,
+                                                      workflowType=theType,
                                                       workflow=hermesWF.json,
                                                       parameters=hermesWF.parametersJSON)
                                                   )
@@ -514,8 +514,10 @@ class workflowToolkit(abstractToolkit):
             self.logger.debug(executionStr)
             os.system(executionStr)
 
-    def compare(self, workFlows: Union[list, str], docType: str = None, nodes: Union[list, str] = None,
-                allParameters: bool = True, JSON: bool = False) -> Union[dict, pandas.DataFrame]:
+    def compareWorkflows(self,
+                         workFlows: Union[list, str],
+                         diffParams : bool = True,
+                         longFormat : bool = False) -> Union[dict, pandas.DataFrame]:
         """
             Compares two or more simulations.old.
 
@@ -524,16 +526,10 @@ class workflowToolkit(abstractToolkit):
         ----------
         workFlows : str,list
                 A single input uses it as a group name,
-                a list is the list of cases to compare.
+                a list is the list of case names to compare.
 
-        docType : str
-                The type of simulations.old. If not supplied use DOCTYPE_WORKFLOW
-
-        nodes  : str,list
-                The node name or a list of nodes to dislay
-
-        allParameters: bool
-                If true, then display all the parameters and not only those that are differ between two simulations.old.
+        diffParams: bool
+                If true display only differences.
 
         JSON: bool
                 If true, return the results as a JSON and not pandas.DataFrame.
@@ -547,38 +543,54 @@ class workflowToolkit(abstractToolkit):
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         self.logger.info("--- Start ---")
 
-        # 1. Get all the simulations.old
-        if isinstance(workFlows, Iterable):
-            self.logger.debug("Workflow is iterable. Trying to retrieve the parameters for each item individually. ")
+        simulationList = []
+        for simulationItem in numpy.atleast_1d(workFlows):
 
-            workflowList = []
+            docs = self.getSimulationsInGroup(simulationItem)
+            if docs is not None:
+                simulationList += docs
+            else:
+                doc = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW,simulationName=simulationItem)
+                if doc is None:
+                    doc = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW,resource=simulationItem)
+                    if doc is None:
+                        self.logger.info(f"{simulationItem} is not found in project {self.projectName}")
+                simulationList.append(doc)
 
-            for simulation in workFlows:
-                if os.path.exists(simulation):
-                    workflowJSON = loadJSON(simulation)
-                else:
-                    theType = self.DOCTYPE_WORKFLOW if docType is None else docType
-                    docList = self.getSimulationDocuments(simulationName=simulation, type=theType)
-                    if len(docList) == 0:
-                        raise ValueError(f"Simulation {simulation} was not found on disk or in the project. ")
-                    workflowJSON = docList[0]['desc']['workflow']
+        simParamList = []
 
-                workflowList.append(workflow(workflowJSON, WD_path=self.FilesDirectory))
+        for simulationDoc in simulationList:
 
-        else:
-            self.logger.debug("Workflow is a groupName. Get the simulations.old from the group")
-            simulationList = self.getSimulationsInGroup(simulationGroup=workFlows, simulationType=docType)
-            workflowList = [workflow(x['desc']['workflow'], WD_path=self.FilesDirectory) for x in simulationList]
+            wf = workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory)
+            simulationParameters = convertJSONtoPandas(wf.parametersJSON)\
+                                                .fillna("")\
+                                                .assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
 
-        return workflowList
+            simulationParameters = simulationParameters.assign(
+                ParameterName=simulationParameters.apply(lambda x: ".".join(x.parameterNameFullPath.split(".")[1:]), axis=1),
+                nodeName=simulationParameters.apply(lambda x: x.parameterNameFullPath.split(".")[0], axis=1))
 
-    def listSimulations(self,
+            #parameterName = simulationParameters.apply(lambda x: x.parameterNameFullPath.split(".")[-1], axis=1),
+            #if qry is not None:
+            #    simulationParameters = simulationParameters.query(qry)
+
+            simParamList.append(simulationParameters)
+
+        res = pandas.concat(simParamList)
+
+        if diffParams:
+            res = compareDataframeConfigurations(res,
+                                           datasetName="simulationName",
+                                           parameterName="ParameterName",
+                                           indexList="nodeName",
+                                           longFormat=longFormat)
+
+        return res
+
+    def workflow_list(self,
                         simulationGroup:str,
-                        parametersOfNodes:list = None,
-                        allParams:bool = False,
-                        longFormat:bool=False,
-                        jsonFormat:bool = False
-                        ) -> Union[pandas.DataFrame,dict]:
+                        listNodes : bool = False,
+                        listParameters : bool = False) -> Union[pandas.DataFrame,dict]:
         """
             Lists all the simulations in the simulation group (of this project).
 
@@ -595,8 +607,6 @@ class workflowToolkit(abstractToolkit):
         ----------
         simulationGroup : str
             The name of the group
-        simulationType : str, optional
-            Additional filter according to the simulation type.
 
         parametersOfNodes  : list[str]
             If None, just return the names of the simulations.old. Otherwise add the parameters from the requested nodes.
@@ -613,50 +623,26 @@ class workflowToolkit(abstractToolkit):
 
         """
         simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup)
-        if not simulationList:
-            return {} if jsonFormat else pandas.DataFrame()
-        if parametersOfNodes is not None:
-            if workflow is None:
-                raise NotImplementedError(
-                    "listSimulations() with parametersOfNodes requires the 'hermes' library, which is nor installed"
-                )
+        ret = []
+        for simdoc in simulationList:
+            val = dict(simulationName=simdoc['desc']['simulationName'])
 
-            qry = None
-            if len(parametersOfNodes) > 0:
-                qry = "nodeName in @parametersOfNodes"
+            if listNodes:
+                val['nodes'] = simdoc['desc']['workflow']['workflow']['nodeList']
 
-            simParamList = []
-            for simulationDoc in simulationList:
-                wf = workflow(simulationDoc['desc']['workflow'])
-                simulationParameters = convertJSONtoPandas(wf.parametersJSON).fillna("").assign(simulationName=simulationDoc.desc[self.DESC_SIMULATIONNAME])
-                simulationParameters = simulationParameters.assign(parameterName=simulationParameters.apply(lambda x: x.parameterNameFullPath.split(".")[-1], axis=1),
-                                                                                 nodeName=simulationParameters.apply(lambda x: x.parameterNameFullPath.split(".")[0], axis=1))
+            if listParameters:
+                val['parameters'] = simdoc['desc']['parameters']
 
-                if qry is not None:
-                    simulationParameters = simulationParameters.query(qry)
-
-                simParamList.append(simulationParameters)
-
-            res = pandas.concat(simParamList)
-
-            res[['simulationName', 'nodeName', 'parameterName', 'value']].set_index(
-                ["simulationName", 'nodeName', 'parameterName'])
-
-            # if not allParams:
-            #     ret =  compareDataframeConfigurations(res,
-            #                                           datasetName="simulationName",
-            #                                           parameterName="parameterName",
-            #                                           indexList="nodeName",
-            #                                           longFormat=longFormat)
-            #else:
-            #    ret = res.pivot(index="simulationName",columns=["nodeName","parameterName"],values="value")
-        else:
-            ret = pandas.DataFrame([x.desc[self.DESC_SIMULATIONNAME] for x in simulationList],columns=[self.DESC_SIMULATIONNAME])
-
-        if jsonFormat:
-            ret = ret.to_json()
+            ret.append(val)
 
         return ret
+#
+# else:
+# ret = pandas.DataFrame([x.desc[self.DESC_SIMULATIONNAME] for x in simulationList], columns=[self.DESC_SIMULATIONNAME])
+#
+# if jsonFormat:
+#     ret = ret.to_json()
+
 
     def listSimulationGroups(self,workflowType=None,simulationName=True):
         """
@@ -676,18 +662,18 @@ class workflowToolkit(abstractToolkit):
         -------
 
         """
-        if workflowType is None:
-            qry = dict(type=workflowType)
-        else:
+        qry = dict(type=self.DOCTYPE_WORKFLOW)
+        if workflowType is not None:
+
             if not simulationTypes.isvalid(workflowType):
                 raise ValueError(f"The workflow type (in workflow.workflowType key) must be one of: {simulationTypes.workflowsString}")
-            qry = dict(type_in=simulationTypes.listTypes())
+            qry['workflowType'] = workflowType
 
         docLists = self.getSimulationsDocuments(**qry)
         if docLists is None:
             print(f"There are no simulations in project {self.projectName}")
         else:
-            data = pandas.DataFrame([dict(type=doc['type'],simulationName=doc['desc']['simulationName'],groupName=doc['desc']['groupName']) for doc in docLists])
+            data = pandas.DataFrame([dict(type=doc['desc']['workflowType'],simulationName=doc['desc']['simulationName'],groupName=doc['desc']['groupName']) for doc in docLists])
 
             for (groupType,groupName),grpdata in data.groupby(["type","groupName"]):
                 ttl = f"{groupType}"

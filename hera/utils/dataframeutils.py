@@ -74,6 +74,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
     diffList = []
     indexList = [] if indexList is None else [x for x in numpy.atleast_1d(indexList)]
 
+
     # Convert the configuration to a single dataframe in longformat.
     if isinstance(data,list):
         if len(data) == 0:
