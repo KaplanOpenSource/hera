@@ -462,27 +462,34 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='Topic:')
 
-    ##
-    #   Simulation group
-    ##
-    group_simulationGroup = subparsers.add_parser('group', help='Handles simulation group')
-    simulationGroup_subparsers = group_simulationGroup.add_subparsers(help='Handles simulation group')
+    list_parser = subparsers.add_parser('list', help='Handles listing of the items')
+    list_subparser = list_parser.add_subparsers(help='Handles simulation group')
 
-    parser_prepare = simulationGroup_subparsers.add_parser('list', help='List the simulationsin the group.')
+    ##
+    #   List group
+    ##
+    parser_prepare = list_subparser.add_parser('groups', help='List the group in the project.')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_prepare.add_argument('--type', type=str,dest="type", default=None, help='Specify the simulation type')
     parser_prepare.add_argument('--simulationName',dest="simulationName",action="store_true", default=False, help='If exists, show the simulation names')
-
-
     parser_prepare.set_defaults(func=simulationGroup_list)
 
-    ##
-    #   Workflows
-    ##
-    group_workflows = subparsers.add_parser('workflows', help='Handles workflows')
-    workflows_subparsers = group_workflows.add_subparsers(help='Handles workflows')
 
-    parser_prepare = workflows_subparsers.add_parser('add', help='Adds simulations.old to the group.')
+    ##
+    #   List workflows in a group
+    ##
+    listSimulations_parser = list_subparser.add_parser('workflows', help='Lists the workflows in the group of that project.')
+    listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project.')
+    listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
+    #listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
+    listSimulations_parser.add_argument('--nodes', dest="nodes",action="store_true", default=False, help='If exsists, list the nodes of each simulation')
+    listSimulations_parser.add_argument('--parameters', dest="parameters", action="store_true", default=False,
+                                        help='If exsists, list the nodes of each simulation with their parameters (replace --nodes)')
+    #listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
+    #                                    help='If exsists, return the results as JSON and not as pandas table')
+    listSimulations_parser.set_defaults(func=workflow_list)
+
+    parser_prepare = subparsers.add_parser('add', help='Adds a workflow to the group.')
     parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_prepare.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group. [Optional]. If None, try to infer from the file name  ')
@@ -497,24 +504,13 @@ if __name__ == "__main__":
                                 default='AddBuildExecute')
     parser_prepare.set_defaults(func=workflow_add)
 
-    ### ------------------------
-    listSimulations_parser = workflows_subparsers.add_parser('list', help='Lists the simulations in the simulation group of that project.')
-    listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project.')
-    listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
-    #listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
-    listSimulations_parser.add_argument('--nodes', dest="nodes",action="store_true", default=False, help='If exsists, list the nodes of each simulation')
-    listSimulations_parser.add_argument('--parameters', dest="parameters", action="store_true", default=False,
-                                        help='If exsists, list the nodes of each simulation with their parameters (replace --nodes)')
-    #listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
-    #                                    help='If exsists, return the results as JSON and not as pandas table')
-    listSimulations_parser.set_defaults(func=workflow_list)
 
     ### ------------------------
-    export = workflows_subparsers.add_parser('export', help='Saves the workflow to the disk.')
+    export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
     # --build - also builds the python executer
 
     ### ------------------------
-    compare_parser = workflows_subparsers.add_parser('compare', help='Compare two or more simulations.old. ')
+    compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations.old. ')
     compare_parser.add_argument('workflows', nargs="+", type=str,
                                 help='[groupName] - compare all the simulations.old, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
     compare_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
@@ -529,7 +525,7 @@ if __name__ == "__main__":
     compare_parser.set_defaults(func=workflow_compare)
 
     ### ------------------------
-    delete_parser = workflows_subparsers.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
+    delete_parser = subparsers.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
     delete_parser.add_argument('workflows', nargs="+", type=str,
                                 help='[groupName] - compare all the simulations.old, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
     delete_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
@@ -545,13 +541,13 @@ if __name__ == "__main__":
 
 
     ##### execuion of the workflows.
-    parser_expandWorkflow = workflows_subparsers.add_parser('expand',
+    parser_expandWorkflow = subparsers.add_parser('expand',
                                                   help='Expands the workflow JSON with the default values of the nodes')
     parser_expandWorkflow.add_argument('workflow', type=str, help="base workflow")
     parser_expandWorkflow.add_argument('caseName', type=str, help="the name of the case to run")
     parser_expandWorkflow.set_defaults(func=workflow_expand)
 
-    parser_buildExecuter = workflows_subparsers.add_parser('build',
+    parser_buildExecuter = subparsers.add_parser('build',
                                                  help='Builds the python execution file for the execution engine ')
     parser_buildExecuter.add_argument('workflow', type=str, help="base workflow")
     parser_buildExecuter.add_argument('caseName', type=str, help="the name of the case to run")
@@ -559,39 +555,18 @@ if __name__ == "__main__":
                                       help="A path to paremeters file (optional)")
     parser_buildExecuter.set_defaults(func=workflow_build)
 
-    parser_execute = workflows_subparsers.add_parser('execute',
+    parser_execute = subparsers.add_parser('execute',
                                            help='Runs the python execution file with the appropriate execution engine')
     parser_execute.add_argument('caseName', type=str, help="the name of the case to run")
     parser_execute.add_argument('--force', dest="force", default=False, action="store_true",
                                 help="If exist, delete the execution files first")
     parser_execute.set_defaults(func=workflow_execute)
 
-    parser_runWorkflow = workflows_subparsers.add_parser('buildExecute', help='Expands, builds and executes the workflow JSON')
+    parser_runWorkflow = subparsers.add_parser('buildExecute', help='Expands, builds and executes the workflow JSON')
     parser_runWorkflow.add_argument('workflow', type=str, help="base workflow")
     parser_runWorkflow.add_argument('--force', dest="force", default=False, action="store_true",
                                     help="If exist, delete the execution files first")
     parser_execute.set_defaults(func=workflow_buildExecute)
-
-    #
-    # ##
-    # #   Nodes
-    # ###
-    # nodes = subparsers.add_parser('nodes', help='Information about the nodes in the workflow')
-    # noded_subparsers = nodes.add_subparsers(help='sub-command help')
-    #
-    # ##             +++++++++++++++++++
-    # nodes_list = noded_subparsers.add_parser('list', help='Lists the nodes in the workflow.')
-    # nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
-    # nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help=projectNameHelpDesc)
-    # nodes_list.add_argument('--parameters', dest="parameters", action="store_true", default=False,help='Also pring the paramters of each node')
-    # nodes_list.set_defaults(func=workflowNodes_list)
-    #
-    # ###             +++++++++++++++++++
-    # nodes_list = noded_subparsers.add_parser('parameters', help='Lists the parameters of the nodes.')
-    # nodes_list.add_argument('workflowName', type=str, help='The workflow name. Can be a file on the disk or a name of simulation')
-    # nodes_list.add_argument('nodeName', type=str, help='The node to list the paramters')
-    # nodes_list.add_argument('--projectName',dest="projectName",default=None, type=str, help=projectNameHelpDesc)
-    # nodes_list.set_defaults(func=workflowNodes_listParameters)
 
 
     parsed = parser.parse_args()
