@@ -68,7 +68,7 @@ def prepareAll(arguments):
         hwf.projectName = projectName
 
     if simulationGroup is not None:
-        hwf.simulationGroup = simulationGroup
+        hwf.workflowGroup = simulationGroup
 
     if caseExecution is not None:
         hwf.caseExecution = caseExecution

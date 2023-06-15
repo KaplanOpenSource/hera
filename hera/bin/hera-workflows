@@ -40,10 +40,10 @@ def simulationGroup_list(args):
 
 
     simulationType = args.type
-    simulationName = args.simulationName
+    workflowName = args.workflowName
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    wftk.listSimulationGroups(workflowType=simulationType,simulationName=simulationName)
+    wftk.listSimulationGroups(workflowType=simulationType,workflowName=workflowName)
 
 
 def workflow_add(args):
@@ -106,7 +106,7 @@ def workflow_add(args):
 
     try:
         wftk.addToGroup(workflowJSON=workflowFile,
-                        groupName= args.simulationGroup,
+                        groupName= args.workflowGroup,
                         assignName=args.assignName,
                         overwrite=args.overwrite,
                         action=action,
@@ -145,8 +145,8 @@ def workflow_delete(arguments):
     completeRemove = []
 
     for sim in simulationList:
-        logger.info(f" Deleting the workflow: {sim['desc']['simulationName']}")
-        outfileName = f"{sim['desc']['simulationName']}.json"
+        logger.info(f" Deleting the workflow: {sim['desc']['workflowName']}")
+        outfileName = f"{sim['desc']['workflowName']}.json"
 
         if not arguments.noExport:
             logger.execution(f"Exporting the deleted document as {outfileName}")
@@ -191,7 +191,7 @@ def workflow_delete(arguments):
     #     print("No simulations.old found!")
     # else:
     #     for x in docList:
-    #         print(f"Deleting {x.desc['simulationName']} in Group {x.desc['groupName']}")
+    #         print(f"Deleting {x.desc['workflowName']} in Group {x.desc['groupName']}")
     #         x.delete()
 
 
@@ -293,7 +293,7 @@ def workflow_list(arguments):
     print("-" * len(title))
 
     for doc in simulationList:
-        print(f"\t* {doc['simulationName']}")
+        print(f"\t* {doc['workflowName']}")
         if listNodes:
                 for node in doc['nodes']:
                     print(f"\t\t + {node}")
@@ -471,7 +471,7 @@ if __name__ == "__main__":
     parser_prepare = list_subparser.add_parser('groups', help='List the group in the project.')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_prepare.add_argument('--type', type=str,dest="type", default=None, help='Specify the simulation type')
-    parser_prepare.add_argument('--simulationName',dest="simulationName",action="store_true", default=False, help='If exists, show the simulation names')
+    parser_prepare.add_argument('--workflowName',dest="workflowName",action="store_true", default=False, help='If exists, show the simulation names')
     parser_prepare.set_defaults(func=simulationGroup_list)
 
 
