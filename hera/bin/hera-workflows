@@ -12,7 +12,7 @@ from hera.utils.logging.helpers import initialize_logging, with_logger
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
-def simulationGroup_list(args):
+def WorkflowsGroup_list(args):
     """
         List all the simulations group
     Parameters
@@ -43,7 +43,7 @@ def simulationGroup_list(args):
     workflowName = args.workflowName
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    wftk.listSimulationGroups(workflowType=simulationType,workflowName=workflowName)
+    wftk.listWorkflowsGroups(workflowType=simulationType, workflowName=workflowName)
 
 
 def workflow_add(args):
@@ -174,7 +174,7 @@ def workflow_delete(arguments):
     #     if heraMetadata is None:
     #         raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
     #     projectName = heraMetadata['projectName']
-    #     simulationGroup = heraMetadata['simulationGroup']
+    #     workflowGroup = heraMetadata['workflowGroup']
     #     simuationType = heraMetadata['workflowType']
     #
     #     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
@@ -209,7 +209,7 @@ def workflow_list(arguments):
                 - projectName: str, optional
                             If not supplied, use the project name in caseConfiguration.json.
 
-                - simulationGroup: str, optional
+                - workflowGroup: str, optional
                             If not supplied, use the file name.
 
                 - no-nodes    : bool [default : true].
@@ -273,22 +273,22 @@ def workflow_list(arguments):
 
     simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
     if simDocument is not None:
-        simulationGroup = simDocument.desc[wftk.DESC_GROUPNAME]
+        workflowGroup = simDocument.desc[wftk.DESC_GROUPNAME]
     else:
         simDocument = wftk.getSimulationsInGroup(arguments.object)
         if len(simDocument) == 0:
             print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
-        simulationGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+        workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes
     parameters    = arguments.parameters
 
-    simulationList = wftk.workflow_list(simulationGroup=simulationGroup,
+    simulationList = wftk.workflow_list(workflowGroup=workflowGroup,
                                         listNodes=listNodes,
                                         listParameters=parameters)
 
 
-    title = f"The simulations in group *{simulationGroup}*  in project *{projectName}* "
+    title = f"The simulations in group *{workflowGroup}*  in project *{projectName}* "
     print(title)
     print("-" * len(title))
 
@@ -472,7 +472,7 @@ if __name__ == "__main__":
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_prepare.add_argument('--type', type=str,dest="type", default=None, help='Specify the simulation type')
     parser_prepare.add_argument('--workflowName',dest="workflowName",action="store_true", default=False, help='If exists, show the simulation names')
-    parser_prepare.set_defaults(func=simulationGroup_list)
+    parser_prepare.set_defaults(func=WorkflowsGroup_list)
 
 
     ##
@@ -492,7 +492,7 @@ if __name__ == "__main__":
     parser_prepare = subparsers.add_parser('add', help='Adds a workflow to the group.')
     parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.add_argument('--simulationGroup',dest="simulationGroup", default=None, type=str, help='The simulation group. [Optional]. If None, try to infer from the file name  ')
+    parser_prepare.add_argument('--workflowGroup',dest="workflowGroup", default=None, type=str, help='The simulation group. [Optional]. If None, try to infer from the file name  ')
     parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                 help='overwrite the existing workflow with the same name')
     parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
