@@ -34,7 +34,7 @@ class abstractWorkflow(hermes.workflow):
     def parameters(self):
         return self['Parameters']
 
-    def __init__(self, workflowJSON, workflowHeraDocument=None):
+    def __init__(self, workflowJSON, workflowHeraDocument=None,name=None):
         """
             Initializes the abstract workflow.
 
@@ -46,7 +46,7 @@ class abstractWorkflow(hermes.workflow):
         workflowDoc : hera document.
                 Holds the data of the database (optional).
         """
-        super().__init__(workflowJSON=workflowJSON)
+        super().__init__(workflowJSON=workflowJSON,name=name)
         self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowHeraDocument = workflowHeraDocument
 
@@ -101,7 +101,7 @@ class Workflow_Flow(abstractWorkflow):
         in parallel (for example the decompose par).
 
     """
-    def __init__(self,workflowJSON,parallelNodes=None,workflowHeraDocument=None):
+    def __init__(self,workflowJSON,parallelNodes=None,workflowHeraDocument=None,name=None):
         """
             Initializes a openFOAM hermes workflow.
 
@@ -134,7 +134,7 @@ class Workflow_Flow(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument)
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
         self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
 
         # examine here that all the nodes exist, if not - it is not a flow
@@ -720,7 +720,7 @@ class Workflow_Flow(abstractWorkflow):
 
 class Workflow_Dispersion(abstractWorkflow):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
         # examine here that all the nodes exist, if not - it is not a flow
