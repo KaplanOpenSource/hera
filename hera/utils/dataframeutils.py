@@ -129,7 +129,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
             ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
     else:
-        ret = data[['simulationName']].drop_duplicates()
+        ret = data[['workflowName']].drop_duplicates()
 
 
     return ret

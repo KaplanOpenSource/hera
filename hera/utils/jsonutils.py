@@ -221,7 +221,7 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
     return pnds[[nameColumn,valueColumn]]
 
 
-def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value"):
+def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColumn="value"):
     """
         converts a JSON (either in file or loaded, or json str) to pandas.
         The pandas flattens the JSON using the json path convection.
@@ -269,7 +269,7 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value
         toProcessList = pnds1[dictIndex].set_index("parameterName")[['value']]
         for pname,data in toProcessList.iterrows():
             newdata = processJSONToPandas(data.value,nameColumn=nameColumn,valueColumn=valueColumn)
-            newdata = newdata.assign(parameterName=newdata.parameterName.apply(lambda x: f"{pname}.{x}"))
+            newdata = newdata.assign(parameterNameFullPath=newdata.parameterName.apply(lambda x: f"{pname}.{x}"))
             base.append(newdata)
 
         pnds1 = pandas.concat(base,ignore_index=True)
