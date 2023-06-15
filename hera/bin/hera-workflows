@@ -144,7 +144,9 @@ def workflow_delete(arguments):
 
     completeRemove = []
 
+
     for sim in simulationList:
+        shouldRemove = True
         logger.info(f" Deleting the workflow: {sim['desc']['workflowName']}")
         outfileName = f"{sim['desc']['workflowName']}.json"
 
@@ -154,45 +156,100 @@ def workflow_delete(arguments):
                 with open(outfileName,"w") as outfile:
                     json.dump(sim['desc']['workflow'],outfile,indent=4)
             else:
-                logger.execution("...Document exists in dir, not exporting")
+                logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
+                shouldRemove = False
 
-        res = sim.resource
-
-        completeRemove.append(f"shutil.rmtree('{res}')")
-
-        logger.debug("... remove from DB")
-        sim.delete()
+        if shouldRemove:
+            res = sim.resource
+            completeRemove.append(f"shutil.rmtree('{res}')")
+            logger.debug("... remove from DB")
+            sim.delete()
 
     with open("completeDelete.py","w") as outfile:
         outfile.write("\n".join(completeRemove))
 
     print("In order to remove all directories from disk type: python completeRemove.py")
 
-    # if os.path.isfile(arguments.object):
-    #
-    #     heraMetadata = loadJSON(arguments.object).get(HERAMETADATA, None)
-    #     if heraMetadata is None:
-    #         raise ValueError(f"No hera metadata in {arguments.workflow}. Supply metadata or a project name. ")
-    #     projectName = heraMetadata['projectName']
-    #     workflowGroup = heraMetadata['workflowGroup']
-    #     simuationType = heraMetadata['workflowType']
-    #
-    #     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    #
-    # else:
-    #     if arguments.projectName is None:
-    #         raise ValueError(f"Must supply a projectName. use --projectName ")
-    #     projectName = arguments.projectName
-    #     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    #
-    # docList =wftk.getSimulationDocumentFromDB(arguments.object)
-    #
-    # if len(docList) == 0:
-    #     print("No simulations.old found!")
-    # else:
-    #     for x in docList:
-    #         print(f"Deleting {x.desc['workflowName']} in Group {x.desc['groupName']}")
-    #         x.delete()
+def workflow_export(arguments):
+    """
+        Exports the workflow in the DB to the disk
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.delete")
+    logger.info(f" -- Starting: Deleting workflows --")
+
+
+    if arguments.projectName is None:
+        logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        caseConfiguration = loadJSON("caseConfiguration.json")
+        projectName = caseConfiguration['projectName']
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    simulationList = wftk.getSimulationDocumentFromDB(list(arguments.workflows))
+
+    for sim in simulationList:
+        outfileName = f"{sim['desc']['workflowName']}.json"
+
+        logger.execution(f"Exporting document as {outfileName}")
+        if not os.path.isfile(outfileName) or arguments.forceOverwrite:
+            with open(outfileName,"w") as outfile:
+                json.dump(sim['desc']['workflow'],outfile,indent=4)
+        else:
+            logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory, not export. Removing file or use the forceOverwrite flags")
+            print(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory, not export. Removing file or use the forceOverwrite flags")
+
+def workflow_compareToDisk(arguments):
+    """
+        Exports the workflow in the DB to the disk
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.delete")
+    logger.info(f" -- Starting: Deleting workflows --")
+
+    if arguments.projectName is None:
+        logger.execution(
+            f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        caseConfiguration = loadJSON("caseConfiguration.json")
+        projectName = caseConfiguration['projectName']
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    simulationList = wftk.getHermesWorkflowFromDB(list(arguments.workflows),returnFirst=False)
+
+    for sim in simulationList:
+        outfileName = f"{sim.name}.json"
+        if not os.path.isfile(outfileName):
+            print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
+        else:
+            localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local")
+            smName = sim.name
+            sim.name = "DB"
+            res = wftk.compareWorkflowsObj([sim,localWorkflow])
+            ttl = f"Simulation {smName}"
+            print(ttl)
+            print("-"*len(ttl))
+            if len(res.columns)==1:
+                print("\t\t ** Disk and DB are identical")
+                print(" ")
+            else:
+                print(res)
+
+
 
 
 def workflow_list(arguments):
@@ -272,13 +329,9 @@ def workflow_list(arguments):
     # else:
 
     simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
-    if simDocument is not None:
-        workflowGroup = simDocument.desc[wftk.DESC_GROUPNAME]
-    else:
-        simDocument = wftk.getSimulationsInGroup(arguments.object)
-        if len(simDocument) == 0:
-            print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
-        workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
+    if len(simDocument) == 0:
+        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+    workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes
     parameters    = arguments.parameters
@@ -523,7 +576,7 @@ if __name__ == "__main__":
     # --build - also builds the python executer
 
     ### ------------------------
-    compare_parser = subparsers.add_parser('compare', help='Compare two or more simulations.old. ')
+    compare_parser = subparsers.add_parser('compare', help='Compare two or more workflows')
     compare_parser.add_argument('workflows', nargs="+", type=str,
                                 help='[groupName] - compare all the simulations.old, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
     compare_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
@@ -545,19 +598,32 @@ if __name__ == "__main__":
 
     ### ------------------------
     delete_parser = subparsers.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
-    delete_parser.add_argument('workflows', nargs="+", type=str,
-                                help='[groupName] - compare all the simulations.old, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
+    delete_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to remove')
     delete_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     delete_parser.add_argument('--no-export',dest="noExport", default=False, action="store_true", help='Does not save the deleted workflow to the disk')
     delete_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
                                help='Overwrite the export if the file exists')
 
     delete_parser.set_defaults(func=workflow_delete)
-    # --includeRun - also deletes the run.
-    # --group     - deletes all the simulation with that prefix.
-    # --no-export  - does not save the deleted workflow to the disk.
 
+    ### ------------------------
+    export_parser = subparsers.add_parser('export', help='Export the workflows to the disk')
+    export_parser.add_argument('workflows', nargs="+", type=str,help='the list of workflows to export')
+    export_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    export_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
+                               help='Overwrite the export if the file exists')
 
+    export_parser.set_defaults(func=workflow_export)
+    ### ------------------------
+
+    export_parser = subparsers.add_parser('compareToDisk', help='Compares the workflow in the DB to the file on the disk')
+    export_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to export')
+    export_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    export_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
+                               help='Overwrite the export if the file exists')
+
+    export_parser.set_defaults(func=workflow_compareToDisk)
+    ### ------------------------
 
     ##### execuion of the workflows.
     parser_expandWorkflow = subparsers.add_parser('expand',
@@ -591,4 +657,3 @@ if __name__ == "__main__":
     parsed = parser.parse_args()
 
     parsed.func(parsed)
-    # todo: add printint of the workflows.
