@@ -151,16 +151,35 @@ Adds the workflow with the name of the workflow file.
 * Use the --action to add, add and build the python execution or add, build the execution python and
 then execute it. The default AddBuildRun: add, build the python executer and run it.
 
-Compare workflows.
-^^^^^^^^^^^^^^^^^^
+Comparing workflows.
+^^^^^^^^^^^^^^^^^^^^
 
-In order to compare two or more workflows use
+When comparing simulations, the tool lists the differing parameters along with their corresponding values. By default, the simulations are displayed as columns and the parameters are displayed as rows.
 
 .. code-block::
 
-    >> hera-workflows list group <workflow file>
+    >> hera-workflows compare <obj1> <obj2> ....
                          [--projectName <projectName>]
-                         [--nodes] or [--parameters]
+                         [--longTable]
+                         [--transpose]
+                         [--format pandas|json|latex]
+                         [--file <outputfileName>]
+
+The input obj can take various forms, such as a simulation name,
+a directory path on the disk, a file name on the disk, or a workflow group name.
+In the case of a workflow group name, all the simulations within that group will be compared to each other.
+
+* if --projectName is not supplied, the try to read it from the caseConfiguration.json file.
+
+* if --longTable is supplied, then the results are pronted as a long table.
+  That is, each parameter (that differs) in each simulation is shown in one line.
+
+* if --transpose is supplied, the the simulations are printed as rows and the parameters are printed as lines.
+
+* The --format prints the comparison in different formats.
+
+* if the --file is supplied, then the output is also printed to a file. If the outputfileName
+  does not have extension (i.e it is just the name), the the file name will be appended with
 
 
 

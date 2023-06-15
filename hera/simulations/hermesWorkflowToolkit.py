@@ -232,7 +232,7 @@ class workflowToolkit(abstractToolkit):
                     docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW)
                     if len(docList) == 0:
                         self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
-                        docList = self.getSimulationsDocuments(workflowGroup=nameOrWorkflowFileOrJSONOrResource,
+                        docList = self.getSimulationsDocuments(groupName=nameOrWorkflowFileOrJSONOrResource,
                                                                type=self.DOCTYPE_WORKFLOW)
                         if len(docList) == 0:
                             self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
@@ -567,7 +567,8 @@ class workflowToolkit(abstractToolkit):
     def compareWorkflows(self,
                          workFlows: Union[list, str],
                          diffParams : bool = True,
-                         longFormat : bool = False) -> Union[dict, pandas.DataFrame]:
+                         longFormat : bool = False,
+                         transpose  : bool = False) -> Union[dict, pandas.DataFrame]:
         """
             Compares two or more simulations.old.
 
@@ -611,16 +612,19 @@ class workflowToolkit(abstractToolkit):
 
             simParamList.append(simulationParameters)
 
-        res = pandas.concat(simParamList)
+        if len(simParamList) == 0:
+            res = pandas.DataFrame()
+        else:
+            res = pandas.concat(simParamList)
 
-        if diffParams:
-            res = compareDataframeConfigurations(res,
-                                           datasetName="workflowName",
-                                           parameterName="ParameterName",
-                                           indexList="nodeName",
-                                           longFormat=longFormat)
+            if diffParams:
+                res = compareDataframeConfigurations(res,
+                                               datasetName="workflowName",
+                                               parameterName="ParameterName",
+                                               indexList="nodeName",
+                                               longFormat=longFormat)
 
-        return res
+        return res.T if transpose else res
 
     def workflow_list(self,
                       workflowGroup:str,
