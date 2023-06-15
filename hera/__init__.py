@@ -1,4 +1,4 @@
-__version__ = '2.9.1'
+__version__ = '2.10.0'
 
 import sys
 python_version = sys.version_info
@@ -12,6 +12,8 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+2.10.0
+------
 
     #38: - Rerwiting the hera-workflows to have simpler interface. 
          - Fixing bugs in dataframeutils and json utils. 
