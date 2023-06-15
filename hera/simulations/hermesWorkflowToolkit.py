@@ -597,9 +597,9 @@ class workflowToolkit(abstractToolkit):
         return res
 
     def workflow_list(self,
-                        simulationGroup:str,
-                        listNodes : bool = False,
-                        listParameters : bool = False) -> Union[pandas.DataFrame,dict]:
+                      workflowGroup:str,
+                      listNodes : bool = False,
+                      listParameters : bool = False) -> Union[pandas.DataFrame,dict]:
         """
             Lists all the simulations in the simulation group (of this project).
 
@@ -614,7 +614,7 @@ class workflowToolkit(abstractToolkit):
 
         Parameters
         ----------
-        simulationGroup : str
+        workflowGroup : str
             The name of the group
 
         parametersOfNodes  : list[str]
@@ -631,7 +631,7 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations.old and their values.
 
         """
-        simulationList = self.getSimulationsInGroup(simulationGroup=simulationGroup)
+        simulationList = self.getSimulationsInGroup(simulationGroup=workflowGroup)
         ret = []
         for simdoc in simulationList:
             val = dict(workflowName=simdoc['desc']['workflowName'])
@@ -646,7 +646,7 @@ class workflowToolkit(abstractToolkit):
 
         return ret
 
-    def listSimulationGroups(self,workflowType=None,workflowName=True):
+    def listWorkflowsGroups(self, workflowType=None, workflowName=True):
         """
             Lists all the simulation groups of the current project.
 
@@ -671,8 +671,8 @@ class workflowToolkit(abstractToolkit):
             qry['workflowType'] = workflowType
 
         docLists = self.getSimulationsDocuments(**qry)
-        if docLists is None:
-            print(f"There are no simulations in project {self.projectName}")
+        if len(docLists)==0:
+            print(f"There are no workflow-groups in project {self.projectName}")
         else:
             data = pandas.DataFrame([dict(type=doc['desc']['workflowType'],workflowName=doc['desc']['workflowName'],groupName=doc['desc']['groupName']) for doc in docLists])
 
