@@ -207,7 +207,7 @@ class experimentHome(toolkit.abstractToolkit):
 
         Returns
         -------
-            Instance of the hera.measurements.experiment.experiment.experimentSetupWithData
+            Instance of the hera.measurements.old.experiment.experiment.experimentSetupWithData
             that was derived for the specific experiment.
         """
         if experimentDataType not in [PARQUETHERA, PANDASDB,DASKDB]:

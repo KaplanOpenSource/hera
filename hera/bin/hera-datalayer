@@ -85,8 +85,8 @@ from hera import datalayer
 #             "\tLoad to the database all the documents found in the given file.",
 #             "\tThe file should be a JSON file in the following format:\n",
 #             '''\t    {
-#                 "Measurements":[list of measurements documents],
-#                 "Simulations":[list of simulations documents],
+#                 "Measurements":[list of measurements.old documents],
+#                 "Simulations":[list of simulations.old documents],
 #                 "Cache":[list of cache documents]
 #             }\n''',
 #             "\033[1mEXAMPLE\033[0m",

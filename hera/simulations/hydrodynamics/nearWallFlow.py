@@ -182,7 +182,7 @@ class channelFlow(nearWallFlow):
 
     def Re_tau(self,ustar):
         """
-            Returns the Reynolds number with ustar and half channel height as measurements.
+            Returns the Reynolds number with ustar and half channel height as measurements.old.
 
         :param ustar:
         :return:
@@ -305,7 +305,7 @@ class couetteFlow(nearWallFlow):
 
     def Re_tau(self, ustar):
         """
-            Returns the Reynolds number with ustar and half channel height as measurements.
+            Returns the Reynolds number with ustar and half channel height as measurements.old.
 
         :param ustar:
         :return:

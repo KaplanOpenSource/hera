@@ -113,9 +113,9 @@ def createDBConnection(user, mongoConfig,alias=None):
                       or the given alias name.
 
         - Metadata: the meta data object that holds all the documets.
-        - Measurements:  documents of the measurements.
+        - Measurements:  documents of the measurements.old.
         - Cache:      documents of the cache.
-        - Simulations:   documents of the simulations.
+        - Simulations:   documents of the simulations.old.
 
     Parameters
     ----------

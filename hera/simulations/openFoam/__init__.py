@@ -1,7 +1,6 @@
 import warnings
 from .datalayer.OFObjects import ofObjectHome
-from ..hermesWorkflowToolkit import HERAMETADATA
-
+from .datalayer.hermesWorkflow import Workflow_Flow,Workflow_Dispersion
 
 OFObjectHome = ofObjectHome()
 

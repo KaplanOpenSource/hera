@@ -8,6 +8,8 @@ import sys
 import pickle
 import io
 import rasterio
+from ..utils import loadJSON
+
 
 version = sys.version_info[0]
 if version == 3:
@@ -182,12 +184,7 @@ class DataHandler_JSON_dict(object):
         -------
         dict
         """
-        try:
-            df = json.loads(resource)
-        except JSONDecodeError:
-            with open(resource, 'r') as myFile:
-                df = json.load(myFile)
-
+        df = loadJSON(resource)
         return df
 
 

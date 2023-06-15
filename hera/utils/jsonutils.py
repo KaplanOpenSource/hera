@@ -47,11 +47,10 @@ def ConfigurationToJSON(conf):
             ret[key] = ConfigurationToJSON(value)
         elif isinstance(value,list):
             ret[key] = [unumToStr(x) for x in value]
-        elif isinstance(value,Unum):
-            ret[key] = unumToStr(value)
-        else:
+        elif "'" in str(value):
             ret[key] = value
-
+        else:
+            ret[key] = unumToStr(value)
 
     return ret
 
@@ -73,16 +72,17 @@ def JSONToConfiguration(JSON):
         A dict with the values convected to unum.
 
     """
+
     ret ={}
     for key,value in JSON.items():
         if isinstance(value,dict):
             ret[key] = JSONToConfiguration(JSON[key])
         elif isinstance(value,list):
             ret[key] = [strToUnum(x) for x in value]
-        elif isinstance(value, str):
-            ret[key] = strToUnum(value)
-        else:
+        elif "'" in str(value):
             ret[key] = value
+        else:
+            ret[key] = strToUnum(value)
 
     return ret
 
@@ -221,7 +221,7 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
     return pnds[[nameColumn,valueColumn]]
 
 
-def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value"):
+def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColumn="value"):
     """
         converts a JSON (either in file or loaded, or json str) to pandas.
         The pandas flattens the JSON using the json path convection.
@@ -269,7 +269,7 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterName", valueColumn="value
         toProcessList = pnds1[dictIndex].set_index("parameterName")[['value']]
         for pname,data in toProcessList.iterrows():
             newdata = processJSONToPandas(data.value,nameColumn=nameColumn,valueColumn=valueColumn)
-            newdata = newdata.assign(parameterName=newdata.parameterName.apply(lambda x: f"{pname}.{x}"))
+            newdata = newdata.assign(parameterNameFullPath=newdata.parameterName.apply(lambda x: f"{pname}.{x}"))
             base.append(newdata)
 
         pnds1 = pandas.concat(base,ignore_index=True)

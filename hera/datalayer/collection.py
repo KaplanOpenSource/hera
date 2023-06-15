@@ -191,7 +191,7 @@ class AbstractCollection(object):
 
 class Measurements_Collection(AbstractCollection):
     """
-        Abstract collection that contains documents of measurements
+        Abstract collection that contains documents of measurements.old
     """
 
     def __init__(self, user=None):

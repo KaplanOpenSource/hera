@@ -54,7 +54,7 @@ def test_get_default_logging_config():
     assert not config.get('disable_existing_loggers', True)
     # Sample configs relying on the '{hera_log}' replacement
     _assert_resolved_path(config['handlers']['bin']['filename'])
-    _assert_resolved_path(config['handlers']['simulations']['filename'])
+    _assert_resolved_path(config['handlers']['simulations.old']['filename'])
 
 
 def _assert_resolved_path(alleged_path):

@@ -5,7 +5,7 @@ from .datalayer.OFObjects import OFField,OFMeshBoundary
 from .datalayer.hermesWorkflow import Workflow_Flow
 from .datalayer.OFObjects import ofObjectHome
 from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
-from ..hermesWorkflowToolkit import workflowToolkit,simulationTypes
+from ..hermesWorkflowToolkit import workflowToolkit,workflowsTypes
 from ...utils import loadJSON
 from ...datalayer import datatypes
 from .analysis.VTKPipeline import VTKpipeline
@@ -229,7 +229,7 @@ class OFToolkit(workflowToolkit):
                             - directory
                             - simulationName (without filters).
 
-                        To implement the rst, we might need to extend the scripts to use multiple baseFlow simulations.
+                        To implement the rst, we might need to extend the scripts to use multiple baseFlow simulations.old.
 
             simulationGroup : str
                     The name of the group.
@@ -293,7 +293,7 @@ class OFToolkit(workflowToolkit):
             )
 
             self.logger.debug(f"Test if the requested flow field already exists in the project")
-            docList = self.getSimulationsDocuments(type=simulationTypes.OF_FLOWDISPERSION.value,**querydict)
+            docList = self.getSimulationsDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value, **querydict)
         else:
             self.logger.debug(f"Running without DB support, so does not query the db ")
             docList = []
@@ -305,7 +305,7 @@ class OFToolkit(workflowToolkit):
             if useDBSupport:
                 if len(docList) == 0:
                     self.logger.debug("Getting a new name")
-                    groupID,simulationName = self.findAvailableName(simulationGroup, simulationType=simulationTypes.OF_FLOWDISPERSION.value)
+                    groupID,simulationName = self.findAvailableName(simulationGroup, simulationType=workflowsTypes.OF_FLOWDISPERSION.value)
                 else:
                     resource = docList[0].resource
                     simulationName = docList[0].desc['name']
@@ -419,7 +419,7 @@ class OFToolkit(workflowToolkit):
                         name=simulationName,
                     ))
                     self.logger.debug("Adding record to the database")
-                    self.addSimulationsDocument(resource=dest,type=simulationTypes.OF_FLOWDISPERSION.value,dataFormat=datatypes.STRING,desc=querydict)
+                    self.addSimulationsDocument(resource=dest, type=workflowsTypes.OF_FLOWDISPERSION.value, dataFormat=datatypes.STRING, desc=querydict)
 
             ret = dest
         else:
@@ -480,7 +480,7 @@ class OFToolkit(workflowToolkit):
                 warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
             return docList[0].resource
         else:
-            raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.")
+            raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
 
 
 
