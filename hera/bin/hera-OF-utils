@@ -12,8 +12,7 @@ import json
 import os
 import pandas
 from hera.utils.jsonutils import loadJSON
-from hera.simulations.openFoam import Workflow_Flow, Workflow_Dispersion
-from hera.simulations.openFoam.datalayer.OFObjects import ofObjectHome
+from hera.simulations.openFoam import ofObjectHome, Workflow_Flow, Workflow_Dispersion
 from hera import toolkitHome
 import glob
 
@@ -25,6 +24,9 @@ def createEmpty(args):
     print(f"Making case {caseDir} with fields {','.join(fieldList)}")
 
     # Make the case :
+    if os.path.isfile(caseDir):
+        raise ValueError(f"The file {caseDir} exists as a file. Cannot create a directory. Please remove/rename it and rerun. ")
+
     os.makedirs(os.path.join(caseDir,"constant"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "system"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "constant","triSurface"), exist_ok=True)

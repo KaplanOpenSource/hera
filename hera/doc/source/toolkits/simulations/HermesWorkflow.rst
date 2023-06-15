@@ -5,75 +5,150 @@ Hermes-workflow toolkit
 
 Overview
 --------
+The Hermes workflow is designed to automate the creation of configuration files and the execution of files for running general applications.
 
-The hermes workflow is used to automate the creation of configuration files and running files
-for running general application.
+Each workflow is stored in JSON format. To execute a workflow, the JSON is translated into a Python program using the Hermes package.
+The Hermes-workflow toolkit manages the toolkits within a hera project.
+This toolkit enables users to add workflows to the project, check for the existence of a workflow based on its parameters, and compare different
+workflows.
 
-Each workflow is stored as a JSON format. In order to execute a workflow, the JSON is translated  to python program by the
-Hermes package. The Hermes-workflow toolkit manages the toolkits in the project. That is, the toolkit allows
-the user to add workflows to the project, check if a simulation exists, and compare two simulations.
+Each workflow has a name, typically based on the name of the JSON workflow file, although this is not mandatory.
+Additionally, each workflow belongs to a simulation group (simulationGroup). The toolkit allows the users
+to simply compare the parameters of the different workflows within the group.
+Generally, the simulations are named [group name]_[group id]. However, users can choose names that do not follow this convention.
+The groups are defined dynamically, that is, if there is a workflow with a group defined.
 
-Each workflow has a name (the name of the workflow json file) and belong
-to a group of simulations (simulationGroup). Generally, the names of the simulations
-are [group name]_[group id]. However, the user can determine names that do not follow
-this convention.
+The toolkit can be used as a library from code, or directly from a command-line interface (CLI). This CLI enables users to perform all operations conveniently.
 
-To simplify the use of the toolkit, the toolkit also supplies command line interface (CLI)
-that allows the user to perform all the operations.
-
-Workflow JSON structure
-------------------------
-
-The  Hermes-workflow JSON has two parts:
-
-..  code-block:: javascript
-
-    {
-        "workflow": {....} ,
-        "heraMetaData": {...}
-    }
-
-1. workflow     - The definition of the workflow.
-                  The structure is delineated in the Hermes package documentation.
-
-2. heraMetaData - A description of the metadata that is used to describe.
-                  The structure of the heraMetaData JSON is:
-
-..  code-block:: javascript
-
-    {
-        "workflowType": "OF_FlowField" ,
-        "caseExecution": {...}
-    }
-
-Where:
-
-*  workflowType is the type of the workflow. This parameter will
-be used in for more specialized workflows.
-
-Currently we support:
-
-#. ..            : A general workflow.
-#. OF_FlowField  : A specialized workflow for solving flow fields with OpenFOAM.
-#. OF_Dispersion : A specialized workflow for solving lagrangian dispersion
-
-
-Usage (CLI)
+Basic usage
 -----------
 
-In this section we will describe how to use the toolkit with the CLI.
+The toolkit allows the user to:
 
-The CLI allows the user to :
-
-#. Add workflows to the project.
-#. List workflows in the project.
+#. Add a workflow to a group in a project.
+#. List the simulation groups in a project.
+#. List the names of the workflows in group.
+#. Compare the parameters of different simulations.
+#. Export the workflow from the database to a file in the directory.
 #. Build the python execution file.
 #. Run the python execution file.
 #. Build and Run the python execution file.
-#. Compare simulations.
+
+All these actions can be achieved with the CLI.
+
+Preparing usage
+---------------
+
+Preparing the usage of the simulations has two steps:
+
+#. Building the workflow template(s)
+#. Setting up default configuration options.
+
+Building the workflow template
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Building the workflow template can be achieved by :
+
+#. Building the workflow from scratch.
+#. Adjust an existing template manually
+#. Adjust an existing template using case configuration.
+
+Building a workflow from scratch and adjusting it manually is documented in the hermes workflow.
+
+Adjusting the existing template using case configurateion is covered here.
+We note that sometimes it is necessary to adjust the results manually (or using the GUI in the hermes workflow).
+
+The specialization of the workflow perfomed by setting the values of different parameters in the template
+to reflect the needs of the specific simulation. For example, in a template for wind calculation using OpenFOAM,
+the specialization is setting up the topography and the blockmesh (and possible the urban region, if needed).
+
+The current [planned] specializations are:
+
+* Flow field - indoors
+* Flow field - outdoors (topography and urban)
+* Stochastic Lagrangian Dispersion
+
+[The explanation of the specialization for the different cases will be described in the future]
+
+Setting up default configuration options.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The defaults are stored in the caseConfiguration file.
+Specifically, the **projectName** that is used when no project name is supplied to the CLI
+is given in:
+
+
+..  code-block:: javascript
+
+    {
+        "projectName" : <project name>
+    }
+
+Using with CLI
+--------------
+
+In this section we will describe how to use the toolkit with the CLI.
+
+List the workflow groups in a project.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+List all the workflow groups in the project.
+A workflow groups is defined when a simulation was added to that group.
+A group is deleted when all the simulation that belong to the group were
+deleted from the project.
+
+.. code-block::
+
+    >> hera-workflows list group <workflow file>
+                         [--projectName <projectName>]
+
+
+
+List workflows in the group
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+List all the simulations in the group.
+
+#. Add a workflow to a group in a project.
+#. List eh simulation groups in a project.
+#. List the names of the workflows in group.
+#. Delete a simulation
+#. Compare the parameters of different simulations.
+#. Export the workflow from the database to a file in the directory.
+#. Build the python execution file.
+#. Run the python execution file.
+#. Build and Run the python execution file.
 
 Add workflows to the project
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block::
+
+    >> hera-workflows add <workflow file>
+                         [--projectName <projectName>]
+                         [--groupName <groupName>]
+                         [--overwrite]
+                         [--force]
+                         [--assignName]
+                         [--action Add|AddBuild|AddBuildRun]
+
+Adds the workflow with the name of the workflow file.
+
+* if --projectName is not supplied, the try to read it from the caseConfiguration.json file.
+
+* If --groupName appears use the name supplied as the group name.
+  Otherwise deduce the groupname from the workflow file name.
+
+* If --overwrite exists than overwite the DB document with the contents
+  of the file.
+
+* If --force exists than allow the addition of workflow that exists in the DB under a different name.
+
+* If --assignName exists then find the next available ID in the group and use it.
+
+* Use the --action to add, add and build the python execution or add, build the execution python and
+then execute it.
+
 
 Adding a workflow to the project using the CLI has  ... stages.
 
@@ -101,59 +176,27 @@ Adding a workflow to the project using the CLI has  ... stages.
    If the simulation data already exists in the DB, use --force
    to add it again with the new name.
 
-   The record in the DB has the following fields:
+#. Perform addition actions that the user requested (using the action flag).
+
+
+Internals
+---------
+
+The toolkit saves each workflow as a documnet in the project with the following
+structure
 
 ..  code-block:: javascript
 
     {
         groupName : <group name>,
         groupID : <group ID>,
-        simulationName:  <simulationName>,
+        workflowName:  <simulationName>,
         workflow    : workflow JSON,
         parameters: <The parameters of all the nodes>
     }
 
 The resource of the document is the dicrecotry of the simulation, the type is STRING
 and the type is the type of the workflow.
-
-#. Perform addition actions that the user requested (using the action flag).
-
-
-Using the CLI is as follows:
-
-.. code-block::
-
-    >> hera-workflows add <workflow file>
-                         [--projectName <projectName>]
-                         [--groupName <groupName>]
-                         [--overwrite]
-                         [--force]
-                         [--assignName]
-                         [--action Add|AddBuild|AddBuildRun]
-
-Adds the workflow with the name of the workflow file.
-
-* If --groupName appears use the name supplied as the group name.
-  Otherwise deduce the groupname from the workflow file name.
-
-* If --overwrite exists than overwite the DB document with the contents
-  of the file.
-
-* If --force exists than allow the addition of workflow that exists in the DB under a different name.
-
-* If --assignName exists then find the next available ID in the group and use it.
-
-* Use the --action to add, add and build the python execution or add, build the execution python and
-then execute it.
-
-List workflows in the project
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-List all the simulations in the group.
-
-
-
-
 
 
 

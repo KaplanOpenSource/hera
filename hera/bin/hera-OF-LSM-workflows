@@ -66,7 +66,7 @@ def makeDispersionWorkflow(arguments):
         hwf.projectName = configuration['projectName']
 
     if simulationGroup is not None:
-        hwf.simulationGroup = simulationGroup
+        hwf.workflowGroup = simulationGroup
 
     hwf.workflowType = simulationTypes.OF_DISPERSION
 

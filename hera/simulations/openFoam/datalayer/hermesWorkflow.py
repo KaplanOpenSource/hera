@@ -7,76 +7,81 @@ from hera import toolkitHome
 from ....utils import loadJSON
 from ....utils.logging import helpers as hera_logging
 from ....utils.freeCAD import getObjFileBoundaries
-#from ....datalayer import Project
 from itertools import product
 from ...openFoam import ofObjectHome
-from ...hermesWorkflowToolkit import simulationTypes,HERAMETADATA
+from ...hermesWorkflowToolkit import workflowsTypes
 
 try:
-    from hermes import workflow
+    import hermes
 except ImportError:
     raise ImportError("Cannot use this module without hermes... Install it. ")
 
 
-class abstractWorkflow(workflow):
+class abstractWorkflow(hermes.workflow):
     """
             An abstract specialization of the hermes workflow to the
             openfoam workflow.
 
+            Add 2 capabilities to the hermes.workflow:
+
+            1.  Access to the group and the project names.
+            1.  Adds the specific functionalities for an OpenfFOAM workflow (determining initial conditions, and ect).
     """
+
+    workflowDescirption = None
 
     @property
     def parameters(self):
         return self['Parameters']
 
-    def __init__(self, workflowJSON, workflowType=simulationTypes.WORKFLOW):
+    def __init__(self, workflowJSON, workflowHeraDocument=None):
+        """
+            Initializes the abstract workflow.
+
+        Parameters
+        ----------
+        workflowJSON : json
+                The JSON that describes the workflow.
+
+        workflowDoc : hera document.
+                Holds the data of the database (optional).
+        """
         super().__init__(workflowJSON=workflowJSON)
         self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
-        self.workflowType = workflowType
-
-
-    @property
-    def caseExecution(self):
-        return self._workflowJSON.get(HERAMETADATA,dict()).get('caseExecution',None)
-
-    @caseExecution.setter
-    def caseExecution(self, value):
-        self._workflowJSON.setdefault(HERAMETADATA,dict())
-        self._workflowJSON[HERAMETADATA]['caseExecution'] = value
+        self.workflowHeraDocument = workflowHeraDocument
 
     @property
-    def projectName(self):
-        return self._workflowJSON.get(HERAMETADATA,dict()).get('projectName',None)
-    
-    @projectName.setter
-    def projectName(self, value):
-        self._workflowJSON.setdefault(HERAMETADATA,dict())
-        self._workflowJSON[HERAMETADATA]['projectName'] = value
-    
-    @property
-    def simulationGroup(self):
-        return self._workflowJSON.get(HERAMETADATA,dict()).get('simulationGroup',None)
+    def workflowGroup(self):
+        ret = None
+        if self.workflowHeraDocument:
+            return self.workflowHeraDocument['desc']['groupName']
 
-    @simulationGroup.setter
-    def simulationGroup(self, value):
-        self._workflowJSON.setdefault(HERAMETADATA,dict())
-        self._workflowJSON[HERAMETADATA]['simulationGroup'] = value
+    @workflowGroup.setter
+    def workflowGroup(self, value):
+        ret = None
+        if not isinstance(value,str):
+            raise ValueError("Group name must be a string")
+        if self.workflowHeraDocument:
+            self.workflowHeraDocument['desc']['groupName'] = value
+            self.workflowHeraDocument.save()
+        return ret
 
     @property
-    def workflowType(self):
-        return self._workflowJSON.get(HERAMETADATA, dict()).get('workflowType', None)
+    def workflowGroupID(self):
+        ret = None
+        if self.workflowHeraDocument:
+            return self.workflowHeraDocument['desc']['groupID']
 
-    @workflowType.setter
-    def workflowType(self, value):
-        self._workflowJSON.setdefault(HERAMETADATA,dict())
+    @workflowGroup.setter
+    def workflowGroupID(self, value):
+        ret = None
+        if not isinstance(value,str):
+            raise ValueError("Group name must be a string")
+        if self.workflowHeraDocument:
+            self.workflowHeraDocument['desc']['groupID'] = value
+            self.workflowHeraDocument.save()
+        return ret
 
-        if isinstance(value,str):
-            if not simulationTypes.isvalid(value):
-                raise ValueError(f"{value} is not a valid simulation type. ")
-        else:
-            value = value.value # get the string value of the enum.
-
-        self._workflowJSON[HERAMETADATA]['workflowType'] = value
 
 class Workflow_Flow(abstractWorkflow):
     """
@@ -96,7 +101,7 @@ class Workflow_Flow(abstractWorkflow):
         in parallel (for example the decompose par).
 
     """
-    def __init__(self,workflowJSON,parallelNodes=None):
+    def __init__(self,workflowJSON,parallelNodes=None,workflowHeraDocument=None):
         """
             Initializes a openFOAM hermes workflow.
 
@@ -129,7 +134,7 @@ class Workflow_Flow(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
-        super().__init__(workflowJSON=workflowJSON,workflowType=simulationTypes.OF_FLOWFIELD)
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument)
         self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
 
         # examine here that all the nodes exist, if not - it is not a flow
@@ -715,7 +720,7 @@ class Workflow_Flow(abstractWorkflow):
 
 class Workflow_Dispersion(abstractWorkflow):
 
-    def __init__(self ,workflowJSON):
-        super().__init__(workflowJSON=workflowJSON,workflowType=simulationTypes.OF_DISPERSION)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument)
 
         # examine here that all the nodes exist, if not - it is not a flow
