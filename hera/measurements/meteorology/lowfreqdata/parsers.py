@@ -30,12 +30,12 @@ class LowFrequencyAbstractParser:
             Remove the digits and the ' ' in station name
 
         Parameters
-        -----------
+        ----------
         stationName: str
             the station name
 
         Returns
-        ------
+        -------
             The filtered station name
         """
         return "".join([x for x in stationName if not x.isdigit()]).strip().replace(' ', '_')

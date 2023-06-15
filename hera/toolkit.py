@@ -84,7 +84,7 @@ class ToolkitHome:
             Returns a toolkit for the requested project.
 
         Parameters
-        -----------
+        ----------
         projectName: str
             The name of the project
 
@@ -329,7 +329,7 @@ class abstractToolkit(Project):
             Returns a single document.
 
         Parameters
-        ------
+        ----------
         datasourceName: str
             The datasourceName of the source
             if None, return the default source (if set).
@@ -373,7 +373,8 @@ class abstractToolkit(Project):
             Returns the data from the datasource.
 
         Parameters
-        ------
+        ----------
+
         datasourceName: str
             The datasourceName of the source
             if None, return the default source (if set).
