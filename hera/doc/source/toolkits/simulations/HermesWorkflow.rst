@@ -102,25 +102,25 @@ deleted from the project.
     >> hera-workflows list group <workflow file>
                          [--projectName <projectName>]
 
-
-
-List workflows in the group
+List workflows in a group
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-List all the simulations in the group.
+Listing all the workflows in the group:
 
-#. Add a workflow to a group in a project.
-#. List eh simulation groups in a project.
-#. List the names of the workflows in group.
-#. Delete a simulation
-#. Compare the parameters of different simulations.
-#. Export the workflow from the database to a file in the directory.
-#. Build the python execution file.
-#. Run the python execution file.
-#. Build and Run the python execution file.
+.. code-block::
+
+    >> hera-workflows list group <workflow file>
+                         [--projectName <projectName>]
+                         [--nodes] or [--parameters]
+
+* --nodes flag will print a list of the nodes for each workflow.
+* --parametrs flag will also print the list of parameters.
 
 Add workflows to the project
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A workflow that was added to the project, belongs to a workflow group automatically.
+The user can supply the workgroup, or let hera determine it from the code.
 
 .. code-block::
 
@@ -137,7 +137,9 @@ Adds the workflow with the name of the workflow file.
 * if --projectName is not supplied, the try to read it from the caseConfiguration.json file.
 
 * If --groupName appears use the name supplied as the group name.
+
   Otherwise deduce the groupname from the workflow file name.
+  That is, we assume that the name of the workflow is <groupname>_<id>.json
 
 * If --overwrite exists than overwite the DB document with the contents
   of the file.
@@ -147,10 +149,56 @@ Adds the workflow with the name of the workflow file.
 * If --assignName exists then find the next available ID in the group and use it.
 
 * Use the --action to add, add and build the python execution or add, build the execution python and
-then execute it.
+then execute it. The default AddBuildRun: add, build the python executer and run it.
+
+Compare workflows.
+^^^^^^^^^^^^^^^^^^
+
+In order to compare two or more workflows use
+
+.. code-block::
+
+    >> hera-workflows list group <workflow file>
+                         [--projectName <projectName>]
+                         [--nodes] or [--parameters]
 
 
-Adding a workflow to the project using the CLI has  ... stages.
+
+
+
+#. Export the workflow from the database to a file in the directory.
+#. Build the python execution file.
+#. Run the python execution file.
+#. Build and Run the python execution file.
+
+
+
+Internals
+---------
+
+Hera document structure
+^^^^^^^^^^^^^^^^^^^^^^^
+
+The toolkit saves each workflow as a documnet in the project with the following
+structure
+
+..  code-block:: javascript
+
+    {
+        groupName : <group name>,
+        groupID : <group ID>,
+        workflowName:  <simulationName>,
+        workflow    : workflow JSON,
+        parameters: <The parameters of all the nodes>
+    }
+
+The resource of the document is the dicrecotry of the simulation, the type is STRING
+and the type is the type of the workflow.
+
+Stages in adding a workflow to the project
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Adding a workflow to the project using the CLI has  3 stages.
 
 #.  Determine the simulation and group names.
     The default behaviour assumes the workflow file name has the format
@@ -177,27 +225,6 @@ Adding a workflow to the project using the CLI has  ... stages.
    to add it again with the new name.
 
 #. Perform addition actions that the user requested (using the action flag).
-
-
-Internals
----------
-
-The toolkit saves each workflow as a documnet in the project with the following
-structure
-
-..  code-block:: javascript
-
-    {
-        groupName : <group name>,
-        groupID : <group ID>,
-        workflowName:  <simulationName>,
-        workflow    : workflow JSON,
-        parameters: <The parameters of all the nodes>
-    }
-
-The resource of the document is the dicrecotry of the simulation, the type is STRING
-and the type is the type of the workflow.
-
 
 
 

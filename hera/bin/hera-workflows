@@ -481,7 +481,6 @@ if __name__ == "__main__":
     listSimulations_parser = list_subparser.add_parser('workflows', help='Lists the workflows in the group of that project.')
     listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project.')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
-    #listSimulations_parser.add_argument('--parameters',nargs="*", dest="parametersOfNodes", default=None, help='List the paramaters. If  nodes are given, then only list theirs.')
     listSimulations_parser.add_argument('--nodes', dest="nodes",action="store_true", default=False, help='If exsists, list the nodes of each simulation')
     listSimulations_parser.add_argument('--parameters', dest="parameters", action="store_true", default=False,
                                         help='If exsists, list the nodes of each simulation with their parameters (replace --nodes)')
