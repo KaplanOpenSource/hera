@@ -8,7 +8,7 @@ import shutil
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes
 from hera.utils import loadJSON
-from hera.utils.logging.helpers import initialize_logging, with_logger
+from hera.utils.logging import initialize_logging, with_logger
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
@@ -518,11 +518,14 @@ def workflow_buildExecute(arguments):
 
 
 if __name__ == "__main__":
-    initialize_logging(
-        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
-        with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
-        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-    )
+    # initialize_logging(
+    #     with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+    #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+    #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+    # )
+
+    logger = logging.getLogger("hera.bin.hera_workflows")
+    logger.debug("Starting the hera_workflows command line")
 
     projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from caseConfiguration'
 
@@ -651,9 +654,13 @@ if __name__ == "__main__":
     parser_runWorkflow.add_argument('workflow', type=str, help="base workflow")
     parser_runWorkflow.add_argument('--force', dest="force", default=False, action="store_true",
                                     help="If exist, delete the execution files first")
-    parser_execute.set_defaults(func=workflow_buildExecute)
+    parser_runWorkflow.set_defaults(func=workflow_buildExecute)
 
 
     parsed = parser.parse_args()
 
-    parsed.func(parsed)
+    logger.debug(f"Got {parsed} in the command line")
+    if 'func' not in parsed:
+        parser.print_help()
+    else:
+        parsed.func(parsed)

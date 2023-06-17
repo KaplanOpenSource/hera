@@ -213,9 +213,6 @@ class ofObjectHome:
         return data
 
 
-
-
-
 class OFObject:
     """
         Represents an OF object. i.e a field or a list.
@@ -697,8 +694,7 @@ class OFField(OFObject):
             if isinstance(data,pandas.Series):
                 componentNames = ['demo']
             else:
-                componentNames = [x for x in data.columns if
-                               (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
+                componentNames = [x for x in data.columns if (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
 
             if len(componentNames) > 1:
                 # vector/tensor
@@ -804,6 +800,8 @@ class OFList(OFObject):
             outfile.write(fileStrContent)
 
         return fileStrContent
+
+
 
 
 #########################################################################
