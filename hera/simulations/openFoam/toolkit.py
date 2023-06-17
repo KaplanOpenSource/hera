@@ -1,4 +1,4 @@
-from ...toolkit import abstractToolkit
+import json
 import os
 import glob
 from .datalayer.OFObjects import OFField,OFMeshBoundary
@@ -6,7 +6,8 @@ from .datalayer.hermesWorkflow import Workflow_Flow
 from .datalayer.OFObjects import ofObjectHome
 from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit,workflowsTypes
-from ...utils import loadJSON
+from ...utils.query import dictToMongoQuery
+from ..hermesWorkflowToolkit import workflowToolkit
 from ...datalayer import datatypes
 from .analysis.VTKPipeline import VTKpipeline
 import shutil
@@ -21,6 +22,8 @@ class OFToolkit(workflowToolkit):
         of the workflow. (TBD).
 
     """
+    TIME_STEADYSTATE = "steadyState"
+    TIME_DYNAMIC = "dynamic"
 
     _ofObjectHome = None
 
@@ -154,7 +157,7 @@ class OFToolkit(workflowToolkit):
             A list of field names.
         """
 
-    def prepareFlowFieldForDispersion(self, flowData, simulationGroup:str,overwrite:bool=False, useDBSupport: bool = True):
+    def createDispersionFlowField(self, flowData, overwrite:bool=False, useDBSupport: bool = True):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
             Currently, assumes the case is parallel.
@@ -180,14 +183,14 @@ class OFToolkit(workflowToolkit):
             The configuration of the base flow.
 
             Has the structure:
-                    "baseFlow" : {
-                        type: "directory|simulationName|workflowFile|ID"
+                    "originalFlow" : {
+                        type: "directory|dispersionFlowFieldName|workflowFile|ID"
                         parameters:  {
                                 .. depend on the type
                         },
                         "useTime" : [float], optional, default: last timestep
-                        fromTimestep : [float], optional,  default: 0
-                        maximalDispersionTime : [float], required.
+                        timeStep : [float], optional,  default: 0
+                        dispersionDuration : [float], required.
                         copyMesh : [bool], default false
 
                     },
@@ -198,11 +201,17 @@ class OFToolkit(workflowToolkit):
             base flow parameters:
             =====================
 
-                * useTime : float, the time step to copy from the simulation.
-                          If None (or not specified) use the last time step.
+                * dynamicaltype: steady-state or dynamic.
+                                 if dynamic, use the timesteps of the simulation (from timeStep and on). The time in the simulation will be
+                                 [time - firsttime]
 
-                * fromTimestep: float, the first time step in the simulation.
-                * maximalDispersionTime: float, required, the maximal timestep of the dispersion simulation (of the flow field).
+                                 if static, use the  timeStep and copy it to dispersionDuration.
+
+
+                * timeStep: float, the first time step in the simulation. In case of steady-state, the only time step.
+                                If
+                * dispersionDuration: float, required, the maximal timestep of the dispersion simulation (of the flow field).
+                                         required only in steady-state simulations.
                 * copyMesh: bool, if true, then copy the mesh. otherwise, make symbolic links.
 
                 base flow type
@@ -210,12 +219,12 @@ class OFToolkit(workflowToolkit):
                         - directory: The name of the directory to use.
                             Parameters:
                                     + name
-                        - simulationName : query the hera db by the simulation name,
+                        - dispersionFlowFieldName : query the hera db by the simulation name,
                             Parameters
                                     + name : the base name of the run.
 
-                        - simulationGroup: query the simulation group by the filters.
-                                    simulationGroup : the group name.
+                        - workflowGroup: query the simulation group by the filters.
+                                    workflowGroup : the group name.
                                     + filters : { nodename : { jpath : value}}
                                             where nodename is the name of the node in the workflow.
 
@@ -227,12 +236,9 @@ class OFToolkit(workflowToolkit):
 
                         Implemented:
                             - directory
-                            - simulationName (without filters).
+                            - dispersionFlowFieldName (without filters).
 
-                        To implement the rst, we might need to extend the scripts to use multiple baseFlow simulations.old.
-
-            simulationGroup : str
-                    The name of the group.
+                        To implement the rst, we might need to extend the scripts to use multiple originalFlow simulations.old.
 
             useDBSupport : bool
                     If False, does not access the DB to check if the flow exists.
@@ -245,35 +251,88 @@ class OFToolkit(workflowToolkit):
             The ids of the documents that will be used as the directories.
 
         """
-        self.logger.info("-------- Start ---------")
-        baseFlow = flowData['baseFlow']
+        def findTimeDirectory(basedir,timeDirectory,logger):
+            orig_proc = os.path.join(basedir, str(timeDirectory))
+            # The directories in round times are int and not float.
+            # that is 10 and not 10.0. Therefore, we must check and correct if does not exist.
+            if not os.path.exists(orig_proc):
+                logger.debug("Source does not exist, probably due to float/int issues. Recreating the source with int format")
+                orig_proc = os.path.join(basedir, str(int(timeDirectory)))
+                if not os.path.exists(orig_proc):
+                    logger.error(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
+                    raise ValueError(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
 
-        # 1. Get the case of the run
-        self.logger.debug(f"Getting the base flow directory from handler  {baseFlow['type']}")
-        handler = getattr(self,f"getBaseFlow_{baseFlow['type']}")
-        orig = handler(baseFlow['parameters'])
-        self.logger.info(f"Found the base flow directory: {orig}")
+        self.logger.info("-------- createDispersionFlowField: Start ---------")
+        originalFlow = flowData['originalFlow']
 
-        TS = [float(os.path.basename(ts)) for ts in glob.glob(os.path.join(orig, "processor0", "*")) if
+        # 1. Get the case directory of the original flow.
+        self.logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
+        docList = self.getSimulationDocumentFromDB(originalFlow['source'])
+
+        if len(docList) == 0:
+            self.logger.deug(f"that flow is not in the DB. trying to interpret as a directory ")
+            if not os.path.isdir(originalFlow['source']):
+                err = f"The original flow {originalFlow['source']} is not a directory and does not exist in the DB. Use [hera-workflows list workflows] to list all the workflows"
+                self.logger.critical(err)
+                raise FileNotFoundError(err)
+            else:
+                if os.path.isdir(os.path.join(originalFlow['source'],'system')) and os.path.isdir(os.path.join(originalFlow['source'],'constant')):
+                    originalFlowCaseDir = originalFlow['source']
+                    workflowGroup = os.path.basename(originalFlowCaseDir)
+                else:
+                    err = f"The directory {originalFlow['source']} is not a case directory (doesn't have system or constant subdirs)"
+                    self.logger.critical(err)
+                    raise ValueError(err)
+        elif len(docList) > 1:
+            err = f"The name {originalFlow['source']} has more than one simulations to it. Did you supply a workflow group?"
+            self.logger.error(err)
+            raise ValueError(err)
+        else:
+            originalFlowCaseDir = docList[0].resource
+            workflowGroup       = docList[0].desc['workflowName']
+
+        workflowGroup = f"{workflowGroup}_Dispersion"
+
+        self.logger.info(f"Found the original flow directory: {originalFlowCaseDir}. Using {workflowGroup} as the workflow group for the disperison flow")
+
+        self.logger.debug("Getting the time in the original flow. Determine whether the simulation is parallel or not.")
+        if os.path.exists(os.path.join(originalFlowCaseDir, "processor0")):
+            self.logger.debug("Found directory 'processor0' assuming parallel")
+            ptPath = ["processor0", "*"]
+            parallelOriginal = True
+        else:
+            self.logger.debug("Directory 'processor0' not found!.  assuming single processor")
+            ptPath = ["*"]
+            parallelOriginal = False
+
+        TS = [float(os.path.basename(ts)) for ts in glob.glob(os.path.join(originalFlowCaseDir, *ptPath)) if
               os.path.basename(ts).replace(".", "").isdigit()]
         TS.sort()
 
-        useTime = baseFlow.get("useTime",None)
-        fromTimestep = baseFlow.get("fromTimestep","0")
-        maximalDispersionTime = baseFlow["maximalDispersionTime"]
-        copyMesh = baseFlow.get("copyMesh",False)
+        self.logger.info(f"Found timesteps : {TS} in original flow")
 
-        if useTime is None:
+        dynamicType = originalFlow['time']['type']
+
+        timeStep = originalFlow.get("timeStep",None)
+        dispersionDuration = flowData["dispersionDuration"]
+
+        copyMesh = not originalFlow.get("linkMeshSymbolically", True)
+
+        if timeStep is None:
             # find maximal TS, assume it is parallel:
-            uts = str(TS[-1])
+            uts = TS[-1]
         else:
-            # find the closest TS.
-            request = float(useTime)
-            uts = TS[min(range(len(TS)), key=lambda i: abs(float(TS[i]) - request))]
+            uts = TS[min(range(len(TS)), key=lambda i: abs(TS[i] - timeStep))]
 
-        fromTime = fromTimestep
+        if dynamicType==self.TIME_STEADYSTATE:
+            self.logger.debug(f"Using Time step {uts} for Steady state")
+            # steady state, only 2 time steps
+            timeList = [uts, str(float(dispersionDuration) + float(uts))]
+        else:
+            self.logger.debug(f"Using Time step {uts} as first time step for dynamic simulation")
+            timeList = [x for x in TS if x > uts]
 
-        self.logger.debug(f"Using Time step {uts} for Steady state")
+        self.logger.info(f"The simulation type is: {dynamicType}: Using time steps: {timeList}")
 
         ## Now we should find out if there is a similar run.
         # 1. same original run.
@@ -281,19 +340,19 @@ class OFToolkit(workflowToolkit):
         # 3. the requested start and end are within the existing start and end.
 
         if useDBSupport:
-
             querydict = dict(
-                groupName=simulationGroup,
+                groupName=workflowGroup,
                 flowParameters=dict(
-                    baseFlowDirectory = orig,
+                    baseFlowDirectory = originalFlowCaseDir,
+                    dynamicType = dynamicType,
                     flowFields=flowData['dispersionFields'],
-                    usingTimeStep = uts,
-                    baseFlow = baseFlow
+                    timeStep = uts,
+                    originalFlowParameters = originalFlow
                 )
             )
-
-            self.logger.debug(f"Test if the requested flow field already exists in the project")
-            docList = self.getSimulationsDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value, **querydict)
+            self.logger.debug(f"Trying to find the simulation in the database. The run is: \n {json.dumps(querydict,indent=4)")
+            docList = self.getSimulationsDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value, **dictToMongoQuery(querydict))
+            self.logger.debug(f"Found {len(docList)} in the database")
         else:
             self.logger.debug(f"Running without DB support, so does not query the db ")
             docList = []
@@ -301,83 +360,32 @@ class OFToolkit(workflowToolkit):
         if len(docList) == 0 or overwrite:
             self.logger.info(f"Flow field not found, creating new and adding to the DB. ")
             ofhome = ofObjectHome()
+            if len(docList) == 0:
+                self.logger.debug("Find the first name that is free")
+                groupID = 1
+                dispersionFlowFieldName = workflowGroup
+                while not os.path.exists(os.path.join(self.FilesDirectory,f"{dispersionFlowFieldName}_{groupID}")):
+                    groupID += 1
+                groupID = str(groupID)
 
-            if useDBSupport:
-                if len(docList) == 0:
-                    self.logger.debug("Getting a new name")
-                    groupID,simulationName = self.findAvailableName(simulationGroup, simulationType=workflowsTypes.OF_FLOWDISPERSION.value)
-                else:
-                    resource = docList[0].resource
-                    simulationName = docList[0].desc['name']
-                    groupID= docList[0].desc['groupID']
-                    self.logger.debug(f"The flow exists with the name {simulationName}, so deleting {resource}, and writing over it")
-                    shutil.rmtree(resource)
+            else: # overwrite existing
+                self.logger.info(f"Found simulation {docList[0]['name']} on the disk , overwriting")
+                resource = docList[0].resource
+                dispersionFlowFieldName = docList[0].desc['name']
+                groupID= docList[0].desc['groupID']
+                self.logger.debug(f"The flow exists with the name {dispersionFlowFieldName}, so deleting {resource}, and writing over it")
+                shutil.rmtree(resource)
 
-                self.logger.info(
-                    f"Creating new name for the flow simulation.... Got ID {groupID} with simulation name {simulationName}")
-            else:
-                groupID = "1"
-                simulationName = simulationGroup
-                self.logger.info(f"Creating flow simulation with {simulationName}")
-
-            dest = os.path.abspath(os.path.join(self.FilesDirectory,simulationName))
-
-            try:
-                self.logger.info(f"Creating the directory {dest}")
-                os.makedirs(dest,exist_ok=True)
-            except FileExistsError:
-                raise FileExistsError("The case already exists, use --overwrite ")
-
-            self.logger.info("Copying the configuration directories")
-            # copy constant, 0 and system.
-            for general in ["constant", "system", "0"]:
-                self.logger.debug(f"\tCopying {general} in {orig} directory --> {dest}")
-                orig_general = os.path.join(orig, general)
-                dest_general = os.path.join(dest, general)
-                if os.path.exists(dest_general):
-                    self.logger.debug(f"path {dest_general} exists... removing before copy")
-                    shutil.rmtree(dest_general)
-                shutil.copytree(orig_general, dest_general)
-
-            self.logger.info(f"Copy the parallel directories")
-            for proc in glob.glob(os.path.join(orig,"processor*")):
-
-                orig_proc = os.path.join(proc, str(uts))
-                # The directories in round times are int and not float.
-                # that is 10 and not 10.0. Therefore, we must check and correct if does not exist.
-                if not os.path.exists(orig_proc):
-                    self.logger.debug("Source does not exist, probably due to float/int issues. Recreating the source with int format")
-                    orig_proc = os.path.join(proc, str(int(uts)))
-                    if not os.path.exists(orig_proc):
-                        self.logger.error(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
-                        raise ValueError(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
-
-                for dest_time in [fromTime, maximalDispersionTime]:
-                    self.logger.debug(f"Handling {proc} - time {dest_time}")
-                    dest_proc = os.path.join(dest,os.path.basename(proc),str(dest_time))
-                    if os.path.exists(dest_proc):
-                        self.logger.debug(f"path {dest_proc} exists... removing before copy")
-                        shutil.rmtree(dest_proc)
-                    shutil.copytree(orig_proc,dest_proc)
-
-                self.logger.info(f"Copying the mesh")
-                if copyMesh:
-                    orig_constant = os.path.join(proc,"constant")
-                    dest_constant = os.path.join(dest,os.path.basename(proc),"constant")
-                    shutil.copytree(orig_constant, dest_constant)
-                else:
-                    fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
-                    destination = os.path.join(dest, os.path.basename(proc), "constant", "polyMesh")
-                    if not os.path.exists(destination):
-                        self.logger.debug(f"Linking {fullpath} -> {destination}")
-                        os.makedirs(os.path.dirname(destination), exist_ok=True)
-                        os.system(f"ln -s {fullpath} {destination}")
+            dispersionFlowFieldName = f"{dispersionFlowFieldName}_{groupID}"
+            dispersionFlowFieldDirectory = os.path.abspath(os.path.join(self.FilesDirectory,dispersionFlowFieldName))
+            self.logger.info(f"Creating Dispersion flow simulation {dispersionFlowFieldName} in {os.path.abspath(self.FilesDirectory)}")
+            os.makedirs(dispersionFlowFieldDirectory,exist_ok=True)
 
             self.logger.info(f"Creating the flow specific fields in the flow needed for the dispersion")
             dispersionFields = flowData['dispersionFields']
 
-            meshBoundary = OFMeshBoundary(orig).getBoundary()
-
+            meshBoundary = OFMeshBoundary(originalFlowCaseDir).getBoundary()
+            newFieldList = []
             for dispersionFieldName in dispersionFields.keys():
                 fieldDimensions = dispersionFields[dispersionFieldName].get("dimensions",None)
                 fieldComponents = dispersionFields[dispersionFieldName].get("components", None)
@@ -392,12 +400,72 @@ class OFToolkit(workflowToolkit):
                 for bnd in meshBoundary:
                     fieldBoundary.setdefault(bnd,dict(type='zeroGradient'))
 
+                newFieldList.append( (field,fieldBoundary) )
 
-                for proc in glob.glob(os.path.join(orig, "processor*")):
-                    procName = os.path.split(proc)[-1]
+            self.logger.info("Copying the configuration directories from the original to the new configuration")
+            # copy constant, 0 and system.
+            for general in ["constant", "system", "0"]:
+                self.logger.debug(f"\tCopying {general} in {originalFlowCaseDir} directory --> {dispersionFlowFieldDirectory}")
+                orig_general = os.path.join(originalFlowCaseDir, general)
+                dest_general = os.path.join(dispersionFlowFieldDirectory, general)
+                if os.path.exists(dest_general):
+                    self.logger.debug(f"path {dest_general} exists... removing before copy")
+                    shutil.rmtree(dest_general)
+                shutil.copytree(orig_general, dest_general)
+
+            self.logger.info(f"Copy directories. The run is {'parallel' if parallelOriginal else 'single-core'}")
+            if parallelOriginal:
+                origDirsList =  glob.glob(os.path.join(originalFlowCaseDir, "processor*"))
+            else:
+                origDirsList = [originalFlowCaseDir]
+
+
+
+
+
+            for orig_time in timeList:
+                dest_time = orig_time - timeList[0]
+                if (dynamicType == self.TIME_STEADYSTATE) and (orig_time == timeList[-1]):
+                    orig_time = timeList[0]
+
+                self.logger.info(f"Mapping Dispersion time {dest_time} to {orig_time}")
+
+                for origDir in origDirsList:
+                    # The directories in round times are int and not float.
+                    # that is 10 and not 10.0. Therefore, we must check and correct if does not exist.
+                    orig_proc_timestep = findTimeDirectory(basedir=origDir, timeDirectory=str(orig_time), logger=self.logger)
+
+                    parallelOrSinglePathTime = [os.path.basename(origDir),str(dest_time)] if parallelOriginal else [str(dest_time)]
+
+                    dest_proc_timestep = os.path.join(dispersionFlowFieldDirectory,*parallelOrSinglePathTime)
+                    self.logger.info(f"\tMapping {orig_proc_timestep} --> {dest_proc_timestep}")
+                    if os.path.exists(dest_proc_timestep):
+                        self.logger.debug(f"path {dest_proc_timestep} exists... removing before copy")
+                        shutil.rmtree(dest_proc_timestep)
+                    shutil.copytree(orig_proc_timestep,dest_proc_timestep)
+
+                    if copyMesh:
+                        orig_constant = os.path.join(origDir,"constant")
+                        parallelOrSinglePathConstant = [os.path.basename(origDir), "constant"] if parallelOriginal else ["constant"]
+                        dest_constant = os.path.join(dispersionFlowFieldDirectory,*parallelOrSinglePathConstant)
+                        self.logger.info(f"Copying the mesh in {orig_constant} to  {dest_constant}")
+                        shutil.copytree(orig_constant, dest_constant)
+                    else:
+                        orig_constant_polymesh = os.path.abspath(os.path.join(origDir, "constant", "polyMesh"))
+                        parallelOrSinglePathConstant = [os.path.basename(origDir), "constant","polyMesh"] if parallelOriginal else ["constant","polyMesh"]
+                        destination_constant_polymesh = os.path.join(dispersionFlowFieldDirectory, os.path.basename(origDir), *parallelOrSinglePathConstant)
+                        self.logger.info(f"Linking mesh in {orig_constant_polymesh} to {destination_constant_polymesh}")
+                        if not os.path.exists(destination_constant_polymesh):
+                            self.logger.debug(f"Linking {orig_constant_polymesh} -> {destination_constant_polymesh}")
+                            os.makedirs(os.path.dirname(destination_constant_polymesh), exist_ok=True)
+                            os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
+
+
+                for origDir in origDirsList:
+                    procName = os.path.split(origDir)[-1]
                     self.logger.debug(f"Writing the flow specific field {dispersionFieldName} to processor {procName} . ")
-                    for dest_time in [fromTime, maximalDispersionTime]:
-                        field.emptyParallelField(caseDirectory=dest,
+                    for dest_time in timeList:
+                        field.emptyParallelField(caseDirectory=dispersionFlowFieldDirectory,
                                                  timeName=str(dest_time),
                                                  processor=procName,
                                                  boundaryField=fieldBoundary,
@@ -405,8 +473,9 @@ class OFToolkit(workflowToolkit):
 
                 # We should look into it more closly, why parallel case doesn't recognize the time steps of the
                 # processors. For now, just create these directories in the main root as well.
-                for dest_time in [fromTime, maximalDispersionTime]:
-                    os.makedirs(os.path.join(dest,str(dest_time)),exist_ok=True)
+                if parallelOriginal:
+                    for dest_time in timeList:
+                        os.makedirs(os.path.join(dispersionFlowFieldDirectory,str(dest_time)),exist_ok=True)
 
 
             self.logger.info("Finished creating the flow field for the dispersion. ")
@@ -416,12 +485,12 @@ class OFToolkit(workflowToolkit):
                     self.logger.debug("Updating the metadata of the record with the new group ID and simulation name")
                     querydict.update(dict(
                         groupID=groupID,
-                        name=simulationName,
+                        name=dispersionFlowFieldName,
                     ))
                     self.logger.debug("Adding record to the database")
-                    self.addSimulationsDocument(resource=dest, type=workflowsTypes.OF_FLOWDISPERSION.value, dataFormat=datatypes.STRING, desc=querydict)
+                    self.addSimulationsDocument(resource=dispersionFlowFieldDirectory, type=workflowsTypes.OF_FLOWDISPERSION.value, dataFormat=datatypes.STRING, desc=querydict)
 
-            ret = dest
+            ret = dispersionFlowFieldDirectory
         else:
             self.logger.info(f"Found the requested flow in the flowFields of the project. Returning {docList[0].resource}")
             ret = docList[0].resource
@@ -452,7 +521,7 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        return parameters['name']
+        return parameters['name'],os.path.basename(parameters['name'])
 
     def getBaseFlow_simulationName(self, parameters):
         """
@@ -473,12 +542,12 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        docList = self.getSimulationsDocuments(name=parameters['name'])
+        docList = self.getSimulationsDocuments(workflowName=parameters['name'],type=workflowToolkit.DOC_TYPE)
         if len(docList) >0:
             if len(docList) > 1:
                 import warnings
                 warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
-            return docList[0].resource
+            return docList[0].resource,parameters['name']
         else:
             raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
 

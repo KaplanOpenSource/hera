@@ -73,6 +73,8 @@ Listing toolkits
 +--------------------------------------------+--------------------------------------------+
 |:ref:`Hermes workflow <HermesWorkflow>`     | The hermes workflow toolkit                |
 +--------------------------------------------+--------------------------------------------+
+|:ref:`OpenFOAM  <openFOAMToolkit>`          | The openfoam toolkit                       |
++--------------------------------------------+--------------------------------------------+
 |           .. centered:: Risk assessment                                                 |
 +--------------------------------------------+--------------------------------------------+
 |:ref:`Risk assessment <RiskAssessmentPage>` |    Estimating the effects of dispersion    |

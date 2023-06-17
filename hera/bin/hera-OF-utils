@@ -31,6 +31,7 @@ def createEmpty(args):
     os.makedirs(os.path.join(caseDir, "system"),exist_ok=True)
     os.makedirs(os.path.join(caseDir, "constant","triSurface"), exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "0.orig"), exist_ok=True)
     os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
 
     fileaddition = dict()
@@ -43,6 +44,7 @@ def createEmpty(args):
     for fieldName in fieldList:
         field = ofObjectHome().getField(fieldName,simulationType=args.simulationType,additionalFields=fileaddition)
         field.write(caseDirectory=caseDir, location=0)
+        field.write(caseDirectory=caseDir, location="0.orig")
         field.emptyParallelField(caseDirectory=caseDir)
 
 def createBuildings(args):
