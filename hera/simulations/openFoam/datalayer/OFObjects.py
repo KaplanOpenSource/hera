@@ -8,7 +8,14 @@ from itertools import product,islice
 from io import StringIO
 from ....utils.logging import helpers as hera_logging
 
-class ofObjectHome:
+
+#########################################################################
+#
+#               Fields
+#########################################################################
+
+
+class OFObjectHome:
     """
         A factory for field classes.
 
@@ -18,6 +25,8 @@ class ofObjectHome:
     GROUP_COMPRESSIBLE = "compressible"
     GROUP_INCOMPRESSIBLE = "incompressible"
     GROUP_DISPERSION = "dispersion"
+
+    logger =None
 
     @property
     def predifinedFields(self):
@@ -48,7 +57,6 @@ class ofObjectHome:
                       incompressible=incompressibleDict,
                       dispersion = dispersionDict)
 
-
     def getDimensions(self,kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
         """
             Returns the openfaom dimensions vector.
@@ -69,21 +77,71 @@ class ofObjectHome:
         """
         return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
 
-    def getPredefinedFields(self,fieldGroup):
+    def getFieldFromJSON(self,fieldName : str,configuration : dict,meshBoundary : list):
         """
-            Return a list of all the fields in a gropu.
+            Creates a field from JSON configuration.
+
+            The user can specify the boundary conditions for specific boundaries.
+            Boundaries that were not specified will be automatically set to zeroGradient.
+
+            Fields can be either predefined or custom. For predefined fields it is necessary
+            to state the flow type.
+
+            The type of the field determine their dimensions and the. This is because few fields
+            have different dimensions in different context (pressure for example).
+
         Parameters
         ----------
-        fieldGroup: str
-            The group to list.
+
+        fileName : str
+            The name of the field.
+
+        configuration : dict
+            Specify the definition of the field.
+
+            Can be predefined or custom.
+            For predefined the structure is
+
+            {
+                "flowType"   : "compressible|incompressible|dispersion"
+                "boundaryConditions" : {
+                        <boundary name> : {
+                                <property name 1> : <property value>,
+                                .
+                                .
+                                .
+                                <property name n> : <property value>
+                        }
+                }
+            }
+            For
+
+        meshBoundary : list
+            A list with the names of the mesh boundary.
+
 
         Returns
         -------
-            A list of names
-        """
-        return [x for x in self.predifinedFields[fieldGroup].keys()]
 
-    def getField(self, fieldName, simulationType="incompressible", componentNames=None, dimensions=None,additionalFields=dict()):
+        """
+        flowType        = configuration.get("flowType", None)
+        fieldDimensions = configuration.get("dimensions", None)
+        fieldComponents = configuration.get("components", None)
+        data = configuration.get("internalField"),
+        fieldBoundary = configuration.get("boundaryConditions", dict())
+        self.logger.debug(f"Adding the boundaries condition 'zerGradient' to all the boundaries that were not specified")
+        for bnd in meshBoundary:
+            fieldBoundary.setdefault(bnd, dict(type='zeroGradient'))
+
+        field = self.getField(fieldName=fieldName,
+                                flowType=flowType,
+                                dimensions=fieldDimensions,
+                                componentNames=fieldComponents,
+                                boundaryConditions=fieldBoundary,
+                                data=data)
+        return field
+
+    def getField(self, fieldName, flowType=None, componentNames=None, dimensions=None,boundaryConditions=None,data=None):
         """
             Return the field with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
@@ -96,7 +154,7 @@ class ofObjectHome:
         fieldName: str
             The field name
 
-        simulationType: str
+        flowType: str
             The group to which the parameter belongs.
             Currently:
                 - compressible
@@ -123,23 +181,40 @@ class ofObjectHome:
         """
         self.logger.info("----- Start ----")
 
-        fields = dict(self.predifinedFields[simulationType])
-        fields.update(additionalFields)
+        if (flowType is None) ^ (componentNames is None or dimensions is None): # ^ is xor.
+            err = f"Must specify either flowType, or the components names and dimensions  (but not both) of the field {fieldName}"
+            self.logger.error(err)
+            raise ValueError(err)
 
-        if fieldName not in fields:
-            self.logger.warning(f"{fieldName} not found in pre-existing fields. Using inputs")
-            if dimensions is  None:
-                raise ValueError(f"Must supply dimensions to the new field {fieldName}")
-            objData = dict(dimensions= self.getDimensions(**dimensions),componentNames = componentNames)
+        if flowType is None:
+            objData = dict(dimensions=self.getDimensions(**dimensions), componentNames=componentNames)
         else:
-            objData = dict(fields[fieldName])
+            if flowType not in self.predifinedFields.keys():
+                err = f"FlowType {flowType} not found. Must supply {','.join(self.predifinedFields.keys())}"
+                self.logger.critical(err)
+                raise ValueError(err)
+
+            fieldList = self.predifinedFields[flowType].keys()
+            if fieldName not in self.predifinedFields[flowType].keys():
+                err = f"Field {fieldName} does not exist in flowType {flowType}. Existing fields are: {','.join(fieldList)}"
+                self.logger.error(err)
+                raise ValueError(err)
+
+            if dimensions is  None:
+                err = f"Must supply dimensions to the new field {fieldName}"
+                self.logger.error(err)
+                raise ValueError(err)
+
+            else:
+                self.logger.debug(f"Found {fieldName} in context {flowType}. ")
+                objData = dict(self.predifinedFields[flowType][fieldName])
 
         objData['name'] = fieldName
-
+        objData['boundaryConditions'] = boundaryConditions
+        objData['data'] = data
         self.logger.info(f"Getting the object {objData}")
         self.logger.info("----- End -----")
         return OFField(**objData)
-
 
     def loadLagrangianDataParallel(self,
                                    casePath,
@@ -225,21 +300,8 @@ class OFObject:
 
     """
 
-    _name = None        # The name of the field
-    _data = None        # The data (after loading).
-    _componentNames = None # If none, the field is scalar, else, this is the list of fields.
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def componentNames(self):
-        return self._componentNames
-
-    @property
-    def data(self):
-        return self._data
+    name = None        # The name of the field
+    componentNames = None # If none, the field is scalar, else, this is the list of fields.
 
     @property
     def fieldType(self):
@@ -266,8 +328,99 @@ class OFObject:
             If list, then it is a list.
         """
         self.logger = hera_logging.get_logger(self)
-        self._name = name
-        self._componentNames =componentNames
+        self.name = name
+        self.componentNames =componentNames
+
+
+    def write(self, caseDirectory, location, fileName=None, parallel=False):
+        """
+            Updates the field internal data to the input.
+            Should **not** update the boundaries data.
+
+
+            If parallel is true, and there is a decomposed case, write the data to the different processors.
+            In that case, the series must have processorNumber and index columns. Otherwise, only index columns is required.
+
+            The new data is written to the disk
+
+        Paramaters
+        ----------
+        caseDirectory: str
+                The path of the case
+        location: str
+                The location in the caseDirectory to update.
+                Can be system, constant or the time
+
+        fileName: str
+            Optional field name.
+                If None, use the name of the field.
+
+        data: pandas
+                The data to update. Must include the column index (for composed cases) and processorName/index for decomposed cases.
+
+        parallel: bool
+                If true, check if there is a decomposed case
+
+        Returns
+        -------
+            String with the new data. if parallel, a dict with the processor number as key and the
+            value as the data.
+
+        """
+        self.logger.execution("---- Start----")
+        fileName = self.name if fileName is None else fileName
+        data = self.data
+
+        if data is None:
+            self.logger.debug("Data was not supplied, using 0. ")
+            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
+
+        if parallel:
+            self.logger.info("Saving fields to parallel case")
+
+            procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
+
+            if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):
+
+                if 'processor' not in data:
+                    raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
+
+                dataProcessorList = data.processor.unique()
+                if isinstance(data,dask.dataframe):
+                    dataProcessorList = dataProcessorList.compute()
+
+                if len(dataProcessorList) != len(procPaths):
+                    errStr = f"Processor on disk and the data provided have mismatch in processor count. Disk: {len(procPaths)} ; Data {len(dataProcessorList)}"
+                    raise ValueError(errStr)
+
+            for processorName in procPaths:
+                procID = int(processorName[9:])
+                if isinstance(data, pandas.DataFrame) or isinstance(data, dask.dataframe):
+                    procData = data.query("processor == @procID")
+                    if isinstance(data, dask.dataframe):
+                        procData = procData.compute()
+                    else:
+                        procData = data
+
+                fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
+
+                if os.path.exists(fullFileName):
+                    self._updateExisting(filename=fullFileName,data=procData)
+                else:
+                    self._writeNew(filename=fullFileName,data=procData,parallel=parallel)
+
+        else:
+            fullFileName = os.path.join(caseDirectory, str(location), fileName)
+            self.logger.debug(f"Writinge {fullFileName} as composed file")
+
+            if os.path.exists(fullFileName):
+                self.logger.debug("File exists, updating")
+                self._updateExisting(filename=fullFileName, data=data)
+            else:
+                self.logger.debug("File does not exist, write new")
+                self._writeNew(filename=fullFileName, data=data)
+
+        self.logger.execution("---- End ----")
 
     def pandasToFoamFormat(self, data):
         """
@@ -324,100 +477,13 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
     """.replace("{fieldType}",fieldType)
 
-    def write(self, caseDirectory, location, data=None, fileName=None, parallel=False):
-        """
-            Updates the field internal data to the input.
-            Should **not** update the boundaries data.
-
-
-            If parallel is true, and there is a decomposed case, write the data to the different processors.
-            In that case, the series must have processorNumber and index columns. Otherwise, only index columns is required.
-
-            The new data is written to the disk
-
-        Paramaters
-        ----------
-        caseDirectory: str
-                The path of the case
-        location: str
-                The location in the caseDirectory to update.
-                Can be system, constant or the time
-
-        fileName: str
-            Optional field name.
-                If None, use the name of the field.
-
-        data: pandas
-                The data to update. Must include the column index (for composed cases) and processorName/index for decomposed cases.
-
-        parallel: bool
-                If true, check if there is a decomposed case
-
-        Returns
-        -------
-            String with the new data. if parallel, a dict with the processor number as key and the
-            value as the data.
-
-        """
-        self.logger.info("---- Start----")
-        fileName = self.name if fileName is None else fileName
-
-        if data is None:
-            self.logger.debug("Data was not supplied, using 0. ")
-            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
-
-        if parallel:
-            self.logger.info("Saving fields to parallel case")
-
-            procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
-
-            if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):
-
-                if 'processor' not in data:
-                    raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
-
-                dataProcessorList = data.processor.unique()
-                if isinstance(data,dask.dataframe):
-                    dataProcessorList = dataProcessorList.compute()
-
-                if len(dataProcessorList) != len(procPaths):
-                    errStr = f"Processor on disk and the data provided have mismatch in processor count. Disk: {len(procPaths)} ; Data {len(dataProcessorList)}"
-                    raise ValueError(errStr)
-
-            for processorName in procPaths:
-
-                procID = int(processorName[9:])
-
-                if isinstance(data, pandas.DataFrame) or isinstance(data, dask.dataframe):
-                    procData = data.query("processor == @procID")
-                    if isinstance(data, dask.dataframe):
-                        procData = procData.compute()
-                    else:
-                        procData = data
-
-                fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
-
-                if os.path.exists(fullFileName):
-                    self._updateExisting(filename=fullFileName,data=procData)
-                else:
-                    self._writeNew(filename=fullFileName,data=procData)
-
-        else:
-            fullFileName = os.path.join(caseDirectory, str(location), fileName)
-            self.logger.debug(f"Writinge {fullFileName} as composed file")
-
-            if os.path.exists(fullFileName):
-                self.logger.debug("File exists, updating")
-                self._updateExisting(filename=fullFileName, data=data)
-            else:
-                self.logger.debug("File does not exist, write new")
-                self._writeNew(filename=fullFileName, data=data)
-
-    def _updateExisting(self, filename, data):
+    def _updateExisting(self, filename, data,parallel):
         raise NotImplementedError("Implemented specifically for field or list")
 
-    def _writeNew(self, filename, data):
+    def _writeNew(self, filename, data,parallel):
         raise NotImplementedError("Implemented specifically for field or list")
+
+
 
 
 class OFField(OFObject):
@@ -433,14 +499,13 @@ class OFField(OFObject):
     There is a bug in updating an OF field -> removes the boundary conditions.
 
     """
-    _dimensions = None  # The dimensions str (currently just a string without the parsing.
+    dimensions = None  # The dimensions str (currently just a string without the parsing.
 
-    @property
-    def dimensions(self):
-        return self._dimensions
+    boundaryConditions = None
+    data = None
 
 
-    def __init__(self,name,dimensions,componentNames=None):
+    def __init__(self,name,dimensions,boundaryConditions=None,componentNames=None,data=None):
         """
             Initializes a field.
 
@@ -459,9 +524,23 @@ class OFField(OFObject):
         componentNames: list
             The name of the components. If None, then the field is a scalar.
 
+        data : float|list, str, pandas.DataFrame, dask.DataFrame
+            The data can be either a flot (for constant scalar) or a list for constant vector or list.
+            If the data is a parquet file, it will load it into a dask.DataFrame
+
+            The structure of a Dataframe (pandas or dask) should be similar to that obtained with the load method.
+            Hence, it is possible to create the parquet file by:
+                obj.load(<case directory>,<time>)
+                obj.data.to_parquet("new-file.parquet")
+
         """
         super().__init__(name=name,componentNames=componentNames)
-        self._dimensions = dimensions
+        self.dimensions = dimensions
+        self.boundaryConditions = boundaryConditions
+        if os.path.exists(os.path.abspath(data)) and 'parquet' in data:
+            self.data = dask.Dataframe.read_parquet(os.path.abspath(data))
+        else:
+            self.data=data
 
     def load(self, caseDirectory, times=None, parallelCase=True):
         """
@@ -469,8 +548,7 @@ class OFField(OFObject):
             If None, then reads from all the time steps.
             Reads only the internal field (and not the boundaries).
 
-            If read in parallel, then add the processorto the output columns.
-
+            If read in parallel, then add the processor to the output columns.
 
         Parameters
         -----------
@@ -523,15 +601,14 @@ class OFField(OFObject):
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dask.dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(finalCasePath,str(timeName),self.name),
+            self.data = dask.dataframe.from_delayed([delayed(extractFieldFile)(os.path.join(finalCasePath,str(timeName),self.name),
                                                                           columnNames = self.componentNames,
                                                                           time=timeName)
                                                 for timeName in timeList])
 
-        return data
+        return self.data
 
-
-    def _updateExisting(self,filename,data):
+    def _updateExisting(self,filename,data,parallel=False):
         """
             Injects the data into existing file.
 
@@ -580,6 +657,7 @@ class OFField(OFObject):
                             fileStrContent += ");\n"
 
                         filecontentStr += "\n"
+
                         # Skip internal field until the boundaryField.
                         firstTokenInner = ""
                         while firstTokenInner != 'boundaryField':
@@ -593,7 +671,7 @@ class OFField(OFObject):
 
             return filecontentStr
 
-    def _writeNew(self,filename,data):
+    def _writeNew(self,filename,data,parallel=False):
         """
             Inject the data to a new file.
 
@@ -611,7 +689,7 @@ class OFField(OFObject):
         -------
 
         """
-        self.logger.info("----- Start -----")
+        self.logger.execution("----- Start -----")
 
         fileStrContent = self._getHeader()
         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
@@ -644,74 +722,21 @@ class OFField(OFObject):
                 fileStrContent += "\n".join(data)
                 fileStrContent += ");\n"
 
-        fileStrContent += """
-    boundaryField
-    {
-        ".*"
-        {
-            type            zeroGradient;
-        }
-    }"""
+        fileStrContent += self._getBoundaryConditionsStr(parallel=parallel)
 
         with open(filename,'w') as outfile:
             outfile.write(fileStrContent)
 
         return fileStrContent
 
+    def _getBoundaryConditionsStr(self,parallel=False):
+        boundaryConditions = """
+    boundaryField
+    {
+"""
 
-    def emptyParallelField(self, caseDirectory,timeName="0.parallel",processor="", data=None,boundaryField=None):
-        """
-            Writes a null file with definitions of the processor boundries
-            because sometimes, the snappyHex mesh of decomposed pars breaks the parallel
-            fields. This file is used to correct this problem.
-
-        Parameters
-        ----------
-        filename: str
-            The name of the file to write to.
-
-        data: float, str, pandas.DataFrame, dask.DataFrame
-            The data to write to the field.
-
-        Returns
-        -------
-
-        """
-        if data is None:
-            data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
-
-        fileStrContent = self._getHeader()
-        fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
-
-        if type(data) in [float,int,list,tuple,str]: #isinstance(data,float) or isinstance(data,int):
-            if type(data) in [float,int,str]:
-                fileStrContent += f"internalField  uniform {data};\n"
-            else:
-                fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"
-        else:
-            fileStrContent += "internalField   nonuniform List<vector>\n"
-
-            if isinstance(data,pandas.Series):
-                componentNames = ['demo']
-            else:
-                componentNames = [x for x in data.columns if (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
-
-            if len(componentNames) > 1:
-                # vector/tensor
-                fileStrContent += self.pandasToFoamFormat(data,componentNames)
-            else:
-                # scalar
-                if isinstance(data, pandas.Series):
-                    data = data.values
-                fileStrContent += ""
-                fileStrContent = f"{str(data.shape[0])}\n"
-                fileStrContent += "(\n"
-                fileStrContent += "\n".join(data)
-                fileStrContent += ");\n"
-
-        boundaryConditions = ""
-        if boundaryField is not None:
-            for boundaryPatchName,boundaryData in boundaryField.items():
+        if self.boundaryConditions is not None:
+            for boundaryPatchName,boundaryData in self.boundaryConditions.items():
                 bstr = f"\n{boundaryPatchName}\n"
                 bstr += "{\n"
                 for bcondProp,bcondData in boundaryData.items():
@@ -719,20 +744,108 @@ class OFField(OFObject):
                 bstr += "}\n"
                 boundaryConditions += bstr
 
-        fileStrContent += """
-   boundaryField
+                if parallel:
+                    boundaryConditions += """
+                    "proc.*"
+                    {
+                    type            processor;
+                    }
+                    """
+        elif parallel:
+            boundaryConditions += """
+"proc.*"
 {
-    "proc.*"
-    {
-        type            processor;
-    }
-    """  + boundaryConditions + """
+type            processor;
 }
 """
-        filename = os.path.join(caseDirectory,processor, timeName, self.name)
-        self.logger.debug(f"Saving the file {self.name} to {filename} ")
-        with open(filename,'w') as outfile:
-            outfile.write(fileStrContent)
+        else:
+            boundaryConditions = """
+".*"
+{
+    type            zeroGradient;
+}
+"""
+
+        boundaryConditions +="""
+}        
+ """
+        return boundaryConditions
+
+#
+#     def emptyParallelField(self, caseDirectory,timeName="0.parallel",processor="", data=None,boundaryField=None):
+#         """
+#             Writes a null file with definitions of the processor boundries
+#             because sometimes, the snappyHex mesh of decomposed pars breaks the parallel
+#             fields. This file is used to correct this problem.
+#
+#         Parameters
+#         ----------
+#         filename: str
+#             The name of the file to write to.
+#
+#         data: float, str, pandas.DataFrame, dask.DataFrame
+#             The data to write to the field.
+#
+#         Returns
+#         -------
+#
+#         """
+#         if data is None:
+#             data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
+#
+#         fileStrContent = self._getHeader()
+#         fileStrContent += "\n\n" + f"dimensions {self.dimensions};\n\n"
+#
+#         if type(data) in [float,int,list,tuple,str]: #isinstance(data,float) or isinstance(data,int):
+#             if type(data) in [float,int,str]:
+#                 fileStrContent += f"internalField  uniform {data};\n"
+#             else:
+#                 fileStrContent += f"internalField  uniform ({' '.join([str(x) for x in data])});\n"
+#         else:
+#             fileStrContent += "internalField   nonuniform List<vector>\n"
+#
+#             if isinstance(data,pandas.Series):
+#                 componentNames = ['demo']
+#             else:
+#                 componentNames = [x for x in data.columns if (x != 'processor' and x != 'time')] if self.componentNames is None else self.componentNames
+#
+#             if len(componentNames) > 1:
+#                 # vector/tensor
+#                 fileStrContent += self.pandasToFoamFormat(data,componentNames)
+#             else:
+#                 # scalar
+#                 if isinstance(data, pandas.Series):
+#                     data = data.values
+#                 fileStrContent += ""
+#                 fileStrContent = f"{str(data.shape[0])}\n"
+#                 fileStrContent += "(\n"
+#                 fileStrContent += "\n".join(data)
+#                 fileStrContent += ");\n"
+#
+#         boundaryConditions = ""
+#         if boundaryField is not None:
+#             for boundaryPatchName,boundaryData in boundaryField.items():
+#                 bstr = f"\n{boundaryPatchName}\n"
+#                 bstr += "{\n"
+#                 for bcondProp,bcondData in boundaryData.items():
+#                     bstr += f"\t{bcondProp} {bcondData};\n"
+#                 bstr += "}\n"
+#                 boundaryConditions += bstr
+#
+#         fileStrContent += """
+#    boundaryField
+# {
+#     "proc.*"
+#     {
+#         type            processor;
+#     }
+#     """  + boundaryConditions + """
+# }
+# """
+#         filename = os.path.join(caseDirectory,processor, timeName, self.name)
+#         self.logger.debug(f"Saving the file {self.name} to {filename} ")
+#         with open(filename,'w') as outfile:
+#             outfile.write(fileStrContent)
 
 
 class OFList(OFObject):
@@ -740,7 +853,7 @@ class OFList(OFObject):
         Just data.
     """
 
-    def _updateExisting(self,filename,data):
+    def _updateExisting(self,filename,data,parallel=False):
         """
             Just rewrite the field.
 
@@ -757,9 +870,9 @@ class OFList(OFObject):
         -------
 
         """
-        return self._writeNew(filename,data)
+        return self._writeNew(filename,data,parallel=parallel)
 
-    def _writeNew(self,filename,data):
+    def _writeNew(self,filename,data,parallel=False):
         """
             Writes an OF list file.
 
@@ -802,11 +915,95 @@ class OFList(OFObject):
         return fileStrContent
 
 
+#########################################################################
+#
+#               Mesh handling
+#########################################################################
+
+
+class OFMeshBoundary:
+
+    _case = None
+    _checkIfParallel = None
+
+    _boundaryNames = None
+
+    @property
+    def case(self):
+        return self._case
+
+
+    def __init__(self,directory:str,checkParallel:bool=True ):
+        """
+            Reads the boundary from the boundary file of the mesh.
+
+            If checkParallel is true, then checks if the parallel case exists. If it does,
+            read the boundary from the parallel case. Else, read it from the constant.
+
+
+
+        Parameters
+        ----------
+        baseFile
+        """
+        self._case = directory
+        self._checkIfParallel = checkParallel
+
+        self._boundaryNames=[]
+        if self._checkIfParallel and os.path.exists(os.path.join(self.case,"processor0")):
+                for proc in glob.glob(os.path.join(self.case, "processor*")):
+                    self._boundaryNames += self._readBoundary(os.path.join(proc,"constant","polyMesh","boundary"))
+        else:
+            self._boundaryNames = self._readBoundary(os.path.join(directory, "constant", "poly", "boundary"))
+
+
+
+
+    def getBoundary(self,filterProcessor:bool =True):
+        """
+            Return a list of all the boundaries. If fileterprocessor is true,
+            remove all the processor*.
+        Parameters
+        ----------
+        filterProcessor : bool
+            If true remove all the processor* faces from the list.
+
+        Returns
+        -------
+
+        """
+        return list(set([x for x in self._boundaryNames if 'procBoundary' not in x] if filterProcessor else self._boundaryNames))
+
+
+    def _readBoundary(self,boundaryFile):
+        """
+                Reads the boundary file and extracts the boundary names.
+        Parameters
+        ----------
+        boundaryFile
+
+        Returns
+        -------
+
+        """
+
+        def isInt(line):
+            try:
+                return int(line)
+            except:
+                return None
+
+        with open(boundaryFile,"r") as inFile:
+            data = inFile.readlines()
+
+        firstLine =   [i for i,x in enumerate(data) if isInt(x) is not None][0]
+        braceList = [i for i, x in enumerate(data[firstLine:]) if x.strip() == '{']
+        return [data[firstLine:][x - 1].strip() for x in braceList]
 
 
 #########################################################################
 #
-#
+#               Utils
 #########################################################################
 def extractFieldFile(path, columnNames, **kwargs):
     """
@@ -990,84 +1187,4 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
     newData['time'] = float(theTime)
     return newData
 
-
-
-class OFMeshBoundary:
-
-    _case = None
-    _checkIfParallel = None
-
-    _boundaryNames = None
-
-    @property
-    def case(self):
-        return self._case
-
-
-    def __init__(self,directory:str,checkParallel:bool=True ):
-        """
-            Reads the boundary from the boundary file of the mesh.
-
-            If checkParallel is true, then checks if the parallel case exists. If it does,
-            read the boundary from the parallel case. Else, read it from the constant.
-
-
-
-        Parameters
-        ----------
-        baseFile
-        """
-        self._case = directory
-        self._checkIfParallel = checkParallel
-
-        self._boundaryNames=[]
-        if self._checkIfParallel and os.path.exists(os.path.join(self.case,"processor0")):
-                for proc in glob.glob(os.path.join(self.case, "processor*")):
-                    self._boundaryNames += self._readBoundary(os.path.join(proc,"constant","polyMesh","boundary"))
-        else:
-            self._boundaryNames = self._readBoundary(os.path.join(directory, "constant", "poly", "boundary"))
-
-
-
-
-    def getBoundary(self,filterProcessor:bool =True):
-        """
-            Return a list of all the boundaries. If fileterprocessor is true,
-            remove all the processor*.
-        Parameters
-        ----------
-        filterProcessor : bool
-            If true remove all the processor* faces from the list.
-
-        Returns
-        -------
-
-        """
-        return list(set([x for x in self._boundaryNames if 'procBoundary' not in x] if filterProcessor else self._boundaryNames))
-
-
-    def _readBoundary(self,boundaryFile):
-        """
-                Reads the boundary file and extracts the boundary names.
-        Parameters
-        ----------
-        boundaryFile
-
-        Returns
-        -------
-
-        """
-
-        def isInt(line):
-            try:
-                return int(line)
-            except:
-                return None
-
-        with open(boundaryFile,"r") as inFile:
-            data = inFile.readlines()
-
-        firstLine =   [i for i,x in enumerate(data) if isInt(x) is not None][0]
-        braceList = [i for i, x in enumerate(data[firstLine:]) if x.strip() == '{']
-        return [data[firstLine:][x - 1].strip() for x in braceList]
 

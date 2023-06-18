@@ -20,18 +20,28 @@ if __name__ == "__main__":
     ### ------------------------------ SOLVERS
     ############################################
 
-    ## StochasticLagrantianSolver
-    stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrnagian', help='Handles stochasticLagrnagian solver applications')
+    ## ================== StochasticLagrantianSolver
+    stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
     stochasticLagrnagian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
 
+    ## -- createDispersionFlow
     createDispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('createDispersionFlow', help='Creates a dispersion flow from a flow')
-    createDispersionFlow_parser.add_argument('configurationFile', type=str, help="A configuration file that holds the data for the run ")
+    createDispersionFlow_parser.add_argument('configurationFile',default="caseConfiguration.json", type=str, help="A configuration file that holds the data for the run ")
     createDispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_makeDispersionFlow)
 
+    ## -- createExampleConfiguationFile
     createDispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('createExampleConfiguationFile', help='Creates an example configuration file')
     createDispersionFlow_parser.add_argument('configurationFile', type=str, help="A configuration file that holds the data for the run ")
-    #createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_makeDispersionFlow)
+    #createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_createExampleConfiguationFile)
+
+    ## -- createDispersionFlow
+    createDispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('createDispersionFlow', help='Creates a dispersion flow from a flow')
+    createDispersionFlow_parser.add_argument('dispersionCaseDirectory', type=str, help="The name of the new case directory")
+    createDispersionFlow_parser.add_argument('dispersionFlowField', type=str,help="The name dispersion flow (a directory or a stored one in the DB)")
+    createDispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_prepareDispersionCase)
+
 
 
     parsed = parser.parse_args()
