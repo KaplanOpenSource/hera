@@ -1,8 +1,8 @@
 import warnings
-from .datalayer.OFObjects import ofObjectHome
+from .datalayer.OFObjects import OFObjectHome
 from .datalayer.hermesWorkflow import Workflow_Flow,Workflow_Dispersion
 
-OFObjectHome = ofObjectHome()
+OFObjectHome = OFObjectHome()
 
 
 DECOMPOSED_CASE = 'Decomposed Case'
