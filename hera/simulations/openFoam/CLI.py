@@ -4,12 +4,14 @@ import glob
 import os
 import shutil
 
+import pandas
+
 from ...datalayer import datatypes
 from ... import toolkitHome
-from ...utils.jsonutils import loadJSON
+from ...utils.jsonutils import loadJSON,compareJSONS
+from ..hermesWorkflowToolkit import workflowsTypes
 
-
-def stochasticLagrangian_makeDispersionFlow(arguments):
+def stochasticLagrangian_create_dispersionFlow(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" makeDispersionFlow with arguments: {arguments}")
@@ -30,7 +32,73 @@ def stochasticLagrangian_makeDispersionFlow(arguments):
 
     logger.execution(f"----- End -----")
 
-def stochasticLagrangian_createDispersionFlow(arguments):
+
+def stochasticLagrangian_list_dispersionFlow(arguments):
+    """
+        Lists the dispersion flows and the differences between them
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" makeDispersionFlow with arguments: {arguments}")
+
+    if 'projectName' not in arguments:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+    else:
+        projectName = arguments.projectName
+
+    logger.info(f"Listing all dispersion flows in project {projectName}")
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+
+    groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc in tk.getSimulationDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value)])).drop_duplicates()
+
+    resList = []
+    for group in groupsList:
+        ttl = f"Group name {group}"
+        print(ttl)
+        print("-"*len(ttl))
+        wfDict = dict([(doc.desc['name'],doc.desc['name']['flowParameters']) for doc in  tk.getSimulationDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value,groupName=group)])
+        res = compareJSONS(wfDict)
+        if arguments.format == "pandas":
+            print(res)
+        else:
+            resList.append(res.assign(groupName=group))
+
+    if arguments.format != "pandas":
+        allRes = pandas.concat(resList)
+
+        if arguments.format == "latex":
+            output = allRes.to_latex()
+            ext = "tex"
+        elif arguments.format == "csv":
+            output = allRes.to_csv()
+            ext = "csv"
+        else:
+            output = json.dumps(loadJSON(allRes.to_json()), indent=4)
+            ext = "json"
+
+        if len(allRes) == 0:
+            print(f"Could not found any workflows to compare in project {projectName}")
+        else:
+            print(output)
+
+            if arguments.file is not None:
+                flName = arguments.file if "." in arguments.file else f"{arguments.file}.{ext}"
+
+                with open(flName, "w") as outputFile:
+                    outputFile.write(output)
+
+
+def stochasticLagrangian_createDispersion(arguments):
     """
         Prepares the dispersion case:
 
@@ -201,9 +269,14 @@ def stochasticLagrangian_createDispersionFlow(arguments):
         groupID   = dispersionName.split("_")[1]
         logger.debug(f"Adding new document with group {groupName} and {groupID}")
 
+        parameters = DispersionWorkflow.parametersJSON
+
+        if len(DBDispersionWorkflowDocument) > 0:
+            parameters['flowParameters'] = DBDispersionWorkflowDocument[0].desc['flowParameters']
+
         doc = tk.addSimulationsDocument(resource=dispersionFlowFieldDirectory,
                                           dataFormat=datatypes.STRING,
-                                          type=tk.DOCTYPE_WORKFLOW,
+                                          type=workflowsTypes.OF_DISPERSION.value,
                                           desc=dict(
                                               dispersionFlowFieldName=dispersionFlowFieldName,
                                               groupName=groupName,
@@ -211,7 +284,7 @@ def stochasticLagrangian_createDispersionFlow(arguments):
                                               workflowName=dispersionDirectoryName,
                                               workflowType=DispersionWorkflow.workflowType,
                                               workflow=DispersionWorkflow.json,
-                                              parameters=DispersionWorkflow.parametersJSON)
+                                              parameters=parameters)
                                           )
 
     elif (updateDispersionFlowField or updateWorkflow):
@@ -220,10 +293,17 @@ def stochasticLagrangian_createDispersionFlow(arguments):
             logger.debug("Updating dispersion flow field")
             doc.desc['dispersionFlowFieldName'] = dispersionFlowFieldName
 
+            if len(DBDispersionWorkflowDocument) > 0:
+                doc.desc['parameters']['flowParameters'] = DBDispersionWorkflowDocument[0].desc['flowParameters']
+
+
         if updateWorkflow:
             logger.debug("Updating workflow")
             doc.desc['workflow'] = DispersionWorkflow.json
             doc.desc['parameters'] = DispersionWorkflow.parametersJSON
+
+            if len(DBDispersionWorkflowDocument) > 0:
+                doc.desc['parameters']['flowParameters'] = DBDispersionWorkflowDocument[0].desc['flowParameters']
 
         logger.debug("Save to DB")
         doc.save()

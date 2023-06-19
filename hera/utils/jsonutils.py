@@ -4,22 +4,8 @@ import json
 import pandas
 from json.decoder import JSONDecodeError
 from .unum import *
-from unum import Unum
-
-
-def unumToStr(obj):
-    if isinstance(obj, Unum):
-        ret = str(obj).replace(" [", "*").replace("]", "")
-    else:
-        ret = str(obj)
-    return ret
-
-def strToUnum(value):
-    try:
-        ret = eval(str(value))
-    except:
-        ret = value
-    return ret
+from .dataframeutils import compareDataframeConfigurations
+from .unum import unumToStr,strToUnum
 
 def ConfigurationToJSON(conf):
     """
@@ -53,6 +39,54 @@ def ConfigurationToJSON(conf):
             ret[key] = unumToStr(value)
 
     return ret
+
+
+def compareJSONS(jsonDict:dict,diffParams:bool=True,longFormat:bool=False):
+    """
+        Compares JSONs to each other.
+        the input is dict with JSON name->json
+
+    Parameters
+    ----------
+    jsonDict : dict
+        a dict with json name->json
+
+    diffParams : bool
+        if true, returm only the parameters that differ.
+
+    longFormat: bool
+        If true, then return the diff in a long format.
+
+    Returns
+    -------
+        pandas.DataFrame of the difference in the JSONS.
+    """
+    simParamList = []
+
+    for name,jsn in jsonDict.items():
+        simulationParameters = convertJSONtoPandas(jsn) \
+            .fillna("") \
+            .assign(workflowName=name)\
+            .assign(ParameterName=simulationParameters.apply(lambda x: ".".join(x.parameterNameFullPath.split(".")[1:]), axis=1),
+                    nodeName=simulationParameters.apply(lambda x: x.parameterNameFullPath.split(".")[0], axis=1))
+
+        simParamList.append(simulationParameters)
+
+
+    if len(simParamList) == 0:
+        res = pandas.DataFrame()
+    else:
+        res = pandas.concat(simParamList)
+
+        if diffParams:
+            res = compareDataframeConfigurations(res,
+                                                 datasetName="workflowName",
+                                                 parameterName="ParameterName",
+                                                 indexList="nodeName",
+                                                 longFormat=longFormat)
+
+    return res
+
 
 def JSONToConfiguration(JSON):
     """

@@ -36,12 +36,16 @@ if __name__ == "__main__":
 
     ## -- listDispersionFlowFields - build
     list_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('list', help='Lists the DispersionFlow in the DB (with the differences between them)')
-    # Maybe format? to allow export to CVS?
-    #createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_list_dispersionFlow)
+    list_dispersionFlow_parser.add_argument('--format', dest="format", default="pandas", choices=["pandas","latex","csv"],
+                                        help='The output format: pandas (print the pandas), json, latex')
+
+    list_dispersionFlow_parser.add_argument('--file', dest="file", default=None,help='write the output to a file')
+
+    list_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_list_dispersionFlow)
 
     ## -- createExampleConfiguationFile - build
-    makeEmpty_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('writeEmpty', help='Creates an example configuration file')
-    makeEmpty_dispersionFlow_parser.add_argument('configurationFileName', type=str, help="The name of the empty configuration file. ")
+    #makeEmpty_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('writeEmpty', help='Creates an example configuration file')
+    #makeEmpty_dispersionFlow_parser.add_argument('configurationFileName', type=str, help="The name of the empty configuration file. ")
     #createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_makeEmpty_dispersionFlow)
 
     ## -- createDispersionFlow
@@ -50,10 +54,12 @@ if __name__ == "__main__":
     createDispersionFlow_parser.add_argument('dispersionFlowField', type=str,help="The name dispersion flow (a directory or a stored one in the DB)")
     createDispersionFlow_parser.add_argument('--rewrite', dest="rewrite", action="store_true", default=False,
                                              help="Delete the dispersion case and rerun the workflow")
+    createDispersionFlow_parser.add_argument('--allowDuplicate', dest="allowDuplicate", action="store_true", default=False,
+                                             help='Add the current workflow to the DB even if it exists there under a different name')
     createDispersionFlow_parser.add_argument('--updateDB', dest="updateDB", action="store_true", default=False, help="Update DB if there is a mismatch with the file")
     createDispersionFlow_parser.add_argument('--exportFromDB', dest="exportFromDB", action="store_true", default=False, help="If the workflow mismatch the DB, export from DB")
     createDispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_createDispersionFlow)
+    createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_createDispersion)
 
     parsed = parser.parse_args()
 
