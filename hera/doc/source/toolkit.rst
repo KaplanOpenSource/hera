@@ -31,9 +31,6 @@ Generally, each toolkit has 3 components.
 
 
 
-
-
-
 How to use toolkits
 ===================
 
@@ -92,7 +89,7 @@ Toolkits has datasource
 
    toolkits/simulations/LSM
    toolkits/simulations/HermesWorkflow
-
+   toolkits/simulations/openFoam/openFOAM
 
 Indices and tables
 ==================

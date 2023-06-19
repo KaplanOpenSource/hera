@@ -1,18 +1,16 @@
-import warnings
 from enum import Enum, auto, unique
 from typing import Union
 import pandas
 import shutil
 import os
 from ..toolkit import abstractToolkit
-from ..utils import loadJSON,convertJSONtoPandas
+from ..utils import loadJSON,compareJSONS
 from ..utils.query import dictToMongoQuery
 from ..utils.dataframeutils import compareDataframeConfigurations
 from ..datalayer import datatypes
 import numpy
 import pydoc
 import warnings
-from collections.abc import Iterable
 
 
 try:
@@ -34,7 +32,7 @@ class actionModes(Enum):
 @unique
 class workflowsTypes(Enum):
     WORKFLOW = "hermes_workflow"
-    OF_FLOWFIELD = "OF_FlowField"  # OpenFoam: calculation of the flow field.
+    OF_FLOWFIELD = "OF_flowField"  # OpenFoam: calculation of the flow field.
     OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
     OF_FLOWDISPERSION = "OF_flowDispersion"
 
@@ -539,7 +537,7 @@ class workflowToolkit(abstractToolkit):
                 self.logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
                                                   dataFormat=datatypes.STRING,
-                                                  type=self.DOCTYPE_WORKFLOW,
+                                                  type=workflowsTypes.OF_FLOWDISPERSION.value,
                                                   desc=dict(
                                                       groupName=groupName,
                                                       groupID=groupID,
@@ -603,30 +601,9 @@ class workflowToolkit(abstractToolkit):
         -------
 
         """
-        simParamList = []
-        for wf in workflowList:
-            simulationParameters = convertJSONtoPandas(wf.parametersJSON)\
-                                                .fillna("")\
-                                                .assign(workflowName=wf.name)
-            simulationParameters = simulationParameters.assign(
-                ParameterName=simulationParameters.apply(lambda x: ".".join(x.parameterNameFullPath.split(".")[1:]), axis=1),
-                nodeName=simulationParameters.apply(lambda x: x.parameterNameFullPath.split(".")[0], axis=1))
-
-            simParamList.append(simulationParameters)
-
-        if len(simParamList) == 0:
-            res = pandas.DataFrame()
-        else:
-            res = pandas.concat(simParamList)
-
-            if diffParams:
-                res = compareDataframeConfigurations(res,
-                                               datasetName="workflowName",
-                                               parameterName="ParameterName",
-                                               indexList="nodeName",
-                                               longFormat=longFormat)
-
-        return res
+        return compareJSONS(dict([(wf.name,wf.parametersJSON) for wf in workflowList]),
+                            diffParams=diffParams,
+                            longFormat=longFormat)
 
     def compareWorkflows(self,
                          workFlows: Union[list, str],

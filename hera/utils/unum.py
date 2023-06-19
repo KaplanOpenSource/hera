@@ -56,3 +56,18 @@ try:
 except NameConflictError:
     pass
 
+
+
+def unumToStr(obj):
+    if isinstance(obj, Unum):
+        ret = str(obj).replace(" [", "*").replace("]", "")
+    else:
+        ret = str(obj)
+    return ret
+
+def strToUnum(value):
+    try:
+        ret = eval(str(value))
+    except:
+        ret = value
+    return ret

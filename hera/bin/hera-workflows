@@ -566,7 +566,7 @@ if __name__ == "__main__":
                                 help='overwrite the existing workflow with the same name')
     parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
                                 help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
-    parser_prepare.add_argument('--force', dest="force", action="store_true", default=False,
+    parser_prepare.add_argument('--allowDuplicate', dest="force", action="store_true", default=False,
                                 help='Add the current workflow to the DB even if it exists there under a different name')
     parser_prepare.add_argument('--action', dest="action", choices=['Add', 'AddBuild', 'AddBuildExecute','add', 'addBuild', 'addBuildExecute'],
                                 help='The action: just add, just add and build, or add,build and run',

@@ -3,19 +3,40 @@
 StochasticLagrangianSolver
 ##########################
 
-General
-*******
+The Stochastic lagrangian solver extends the stochastic solver of OpenFOAM by adding a stochastic parameterization
+of the turbulence to the lagrangian solver. The solver uses the mean flow field that was prevsiouly computed to calculate
+the dispersion of lagrangian particles.
 
-Tutorial
-********
+To do so, the solver interpolates the values of the mean fields both temporally and spatially (i.e to the location of the
+particle). Because the stochastic parametrization requires additional mean fields that are not solved by the
+navier solver (for example :math:`u_*`). However, adding those fields to the original solution of the flow field
+can be limiting when it is necessary to examine the effect of the parametrization on the dispersion.
+
+To solve this problem, using the StochasticLagrangianSolver includes an intermediate step that creates a
+copy of the original flow field (OFF), but adds the required parametrization fields to it. To save space, the
+dispersion flow field (DFF) does not copy the mesh and the results, but rather, creates a symbolic links to them.
+
+Once the DFF was created, it is possible to create the dispersion case. Since the StochasticLagrangianSolver required
+the configuration in numerous files (as is usual for openFOAM solvers), we use Hermes workflows to automate this procedure
+and convert JSON file to the configurations files.
+
+Comparing dispersion workfows and other management can be achieved through the hera-workflows CLI.
 
 
-Dispersion workflow
-*******************
+10min tutorial
+**************
 
 
 
-Using the StochasticLagrangianSolver
+
+
+Hermes workflow
+***************
+
+
+
+
+Usage
 ************************************
 
 In order to run a stochastic lagrangian solver, we need to perform the following steps:
@@ -24,10 +45,11 @@ In order to run a stochastic lagrangian solver, we need to perform the following
 2. Create the dispersion case
 3. Run the dispersion simulation.
 
-Create a flow field for dispersion from an existing flow field.
-===============================================================
+Create a flow field for dispersion
+==================================
 
-The Dispersion Flow Field (DFF) differs from the original Flow Field (OFF) in several aspects.
+In this section we describe how to create a Dispersion Flow Field (DFF) from an original Flow Field (OFF).
+The DFF differs from the OFF)in several aspects.
 Firstly, if the OFF is in a steady-state, the DFF will have two time steps: one for the actual time step used in the simulation,
 and another time step that is longer than the expected dispersion time.
 This is because the stochastic solver interpolates between adjacent time steps, and setting
@@ -40,7 +62,7 @@ The DFF also includes fields that are necessary for the dispersion solver but ar
 Input Parameters
 ^^^^^^^^^^^^^^^^
 
-To initialize a DFF, you start with a ready OFF and use scripts to create it. The creation of the DFF from the OFF requires the following parameters:
+The following parameters are required to create a DFF from an existing OFF:
 
 * Flow name:
     * case directory
@@ -48,6 +70,9 @@ To initialize a DFF, you start with a ready OFF and use scripts to create it. Th
 * Flow dynamics:
     * SteadyState: f the flow is in a steady state, specify the time step to use and the duration of the dispersion. In this case, the time in the dispersion field will vary from 0 to the maximum time.
     * Dynamic    :  In this case, the time in the dispersion field will use the time of the flow simulation. The user specifies the first time to be used (to ignore bootstrapping).
+
+Additional fields are often necessary, depend on the parametrization chosen.
+For the Neutral2018, and Indoor2018 parameterizations the following fields are required:
 
 * ustar : An estimation of the ustar (friction velocity) in the domain. Currently, we use a constant value, but it can be changed in a later procedure.
 * Hmix  : The height of the mixing layer. For indoor simulations, simply type 1000 or another appropriate value.
@@ -97,7 +122,7 @@ structure (refer to the documentation on how to create an empty configuration fi
 
         - Steady-state: Use the timestep as time 0 in the dispersion.
                         This timestep is copied to the final dispersion time (and so get a de-facto steady flow).
-       -  dynamic: Use all the timesteps from timestep and on. The timestep is time 0 in the
+        -  dynamic: Use all the timesteps from timestep and on. The timestep is time 0 in the
                    dispersion, and that time is subtracted from all the other timesteps.
 
     * linkMeshSymbolically determines whether the mesh will be copied or just linked symbolically. Symbolic linking
@@ -178,10 +203,10 @@ Ux,Uy and Uz. For scalars it is null.
   with the load method in OF objects (see ...).
 
 To create the dispersion field with CLI use
-.. code-block::
+::
 
     >> hera-openfoam stochasticLagrangian createDispersionFlow <configuration file>
-                                                                     [--projectName <projectName>]
+                                                               [--projectName <projectName>]
 
 
 If <configuration file> is not stated, try to use the caseConfiguration.json file.
@@ -199,7 +224,8 @@ Then, initializa a SIMULATIONS_OPENFOAM toolkit:
 
 .. code-block::
 
-    dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM,
+                                                projectName=projectName)
 
 
 
@@ -210,10 +236,10 @@ Creating a dispersion case includes creating the directories of the case, linkin
 creating the configuration files required to run the StochasticLagrangianSolver, and adding the workflow
 to the DB.
 
-.. code-block::
+::
 
     >> hera-openfoam stochasticLagrangian createDispersionFlow <configuration file>
-                                                                     [--projectName <projectName>]
+                                                               [--projectName <projectName>]
 
 
 

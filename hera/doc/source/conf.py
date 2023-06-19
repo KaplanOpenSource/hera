@@ -22,7 +22,7 @@ copyright = '2019'
 author = 'Eden Nitsan, Yehuda Arav, Ofir Blumer, David Giguzin'
 
 # The full version, including alpha/beta/rc tags
-release = '2.9.1'
+release = '2.10.0'
 
 # -- General configuration ---------------------------------------------------
 
@@ -59,6 +59,7 @@ exclude_patterns = ['build', '_templates','auto_examples','auto_examples.old','e
 #
 #html_theme = 'pandas_sphinx_theme'
 #html_theme = 'pydata_sphinx_theme'
+html_theme = "furo"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
