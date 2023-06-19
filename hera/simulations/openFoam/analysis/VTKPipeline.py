@@ -71,7 +71,7 @@ class VTKpipeline:
 
         if self._simulationDocument is None:
             if self.datalayer is not None:
-                self._simulationDocument = self.datalayer.getSimulationDocumentFromDB(self._nameOrWorkflowFileOrJSONOrResource)
+                self._simulationDocument = self.datalayer.getWorkflowDocumentFromDB(self._nameOrWorkflowFileOrJSONOrResource)
 
         return self._simulationDocument
 
@@ -372,7 +372,7 @@ class VTKpipeline:
         if (formatName is not None) and (formatName != "None"):
             self.logger.debug("Getting the simulation flow document. Use the path as identifier ")
             # Find the flow document.
-            flowDoc = self.datalayer.getSimulationDocumentFromDB(self._casePath)
+            flowDoc = self.datalayer.getWorkflowDocumentFromDB(self._casePath)
 
             if len(flowDoc) == 0:
                 self.logger.error(f"P{self._casePath} is not found in the project. Load it using the hera-OF-workflow add ")

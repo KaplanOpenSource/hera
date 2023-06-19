@@ -6,6 +6,14 @@ StochasticLagrangianSolver
 General
 *******
 
+Tutorial
+********
+
+
+Dispersion workflow
+*******************
+
+
 
 Using the StochasticLagrangianSolver
 ************************************
@@ -13,7 +21,7 @@ Using the StochasticLagrangianSolver
 In order to run a stochastic lagrangian solver, we need to perform the following steps:
 
 1. Create a flow field for dispersion from an existing flow field.
-2. Create the dispersion case and link the flowfield to it.
+2. Create the dispersion case
 3. Run the dispersion simulation.
 
 Create a flow field for dispersion from an existing flow field.
@@ -47,14 +55,6 @@ To initialize a DFF, you start with a ready OFF and use scripts to create it. Th
 
 How-to create a dispersion flow field (DFF)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Creating the Dispersion flow field can be done in 3 ways:
-
-1. Using the hera-openfoam command line interface (CLI)
-1. Using the toolkit directly (with code)
-1. Using it in hermes workflow (with a designated node).
-
-**hera-openfoam CLI**
 
 The hera-openfoam interface allows the creation of a flow-dispersion case
 based on a previously computed OpenFOAM flow, referred to as the original flow.
@@ -186,7 +186,6 @@ To create the dispersion field with CLI use
 
 If <configuration file> is not stated, try to use the caseConfiguration.json file.
 
-
 **Using the toolkit**
 
 First, lets import the toolkitHome
@@ -202,16 +201,14 @@ Then, initializa a SIMULATIONS_OPENFOAM toolkit:
 
     dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
-**Using Hermes**
-
-STUB
 
 
+Create the dispersion case
+==========================
 
-Create the dispersion case and link a dispersion flow field to it.
-==================================================================
-
-Creating a dispersion case and linking it to the dispersion is done using the CLI.
+Creating a dispersion case includes creating the directories of the case, linking to a dispersion flow,
+creating the configuration files required to run the StochasticLagrangianSolver, and adding the workflow
+to the DB.
 
 .. code-block::
 
@@ -221,24 +218,6 @@ Creating a dispersion case and linking it to the dispersion is done using the CL
 
 
 
-In hermes, it is just a node that executes a system call. The name dispersion flow field can be either
-fixed, or it can be taken from the output of makeDispersionFlow (see above).
-
-Hence, the Hermes workflow node is:
-
-..  code-block:: javascript
-
-            "makeDispersionCase": {
-                "Execution": {
-                    "type": "general.RunOsCommand",
-                    "input_parameters": {
-                        "Method": "Command list",
-                        "Command": "hera-OF-utils dispersion prepareDispersionCase {Parameters.output.targetCase} {MakeDispersionFlow.output.flowField}"
-                    }
-                }
-
-Run the dispersion simulation
-==============================
 
 File examples
 **************
