@@ -130,7 +130,7 @@ class stochasticLagrangianDataLayer:
 
         # 1. Get the case directory of the original flow.
         self.logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
-        docList = self.toolkit.getSimulationDocumentFromDB(originalFlow['source'])
+        docList = self.toolkit.getWorkflowDocumentFromDB(originalFlow['source'])
 
         if len(docList) == 0:
             self.logger.deug(f"that flow is not in the DB. trying to interpret as a directory ")
@@ -339,13 +339,13 @@ class stochasticLagrangianDataLayer:
         self.logger.info("... Done")
         return ret
 
-    def createDispersionCaseDirectory(self, dispersionDirectory,dispersionFlow):
+    def createDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
         dispersionDirectory = os.path.abspath(dispersionDirectory)
-        dispersionFlow = os.path.abspath(dispersionFlow)
-        self.logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlow}")
+        dispersionFlowDirectory = os.path.abspath(dispersionFlowDirectory)
+        self.logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlowDirectory}")
 
-        if not os.path.isfile(dispersionFlow):
-            err = f"The {dispersionFlow} is not not a directory."
+        if not os.path.isfile(dispersionFlowDirectory):
+            err = f"The {dispersionFlowDirectory} is not not a directory."
             self.logger.error(err)
             raise ValueError(err)
 
@@ -355,10 +355,10 @@ class stochasticLagrangianDataLayer:
         os.makedirs(systemDir, exist_ok=True)
 
         self.logger.debug(f"Copying constant and system from the base flow")
-        shutil.copytree(os.path.join(dispersionFlow, "constant"), os.path.join(dispersionDirectory, "constant"))
-        shutil.copytree(os.path.join(dispersionFlow, "system"), os.path.join(dispersionDirectory, "system"))
+        shutil.copytree(os.path.join(dispersionFlowDirectory, "constant"), os.path.join(dispersionDirectory, "constant"))
+        shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), os.path.join(dispersionDirectory, "system"))
 
-        for proc in glob.glob(os.path.join(dispersionFlow, "processor*")):
+        for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
             self.logger.execution(f"Working on processor {proc}")
             fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
             destination = os.path.join(dispersionDirectory, os.path.basename(proc), "constant", "polyMesh")
@@ -378,8 +378,8 @@ class stochasticLagrangianDataLayer:
         # os.system(f"ln -s {root_decomposePar} {decompose_dest}")
 
         # linking the rootCase in the root directory of the dispersion dispersionDirectory.
-        self.logger.debug(f"Linking the root case: ln -s {dispersionFlow} {os.path.join(dispersionDirectory, 'rootCase')}")
-        os.system(f"ln -s {dispersionFlow} {os.path.join(dispersionDirectory, 'rootCase')}")
+        self.logger.debug(f"Linking the root case: ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
+        os.system(f"ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
 
         # create the 0 directory in the root.
         self.logger.debug(f"Making the 0 in {os.path.join(dispersionDirectory, '0')}")

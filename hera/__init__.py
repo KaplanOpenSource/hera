@@ -13,7 +13,10 @@ from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
 
-
+    #37: 
+        - Adding CLI for StochasticLagrangian 
+        - Changed the interface of ofobjects 
+        - updated documentation 
 
 2.10.0
 ------

@@ -140,7 +140,7 @@ def workflow_delete(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    simulationList = wftk.getSimulationDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getWorkflowDocumentFromDB(list(arguments.workflows))
 
     completeRemove = []
 
@@ -193,7 +193,7 @@ def workflow_export(arguments):
         projectName = caseConfiguration['projectName']
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    simulationList = wftk.getSimulationDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getWorkflowDocumentFromDB(list(arguments.workflows))
 
     for sim in simulationList:
         outfileName = f"{sim['desc']['workflowName']}.json"
@@ -328,7 +328,7 @@ def workflow_list(arguments):
     #
     # else:
 
-    simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
+    simDocument = wftk.getWorkflowDocumentFromDB(arguments.object)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]

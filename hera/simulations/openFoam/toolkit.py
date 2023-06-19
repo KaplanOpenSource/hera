@@ -278,7 +278,7 @@ class analysis:
         -------
             list of DB documents.
         """
-        wrkflow = self.datalayer.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        wrkflow = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
         if wrkflow is None:
             raise ValueError(f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
         simulationName = wrkflow['desc']['simulationName']

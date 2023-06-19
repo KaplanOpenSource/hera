@@ -17,6 +17,7 @@ from collections.abc import Iterable
 
 try:
     from hermes import workflow
+    from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 except ImportError:
 #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     warnings.warn("hermes is not installed. some features will not work.")
@@ -118,6 +119,34 @@ class workflowToolkit(abstractToolkit):
         }
 
 
+    def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
+        """
+            Return a hermes-workflow (or a list of hermes workflows) to the user.
+
+        Parameters
+        ----------
+        documentList : list, document
+            A hera.datalayer document or a list of documents.
+
+        returnFirst : bool
+            If true, return obj of only the first iterm in the list (if it is a list).
+
+        Returns
+        -------
+            hermes workflow object (or one of its derivatives).
+        """
+
+        docList = numpy.atleast_1d(documentList)
+
+        if returnFirst:
+            doc = docList[0]
+            ret =  self.getHermesWorkflowFromJSON(doc.desc['workflow'],name=doc.desc['workflowName'])
+        else:
+            ret = [self.getHermesWorkflowFromJSON(doc.desc['workflow'],name=doc.desc['workflowName']) for doc in docList]
+
+        return ret
+
+
     def getHermesWorkflowFromJSON(self,workflow : Union[dict,str],name=None):
         """
             Creates a hermes workflow object from the JSON that is supplied.
@@ -148,7 +177,7 @@ class workflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON,name=name)
 
 
-    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list],returnFirst=True):
+    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list],returnFirst=True,,**query):
         """
                 Retrieve workflows from the DB as hermes.workflow objects (or its derivatives).
 
@@ -163,28 +192,28 @@ class workflowToolkit(abstractToolkit):
         workflow: str, dict
             The filtering criteria. Either name, or the parameters of the flow.
 
+        returnFirst : bool
+            If true, return only the first object (if found several results in the DB)
+
+        query: arguments
+            Additional query criteria.
+
         Returns
         -------
             list (returnFirst is False)
             hermes workflow.
         """
 
-        docList = self.getSimulationDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource,**query)
 
         if len(docList) == 0:
             self.logger.error(f"... not found. ")
-            raise ValueError(f"Simulation not found.")
-
-        if returnFirst:
-            doc = docList[0]
-            ret =  self.getHermesWorkflowFromJSON(doc.desc['workflow'],name=doc.desc['workflowName'])
+            ret = None
         else:
-            ret = [self.getHermesWorkflowFromJSON(doc.desc['workflow'],name=doc.desc['workflowName']) for doc in docList]
-
+            ret = self.getHemresWorkflowFromDocument(documentList=docList,returnFirst=returnFirst)
         return ret
 
-
-    def getSimulationDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list]):
+    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list],**query):
         """
             Returns the simulation document from the DB.
             The nameOrWorkflowFileOrJSONOrResource can be either group name
@@ -207,53 +236,59 @@ class workflowToolkit(abstractToolkit):
              - Its workflow
              - workfolow dict.
 
+        query : dict
+            Additional query cireteria to the DB.
+
         Returns
         -------
             A document, or None if not found. .
         """
         def getItem(nameOrWorkflowFileOrJSONOrResource):
             # try to find it as a name
+            mongo_crit = dictToMongoQuery(query)
             if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
                 self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
-                docList = self.getSimulationsDocuments(workflowName=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW)
+                docList = self.getSimulationsDocuments(workflowName=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW,**mongo_crit)
                 if len(docList) == 0:
                     self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
-                    docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW)
+                    docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource, type=self.DOCTYPE_WORKFLOW,**mongo_crit)
                     if len(docList) == 0:
                         self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
-                        docList = self.getSimulationsDocuments(groupName=nameOrWorkflowFileOrJSONOrResource,
-                                                               type=self.DOCTYPE_WORKFLOW)
+                        docList = self.getSimulationsDocuments(groupName=nameOrWorkflowFileOrJSONOrResource,type=self.DOCTYPE_WORKFLOW,**mongo_crit)
                         if len(docList) == 0:
-                            self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
-                            if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
-                                from ..datalayer.document import nonDBMetadataFrame
-                                workflowName = os.path.basename(nameOrWorkflowFileOrJSONOrResource).split(".")[0]
-                                grpTuple = workflowName.split("_")
-                                groupName = grpTuple[0]
-                                groupID = grpTuple[1] if len(grpTuple)> 1 else 0
-                                hermesWF = self.getHermesWorkflowFromJSON(nameOrWorkflowFileOrJSONOrResource)
-                                res = nonDBMetadataFrame(data = None,
-                                                         projecName = self.projectName,
-                                                         resource=os.path.join(self.FilesDirectory, nameOrWorkflowFileOrJSONOrResource),
-                                                         dataFormat=datatypes.STRING,
-                                                         type=self.DOCTYPE_WORKFLOW,
-                                                         groupName=groupName,
-                                                         groupID=groupID,
-                                                         workflowName=workflowName,
-                                                         workflowType=hermesWF.workflowType,
-                                                         workflow=hermesWF.json,
-                                                         parameters=hermesWF.parametersJSON
-                                                         )
-                                docList = [res]
-                            else:
-                                self.logger.debug(f"... not found. Try to query as a json. ")
-                                try:
-                                    jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
-                                    wf = self.getHermesWorkflowFromJSON(jsn)
-                                    currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
-                                    docList = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW, **currentQuery)
-                                except ValueError:
-                                    docList = []
+                            self.logger.debug(f"... not found. Try to query as a json. ")
+                            try:
+                                jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
+                                wf = self.getHermesWorkflowFromJSON(jsn)
+                                currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
+                                currentQuery.update(mongo_crit)
+                                docList = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW, **currentQuery)
+                            except ValueError:
+                                # self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
+                                # if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
+                                #     from ..datalayer.document import nonDBMetadataFrame
+                                #     workflowName = os.path.basename(nameOrWorkflowFileOrJSONOrResource).split(".")[0]
+                                #     grpTuple = workflowName.split("_")
+                                #     groupName = grpTuple[0]
+                                #     groupID = grpTuple[1] if len(grpTuple) > 1 else 0
+                                #     hermesWF = self.getHermesWorkflowFromJSON(nameOrWorkflowFileOrJSONOrResource)
+                                #     res = nonDBMetadataFrame(data=None,
+                                #                              projecName=self.projectName,
+                                #                              resource=os.path.join(self.FilesDirectory,
+                                #                                                    nameOrWorkflowFileOrJSONOrResource),
+                                #                              dataFormat=datatypes.STRING,
+                                #                              type=self.DOCTYPE_WORKFLOW,
+                                #                              groupName=groupName,
+                                #                              groupID=groupID,
+                                #                              workflowName=workflowName,
+                                #                              workflowType=hermesWF.workflowType,
+                                #                              workflow=hermesWF.json,
+                                #                              parameters=hermesWF.parametersJSON
+                                #                              )
+                                #     docList = [res]
+                                # else:
+                                self.logger.debug(f"not found")
+                                docList = []
                         else:
                             self.logger.debug(f"... Found it as workflow group ")
                     else:
@@ -264,7 +299,7 @@ class workflowToolkit(abstractToolkit):
             elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
                 self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} using parameters")
                 currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
-                docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW)
+                docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW,**mongo_crit)
             else:
                 docList = []
 
@@ -623,7 +658,7 @@ class workflowToolkit(abstractToolkit):
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         self.logger.info("--- Start ---")
 
-        simulationList = self.getSimulationDocumentFromDB(list(workFlows))
+        simulationList = self.getWorkflowDocumentFromDB(list(workFlows))
 
         workflowList = [workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory,name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
         res = self.compareWorkflowsObj(workflowList,diffParams=diffParams,longFormat=longFormat)
