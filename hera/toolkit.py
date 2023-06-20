@@ -33,7 +33,7 @@ class ToolkitHome:
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
-    LSM            = "LSM"
+    LSM            = "LSM.old"
     OF_LSM         =  "OF_LSM"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
@@ -64,9 +64,9 @@ class ToolkitHome:
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",desc=None),
 
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
-            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
+            LSM            = dict(cls = "hera.simulations.LSM.old.toolkit.LSMToolkit",desc=None),
 
-            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
+            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.old.toolkit.OFLSMToolkit"),
 
             MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
 

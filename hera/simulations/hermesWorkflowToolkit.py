@@ -179,7 +179,7 @@ class workflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON,name=name)
 
 
-    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list],returnFirst=True,,**query):
+    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,,**query):
         """
                 Retrieve workflows from the DB as hermes.workflow objects (or its derivatives).
 
@@ -215,7 +215,7 @@ class workflowToolkit(abstractToolkit):
             ret = self.getHemresWorkflowFromDocument(documentList=docList,returnFirst=returnFirst)
         return ret
 
-    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list],**query):
+    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list,workflow],**query):
         """
             Returns the simulation document from the DB.
             The nameOrWorkflowFileOrJSONOrResource can be either group name
@@ -298,10 +298,14 @@ class workflowToolkit(abstractToolkit):
                 else:
                     self.logger.debug(f"... Found it as name")
 
-            elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict):
-                self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} using parameters")
-                currentQuery = dictToMongoQuery(nameOrWorkflowFileOrJSONOrResource, prefix="parameters")
-                docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW,**mongo_crit)
+            elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict) or isinstance(nameOrWorkflowFileOrJSONOrResource, workflow):
+
+                qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON if isinstance(nameOrWorkflowFileOrJSONOrResource, workflow) else nameOrWorkflowFileOrJSONOrResource
+
+                self.logger.debug(f"Searching for {qryDict} using parameters")
+                currentQuery = dictToMongoQuery(qryDict, prefix="parameters")
+                currentQuery.update(mongo_crit)
+                docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW)
             else:
                 docList = []
 

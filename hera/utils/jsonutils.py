@@ -6,39 +6,7 @@ from json.decoder import JSONDecodeError
 from .unum import *
 from .dataframeutils import compareDataframeConfigurations
 from .unum import unumToStr,strToUnum
-
-def ConfigurationToJSON(conf):
-    """
-        Converts a configuration dict (that might include unum objects) to
-        JSON dict (where all the values are strings).
-
-        The unum objects are converted to Str in a way that allows for their
-        retrieval. (see the JSONToConfiguration function)
-
-    Parameters
-    ----------
-    conf : dict
-        A key-value dict where the values are string.
-        Converts unum objects to string like representations:
-            1*m/s --> '1*m/s'.
-    Returns
-    -------
-        dict with all the values as string
-
-    """
-
-    ret = {}
-    for key,value in conf.items():
-        if isinstance(value,dict):
-            ret[key] = ConfigurationToJSON(value)
-        elif isinstance(value,list):
-            ret[key] = [unumToStr(x) for x in value]
-        elif "'" in str(value):
-            ret[key] = value
-        else:
-            ret[key] = unumToStr(value)
-
-    return ret
+from _io import TextIOWrapper
 
 
 def compareJSONS(jsonDict:dict,diffParams:bool=True,longFormat:bool=False):
@@ -86,6 +54,40 @@ def compareJSONS(jsonDict:dict,diffParams:bool=True,longFormat:bool=False):
                                                  longFormat=longFormat)
 
     return res
+
+def ConfigurationToJSON(conf):
+    """
+        Converts a configuration dict (that might include unum objects) to
+        JSON dict (where all the values are strings).
+
+        The unum objects are converted to Str in a way that allows for their
+        retrieval. (see the JSONToConfiguration function)
+
+    Parameters
+    ----------
+    conf : dict
+        A key-value dict where the values are string.
+        Converts unum objects to string like representations:
+            1*m/s --> '1*m/s'.
+    Returns
+    -------
+        dict with all the values as string
+
+    """
+
+    ret = {}
+    for key,value in conf.items():
+        if isinstance(value,dict):
+            ret[key] = ConfigurationToJSON(value)
+        elif isinstance(value,list):
+            ret[key] = [unumToStr(x) for x in value]
+        elif "'" in str(value):
+            ret[key] = value
+        else:
+            ret[key] = unumToStr(value)
+
+    return ret
+
 
 
 def JSONToConfiguration(JSON):
@@ -156,6 +158,9 @@ def loadJSON(jsonData):
 
     elif isinstance(jsonData, dict):
         loadedjson = jsonData
+    elif isinstance(jsonData, TextIOWrapper):
+        loadedjson = json.load(jsonData)
+
     else:
         err = f"workflow type: {type(jsonData)} is unknonw. Must be str, file-like or dict. "
         raise ValueError(err)

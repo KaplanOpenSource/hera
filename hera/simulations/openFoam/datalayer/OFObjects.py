@@ -231,7 +231,7 @@ class OFObjectHome:
                                    withMass=False,
                                    cloudName="kinematicCloud"):
         """
-            Extracts results of an LSM run.
+            Extracts results of an LSM.old run.
 
         Parameters
         -----------
