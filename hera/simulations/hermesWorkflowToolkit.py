@@ -169,7 +169,7 @@ class workflowToolkit(abstractToolkit):
         if ky is None:
             hermesWFObj = pydoc.locate("hermes.workflow")
         else:
-            hermesWFObj = pydoc.locate(f"hera.simulations.openFoam.datalayer.hermesWorkflow.workflow_{ky}")
+            hermesWFObj = pydoc.locate(f"hera.simulations.openFoam.{ky}.workflowWrapper.workflow_{ky}")
 
         if hermesWFObj is None:
             err = f"The workflow type {ky} not found"
@@ -179,7 +179,7 @@ class workflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON,name=name)
 
 
-    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,,**query):
+    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,**query):
         """
                 Retrieve workflows from the DB as hermes.workflow objects (or its derivatives).
 

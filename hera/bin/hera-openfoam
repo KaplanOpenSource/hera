@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import argparse
 import logging
-from hera.simulations.openFoam import CLI
+from hera.simulations.openFoam import heraOpenfoamCLI
 
 if __name__ == "__main__":
     # initialize_logging(
@@ -21,18 +21,18 @@ if __name__ == "__main__":
     ############################################
 
     ## ================== StochasticLagrantianSolver
-    simpleFoam_parser = subparsers.add_parser('simpleFOAM', help='Handles simpleFOAM solver')
+    simpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles simpleFOAM solver')
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
-    simpleFoam_create_parser = simpleFoam_subparser.add_parser('createCase', help='Creates a case')
+    simpleFoam_create_parser = simpleFoam_subparser.add_parser('buildCase', help='Creates a case')
     simpleFoam_create_parser.add_argument('workflow', type=str, help="The simpleFOAM workflow.")
-    simpleFoam_create_parser.set_defaults(func=CLI.simplefoam_createCase)
+    simpleFoam_create_parser.set_defaults(func=heraOpenfoamCLI.simpleFoam_createCase)
 
-    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCase', help='Creates a case')
+    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.simplefoam_createEmpty)
+    simpleFoam_parser_createEmpty.set_defaults(func=heraOpenfoamCLI.simpleFoam_createEmpty)
 
 
     ## ================== StochasticLagrantianSolver
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     create_dispersionFlow_parser_parser.add_argument('configurationFile',default="caseConfiguration.json", type=str, help="A configuration file that holds the data for the run ")
     create_dispersionFlow_parser_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     # remove all old - flag to delete the old dispersion flows.
-    create_dispersionFlow_parser_parser.set_defaults(func=CLI.stochasticLagrangian_create_dispersionFlow)
+    create_dispersionFlow_parser_parser.set_defaults(func=heraOpenfoamCLI.stochasticLagrangian_create_dispersionFlow)
 
     ## -- listDispersionFlowFields - build
     list_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('list', help='Lists the DispersionFlow in the DB (with the differences between them)')
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     list_dispersionFlow_parser.add_argument('--file', dest="file", default=None,help='write the output to a file')
 
-    list_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_list_dispersionFlow)
+    list_dispersionFlow_parser.set_defaults(func=heraOpenfoamCLI.stochasticLagrangian_list_dispersionFlow)
 
     ## -- createExampleConfiguationFile - build
     #makeEmpty_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('writeEmpty', help='Creates an example configuration file')
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     createDispersionFlow_parser.add_argument('--updateDB', dest="updateDB", action="store_true", default=False, help="Update DB if there is a mismatch with the file")
     createDispersionFlow_parser.add_argument('--exportFromDB', dest="exportFromDB", action="store_true", default=False, help="If the workflow mismatch the DB, export from DB")
     createDispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_createDispersion)
+    createDispersionFlow_parser.set_defaults(func=heraOpenfoamCLI.stochasticLagrangian_createDispersion)
 
     ## -- create source
     source_parser = stochasticLagrnagian_subparser.add_parser('source', help='Creates an initial configuration for the lagrangian particles')
@@ -85,8 +85,8 @@ if __name__ == "__main__":
     source_cylinder_subparser.add_argument('radius', type=str, help="The radius of the cylinder.")
     createDispersionFlow_parser.set_defaults(func=lambda x: print("not implemented"))
 
-    source_createReleaseRateFile_subparser = source_parser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
-    source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
+    source_createReleaseRateFile_subparser = source_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
+    source_createReleaseRateFile_subparser.set_defaults(func=heraOpenfoamCLI.stochasticLagrangian_source_makeEscapedMassFile)
 
 
     parsed = parser.parse_args()

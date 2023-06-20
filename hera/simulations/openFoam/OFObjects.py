@@ -1,3 +1,5 @@
+import logging
+
 import pandas
 import numpy
 import os
@@ -6,7 +8,7 @@ from dask.delayed import delayed
 import dask
 from itertools import product,islice
 from io import StringIO
-from utils.logging import helpers as hera_logging
+from ...utils.logging import helpers as hera_logging
 
 
 #########################################################################
@@ -182,8 +184,7 @@ class OFObjectHome:
 
         """
         self.logger.info("----- Start ----")
-
-        if (flowType is None) ^ (componentNames is None or dimensions is None): # ^ is xor.
+        if not ((flowType is None) ^ (componentNames is None or dimensions is None)): # ^ is xor.
             err = f"Must specify either flowType, or the components names and dimensions  (but not both) of the field {fieldName}"
             self.logger.error(err)
             raise ValueError(err)
@@ -198,16 +199,10 @@ class OFObjectHome:
 
             self.predifinedFields.update(additionalFieldsDescription)
             fieldList = self.predifinedFields[flowType].keys()
-            if fieldName not in self.predifinedFields[flowType].keys():
+            if fieldName not in fieldList:
                 err = f"Field {fieldName} does not exist in flowType {flowType}. Existing fields are: {','.join(fieldList)}"
                 self.logger.error(err)
                 raise ValueError(err)
-
-            if dimensions is  None:
-                err = f"Must supply dimensions to the new field {fieldName}"
-                self.logger.error(err)
-                raise ValueError(err)
-
             else:
                 self.logger.debug(f"Found {fieldName} in context {flowType}. ")
                 objData = dict(self.predifinedFields[flowType][fieldName])
@@ -215,9 +210,10 @@ class OFObjectHome:
         objData['name'] = fieldName
         objData['boundaryConditions'] = boundaryConditions
         objData['data'] = data
-        self.logger.info(f"Getting the object {objData}")
+        self.logger.info(f"Getting the OFField with arguments: \n\t\t {objData}")
+        ret = OFField(**objData)
         self.logger.info("----- End -----")
-        return OFField(**objData)
+        return ret
 
     def loadLagrangianDataParallel(self,
                                    casePath,
@@ -331,11 +327,13 @@ class OFObject:
             If list, then it is a list.
         """
         self.logger = hera_logging.get_logger(self)
+        self.logger.info("---------Start : OFObject ----------")
         self.name = name
         self.componentNames =componentNames
+        self.logger.info("---------End : OFObject------------------")
 
 
-    def write(self, caseDirectory, location, fileName=None, parallel=False):
+    def write(self, caseDirectory, location, fileName=None, parallel=False,parallelBoundary=False):
         """
             Updates the field internal data to the input.
             Should **not** update the boundaries data.
@@ -364,13 +362,25 @@ class OFObject:
         parallel: bool
                 If true, check if there is a decomposed case
 
+        parallelBoundary: bool
+            If true adds the
+                "proc.*" {
+                    type processor;
+                }
+            to the boundary.
+
+            It is necessary as a template file for the 0.parallel. Hence we need to write as single processor
+            but with the parallel boundary
+
+
         Returns
         -------
             String with the new data. if parallel, a dict with the processor number as key and the
             value as the data.
 
         """
-        self.logger.execution("---- Start----")
+        self.logger.execution("---- Start ----")
+        self.logger.debug(f"caseDirectory {caseDirectory}, location {location}, fileName {fileName}, parallel {parallel}")
         fileName = self.name if fileName is None else fileName
         data = self.data
 
@@ -379,12 +389,12 @@ class OFObject:
             data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
 
         if parallel:
-            self.logger.info("Saving fields to parallel case")
+            self.logger.execution("Saving fields to parallel case")
 
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
-
+            self.logger.debug(f"The processor found in the case : {','.join(procPaths)}")
             if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):
-
+                self.logger.debug("The data is pandas or dask")
                 if 'processor' not in data:
                     raise ValueError("data was read from composed case. Does not have multiprocessor structure.")
 
@@ -405,12 +415,13 @@ class OFObject:
                     else:
                         procData = data
 
-                fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
 
+                fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
+                self.logger.debug(f"Writing to file {fullFileName}")
                 if os.path.exists(fullFileName):
                     self._updateExisting(filename=fullFileName,data=procData)
                 else:
-                    self._writeNew(filename=fullFileName,data=procData,parallel=parallel)
+                    self._writeNew(filename=fullFileName,data=procData,parallel=parallel,parallelBoundary=parallelBoundary)
 
         else:
             fullFileName = os.path.join(caseDirectory, str(location), fileName)
@@ -499,7 +510,7 @@ class OFField(OFObject):
     There is a bug in updating an OF field -> removes the boundary conditions.
 
     """
-    dimensions = None  # The dimensions str (currently just a string without the parsing.
+    dimensions = None  # The dimensions str (currently just a string without the parsing).
 
     boundaryConditions = None
     data = None
@@ -534,10 +545,19 @@ class OFField(OFObject):
                 obj.data.to_parquet("new-file.parquet")
 
         """
+        logger = hera_logging.get_logger(self)
+        logger.info("------- Start : OFField ------")
+        logger.debug(f"Name {name}, componentName {componentNames}")
+        logger.debug(f"Dimensions {dimensions}")
+        logger.debug(f"Boundary {boundaryConditions}")
+        logger.debug(f"Data {data}")
         super().__init__(name=name,componentNames=componentNames)
+
         self.dimensions = dimensions
         self.boundaryConditions = boundaryConditions
-        if os.path.exists(os.path.abspath(data)) and 'parquet' in data:
+        if data is None:
+            self.data = None
+        elif os.path.exists(os.path.abspath(data)) and 'parquet' in data:
             self.data = dask.Dataframe.read_parquet(os.path.abspath(data))
         else:
             self.data=data
@@ -671,7 +691,7 @@ class OFField(OFObject):
 
             return filecontentStr
 
-    def _writeNew(self,filename,data,parallel=False):
+    def _writeNew(self,filename,data,parallel=False,parallelBoundary=False):
         """
             Inject the data to a new file.
 
@@ -722,7 +742,7 @@ class OFField(OFObject):
                 fileStrContent += "\n".join(data)
                 fileStrContent += ");\n"
 
-        fileStrContent += self._getBoundaryConditionsStr(parallel=parallel)
+        fileStrContent += self._getBoundaryConditionsStr(parallel=parallelBoundary)
 
         with open(filename,'w') as outfile:
             outfile.write(fileStrContent)
@@ -731,10 +751,9 @@ class OFField(OFObject):
 
     def _getBoundaryConditionsStr(self,parallel=False):
         boundaryConditions = """
-    boundaryField
-    {
+boundaryField
+{
 """
-
         if self.boundaryConditions is not None:
             for boundaryPatchName,boundaryData in self.boundaryConditions.items():
                 bstr = f"\n{boundaryPatchName}\n"
@@ -746,24 +765,25 @@ class OFField(OFObject):
 
                 if parallel:
                     boundaryConditions += """
-                    "proc.*"
-                    {
-                    type            processor;
-                    }
-                    """
+    "proc.*"
+    {
+        type            processor;
+    }
+"""
         elif parallel:
+
             boundaryConditions += """
-"proc.*"
-{
-type            processor;
-}
+    "proc.*"
+    {
+        type            processor;
+    }
 """
         else:
-            boundaryConditions = """
-".*"
-{
-    type            zeroGradient;
-}
+            boundaryConditions += """
+    ".*"
+    {
+        type            zeroGradient;
+    }
 """
 
         boundaryConditions +="""
