@@ -3,7 +3,7 @@ import os
 import glob
 import json
 from distutils.dir_util import copy_tree
-from hera import toolkitHome
+from .... import toolkitHome
 from ....utils import loadJSON
 from ....utils.logging import helpers as hera_logging
 from ....utils.freeCAD import getObjFileBoundaries
@@ -30,9 +30,7 @@ class abstractWorkflow(hermes.workflow):
 
     workflowDescirption = None
 
-    @property
-    def parameters(self):
-        return self['Parameters']
+    _requiredNodeList = None
 
     def __init__(self, workflowJSON, workflowHeraDocument=None,name=None):
         """
@@ -49,6 +47,8 @@ class abstractWorkflow(hermes.workflow):
         super().__init__(workflowJSON=workflowJSON,name=name)
         self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowHeraDocument = workflowHeraDocument
+
+        self._requiredNodeList['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter', 'defineNewBoundaryConditions','Parameters']
 
     @property
     def workflowGroup(self):
@@ -83,7 +83,33 @@ class abstractWorkflow(hermes.workflow):
         return ret
 
 
-class Workflow_Flow(abstractWorkflow):
+    @property
+    def controlDict(self):
+        return self['controlDict']
+
+    @property
+    def fvSolution(self):
+        return self['fvSolution']
+
+    @property
+    def fvScheme(self):
+        return self['fvScheme']
+
+    @property
+    def fileWriter(self):
+        return self['fileWriter']
+
+
+    @property
+    def parameters(self):
+        return self['parameters']
+
+    @property
+    def defineNewBoundaryConditions(self):
+        return self['defineNewBoundaryConditions']
+
+
+class Workflow_Eulerian(abstractWorkflow):
     """
         This class manages the hermes workflow of openFOAM that is designated to
         calculate flow fields.
@@ -101,27 +127,9 @@ class Workflow_Flow(abstractWorkflow):
         in parallel (for example the decompose par).
 
     """
-    def __init__(self,workflowJSON,parallelNodes=None,workflowHeraDocument=None,name=None):
+    def __init__(self,workflowJSON,workflowHeraDocument=None,name=None):
         """
-            Initializes a openFOAM hermes workflow.
-
-            workflowExecutionJSON is a JSON that describes how to execute the workflow.
-
-            Its structure is an ordered list of dict.
-            Each dict represents a command line that has to be executed to run the case.
-                [
-                    {
-                        ... node description ...
-                    },
-
-                ]
-
-            The node description is:
-            {
-                name:       The name of the program to execute.
-                parallel:   Is it necessary for parallel run.
-                parameters: a list of string to append as parameters.
-            }
+            Initializes a hermes workflow for openflow flow simulations.
 
 
         Parameters
@@ -134,61 +142,21 @@ class Workflow_Flow(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
+        self._requiredNodeList.append("blockMesh")
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
-        self._parallelNodes = [] if parallelNodes is None else numpy.atleast_1d(parallelNodes)
 
         # examine here that all the nodes exist, if not - it is not a flow
-        for node in ['controlDict','fvSolution','fvSchemes','blockMesh','fileWriter','defineNewBoundaryConditions']:
+        for node in self._requiredNodeList:
             if node not in self.workflowJSON['nodes']:
                 raise ValueError(f"The node {node} does not exist in the flow. Not a flow workflow.")
-
-    @property
-    def controlDict(self):
-        return self['controlDict']
-
-    @property
-    def fvSolution(self):
-        return self['fvSolution']
-
-    @property
-    def fvScheme(self):
-        return self['fvScheme']
 
     @property
     def blockMesh(self):
         return self['blockMesh']
 
-
     @property
     def snappyHexMesh(self):
         return self['snappyHexMesh'] if 'snappyHexMesh' in self.nodes else None
-
-    @property
-    def fileWriter(self):
-        return self['fileWriter']
-
-
-    @property
-    def defineNewBoundaryConditions(self):
-        return self['defineNewBoundaryConditions']
-
-    def changeWorkflowToRunAsComposed(self):
-        """
-            Removes the decompose node from the workflow.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-            None
-        """
-
-        # 1. Remove from the nodelist.
-        for decmdNode in self._parallelNodes:
-            if decmdNode in self.nodeList:
-                self.nodeList.remove(decmdNode)
-                del self.nodes[decmdNode]
 
     def prepareGeometry(self, workingDirectory, configurationFile,overwrite=False):
         """
@@ -622,8 +590,6 @@ class Workflow_Flow(abstractWorkflow):
         func = getattr(self,f"locationInMeshHandlerRelative_{meshType}")
         func(configuration)
 
-
-
     def locationInMeshHandlerRelative_objFile(self,configuration):
         """
             Finds the relative point in the objFile, and update the snappyHexMesh node.
@@ -678,7 +644,6 @@ class Workflow_Flow(abstractWorkflow):
         if snappyNode is not None:
             snappyNode["castellatedMeshControls"]["locationInMesh"] = [x,y,z]
 
-
     def locationInMeshHandler_absolute(self,configuration,overwrite=False):
         """
             Calculates the location in mesh point according to the fractions
@@ -704,7 +669,6 @@ class Workflow_Flow(abstractWorkflow):
         if snappyNode is not None:
             snappyNode["castellatedMeshControls"]["locationInMesh"] = [x,y,z]
 
-
     ############## initial and boundry conditions.
     ## creates the initial and the boundary conditions
 
@@ -718,9 +682,30 @@ class Workflow_Flow(abstractWorkflow):
         """
         self.defineNewBoundaryConditions['fields'] = icnode['data']
 
-class Workflow_Dispersion(abstractWorkflow):
+class Workflow_Lagrangian(abstractWorkflow):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
-        # examine here that all the nodes exist, if not - it is not a flow
+
+class Workflow_StochasticLagrangianSolver(Workflow_Lagrangian):
+
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+
+        # Make sure that the
+        # dispersionFlowField exists
+        if 'dispersionFlowField' not in self.parameters.parameters:
+            err = "The StochasticLagrangianSolver must have a dispersionFlowField specification in the parameters node"
+            self.logger.error(err)
+            raise ValueError(err)
+
+    @property
+    def dispersionFlowField(self):
+        return self.parameters.parameters['dispersionFlowField']
+
+class Workflow_simpleFoam(Workflow_Eulerian):
+
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+

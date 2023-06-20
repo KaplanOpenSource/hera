@@ -22,10 +22,6 @@ class OFObjectHome:
         This class creates the field and populates the data.
     """
 
-    GROUP_COMPRESSIBLE = "compressible"
-    GROUP_INCOMPRESSIBLE = "incompressible"
-    GROUP_DISPERSION = "dispersion"
-
     logger =None
 
     @property
@@ -141,7 +137,7 @@ class OFObjectHome:
                                 data=data)
         return field
 
-    def getField(self, fieldName, flowType=None, componentNames=None, dimensions=None,boundaryConditions=None,data=None):
+    def getField(self, fieldName, flowType=None, componentNames=None, dimensions=None, boundaryConditions=None, data=None, additionalFieldsDescription=dict()):
         """
             Return the field with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
@@ -174,6 +170,15 @@ class OFObjectHome:
             The units are:
                 kg,m,s,K,mol,A,cd
 
+        additionalFieldsDescription : dict
+            Definition of additional fields:
+            has the structure :
+            {
+                dimensions : {kg : .., m : ..},
+                componentNames : None|list
+            )
+            the keys for the dimensions are kg,m,s,K,mol,A,cd
+
         Returns
         -------
             OFField.
@@ -194,6 +199,7 @@ class OFObjectHome:
                 self.logger.critical(err)
                 raise ValueError(err)
 
+            self.predifinedFields.update(additionalFieldsDescription)
             fieldList = self.predifinedFields[flowType].keys()
             if fieldName not in self.predifinedFields[flowType].keys():
                 err = f"Field {fieldName} does not exist in flowType {flowType}. Existing fields are: {','.join(fieldList)}"

@@ -7,6 +7,7 @@ from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from .datalayer.OFObjects import OFMeshBoundary
 from ..hermesWorkflowToolkit import workflowToolkit,workflowsTypes
 from ...utils.query import dictToMongoQuery
+from ...utils.jsonutils import loadJSON
 
 class stochasticLagrangianDataLayer:
     """
@@ -339,50 +340,240 @@ class stochasticLagrangianDataLayer:
         self.logger.info("... Done")
         return ret
 
-    def createDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
-        dispersionDirectory = os.path.abspath(dispersionDirectory)
-        dispersionFlowDirectory = os.path.abspath(dispersionFlowDirectory)
-        self.logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlowDirectory}")
+    def createDispersionCaseDirectory(self,dispersionCaseDirectory,dispersionWorkflow,updateDB=True,exportFromDB=False,allowDuplicate=False,rewrite=False):
 
-        if not os.path.isfile(dispersionFlowDirectory):
-            err = f"The {dispersionFlowDirectory} is not not a directory."
+        self.logger.execution(f"----- Start -----")
+
+        if (updateDB and exportFromDB):
+            err = "Cannot use both --updateDB and --exportFromDB"
             self.logger.error(err)
             raise ValueError(err)
 
-        constantDir = os.path.join(dispersionDirectory, "constant")
-        systemDir = os.path.join(dispersionDirectory, "system")
-        os.makedirs(constantDir, exist_ok=True)
-        os.makedirs(systemDir, exist_ok=True)
+        try:
+            dispersionWorkFlow = loadJSON(dispersionWorkflow)
+        except ValueError:
+            dispersionWorkFlow = None
 
-        self.logger.debug(f"Copying constant and system from the base flow")
-        shutil.copytree(os.path.join(dispersionFlowDirectory, "constant"), os.path.join(dispersionDirectory, "constant"))
-        shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), os.path.join(dispersionDirectory, "system"))
+        if dispersionWorkFlow is None:
+            err = f"The dispersionCaseDirectory must be a workflow file. Got {dispersionCaseDirectory}"
+            self.logger.error(err)
+            raise ValueError(err)
 
-        for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
-            self.logger.execution(f"Working on processor {proc}")
-            fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
-            destination = os.path.join(dispersionDirectory, os.path.basename(proc), "constant", "polyMesh")
-            os.makedirs(os.path.dirname(destination), exist_ok=True)
-            self.logger.debug(f"\t Linking: ln -s {fullpath} {destination}")
-            self.logger.debug(f"\t Linking root case : ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
-            os.system(f"ln -s {fullpath} {destination}")
-            os.system(f"ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
+        hermes_dispersionWorkflow = self.toolkit.getHermesWorkflowFromJSON(dispersionWorkFlow)
 
-            # create the 0 directory in all processors.
-            os.makedirs(os.path.join(dispersionDirectory, os.path.basename(proc), '0'), exist_ok=True)
-            self.logger.debug(f"Creating the 0 time in {os.path.join(dispersionDirectory, os.path.basename(proc), '0')} ")
 
-        # linking the decpomposePar dict from the root.
-        # root_decomposePar = os.path.abspath(os.path.join(dispersionFlow,"system","decomposeParDict"))
-        # decompose_dest    = os.path.abspath(os.path.join(dispersionDirectory,"system"))
-        # os.system(f"ln -s {root_decomposePar} {decompose_dest}")
+        # 1. Check if the dispersionFlowField is a workflow name or a directory
+        dispersionFlowFieldDocumentList = self.getWorkflowDocumentFromDB(dispersionFlowField)
+        if len(dispersionFlowFieldDocumentList) == 0:
+            self.logger.debug(
+                f"Not found in the DB, trying to use the argument {dispersionFlowField} as a directory")
+            if os.path.isdir(os.path.abspath(dispersionFlowField)):
+                dispersionFlowFieldName = os.path.abspath(dispersionFlowField)
+                dispersionFlowFieldDirectory = dispersionFlowFieldName
+                self.logger.info(
+                    f"Using the dispersion flow {dispersionFlowFieldName} as name and directory. Parameters will not be available since it is not in DB")
+            else:
+                err = f"Cannot find the dispersion flow field {dispersionFlowField}"
+                self.logger.error(err)
+                raise ValueError(err)
+        else:
+            dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
+            dispersionFlowFieldDirectory = dispersionFlowFieldDocumentList[0].resource
+            self.logger.debug(
+                f"Found the dispersion flow {dispersionFlowFieldName} in the DB. Using direcotry {dispersionFlowFieldDirectory}")
 
-        # linking the rootCase in the root directory of the dispersion dispersionDirectory.
-        self.logger.debug(f"Linking the root case: ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
-        os.system(f"ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
+        currentDispersionName = os.path.basename(dispersionWorkflow).split(".")[0]
+        self.logger.info(
+            f"The dispersion workflow {currentDispersionName} and the dispersionFlowField Name {dispersionFlowFieldName} (direccotry {dispersionFlowFieldDirectory})")
 
-        # create the 0 directory in the root.
-        self.logger.debug(f"Making the 0 in {os.path.join(dispersionDirectory, '0')}")
-        os.makedirs(os.path.join(dispersionDirectory, '0'), exist_ok=True)
+        updateDispersionFlowField = False
+        updateWorkflow = False
+        needRewrite = False
+        needDBAdd = False
 
-        self.logger.info("... Done")
+        # 2. Check if the dispersion workflow name is in the DB.
+        DBDispersionWorkflowDocument = self.toolkit.getWorkflowDocumentFromDB(currentDispersionName)
+        if len(DBDispersionWorkflowDocument) > 0:
+            self.logger.execution(
+                f" the workflow {currentDispersionName} in the DB. First see if the dispersion flow field is similar")
+
+            # 2.1 Check if the dispersion flow fields are similar
+            if (DBDispersionWorkflowDocument[0]['desc']['dispersionFlowFieldName'] != dispersionFlowFieldName):
+                self.logger.debug(
+                    f"The dispersion with the name {currentDispersionName} exists in DB and is associated to the disperesion flow {DBDispersionWorkflowDocument[0]['desc']['dispersionFlowFieldName']}.")
+                if updateDB:
+                    self.logger.debug(
+                        "updateDB and rewrite flags exist, so mark for removing the dispersion case and updating the record")
+                    updateDispersionFlowField = True
+                    needRewrite = True
+                else:
+                    err = f"The dispersion with the name {currentDispersionName} exists in DB and is associated to the disperesion flow {DBDispersionWorkflowDocument[0]['desc']['dispersionFlowFieldName']}. In order to change it to dispersion {dispersionFlowFieldName}, either change the dispersion name or use the --updateDB"
+                    self.logger.error(err)
+                    raise ValueError(err)
+            else:
+                self.logger.debug("dispersion not found in DB, add it")
+                needDBAdd = True
+
+            self.logger.execution(f"Check if the disk workflow is identical to the DB workflow")
+            diskDispersionWorkflow = self.toolkit.getHermesWorkflowFromJSON(dispersionWorkFlow)
+            DBDispersionWorkflow = self.toolkit.getHermesWorkflowFromJSON(DBDispersionWorkflowDocument[0]['desc']['workflow'])
+
+            # 2.1 Check if the workflows are similar
+            res = self.toolkit.compareWorkflowsObj([DBDispersionWorkflow, diskDispersionWorkflow])
+            if len(res.columns) == 1:
+                self.logger.info(f"The workflow in the DB is identical to the disk.")
+                DispersionWorkflow = diskDispersionWorkflow
+            else:
+                self.logger.info(
+                    f"The workflow in the DB is different than the disk. Must specify whether to use the disk version  (--updateDB), or the DB version (--exportFromDB). ")
+                if exportFromDB:
+                    self.logger.execution(f"Exporting the workflow to file {dispersionWorkflow}")
+                    with open(dispersionWorkflow, 'w') as JSONOut:
+                        json.dump(DBDispersionWorkflowDocument[0]['desc']['workflow'], JSONOut, indent=4)
+
+                    DispersionWorkflow = DBDispersionWorkflow
+                elif updateDB:
+                    self.logger.execution("Updating the DB with the workflow from disk")
+                    DispersionWorkflow = diskDispersionWorkflow
+                    updateWorkflow = True
+                    needRewrite = True
+                else:
+                    err = f"The workflow in {dispersionWorkflow} file and in the DB are different. Use the --updateDB to update the DB or --exportFromDB to rewrite the file"
+                    self.logger.error(err)
+                    raise ValueError(err)
+
+        # 3. Check if workflow already in DB under a different name
+        self.logger.execution("Check if workflow already in DB under a different name")
+        #    Stop unless allowDuplicate flag exist
+        DBDispersionWorkflow = self.toolkit.getHermesWorkflowFromDB(dispersionWorkFlow,
+                                                          dispersionFlowFieldName=dispersionFlowFieldName)
+
+        if DBDispersionWorkflow is not None:
+            self.logger.debug(
+                f"Found the workflow in the DB under the name {DBDispersionWorkflow[0]['desc']['workflowName']}")
+            if currentDispersionName != DBDispersionWorkflow[0]['desc'][
+                'workflowName'] and not allowDuplicate:
+                info = f"Current simulation name is {currentDispersionName}. The workflow already in DB under the name {DBDispersionWorkflow[0]['desc']['workflowName']}. use the --allowDuplicate to continue"
+                self.logger.error(info)
+                raise ValueError(info)
+
+        dispersionName = dispersionWorkflow.split(".")[0]
+        dispersionDirectoryName = os.path.abspath(dispersionName)
+        self.logger.debug(
+            f"Getting the dispersion directory name from {dispersionWorkflow}: using {dispersionDirectoryName}")
+
+        # 4.  check if the dispersion directory exists.
+        #    if it exist, remove if the --rewrite flag exists.
+        self.logger.execution(
+            "Check if dispersion already exists on the disk. If it is remove for fresh start only in rewrite flag exists")
+        if os.path.isdir(dispersionDirectoryName):
+            if needRewrite:
+                self.logger.execution(
+                    f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
+            if rewrite:
+                self.logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
+                shutil.rmtree(dispersionDirectoryName)
+            else:
+                err = f"The dispersion directory {dispersionDirectoryName} already exists. use --rewrite to force removing and recreating"
+                self.logger.error(err)
+                raise ValueError(err)
+
+        # 3. Create the dispersion case and link to the workflow.
+        self.logger.info(
+            f"Creating dispersion case {dispersionDirectoryName}  and linking to {dispersionFlowFieldDirectory}")
+        self.toolkit.stochasticLagrangian.createDispersionCaseDirectory(dispersionDirectoryName,
+                                                              dispersionFlowDirectory=dispersionFlowFieldDirectory)
+
+
+        # 5. Add/update to the DB.
+        self.logger.execution("add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
+        if needDBAdd:
+            groupName = dispersionName.split("_")[0]
+            groupID = dispersionName.split("_")[1]
+            self.logger.debug(f"Adding new document with group {groupName} and {groupID}")
+
+            parameters = DispersionWorkflow.parametersJSON
+
+            if len(DBDispersionWorkflowDocument) > 0:
+                parameters['flowParameters'] = DBDispersionWorkflowDocument[0].desc['flowParameters']
+
+            doc = self.toolkit.addSimulationsDocument(resource=dispersionFlowFieldDirectory,
+                                            dataFormat=datatypes.STRING,
+                                            type=workflowsTypes.OF_DISPERSION.value,
+                                            desc=dict(
+                                                dispersionFlowFieldName=dispersionFlowFieldName,
+                                                groupName=groupName,
+                                                groupID=groupID,
+                                                workflowName=dispersionDirectoryName,
+                                                workflowType=DispersionWorkflow.workflowType,
+                                                workflow=DispersionWorkflow.json,
+                                                parameters=parameters)
+                                            )
+
+        elif (updateDispersionFlowField or updateWorkflow):
+            doc = dispersionFlowFieldDocumentList[0]
+            if updateDispersionFlowField:
+                self.logger.debug("Updating dispersion flow field")
+                doc.desc['dispersionFlowFieldName'] = dispersionFlowFieldName
+
+                if len(DBDispersionWorkflowDocument) > 0:
+                    doc.desc['parameters']['flowParameters'] = DBDispersionWorkflowDocument[0].desc['flowParameters']
+
+            if updateWorkflow:
+                self.logger.debug("Updating workflow")
+                doc.desc['workflow'] = DispersionWorkflow.json
+                doc.desc['parameters'] = DispersionWorkflow.parametersJSON
+
+                if len(DBDispersionWorkflowDocument) > 0:
+                    doc.desc['parameters']['flowParameters'] = DBDispersionWorkflowDocument[0].desc['flowParameters']
+
+            self.logger.debug("Save to DB")
+            doc.save()
+
+    # def createDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
+    #     dispersionDirectory = os.path.abspath(dispersionDirectory)
+    #     dispersionFlowDirectory = os.path.abspath(dispersionFlowDirectory)
+    #     self.logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlowDirectory}")
+    #
+    #     if not os.path.isfile(dispersionFlowDirectory):
+    #         err = f"The {dispersionFlowDirectory} is not not a directory."
+    #         self.logger.error(err)
+    #         raise ValueError(err)
+    #
+    #     constantDir = os.path.join(dispersionDirectory, "constant")
+    #     systemDir = os.path.join(dispersionDirectory, "system")
+    #     os.makedirs(constantDir, exist_ok=True)
+    #     os.makedirs(systemDir, exist_ok=True)
+    #
+    #     self.logger.debug(f"Copying constant and system from the base flow")
+    #     shutil.copytree(os.path.join(dispersionFlowDirectory, "constant"), os.path.join(dispersionDirectory, "constant"))
+    #     shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), os.path.join(dispersionDirectory, "system"))
+    #
+    #     for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
+    #         self.logger.execution(f"Working on processor {proc}")
+    #         fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
+    #         destination = os.path.join(dispersionDirectory, os.path.basename(proc), "constant", "polyMesh")
+    #         os.makedirs(os.path.dirname(destination), exist_ok=True)
+    #         self.logger.debug(f"\t Linking: ln -s {fullpath} {destination}")
+    #         self.logger.debug(f"\t Linking root case : ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
+    #         os.system(f"ln -s {fullpath} {destination}")
+    #         os.system(f"ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
+    #
+    #         # create the 0 directory in all processors.
+    #         os.makedirs(os.path.join(dispersionDirectory, os.path.basename(proc), '0'), exist_ok=True)
+    #         self.logger.debug(f"Creating the 0 time in {os.path.join(dispersionDirectory, os.path.basename(proc), '0')} ")
+    #
+    #     # linking the decpomposePar dict from the root.
+    #     # root_decomposePar = os.path.abspath(os.path.join(dispersionFlow,"system","decomposeParDict"))
+    #     # decompose_dest    = os.path.abspath(os.path.join(dispersionDirectory,"system"))
+    #     # os.system(f"ln -s {root_decomposePar} {decompose_dest}")
+    #
+    #     # linking the rootCase in the root directory of the dispersion dispersionDirectory.
+    #     self.logger.debug(f"Linking the root case: ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
+    #     os.system(f"ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
+    #
+    #     # create the 0 directory in the root.
+    #     self.logger.debug(f"Making the 0 in {os.path.join(dispersionDirectory, '0')}")
+    #     os.makedirs(os.path.join(dispersionDirectory, '0'), exist_ok=True)
+    #
+    #     self.logger.info("... Done")
