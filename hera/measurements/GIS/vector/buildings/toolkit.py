@@ -211,7 +211,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
             desc = {
                     toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
-                    toolkit.toolkit.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                    toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
                    }
 
             if doc is None:

@@ -1,15 +1,10 @@
-import numpy
 import os
-import glob
 import json
-from distutils.dir_util import copy_tree
-from .... import toolkitHome
-from utils import loadJSON
-from utils.logging import helpers as hera_logging
-from utils.freeCAD import getObjFileBoundaries
+from ... import toolkitHome
+from ...utils import loadJSON
+from ...utils.logging import helpers as hera_logging
+from ...utils.freeCAD import getObjFileBoundaries
 from itertools import product
-from simulations.openFoam import OFObjectHome
-from simulations.hermesWorkflowToolkit import workflowsTypes
 
 try:
     import hermes
@@ -687,13 +682,4 @@ class Workflow_Lagrangian(abstractWorkflow):
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
-
-
-##########################################################
-##                          Workflow_simpleFoam
-##########################################################
-class Workflow_simpleFoam(Workflow_Eulerian):
-
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 

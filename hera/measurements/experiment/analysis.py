@@ -60,7 +60,7 @@ class experimentAnalysis:
         :return:
         """
 
-        highfreqtk = self.datalayer.toolkit.sonicHighFreqToolkit
+        highfreqtk = self.datalayer.toolkitExtension.sonicHighFreqToolkit
         analysis = highfreqtk.analysis.singlePointTurbulenceStatistics(deviceNameOrData=kaijoData,
                                                                         start=None,
                                                                         end=None,

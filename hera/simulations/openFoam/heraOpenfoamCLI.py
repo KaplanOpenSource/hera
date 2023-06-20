@@ -9,9 +9,8 @@ import pandas
 from ...datalayer import datatypes
 from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
-from ..hermesWorkflowToolkit import workflowsTypes
 
-def simplefoam_createEmpty(arguments):
+def simpleFoam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -24,7 +23,7 @@ def simplefoam_createEmpty(arguments):
     else:
         projectName = arguments.projectName
 
-    logger.info(f"Adding dispersion flow to project {projectName}")
+    logger.info(f"Using project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
@@ -35,6 +34,9 @@ def simplefoam_createEmpty(arguments):
 
     logger.execution(f"----- End -----")
 
+
+def simpleFoam_createCase(argumens):
+    raise NotImplementedError("TBD")
 
 def stochasticLagrangian_create_dispersionFlow(arguments):
     logger = logging.getLogger("hera.bin")
@@ -83,7 +85,7 @@ def stochasticLagrangian_list_dispersionFlow(arguments):
 
     logger.info(f"Listing all dispersion flows in project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    res = tk.compareWorkflows(workflowsTypes=workflowsTypes.OF_FLOWDISPERSION.value)
+    res = tk.compareWorkflows(workflowsType="stochasticLagrangianSolver")
 
     if arguments.format == "pandas":
         for group in res.groupName.unique():

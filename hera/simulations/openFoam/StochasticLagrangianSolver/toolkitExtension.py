@@ -4,12 +4,12 @@ import os
 import glob
 import shutil
 import json
-from datalayer import datatypes
-from simulations.openFoam.OFObjects import OFMeshBoundary
-from utils.query import dictToMongoQuery
+from ....datalayer import datatypes
+from ..OFObjects import OFMeshBoundary
+from ....utils.query import dictToMongoQuery
 
 
-class toolkit:
+class toolkitExtension:
     """
         A base class that handles all the stochastic lagrangian things (datalauer
     """
@@ -19,7 +19,7 @@ class toolkit:
     analysis = None # link to the analysis of the StochasticLagrnagian
     presentation = None # link to the presentation of the stochasticLagrangian
 
-    def __init_(self,toolkit):
+    def __init__(self,toolkit):
         self.toolkit = toolkit
         self.logger = toolkit.logger
 
