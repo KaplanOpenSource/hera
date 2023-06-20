@@ -4,7 +4,7 @@ import numpy as np
 import pandas
 import geopandas
 import os
-from .....utils.angle import toMathematicalAngle
+from utils.angle import toMathematicalAngle
 
 karman = 0.41
 def urbanLogExponentProfile(cellCenters, lambdaGrid, stations):

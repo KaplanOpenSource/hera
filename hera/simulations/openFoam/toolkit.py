@@ -1,14 +1,21 @@
 import pandas
 import os
 import glob
-from .datalayer.OFObjects import OFField
-from .datalayer.hermesWorkflow import Workflow_Eulerian
-from .datalayer.OFObjects import OFObjectHome
+from .OFObjects import OFField
+from .OFObjects import OFObjectHome
 from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
-from simulations.openFoam.VTKPipeline import VTKpipeline
-from . import StochasticLagrangian
+from .VTKPipeline import VTKpipeline
 from ...utils.jsonutils import loadJSON,compareJSONS
+
+
+from .StochasticLagrangianSolver.toolkit import toolkit as StochasticLagrangianSolverExt
+
+try:
+    import hermes
+except ImportError:
+    raise ImportError("Cannot use this module without hermes... Install it. ")
+
 
 class OFToolkit(workflowToolkit):
     """
@@ -37,7 +44,8 @@ class OFToolkit(workflowToolkit):
         self.OFObjectHome = OFObjectHome()
         self._analysis = analysis(self)
 
-        self.stochasticLagrangian = StochasticLagrangian.stochasticLagrangianDataLayer(self)
+        self.stochasticLagrangian = StochasticLagrangianSolverExt(self)
+
     def processorList(self,caseDirectory):
         """
             Returns the list of processors directories in the case
@@ -51,19 +59,6 @@ class OFToolkit(workflowToolkit):
 
         """
         return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
-
-    def getHermesWorkflow_Flow(self,workflowfile):
-        """
-            Returns the workflow of the requested JSON file.
-        Parameters
-        ----------
-        workflowfile
-
-        Returns
-        -------
-
-        """
-        return Workflow_Eulerian(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """
@@ -371,3 +366,21 @@ class analysis:
             qry['filterName'] = filterName
 
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
+
+    def getNumberOfSubdomains(self,caseDirectory):
+        """
+            Reads the decomposeParDict and returns the number of subdomains of that particular case.
+        Parameters
+        ----------
+        caseDirectory
+
+        Returns
+        -------
+
+        """
+        decomposeParDictFileName = os.join(caseDirectory, "system", "decomposeParDict")
+        from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
+
+        f = ParsedParameterFile(decomposeParDictFileName)
+        return f['numberOfSubdomains']
+
