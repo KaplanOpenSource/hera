@@ -1,15 +1,15 @@
-import json
+import pandas
 import os
 import glob
 from .datalayer.OFObjects import OFField
-from .datalayer.hermesWorkflow import Workflow_Flow
+from .datalayer.hermesWorkflow import Workflow_Eulerian
 from .datalayer.OFObjects import OFObjectHome
 from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
-from ...datalayer import datatypes
 from .analysis.VTKPipeline import VTKpipeline
-import shutil
+from ...utils.jsonutils import loadJSON
 from . import StochasticLagrangian
+from ...utils.jsonutils import loadJSON,compareJSONS
 
 class OFToolkit(workflowToolkit):
     """
@@ -23,20 +23,19 @@ class OFToolkit(workflowToolkit):
     TIME_STEADYSTATE = "steadyState"
     TIME_DYNAMIC = "dynamic"
 
-    _ofObjectHome = None
+    SIMULATIONTYPE_COMPRESSIBLE = "compressible"
+    SIMULATIONTYPE_INCOMPRESSIBLE = "incompressible"
+    SIMULATIONTYPE_DISPERSION = "dispersion"
+
 
     stochasticLagrangian = None
-
-    @property
-    def ofObjectHome(self):
-        return self._ofObjectHome
 
     def __init__(self, projectName, filesDirectory=None):
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
                          toolkitName="OFworkflowToolkit")
 
-        self._ofObjectHome = OFObjectHome()
+        self.OFObjectHome = OFObjectHome()
         self._analysis = analysis(self)
 
         self.stochasticLagrangian = StochasticLagrangian.stochasticLagrangianDataLayer(self)
@@ -65,7 +64,7 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        return Workflow_Flow(workflowfile)
+        return Workflow_Eulerian(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """
@@ -132,6 +131,91 @@ class OFToolkit(workflowToolkit):
         self.logger.info(f"--- End ---")
         return ret
 
+    def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
+        """
+            Creates an empty case directory for the simulation.
+            fields is a list of fields to create in the case directory.
+
+            The simulation type (copressible, incompressible, dispersion) is needed to get the dimensions and components
+            of the fields. If the fields are not in the standard list then their description can be supplied in the
+            additionalFieldsDescription parameters
+
+        Parameters
+        ----------
+        caseDirectory : str
+            The case directory to create
+
+        fieldList : list
+            The list of field names to create
+
+        simulationType : str
+            compressible, incompressible or dispersion.
+            The dimension of the fields is determined by the type of simulation
+
+        additionalFieldsDescription : dict | str
+            Definition of additional fields:
+            has the structure :
+            {
+                dimensions : {kg : .., m : ..},
+                componentNames : None|list
+            )
+            the keys for the dimensions are kg,m,s,K,mol,A,cd
+
+            Can also be a JSON file name.
+
+        Returns
+        -------
+
+        """
+        print(f"Making case {caseDirectory} with fields {','.join(fieldList)}")
+
+        # Make the case :
+        if os.path.isfile(caseDirectory):
+            raise ValueError(
+                f"The file {caseDirectory} exists as a file. Cannot create a directory. Please remove/rename it and rerun. ")
+
+        os.makedirs(os.path.join(caseDirectory, "constant"), exist_ok=True)
+        os.makedirs(os.path.join(caseDirectory, "system"), exist_ok=True)
+        os.makedirs(os.path.join(caseDirectory, "constant", "triSurface"), exist_ok=True)
+        os.makedirs(os.path.join(caseDirectory, "0"), exist_ok=True)
+        os.makedirs(os.path.join(caseDirectory, "0.orig"), exist_ok=True)
+        os.makedirs(os.path.join(caseDirectory, "0.parallel"), exist_ok=True)
+
+        fileaddition = dict()
+        if additionalFieldsDescription is not None:
+                fileaddition = loadJSON(additionalFieldsDescription)
+
+        # Makes the empty fields
+        for fieldName in fieldList:
+            field = self.OFObjectHome.getField(fieldName, flowType=simulationType, additionalFieldsDescription=fileaddition)
+            field.write(caseDirectory=caseDirectory, location=0)
+            field.write(caseDirectory=caseDirectory, location="0.orig")
+            field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=True)
+
+    def compareWorkflows(self,workflowsTypes):
+        """
+            Lists all the simulations of the type (flow, dispersion, flowdispersion)
+            and return the differences between each group
+        Parameters
+        ----------
+        workflowsTypes
+
+        Returns
+        -------
+
+        """
+        groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc\
+                                                   in self.getSimulationDocuments(type=workflowsTypes)])).drop_duplicates()
+
+        resList = []
+        for group in groupsList:
+            wfDict = dict([(doc.desc['name'], doc.desc['name']['flowParameters']) for doc in
+                           self.getSimulationDocuments(type=workflowsTypes,
+                                                       groupName=group)])
+            res = compareJSONS(wfDict)
+            resList.append(res.assign(groupName=group))
+
+        return pandas.concat(resList)
 
     ########################################## baseTemplateHandler
     #

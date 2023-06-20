@@ -21,6 +21,21 @@ if __name__ == "__main__":
     ############################################
 
     ## ================== StochasticLagrantianSolver
+    simpleFoam_parser = subparsers.add_parser('simpleFOAM', help='Handles simpleFOAM solver')
+    simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
+
+    simpleFoam_create_parser = simpleFoam_subparser.add_parser('createCase', help='Creates a case')
+    simpleFoam_create_parser.add_argument('workflow', type=str, help="The simpleFOAM workflow.")
+    simpleFoam_create_parser.set_defaults(func=CLI.simplefoam_createCase)
+
+    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCase', help='Creates a case')
+    simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.simplefoam_createEmpty)
+
+
+    ## ================== StochasticLagrantianSolver
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
     stochasticLagrnagian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
 
@@ -60,6 +75,19 @@ if __name__ == "__main__":
     createDispersionFlow_parser.add_argument('--exportFromDB', dest="exportFromDB", action="store_true", default=False, help="If the workflow mismatch the DB, export from DB")
     createDispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_createDispersion)
+
+    ## -- create source
+    source_parser = stochasticLagrnagian_subparser.add_parser('source', help='Creates an initial configuration for the lagrangian particles')
+    source_subparser = source_parser.add_subparsers(help='Creates an initial configuration for the lagrangian particles')
+    source_cylinder_subparser = source_subparser.add_parser('createDispersion', help='Creates a cylinder initial source shapre')
+    source_cylinder_subparser.add_argument('center', type=str, help="The center of the cylinder.")
+    source_cylinder_subparser.add_argument('height', type=str, help="The height.")
+    source_cylinder_subparser.add_argument('radius', type=str, help="The radius of the cylinder.")
+    createDispersionFlow_parser.set_defaults(func=lambda x: print("not implemented"))
+
+    source_createReleaseRateFile_subparser = source_parser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
+    source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
+
 
     parsed = parser.parse_args()
 

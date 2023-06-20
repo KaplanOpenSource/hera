@@ -28,52 +28,52 @@ class actionModes(Enum):
     ADDBUILD = auto()
     ADDBUILDEXECUTE = auto()
 
-
-@unique
-class workflowsTypes(Enum):
-    WORKFLOW = "hermes_workflow"
-    OF_FLOWFIELD = "OF_flowField"  # OpenFoam: calculation of the flow field.
-    OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
-    OF_FLOWDISPERSION = "OF_flowDispersion"
-
-    @classmethod
-    def value_of(cls, value):
-        for k, v in cls.__members__.items():
-            if value == v.value:
-                return getattr(cls,k)
-        else:
-            raise ValueError(f"'{cls.__name__}' enum not found for '{value}'")
-
-    @classmethod
-    def isvalid(cls,value):
-        for k, v in cls.__members__.items():
-            if value == v.value:
-                return True
-        else:
-            raise False
-
-    @classmethod
-    def listTypes(cls,self):
-        """
-            Lists the workflow types.
-        Returns
-        -------
-
-        """
-        return [v for k, v in cls.__members__.items()]
-
-
-    @classmethod
-    def workflowsString(cls):
-        """
-            Returns a mongo string with the names of all the types.
-            This is used to get all the documents of the types.
-        Returns
-        -------
-
-        """
-        vals = [v for k, v in cls.__members__.items()]
-        return  f"[{','.join(vals)}]"
+#
+# @unique
+# class workflowsTypes(Enum):
+#     WORKFLOW = "hermes_workflow"
+#     OF_FLOWFIELD = "OF_flowField"  # OpenFoam: calculation of the flow field.
+#     OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
+#     OF_FLOWDISPERSION = "OF_flowDispersion"
+#
+#     @classmethod
+#     def value_of(cls, value):
+#         for k, v in cls.__members__.items():
+#             if value == v.value:
+#                 return getattr(cls,k)
+#         else:
+#             raise ValueError(f"'{cls.__name__}' enum not found for '{value}'")
+#
+#     @classmethod
+#     def isvalid(cls,value):
+#         for k, v in cls.__members__.items():
+#             if value == v.value:
+#                 return True
+#         else:
+#             raise False
+#
+#     @classmethod
+#     def listTypes(cls,self):
+#         """
+#             Lists the workflow types.
+#         Returns
+#         -------
+#
+#         """
+#         return [v for k, v in cls.__members__.items()]
+#
+#
+#     @classmethod
+#     def workflowsString(cls):
+#         """
+#             Returns a mongo string with the names of all the types.
+#             This is used to get all the documents of the types.
+#         Returns
+#         -------
+#
+#         """
+#         vals = [v for k, v in cls.__members__.items()]
+#         return  f"[{','.join(vals)}]"
 
 
 class workflowToolkit(abstractToolkit):
@@ -109,12 +109,12 @@ class workflowToolkit(abstractToolkit):
                          filesDirectory=filesDirectory,
                          toolkitName =toolkitName)
 
-        ## Create the simulationType->object map
-        self._simulationTypeMap = {
-                        workflowsTypes.WORKFLOW.value : "hermes.workflow",
-                         workflowsTypes.OF_DISPERSION.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
-                         workflowsTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
-        }
+        # ## Create the simulationType->object map
+        # self._simulationTypeMap = {
+        #                 workflowsTypes.WORKFLOW.value : "hermes.workflow",
+        #                  workflowsTypes.OF_DISPERSION.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
+        #                  workflowsTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
+        # }
 
 
     def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
@@ -164,13 +164,17 @@ class workflowToolkit(abstractToolkit):
             hermesWorkflow object.
         """
         workFlowJSON = loadJSON(workflow)
-        ky = workFlowJSON['workflow'].get('workflowType',workflowsTypes.WORKFLOW)
+        ky = workFlowJSON['workflow'].get('workflowType',None)
 
-        hermesWFObj = pydoc.locate(self._simulationTypeMap[ky])
+        if ky is None:
+            hermesWFObj = pydoc.locate("hermes.workflow")
+        else:
+            hermesWFObj = pydoc.locate(f"hera.simulations.openFoam.datalayer.hermesWorkflow.workflow_{ky}")
 
         if hermesWFObj is None:
-            raise ValueError(f"Object {self._simulationTypeMap[ky]} not found....")
-
+            err = f"The workflow type {ky} not found"
+            self.logger.error(err)
+            raise ValueError(err)
 
         return hermesWFObj(workFlowJSON,name=name)
 
@@ -487,11 +491,7 @@ class workflowToolkit(abstractToolkit):
         self.logger.debug(f"Loading the workflow JSON {workflowJSON}")
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
-
-        if not workflowsTypes.isvalid(hermesWF.workflowType):
-            raise ValueError(f"The workflow type (in workflow.workflowType key) must be one of: {workflowsTypes.workflowsString}")
-        else:
-            theType = hermesWF.workflowType
+        theType = hermesWF.workflowType
 
         self.logger.debug(f"The suggested simulation name is {cleanName} as a workflow type {theType} (in file {workflowJSON})")
 
@@ -537,7 +537,7 @@ class workflowToolkit(abstractToolkit):
                 self.logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
                                                   dataFormat=datatypes.STRING,
-                                                  type=workflowsTypes.OF_FLOWDISPERSION.value,
+                                                  type=theType,
                                                   desc=dict(
                                                       groupName=groupName,
                                                       groupID=groupID,
@@ -712,8 +712,6 @@ class workflowToolkit(abstractToolkit):
         """
         qry = dict(type=self.DOCTYPE_WORKFLOW)
         if workflowType is not None:
-            if not workflowsTypes.isvalid(workflowType):
-                raise ValueError(f"The workflow type (in workflow.workflowType key) must be one of: {workflowsTypes.workflowsString}")
             qry['workflowType'] = workflowType
 
         docLists = self.getSimulationsDocuments(**qry)

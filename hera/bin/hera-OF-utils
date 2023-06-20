@@ -42,7 +42,7 @@ def createEmpty(args):
 
     # Makes the empty fields
     for fieldName in fieldList:
-        field = ofObjectHome().getField(fieldName, flowType=args.simulationType, additionalFields=fileaddition)
+        field = ofObjectHome().getField(fieldName, flowType=args.simulationType, additionalFieldsDescription=fileaddition)
         field.write(caseDirectory=caseDir, location=0)
         field.write(caseDirectory=caseDir, location="0.orig")
         field.emptyParallelField(caseDirectory=caseDir)

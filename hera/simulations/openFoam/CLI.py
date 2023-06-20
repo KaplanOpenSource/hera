@@ -8,13 +8,38 @@ import pandas
 
 from ...datalayer import datatypes
 from ... import toolkitHome
-from ...utils.jsonutils import loadJSON,compareJSONS
+from ...utils.jsonutils import loadJSON
 from ..hermesWorkflowToolkit import workflowsTypes
+
+def simplefoam_createEmpty(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    if 'projectName' not in arguments:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+    else:
+        projectName = arguments.projectName
+
+    logger.info(f"Adding dispersion flow to project {projectName}")
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+
+    tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
+                       fieldList = arguments.fields,
+                       simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
+                       additionalFieldsDescription  =arguments.fieldsDescription)
+
+
+    logger.execution(f"----- End -----")
+
 
 def stochasticLagrangian_create_dispersionFlow(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
-    logger.debug(f" makeDispersionFlow with arguments: {arguments}")
+    logger.debug(f" arguments: {arguments}")
 
     if 'projectName' not in arguments:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
@@ -58,44 +83,35 @@ def stochasticLagrangian_list_dispersionFlow(arguments):
 
     logger.info(f"Listing all dispersion flows in project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    res = tk.compareWorkflows(workflowsTypes=workflowsTypes.OF_FLOWDISPERSION.value)
 
-    groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc in tk.getSimulationDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value)])).drop_duplicates()
+    if arguments.format == "pandas":
+        for group in res.groupName.unique():
+            ttl = f"Group name {group}"
+            print(ttl)
+            print("-" * len(ttl))
+            print(res.query('groupName == @group'))
 
-    resList = []
-    for group in groupsList:
-        ttl = f"Group name {group}"
-        print(ttl)
-        print("-"*len(ttl))
-        wfDict = dict([(doc.desc['name'],doc.desc['name']['flowParameters']) for doc in  tk.getSimulationDocuments(type=workflowsTypes.OF_FLOWDISPERSION.value,groupName=group)])
-        res = compareJSONS(wfDict)
-        if arguments.format == "pandas":
-            print(res)
-        else:
-            resList.append(res.assign(groupName=group))
+    elif arguments.format == "latex":
+        output = res.to_latex()
+        ext = "tex"
+    elif arguments.format == "csv":
+        output = res.to_csv()
+        ext = "csv"
+    else:
+        output = json.dumps(loadJSON(res.to_json()), indent=4)
+        ext = "json"
 
-    if arguments.format != "pandas":
-        allRes = pandas.concat(resList)
+    if len(res) == 0:
+        print(f"Could not found any workflows to compare in project {projectName}")
+    else:
+        print(output)
 
-        if arguments.format == "latex":
-            output = allRes.to_latex()
-            ext = "tex"
-        elif arguments.format == "csv":
-            output = allRes.to_csv()
-            ext = "csv"
-        else:
-            output = json.dumps(loadJSON(allRes.to_json()), indent=4)
-            ext = "json"
+        if arguments.file is not None:
+            flName = arguments.file if "." in arguments.file else f"{arguments.file}.{ext}"
 
-        if len(allRes) == 0:
-            print(f"Could not found any workflows to compare in project {projectName}")
-        else:
-            print(output)
-
-            if arguments.file is not None:
-                flName = arguments.file if "." in arguments.file else f"{arguments.file}.{ext}"
-
-                with open(flName, "w") as outputFile:
-                    outputFile.write(output)
+            with open(flName, "w") as outputFile:
+                outputFile.write(output)
 
 
 def stochasticLagrangian_createDispersion(arguments):
@@ -307,4 +323,50 @@ def stochasticLagrangian_createDispersion(arguments):
 
         logger.debug("Save to DB")
         doc.save()
+
+def stochasticLagrangian_source_makeEscapedMassFile(args):
+    """
+        Creates an openfoam mass overtime file for the lagrangian output
+        from a dataframe.
+
+    Parameters
+    ----------
+    args
+
+    Returns
+    -------
+
+    """
+
+    case   = os.path.abspath(args.casePath)
+    massFileName = f"{args.patch}Mass" if args.massFileName is None else args.massFileName
+    dt = args.dt
+    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
+    data = LSMtoolkit.analysis.getMassFromLog(logFile=args.logFile,solver=args.solver)
+    data = data.loc[data.filterType == args.patch].loc[data.action == args.action]
+    data["diffMass"] = data.mass.diff()
+    data = data.fillna(0)
+    if dt is None:
+        timesteps = data.time
+    else:
+        timesteps = numpy.arange(data.time.min(),data.time.max(),float(dt))
+        times = pandas.DataFrame({"time":timesteps})
+        data = data.set_index("time").join(times.set_index("time"),how="outer").reset_index()
+        data = data.interpolate()
+    newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
+             "| =========                 |                                                 |\n" \
+             "| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
+             "|  \    /   O peration     | Version:  dev                                   |\n" \
+             "|   \  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
+             "|    \/     M anipulation  |                                                 |\n" \
+             "\*---------------------------------------------------------------------------*/\n" \
+             "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
+             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
+    for time in timesteps:
+        newstr += f"{float(data.loc[data.time==time].diffMass)}\n"
+    newstr += ")"
+    print("saving in ",os.path.join(case,"constant",massFileName))
+    f = open(os.path.join(case,"constant",massFileName), "w")
+    f.write(newstr)
+    f.close()
 
