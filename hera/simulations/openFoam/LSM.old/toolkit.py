@@ -240,7 +240,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  casePath=None,
                  **kwargs):
         """
-            Extracts results of an LSM run.
+            Extracts results of an LSM.old run.
 
         Parameters
         -----------

@@ -4,10 +4,9 @@ import glob
 from .datalayer.OFObjects import OFField
 from .datalayer.hermesWorkflow import Workflow_Eulerian
 from .datalayer.OFObjects import OFObjectHome
-from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
+from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
-from .analysis.VTKPipeline import VTKpipeline
-from ...utils.jsonutils import loadJSON
+from simulations.openFoam.VTKPipeline import VTKpipeline
 from . import StochasticLagrangian
 from ...utils.jsonutils import loadJSON,compareJSONS
 

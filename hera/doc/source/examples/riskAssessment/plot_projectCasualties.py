@@ -7,7 +7,7 @@ Risk Areas plot
 #######################
 # This example shows how to plot the risk areas projected on a population polygon.
 # We will project a cloud of our example agent on a polygon of Katsrin, populated using the demography data.
-# Here we will load the buildings data, the demography and LSM simulation directly from the files directory;
+# Here we will load the buildings data, the demography and LSM.old simulation directly from the files directory;
 # the data may be managed using the appropriate tools.
 #
 # First, we will load the polygon and demography.
@@ -26,7 +26,7 @@ KatsrinCityOnly = Demography.analysis.createNewArea(shapeNameOrData=katsrinBuild
 #######################
 # Then, we calculate the concentration field.
 
-LSM  = toolkitHome.getToolkit(projectName=projectName,toolkitName="LSM")
+LSM  = toolkitHome.getToolkit(projectName=projectName,toolkitName="LSM.old")
 simulation = LSM.singleSimulation(resource="netcdf")
 Concentration = simulation.getConcentration(Q=10*kg)
 

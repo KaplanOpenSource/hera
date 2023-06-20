@@ -688,6 +688,9 @@ class Workflow_Lagrangian(abstractWorkflow):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
 
+##############################################################################
+##                          Workflow_StochasticLagrangianSolver
+##############################################################################
 class Workflow_StochasticLagrangianSolver(Workflow_Lagrangian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
@@ -702,8 +705,20 @@ class Workflow_StochasticLagrangianSolver(Workflow_Lagrangian):
 
     @property
     def dispersionFlowField(self):
+        return
+
+    @property
+    def dispersionFlowField(self):
         return self.parameters.parameters['dispersionFlowField']
 
+    @dispersionFlowField.setter
+    def dispersionFlowField(self, value):
+        self.parameters.parameters['dispersionFlowField'] = str(value)
+
+
+##########################################################
+##                          Workflow_simpleFoam
+##########################################################
 class Workflow_simpleFoam(Workflow_Eulerian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
