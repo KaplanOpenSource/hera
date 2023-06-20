@@ -4,14 +4,12 @@ import os
 import glob
 import shutil
 import json
-from ...datalayer import datatypes
-from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
-from .datalayer.OFObjects import OFMeshBoundary
-from ..hermesWorkflowToolkit import workflowToolkit,workflowsTypes
-from ...utils.query import dictToMongoQuery
-from ...utils.jsonutils import loadJSON
+from datalayer import datatypes
+from simulations.openFoam.OFObjects import OFMeshBoundary
+from utils.query import dictToMongoQuery
 
-class stochasticLagrangianDataLayer:
+
+class toolkit:
     """
         A base class that handles all the stochastic lagrangian things (datalauer
     """

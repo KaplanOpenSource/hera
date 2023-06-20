@@ -6,15 +6,12 @@ from dask.delayed import delayed
 import dask
 from itertools import product,islice
 from io import StringIO
-from ....utils.logging import helpers as hera_logging
+from utils.logging import helpers as hera_logging
 
 
 #########################################################################
-#
 #               Fields
 #########################################################################
-
-
 class OFObjectHome:
     """
         A factory for field classes.
@@ -489,9 +486,6 @@ FoamFile
     def _writeNew(self, filename, data,parallel):
         raise NotImplementedError("Implemented specifically for field or list")
 
-
-
-
 class OFField(OFObject):
     """
         Holds a field.
@@ -925,7 +919,6 @@ class OFList(OFObject):
 #
 #               Mesh handling
 #########################################################################
-
 
 class OFMeshBoundary:
 
