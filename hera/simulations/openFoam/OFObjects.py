@@ -380,7 +380,7 @@ class OFObject:
 
         """
         self.logger.execution("---- Start ----")
-        self.logger.debug(f"caseDirectory {caseDirectory}, location {location}, fileName {fileName}, parallel {parallel}")
+        self.logger.debug(f"caseDirectory {caseDirectory}, location {location}, fileName {fileName}, parallel {parallel}, boundary parallel {parallelBoundary}")
         fileName = self.name if fileName is None else fileName
         data = self.data
 
@@ -419,8 +419,10 @@ class OFObject:
                 fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
                 self.logger.debug(f"Writing to file {fullFileName}")
                 if os.path.exists(fullFileName):
+                    self.logger.debug("File exists!, only updating")
                     self._updateExisting(filename=fullFileName,data=procData)
                 else:
+                    self.logger.debug("New file, writing")
                     self._writeNew(filename=fullFileName,data=procData,parallel=parallel,parallelBoundary=parallelBoundary)
 
         else:
@@ -432,7 +434,7 @@ class OFObject:
                 self._updateExisting(filename=fullFileName, data=data)
             else:
                 self.logger.debug("File does not exist, write new")
-                self._writeNew(filename=fullFileName, data=data)
+                self._writeNew(filename=fullFileName, data=data,parallel=parallel,parallelBoundary=parallelBoundary)
 
         self.logger.execution("---- End ----")
 
@@ -494,7 +496,7 @@ FoamFile
     def _updateExisting(self, filename, data,parallel):
         raise NotImplementedError("Implemented specifically for field or list")
 
-    def _writeNew(self, filename, data,parallel):
+    def _writeNew(self, filename, data,parallel,parallelBoundary=False):
         raise NotImplementedError("Implemented specifically for field or list")
 
 class OFField(OFObject):
@@ -743,7 +745,6 @@ class OFField(OFObject):
                 fileStrContent += ");\n"
 
         fileStrContent += self._getBoundaryConditionsStr(parallel=parallelBoundary)
-
         with open(filename,'w') as outfile:
             outfile.write(fileStrContent)
 

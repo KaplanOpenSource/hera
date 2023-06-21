@@ -11,7 +11,7 @@ import argparse
 import json
 import os
 import pandas
-from .utils,.utils.jsonutils import loadJSON
+from hera.utils,.utils.jsonutils import loadJSON
 from hera.simulations.openFoam import ofObjectHome, Workflow_Flow, Workflow_Dispersion
 from hera import toolkitHome
 import glob
