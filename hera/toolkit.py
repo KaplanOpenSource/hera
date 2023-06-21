@@ -26,7 +26,6 @@ class ToolkitHome:
     ############################################################
 
 
-    LOGGING        = "Logging"
     GIS_BUILDINGS  = "GIS_Buildings"
     GIS_RASTER     = "GIS_Raster"
     GIS_TOPOGRAPHY = "GIS_Topography"

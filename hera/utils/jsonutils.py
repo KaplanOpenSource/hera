@@ -143,27 +143,29 @@ def loadJSON(jsonData):
         The loaded JSON.
 
     """
+    try:
+        if hasattr(jsonData, 'read'):
+            loadedjson = json.load(jsonData)
+        elif isinstance(jsonData, str):
+            if os.path.exists(jsonData):
+                with open(jsonData) as jsonFile:
+                    loadedjson = json.load(jsonFile)
+            else:
+                try:
+                    loadedjson = json.loads(jsonData)
+                except JSONDecodeError as e:
+                    raise ValueError(f" {str(e)}: Got {jsonData}, either bad format of file does not exist")
 
-    if hasattr(jsonData, 'read'):
-        loadedjson = json.load(jsonData)
-    elif isinstance(jsonData, str):
-        if os.path.exists(jsonData):
-            with open(jsonData) as jsonFile:
-                loadedjson = json.load(jsonFile)
+        elif isinstance(jsonData, dict):
+            loadedjson = jsonData
+        elif isinstance(jsonData, TextIOWrapper):
+            loadedjson = json.load(jsonData)
+
         else:
-            try:
-                loadedjson = json.loads(jsonData)
-            except JSONDecodeError as e:
-                raise ValueError(f" {str(e)}: Got {jsonData}, either bad format of file does not exist")
-
-    elif isinstance(jsonData, dict):
-        loadedjson = jsonData
-    elif isinstance(jsonData, TextIOWrapper):
-        loadedjson = json.load(jsonData)
-
-    else:
-        err = f"workflow type: {type(jsonData)} is unknonw. Must be str, file-like or dict. "
-        raise ValueError(err)
+            err = f"workflow type: {type(jsonData)} is unknonw. Must be str, file-like or dict. "
+            raise ValueError(err)
+    except json.decoder.JSONDecodeError as e:
+        raise json.decoder.JSONDecodeError(f"Error reading {jsonData}: {e}",e.doc,e.pos)
 
 
     return  loadedjson
