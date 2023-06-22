@@ -2,8 +2,8 @@
 import json
 import argparse
 from hera import toolkitHome
-import pathlib
 import os
+
 
 #  Load the path to th experiment to hera
 
@@ -29,6 +29,18 @@ def addExperiment(projectName,experimentName, experimentPath):
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help='Topic:')
+
+    projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from configuration.json in your directory'
+
+    parser_prepare = parser.add_parser('list', help='Lists the experiments in your project')
+    parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+
+
+    list_parser = subparsers.add_parser('list', help='Handles listing of the items')
+    list_subparser = list_parser.add_subparsers(help='Handles simulation group')
+
+
     parser.add_argument('experimentName', type=str,help='The project to load the data')
     parser.add_argument('experimentPath', type=str, help='The experiment name')
     parser.add_argument('projectName', type=str, help='The path to the experiment files')

@@ -25,7 +25,7 @@ def load_handler(arguments):
         loadDataInput['latitude'] = coords[0]
         loadDataInput['longitude'] = coords[1]
 
-    dl.loadData(**loadDataInput)
+    dl.loadExperiment(**loadDataInput)
 
 
 globals()['%s_handler' % args.command[0]](args.args)

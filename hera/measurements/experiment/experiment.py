@@ -3,11 +3,15 @@ import os
 import pydoc
 import sys
 from ... import toolkit,toolkitHome,datalayer
-from argos.experimentSetup import dataObjects as argosDataObjects
-from argos import DESIGN,DEPLOY
-from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
 from hera.utils.jsonutils import loadJSON
 
+try:
+    from argos.experimentSetup import dataObjects as argosDataObjects
+    from argos import DESIGN,DEPLOY
+    from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
+except ImportError as e:
+    print("Error - argos is not installed. Install Argos from gitbuh touse this toolkit.")
+    raise e
 
 class experimentHome(toolkit.abstractToolkit):
     """
@@ -26,7 +30,7 @@ class experimentHome(toolkit.abstractToolkit):
         super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory)
         self.logger.info("Init experiment toolkit")
 
-    def loadData(self, fileNameOrData, parser, saveMode=None, **kwargs):
+    def loadExperiment(self, fileNameOrData, parser, saveMode=None, **kwargs):
 
         """
 
@@ -104,8 +108,7 @@ class experimentHome(toolkit.abstractToolkit):
 
             if not (L) or (L and overWrite):
 
-                delList = self.deleteMeasurementsDocuments(type=self.DOCTYPE_ENTITIES,
-                                                           experiment=experiment)
+                delList = self.deleteMeasurementsDocuments(type=self.DOCTYPE_ENTITIES, experiment=experiment)
                 for deldoc in delList:
                     self.logger.info("deleted entities document:")
                     self.logger.info(json.dumps(deldoc, indent=4, sort_keys=True))
@@ -119,7 +122,6 @@ class experimentHome(toolkit.abstractToolkit):
                                              desc=desc)
 
             # create the devices (with the data from the stations).
-
             for entityDict in D:
                 entity=entityDict["deviceName"]
                 path = entityDict['deviceDataPath']

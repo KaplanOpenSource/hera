@@ -455,35 +455,3 @@ class abstractToolkit(Project):
 
         return self.deleteMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,**filters)
 
-    def loadData(self,fileNameOrData,saveMode,**kwargs):
-        """
-            Abstract loading a data from file. Manages the parsing of the
-            datafile.
-
-        Parameters
-        ----------
-        fileNameOrData: str
-                If str , the datafile to load
-                If other objects - convert the
-        parser: str
-                The name of the parser to use
-
-        :param saveMode: str
-                Can be either:
-
-                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
-                                                  raise exception if file exists.
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
-                                                  Replace the file if it exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
-                                                    Raise exception if the entry exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
-                                                    Replace the entry in the DB if it exists.
-
-        """
-        raise NotImplementedError("Implemented in the loading data in the specific toolkit")
