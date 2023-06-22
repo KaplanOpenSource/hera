@@ -28,15 +28,15 @@ class experimentHome(toolkit.abstractToolkit):
     def __init__(self, projectName, filesDirectory=None):
 
         super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory)
-        self.logger.info("Init experiment toolkit")
+        self.logger.info("Init ExperimentHome toolkit")
 
-    def loadExperiment(self, fileNameOrData, parser, saveMode=None, **kwargs):
-
+    def loadExperiment(self, experimentDirectory):
         """
+                Creates a new experiment in the experiment toolkit.
 
         Parameters:
         -----------
-        fileNameOrData: str
+        experimentDirectory: str
             path to parse.
 
         parser: str
@@ -50,9 +50,8 @@ class experimentHome(toolkit.abstractToolkit):
 
         :return:
         """
+        self.logger.info("-------- Start ----------")
 
-        if parser not in self.parserList():
-            raise ValueError(f"{parser} is not a valid parser. Must be {','.join(self.parserList())}")
 
         if isinstance(fileNameOrData,str):
             pathToData = os.path.abspath(fileNameOrData)
@@ -235,6 +234,10 @@ class experimentHome(toolkit.abstractToolkit):
 
     def keys(self):
         return [x for x in self.getExperimentsMap()]
+
+    @property
+    def listExperiments(self):
+        return return [x for x in self.getExperimentsMap()]
 
     # def parserList(self):
     #     """

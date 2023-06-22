@@ -1,4 +1,8 @@
-from ...uti
+import os
+import logging
+from ...utils.jsonutils import loadJSON
+from ... import toolkitHome
+
 
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin")
@@ -12,3 +16,26 @@ def experiments_list(arguments):
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT,projectName=projectName)
+
+    tk.list
+
+def registerInProject(projectName, experimentName, experimentPath):
+
+    dataSourceDesc = dict()
+    dataSourceDesc['handlerPath'] = os.path.abspath(experimentPath)
+
+    dataSourceDesc['className'] = experimentName + 'Toolkit'
+
+    toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
+
+    datasource = toolkit.getDatasourceDocument(datasourceName=experimentName)
+
+    if datasource is not None:
+        toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
+        print(f"Added source {experimentName} to tool  in project {projectName}")
+    else:
+        toolkit.deleteDataSourceDocuments(datasourceName=experimentName)
+        toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
+        print(f"Source {experimentName} already exists in {projectName}, delete current source")
