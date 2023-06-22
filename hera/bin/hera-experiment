@@ -1,30 +1,12 @@
 #! /usr/bin/env python
 import json
 import argparse
-from hera import toolkitHome
+from hera.measurements.experiment import CLI
 import os
 
 
 #  Load the path to th experiment to hera
 
-def addExperiment(projectName,experimentName, experimentPath):
-
-    dataSourceDesc = dict()
-    dataSourceDesc['handlerPath'] = os.path.abspath(experimentPath)
-
-    dataSourceDesc['className'] = experimentName + 'Toolkit'
-
-    toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
-
-    datasource = toolkit.getDatasourceDocument(datasourceName=experimentName)
-
-    if datasource is not None:
-        toolkit.addDataSource(dataSourceName=experimentName,resource = "t", dataFormat = 'str',**dataSourceDesc)
-        print(f"Added source {experimentName} to tool  in project {projectName}")
-    else:
-        toolkit.deleteDataSourceDocuments(datasourceName=experimentName)
-        toolkit.addDataSource(dataSourceName=experimentName, resource = "t", dataFormat = 'str', **dataSourceDesc)
-        print(f"Source {experimentName} already exists in {projectName}, delete current source")
 
 
 if __name__ =="__main__":
@@ -35,14 +17,14 @@ if __name__ =="__main__":
 
     parser_prepare = parser.add_parser('list', help='Lists the experiments in your project')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    parser_prepare.set_defaults(func=CLI.listExperiments)
 
+    parser_add = parser.add_parser('registerInProject', help='register the experiment in the project')
+    parser_add.add_argument('experimentName', type=str,help='The project to load the data')
+    parser_add.add_argument('experimentPath', type=str, help='The experiment name')
+    parser_add.add_argument('projectName', type=str, help='The path to the experiment files')
 
-    list_parser = subparsers.add_parser('list', help='Handles listing of the items')
-    list_subparser = list_parser.add_subparsers(help='Handles simulation group')
+    parser_add.set_defaults(func=CLI.registerInProject)
 
-
-    parser.add_argument('experimentName', type=str,help='The project to load the data')
-    parser.add_argument('experimentPath', type=str, help='The experiment name')
-    parser.add_argument('projectName', type=str, help='The path to the experiment files')
     args = parser.parse_args()
-    addExperiment(args.projectName,args.experimentName, args.experimentPath)
+
