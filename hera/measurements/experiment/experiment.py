@@ -290,7 +290,7 @@ class experimentSetupWithData(argosDataObjects.Experiment,toolkit.abstractToolki
     def getExperimentData(self):
         return self._experimentData
 
-    def __init__(self, projectName, pathToExperiment, dataType, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
+    def __init__(self, projectName, pathToExperiment, dataType=PARQUETHERA, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
         """
             Initializes the specific experiment toolkit.
 
