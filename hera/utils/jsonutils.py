@@ -122,8 +122,10 @@ def loadJSON(jsonData):
 
     elif isinstance(jsonData, dict):
         loadedjson = jsonData
+    elif isinstance(jsonData, list):
+        loadedjson = jsonData
     else:
-        err = f"workflow type: {type(jsonData)} is unknonw. Must be str, file-like or dict. "
+        err = f"workflow type: {type(jsonData)} is unknown. Must be str, file-like or dict. "
         raise ValueError(err)
 
 
