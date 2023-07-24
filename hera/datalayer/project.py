@@ -1,6 +1,6 @@
 import pandas
 
-import hera.utils.logging.helpers as hera_logging
+from ..utils.logging import helpers as hera_logging
 
 
 from .collection import AbstractCollection,\
