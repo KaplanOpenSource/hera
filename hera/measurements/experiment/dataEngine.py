@@ -318,7 +318,7 @@ class parquetDataEngineHera(datalayer.Project):
         self.experimentName = datasourceConfiguration['experimentName']
 
     def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
-                         trialState=DEPLOY, startTime=None, endTime=None):
+                         trialState=DEPLOY, startTime=None, endTime=None,**query):
         """
             Return the device data from the set. Use the default trial set if it is None.
 
@@ -383,7 +383,7 @@ class parquetDataEngineHera(datalayer.Project):
 
         return data
 
-    def getData(self, deviceType, deviceName=None, startTime=None, endTime=None,autoCompute=False):
+    def getData(self, deviceType, deviceName=None, startTime=None, endTime=None,autoCompute=False,**query):
         """
             Returns the data from of the device type. Queries on device if it exists.
 
@@ -401,10 +401,10 @@ class parquetDataEngineHera(datalayer.Project):
         -------
             dask.DataFrame, dask.Pandas. 
         """
-        self.logger.execute("------- Start --------")
+        self.logger.execution("------- Start --------")
         self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
-        collection = self.getMeasurementsDocuments(type = 'rawData',experimentName=self.experimentName,deviceType = deviceType)
+        collection = self.getMeasurementsDocuments(type = 'Experiment_rawData',experimentName=self.experimentName,deviceType = deviceType,**query)
         if len(collection) == 0:
             return pandas.DataFrame()
 
