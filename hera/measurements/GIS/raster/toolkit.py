@@ -125,8 +125,8 @@ class RasterToolkit():
                         "extents is either a list(minX, maxX, minY, maxY) or dict(minX=, maxX=, minY=, maxY=) ")
 
                 additionalData.update({abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
-                                       abstractLocation.toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
-                                       abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
+                                       abstractLocation.toolkitExtension.TOOLKIT_DATASOURCE_NAME: regionName,
+                                       abstractLocation.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName,
                                        "minX": extentList[0],
                                        "maxX": extentList[1],
                                        "minY": extentList[2],
@@ -151,7 +151,7 @@ class RasterToolkit():
 
     def getImage(self, regionName, **filters):
         qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
-               abstractLocation.toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
+               abstractLocation.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
         qry.update(filters)
         docList = self.getCacheDocuments(type=self.doctype, **qry)
 

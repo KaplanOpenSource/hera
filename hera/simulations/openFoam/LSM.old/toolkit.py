@@ -7,11 +7,11 @@ from dask.delayed import delayed
 from dask import dataframe
 
 from unum.units import *
-from ....datalayer import datatypes
+from datalayer import datatypes
 
-from ..utils import getCellDataAndGroundData
-from ...utils import coordinateHandler
-from ....datalayer import nonDBMetadataFrame
+from simulations.openFoam.utils import getCellDataAndGroundData
+from simulations.utils import coordinateHandler
+from datalayer import nonDBMetadataFrame
 from .... import toolkit,toolkitHome
 from .sourcesFactoryTool import sourcesFactoryTool
 from itertools import product
@@ -240,7 +240,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
                  casePath=None,
                  **kwargs):
         """
-            Extracts results of an LSM run.
+            Extracts results of an LSM.old run.
 
         Parameters
         -----------

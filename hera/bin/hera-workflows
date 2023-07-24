@@ -8,7 +8,7 @@ import shutil
 from hera import toolkitHome
 from hera.simulations.hermesWorkflowToolkit import actionModes
 from hera.utils import loadJSON
-from hera.utils.logging.helpers import initialize_logging, with_logger
+from hera.utils.logging import initialize_logging, with_logger
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
@@ -140,7 +140,7 @@ def workflow_delete(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    simulationList = wftk.getSimulationDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getWorkflowDocumentFromDB(list(arguments.workflows))
 
     completeRemove = []
 
@@ -193,7 +193,7 @@ def workflow_export(arguments):
         projectName = caseConfiguration['projectName']
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    simulationList = wftk.getSimulationDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getWorkflowDocumentFromDB(list(arguments.workflows))
 
     for sim in simulationList:
         outfileName = f"{sim['desc']['workflowName']}.json"
@@ -328,7 +328,7 @@ def workflow_list(arguments):
     #
     # else:
 
-    simDocument = wftk.getSimulationDocumentFromDB(arguments.object)
+    simDocument = wftk.getWorkflowDocumentFromDB(arguments.object)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
@@ -518,11 +518,14 @@ def workflow_buildExecute(arguments):
 
 
 if __name__ == "__main__":
-    initialize_logging(
-        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
-        with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
-        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-    )
+    # initialize_logging(
+    #     with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+    #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+    #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+    # )
+
+    logger = logging.getLogger("hera.bin.hera_workflows")
+    logger.debug("Starting the hera_workflows command line")
 
     projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from caseConfiguration'
 
@@ -563,7 +566,7 @@ if __name__ == "__main__":
                                 help='overwrite the existing workflow with the same name')
     parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
                                 help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
-    parser_prepare.add_argument('--force', dest="force", action="store_true", default=False,
+    parser_prepare.add_argument('--allowDuplicate', dest="force", action="store_true", default=False,
                                 help='Add the current workflow to the DB even if it exists there under a different name')
     parser_prepare.add_argument('--action', dest="action", choices=['Add', 'AddBuild', 'AddBuildExecute','add', 'addBuild', 'addBuildExecute'],
                                 help='The action: just add, just add and build, or add,build and run',
@@ -651,9 +654,13 @@ if __name__ == "__main__":
     parser_runWorkflow.add_argument('workflow', type=str, help="base workflow")
     parser_runWorkflow.add_argument('--force', dest="force", default=False, action="store_true",
                                     help="If exist, delete the execution files first")
-    parser_execute.set_defaults(func=workflow_buildExecute)
+    parser_runWorkflow.set_defaults(func=workflow_buildExecute)
 
 
     parsed = parser.parse_args()
 
-    parsed.func(parsed)
+    logger.debug(f"Got {parsed} in the command line")
+    if 'func' not in parsed:
+        parser.print_help()
+    else:
+        parsed.func(parsed)
