@@ -49,6 +49,10 @@ You must have MongoDB installed.
 
    we recommend to add it to the .bashrc.
 
+and also
+
+   export PATH=$PATH:path-to-save/pyhera/hera/bin
+
 3. Create a configuration file in $HOME/.pyhera
 
 .. literalinclude:: examples/configfile/config.json
@@ -56,6 +60,12 @@ You must have MongoDB installed.
 example configuration file  can be downloaded :download:`here <examples/configfile/config.json>`.
 
 The default database name is the linux username and it **must** exist.
+
+4. In order to compile the documentation you must have the furo theme installed:
+
+::
+
+   pip install furo
 
 Usage and API
 =============

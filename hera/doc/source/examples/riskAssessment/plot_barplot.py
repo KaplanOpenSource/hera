@@ -10,7 +10,7 @@ Casualties bar plot
 # For example, we will project a cloud of our example agent on a polygon of Katsrin, populated using the demography data.
 # We will compare between different masses of agent dispersed, and different location of the populations.
 #
-# Here we will load the buildings data, the demography and LSM simulation directly from the files directory;
+# Here we will load the buildings data, the demography and LSM.old simulation directly from the files directory;
 # the data may be managed using the appropriate tools.
 #
 # First, we will load the polygon and demography.
@@ -28,9 +28,9 @@ katsrinBuildings = geopandas.read_file("KatsrinBuildings")
 KatsrinCityOnly = Demography.analysis.createNewArea(shapeNameOrData=katsrinBuildings,dataSourceOrData="KatsrinDemography/Katsrin.shp").getData()
 
 #######################
-# Then, we load the LSM simulations.old.
+# Then, we load the LSM.old simulations.old.
 
-LSM  = toolkitHome.getToolkit(projectName=projectName,toolkitName="LSM")
+LSM  = toolkitHome.getToolkit(projectName=projectName,toolkitName="LSM.old")
 simulation = LSM.singleSimulation(resource="netcdf")
 
 #######################
