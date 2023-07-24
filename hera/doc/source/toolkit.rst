@@ -31,9 +31,6 @@ Generally, each toolkit has 3 components.
 
 
 
-
-
-
 How to use toolkits
 ===================
 
@@ -73,6 +70,8 @@ Listing toolkits
 +--------------------------------------------+--------------------------------------------+
 |:ref:`Hermes workflow <HermesWorkflow>`     | The hermes workflow toolkit                |
 +--------------------------------------------+--------------------------------------------+
+|:ref:`OpenFOAM  <openFOAMToolkit>`          | The openfoam toolkit                       |
++--------------------------------------------+--------------------------------------------+
 |           .. centered:: Risk assessment                                                 |
 +--------------------------------------------+--------------------------------------------+
 |:ref:`Risk assessment <RiskAssessmentPage>` |    Estimating the effects of dispersion    |
@@ -90,7 +89,7 @@ Toolkits has datasource
 
    toolkits/simulations/LSM
    toolkits/simulations/HermesWorkflow
-
+   toolkits/simulations/openFoam/openFOAM
 
 Indices and tables
 ==================

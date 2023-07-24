@@ -13,11 +13,11 @@ from ..utils.coordinateHandler import coordinateHandler
 
 class LSMToolkit(toolkit.abstractToolkit):
     """
-        The LSM toolkit
+        The LSM.old toolkit
 
         The datasources are the templates.
 
-        The LSM template JSON structure is :
+        The LSM.old template JSON structure is :
 
 
         << TO DO >>
@@ -72,7 +72,7 @@ class LSMToolkit(toolkit.abstractToolkit):
 
     def __init__(self, projectName, filesDirectory=None, to_xarray=True, to_database=False, forceKeep=False):
         """
-            Initializes the LSM toolkit
+            Initializes the LSM.old toolkit
 
         Parameters
         ----------
@@ -95,7 +95,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             if False, removes the Lagrnagian files.
 
         """
-        super().__init__(projectName=projectName, toolkitName="LSM", filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName="LSM.old", filesDirectory=filesDirectory)
 
         self.to_xarray = to_xarray
         self.to_database = to_database

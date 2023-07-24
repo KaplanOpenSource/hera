@@ -84,8 +84,8 @@ is given in:
         "projectName" : <project name>
     }
 
-Using with CLI
---------------
+Command Line Interface
+----------------------
 
 In this section we will describe how to use the toolkit with the CLI.
 

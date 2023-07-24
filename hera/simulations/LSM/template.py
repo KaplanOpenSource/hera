@@ -82,7 +82,7 @@ class LSMTemplate:
 
     def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,simulationName=None,**descriptor):
         """
-        Execute the LSM simulation
+        Execute the LSM.old simulation
 
         Parameters
         ----------

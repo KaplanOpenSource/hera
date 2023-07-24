@@ -1,6 +1,7 @@
 import json
 import logging
 import logging.config
+import os.path
 import pathlib
 from importlib.resources import read_text
 from typing import List
@@ -21,9 +22,21 @@ def getClassLogger(cls: type):
 def get_logger(instance, name=None):
     return getClassLogger(instance.__class__) if name is None else logging.getLogger(name)
 
+def get_classMethod_logger(instance, name=None):
+    lgname = instance.__class__ if name is None else instance.__class__ / "." / name
+    return getClassLogger(lgname) if name is None else logging.getLogger(name)
+
+
 
 def get_default_logging_config(*, disable_existing_loggers: bool = False) -> dict:
-    config_text = read_text('hera.utils.logging', 'heraLogging.config')
+    defaultLocalConfig = os.path.join(HERA_DEFAULT_LOG_DIR,'heraLogging.config')
+    if not os.path.isfile(defaultLocalConfig):
+        defaultConfig = read_text('hera.utils.logging', 'heraLogging.config')
+        with open(defaultLocalConfig,'w') as localConfig:
+            localConfig.write(defaultConfig)
+
+    with open(defaultLocalConfig,'r') as localConfig:
+        config_text = "\n".join(localConfig.readlines())
     config_text = config_text.replace("{hera_log}", str(HERA_DEFAULT_LOG_DIR))
     config = json.loads(config_text)
     assert isinstance(config, dict)
@@ -64,6 +77,8 @@ def initialize_logging(*logger_overrides: (str, dict), disable_existing_loggers:
     function, if at all, before you start getting logger objects. If you call it
     after some loggers were created, consider passing ``disable_existing_loggers=False``.
     """
+    if not os.path.isdir(HERA_DEFAULT_LOG_DIR):
+        os.makedirs(HERA_DEFAULT_LOG_DIR,exist_ok=False)
     _define_logger_execution()
     config = get_default_logging_config(disable_existing_loggers=disable_existing_loggers)
     for logger_name, logger_dict in logger_overrides:

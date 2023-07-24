@@ -26,14 +26,13 @@ class ToolkitHome:
     ############################################################
 
 
-    LOGGING        = "Logging"
     GIS_BUILDINGS  = "GIS_Buildings"
     GIS_RASTER     = "GIS_Raster"
     GIS_TOPOGRAPHY = "GIS_Topography"
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
-    LSM            = "LSM"
+    LSM            = "LSM.old"
     OF_LSM         =  "OF_LSM"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
@@ -64,9 +63,9 @@ class ToolkitHome:
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",desc=None),
 
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
-            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
+            LSM            = dict(cls = "hera.simulations.LSM.old.toolkit.LSMToolkit",desc=None),
 
-            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
+            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.old.toolkit.OFLSMToolkit"),
 
             MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
 
@@ -455,35 +454,3 @@ class abstractToolkit(Project):
 
         return self.deleteMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,**filters)
 
-    def loadData(self,fileNameOrData,saveMode,**kwargs):
-        """
-            Abstract loading a data from file. Manages the parsing of the
-            datafile.
-
-        Parameters
-        ----------
-        fileNameOrData: str
-                If str , the datafile to load
-                If other objects - convert the
-        parser: str
-                The name of the parser to use
-
-        :param saveMode: str
-                Can be either:
-
-                    - TOOLKIT_SAVEMODE_NOSAVE   : Just load the data from file and return the datafile
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE : Loads the data from file and save to a file.
-                                                  raise exception if file exists.
-
-                    - TOOLKIT_SAVEMODE_ONLYFILE_REPLACE: Loads the data from file and save to a file.
-                                                  Replace the file if it exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB : Loads the data from file and save to a file and store to the DB as a source.
-                                                    Raise exception if the entry exists.
-
-                    - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
-                                                    Replace the entry in the DB if it exists.
-
-        """
-        raise NotImplementedError("Implemented in the loading data in the specific toolkit")

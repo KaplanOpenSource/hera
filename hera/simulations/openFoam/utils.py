@@ -7,23 +7,6 @@ from ...utils import loadJSON
 # handler = coordinateHandler()
 
 
-def getNumberOfSubdomains(caseDirectory):
-    """
-        Reads the decomposeParDict and returns the number of subdomains of that particular case.
-    Parameters
-    ----------
-    caseDirectory
-
-    Returns
-    -------
-
-    """
-    decomposeParDictFileName = os.join(caseDirectory,"system","decomposeParDict")
-    from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
-
-    f=ParsedParameterFile(decomposeParDictFileName)
-    return f['numberOfSubdomains']
-
 
 def getCellDataAndGroundData(casePath,ground="ground"):
     f = open(os.path.join(casePath, "0", "cellCenters"), "r")

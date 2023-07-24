@@ -12,6 +12,12 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+
+    #37: 
+        - Adding CLI for StochasticLagrangian 
+        - Changed the interface of ofobjects 
+        - updated documentation 
+
 2.10.0
 ------
 
@@ -83,12 +89,12 @@ toolkitHome = ToolkitHome()
     - updated the interfaces and the work on the hera-of package. 
     
     OpenFoam  
-        * Build a toolkit that unifies the access to NS and LSM  
+        * Build a toolkit that unifies the access to NS and LSM.old  
         * Build a reader for the eulerian data, either decomposed or composed cases.
         * New interface to write and read OF fields (eulerian or lagrangian).
         * Improving the Hera interfaces     
  
-    LSM - small fixes to handle parameters without units.
+    LSM.old - small fixes to handle parameters without units.
     Gaussian - Fixing the toolkit of large droplets 
              - Adding a constant meteorology
              
@@ -103,7 +109,7 @@ toolkitHome = ToolkitHome()
 2.4.1 
 ------
 
-    LSM
+    LSM.old
     ----
     
     - Fixed some bugs in getSimulation and getSimulationTable
@@ -124,7 +130,7 @@ Datalayer
     - Renamed Monin-Obukhov length related quantities in singlePointTurbulenceStatistics to make it apparent that 
         they are calculated only from Sonic raw data
 
-    LSM: 
+    LSM.old: 
         - template.run - change directory back to its location.
                        - changes the params of a template back to a separate branch. 
                        - changes the units of the parameters in the template to be more generic. 
@@ -136,7 +142,7 @@ Datalayer
 2.3.0
 -----
     - Added Ofir version
-    - LSM:
+    - LSM.old:
         * Added simulation name to each run. 
         * template.run returns a single simulation
         * Added TRUE, FALSE constants.   
@@ -173,7 +179,7 @@ Datalayer
 buildings:
  - refactoring the code
 
-OF-LSM:
+OF-LSM.old:
  - fixed small bug in reading points
 
 Topography:
@@ -194,9 +200,9 @@ Experiment:
             NavierStokes
                 - Adding Canopy profile.
                 
-            LSM:
+            LSM.old:
                 - Updating Ustar/Hmix 
-                - Fixed some bugs in the OF-LSM reading files.
+                - Fixed some bugs in the OF-LSM.old reading files.
                 - Changed getSource to makeSource
                
     - datalayer:
@@ -211,7 +217,7 @@ Experiment:
 2.0.1
 -----
     - Example for the toolkits raster 
-    - fixed bug in the get concentration of the LSM
+    - fixed bug in the get concentration of the LSM.old
     - Updating the documentaiton 
 
 2.0.0
@@ -318,7 +324,7 @@ Experiment:
  0.0.2
  -----
  
- LSM - * Tiding up the datalayer a bit 
+ LSM.old - * Tiding up the datalayer a bit 
        * LagrangianReader - changing the order of the x and y coordinates
 
 
