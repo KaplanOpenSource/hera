@@ -18,7 +18,7 @@ class experimentHome(toolkit.abstractToolkit):
 
     DOCTYPE_ENTITIES = 'EntitiesData'
 
-    TOOLKIT_FILE = 'toolkit'
+
     CODE_DIRECTORY = 'code'
 
     def __init__(self, projectName, filesDirectory=None):
@@ -48,10 +48,7 @@ class experimentHome(toolkit.abstractToolkit):
         return self.getDataSourceTable()
 
     def getExperiment(self, experimentName,
-                      experimentDataType = PARQUETHERA,
-                      dataSourceConfiguration = dict(),
-                      filesDirectory=None,
-                      defaultTrialSetName=None):
+                      filesDirectory=None):
         """
         get the experiment data source.
         get the experiemt path from data source
@@ -83,25 +80,28 @@ class experimentHome(toolkit.abstractToolkit):
             Instance of the hera.measurements.old.experiment.experiment.experimentSetupWithData
             that was derived for the specific experiment.
         """
-        if experimentDataType not in [PARQUETHERA, PANDASDB,DASKDB]:
-            raise ValueError(f"experimentData type must be EXPERIMENTDATALAYER_HERA ({PARQUETHERA}) or EXPERIMENTDATALAYER_DB ({PANDASDB})")
-
+        self.logger.info(f"Getting experiment {experimentName}")
         L = self.getDatasourceDocument(datasourceName=experimentName)
         if L:
-            experimentPath=L.desc['handlerPath']
+            self.logger.info(f"Found experiment. Loading")
+            experimentPath=L.desc['experimentPath']
             sys.path.append(os.path.join(experimentPath,self.CODE_DIRECTORY))
-            toolkitName = self.TOOLKIT_FILE +'.'+ L.desc['className'] #L.desc['handlerClass']
+            self.logger.debug(f"Adding path {os.path.join(experimentPath,self.CODE_DIRECTORY)} to classpath")
+            toolkitName = f"{experimentName}.{experimentName}"
+            self.logger.debug(f"Loading toolkits: {toolkitName}")
 
             toolkitCls = pydoc.locate(toolkitName)
+            if toolkitCls is None:
+                err = f"Cannot find toolkit {toolkitName} in {os.path.join(experimentPath,self.CODE_DIRECTORY)}"
+                self.logger.error(err)
+                raise ValueError(err)
 
             return toolkitCls(projectName=self.projectName,
-                              pathToExperiment=experimentPath,
-                              dataType=experimentDataType,
-                              dataSourceConfiguration = dataSourceConfiguration,
-                              filesDirectory=filesDirectory,
-                              defaultTrialSetName=defaultTrialSetName)
+                              pathToExperiment=experimentPath,filesDirectory=filesDirectory)
         else:
-            raise ValueError(f"Experiment {experimentName} not found in Project {self.projectName}. Please load the experiment to the project. ")
+            err = f"Experiment {experimentName} not found in Project {self.projectName}. Please load the experiment to the project. "
+            self.logger.error(err)
+            raise ValueError(err)
 
 
     def keys(self):
@@ -327,7 +327,7 @@ class EntityTypeWithData(argosDataObjects.EntityType):
 
 class EntityWithData(argosDataObjects.Entity):
 
-    def __init__(self, entityType: EntityTypeWithData, metadata: dict, experimentData: dataEngineFactory):
+    def __init__(self, entityType: EntityTypeWithData, metadata: dict, experimentData):
         self._experimentData = experimentData
         super().__init__(entityType, metadata)
 
