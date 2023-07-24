@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-
 def calcDist2d(x, y, data=None, bins=20, normalization="max_normalized"):
     """
     Calculates the distribution of two dimensional data.
