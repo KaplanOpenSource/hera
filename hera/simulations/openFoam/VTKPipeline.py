@@ -1,16 +1,20 @@
+import pdb
+
 import pandas
 import os
+import json
 import glob
 
-from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
-from ...utils import loadJSON
-from ...utils.logging import helpers as hera_logging
-from ...datalayer import datatypes
+import sys
+from simulations.openFoam import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
+from utils import loadJSON
+from utils.logging import helpers as hera_logging
+from datalayer import datatypes
 paraviewExists = False
-
 try:
     import paraview.simple as pvsimple
-    from .pvOpenFOAMBase import paraviewOpenFOAM
+    from simulations.openFoam.datalayer.pvOpenFOAMBase import paraviewOpenFOAM
+
     paraviewExists = True
 except ImportError:
     print("paraview not Found. Cannot execute the VTK pipeline.")
