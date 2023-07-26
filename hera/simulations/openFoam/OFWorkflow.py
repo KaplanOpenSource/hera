@@ -1,10 +1,15 @@
+import numpy
 import os
+import glob
 import json
-from ... import toolkitHome
-from ...utils import loadJSON
-from ...utils.logging import helpers as hera_logging
-from ...utils.freeCAD import getObjFileBoundaries
+from distutils.dir_util import copy_tree
+from .... import toolkitHome
+from ....utils import loadJSON
+from ....utils.logging import helpers as hera_logging
+from ....utils.freeCAD import getObjFileBoundaries
 from itertools import product
+from ...openFoam import OFObjectHome
+from ...hermesWorkflowToolkit import workflowsTypes
 
 try:
     import hermes
@@ -682,4 +687,40 @@ class Workflow_Lagrangian(abstractWorkflow):
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
+
+##############################################################################
+##                          Workflow_StochasticLagrangianSolver
+##############################################################################
+class Workflow_StochasticLagrangianSolver(Workflow_Lagrangian):
+
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+
+        # Make sure that the
+        # dispersionFlowField exists
+        if 'dispersionFlowField' not in self.parameters.parameters:
+            err = "The StochasticLagrangianSolver must have a dispersionFlowField specification in the parameters node"
+            self.logger.error(err)
+            raise ValueError(err)
+
+    @property
+    def dispersionFlowField(self):
+        return
+
+    @property
+    def dispersionFlowField(self):
+        return self.parameters.parameters['dispersionFlowField']
+
+    @dispersionFlowField.setter
+    def dispersionFlowField(self, value):
+        self.parameters.parameters['dispersionFlowField'] = str(value)
+
+
+##########################################################
+##                          Workflow_simpleFoam
+##########################################################
+class Workflow_simpleFoam(Workflow_Eulerian):
+
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
