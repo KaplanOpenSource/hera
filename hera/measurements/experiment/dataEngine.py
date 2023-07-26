@@ -5,6 +5,7 @@ import pymongo
 import pandas
 #import dask_mongo
 from argos.manager import experimentSetup, DEPLOY, DESIGN
+from ...utils.logging import helpers as hera_logging
 
 PARQUETHERA = 'parquetDataEngingHera'
 PANDASDB = 'pandasDataEngineDB'
@@ -310,12 +311,14 @@ class parquetDataEngineHera(datalayer.Project):
     experimentName = None
 
     def __init__(self, projectName, datasourceConfiguration):
+        self.logger = hera_logging.get_logger(self)
+
         super().__init__(projectName=projectName)
 
         self.experimentName = datasourceConfiguration['experimentName']
 
     def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
-                         trialState=DEPLOY, startTime=None, endTime=None):
+                         trialState=DEPLOY, startTime=None, endTime=None,**query):
         """
             Return the device data from the set. Use the default trial set if it is None.
 
@@ -380,9 +383,28 @@ class parquetDataEngineHera(datalayer.Project):
 
         return data
 
-    def getData(self, deviceType, deviceName=None, startTime=None, endTime=None):
+    def getData(self, deviceType, deviceName=None, startTime=None, endTime=None,autoCompute=False,**query):
+        """
+            Returns the data from of the device type. Queries on device if it exists.
 
-        collection = self.getMeasurementsDocuments(type = 'rawData',experimentName=self.experimentName,deviceType = deviceType)
+        Parameters
+        ----------
+        deviceType
+        deviceName
+        startTime
+        endTime
+        autoCompute  : bool
+            If true, compute and return the pandas.
+            Else     return dask.
+
+        Returns
+        -------
+            dask.DataFrame, dask.Pandas. 
+        """
+        self.logger.execution("------- Start --------")
+        self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
+
+        collection = self.getMeasurementsDocuments(type = 'Experiment_rawData',experimentName=self.experimentName,deviceType = deviceType,**query)
         if len(collection) == 0:
             return pandas.DataFrame()
 
@@ -407,5 +429,9 @@ class parquetDataEngineHera(datalayer.Project):
         # ## ------------------------------------------------------
 
         data = data.loc[slice(startTime,endTime)]
-        return data.compute()
+
+        if autoCompute:
+            data =data.compute()
+
+        return data
 

@@ -255,6 +255,8 @@ class DataHandler_parquet(object):
         -------
         dask.Dataframe or pandas.DataFrame
         """
+        engine = 'pyarrow'
+        kwargs.setdefault("engine", engine)
         try:
             df = dask.dataframe.read_parquet(resource,**kwargs)
             if usePandas:
