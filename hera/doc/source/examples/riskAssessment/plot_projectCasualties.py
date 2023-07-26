@@ -133,7 +133,7 @@ raster  = toolkitHome.getToolkit(projectName=projectName,toolkitName=toolkitName
 
 location = "Katsrin"
 extents = {"minX":259600, "minY":762000, "maxX":269600, "maxY":772000}
-loadedData = raster.loadData(fileNameOrData="Katsrin.png", extents = extents, saveMode="DB_overwrite", regionName=location, additionalData=dict(units="ITM"))
+loadedData = raster.loadExperiment(fileNameOrData="Katsrin.png", extents = extents, saveMode="DB_overwrite", regionName=location, additionalData=dict(units="ITM"))
 
 
 fig, ax = plt.subplots()

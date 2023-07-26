@@ -1,26 +1,19 @@
 import pandas
 import os
 import glob
-from .OFObjects import OFField
-from .OFObjects import OFObjectHome
+from .datalayer.OFObjects import OFField
+from .datalayer.hermesWorkflow import Workflow_Eulerian
+from .datalayer.OFObjects import OFObjectHome
 from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
-from .VTKPipeline import VTKpipeline
+from simulations.openFoam.VTKPipeline import VTKpipeline
+from . import StochasticLagrangian
 from ...utils.jsonutils import loadJSON,compareJSONS
-
-
-from .StochasticLagrangianSolver.toolkitExtension import toolkitExtension as StochasticLagrangianSolverExt
-
-try:
-    import hermes
-except ImportError:
-    raise ImportError("Cannot use this module without hermes... Install it. ")
-
 
 class OFToolkit(workflowToolkit):
     """
         The goal of this toolkit is to provide the functions that are required to run workflows.
-        and to manage the workflows in the DB.
+        and to mange the workflows in the DB.
 
         This toolkit might relay on the hermes project in order to manipulate the nodes
         of the workflow. (TBD).
@@ -44,8 +37,7 @@ class OFToolkit(workflowToolkit):
         self.OFObjectHome = OFObjectHome()
         self._analysis = analysis(self)
 
-        self.stochasticLagrangian = StochasticLagrangianSolverExt(self)
-
+        self.stochasticLagrangian = StochasticLagrangian.stochasticLagrangianDataLayer(self)
     def processorList(self,caseDirectory):
         """
             Returns the list of processors directories in the case
@@ -59,6 +51,19 @@ class OFToolkit(workflowToolkit):
 
         """
         return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
+
+    def getHermesWorkflow_Flow(self,workflowfile):
+        """
+            Returns the workflow of the requested JSON file.
+        Parameters
+        ----------
+        workflowfile
+
+        Returns
+        -------
+
+        """
+        return Workflow_Eulerian(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """
@@ -161,12 +166,12 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        self.logger.info(f"Making case {caseDirectory} with fields {','.join(fieldList)}")
+        print(f"Making case {caseDirectory} with fields {','.join(fieldList)}")
 
         # Make the case :
         if os.path.isfile(caseDirectory):
-            err = f"The file {caseDirectory} exists as a file. Cannot create a directory. Please remove/rename it and rerun. "
-            raise ValueError(err)
+            raise ValueError(
+                f"The file {caseDirectory} exists as a file. Cannot create a directory. Please remove/rename it and rerun. ")
 
         os.makedirs(os.path.join(caseDirectory, "constant"), exist_ok=True)
         os.makedirs(os.path.join(caseDirectory, "system"), exist_ok=True)
@@ -180,16 +185,11 @@ class OFToolkit(workflowToolkit):
                 fileaddition = loadJSON(additionalFieldsDescription)
 
         # Makes the empty fields
-        self.logger.execution(f"Initializing the fields: {','.join(fieldList)} ")
         for fieldName in fieldList:
-            self.logger.debug(f"Creating field {fieldName}")
             field = self.OFObjectHome.getField(fieldName, flowType=simulationType, additionalFieldsDescription=fileaddition)
-            self.logger.debug("Writing to 0")
             field.write(caseDirectory=caseDirectory, location=0)
-            self.logger.debug("Writing to 0.orig")
             field.write(caseDirectory=caseDirectory, location="0.orig")
-            self.logger.debug("Writing to 0.parallel")
-            field.write(caseDirectory=caseDirectory, location="0.parallel",parallelBoundary=True)
+            field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=True)
 
     def compareWorkflows(self,workflowsTypes):
         """
@@ -371,21 +371,3 @@ class analysis:
             qry['filterName'] = filterName
 
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
-
-    def getNumberOfSubdomains(self,caseDirectory):
-        """
-            Reads the decomposeParDict and returns the number of subdomains of that particular case.
-        Parameters
-        ----------
-        caseDirectory
-
-        Returns
-        -------
-
-        """
-        decomposeParDictFileName = os.join(caseDirectory, "system", "decomposeParDict")
-        from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
-
-        f = ParsedParameterFile(decomposeParDictFileName)
-        return f['numberOfSubdomains']
-
