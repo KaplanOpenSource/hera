@@ -56,8 +56,6 @@ try:
 except NameConflictError:
     pass
 
-
-
 def unumToStr(obj):
     if isinstance(obj, Unum):
         ret = str(obj).replace(" [", "*").replace("]", "")
