@@ -5,23 +5,9 @@ import pandas
 from json.decoder import JSONDecodeError
 from .unum import *
 from unum import Unum
+import logging
 
-
-def unumToStr(obj):
-    if isinstance(obj, Unum):
-        ret = str(obj).replace(" [", "*").replace("]", "")
-    else:
-        ret = str(obj)
-    return ret
-
-def strToUnum(value):
-    try:
-        ret = eval(str(value))
-    except:
-        ret = value
-    return ret
-
-def ConfigurationToJSON(conf):
+def ConfigurationToJSON(valueToProcess):
     """
         Converts a configuration dict (that might include unum objects) to
         JSON dict (where all the values are strings).
@@ -40,21 +26,26 @@ def ConfigurationToJSON(conf):
         dict with all the values as string
 
     """
-
+    logger = logging.getLogger("hera.bin.ConfigurationToJSON")
     ret = {}
-    for key,value in conf.items():
-        if isinstance(value,dict):
+    logger.debug(f"Processing {valueToProcess}")
+    if isinstance(valueToProcess,dict):
+        for key, value in valueToProcess.items():
+            logger.debug("\t dictionary, calling recursively")
             ret[key] = ConfigurationToJSON(value)
-        elif isinstance(value,list):
-            ret[key] = [unumToStr(x) for x in value]
-        elif "'" in str(value):
-            ret[key] = value
-        else:
-            ret[key] = unumToStr(value)
+    elif isinstance(valueToProcess,list):
+        logger.debug("\t list, transforming to str every item")
+        ret = [ConfigurationToJSON(x) for x in valueToProcess]
+    elif "'" in str(valueToProcess):
+        logger.debug(f"\t {valueToProcess} is String, use as is")
+        ret = valueToProcess
+    else:
+        logger.debug(f"\t Try to convert *{valueToProcess}* to string")
+        ret = unumToStr(valueToProcess)
 
     return ret
 
-def JSONToConfiguration(JSON):
+def JSONToConfiguration(valueToProcess):
     """
         Converts a dictionary (all the values are string) to
         a JSON where all the values are string.
@@ -72,19 +63,31 @@ def JSONToConfiguration(JSON):
         A dict with the values convected to unum.
 
     """
-
+    logger = logging.getLogger("hera.bin.JSONToConfiguration")
     ret ={}
-    for key,value in JSON.items():
-        if isinstance(value,dict):
-            ret[key] = JSONToConfiguration(JSON[key])
-        elif isinstance(value,list):
-            ret[key] = [strToUnum(x) for x in value]
-        elif "'" in str(value):
-            ret[key] = value
-        else:
-            ret[key] = strToUnum(value)
-
+    logger.debug(f"Processing {valueToProcess} of type {type(valueToProcess)}")
+    if isinstance(valueToProcess,dict):
+        for key, value in valueToProcess.items():
+            logger.debug(f"Transforming key: {key}")
+            ret[key] = JSONToConfiguration(value)
+    elif isinstance(valueToProcess,list):
+        logger.debug("\t list, transforming to unum every item")
+        ret = [JSONToConfiguration(x) for x in valueToProcess]
+    elif isinstance(valueToProcess,Unum):
+        ret = valueToProcess
+    elif isinstance(valueToProcess,int):
+        ret = valueToProcess
+    elif isinstance(valueToProcess,float):
+        ret = valueToProcess
+    elif "'" in str(valueToProcess):
+        logger.debug(f"\t {valueToProcess} is a String, use as is")
+        ret = valueToProcess
+    else:
+        logger.debug(f"\t Try to convert {valueToProcess} to unum")
+        ret = strToUnum(valueToProcess)
     return ret
+
+
 
 def loadJSON(jsonData):
     """
