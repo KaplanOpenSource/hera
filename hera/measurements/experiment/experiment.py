@@ -237,7 +237,7 @@ class experimentHome(toolkit.abstractToolkit):
 
     @property
     def listExperiments(self):
-        return return [x for x in self.getExperimentsMap()]
+        return [x for x in self.getExperimentsMap()]
 
     # def parserList(self):
     #     """
