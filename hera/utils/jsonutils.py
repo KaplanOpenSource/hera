@@ -7,6 +7,9 @@ from .unum import *
 from unum import Unum
 import logging
 
+def compareJSONS():
+    pass
+
 def ConfigurationToJSON(valueToProcess):
     """
         Converts a configuration dict (that might include unum objects) to
