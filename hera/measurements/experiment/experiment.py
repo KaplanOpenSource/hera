@@ -17,8 +17,6 @@ class experimentHome(toolkit.abstractToolkit):
     """
 
     DOCTYPE_ENTITIES = 'EntitiesData'
-
-
     CODE_DIRECTORY = 'code'
 
     def __init__(self, projectName, filesDirectory=None):
