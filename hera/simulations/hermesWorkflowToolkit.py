@@ -179,7 +179,7 @@ class workflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON,name=name)
 
 
-    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,,**query):
+    def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,**query):
         """
                 Retrieve workflows from the DB as hermes.workflow objects (or its derivatives).
 

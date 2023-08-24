@@ -35,9 +35,6 @@ def simpleFoam_createEmpty(arguments):
     logger.execution(f"----- End -----")
 
 
-def simpleFoam_createCase(argumens):
-    raise NotImplementedError("TBD")
-
 def stochasticLagrangian_create_dispersionFlow(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
