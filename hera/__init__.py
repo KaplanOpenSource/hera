@@ -12,6 +12,11 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+2.11.0
+-------
+    #97: 
+        - Added the JSON variations. 
+        - Added documnetation on the JSON utils.  
 
     #37: 
         - Adding CLI for StochasticLagrangian 
