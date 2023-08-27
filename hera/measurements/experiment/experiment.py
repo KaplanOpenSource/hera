@@ -3,8 +3,12 @@ import os
 import pydoc
 import sys
 from ... import toolkit,toolkitHome,datalayer
-from argos.experimentSetup import dataObjects as argosDataObjects
-from argos import DESIGN,DEPLOY
+try:
+    from argos.experimentSetup import dataObjects as argosDataObjects
+    from argos import DESIGN,DEPLOY
+except ImportError:
+    print("Must have argos installed and in the path. ")
+
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
 from hera.utils.jsonutils import loadJSON
 
@@ -105,13 +109,6 @@ class experimentHome(toolkit.abstractToolkit):
     def keys(self):
         return [x for x in self.getExperimentsMap()]
 
-<<<<<<< HEAD
-    @property
-    def listExperiments(self):
-        return [x for x in self.getExperimentsMap()]
-
-=======
->>>>>>> master
     # def parserList(self):
     #     """
     #         Return the list of parsers_old.
