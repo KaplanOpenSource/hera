@@ -73,7 +73,7 @@ The current [planned] specializations are:
 Setting up default configuration options.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The defaults are stored in the caseConfiguration file.
+The defaults are stored in the **caseConfiguration.json** file.
 Specifically, the **projectName** that is used when no project name is supplied to the CLI
 is given in:
 

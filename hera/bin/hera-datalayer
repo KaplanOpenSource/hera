@@ -293,6 +293,9 @@ from hera import datalayer
 #
 # globals()['%s_handler' % args.command[0]](args.args)
 
+def handler_list(args):
+
+
 def dump_handler(args):
 
     outputFileName = args.fileName
@@ -331,11 +334,24 @@ def load_handler(arguments):
 
 
 if __name__=="__main__":
+    logger = logging.getLogger("hera.bin.hera_datalayer")
+    logger.info(" -- Starting: adding workflow to the group --")
+
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    parser_dump = subparsers.add_parser('list', help='lists the records (may be saved to a file)')
-    parser_load = subparsers.add_parser('load', help='load records from a file')
+
+    parser_list = subparsers.add_parser('list', help='lists objects')
+    subparsers_list = parser.add_subparsers(help='sub-command help')
+
+    subparsers_list.add_parser('projects', help='lists the projects of the user')
+
+
+
+    parser_list.set_defaults(func=handler_list)
+
+
+
 
     ### Dump
     parser_dump.add_argument('projectName',nargs=1,type=str,help='The project name')
@@ -343,11 +359,10 @@ if __name__=="__main__":
     parser_dump.add_argument('query',metavar='query',nargs='*', type=str, help='the query parameters')
     parser_dump.set_defaults(func=dump_handler)
 
-
     ### Load
+    parser_load = subparsers.add_parser('load', help='load records from a file')
     parser_load.add_argument('fileName',nargs=1,type=str, help='dataFile')
     parser_load.set_defaults(func=load_handler)
-
 
     ##################### exec
     args = parser.parse_args()

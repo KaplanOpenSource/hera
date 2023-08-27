@@ -6,6 +6,12 @@ from json.decoder import JSONDecodeError
 from .unum import *
 from unum import Unum
 import logging
+from .logging import get_classMethod_logger
+from jsonpath_ng import parse
+from itertools import product
+
+def compareJSONS():
+    pass
 
 def ConfigurationToJSON(valueToProcess):
     """
@@ -63,7 +69,7 @@ def JSONToConfiguration(valueToProcess):
         A dict with the values convected to unum.
 
     """
-    logger = logging.getLogger("hera.bin.JSONToConfiguration")
+    logger = logging.getLogger("hera.util.JSONToConfiguration")
     ret ={}
     logger.debug(f"Processing {valueToProcess} of type {type(valueToProcess)}")
     if isinstance(valueToProcess,dict):
@@ -283,4 +289,94 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColum
     return pnds1
 
 
+
+def JSONVariations(base,variationJSON):
+    """
+        Return a list of JSONs with all the variations.
+    Parameters
+    ----------
+    base
+    variationJSON
+
+    Returns
+    -------
+
+    """
+    variations = [[x for x in JSONvariationItem(dict(base),variation)] for variation in variationJSON]
+    for var in product(*variations):
+        params = {}
+        local_base = dict(base)
+        for item in var:
+            params.update(item)
+
+        for key, value in params.items():
+            curkey = key if key.startswith("$.") else f"$.{key}"
+            jsonpath_expr = parse(curkey)
+            match = [match for match in jsonpath_expr.find(local_base)][0]
+            jsonpath_expr.update(match, value)
+
+
+        yield local_base
+
+class JSONvariationItem:
+    """
+        An iterator that creates the variations of a single parameter block.
+
+        Each group is a list of parameters.
+        {
+            p1 : list of values
+            p2 :  list of values
+
+        }
+
+        where p1, p2 are json paths. (If $. is not specified in the path, add them).
+    """
+
+    base = None
+    variationItem = None
+
+    _curIter = None # the ID of the
+    _itemCount = None
+
+    def __init__(self,base,variationItem):
+        """
+            The base is the json that will be changes.
+
+            variationItem is a map of json paths -> values. All the paths change together.
+        Parameters
+        ----------
+        base
+        variationItem
+        """
+        logger = get_classMethod_logger(self,name="init")
+
+        self.base = base
+        self._itemCount = None
+        for key,value in variationItem.items():
+            if self._itemCount is None:
+                self._itemCount = len(value)
+                logger.debug(f"Got {self._itemCount} items in key {key}. Now have to make sure that it equal to all keys ")
+            else:
+                if len(value) != self._itemCount:
+                    err = f"The key {key} does not have the right number of values. Got {len(value)}, and should be {self._itemCount}"
+                    logger.error(err)
+                    raise ValueError(err)
+
+        self.variationItem = variationItem
+        self._curIter = 0
+
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+
+        if self._curIter > self._itemCount-1:
+            raise StopIteration
+
+        result = {}
+        for key, value in self.variationItem.items():
+            result[key] = value[self._curIter]
+        self._curIter += 1
+        return result
 
