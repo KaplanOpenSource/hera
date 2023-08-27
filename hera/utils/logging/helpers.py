@@ -23,7 +23,7 @@ def get_logger(instance, name=None):
     return getClassLogger(instance.__class__) if name is None else logging.getLogger(name)
 
 def get_classMethod_logger(instance, name=None):
-    lgname = instance.__class__ if name is None else instance.__class__ / "." / name
+    lgname = instance.__class__ if name is None else instance.__class__.__module__ + "." + instance.__class__.__qualname__ + "." + name
     return getClassLogger(lgname) if name is None else logging.getLogger(name)
 
 
