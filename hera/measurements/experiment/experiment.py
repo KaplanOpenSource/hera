@@ -49,7 +49,8 @@ class experimentHome(toolkit.abstractToolkit):
     def getExperimentsTable(self):
         return self.getDataSourceTable()
 
-    def getExperiment(self, experimentName,
+    def getExperiment(self,
+                      experimentName,
                       filesDirectory=None):
         """
         get the experiment data source.
@@ -151,6 +152,10 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
     @property
     def configuration(self):
         return self._configuration
+
+    @property
+    def name(self):
+        return self.configuration['experimentName']
 
     def _initTrialSets(self):
         experimentSetup = self.setup
