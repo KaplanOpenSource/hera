@@ -27,7 +27,8 @@ class ToolkitHome:
 
 
     GIS_BUILDINGS  = "GIS_Buildings"
-    GIS_RASTER     = "GIS_Raster"
+    GIS_TILES       = "GIS_Tiles"
+    #GIS_RASTER     = "GIS_Raster"
     GIS_TOPOGRAPHY = "GIS_Topography"
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
@@ -54,7 +55,9 @@ class ToolkitHome:
 
             GIS_Buildings  = dict(cls = "hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit",desc=None),
 
-            GIS_Raster     = dict(cls = "hera.measurements.GIS.raster.toolkit.RasterToolkit",desc=None),
+            #GIS_Raster     = dict(cls = "hera.measurements.GIS.raster.toolkit.RasterToolkit",desc=None),
+
+            GIS_Tiles      =  dict(cls = "hera.measurements.GIS.raster.tiles.TilesToolkit",desc=None),
 
             GIS_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",desc=None),
 
@@ -305,7 +308,10 @@ class abstractToolkit(Project):
             table = pandas.json_normalize(sourceMap)
             Table.append(table)
 
-        return pandas.concat((Table),ignore_index=True)
+        if len(Table) == 0:
+            return pandas.DataFrame()
+        else:
+            return pandas.concat((Table),ignore_index=True)
 
     def getDatasourceDocumentsList(self, **kwargs):
         """
