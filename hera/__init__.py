@@ -1,4 +1,4 @@
-__version__ = '2.10.0'
+__version__ = '2.12.0'
 
 import sys
 python_version = sys.version_info
@@ -12,6 +12,13 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+
+2.12.0
+-------
+    #100: 
+        - Added the tile toolkit that gets images from a tile server. 
+          Still does not cache the pictures. 
+
 2.11.0
 -------
     #97: 

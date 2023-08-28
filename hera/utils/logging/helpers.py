@@ -3,6 +3,7 @@ import logging
 import logging.config
 import os.path
 import pathlib
+import pdb
 from importlib.resources import read_text
 from typing import List
 
@@ -24,7 +25,7 @@ def get_logger(instance, name=None):
 
 def get_classMethod_logger(instance, name=None):
     lgname = instance.__class__ if name is None else instance.__class__.__module__ + "." + instance.__class__.__qualname__ + "." + name
-    return getClassLogger(lgname) if name is None else logging.getLogger(name)
+    return logging.getLogger(lgname)
 
 
 
