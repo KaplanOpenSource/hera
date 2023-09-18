@@ -47,8 +47,7 @@ class experimentHome(toolkit.abstractToolkit):
     def getExperimentsTable(self):
         return self.getDataSourceTable()
 
-    def getExperiment(self, experimentName,
-                      filesDirectory=None):
+    def getExperiment(self, experimentName, filesDirectory=None):
         """
         get the experiment data source.
         get the experiemt path from data source

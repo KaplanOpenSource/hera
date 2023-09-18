@@ -13,6 +13,9 @@ from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
 
+    #102: 
+        - Fixing the LSM to use the configuration to JSON. 
+
     #37: 
         - Adding CLI for StochasticLagrangian 
         - Changed the interface of ofobjects 
