@@ -13,17 +13,8 @@ from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
 
-2.12.0
--------
-    #100: 
-        - Added the tile toolkit that gets images from a tile server. 
-          Still does not cache the pictures. 
-
-2.11.0
--------
-    #97: 
-        - Added the JSON variations. 
-        - Added documnetation on the JSON utils.  
+    #102: 
+        - Fixing the LSM to use the configuration to JSON. 
 
     #37: 
         - Adding CLI for StochasticLagrangian 
