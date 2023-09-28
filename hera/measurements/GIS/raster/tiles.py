@@ -16,7 +16,7 @@ from io import BytesIO
 
 WSG84 = 4326
 ITM = 2039
-
+ED50_ZONE36N = 23036
 
 class TilesToolkit(toolkit.abstractToolkit):
     """

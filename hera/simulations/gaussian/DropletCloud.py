@@ -18,7 +18,7 @@ class FixedPositionDropletsCloud(object):
     def dropletList(self):
         return self._dropletList
 
-    def __init__(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="StandardMeteorolgyConstant",met_kwargs={}, **kwargs):
+    def __init__(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="logNormal",met_kwargs={}, **kwargs):
         """
             Creates a list of clouds (discretization according to the number of clouds).
 
@@ -51,18 +51,19 @@ class FixedPositionDropletsCloud(object):
         """
         retList = []
         #print("Total of %s dropletClouds" % len(self._dropletList))
+        total = len(self._dropletList)
         for i,droplet in enumerate(self._dropletList):
-            #print("solving droplets %s" %i )
+            #print(f"solving droplets {i}/{total}" ,end="\r")
             res = droplet.solveToTime(T)
             res['N'] = droplet.N 
-            res['DropletArea'] = droplet.AreaOnSurface
+            res['DropletArea'] = droplet.AreaOnSurface.asNumber(um**2)
             retList.append(res.iloc[-1].to_frame().T)
 
         ret = pandas.concat(retList, ignore_index=True)
         return ret
 
 
-    def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="StandardMeteorolgyConstant",met_kwargs={}, **kwargs):
+    def _initDropletPosition(self, mmd, geometricstd, position, Q, clouds=30, meteorologyname="logNormal",met_kwargs={}, **kwargs):
 
         rv = lognorm(numpy.log(geometricstd), scale=tonumber(mmd, m))
         lower = rv.ppf(1e-4)
