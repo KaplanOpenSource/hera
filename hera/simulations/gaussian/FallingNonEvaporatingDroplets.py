@@ -380,8 +380,8 @@ class FallingNonEvaporatingDroplets(object):
         correction = self._correctionfunc()
         ret = ret.assign(sigmaXCorrected=ret['sigmaX']*correction)\
            .assign(sigmaZCorrected=ret['sigmaZ']*correction)\
-           .assign(Q=self.Q.asUnit(kg))\
-           .assign(diameter=self.particleDiameter.asUnit(um))
+           .assign(Q=self.Q.asNumber(kg))\
+           .assign(diameter=self.particleDiameter.asNumber(um))
         return ret
 
 
