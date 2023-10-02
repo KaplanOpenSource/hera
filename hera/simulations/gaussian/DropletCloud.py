@@ -53,7 +53,7 @@ class FixedPositionDropletsCloud(object):
         #print("Total of %s dropletClouds" % len(self._dropletList))
         total = len(self._dropletList)
         for i,droplet in enumerate(self._dropletList):
-            #print(f"solving droplets {i}/{total}" ,end="\r")
+            print(f"solving droplets {i}/{total}" ,end="\r")
             res = droplet.solveToTime(T)
             res['N'] = droplet.N 
             res['DropletArea'] = droplet.AreaOnSurface.asNumber(um**2)
