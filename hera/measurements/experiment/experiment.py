@@ -3,8 +3,12 @@ import os
 import pydoc
 import sys
 from ... import toolkit,toolkitHome,datalayer
-from argos.experimentSetup import dataObjects as argosDataObjects
-from argos import DESIGN,DEPLOY
+try:
+    from argos.experimentSetup import dataObjects as argosDataObjects
+    from argos import DESIGN,DEPLOY
+except ImportError:
+    print("Must have argos installed and in the path. ")
+
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
 from hera.utils.jsonutils import loadJSON
 
@@ -17,8 +21,6 @@ class experimentHome(toolkit.abstractToolkit):
     """
 
     DOCTYPE_ENTITIES = 'EntitiesData'
-
-
     CODE_DIRECTORY = 'code'
 
     def __init__(self, projectName, filesDirectory=None):
@@ -47,7 +49,8 @@ class experimentHome(toolkit.abstractToolkit):
     def getExperimentsTable(self):
         return self.getDataSourceTable()
 
-    def getExperiment(self, experimentName,
+    def getExperiment(self,
+                      experimentName,
                       filesDirectory=None):
         """
         get the experiment data source.
@@ -149,6 +152,10 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
     @property
     def configuration(self):
         return self._configuration
+
+    @property
+    def name(self):
+        return self.configuration['experimentName']
 
     def _initTrialSets(self):
         experimentSetup = self.setup

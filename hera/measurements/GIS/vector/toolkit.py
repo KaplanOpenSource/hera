@@ -137,8 +137,9 @@ class VectorToolkit(toolkit.abstractToolkit):
         if len(docList) == 0:
             self.addCacheDocument(resource = data,type=docType, dataFormat=datatypes.JSON_GEOPANDAS, desc=desc)
         else:
-            docList[0].resouce = data
-            docList[0].save()
+            doc = docList[0]
+            doc.resource = data
+            doc.save()
 
 
 

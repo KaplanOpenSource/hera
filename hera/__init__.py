@@ -1,4 +1,4 @@
-__version__ = '2.10.0'
+__version__ = '2.12.0'
 
 import sys
 python_version = sys.version_info
@@ -12,11 +12,9 @@ initialize_logging(disable_existing_loggers=False)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
-2.11.0
--------
-    #97: 
-        - Added the JSON variations. 
-        - Added documnetation on the JSON utils.  
+
+    #102: 
+        - Fixing the LSM to use the configuration to JSON. 
 
     #37: 
         - Adding CLI for StochasticLagrangian 
