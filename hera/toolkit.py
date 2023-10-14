@@ -240,13 +240,14 @@ class abstractToolkit(Project):
          dict
                 The configuration of the toolkit.
         """
-        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")["documents"]
+        config_type = f"{self.projectName}__{self.toolkitName}__config__"
+        documents = self.getCacheDocuments(type=config_type)
         if len(documents) == 0:
-            self.addCacheDocument(type=f"{self.projectName}__{self.toolkitName}__config__",
+            documents = self.addCacheDocument(type=config_type,
                                   resource="",
                                   dataFormat=datatypes.STRING,
-                                  desc={"toolkitName":self.toolkitName})
-        documents = self.getCacheDocumentsAsDict(type=f"{self.projectName}__{self.toolkitName}__config__")["documents"]
+                                  desc={})
+
         return documents[0]
 
     def getConfig(self):
