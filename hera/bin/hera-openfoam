@@ -24,10 +24,6 @@ if __name__ == "__main__":
     simpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles simpleFOAM solver')
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
-    simpleFoam_create_parser = simpleFoam_subparser.add_parser('buildCase', help='Creates a case')
-    simpleFoam_create_parser.add_argument('workflow', type=str, help="The simpleFOAM workflow.")
-    simpleFoam_create_parser.set_defaults(func=CLI.simpleFoam_createCase)
-
     simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')

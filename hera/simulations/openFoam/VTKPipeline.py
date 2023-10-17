@@ -6,10 +6,10 @@ import json
 import glob
 
 import sys
-from simulations.openFoam import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
-from utils import loadJSON
-from utils.logging import helpers as hera_logging
-from datalayer import datatypes
+from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
+from ...utils import loadJSON
+from ...utils.logging import helpers as hera_logging
+from ...datalayer import datatypes
 paraviewExists = False
 try:
     import paraview.simple as pvsimple

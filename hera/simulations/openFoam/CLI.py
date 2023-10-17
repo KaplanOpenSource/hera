@@ -17,8 +17,16 @@ def simpleFoam_createEmpty(arguments):
 
     if 'projectName' not in arguments:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        try:
+            configuration = loadJSON(configurationFile)
+        except:
+            err = f"Configuration file {configurationFile} not found! creating a basic file"
+            with open(configurationFile,'w') as defaultConfFile:
+                json.dump(dict(projectName=None),defaultConfFile,indent=4)
 
-        configuration = loadJSON(configurationFile)
+            raise ValueError(err)
+
+
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
