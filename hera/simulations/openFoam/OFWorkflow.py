@@ -3,13 +3,11 @@ import os
 import glob
 import json
 from distutils.dir_util import copy_tree
-from .... import toolkitHome
-from ....utils import loadJSON
-from ....utils.logging import helpers as hera_logging
-from ....utils.freeCAD import getObjFileBoundaries
+from ... import toolkitHome
+from ...utils import loadJSON
+from ...utils.logging import helpers as hera_logging
+from ...utils.freeCAD import getObjFileBoundaries
 from itertools import product
-from ...openFoam import OFObjectHome
-from ...hermesWorkflowToolkit import workflowsTypes
 
 try:
     import hermes

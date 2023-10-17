@@ -1,13 +1,13 @@
 import pandas
 import os
 import glob
-from .datalayer.OFObjects import OFField
-from .datalayer.hermesWorkflow import Workflow_Eulerian
-from .datalayer.OFObjects import OFObjectHome
+from .OFObjects import OFField
+from .OFWorkflow import Workflow_Eulerian
+from .OFObjects import OFObjectHome
 from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
-from simulations.openFoam.VTKPipeline import VTKpipeline
-from . import StochasticLagrangian
+from .VTKPipeline import VTKpipeline
+from .StochasticLagrangianSolver.toolkitExtension import toolkitExtension_LagrangianSolver
 from ...utils.jsonutils import loadJSON,compareJSONS
 
 class OFToolkit(workflowToolkit):
@@ -36,8 +36,8 @@ class OFToolkit(workflowToolkit):
 
         self.OFObjectHome = OFObjectHome()
         self._analysis = analysis(self)
+        self.stochasticLagrangian = toolkitExtension_LagrangianSolver(self)
 
-        self.stochasticLagrangian = StochasticLagrangian.stochasticLagrangianDataLayer(self)
     def processorList(self,caseDirectory):
         """
             Returns the list of processors directories in the case

@@ -9,7 +9,7 @@ from ..OFObjects import OFMeshBoundary
 from ....utils.query import dictToMongoQuery
 
 
-class toolkitExtension:
+class toolkitExtension_LagrangianSolver:
     """
         A base class that handles all the stochastic lagrangian things (datalauer
     """
