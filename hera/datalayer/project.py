@@ -380,8 +380,7 @@ class Project:
         -------
             The new document
         """
-        return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
-                                      desc=desc)
+        return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,desc=desc)
 
     def deleteCacheDocuments(self, **kwargs):
         """
