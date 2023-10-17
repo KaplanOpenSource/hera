@@ -247,8 +247,11 @@ class abstractToolkit(Project):
                                   resource="",
                                   dataFormat=datatypes.STRING,
                                   desc={})
+            ret = documents
+        else:
+            ret =documents[0]
 
-        return documents[0]
+        return ret
 
     def getConfig(self):
         """

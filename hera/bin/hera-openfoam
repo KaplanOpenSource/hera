@@ -20,7 +20,7 @@ if __name__ == "__main__":
     ### ------------------------------ SOLVERS
     ############################################
 
-    ## ================== StochasticLagrantianSolver
+    ## ================== simpleFoam
     simpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles simpleFOAM solver')
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
@@ -84,6 +84,16 @@ if __name__ == "__main__":
     source_createReleaseRateFile_subparser = source_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
 
+    ############################################
+    ### ------------------------------ ObjUtils
+    ############################################
+
+    objects_parser = subparsers.add_parser('objects', help='Handles obj/stl files')
+    objects_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
+
+    objects_parser_createVerticesAndBoundary = objects_subparser.add_parser('createVerticesAndBoundary', help='Creates the vertices and the bounradies for the blockmesh and the changedictionary nodes. ')
+    objects_parser_createVerticesAndBoundary.add_argument('objects', type=str, help='The filename')
+    createDispersionFlow_parser.set_defaults(func=CLI.objects_parser_createVerticesAndBoundary)
 
     parsed = parser.parse_args()
 
