@@ -9,6 +9,8 @@ import pandas
 from ...datalayer import datatypes
 from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
+from ...utils.freeCAD import getObjFileBoundaries
+from ...utils.logging import get_logger
 
 def simpleFoam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
@@ -376,4 +378,45 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
     f = open(os.path.join(case,"constant",massFileName), "w")
     f.write(newstr)
     f.close()
+
+
+
+def objects_createVerticesAndBoundary(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    try:
+        import FreeCAD
+        import Mesh
+    except ImportError:
+        logger.error("freecad module  is not installed in the environment")
+        raise ImportError("freecad is not installed. please install it before trying again.")
+
+    # Load the file
+    fileName = arguments.objectFile
+    Mesh.open(fileName)
+    objFile  = FreeCAD.getDocument("Unnamed")
+
+    ret = dict()
+    for fieldName in arguments.fields:
+        boundary = dict()
+        for  regionObj in objFile.findObjects():
+            boundary[regionObj.Name] = dict(type="zeroGradient")
+        ret[fieldName] = dict(boundaryField=boundary)
+
+    print("----- Bounding box vertices -----------")
+    corners = getObjFileBoundaries(fileName)
+
+    xList = ['XMin','XMax','XMax','XMin','XMin','XMax','XMax','XMin']
+    yList = ['YMin','YMin','YMax','YMax','YMin','YMin','YMax','YMax']
+    zList = ['ZMin','ZMin','ZMin','ZMin','ZMax','ZMax','ZMax','ZMax']
+
+    verticesList = []
+    for x,y,z in zip(xList,yList,zList):
+        verticesList.append([corners[x],corners[y],corners[z]])
+    print(json.dumps(dict(vertices=verticesList), indent=4))
+
+    print("\n\n\n")
+    print("----- Boundary conditions -------------")
+    print(json.dumps(ret, indent=4, sort_keys=True))
 

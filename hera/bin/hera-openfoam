@@ -2,13 +2,15 @@
 import argparse
 import logging
 from hera.simulations.openFoam import CLI
+from hera.utils.logging import initialize_logging,with_logger
+
 
 if __name__ == "__main__":
-    # initialize_logging(
-    #     with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+    initialize_logging(
+         with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
     #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
-    #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-    # )
+         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+    )
     logger = logging.getLogger("hera.bin.hera-openfoam")
 
     projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from caseConfiguration'
@@ -34,8 +36,8 @@ if __name__ == "__main__":
     ## ================== StochasticLagrantianSolver
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
     stochasticLagrnagian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
-
-    ## -- createDispersionFlow
+    #
+    # ## -- createDispersionFlow
     dispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('dispersionFlow', help='Creates a dispersion flow from a flow')
     dispersionFlow_parser_subparser = dispersionFlow_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
 
@@ -45,14 +47,15 @@ if __name__ == "__main__":
     # remove all old - flag to delete the old dispersion flows.
     create_dispersionFlow_parser_parser.set_defaults(func=CLI.stochasticLagrangian_create_dispersionFlow)
 
-    ## -- listDispersionFlowFields - build
-    list_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('list', help='Lists the DispersionFlow in the DB (with the differences between them)')
-    list_dispersionFlow_parser.add_argument('--format', dest="format", default="pandas", choices=["pandas","latex","csv"],
-                                        help='The output format: pandas (print the pandas), json, latex')
-
-    list_dispersionFlow_parser.add_argument('--file', dest="file", default=None,help='write the output to a file')
-
-    list_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_list_dispersionFlow)
+    #
+    # ## -- listDispersionFlowFields - build
+    # list_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('list', help='Lists the DispersionFlow in the DB (with the differences between them)')
+    # list_dispersionFlow_parser.add_argument('--format', dest="format", default="pandas", choices=["pandas","latex","csv"],
+    #                                     help='The output format: pandas (print the pandas), json, latex')
+    #
+    # list_dispersionFlow_parser.add_argument('--file', dest="file", default=None,help='write the output to a file')
+    #
+    # list_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_list_dispersionFlow)
 
     ## -- createExampleConfiguationFile - build
     #makeEmpty_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('writeEmpty', help='Creates an example configuration file')
@@ -89,11 +92,13 @@ if __name__ == "__main__":
     ############################################
 
     objects_parser = subparsers.add_parser('objects', help='Handles obj/stl files')
-    objects_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
+    objects_subparser = objects_parser.add_subparsers(help='Handles simpleFOAM solver')
 
     objects_parser_createVerticesAndBoundary = objects_subparser.add_parser('createVerticesAndBoundary', help='Creates the vertices and the bounradies for the blockmesh and the changedictionary nodes. ')
-    objects_parser_createVerticesAndBoundary.add_argument('objects', type=str, help='The filename')
-    createDispersionFlow_parser.set_defaults(func=CLI.objects_parser_createVerticesAndBoundary)
+    objects_parser_createVerticesAndBoundary.add_argument('objectFile', type=str, help='The filename')
+    objects_parser_createVerticesAndBoundary.add_argument('--fields', nargs='*', type=str, help='[list of field]')
+
+    objects_parser_createVerticesAndBoundary.set_defaults(func=CLI.objects_createVerticesAndBoundary)
 
     parsed = parser.parse_args()
 
