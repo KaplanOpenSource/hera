@@ -1,15 +1,15 @@
 #! /usr/bin/env python
 import argparse
 import logging
-
+from hera.utils.logging import initialize_logging,with_logger
 from hera.simulations import CLI
 
 if __name__ == "__main__":
-    # initialize_logging(
-    #     with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+    initialize_logging(
+          with_logger("hera.simulations", handlers=['console'], level='INFO', propagate=False)
     #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
     #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-    # )
+    )
 
     logger = logging.getLogger("hera.bin.hera_workflows")
     logger.debug("Starting the hera_workflows command line")
@@ -19,21 +19,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='Topic:')
 
+    ##
+    #   List
+    ##
     list_parser = subparsers.add_parser('list', help='Handles listing of the items')
     list_subparser = list_parser.add_subparsers(help='Handles simulation group')
 
-    ##
-    #   List group
-    ##
+    ## --- groups
     parser_prepare = list_subparser.add_parser('groups', help='List the group in the project.')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_prepare.add_argument('--type', type=str,dest="type", default=None, help='Specify the simulation type')
     parser_prepare.add_argument('--workflowName',dest="workflowName",action="store_true", default=False, help='If exists, show the simulation names')
     parser_prepare.set_defaults(func=CLI.WorkflowsGroup_list)
 
-    ##
-    #   List workflows in a group
-    ##
+    ## --- Workflows
     listSimulations_parser = list_subparser.add_parser('workflows', help='Lists the workflows in the group of that project.')
     listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project.')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)

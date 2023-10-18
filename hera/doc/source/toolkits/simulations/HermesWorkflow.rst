@@ -122,6 +122,8 @@ Add/update workflows
 A workflow that was added to the project, belongs to a workflow group automatically.
 The user can supply the workgroup, or let hera determine it from the code.
 
+When executing, the code automatically updates the python-workflow, removes the old dependecy files and executes the workflow.
+
 .. code-block::
 
     >> hera-workflows add <workflow file>
@@ -158,6 +160,8 @@ The execute commands is similar to the add command, but it executes the workflow
 Remember that you can also execute a workflow using the hermes-workflow interface, and bypass the
 hera mechanism with the projects. This could be useful to test a workflow, or as an alternative after
 it was added.
+
+When executing, the code automatically updates the python-workflow, removes the old dependecy files and executes the workflow.
 
 The syntax is of the execute command is,
 .. code-block::
