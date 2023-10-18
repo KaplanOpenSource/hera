@@ -11,7 +11,7 @@ from ..datalayer import datatypes
 import numpy
 import pydoc
 import warnings
-
+from ..utils.logging import with_logger,get_classMethod_logger
 
 try:
     from hermes import workflow
@@ -27,53 +27,6 @@ class actionModes(Enum):
     ADD = auto()
     ADDBUILD = auto()
     ADDBUILDEXECUTE = auto()
-
-#
-# @unique
-# class workflowsTypes(Enum):
-#     WORKFLOW = "hermes_workflow"
-#     OF_FLOWFIELD = "OF_flowField"  # OpenFoam: calculation of the flow field.
-#     OF_DISPERSION = "OF_dispersion"  # OpenFoam: The dispersion itself.
-#     OF_FLOWDISPERSION = "OF_flowDispersion"
-#
-#     @classmethod
-#     def value_of(cls, value):
-#         for k, v in cls.__members__.items():
-#             if value == v.value:
-#                 return getattr(cls,k)
-#         else:
-#             raise ValueError(f"'{cls.__name__}' enum not found for '{value}'")
-#
-#     @classmethod
-#     def isvalid(cls,value):
-#         for k, v in cls.__members__.items():
-#             if value == v.value:
-#                 return True
-#         else:
-#             raise False
-#
-#     @classmethod
-#     def listTypes(cls,self):
-#         """
-#             Lists the workflow types.
-#         Returns
-#         -------
-#
-#         """
-#         return [v for k, v in cls.__members__.items()]
-#
-#
-#     @classmethod
-#     def workflowsString(cls):
-#         """
-#             Returns a mongo string with the names of all the types.
-#             This is used to get all the documents of the types.
-#         Returns
-#         -------
-#
-#         """
-#         vals = [v for k, v in cls.__members__.items()]
-#         return  f"[{','.join(vals)}]"
 
 
 class workflowToolkit(abstractToolkit):
@@ -320,8 +273,7 @@ class workflowToolkit(abstractToolkit):
 
         return docList
 
-
-    def getSimulationsInGroup(self, simulationGroup: str, **kwargs):
+    def getSimulationsInGroup(self, groupName: str, **kwargs):
         """
             Return a list of all the simulations.old with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
@@ -331,7 +283,7 @@ class workflowToolkit(abstractToolkit):
         Parameters
         ----------
 
-        simulationGroup : str
+        groupName : str
             The prefix name of all the runs.
 
         simulationType : str [optional]
@@ -346,7 +298,7 @@ class workflowToolkit(abstractToolkit):
             list of mongo documents.
 
         """
-        return self.getSimulationsDocuments(groupName=simulationGroup, type=self.DOCTYPE_WORKFLOW, **kwargs)
+        return self.getSimulationsDocuments(groupName=groupName, type=self.DOCTYPE_WORKFLOW, **kwargs)
 
     def findAvailableName(self, simulationGroup: str, **kwargs):
         """
@@ -374,7 +326,7 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getSimulationsInGroup(simulationGroup=simulationGroup, **kwargs)
+        simList = self.getSimulationsInGroup(groupName=simulationGroup, **kwargs)
         group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
@@ -413,7 +365,7 @@ class workflowToolkit(abstractToolkit):
                    overwrite: bool = False,
                    force: bool = False,
                    assignName: bool = False,
-                   action: actionModes = actionModes.ADDBUILDEXECUTE,
+                   execute: bool = False,
                    parameters: dict = dict()):
         """
             1. Adds the workflow to the database in the requested group
@@ -449,6 +401,9 @@ class workflowToolkit(abstractToolkit):
             If true, update the record if it exists.
             If false, throw an exception if the record exists.
 
+        force : bool
+            Allow duplicate workflows in the project.
+
         assignName : bool
             If true, finds the next available id and saves it in the DB.
             If groupName is None, parse the filename to get the group.
@@ -457,7 +412,10 @@ class workflowToolkit(abstractToolkit):
 
             Otherwise, use the filename as the name of the simulation.
 
-        action : buildModes enum.
+        execute : bool
+            If true, execute the workflow
+
+        buildModes enum.
             ADDBUILDEXECUTE : add the simulation to the db, builds the execution files (also saves the new tempalte) and executes it.
                           if the file already in the db -> overwrite if over
             ADDBUILD    : add to the db and build the template and execution files.
@@ -482,9 +440,10 @@ class workflowToolkit(abstractToolkit):
         -------
             None
         """
+        logger = get_classMethod_logger(self,"addToGroup")
         if workflow is None:
             raise NotImplementedError("addToGroup() requires the 'hermes' library, which is nor installed")
-        self.logger.info("-- Start --")
+        logger.info("-- Start --")
 
         # 1. Getting the names of the simulation and the groups.
 
@@ -497,7 +456,7 @@ class workflowToolkit(abstractToolkit):
         hermesWF.updateNodes(parameters=parameters)
         theType = hermesWF.workflowType
 
-        self.logger.debug(f"The suggested simulation name is {cleanName} as a workflow type {theType} (in file {workflowJSON})")
+        logger.debug(f"The suggested simulation name is {cleanName} as a workflow type {theType} (in file {workflowJSON})")
 
         #   c. Determining the simulation name, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
@@ -521,10 +480,10 @@ class workflowToolkit(abstractToolkit):
         # 2. Check if exists in the DB.
 
         #    a. Check if the workflow exists in the DB under different name (assume similar type)
-        self.logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
+        logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
-        docList = self.getSimulationsInGroup(simulationGroup=groupName, workflowType=theType, **currentQuery)
+        docList = self.getSimulationsInGroup(groupName=groupName, workflowType=theType, **currentQuery)
 
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
@@ -535,13 +494,13 @@ class workflowToolkit(abstractToolkit):
 
             #   b. Check if the name of the simulation already exists in the group
             self.logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
-            docList = self.getSimulationsInGroup(simulationGroup=groupName, workflowType=theType, workflowName=workflowName)
+            docList = self.getSimulationsInGroup(groupName=groupName, workflowType=theType, workflowName=workflowName)
 
             if len(docList) == 0:
                 self.logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
                                                   dataFormat=datatypes.STRING,
-                                                  type=theType,
+                                                  type=self.DOCTYPE_WORKFLOW,
                                                   desc=dict(
                                                       groupName=groupName,
                                                       groupID=groupID,
@@ -562,11 +521,11 @@ class workflowToolkit(abstractToolkit):
                 self.logger.info(info)
 
         # 3.  Building and running the workflow.
-        if action.value > actionModes.ADD.value:
-            self.logger.info(f"Building the workflow {workflowName}")
+        if execute:
+            logger.info(f"Building and executing the workflow {workflowName}")
             build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
 
-            self.logger.info(f"Writing the workflow and the executer python {workflowName}")
+            logger.info(f"Writing the workflow and the executer python {workflowName}")
             wfFileName = os.path.join(self.FilesDirectory, f"{workflowName}.json")
             # attemp to write only if the file is different than the input (that is it exists) or if overwrite (which mean it needs to be updated).
             if wfFileName != os.path.join(self.FilesDirectory,workflowJSON) or overwrite:
@@ -574,13 +533,10 @@ class workflowToolkit(abstractToolkit):
             with open(os.path.join(self.FilesDirectory, f"{workflowName}.py"), "w") as file:
                 file.write(build)
 
-        if action.value > actionModes.ADDBUILD.value:
-            self.logger.info(f"Run the workflow {workflowName}")
-
-            if overwrite:
-                # delete the run files if exist.
-                executionfileDir = os.path.join(self.FilesDirectory, f"{workflowName}_targetFiles")
-                shutil.rmtree(executionfileDir, ignore_errors=True)
+            # delete the run files if exist.
+            logger.debug(f"Removing the targetfiles and execute")
+            executionfileDir = os.path.join(self.FilesDirectory, f"{workflowName}_targetFiles")
+            shutil.rmtree(executionfileDir, ignore_errors=True)
 
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
             executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
@@ -681,7 +637,7 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations.old and their values.
 
         """
-        simulationList = self.getSimulationsInGroup(simulationGroup=workflowGroup)
+        simulationList = self.getSimulationsInGroup(groupName=workflowGroup)
         ret = []
         for simdoc in simulationList:
             val = dict(workflowName=simdoc['desc']['workflowName'])

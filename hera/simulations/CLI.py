@@ -70,11 +70,8 @@ def workflow_add(args):
             add the simulation to the db, even if the workflow exists under a different name.
         assignName: bool,
             generate automated name to the workflow
-        action   : Add, AddBuild, or AddBuildExecute
-                Add - just adds the simulation to the db
-                AddBuild - add the simulation to the db, and then write the workfow and python execution code.
-                AddBuildExecute - add the simulation to the db, write the workflow and the python execution code,
-                              the run the execution code
+        execution   : bool [default false]
+            If True, then execute the workflow.
 
     Returns
     -------
@@ -99,18 +96,20 @@ def workflow_add(args):
     workflowFile = args.workflow
     logger.info(f"Adding workflow in {workflowFile}  to DB")
 
-    action = getattr(actionModes, args.action.upper())
+    execute = args.execute
 
     try:
         wftk.addToGroup(workflowJSON=workflowFile,
                         groupName= args.workflowGroup,
                         assignName=args.assignName,
                         overwrite=args.overwrite,
-                        action=action,
+                        execute=execute,
                         force=args.force)
 
     except FileExistsError as e:
-        print(e)
+        err = f"{str(e)}, use --force if you want to have duplicate records"
+        logger.error(err)
+        print(err)
 
 
 def workflow_delete(arguments):
