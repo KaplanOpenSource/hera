@@ -2,7 +2,7 @@ import numpy
 import warnings
 
 try:
-    from freecad import app as FreeCAD
+    import FreeCAD
     import Mesh
 except ImportError:
     # I changed the raise error to warning to allow partial usage.

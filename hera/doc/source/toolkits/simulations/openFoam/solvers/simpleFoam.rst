@@ -22,16 +22,23 @@ The stages required to run a simpleFoam with the hera toolkit:
       - If you don't need snappyHexMesh, you can remove this, and remove all the refereces to the obj file,
         snappy and  surfaceFeatures exatraction in the workflow.
 
-    2. Run the hera-openfoam to create the boundary conditions
+    2. Update the directory to the directory where the simulations are executed in the fileWriter node.
+
+    3. Update the regions in the snappy node, and update the locationInMesh in snappyDict.
+
+    3. Run the hera-openfoam to create the boundary conditions
        and the blockmesh vertices.
 
 ..  code-block::
 
-    >> hera-openfoam objects createVerticesAndBoundary <object file name>.
+    >> hera-openfoam objects createVerticesAndBoundary <object file name> --fields [list of field names]
 
-    2. Replace the vertices in the blockmesh node.
+    The list of field names is required to create the boundary conditions for the changeDictionary and node.
 
-    3. Change the parameters in the snappyHexMesh. Note that the names of the boundaries were given to you
+
+    4. Replace the vertices in the blockmesh node.
+
+    5. Change the parameters in the snappyHexMesh. Note that the names of the boundaries were given to you
        in step 2, and that the name of the obj file in the simulation is always building.obj
 
 3. Execute the workflow:

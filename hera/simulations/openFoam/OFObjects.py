@@ -391,6 +391,7 @@ class OFObject:
         if parallel:
             self.logger.execution("Saving fields to parallel case")
 
+
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
             self.logger.debug(f"The processor found in the case : {','.join(procPaths)}")
             if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):

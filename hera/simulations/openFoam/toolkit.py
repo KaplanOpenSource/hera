@@ -189,7 +189,7 @@ class OFToolkit(workflowToolkit):
             field = self.OFObjectHome.getField(fieldName, flowType=simulationType, additionalFieldsDescription=fileaddition)
             field.write(caseDirectory=caseDirectory, location=0)
             field.write(caseDirectory=caseDirectory, location="0.orig")
-            field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=True)
+            field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=False,parallelBoundary=True)
 
     def compareWorkflows(self,workflowsTypes):
         """
