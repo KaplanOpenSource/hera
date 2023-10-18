@@ -130,7 +130,7 @@ The user can supply the workgroup, or let hera determine it from the code.
                          [--overwrite]
                          [--force]
                          [--assignName]
-                         [--action Add|AddBuild|AddBuildRun]
+                         [--execute]
 
 Adds the workflow with the name of the workflow file.
 
@@ -148,8 +148,28 @@ Adds the workflow with the name of the workflow file.
 
 * If --assignName exists then find the next available ID in the group and use it.
 
-* Use the --action to add, add and build the python execution or add, build the execution python and
-then execute it. The default AddBuildRun: add, build the python executer and run it.
+* Use the --execute to build and execute the workflow.
+
+Execute and add workflows
+^^^^^^^^^^^^^^^^^^^^
+
+The execute commands is similar to the add command, but it executes the workflow.
+
+Remember that you can also execute a workflow using the hermes-workflow interface, and bypass the
+hera mechanism with the projects. This could be useful to test a workflow, or as an alternative after
+it was added.
+
+The syntax is of the execute command is,
+.. code-block::
+
+    >> hera-workflows execute <workflow file>
+                         [--projectName <projectName>]
+                         [--groupName <groupName>]
+                         [--overwrite]
+                         [--force]
+                         [--assignName]
+                         [--execute]
+
 
 Comparing workflows.
 ^^^^^^^^^^^^^^^^^^^^
@@ -182,7 +202,7 @@ In the case of a workflow group name, all the simulations within that group will
   does not have extension (i.e it is just the name), the the file name will be appended with
 
 Deleting workflow
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 When deleting a workflow from Hera, it's important to note that the deletion process only removes the workflow from the project itself. The files and execution directories associated with the workflow are not automatically deleted, requiring additional action from the user.
 
 When a workflow is deleted from the project, it is exported to a file, and a Python script is generated. This script allows the user to remove all directories associated with the workflow's execution. However, the workflow will not be removed from the project if a file exists in its directory, unless the user explicitly requests overwriting.
@@ -210,8 +230,6 @@ To remove the execution
 .. code-block::
 
     >> python completeRemove.py
-
-
 
 Export workflow
 ^^^^^^^^^^^^^^^
