@@ -26,6 +26,7 @@ class OFToolkit(workflowToolkit):
     SIMULATIONTYPE_INCOMPRESSIBLE = "incompressible"
     SIMULATIONTYPE_DISPERSION = "dispersion"
 
+    OF_FLOWDISPERSION = "flowDispersion"
 
     stochasticLagrangian = None
 

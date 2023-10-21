@@ -35,7 +35,7 @@ def simpleFoam_createEmpty(arguments):
 
     logger.info(f"Using project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-
+    
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
                        simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
@@ -43,7 +43,6 @@ def simpleFoam_createEmpty(arguments):
 
 
     logger.execution(f"----- End -----")
-
 
 def stochasticLagrangian_create_dispersionFlow(arguments):
     logger = logging.getLogger("hera.bin")
@@ -60,9 +59,23 @@ def stochasticLagrangian_create_dispersionFlow(arguments):
 
     logger.info(f"Adding dispersion flow to project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    for flowid,flowdata in enumerate(configuration["flowFields"]["Flows"]):
-        logger.info(f'Creating flow Dispersion {flowid}/{len(configuration["flowFields"]["Flows"])}')
-        tk.stochasticLagrangian.createDispersionFlowField(flowData=flowdata)
+
+    if 'DFF' in arguments:
+        dffList = arguments.DFF
+    else:
+        dffList = [x for x in configuration["flowFields"]["Flows"].keys()]
+
+    logger.info(f"Createing dispersion flows {','.join(dffList)}")
+
+    for flowid,flowName in enumerate():
+        logger.debug(f"Creating dispersion flow : {flowName} (ID {flowid})")
+        try:
+            flowdata = configuration["flowFields"]["Flows"][flowName]
+            tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata)
+        except KeyError:
+            err = f"Flow field {flowName} not Found. Found the following flows: {','.join(configuration['flowFields']['Flows'].keys())}"
+            logger.error(err)
+            raise KeyError(err)
 
     logger.execution(f"----- End -----")
 
@@ -413,7 +426,7 @@ def objects_createVerticesAndBoundary(arguments):
 
     verticesList = []
     for x,y,z in zip(xList,yList,zList):
-        verticesList.append([corners[x],corners[y],corners[z]])
+        verticesList.append([corners[x], corners[y], corners[z]])
     print(json.dumps(dict(vertices=verticesList), indent=4))
 
     print("\n\n\n")

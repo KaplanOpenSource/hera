@@ -26,8 +26,15 @@ Comparing dispersion workfows and other management can be achieved through the h
 10min tutorial
 **************
 
+1. Create the original flow field (OFF) by running the hermes workflow of a flow field.
+2. Create the dispersion flow field (DFF) by describing the flow in the caseConfiguration
+   and executing
 
+    >> hera-openfoam ....
 
+3. Create the dispersion case by running the hermes workflow of the dispersion.
+
+    >> hera-openfoam ...
 
 
 Hermes workflow
@@ -81,38 +88,59 @@ For the Neutral2018, and Indoor2018 parameterizations the following fields are r
 How-to create a dispersion flow field (DFF)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The hera-openfoam interface allows the creation of a flow-dispersion case
-based on a previously computed OpenFOAM flow, referred to as the original flow.
-It is preferable to have the original flow in the project to keep track of its parameters, but it is not mandatory.
+The hera-openfoam interface creates the flow-dispersion case
+based on a previously computed OpenFOAM flow, referred to as the original flow (original flow field, OFF).
+It is preferable to have the original flow as a workflow in the project to keep track of its parameters, but it is not mandatory.
 
 To handle the numerous parameters involved, a JSON configuration file is utilized to specify
 the dispersion flow field based on the original flow field. The configuration file follows a specific
 structure (refer to the documentation on how to create an empty configuration file).
 
+To create the dispersion field with CLI use
+
+.. code-block::
+
+    >> hera-openfoam stochasticLagrangian dispersionFlow create <original flow field> [--DFF <DFF name list>] [--configuration <configuration file>] [--projectName <projectName>]
+
+* original flow field: The name/directory/workflow file of the OFF.
+* DFF : The list of DFFs to create. If does not exist, create a DFF from the OFF for all the fields that are defined.
+* configuration file:  defines the flow fields. If is not given, use the caseConfiguration.json.
+* projectName: the project nme to use. If  not given, use the project name in the caseConfiguration.json.
+
+The configuration file structure is as follows:
+
 ..  code-block:: javascript
 
     {
-        "projectName": <projectName>,
-        "Flows": [
-                {
-                    "originalFlow" : {
-                        "source" : <name>,
-                        "time" : {
-                            type : "steadyState|dynamic",
-                            "timestep" : <time>
+        "DispersionFlows": {
+                "directory": "dispersionFlows",
+                "definitions": {
+                     <DFF name> : {
+                        "description" : "A short description of the DFF",
+                        "originalFlow" : {
+                            "source" : <name>,
+                            "time" : {
+                                type : "steadyState|dynamic",
+                                "timestep" : <time>
+                            },
+                            linkMeshSymbolically : True
                         },
-                        linkMeshSymbolically : True
+                        dispersionDuration : <duration>
+                        dispersionFields : {
+                                <see below>
+                        }
                     },
-                    dispersionDuration : <duration>
-                    dispersionFields : {
-                            <see below>
-                    }
-                },
-                .
-                .
-                .
-        ]
+                    .
+                    .
+                    .
+                }
+        }
     }
+
+* The 'directory' key denotes the location that the dispersion workflows are written to.
+
+* The DFF name will be used as postfix of the OFF name.
+  However, it is recommended to use a sequential number to avoid long names.
 
 * The original flow name (stated in originalFlow.source) can be a workflow name or a directory.
 
@@ -133,7 +161,6 @@ structure (refer to the documentation on how to create an empty configuration fi
 
 * The dispersionFields key determines the fields that will be added to the dispersion flow.
   A field is defined by its dimensions, components (1 for scalar, 3 for vector and 9 for tensor),
-
   and the values of the boundary fields.
 
   It is possible to select a predefined field or define the field. The boundary conditions should be stated for either.
@@ -144,8 +171,9 @@ structure (refer to the documentation on how to create an empty configuration fi
   units for copressible and incompressible flows).
   For predefined fields the structure is:
 
-..  code-block:: javascript
 
+
+..  code-block:: javascript
                             <FieldName> : {
                                 "flowType"   : "compressible|incompressible|dispersion"
                                 "boundaryFields" : {
@@ -161,7 +189,15 @@ structure (refer to the documentation on how to create an empty configuration fi
                                 "internalField" : <value>|string
                             }
 
-For defined fields it is necessary to define their units and the name of the each component (for example, for velocity it is usually
+The list of predifined fields is:
+
+.. csv-table:: Predefined fields
+   :file: predefinedFields.csv
+   :widths: 30, 70
+   :header-rows: 1
+
+
+For fields that are not predefined, it is necessary to define their units and the name of the each component (for example, for velocity it is usually
 Ux,Uy and Uz. For scalars it is null.
 
 ..  code-block:: javascript
@@ -202,30 +238,17 @@ Ux,Uy and Uz. For scalars it is null.
   that can include a parquet file to be red. The structure of the parquet should be similar to a parquet that was loaded
   with the load method in OF objects (see ...).
 
-To create the dispersion field with CLI use
-::
-
-    >> hera-openfoam stochasticLagrangian createDispersionFlow <configuration file>
-                                                               [--projectName <projectName>]
-
-
 If <configuration file> is not stated, try to use the caseConfiguration.json file.
 
-**Using the toolkit**
+How-to list a dispersion flow field (DFF)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-First, lets import the toolkitHome
+It is possible to list the avaialable definitions of the dispersion fields, or the flow fields that
+were already linked to the OFF.
 
-.. code-block::
+>> hera-openfoam stochasticLagrangian dispersionFlow list
 
-    from hera import toolkitHome
-    projectName = "my-project"
 
-Then, initializa a SIMULATIONS_OPENFOAM toolkit:
-
-.. code-block::
-
-    dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM,
-                                                projectName=projectName)
 
 
 
@@ -244,9 +267,6 @@ to the DB.
 
 
 
-
-File examples
-**************
 
 
 
@@ -302,3 +322,21 @@ API
     :members:
     :undoc-members:
     :inherited-members:
+
+
+Using Hera directrly (without CLI) [not written]
+================================================
+
+First, lets import the toolkitHome
+
+.. code-block::
+
+    from hera import toolkitHome
+    projectName = "my-project"
+
+Then, initializa a SIMULATIONS_OPENFOAM toolkit:
+
+.. code-block::
+
+    dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM,
+                                                projectName=projectName)
