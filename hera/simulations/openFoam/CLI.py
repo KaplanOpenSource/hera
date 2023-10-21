@@ -49,29 +49,28 @@ def stochasticLagrangian_create_dispersionFlow(arguments):
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    if 'projectName' not in arguments:
+    if ('projectName' in arguments) and (arguments.projectName is not None):
+        projectName = arguments.projectName
+    else:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
-
         configuration = loadJSON(configurationFile)
         projectName = configuration['projectName']
-    else:
-        projectName = arguments.projectName
 
     logger.info(f"Adding dispersion flow to project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
-    if 'DFF' in arguments:
+    if ('DFF' in arguments) and (arguments.DFF is not None):
         dffList = arguments.DFF
     else:
-        dffList = [x for x in configuration["flowFields"]["Flows"].keys()]
+        dffList = [x for x in configuration["DispersionFlows"].keys()]
 
     logger.info(f"Createing dispersion flows {','.join(dffList)}")
 
-    for flowid,flowName in enumerate():
+    for flowid,flowName in enumerate(dffList):
         logger.debug(f"Creating dispersion flow : {flowName} (ID {flowid})")
         try:
-            flowdata = configuration["flowFields"]["Flows"][flowName]
-            tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata)
+            flowdata = configuration["DispersionFlows"][flowName]
+            tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata,OriginalFlowField=arguments.OriginalFlowField)
         except KeyError:
             err = f"Flow field {flowName} not Found. Found the following flows: {','.join(configuration['flowFields']['Flows'].keys())}"
             logger.error(err)

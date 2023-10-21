@@ -23,7 +23,7 @@ class toolkitExtension_LagrangianSolver:
         self.toolkit = toolkit
         self.logger = toolkit.logger
 
-    def createDispersionFlowField(self,flowName, flowData, overwrite:bool=False, useDBSupport: bool = True):
+    def createDispersionFlowField(self,flowName, flowData, OriginalFlowField, overwrite:bool=False, useDBSupport: bool = True):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
             Currently, assumes the case is parallel.
@@ -119,20 +119,16 @@ class toolkitExtension_LagrangianSolver:
             The ids of the documents that will be used as the directories.
 
         """
-        def toTimeFormat(basedir,timeDirectory,logger):
-            orig_proc = os.path.join(basedir, str(timeDirectory))
-            # The directories in round times are int and not float.
-            # that is 10 and not 10.0. Therefore, we must check and correct if does not exist.
-            if not os.path.exists(orig_proc):
-                logger.debug("Source does not exist, probably due to float/int issues. Recreating the source with int format")
-                orig_proc = os.path.join(basedir, str(int(timeDirectory)))
-                if not os.path.exists(orig_proc):
-                    logger.error(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
-                    raise ValueError(f"Source {orig_proc} does not exist... make sure the simulation is OK.")
+        def toTimeFormat(timeDirectory):
+            int_version = int(float(timeDirectory))
+            float_version = float(timeDirectory)
+            return int_version if float_version==int_version else float_version
+
 
         logger = get_classMethod_logger(self,"createDispersionFlowField")
-        logger.info(f"Creating dispersion flow field : {flowData['originalFlow']['source']} ")
-        originalFlow = flowData['originalFlow']
+        logger.info(f"Creating dispersion flow field : {OriginalFlowField} ")
+        originalFlow = dict(flowData['originalFlow'])
+        originalFlow['source'] = OriginalFlowField
 
         # 1. Get the case directory of the original flow.
         logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
@@ -172,7 +168,7 @@ class toolkitExtension_LagrangianSolver:
             ptPath = ["processor0", "*"]
             parallelOriginal = True
         else:
-            logger.debug("Directory 'processor0' not found!.  assuming single processor")
+            logger.debug(f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
             ptPath = ["*"]
             parallelOriginal = False
 
@@ -197,12 +193,12 @@ class toolkitExtension_LagrangianSolver:
         if dynamicType==self.toolkit.TIME_STEADYSTATE:
             logger.debug(f"Using Time step {uts} for Steady state")
             # steady state, only 2 time steps
-            timeList = [uts, str(float(dispersionDuration) + float(uts))]
+            timeList = [uts, float(dispersionDuration)]  # we need to add UTS because we subtract it later
         else:
             logger.debug(f"Using Time step {uts} as first time step for dynamic simulation")
             timeList = [x for x in TS if x > uts]
 
-        logger.info(f"The simulation type is: {dynamicType}: Using time steps: {timeList}")
+        logger.info(f"The simulation type is: {dynamicType}: Using time steps: {timeList}.")
 
         ## Now we should find out if there is a similar run.
         # 1. same original run.
@@ -211,14 +207,16 @@ class toolkitExtension_LagrangianSolver:
 
         if useDBSupport:
             logger.debug(f"Check if {dispersionFlowFieldName} is in the DB with the required parameters")
+
+            originalFlow['baseFlowDirectory'] = originalFlowCaseDir
+            originalFlow['timeStep'] = uts
+
             querydict = dict(
                 groupName=workflowGroup,
                 flowParameters=dict(
-                    baseFlowDirectory = originalFlowCaseDir,
-                    dynamicType = dynamicType,
                     flowFields=flowData['dispersionFields'],
-                    timeStep = uts,
-                    originalFlow = flowData['originalFlow']
+                    dispersionDuration=flowData["dispersionDuration"],
+                    originalFlow = originalFlow
                 )
             )
             logger.debug(f"Trying to find the dispersion workflow  in the database. The run is: \n {json.dumps(querydict,indent=4)}")
@@ -248,7 +246,7 @@ class toolkitExtension_LagrangianSolver:
             logger.debug(f"Running without DB support, so does not query the db ")
             doc = None
 
-        ofhome = self.toolkit.OFObjectHome()
+        ofhome = self.toolkit.OFObjectHome
         if doc is not None and overwrite:
             logger.info(f"Starting to overwrite existing dispersion field. Remove existing workflow field.")
 
@@ -266,12 +264,12 @@ class toolkitExtension_LagrangianSolver:
 
         meshBoundary = OFMeshBoundary(originalFlowCaseDir).getBoundary()
         dispersionFieldList = []
-        for dispersionFieldName, dispersionFieldData in dispersionFields.item():
+        for dispersionFieldName, dispersionFieldData in dispersionFields.items():
             logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
             field = ofhome.getFieldFromJSON(fieldName=dispersionFieldName,configuration=dispersionFieldData,meshBoundary=meshBoundary)
             dispersionFieldList.append( field )
 
-        logger.info("Copying the configuration directories from the original to the new configuration")
+        logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
         # copy constant, 0 and system.
         for general in ["constant", "system", "0"]:
             logger.debug(f"\tCopying {general} in {originalFlowCaseDir} directory --> {dispersionFlowFieldDirectory}")
@@ -282,32 +280,34 @@ class toolkitExtension_LagrangianSolver:
                 shutil.rmtree(dest_general)
             shutil.copytree(orig_general, dest_general)
 
-        self.logger.info(f"Copy directories. The run is {'parallel' if parallelOriginal else 'single-core'}")
         if parallelOriginal:
             origDirsList =  glob.glob(os.path.join(originalFlowCaseDir, "processor*"))
         else:
             origDirsList = [originalFlowCaseDir]
+        logger.debug(f"The run is {'parallel' if parallelOriginal else 'single-core'}")
+        logger.info(f"Copy directories {origDirsList}")
 
         for orig_time in timeList:
-            dest_time = orig_time - timeList[0]
-            if (dynamicType == self.toolkit.TIME_STEADYSTATE) and (orig_time == timeList[-1]):
-                orig_time = timeList[0]
+            dest_time = str(toTimeFormat(float(orig_time) - float(timeList[0])))
 
-            # We should look into it more closly, why parallel case doesn't recognize the time steps of the
+            if (dynamicType == self.toolkit.TIME_STEADYSTATE) and (orig_time == timeList[-1]):
+                dest_time = str(toTimeFormat(timeList[-1]))
+                orig_time = str(toTimeFormat(uts))
+            else:
+                orig_time = str(toTimeFormat(orig_time))
+
+            # We should look into it more closly, why the stochastic parallel solver  doesn't recognize the time steps of the
             # processors. For now, just create these directories in the main root as well.
+            logger.debug(f"Creating {dest_time} directory in the root directory because the Stochastic solver doesn't recognize the timesteps in the parallel case otherwise. ")
             os.makedirs(os.path.join(dispersionFlowFieldDirectory, str(dest_time)), exist_ok=True)
 
-            self.logger.info(f"Mapping Dispersion time {dest_time} to {orig_time}")
 
+            logger.info(f"Mapping {orig_time} --> {dest_time}")
             for origDir in origDirsList:
-                # The directories in round times are int and not float.
-                # that is 10 and not 10.0. Therefore, we must check and correct if does not exist.
-                orig_proc_timestep = toTimeFormat(basedir=origDir, timeDirectory=str(orig_time), logger=self.logger)
-
-                parallelOrSinglePathTime = [os.path.basename(origDir),str(dest_time)] if parallelOriginal else [str(dest_time)]
-
-                dest_proc_timestep = os.path.join(dispersionFlowFieldDirectory,*parallelOrSinglePathTime)
-                self.logger.info(f"\tMapping {orig_proc_timestep} --> {dest_proc_timestep}")
+                logger.info(f"Processing the original directory {origDir}")
+                orig_proc_timestep = os.path.join(origDir,orig_time)
+                dest_proc_timestep     = os.path.join(dispersionFlowFieldDirectory,os.path.basename(origDir),dest_time) if parallelOriginal else os.path.join(dispersionFlowFieldDirectory,dest_time)
+                logger.debug(f"\t Copying {orig_proc_timestep} to {dest_proc_timestep}")
                 if os.path.exists(dest_proc_timestep):
                     self.logger.debug(f"path {dest_proc_timestep} exists... removing before copy")
                     shutil.rmtree(dest_proc_timestep)
@@ -322,18 +322,19 @@ class toolkitExtension_LagrangianSolver:
                 else:
                     orig_constant_polymesh = os.path.abspath(os.path.join(origDir, "constant", "polyMesh"))
                     parallelOrSinglePathConstant = [os.path.basename(origDir), "constant","polyMesh"] if parallelOriginal else ["constant","polyMesh"]
-                    destination_constant_polymesh = os.path.join(dispersionFlowFieldDirectory, os.path.basename(origDir), *parallelOrSinglePathConstant)
+                    destination_constant_polymesh = os.path.join(dispersionFlowFieldDirectory, *parallelOrSinglePathConstant)
                     self.logger.info(f"Linking mesh in {orig_constant_polymesh} to {destination_constant_polymesh}")
                     if not os.path.exists(destination_constant_polymesh):
                         self.logger.debug(f"Linking {orig_constant_polymesh} -> {destination_constant_polymesh}")
                         os.makedirs(os.path.dirname(destination_constant_polymesh), exist_ok=True)
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
-                for field in dispersionFieldList:
-                    self.logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                    field.write(caseDirectory=dispersionFlowFieldDirectory,
-                                location=str(dest_time),
-                                parallel=parallelOriginal)
+
+            for field in dispersionFieldList:
+                self.logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
+                field.write(caseDirectory=dispersionFlowFieldDirectory,
+                            location=str(dest_time),
+                            parallel=parallelOriginal)
 
 
         logger.info("Finished creating the flow field for the dispersion. ")

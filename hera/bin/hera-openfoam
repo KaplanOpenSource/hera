@@ -74,7 +74,7 @@ if __name__ == "__main__":
                                              help='Add the current workflow to the DB even if it exists there under a different name')
     createDispersionFlow_parser.add_argument('--updateDB', dest="updateDB", action="store_true", default=False, help="Update DB if there is a mismatch with the file")
     createDispersionFlow_parser.add_argument('--exportFromDB', dest="exportFromDB", action="store_true", default=False, help="If the workflow mismatch the DB, export from DB")
-    createDispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    createDispersionFlow_parser.add_argument('--projectName', type=str, help=projectNameHelpDesc)
     createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_createDispersion)
 
     ## -- create source
