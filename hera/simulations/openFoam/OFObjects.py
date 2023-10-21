@@ -122,7 +122,7 @@ class OFObjectHome:
         flowType        = configuration.get("flowType", None)
         fieldDimensions = configuration.get("dimensions", None)
         fieldComponents = configuration.get("components", None)
-        data = configuration.get("internalField"),
+        data = configuration.get("internalField")
         fieldBoundary = configuration.get("boundaryConditions", dict())
         self.logger.debug(f"Adding the boundaries condition 'zerGradient' to all the boundaries that were not specified")
         for bnd in meshBoundary:
@@ -391,7 +391,6 @@ class OFObject:
         if parallel:
             self.logger.execution("Saving fields to parallel case")
 
-
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
             self.logger.debug(f"The processor found in the case : {','.join(procPaths)}")
             if isinstance(data,pandas.DataFrame) or isinstance(data,dask.dataframe.DataFrame):
@@ -408,14 +407,13 @@ class OFObject:
                     raise ValueError(errStr)
 
             for processorName in procPaths:
-                procID = int(processorName[9:])
-                if isinstance(data, pandas.DataFrame) or isinstance(data, dask.dataframe):
+                if isinstance(data, (pandas.DataFrame,dask.dataframe.DataFrame)):
+                    procID = int(os.path.basename(processorName)[9:])
                     procData = data.query("processor == @procID")
                     if isinstance(data, dask.dataframe):
                         procData = procData.compute()
-                    else:
-                        procData = data
-
+                else:
+                    procData = data
 
                 fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
                 self.logger.debug(f"Writing to file {fullFileName}")
