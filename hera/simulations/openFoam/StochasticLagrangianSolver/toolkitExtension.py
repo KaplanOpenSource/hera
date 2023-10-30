@@ -247,13 +247,18 @@ class toolkitExtension_LagrangianSolver:
             doc = None
 
         ofhome = self.toolkit.OFObjectHome
-        if doc is not None and overwrite:
-            logger.info(f"Starting to overwrite existing dispersion field. Remove existing workflow field.")
+        if doc is not None:
+            if overwrite:
+                logger.info(f"Starting to overwrite existing dispersion field. Remove existing workflow field.")
 
-            logger.info(f"Found Dispersion flow field {doc.desc['name']} on the disk , overwriting the same directory")
-            resource = docList[0].resource
-            logger.debug(f"Deleting {resource}, and writing over it")
-            shutil.rmtree(resource)
+                logger.info(f"Found Dispersion flow field {doc.desc['name']} on the disk , overwriting the same directory")
+                resource = docList[0].resource
+                logger.debug(f"Deleting {resource}, and writing over it")
+                shutil.rmtree(resource)
+            else:
+                err = f"Dispersion flow field already exists in the DB (and probably on the dist). use overwrite=True to remove"
+                logger.error(err)
+                raise FileExistsError(err)
 
         dispersionFlowFieldDirectory = os.path.abspath(os.path.join(self.toolkit.FilesDirectory,dispersionFlowFieldName))
         logger.info(f"Creating Dispersion flow simulation {dispersionFlowFieldName} in {dispersionFlowFieldDirectory}")
@@ -495,7 +500,7 @@ class toolkitExtension_LagrangianSolver:
 
         # 3. Create the dispersion case and link to the workflow.
         self.logger.info(f"Creating dispersion case {dispersionDirectoryName}  and linking to {dispersionFlowFieldDirectory}")
-        self.toolkit.stochasticLagrangian._createAndLinkDispersionCaseDirectory(dispersionDirectoryName,dispersionFlowDirectory=dispersionFlowFieldDirectory)
+        self.toolkit.stochasticLagrangian.createAndLinkDispersionCaseDirectory(dispersionDirectoryName, dispersionFlowDirectory=dispersionFlowFieldDirectory)
 
         # 5. Add/update to the DB.
         self.logger.execution("add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
@@ -526,24 +531,28 @@ class toolkitExtension_LagrangianSolver:
                 self.logger.debug(f"Saving desc \n{jsonstr}\n to DB")
                 doc.save()
 
-    def _createAndLinkDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
+    def createAndLinkDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
         dispersionDirectory = os.path.abspath(dispersionDirectory)
         dispersionFlowDirectory = os.path.abspath(dispersionFlowDirectory)
         self.logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlowDirectory}")
 
-        if not os.path.isfile(dispersionFlowDirectory):
+        if not os.path.isdir(dispersionFlowDirectory):
             err = f"The {dispersionFlowDirectory} is not not a directory."
             self.logger.error(err)
             raise ValueError(err)
 
         constantDir = os.path.join(dispersionDirectory, "constant")
         systemDir = os.path.join(dispersionDirectory, "system")
-        os.makedirs(constantDir, exist_ok=True)
-        os.makedirs(systemDir, exist_ok=True)
 
         self.logger.debug(f"Copying constant and system from the base flow")
-        shutil.copytree(os.path.join(dispersionFlowDirectory, "constant"), os.path.join(dispersionDirectory, "constant"))
-        shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), os.path.join(dispersionDirectory, "system"))
+        if os.path.exists(constantDir):
+            shutil.rmtree(constantDir)
+
+        if os.path.exists(systemDir):
+            shutil.rmtree(systemDir)
+
+        shutil.copytree(os.path.join(dispersionFlowDirectory, "constant"), constantDir)
+        shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), systemDir)
 
         for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
             self.logger.execution(f"Working on processor {proc}")
@@ -580,13 +589,56 @@ class toolkitExtension_LagrangianSolver:
         return [x.split("_")[1] for x in dir(self) if "makeSource" in x and "_" in x]
 
 
-    def makeSource(self, x, y, z, nParticles, type="Point", **kwargs):
+
+    def writeManualInjectionSource(self, x, y, z, nParticles,dispersionName, type="Point", fileName="kinematicCloudPositions", **kwargs):
+        """
+            Writes a source position files.
+            Saves the file to the constant directory of the case.
+        Parameters:
+        -----------
+            x: float
+                The x coordinate of the source.
+            y: float
+                The y coordinate of the source.
+            z: float
+             The z coordinate of the source.
+            nParticles: int
+                The number of particles.
+            type: str
+                The type of the source. Must be one of the sources.sourcesTypeList
+            fileName: str
+                The output filename (without the directory).
+            kwargs:
+                additional parameters for the source creation.
+
+        Returns
+        -------
+            None
+
+
+        """
+        string = "/*--------------------------------*- C++ -*----------------------------------*\n " \
+                 "| =========                 |                                                 |\n" \
+                 "| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
+                 "|  \    /   O peration     | Version:  dev                                   |\n" \
+                 "|   \  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
+                 "|    \/     M anipulation  |                                                 |\n" \
+                 "\*---------------------------------------------------------------------------*/\n" \
+                 "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       vectorField;\n" \
+                 "    object      kinematicCloudPositions;\n}\n" \
+                 "// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n" \
+            f"{nParticles}\n(\n"
+
         slist = self.sourcesTypeList
         if type not in slist:
             raise ValueError(f"The type must be [{','.join(slist)}]. Got {type} instead")
 
-        return getattr(self, f"makeSource_{type}")(x, y, z, nParticles, **kwargs)
-
+        source = getattr(self, f"makeSource_{type}")(x=x, y=y, z=z, nParticles=nParticles, **kwargs)
+        for i in range(nParticles):
+            string += f"({source.loc[i].x} {source.loc[i].y} {source.loc[i].z})\n"
+        string += ")\n"
+        with open(os.path.join(dispersionName, "constant", fileName), "w") as writeFile:
+            writeFile.write(string)
 
     def makeSource_Point(self, x, y, z, nParticles, **kwargs):
         return pandas.DataFrame(
