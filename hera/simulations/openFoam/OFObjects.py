@@ -755,6 +755,8 @@ boundaryField
 {
 """
         if self.boundaryConditions is not None:
+
+
             for boundaryPatchName,boundaryData in self.boundaryConditions.items():
                 bstr = f"\n{boundaryPatchName}\n"
                 bstr += "{\n"
@@ -763,21 +765,13 @@ boundaryField
                 bstr += "}\n"
                 boundaryConditions += bstr
 
-                if parallel:
-                    boundaryConditions += """
-    "proc.*"
-    {
-        type            processor;
-    }
-"""
-        elif parallel:
-
-            boundaryConditions += """
-    "proc.*"
-    {
-        type            processor;
-    }
-"""
+            if parallel:
+                boundaryConditions += """
+"proc.*"
+{
+    type            processor;
+}
+                    """
         else:
             boundaryConditions += """
     ".*"
@@ -785,7 +779,6 @@ boundaryField
         type            zeroGradient;
     }
 """
-
         boundaryConditions +="""
 }        
  """

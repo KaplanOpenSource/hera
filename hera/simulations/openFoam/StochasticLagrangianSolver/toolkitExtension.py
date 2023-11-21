@@ -9,6 +9,10 @@ from ..OFObjects import OFMeshBoundary
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
 
+from dask import dataframe
+from itertools import product
+from dask.delayed import delayed
+
 class toolkitExtension_LagrangianSolver:
     """
         A base class that handles all the stochastic lagrangian things (datalauer
@@ -250,11 +254,11 @@ class toolkitExtension_LagrangianSolver:
         if doc is not None:
             if overwrite:
                 logger.info(f"Starting to overwrite existing dispersion field. Remove existing workflow field.")
-
-                logger.info(f"Found Dispersion flow field {doc.desc['name']} on the disk , overwriting the same directory")
+                logger.info(f"Found Dispersion flow field {doc.desc['workflowName']} on the disk , overwriting the same directory")
                 resource = docList[0].resource
-                logger.debug(f"Deleting {resource}, and writing over it")
-                shutil.rmtree(resource)
+                logger.debug(f"Deleting {resource}, and writing over it (if exists)")
+                if os.path.exists(resource):
+                    shutil.rmtree(resource)
             else:
                 err = f"Dispersion flow field already exists in the DB (and probably on the dist). use overwrite=True to remove"
                 logger.error(err)
@@ -306,7 +310,6 @@ class toolkitExtension_LagrangianSolver:
             logger.debug(f"Creating {dest_time} directory in the root directory because the Stochastic solver doesn't recognize the timesteps in the parallel case otherwise. ")
             os.makedirs(os.path.join(dispersionFlowFieldDirectory, str(dest_time)), exist_ok=True)
 
-
             logger.info(f"Mapping {orig_time} --> {dest_time}")
             for origDir in origDirsList:
                 logger.info(f"Processing the original directory {origDir}")
@@ -339,7 +342,8 @@ class toolkitExtension_LagrangianSolver:
                 self.logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
                 field.write(caseDirectory=dispersionFlowFieldDirectory,
                             location=str(dest_time),
-                            parallel=parallelOriginal)
+                            parallel=parallelOriginal,
+                            parallelBoundary=parallelOriginal)
 
 
         logger.info("Finished creating the flow field for the dispersion. ")
@@ -583,12 +587,9 @@ class toolkitExtension_LagrangianSolver:
 
         self.logger.info("... Done")
 
-
     @property
     def sourcesTypeList(self):
         return [x.split("_")[1] for x in dir(self) if "makeSource" in x and "_" in x]
-
-
 
     def writeManualInjectionSource(self, x, y, z, nParticles,dispersionName, type="Point", fileName="kinematicCloudPositions", **kwargs):
         """
@@ -708,3 +709,612 @@ class toolkitExtension_LagrangianSolver:
             ys.append(y - xdist[i] * numpy.sin(rotateAngle) + ydist[i] * numpy.cos(rotateAngle))
             zs.append(z + zdist[i])
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
+
+
+    def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
+        count = 0
+        times = []
+        names = []
+        actions = []
+        mass = []
+        parcels = []
+
+        def addToLists(time, name, action, m, parcel):
+            times.append(time)
+            names.append(name)
+            actions.append(action)
+            mass.append(m)
+            parcels.append(parcel)
+
+        with open(logFile, "r") as readFile:
+            Lines = readFile.readlines()
+
+        for line in Lines:
+            count += 1
+            if "Exec" in line and solver in line:
+                count += 2
+                break
+
+        while "End" not in Lines[count]:
+            if "Time" in Lines[count]:
+                time = float(Lines[count].split()[-1])
+                while f"{self._datalayer.cloudName}\n" not in Lines[count]:
+                    count += 1
+                count += 1
+                while "ExecutionTime" not in Lines[count]:
+                    if "Parcel fate" in Lines[count]:
+                        name = Lines[count].split()[-1]
+                        count += 1
+                        addToLists(time=time, name=name, action="escape", parcel=float(Lines[count].split()[-2][:-1]),
+                                   m=float(Lines[count].split()[-1]))
+                        count += 1
+                        addToLists(time=time, name=name, action="stick", parcel=float(Lines[count].split()[-2][:-1]),
+                                   m=float(Lines[count].split()[-1]))
+                    elif ":\n" in Lines[count]:
+                        name = Lines[count].split()[0][:-1]
+                        count += 1
+                        parcel = float(Lines[count].split()[-1])
+                        count += 1
+                        addToLists(time=time, name=name, action="release", parcel=parcel, m=float(Lines[count].split()[-1]))
+                    count += 1
+            count += 1
+        return pandas.DataFrame(
+            {"time": times, "cloudName": self._datalayer.cloudName, "name": names, "action": actions, "parcels": parcels,
+             "mass": mass})
+
+    def _extractFile(self, filePath, columnNames, vector=True):
+        """
+            Extracts data from a csv file.
+
+        Parameters
+        ----------
+        filePath: str
+            The path of the file
+        time: str
+            The files' time step
+        columnNames: list of str
+            The names of the columns
+        skiphead: int
+            Number of lines to skip from the beginning of the file
+        skipend: int
+            Number of lines to skip from the ending of the file
+
+        Returns
+        -------
+            Pandas with the data.
+        """
+        skiphead = 20
+        skipend = 4
+        filePath = os.path.abspath(filePath)
+        cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
+        cnvrtDict = dict([(x, cnvrt) for x in columnNames])
+
+        try:
+            newData = pandas.read_csv(filePath,
+                                      skiprows=skiphead,
+                                      skipfooter=skipend,
+                                      engine='python',
+                                      header=None,
+                                      delim_whitespace=True,
+                                      converters=cnvrtDict,
+                                      names=columnNames)
+        except ValueError:
+            self.logger.execute(f"{filePath} is not a cvs, going to a specialized parser")
+            newData = []
+
+        if len(newData) == 0:
+            with open(filePath, "r") as inflile:
+                lines = inflile.readlines()
+            vals = "\n".join(lines[15:-1])
+            data = []
+
+            if vector:
+                if "{" in vals:
+                    inputs = vals.split("{")
+                    repeat = int(inputs[0])
+                    valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
+                    data = dict(
+                        [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
+                else:
+                    for rcrdListTuple in vals.split("(")[2:]:
+                        record = dict(
+                            [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
+                        data.append(record)
+            else:
+                if "{" in vals:
+                    inputs = vals.split("{")
+                    repeat = int(inputs[0])
+                    value = float(inputs[1].split("}")[0])
+                    data = [{columnNames[0]: value} for x in range(repeat)]
+
+                else:
+                    valuesList = vals.split("(")[1]
+                    for rcrdListItem in valuesList.split(" "):
+                        record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
+                        data.append(record)
+
+            newData = pandas.DataFrame(data)
+
+        return newData.astype(float)
+
+
+    def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,cloudName="kinematicCloud"):
+        """
+            Reads a single lagrangian time step from frhe casePath.
+        Parameters
+        ----------
+        timeName : str
+        casePath  : str
+        withVelocity : bool
+            if True, load the velocity
+
+        withReleaseTimes : bool
+            If true, read the age of the lagrangian
+
+        withMass : bool
+            If true, read the mass of the particle.
+
+        Returns
+        -------
+            pandas.Dataframe of the simulation.
+        """
+        logger = get_classMethod_logger(self,"_readRecord")
+        columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[]) #,wallDistance=[],tmpX=[], tmpY=[])
+        if withMass:
+            columnsDict['mass'] = []
+        if withReleaseTimes:
+            columnsDict['age'] = []
+        if withVelocity:
+            columnsDict['U_x'] = []
+            columnsDict['U_y'] = []
+            columnsDict['U_z'] = []
+
+        newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
+#        try:
+        if os.path.exists(os.path.join(casePath,timeName,"lagrangian",cloudName,"globalSigmaPositions")):
+            # newData = self._extractFile(os.path.join(casePath,timeName,"lagrangian",cloudName,"globalSigmaPositions"),['tmpX', 'tmpY', 'wallDistance'])
+            # #newData = newData.drop(columns=['tmpX', 'tmpY'])
+            # newData['wallDistance'] = newData['wallDistance'].astype(numpy.float64)
+            # newData['tmpX'] = newData['tmpX'].astype(numpy.float64)
+            # newData['tmpY'] = newData['tmpY'].astype(numpy.float64)
+
+            dataID = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"),['id'], vector=False)
+            newData['id'] = dataID['id'].astype(numpy.float64)
+
+            dataprocID = self._extractFile(
+                os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'],vector=False)
+            newData['procId'] = dataprocID['procId'].astype(numpy.float64)
+
+            newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
+
+            dataGlobal = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),['x', 'y', 'z'])
+            for col in ['x', 'y', 'z']:
+                newData[col] = dataGlobal[col].astype(numpy.float64)
+
+            if withVelocity:
+                dataU = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
+                                          ['U_x', 'U_y', 'U_z'])
+
+                logger.debug(f"Read mass file {timeName}: {dataU}")
+                for col in ['U_x', 'U_y', 'U_z']:
+                    newData[col] = dataU[col]
+
+            if withReleaseTimes:
+                dataM = self._extractFile(os.path.join(self._casePath, timeName, "lagrangian", cloudName, "age"),
+                                          ['age'], vector=False)
+                # newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
+                logger.debug(f"Read mass file {timeName}: {dataM}")
+                newData["age"] = dataM["age"].astype(numpy.float64)
+
+            if withMass:
+                dataM = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
+                                          ['mass'], vector=False)
+                logger.debug(f"Read mass file {timeName}: {dataM}")
+                newData["mass"] = dataM["mass"].astype(numpy.float64)
+                # except:
+                #     newData = newData.compute()
+                #     newData["mass"] = dataM["mass"].astype(numpy.float64)
+
+        else:
+            logger.debug(f"No data at time {timeName}")
+
+
+        theTime = os.path.split(timeName)[-1]
+        newData['time'] = float(theTime)
+        logger.debug(f"The output is\n{newData.dtypes}")
+        return newData
+
+    def readCloudData(self,casePath,times=None,withVelocity=False,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False):
+        """
+            Reads cloud data from the disk.
+
+            Checks if parallel data exists and reads it (unless forceSingleProcessor is True).
+
+        Parameters
+        ----------
+        casePath : str
+            The case path
+        times : list
+            If none, read all time.
+        withVelocity : bool
+            read the velocity
+        withReleaseTimes : bool
+            reads the age of the particles.
+
+        withMass  :true
+            Reads the mass of the particles.
+        cloudName : str
+            The cloud name
+
+        forceSingleProcessor : bool
+            Force reading single processor
+
+        Returns
+        -------
+            dask.dataFrame.
+        """
+        finalCasePath = os.path.abspath(casePath)
+        #finalFileName = os.path.abspath(os.path.join(self.filesDirectory, f"{cloudName}Data.parquet"))
+
+        loader = lambda timeName: self._readRecord(timeName,
+                                                   casePath=finalCasePath,
+                                                   withVelocity=withVelocity,
+                                                   withReleaseTimes=withReleaseTimes,
+                                                   withMass=withMass)
+
+        if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
+            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
+            if len(processorList) == 0:
+                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
+
+            timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                    os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                    x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],key=lambda x: int(x))
+
+            data = dataframe.from_delayed(
+                [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
+                 product(processorList, timeList)])
+        else:
+            timeList = sorted([x for x in os.listdir(finalCasePath) if (
+                    os.path.isdir(x) and
+                    x.isdigit() and
+                    (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                              key=lambda x: int(x))
+
+            data = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+
+        return data
+
+        # if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
+        #                 toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
+        #                 toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+        #                 toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+        #
+        #     data.to_parquet(finalFileName, compression="GZIP")
+        #
+        #     if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB, toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
+        #         doc = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
+        #
+        #         if doc is not None and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
+        #             raise FileExistsError(f"Data already in the DB. save mode is set to no replace")
+        #         elif doc is None:
+        #             self.addSimulationsDocument(resource=finalFileName,
+        #                                         dataFormat=toolkit.datatypes.PARQUET,
+        #                                         type=self.doctype,
+        #                                         desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
+        #         else:
+        #             doc.resource = finalFileName
+        #             doc.save()
+        # else:
+        #     doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
+
+
+class Analysis:
+    DOCTYPE_CONCENTRATION = "xarray_concentration"
+    DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
+
+    _datalayer = None
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, datalayer):
+        self._datalayer = datalayer
+
+    def calcConcentrationPointWise(self, data, dxdydz, xfield="globalX", yfield="globalY", zfield="globalZ"):
+        """
+            Calculates the concentration in cells from point data.
+
+            The mass of each particle is given in the mass fields.
+
+            Note that it is a multi index dask that cannot be saved as is to parquet.
+
+        :param data: parquet/dask
+            The particle location data in time.
+
+        :param dxdydz: float
+                The size of the cell
+
+        :param xfield: str
+                The name of the X coordinate
+
+        :param yfield: str
+                The name of the Y coordinate
+
+        :param zfield: str
+                The name of the Z coordinate
+        :return: dask.
+
+
+        """
+
+        dH = dxdydz ** 3
+        return data.assign(xI=dxdydz * (data[xfield] // dxdydz),
+                           yI=dxdydz * (data[yfield] // dxdydz),
+                           zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                   'mass'].sum().to_frame("C") / dH
+
+    def calcDocumentConcentrationPointWise(self, dataDocument, dxdydz, xfield="globalX", yfield="globalY",
+                                           zfield="globalZ", overwrite=False, saveAsDask=False,simulationID=None, **metadata):
+        """
+           Calculates the concentration from the cells where particles exists.
+
+        :param dataDocument: hera.MetadataDocument
+                The document with the particles.
+
+        :param dxdydz: float
+                The size of the cell
+
+        :param xfield: str
+                The name of the X coordinate
+
+        :param yfield: str
+                The name of the Y coordinate
+
+        :param zfield: str
+                The name of the Z coordinate
+
+        :param overwrite: bool
+                If true, recalculates.
+
+        :param saveAsDask: bool
+                If true, reset the index because dask cannot read multi index (the result ofthe concentration is multi index with time and x,y,z)
+
+        :param simulationID: str
+                If not None, use this str instead of the docmentID. used in cases where the
+                cache was transferred from another DB.
+
+        :param metadata:
+                Any additional parameters to add to the cache.
+        :return:
+                Document
+        """
+        simID = str(dataDocument.id) if simulationID is None else simulationID
+
+        docList = self.datalayer.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
+        if len(docList) == 0 or overwrite:
+
+            data = dataDocument.getData()
+            C = self.calcConcentrationPointWise(data, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
+
+            if saveAsDask:
+                C = C.compute().reset_index(level=['xI', 'yI', 'zI'])
+
+            if len(docList) == 0:
+                desc = dict(simID=simID, dxdydz=dxdydz)
+                desc.update(metadata)
+
+                doc = self.datalayer.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                                      type=self.DOCTYPE_CONCENTRATION_POINTWISE,
+                                                      resource="",
+                                                      desc=desc)
+
+                outputDirectory = os.path.join(self.datalayer.filesDirectory, str(doc.id))
+                os.makedirs(outputDirectory, exist_ok=True)
+
+                finalFileName = os.path.join(outputDirectory, "concentration.parquet")
+                doc.resource = finalFileName
+                doc.save()
+
+            else:
+                doc = docList[0]
+                finalFileName = doc.resource
+
+            C.to_parquet(finalFileName, compression="GZIP")
+            ret = doc
+
+
+    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",
+                                          zfield="globalZ"):
+        """
+            Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
+
+            Embed in a larget timestep.
+
+        Parameters
+        -----------
+
+        datimeDatata: pandas dataframe.
+            The data to convert. Takes only one time step at a time (for multiple time steps use iterConcentationField)
+
+        extents: dict
+            The domain in which the concentation will be calculated.
+            has keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+
+        dxdydz: float
+                    The mesh steps.
+
+        dxdydz: float
+                    The size of a mesh unit (that will be created for the concentration).
+
+        xfield: str
+                The column name of the x coordinates.
+
+        yfield: str
+            The column name of the y coordinates.
+
+        zfield: str
+            The column name of the z coordinates.
+
+
+        Returns
+        --------
+
+            Xarray.dataframe
+        """
+        x_full = numpy.arange(extents['xmin'], extents['xmax'], dxdydz)
+        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
+        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
+
+        dH = dxdydz ** 3
+
+        fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
+        fulldata.filterType = "C"
+
+        C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
+                            zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                'mass'].sum().to_xarray().squeeze().fillna(0) / dH
+
+        # assign the timestep into the large mesh
+        fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
+        fulldata.attrs['units'] = "1*kg/m**3"
+
+        return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
+
+
+    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="globalX", yfield="globalY",
+                                       zfield="globalZ", overwrite=False,simulationID=None, **metadata):
+        """
+            Calculates the eulerian concentration field for each timestep in the data.
+            The data is stored as a nc file on the disk.
+
+            The concentrations are embeded in a global mesh (defined in the extents field).
+
+            The metadata files are added to the d
+
+
+        Parameters
+        ----------
+        dataDocument: hera document.
+                The data to parse into timesteps and save as xarray.
+
+        dxdydz: float
+                    The mesh steps.
+
+        dxdydz: float
+                    The size of a mesh unit (that will be created for the concentration).
+
+
+
+        xfield: str
+                The column name of the x coordinates.
+
+        yfield: str
+            The column name of the y coordinates.
+
+        zfield: str
+            The column name of the z coordinates.
+
+        overwrite: bool
+            If True, recalcluats the data.
+
+        simulationID: str
+            If not None, use this str instead of the docmentID. used in cases where the
+            cache was transferred from another DB.
+
+        **metadata: the parameters to add to the document.
+
+        :return:
+            The document of the xarray concentration s
+        """
+
+        dataID = str(dataDocument.id) if simulationID is None else simulationID
+
+        docList = self.datalayer.getCacheDocuments(dataID=dataID, extents=extents, dxdydz=dxdydz,
+                                                   type=self.DOCTYPE_CONCENTRATION, **metadata)
+
+        if len(docList) == 0 or overwrite:
+
+            if len(docList) == 0:
+
+                mdata = dict(extents=extents, dxdydz=dxdydz, dataID=dataID)
+                mdata.update(**metadata)
+                xryDoc = self.datalayer.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
+                                                         resource="",
+                                                         type=self.DOCTYPE_CONCENTRATION,
+                                                         desc=mdata)
+
+                xryDoc.resource = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id), "Concentrations*.nc")
+                xryDoc.save()
+            else:
+                xryDoc = docList[0]
+
+                files = glob.glob(xryDoc.resource)
+                for f in files:
+                    try:
+                        os.remove(f)
+                    except OSError as e:
+                        print("Error: %s : %s" % (f, e.strerror))
+
+            data = dataDocument.getData()  # dask.
+
+            os.makedirs(os.path.join(self.datalayer.filesDirectory, str(xryDoc.id)), exist_ok=True)
+
+            for partitionID, partition in enumerate(data.partitions):
+                L = []
+                for timeName, timeData in partition.compute().reset_index().groupby("time"):
+                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz, xfield=xfield,
+                                                                 yfield=yfield, zfield=zfield)
+                    L.append(xry)
+
+                pxry = xarray.concat(L, dim="time")
+
+                outFile_Final = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id),
+                                             f"Concentrations{partitionID}.nc")
+                pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
+
+        else:
+            xryDoc = docList[0]
+
+        return xryDoc
+
+
+    def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
+        """
+            Returns a list of concentration fields that is related to this simulation (with the metadata that is provided).
+
+            Return None if simulation is not found.
+
+        Parameters
+        ----------
+        dataDocument: datalayer.metadatadocument
+
+        returnFirst: bool
+            If true, returns only the first simulation and None if none was found.
+            If false returns a list (might be empty).
+
+        metadata: any metadata that is needed
+
+        Returns
+        -------
+            The document of the concentrations (or none).
+
+        """
+        dataID = str(dataDocument.id)
+        docList = self.datalayer.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
+
+        if returnFirst:
+            if len(docList) > 0:
+                data = docList[0]
+            else:
+                data =  None
+
+        else:
+            data = docList[0].getData(usePandas=True)
+
+        return data
+
+
+
+
