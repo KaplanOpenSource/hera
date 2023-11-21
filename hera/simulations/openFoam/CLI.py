@@ -3,7 +3,7 @@ import logging
 import glob
 import os
 import shutil
-
+import numpy
 import pandas
 
 from ...datalayer import datatypes
@@ -66,8 +66,8 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
 
     logger.info(f"Createing dispersion flows {','.join(dffList)}")
 
-    for flowid,flowName in enumerate(dffList):
-        logger.debug(f"Creating dispersion flow : {flowName} (ID {flowid})")
+    for flowName in dffList:
+        logger.debug(f"Creating dispersion flow : {flowName}")
         try:
             flowdata = configuration["DispersionFlows"][flowName]
             tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata,OriginalFlowField=arguments.OriginalFlowField,overwrite=arguments.overwrite)
@@ -78,8 +78,6 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
         except FileExistsError:
             err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
             logger.error(err)
-
-
 
     logger.execution(f"----- End -----")
 
@@ -185,7 +183,6 @@ def stochasticLagrangian_dispersion_create(arguments):
 
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
-
     doc = tk.getItemsFromDB(dispersionFlowFieldName,tk.OF_FLOWDISPERSION)
     if len(doc)==0:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
@@ -195,14 +192,14 @@ def stochasticLagrangian_dispersion_create(arguments):
             raise ValueError(err)
         dispersionFlowField = os.path.abspath(dispersionFlowFieldName)
     else:
-        logger.info("Found the dispersion in the DB. Using")
+        logger.info("Found the dispersion in the DB. Using it")
         dispersionFlowField = doc[0].resource
 
-    if os.path.exists(dispersionFlowField):
-        logger.info(f"Dispersion {dispersionFlowField} exists.")
+    if os.path.exists(dispersionDirectoryName):
+        logger.info(f"Dispersion {dispersionDirectoryName} exists.")
         if arguments.overwrite:
             logger.info("Got the overwrite flag: removing old directory")
-            shutil.rmtree(dispersionFlowField)
+            shutil.rmtree(dispersionDirectoryName)
         else:
             err = "Dispersion flow exists. Use --overwrite to force recreation"
             raise ValueError(err)
