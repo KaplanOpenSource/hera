@@ -40,7 +40,7 @@ def WorkflowsGroup_list(args):
     workflowName = args.workflowName
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    wftk.listWorkflowsGroups(workflowType=simulationType, workflowName=workflowName)
+    wftk.workflow_listInGroups(workflowType=simulationType, workflowName=workflowName)
 
 
 def workflow_add(args):
@@ -456,6 +456,14 @@ def workflow_compare(arguments):
         simulations: [groupName] - compare all the simulations.old,
                      [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk
 
+        format : The format of the output.
+            - pandas
+            - latex
+            - csv
+            - json
+
+        file : None
+            If not None, save the output to the file.
 
     Returns
     -------
@@ -471,11 +479,9 @@ def workflow_compare(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    showAllParameters = arguments.all
+    res = wftk.workflow_compare(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
 
-    res = wftk.compareWorkflows(arguments.workflows,diffParams= not showAllParameters,longFormat=arguments.longFormat,transpose=arguments.transpose)
 
-    ext = None
     if arguments.format == "pandas":
         output = res
         ext = "txt"

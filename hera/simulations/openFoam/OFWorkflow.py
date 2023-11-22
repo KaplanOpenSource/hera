@@ -1,8 +1,5 @@
-import numpy
 import os
-import glob
 import json
-from distutils.dir_util import copy_tree
 from ... import toolkitHome
 from ...utils import loadJSON
 from ...utils.logging import helpers as hera_logging
@@ -46,7 +43,7 @@ class abstractWorkflow(hermes.workflow):
         self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowHeraDocument = workflowHeraDocument
 
-        self._requiredNodeList['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter', 'defineNewBoundaryConditions','Parameters']
+        self._requiredNodeList = ['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter', 'defineNewBoundaryConditions','Parameters']
 
     @property
     def workflowGroup(self):
@@ -106,8 +103,11 @@ class abstractWorkflow(hermes.workflow):
     def defineNewBoundaryConditions(self):
         return self['defineNewBoundaryConditions']
 
+##############################################################################
+##                          Workflow Eulerian/Lagrangian
+##############################################################################
 
-class Workflow_Eulerian(abstractWorkflow):
+class workflow_Eulerian(abstractWorkflow):
     """
         This class manages the hermes workflow of openFOAM that is designated to
         calculate flow fields.
@@ -140,8 +140,8 @@ class Workflow_Eulerian(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
-        self._requiredNodeList.append("blockMesh")
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+        self._requiredNodeList.append("blockMesh")
 
         # examine here that all the nodes exist, if not - it is not a flow
         for node in self._requiredNodeList:
@@ -680,7 +680,7 @@ class Workflow_Eulerian(abstractWorkflow):
         """
         self.defineNewBoundaryConditions['fields'] = icnode['data']
 
-class Workflow_Lagrangian(abstractWorkflow):
+class workflow_Lagrangian(abstractWorkflow):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
@@ -689,7 +689,7 @@ class Workflow_Lagrangian(abstractWorkflow):
 ##############################################################################
 ##                          Workflow_StochasticLagrangianSolver
 ##############################################################################
-class Workflow_StochasticLagrangianSolver(Workflow_Lagrangian):
+class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
@@ -717,7 +717,7 @@ class Workflow_StochasticLagrangianSolver(Workflow_Lagrangian):
 ##########################################################
 ##                          Workflow_simpleFoam
 ##########################################################
-class Workflow_simpleFoam(Workflow_Eulerian):
+class workflow_simpleFoam(workflow_Eulerian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)

@@ -107,7 +107,7 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
 
     logger.info(f"Listing all dispersion flows in project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    res = tk.compareWorkflows(workflowsType="stochasticLagrangianSolver")
+    res = tk.workflow_compare(workflowsType="stochasticLagrangianSolver")
 
     if arguments.format == "pandas":
         for group in res.groupName.unique():

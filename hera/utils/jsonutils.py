@@ -9,9 +9,26 @@ import logging
 from .logging import get_classMethod_logger
 from jsonpath_ng import parse
 from itertools import product
+from .dataframeutils import compareDataframeConfigurations
 
-def compareJSONS():
-    pass
+def compareJSONS(longFormat=False,**kwargs):
+    """
+        Recieves a group of name->JSONs (as file, string or dict)
+        and returns the pandas that compares them.
+    Parameters
+    ----------
+    kwargs
+
+    longFormat : bool
+        Return the value as long or wide
+
+    Returns
+    -------
+
+    """
+    fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
+    return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat)
+
 
 def ConfigurationToJSON(valueToProcess):
     """
@@ -93,8 +110,6 @@ def JSONToConfiguration(valueToProcess):
         ret = strToUnum(valueToProcess)
     return ret
 
-
-
 def loadJSON(jsonData):
     """
         Reads the json object to the memory.
@@ -139,7 +154,6 @@ def loadJSON(jsonData):
 
 
     return  loadedjson
-
 
 def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value"):
     """
@@ -231,7 +245,6 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
 
     return pnds[[nameColumn,valueColumn]]
 
-
 def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColumn="value"):
     """
         converts a JSON (either in file or loaded, or json str) to pandas.
@@ -287,8 +300,6 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColum
         dictIndex = pnds1.apply(lambda x: isinstance(x.value, dict), axis=1)
 
     return pnds1
-
-
 
 def JSONVariations(base,variationJSON):
     """

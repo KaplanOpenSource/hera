@@ -84,10 +84,8 @@ if __name__ == "__main__":
     ### ------------------------
     compare_parser = subparsers.add_parser('compare', help='Compare two or more workflows')
     compare_parser.add_argument('workflows', nargs="+", type=str,
-                                help='[groupName] - compare all the simulations.old, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
+                                help='[groupName] - compare all the simulations in the group, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
     compare_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
-    compare_parser.add_argument('--all', dest="all", action="store_true", default=False,
-                                        help='If exsists, list all the parameters')
     compare_parser.add_argument('--longTable', dest="longFormat", action="store_true", default=False,
                                         help='If exsists, list the parameters as a long table. If does not exist data is pivoted')
     compare_parser.add_argument('--transpose', dest="transpose", action="store_true", default=False,

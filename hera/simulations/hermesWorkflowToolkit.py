@@ -122,7 +122,7 @@ class workflowToolkit(abstractToolkit):
         if ky is None:
             hermesWFObj = pydoc.locate("hermes.workflow")
         else:
-            hermesWFObj = pydoc.locate(f"hera.simulations.openFoam.datalayer.hermesWorkflow.workflow_{ky}")
+            hermesWFObj = pydoc.locate(f"hera.simulations.openFoam.OFWorkflow.workflow_{ky}")
 
         if hermesWFObj is None:
             err = f"The workflow type {ky} not found"
@@ -569,7 +569,6 @@ class workflowToolkit(abstractToolkit):
 
     def compareWorkflowsObj(self,
                          workflowList,
-                         diffParams : bool = True,
                          longFormat : bool = False):
         """
             Compares the parameters of the workflows to each other.
@@ -583,18 +582,15 @@ class workflowToolkit(abstractToolkit):
         -------
 
         """
-        return compareJSONS(dict([(wf.name,wf.parametersJSON) for wf in workflowList]),
-                            diffParams=diffParams,
+        return compareJSONS(**dict([(wf.name,wf.parametersJSON) for wf in workflowList]),
                             longFormat=longFormat)
 
-    def compareWorkflows(self,
+    def workflow_compare(self,
                          workFlows: Union[list, str],
-                         diffParams : bool = True,
                          longFormat : bool = False,
                          transpose  : bool = False) -> Union[dict, pandas.DataFrame]:
         """
-            Compares two or more simulations.old.
-
+            Compares two or more hermes workflows.
 
         Parameters
         ----------
@@ -613,15 +609,39 @@ class workflowToolkit(abstractToolkit):
             pandas.DataFrame, json (depends on the input flags).
             Return the differences between the parametrs of the requested cases.
         """
-        if workflow is None:
+        if workFlows is None:
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         self.logger.info("--- Start ---")
 
-        simulationList = self.getWorkflowDocumentFromDB(list(workFlows))
+        workflowList = []
+        for workflowName in list(workFlows):
+            if os.path.exists(workflowName):
+                workflowList.append(self.getHermesWorkflowFromJSON(workflowName,name=workflowName))
+            else:
+                simulationList = self.getWorkflowDocumentFromDB(workflowName)
+                groupworkflowList = [workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory,name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
+                workflowList+=groupworkflowList
 
+        res = self.compareWorkflowsObj(workflowList,longFormat=longFormat)
+
+        return res.T if transpose else res
+
+    def workflow_compareInGroup(self,workflowGroup,longFormat=False,transpose=False) :
+        """
+            Compares all the workflows in the group name.
+
+        Parameters
+        ----------
+        workflowGroup : str
+            The group name.
+
+        Returns
+        -------
+            Pandas with the difference in the parameter names.
+        """
+        simulationList = self.getSimulationsInGroup(groupName=workflowGroup)
         workflowList = [workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory,name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
-        res = self.compareWorkflowsObj(workflowList,diffParams=diffParams,longFormat=longFormat)
-
+        res = self.compareWorkflowsObj(workflowList,longFormat=longFormat)
         return res.T if transpose else res
 
     def workflow_list(self,
@@ -674,7 +694,7 @@ class workflowToolkit(abstractToolkit):
 
         return ret
 
-    def listWorkflowsGroups(self, workflowType=None, workflowName=True):
+    def workflow_listInGroups(self, workflowType=None, workflowName=True):
         """
             Lists all the simulation groups of the current project.
 

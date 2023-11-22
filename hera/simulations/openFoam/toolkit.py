@@ -192,7 +192,7 @@ class OFToolkit(workflowToolkit):
             field.write(caseDirectory=caseDirectory, location="0.orig")
             field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=False,parallelBoundary=True)
 
-    def compareWorkflows(self,workflowsTypes):
+    def compareWorkflows_AllGroups(self,workflowsTypes):
         """
             Lists all the simulations of the type (flow, dispersion, flowdispersion)
             and return the differences between each group
