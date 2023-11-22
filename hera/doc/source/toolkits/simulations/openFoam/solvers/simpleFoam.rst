@@ -6,13 +6,12 @@ simpleFoam
 Introduction
 -------------
 
-The simpleFoam toolkit aids in executing steady-state incompressible solvers.
-
+The simpleFoam toolkit aids in executing and analyzing the steady-state incompressible solver.
 
 Usage
 -----
 
-The stages required to run a simpleFoam with the hera toolkit:
+Running simpleFOAM using the hera requires the following steps.
 
 1. Copy the basic hermes workflow from 'hermes/examples/openFOAM/simpleFOAM.
 2. Customize the workflow (the instructions here are for indoor workflow, outdoors will be build later):

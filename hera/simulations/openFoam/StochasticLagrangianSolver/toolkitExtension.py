@@ -8,7 +8,7 @@ from ....datalayer import datatypes
 from ..OFObjects import OFMeshBoundary
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
-
+import xarray
 from dask import dataframe
 from itertools import product
 from dask.delayed import delayed
@@ -22,6 +22,8 @@ class toolkitExtension_LagrangianSolver:
 
     analysis = None # link to the analysis of the StochasticLagrnagian
     presentation = None # link to the presentation of the stochasticLagrangian
+
+    DOCTYPE_LAGRANGIAN_CACHE = "lagrangianCacheDocType"
 
     def __init__(self,toolkit):
         self.toolkit = toolkit
@@ -924,7 +926,7 @@ class toolkitExtension_LagrangianSolver:
         logger.debug(f"The output is\n{newData.dtypes}")
         return newData
 
-    def readCloudData(self,casePath,times=None,withVelocity=False,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False):
+    def readCloudData(self,caseDescriptor,timeList=None,withVelocity=False,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False,cache=True,overwrite=False):
         """
             Reads cloud data from the disk.
 
@@ -932,8 +934,10 @@ class toolkitExtension_LagrangianSolver:
 
         Parameters
         ----------
-        casePath : str
-            The case path
+        caseDescriptor : str
+            The descriptor of the case.
+            Can be the name, the resource, the parameter files and ect.
+
         times : list
             If none, read all time.
         withVelocity : bool
@@ -953,60 +957,81 @@ class toolkitExtension_LagrangianSolver:
         -------
             dask.dataFrame.
         """
-        finalCasePath = os.path.abspath(casePath)
-        #finalFileName = os.path.abspath(os.path.join(self.filesDirectory, f"{cloudName}Data.parquet"))
+        logger = get_classMethod_logger(self,"readCloudData")
+        logger.debug(f"Checking to see if the data {caseDescriptor} is cached in the DB")
+        cachedDoc = self.toolkit.getItemsFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind="Cached",cloudName=cloudName)
 
-        loader = lambda timeName: self._readRecord(timeName,
-                                                   casePath=finalCasePath,
-                                                   withVelocity=withVelocity,
-                                                   withReleaseTimes=withReleaseTimes,
-                                                   withMass=withMass)
-
-        if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
-            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
-            if len(processorList) == 0:
-                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
-
-            timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                    os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                    x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],key=lambda x: int(x))
-
-            data = dataframe.from_delayed(
-                [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
-                 product(processorList, timeList)])
+        if cachedDoc is None:
+            logger.debug("Data is not cached, calculate it")
+            calculateData = True
+        elif overwrite:
+            logger.debug("overwrite is True, calculate it")
+            calculateData = True
         else:
-            timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                    os.path.isdir(x) and
-                    x.isdigit() and
-                    (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                              key=lambda x: int(x))
+            logger.debug("Returining the cached data")
+            ret = cachedDoc.getData()
+            calculateData = False
 
-            data = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+        if calculateData:
+            logger.info(f"Calculating the data. Trying to find the case described by: {caseDescriptor}")
+            docList = self.toolkit.getItemsFromDB(caseDescriptor,doctype=self.toolkit.DOCTYPE_WORKFLOW)
+            if len(docList) == 0:
+                logger.debug("not found, trying as a directory")
+                finalCasePath = os.path.abspath(caseDescriptor)
+                if not os.path.isdir(os.path.abspath(caseDescriptor)):
+                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
+                    logger.error(err)
+                    raise FileNotFoundError(err)
+            else:
+                finalCasePath = docList[0].resource
 
-        return data
+            loader = lambda timeName: self._readRecord(timeName,
+                                                       casePath=finalCasePath,
+                                                       withVelocity=withVelocity,
+                                                       withReleaseTimes=withReleaseTimes,
+                                                       cloudName=cloudName,
+                                                       withMass=withMass)
 
-        # if saveMode in [toolkit.TOOLKIT_SAVEMODE_ONLYFILE,
-        #                 toolkit.TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
-        #                 toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
-        #                 toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-        #
-        #     data.to_parquet(finalFileName, compression="GZIP")
-        #
-        #     if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB, toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
-        #         doc = self.getSimulationsDocuments(type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
-        #
-        #         if doc is not None and saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-        #             raise FileExistsError(f"Data already in the DB. save mode is set to no replace")
-        #         elif doc is None:
-        #             self.addSimulationsDocument(resource=finalFileName,
-        #                                         dataFormat=toolkit.datatypes.PARQUET,
-        #                                         type=self.doctype,
-        #                                         desc=dict(casePath=self.casePath, cloudName=self.cloudName, **kwargs))
-        #         else:
-        #             doc.resource = finalFileName
-        #             doc.save()
-        # else:
-        #     doc = nonDBMetadataFrame(data=data, type=self.doctype, casePath=self.casePath, cloudName=self.cloudName)
+            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
+                processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
+                if len(processorList) == 0:
+                    raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
+
+                if timeList is None:
+                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                            x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],key=lambda x: int(x))
+
+                ret = dataframe.from_delayed(
+                    [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
+                     product(processorList, timeList)])
+            else:
+                timeList = sorted([x for x in os.listdir(finalCasePath) if (
+                        os.path.isdir(x) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+
+                ret = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+
+            if overwrite and cache:
+                logger.debug(f"Overwriting the old data in {cachedDoc.resource}")
+                ret.to_parquet(cachedDoc.resource)
+            elif cache:
+                logger.debug(f"Creating a new cached data from the data that was computer")
+                targetDir = os.path.join(self.toolkit.filesDirectory,"cached")
+                os.makedirs(targetDir,exist_ok=True)
+
+                fullname = os.path.join(targetDir,f"{docList.desc['name']}_lagrangian_{cloudName}")
+                desc = dict(docList[0].desc)
+                desc['cloudName'] = cloudName
+                self.toolkit.addCachedDocument(dataFormat=datatypes.PARQUET,
+                                               type=self.DOCTYPE_LAGRANGIAN_CACHE,
+                                               resource=fullname,
+                                               desc=desc)
+
+
+        return ret
 
 
 class Analysis:

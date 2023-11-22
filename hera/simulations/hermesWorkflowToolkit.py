@@ -170,7 +170,7 @@ class workflowToolkit(abstractToolkit):
 
 
 
-    def getItemsFromDB(self,nameOrWorkflowFileOrJSONOrResource,doctype=None,**query):
+    def getItemsFromDB(self,nameOrWorkflowFileOrJSONOrResource,doctype=None,dockind="Simulation",**query):
         """
             Tries to find item as name, workflow directory , groupname or through the resource.
             Additional queries are also applicable.
@@ -179,10 +179,14 @@ class workflowToolkit(abstractToolkit):
         ----------
         nameOrWorkflowFileOrJSONOrResource : string or dict
                 The name/dict that defines the item
-        type  : string
+        doctype  : string
             document type.
 
+        dockind  : string
+            Whether the document is cachaed or Simulation.
+
         query : dict
+
             Additional criteria.
         Returns
         -------
@@ -191,15 +195,18 @@ class workflowToolkit(abstractToolkit):
         doctype = self.DOCTYPE_WORKFLOW if doctype is None else doctype
         # try to find it as a name
         mongo_crit = dictToMongoQuery(query)
+
+        retrieve_func = getattr(self,f"get{dockind}Documents")
+
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
             self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
-            docList = self.getSimulationsDocuments(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
+            docList = retrieve_func(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
             if len(docList) == 0:
                 self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
-                docList = self.getSimulationsDocuments(resource=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
+                docList = retrieve_func(resource=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
                 if len(docList) == 0:
                     self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
-                    docList = self.getSimulationsDocuments(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
+                    docList = retrieve_func(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
                     if len(docList) == 0:
                         self.logger.debug(f"... not found. Try to query as a json. ")
                         try:
@@ -207,7 +214,7 @@ class workflowToolkit(abstractToolkit):
                             wf = self.getHermesWorkflowFromJSON(jsn)
                             currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
                             currentQuery.update(mongo_crit)
-                            docList = self.getSimulationsDocuments(type=self.DOCTYPE_WORKFLOW, **currentQuery)
+                            docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
                         except ValueError:
                             # self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
                             # if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
@@ -242,13 +249,11 @@ class workflowToolkit(abstractToolkit):
                 self.logger.debug(f"... Found it as name")
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict) or isinstance(nameOrWorkflowFileOrJSONOrResource, workflow):
-
             qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON if isinstance(nameOrWorkflowFileOrJSONOrResource, workflow) else nameOrWorkflowFileOrJSONOrResource
-
             self.logger.debug(f"Searching for {qryDict} using parameters")
             currentQuery = dictToMongoQuery(qryDict, prefix="parameters")
             currentQuery.update(mongo_crit)
-            docList = self.getSimulationsDocuments(**currentQuery, type=self.DOCTYPE_WORKFLOW)
+            docList = retrieve_func(**currentQuery, type=self.DOCTYPE_WORKFLOW)
         else:
             docList = []
 

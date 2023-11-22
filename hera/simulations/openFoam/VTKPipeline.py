@@ -13,11 +13,12 @@ from ...datalayer import datatypes
 paraviewExists = False
 try:
     import paraview.simple as pvsimple
-    from simulations.openFoam.datalayer.pvOpenFOAMBase import paraviewOpenFOAM
-
     paraviewExists = True
 except ImportError:
     print("paraview not Found. Cannot execute the VTK pipeline.")
+
+from .pvOpenFOAMBase import paraviewOpenFOAM
+
 
 class VTKpipeline:
     """
