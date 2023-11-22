@@ -26,15 +26,103 @@ Comparing dispersion workfows and other management can be achieved through the h
 10min tutorial
 **************
 
+For a 10min tutorial, copy the example that is located in ... .
+
 1. Create the original flow field (OFF) by running the hermes workflow of a flow field.
 2. Create the dispersion flow field (DFF) by describing the flow in the caseConfiguration
    and executing
 
-    >> hera-openfoam ....
+    >> hera-openfoam stochasticLagrangian dispersionFlow create <OriginalFlowField> [--DFF <dispersion flow field names>]
+
+Where the <OriginalFlowField> is the name of the flow, the hermes workflow file or the directory.
+The batch file will create one DFF for each type that is defined in the caseConfiguration file (see below).
 
 3. Create the dispersion case by running the hermes workflow of the dispersion.
 
     >> hera-openfoam ...
+
+Defining dispersion flow field (DFF)
+************************************
+
+The creation of the DFF requires as input: (1) the name (or location) of the OFF, (2)
+the definition the the time step(s) to use for the dispersion and (3) the definition of the fields that will be added to the
+OFF.
+
+Currently, the creation of the DFF is supported from the command line or by calling the createDispersionFlowField in the SIMULATIONS_OPENFOAM
+toolkit (see below).
+
+Calling from the CLI
+====================
+
+The name of the OFF is supplied in the command line by the
+
+    >> hera-openfoam stochasticLagrangian dispersionFlow create <OriginalFlowField> [--DFF <dispersion flow field names>]
+
+Where the <OriginalFlowField> is the name of the flow, the hermes workflow file or the directory.
+The batch file will create one DFF for each type that is defined in the caseConfiguration file (see below).
+
+If the DFF is no specified, then the CLI will create all the defined DFFs in the file.
+
+
+Calling the toolkit directly
+============================
+
+In order to call the toolkit function directly, use
+
+.. code-block:: python
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,
+                                                      flowData=flowdata,
+                                                      OriginalFlowField=OriginalFlowField,
+                                                      overwrite=<true/false>)
+
+Where the flowName is the name of the new flow, flowdata is the JSON that describes the flow (see below),
+OriginalFlowField is the name, directory or workflow file of the original flow and overwrite specifies
+whether or not it is will be overwritten if it exists.
+
+Definition of the DFF
+=====================
+
+The DFF is defined in a JSON file with the follwing structure:
+
+.. literalinclude:: ./example_caseConfiguration.json
+   :language: json
+   :linenos:
+   :caption: case configuration structure
+
+
+
+Where:
+
+- <name> is the name of the DFF. The final name of the DFF will be <originalFlow>_DFF_<DFF name>.
+- originalFlow: defines how to get the times.
+    - time.type : steadyState/dynamic
+    - time.timestep : if steadyState, the time to use as start and end (since the flow is constant).
+                      if dynamic, the timestep denotes the time that will be mapped to 0.
+    - linkMeshSymbolically : If true, links the mesh to the OFF mesh. Otherwise, just copies it.
+- dispersionDuration : The last time step to use. If it is steady-state, the first time step will be
+                       copied to this time step.
+
+- dispersionFields: Definition of the fields that will be added to the OFF.
+                    Each field is defined as a map with the following structure:
+
+.. literalinclude:: ./example_field.json
+   :language: json
+   :linenos:
+   :caption: Example of a field
+
+
+
+Example
+~~~~~~~
+
+Here is an example of a full caseConfiguration:
+
+.. literalinclude:: ./caseConfiguration.json
+   :language: json
+   :linenos:
+   :caption: caseConfiguration
 
 
 Hermes workflow
