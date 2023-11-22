@@ -2,7 +2,7 @@ import pandas
 import os
 import glob
 from .OFObjects import OFField
-from .OFWorkflow import Workflow_Eulerian
+from .OFWorkflow import workflow_Eulerian
 from .OFObjects import OFObjectHome
 from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit

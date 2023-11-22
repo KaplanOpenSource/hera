@@ -105,7 +105,7 @@ if __name__ == "__main__":
     delete_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to remove')
     delete_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     delete_parser.add_argument('--no-export',dest="noExport", default=False, action="store_true", help='Does not save the deleted workflow to the disk')
-    delete_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
+    delete_parser.add_argument('--overwrite', dest="forceOverwrite", default=False, action="store_true",
                                help='Overwrite the export if the file exists')
 
     delete_parser.set_defaults(func=CLI.workflow_delete)
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     export_parser = subparsers.add_parser('export', help='Export the workflows to the disk')
     export_parser.add_argument('workflows', nargs="+", type=str,help='the list of workflows to export')
     export_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    export_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
+    export_parser.add_argument('--overwrite', dest="forceOverwrite", default=False, action="store_true",
                                help='Overwrite the export if the file exists')
 
     export_parser.set_defaults(func=CLI.workflow_export)
