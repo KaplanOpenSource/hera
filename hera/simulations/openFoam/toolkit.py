@@ -64,7 +64,7 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        return Workflow_Eulerian(workflowfile)
+        return workflow_Eulerian(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """

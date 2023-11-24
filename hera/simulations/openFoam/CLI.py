@@ -199,7 +199,7 @@ def stochasticLagrangian_dispersion_create(arguments):
         logger.info(f"Dispersion {dispersionDirectoryName} exists.")
         if arguments.overwrite:
             logger.info("Got the overwrite flag: removing old directory")
-            shutil.rmtree(dispersionDirectoryName)
+            shutil.rmtree(dispersionDirectoryName,)
         else:
             err = "Dispersion flow exists. Use --overwrite to force recreation"
             raise ValueError(err)
@@ -226,6 +226,7 @@ def stochasticLagrangian_source_cylinder(arguments):
         projectName = arguments.projectName
     else:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        logger.debug(f"Loading configuration file {configurationFile}")
         configuration = loadJSON(configurationFile)
         projectName = configuration['projectName']
 

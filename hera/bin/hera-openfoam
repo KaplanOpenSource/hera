@@ -76,19 +76,21 @@ if __name__ == "__main__":
     createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_dispersion_create)
 
     ## -- create source
-    source_parser = stochasticLagrnagian_subparser.add_parser('manualInjectionSource', help='Creates an initial configuration for the lagrangian particles')
-    source_subparser = source_parser.add_subparsers(help='Creates an initial configuration for the lagrangian particles')
+    injector_parser = stochasticLagrnagian_subparser.add_parser('injectors', help='Creates an initial configuration for the lagrangian particles')
+    injector_subparser = injector_parser.add_subparsers(help='Creates injectors')
 
-    source_cylinder_subparser = source_subparser.add_parser('cylinder', help='Creates a cylinder initial source shapre')
+    manualInjection_parser = injector_subparser.add_parser('manualInjection', help='Creates an initial configuration for the lagrangian particles')
+    manualInjection_subparser = manualInjection_parser.add_subparsers(help='Creates an initial configuration for the lagrangian particles')
+
+    source_cylinder_subparser = manualInjection_subparser.add_parser('cylinder', help='Creates a cylinder initial source shapre')
     source_cylinder_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow.")
     source_cylinder_subparser.add_argument('--center',nargs="*", type=str, help="The center of the cylinder.")
     source_cylinder_subparser.add_argument('--height', type=str, help="The height.")
     source_cylinder_subparser.add_argument('--radius', type=str, help="The radius of the cylinder.")
     source_cylinder_subparser.add_argument('--particles', type=str, help="The radius of the cylinder.")
-
     source_cylinder_subparser.set_defaults(func=CLI.stochasticLagrangian_source_cylinder)
 
-    source_createReleaseRateFile_subparser = source_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
+    source_createReleaseRateFile_subparser = manualInjection_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
 
     ############################################
