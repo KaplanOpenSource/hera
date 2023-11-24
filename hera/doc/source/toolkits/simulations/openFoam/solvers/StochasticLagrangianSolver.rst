@@ -227,10 +227,24 @@ executed manually.
 
 To create the dispersion director manually,
 
->> hera-openfoam stochasticLagrangian dispersion create <dispersion case name> <DFF name> [--overwrite]
+    >> hera-openfoam stochasticLagrangian dispersion create <dispersion case name> <DFF name> [--overwrite]
 
 use overwrite to recreate the directory.
 
+Utilities
+*********
+
+Creating particle positions
+---------------------------
+
+Several injectors require the creation of particle position file.
+The hera-openfoam utility facilitates the creation of differente shapes.
+
+**Cylinder**
+
+In order to create a cylinder shaped initial positions use
+
+    >> hera-openfoam stochasticLagrangian injectors manualInjection cylinder <case name> --center <x> <y> <z> --radius <rad> --height <height> --particles <pcount>
 
 Post processing
 ***************

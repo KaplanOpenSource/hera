@@ -959,9 +959,9 @@ class toolkitExtension_LagrangianSolver:
         """
         logger = get_classMethod_logger(self,"readCloudData")
         logger.debug(f"Checking to see if the data {caseDescriptor} is cached in the DB")
-        cachedDoc = self.toolkit.getItemsFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind="Cached",cloudName=cloudName)
+        cachedDoc = self.toolkit.getItemsFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind="Cache",cloudName=cloudName)
 
-        if cachedDoc is None:
+        if len(cachedDoc)==0:
             logger.debug("Data is not cached, calculate it")
             calculateData = True
         elif overwrite:
@@ -969,7 +969,7 @@ class toolkitExtension_LagrangianSolver:
             calculateData = True
         else:
             logger.debug("Returining the cached data")
-            ret = cachedDoc.getData()
+            ret = cachedDoc[0].getData()
             calculateData = False
 
         if calculateData:
@@ -1014,22 +1014,23 @@ class toolkitExtension_LagrangianSolver:
 
                 ret = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
 
-            if overwrite and cache:
-                logger.debug(f"Overwriting the old data in {cachedDoc.resource}")
-                ret.to_parquet(cachedDoc.resource)
-            elif cache:
-                logger.debug(f"Creating a new cached data from the data that was computer")
-                targetDir = os.path.join(self.toolkit.filesDirectory,"cached")
-                os.makedirs(targetDir,exist_ok=True)
+            if cache or overwrite:
+                if len(cachedDoc) >0:
+                    fullname = cachedDoc[0].resource
+                else:
+                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData")
+                    logger.debug(f"Writing data to {targetDir}")
+                    os.makedirs(targetDir,exist_ok=True)
+                    fullname = os.path.join(targetDir,f"{docList[0].desc['workflowName']}_lagrangian_{cloudName}.parquet")
+                    desc = dict(docList[0].desc)
+                    desc['cloudName'] = cloudName
 
-                fullname = os.path.join(targetDir,f"{docList.desc['name']}_lagrangian_{cloudName}")
-                desc = dict(docList[0].desc)
-                desc['cloudName'] = cloudName
-                self.toolkit.addCachedDocument(dataFormat=datatypes.PARQUET,
-                                               type=self.DOCTYPE_LAGRANGIAN_CACHE,
-                                               resource=fullname,
-                                               desc=desc)
-
+                logger.debug(f"...saving data in file {fullname}")
+                self.toolkit.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                              type=self.DOCTYPE_LAGRANGIAN_CACHE,
+                                              resource=fullname,
+                                              desc=desc)
+                ret.to_parquet(fullname)
 
         return ret
 

@@ -32,9 +32,12 @@ class OFObjectHome:
 
         incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
                                   p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
+                                  p_rgh=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
                                   epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]", componentNames=None),
                                   nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]", componentNames=None),
                                   k=dict(dimensions="[ 0 2 -2 0 0 0 0 ]", componentNames=None),
+                                  T=dict(dimensions="[ 0 0 0 1 0 0 0 ]", componentNames=None),
+                                  Tbackground=dict(dimensions="[ 0 0 0 1 0 0 0 ]", componentNames=None)
                                   )
 
         compressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
@@ -755,8 +758,6 @@ boundaryField
 {
 """
         if self.boundaryConditions is not None:
-
-
             for boundaryPatchName,boundaryData in self.boundaryConditions.items():
                 bstr = f"\n{boundaryPatchName}\n"
                 bstr += "{\n"
@@ -765,8 +766,8 @@ boundaryField
                 bstr += "}\n"
                 boundaryConditions += bstr
 
-            if parallel:
-                boundaryConditions += """
+        if parallel:
+            boundaryConditions += """
 "proc.*"
 {
     type            processor;

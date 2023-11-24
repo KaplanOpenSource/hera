@@ -22,6 +22,11 @@ except NameConflictError as e:
     mmHg = Unum.unit('mmHg',conv=None,name='mmHg = 1 torr')
 
 try:
+    mmH2O  = Unum.unit('mmH2O',atm/10197.162129779,'mmH2O = 0.0000980665bar')
+except NameConflictError as e:
+    mmH2O = Unum.unit('mmH2O',conv=None,name='mmH2O = 1 torr')
+
+try:
     torr  = Unum.unit('torr',atm/760.,'torr = 1 mmHg')
 except NameConflictError as e:
     torr = Unum.unit('torr',conv=None,name='torr = 1 mmHg')

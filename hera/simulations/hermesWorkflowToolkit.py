@@ -170,7 +170,7 @@ class workflowToolkit(abstractToolkit):
 
 
 
-    def getItemsFromDB(self,nameOrWorkflowFileOrJSONOrResource,doctype=None,dockind="Simulation",**query):
+    def getItemsFromDB(self,nameOrWorkflowFileOrJSONOrResource,doctype=None,dockind="Simulations",**query):
         """
             Tries to find item as name, workflow directory , groupname or through the resource.
             Additional queries are also applicable.
@@ -216,6 +216,7 @@ class workflowToolkit(abstractToolkit):
                             currentQuery.update(mongo_crit)
                             docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
                         except ValueError:
+
                             # self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
                             # if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
                             #     from ..datalayer.document import nonDBMetadataFrame
@@ -239,6 +240,9 @@ class workflowToolkit(abstractToolkit):
                             #                              )
                             #     docList = [res]
                             # else:
+                            self.logger.debug(f"not found")
+                            docList = []
+                        except IsADirectoryError:
                             self.logger.debug(f"not found")
                             docList = []
                     else:
