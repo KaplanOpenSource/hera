@@ -1,6 +1,6 @@
 import warnings
 from .OFObjects import OFObjectHome
-from .OFWorkflow import Workflow_Eulerian,Workflow_Lagrangian
+from .OFWorkflow import workflow_Eulerian,workflow_Lagrangian
 
 DECOMPOSED_CASE = 'Decomposed Case'
 RECONSTRUCTED_CASE ="Reconstructed Case"

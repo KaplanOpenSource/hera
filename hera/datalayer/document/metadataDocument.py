@@ -22,7 +22,7 @@ class MetadataFrame(object):
 
     """
     projectName = StringField(required=True)
-    desc = DictField(required=True)
+    desc = DictField(required=False)
     type = StringField(required=True)
     resource = DynamicField(required=True)
     dataFormat = StringField(required=True)

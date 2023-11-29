@@ -16,7 +16,7 @@ from io import BytesIO
 
 WSG84 = 4326
 ITM = 2039
-
+ED50_ZONE36N = 23036
 
 class TilesToolkit(toolkit.abstractToolkit):
     """
@@ -62,7 +62,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         """
         return self.Z0RES / (2 ** zoomlevel) * numpy.cos(numpy.deg2rad(latitude))
 
-    def getImageFromCorners(self, lowerLeft,upperRight, zoomlevel,tileServer,inputCRS=WSG84,outputCRS=WSG84):
+    def getImageFromCorners(self, left,right,bottom,top, zoomlevel,tileServer,inputCRS=WSG84,outputCRS=WSG84):
         """
             Gets the image from the lower left corner and upper right cornet.
             The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True
@@ -70,10 +70,8 @@ class TilesToolkit(toolkit.abstractToolkit):
 
         Parameters
         ----------
-        lowerLeft : tuple
-
-        upperRight : tuple
-
+        left,right,bottom,top : float
+            The left, right bottom and up of the image.
         zoomlevel :
         tileServer
         inputCRS : int
@@ -91,8 +89,8 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info("------- Start")
 
-        lon = [lowerLeft[0], upperRight[0]]
-        lat = [lowerLeft[1], upperRight[1]]
+        lon = [top,bottom]
+        lat = [left, right]
 
         gdf = geopandas.GeoDataFrame(
             None, geometry=geopandas.points_from_xy(lat, lon), crs=inputCRS  # "EPSG:4326"
@@ -101,14 +99,14 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger.info(f"Converting the input coordinates from EPSG {inputCRS} to WGS84 (EPSG:4326)")
         gdf = gdf.to_crs(WSG84)
 
-        tileLLX, tileLLY = self.deg2tile(gdf.iloc[0].geometry.y,gdf.iloc[0].geometry.x, zoomlevel)
-        tileURX, tileURY = self.deg2tile(gdf.iloc[1].geometry.y,gdf.iloc[1].geometry.x, zoomlevel)
+        tileULX, tileULY = self.deg2tile(gdf.iloc[0].geometry.y,gdf.iloc[0].geometry.x, zoomlevel)
+        tileLRX, tileLRY = self.deg2tile(gdf.iloc[1].geometry.y,gdf.iloc[1].geometry.x, zoomlevel)
 
         tileurl = self.getDatasourceData(tileServer)
         tileurl = tileServer if tileurl is None else tileurl
-        img,extent =  self._getImageFromTiles([tileLLX, tileLLY],[tileURX, tileURY], zoomlevel,tileurl)
+        img,extent =  self._getImageFromTiles([tileULX, tileULY],[tileLRX, tileLRY], zoomlevel,tileurl)
 
-        logger.info(f"Converting the output coordinates from WGS84 (EPSG:4326) to EPSG {outputCRS}")
+        logger.info(f"Converting the output extent {extent} from WGS84 (EPSG:4326) to EPSG {outputCRS}")
         lat = [extent[0], extent[1]]
         lon = [extent[2], extent[3]]
 
@@ -117,7 +115,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         )
         gdf = gdf.to_crs(outputCRS)
 
-        extent = [gdf.iloc[0].geometry.x,gdf.iloc[1].geometry.x,gdf.iloc[0].geometry.y,gdf.iloc[1].geometry.y]
+        extent = [gdf.iloc[0].geometry.x,gdf.iloc[1].geometry.x,gdf.iloc[1].geometry.y,gdf.iloc[0].geometry.y]
         return img,extent
 
 
@@ -144,7 +142,7 @@ class TilesToolkit(toolkit.abstractToolkit):
 
 
 
-    def _getImageFromTiles(self, llTiles, urTiles, zoomLevel, tileServer, square=True):
+    def _getImageFromTiles(self, ulTiles, lrTiles, zoomLevel, tileServer, square=True):
         """
             Creates an image with range of the tiles and compute their
             extent in degrees
@@ -174,34 +172,38 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info("------- Start")
 
-        height = numpy.abs(urTiles[1] - llTiles[1])
-        width = numpy.abs(urTiles[0] - llTiles[0])
+        height = numpy.abs(ulTiles[1] - lrTiles[1])
+        width = numpy.abs(ulTiles[0] - lrTiles[0])
 
-        logger.debug(f"The number of tiles in x: {width} and y: {height}.")
+        logger.debug(f"The number of tiles in x: {ulTiles[1]}-{lrTiles[1]}={width} and y: {ulTiles[0]}-{lrTiles[0]} {height}.")
 
         if square:
-            logger.debug(f"Squaring the image to be of equal height and width")
             sqrx = numpy.max([width, height])
             sqry = numpy.max([width, height])
+            logger.debug(f"Squaring the image to be of equal height and width: {sqrx}")
         else:
             logger.debug(f"Get the image as requested (no squaring)")
             sqry = height
             sqrx = width
+
+        lrTiles[0] = ulTiles[0] + sqrx
+        lrTiles[1] = ulTiles[1]+ sqry
 
         TILESIZE = 256
         finalimg = Image.new('RGB', (TILESIZE * sqrx, TILESIZE * sqry))
         logger.info(f"Getting the Image  (tiles {sqrx}x{sqry}) from {tileServer}")
         for i, j in product(range(sqrx), range(sqry)):
             #response = requests.get(f"http://192.168.14.118/resat_tiles/{zoomlevel}/{tileLLX + i}/{}.png")
-            response = requests.get(tileServer.format(z=zoomLevel,x=llTiles[0] + i,y=urTiles[1] + j))
+            response = requests.get(tileServer.format(z=zoomLevel,x=ulTiles[0] + i,y=ulTiles[1] + j))
             img = Image.open(BytesIO(response.content))
+            logger.debug(f"({i},{j}) --> {ulTiles[0] + i}, {ulTiles[1] + j}")
             finalimg.paste(img, (i * TILESIZE, j * TILESIZE))
 
-        boundLLY, boundLLX = self.tile2deg(llTiles[0], llTiles[1] + 1, zoomLevel)
-        boundURY, boundURX = self.tile2deg(urTiles[0] + 1, urTiles[1], zoomLevel)
-        logger.info(f"Got the image extent: {[boundLLY, boundLLX]} and {[boundURY, boundURX]}")
+        boundULY, boundULX = self.tile2deg(ulTiles[0], ulTiles[1] , zoomLevel)
+        boundLRY, boundLRX = self.tile2deg(lrTiles[0], lrTiles[1], zoomLevel)
+        logger.info(f"Got the image extent (upper left -> lower right): ({ulTiles[0]},{ulTiles[1]})={[boundULY, boundULX]} and ({lrTiles[0]},{lrTiles[1]})={[boundLRY, boundLRX]}")
 
-        return finalimg,[boundLLX,boundURX,boundLLY,boundURY]
+        return finalimg,[boundULX,boundLRX,boundULY,boundLRY]
 
 
     def tile2deg(self, xtile, ytile, zoom):

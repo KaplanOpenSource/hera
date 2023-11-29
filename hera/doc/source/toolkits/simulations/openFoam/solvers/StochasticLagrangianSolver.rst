@@ -22,31 +22,27 @@ and convert JSON file to the configurations files.
 
 Comparing dispersion workfows and other management can be achieved through the hera-workflows CLI.
 
-
 10min tutorial
 **************
 
+For a 10min tutorial, copy the example that is located in ... .
 
+1. Create the original flow field (OFF) by running the hermes workflow of a flow field.
+2. Create the dispersion flow field (DFF) by describing the flow in the caseConfiguration
+   and executing
 
+    >> hera-openfoam stochasticLagrangian dispersionFlow create <OriginalFlowField> [--DFF <dispersion flow field names>]
 
+Where the <OriginalFlowField> is the name of the flow, the hermes workflow file or the directory.
+The batch file will create one DFF for each type that is defined in the caseConfiguration file (see below).
 
-Hermes workflow
-***************
+3. Create the dispersion case by running the hermes workflow of the dispersion.
 
+    >> hera-openfoam ...
 
-
-
-Usage
-************************************
-
-In order to run a stochastic lagrangian solver, we need to perform the following steps:
-
-1. Create a flow field for dispersion from an existing flow field.
-2. Create the dispersion case
-3. Run the dispersion simulation.
 
 Create a flow field for dispersion
-==================================
+**********************************
 
 In this section we describe how to create a Dispersion Flow Field (DFF) from an original Flow Field (OFF).
 The DFF differs from the OFF)in several aspects.
@@ -78,62 +74,72 @@ For the Neutral2018, and Indoor2018 parameterizations the following fields are r
 * Hmix  : The height of the mixing layer. For indoor simulations, simply type 1000 or another appropriate value.
 * CellHeights:  The distance of each cell from the ground. This field is calculated using the buildDistanceFromWalls flag.
 
-How-to create a dispersion flow field (DFF)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The hera-openfoam interface allows the creation of a flow-dispersion case
-based on a previously computed OpenFOAM flow, referred to as the original flow.
-It is preferable to have the original flow in the project to keep track of its parameters, but it is not mandatory.
+Defining the dispersion flow field (DFF)
+========================================
 
-To handle the numerous parameters involved, a JSON configuration file is utilized to specify
-the dispersion flow field based on the original flow field. The configuration file follows a specific
-structure (refer to the documentation on how to create an empty configuration file).
+The creation of the DFF requires as input: (1) the name (or location) of the OFF, (2)
+the definition the the time step(s) to use for the dispersion and (3) the definition of the fields that will be added to the
+OFF.
 
-..  code-block:: javascript
+Currently, the creation of the DFF is supported from the command line or by calling the createDispersionFlowField in the SIMULATIONS_OPENFOAM
+toolkit (see below).
 
-    {
-        "projectName": <projectName>,
-        "Flows": [
-                {
-                    "originalFlow" : {
-                        "source" : <name>,
-                        "time" : {
-                            type : "steadyState|dynamic",
-                            "timestep" : <time>
-                        },
-                        linkMeshSymbolically : True
-                    },
-                    dispersionDuration : <duration>
-                    dispersionFields : {
-                            <see below>
-                    }
-                },
-                .
-                .
-                .
-        ]
-    }
+Calling from the CLI
+~~~~~~~~~~~~~~~~~~~~
 
-* The original flow name (stated in originalFlow.source) can be a workflow name or a directory.
+The name of the OFF is supplied in the command line by the
 
-    * The time determines which time steps will be used for the dispersion.
-      If the solution is parallel, we use the parallel solution, otherwise,
-      we use the single core solution.
+    >> hera-openfoam stochasticLagrangian dispersionFlow create <OriginalFlowField> [--DFF <dispersion flow field names>]
 
-        - Steady-state: Use the timestep as time 0 in the dispersion.
-                        This timestep is copied to the final dispersion time (and so get a de-facto steady flow).
-        -  dynamic: Use all the timesteps from timestep and on. The timestep is time 0 in the
-                   dispersion, and that time is subtracted from all the other timesteps.
+Where the <OriginalFlowField> is the name of the flow, the hermes workflow file or the directory.
+The batch file will create one DFF for each type that is defined in the caseConfiguration file (see below).
 
-    * linkMeshSymbolically determines whether the mesh will be copied or just linked symbolically. Symbolic linking
-      saves disk space, but makes the present simulation depend on the existence of the original flow.
-      the default is True
+If the DFF is no specified, then the CLI will create all the defined DFFs in the file.
 
-* dispersionDuration: determines the duration of the dispersion simulation.
 
-* The dispersionFields key determines the fields that will be added to the dispersion flow.
+Calling the toolkit directly
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to call the toolkit function directly, use
+
+.. code-block:: python
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,
+                                                      flowData=flowdata,
+                                                      OriginalFlowField=OriginalFlowField,
+                                                      overwrite=<true/false>)
+
+Where the flowName is the name of the new flow, flowdata is the JSON that describes the flow (see below),
+OriginalFlowField is the name, directory or workflow file of the original flow and overwrite specifies
+whether or not it is will be overwritten if it exists.
+
+Definition of the DFF
+~~~~~~~~~~~~~~~~~~~~~
+
+The DFF is defined in a JSON file with the follwing structure:
+
+.. literalinclude:: ./example_caseConfiguration.json
+   :language: json
+   :linenos:
+   :caption: case configuration structure
+
+Where:
+- The 'directory' key denotes the location that the dispersion workflows are written to.
+
+- <name> is the name of the DFF. The final name of the DFF will be <originalFlow>_DFF_<DFF name>.
+- originalFlow: defines how to get the times.
+    - time.type : steadyState/dynamic
+    - time.timestep : if steadyState, the time to use as start and end (since the flow is constant).
+                      if dynamic, the timestep denotes the time that will be mapped to 0.
+    - linkMeshSymbolically : If true, links the mesh to the OFF mesh. Otherwise, just copies it.
+- dispersionDuration : The last time step to use. If it is steady-state, the first time step will be
+                       copied to this time step.
+
+
+- The dispersionFields key determines the fields that will be added to the dispersion flow.
   A field is defined by its dimensions, components (1 for scalar, 3 for vector and 9 for tensor),
-
   and the values of the boundary fields.
 
   It is possible to select a predefined field or define the field. The boundary conditions should be stated for either.
@@ -144,24 +150,20 @@ structure (refer to the documentation on how to create an empty configuration fi
   units for copressible and incompressible flows).
   For predefined fields the structure is:
 
-..  code-block:: javascript
+.. literalinclude:: ./example_field.json
+   :language: json
+   :linenos:
+   :caption: Example of a field
 
-                            <FieldName> : {
-                                "flowType"   : "compressible|incompressible|dispersion"
-                                "boundaryFields" : {
-                                        <boundary name> : {
-                                                <property 1> : <property value>,
-                                                .
-                                                .
-                                                <property n> : <property value>
-                                        },
-                                        .
-                                        .
-                                }
-                                "internalField" : <value>|string
-                            }
+The list of predifined fields is:
 
-For defined fields it is necessary to define their units and the name of the each component (for example, for velocity it is usually
+.. csv-table:: Predefined fields
+   :file: predefinedFields.csv
+   :widths: 30, 70
+   :header-rows: 1
+
+
+For fields that are not predefined, it is necessary to define their units and the name of the each component (for example, for velocity it is usually
 Ux,Uy and Uz. For scalars it is null.
 
 ..  code-block:: javascript
@@ -183,7 +185,7 @@ Ux,Uy and Uz. For scalars it is null.
                             }
 
 
-* The boundaryField lists the values of the boundaries.
+- The boundaryField lists the values of the boundaries.
     The struct translates the value to the openfoam dict.
     For example the following translates to drichlet boundary condition.
 
@@ -198,55 +200,54 @@ Ux,Uy and Uz. For scalars it is null.
                                 }
                             }
 
-* The internalField can be a value (constant for scalar, vector and tensor), list (constant for vector/tensor) or a string
+- The internalField can be a value (constant for scalar, vector and tensor), list (constant for vector/tensor) or a string
   that can include a parquet file to be red. The structure of the parquet should be similar to a parquet that was loaded
   with the load method in OF objects (see ...).
 
-To create the dispersion field with CLI use
-::
+Example
+~~~~~~~
 
-    >> hera-openfoam stochasticLagrangian createDispersionFlow <configuration file>
-                                                               [--projectName <projectName>]
+Here is an example of a full caseConfiguration:
 
-
-If <configuration file> is not stated, try to use the caseConfiguration.json file.
-
-**Using the toolkit**
-
-First, lets import the toolkitHome
-
-.. code-block::
-
-    from hera import toolkitHome
-    projectName = "my-project"
-
-Then, initializa a SIMULATIONS_OPENFOAM toolkit:
-
-.. code-block::
-
-    dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM,
-                                                projectName=projectName)
-
-
+.. literalinclude:: ./caseConfiguration.json
+   :language: json
+   :linenos:
+   :caption: caseConfiguration
 
 Create the dispersion case
-==========================
+***************************
 
-Creating a dispersion case includes creating the directories of the case, linking to a dispersion flow,
-creating the configuration files required to run the StochasticLagrangianSolver, and adding the workflow
-to the DB.
+Creating the dispersion case involves in creating the soft links to the mesh directories
+of the DFF in the case directory and in the processor<x> (if exists).
 
-::
-
-    >> hera-openfoam stochasticLagrangian createDispersionFlow <configuration file>
-                                                               [--projectName <projectName>]
+Creating the case and the links is usually part of the hermes dispersion workflow, but it can also be
+executed manually.
 
 
 
+To create the dispersion director manually,
 
+    >> hera-openfoam stochasticLagrangian dispersion create <dispersion case name> <DFF name> [--overwrite]
 
-File examples
-**************
+use overwrite to recreate the directory.
+
+Utilities
+*********
+
+Creating particle positions
+---------------------------
+
+Several injectors require the creation of particle position file.
+The hera-openfoam utility facilitates the creation of differente shapes.
+
+**Cylinder**
+
+In order to create a cylinder shaped initial positions use
+
+    >> hera-openfoam stochasticLagrangian injectors manualInjection cylinder <case name> --center <x> <y> <z> --radius <rad> --height <height> --particles <pcount>
+
+Post processing
+***************
 
 
 
@@ -302,3 +303,21 @@ API
     :members:
     :undoc-members:
     :inherited-members:
+
+
+Using Hera directrly (without CLI) [not written]
+================================================
+
+First, lets import the toolkitHome
+
+.. code-block::
+
+    from hera import toolkitHome
+    projectName = "my-project"
+
+Then, initializa a SIMULATIONS_OPENFOAM toolkit:
+
+.. code-block::
+
+    dispersionToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM,
+                                                projectName=projectName)

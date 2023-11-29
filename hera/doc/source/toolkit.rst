@@ -87,9 +87,9 @@ Toolkits has datasource
    :maxdepth: 3
    :caption: Contents:
 
-   toolkits/simulations/LSM
    toolkits/simulations/HermesWorkflow
    toolkits/simulations/openFoam/openFOAM
+   toolkits/simulations/LSM
 
 Indices and tables
 ==================

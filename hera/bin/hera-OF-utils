@@ -1,6 +1,9 @@
 #! /usr/bin/env python
 
 """
+    DEPRACATED!. use hera-openfoam instead.
+
+
     Utils to generate openFOAM templtes.
 
     uses the configuration file.

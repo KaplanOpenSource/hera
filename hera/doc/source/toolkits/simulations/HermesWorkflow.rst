@@ -36,8 +36,8 @@ The toolkit allows the user to:
 
 All these actions can be achieved with the CLI.
 
-Preparing usage
----------------
+Using the workflows
+-------------------
 
 Preparing the usage of the simulations has two steps:
 
@@ -122,6 +122,8 @@ Add/update workflows
 A workflow that was added to the project, belongs to a workflow group automatically.
 The user can supply the workgroup, or let hera determine it from the code.
 
+When executing, the code automatically updates the python-workflow, removes the old dependecy files and executes the workflow.
+
 .. code-block::
 
     >> hera-workflows add <workflow file>
@@ -130,7 +132,7 @@ The user can supply the workgroup, or let hera determine it from the code.
                          [--overwrite]
                          [--force]
                          [--assignName]
-                         [--action Add|AddBuild|AddBuildRun]
+                         [--execute]
 
 Adds the workflow with the name of the workflow file.
 
@@ -148,8 +150,31 @@ Adds the workflow with the name of the workflow file.
 
 * If --assignName exists then find the next available ID in the group and use it.
 
-* Use the --action to add, add and build the python execution or add, build the execution python and
-then execute it. The default AddBuildRun: add, build the python executer and run it.
+* Use the --execute to build and execute the workflow.
+
+Execute and add workflows
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The execute commands is similar to the add command, but it executes the workflow.
+
+Remember that you can also execute a workflow using the hermes-workflow interface, and bypass the
+hera mechanism with the projects. This could be useful to test a workflow, or as an alternative after
+it was added.
+
+When executing, the code automatically updates the python-workflow, removes the old dependecy files and executes the workflow.
+
+The syntax is of the execute command is,
+
+.. code-block::
+
+    >> hera-workflows execute <workflow file>
+                         [--projectName <projectName>]
+                         [--groupName <groupName>]
+                         [--overwrite]
+                         [--force]
+                         [--assignName]
+                         [--execute]
+
 
 Comparing workflows.
 ^^^^^^^^^^^^^^^^^^^^
@@ -177,12 +202,13 @@ In the case of a workflow group name, all the simulations within that group will
 * if --transpose is supplied, the the simulations are printed as rows and the parameters are printed as lines.
 
 * The --format prints the comparison in different formats.
+  Available formats are: pandas, latex, csv and json
 
 * if the --file is supplied, then the output is also printed to a file. If the outputfileName
   does not have extension (i.e it is just the name), the the file name will be appended with
 
 Deleting workflow
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 When deleting a workflow from Hera, it's important to note that the deletion process only removes the workflow from the project itself. The files and execution directories associated with the workflow are not automatically deleted, requiring additional action from the user.
 
 When a workflow is deleted from the project, it is exported to a file, and a Python script is generated. This script allows the user to remove all directories associated with the workflow's execution. However, the workflow will not be removed from the project if a file exists in its directory, unless the user explicitly requests overwriting.
@@ -193,15 +219,13 @@ To remove the workflow(s) from the project type
 
 .. code-block::
 
-    >> hera-workflows delete <obj1> <obj2> ....
-                      [--no-export]
-                      [--forceOverwrite]
+    >> hera-workflows delete <obj1> <obj2> .... [--no-export] [--overwrite]
 
 Where obj<i> can be a simulation name or a workgroup.
 
 * If the --no-export flag is supplied, then the workflow will not be exported to the disk.
 
-* if the --forceOverwrite flag is supplied, then the workflow will be overwrite the currently
+* if the --overwrite flag is supplied, then the workflow will be overwrite the currently
  existing workflow  on the disk.
 
 Running this procedure creates a completeRemove.py script that will remove the execution directories.
@@ -211,23 +235,28 @@ To remove the execution
 
     >> python completeRemove.py
 
-
-
 Export workflow
 ^^^^^^^^^^^^^^^
 
 Exporting workflow saves the workflow in the DB to a file.
 If file name is not specified, then the output will be the simulation name
 
-Building/executing a workflow
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    >> hera-workflows export <obj1> <obj2> .... [--overwrite]
 
-Building and running a workflow requires a file on the disk. Hence
-this option also include the possibilty to export the file from the DB and then to build it and then
-to execute it.
+* if the --overwrite flag is supplied, then the workflow will be overwrite the currently
+ existing workflow  on the disk.
 
-Building and executing a workflow take place similarly to the hemres workflow.
 
+Workflow objects
+----------------
+
+To help the user handle the hermes workflows, this toolkit also includes
+a python wrapper to the hermes workflow.
+
+The basic wrapper is a general object that allows the user to access the different nodes.
+Specialized wrappers for simpleFOAM or other solvers also exist.
+
+To access the workflows, use the getHermesWorkflowFrom<JSON|DB> functions.
 
 Internals
 ---------

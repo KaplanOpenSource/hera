@@ -1,14 +1,15 @@
 import pandas
 import os
 import glob
-from .datalayer.OFObjects import OFField
-from .datalayer.hermesWorkflow import Workflow_Eulerian
-from .datalayer.OFObjects import OFObjectHome
+from .OFObjects import OFField
+from .OFWorkflow import workflow_Eulerian
+from .OFObjects import OFObjectHome
 from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
-from simulations.openFoam.VTKPipeline import VTKpipeline
-from . import StochasticLagrangian
+from .VTKPipeline import VTKpipeline
+from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
 from ...utils.jsonutils import loadJSON,compareJSONS
+#from evtk.hl import pointsToVTK, structuredToVTK
 
 class OFToolkit(workflowToolkit):
     """
@@ -26,6 +27,7 @@ class OFToolkit(workflowToolkit):
     SIMULATIONTYPE_INCOMPRESSIBLE = "incompressible"
     SIMULATIONTYPE_DISPERSION = "dispersion"
 
+    OF_FLOWDISPERSION = "flowDispersion"
 
     stochasticLagrangian = None
 
@@ -36,8 +38,8 @@ class OFToolkit(workflowToolkit):
 
         self.OFObjectHome = OFObjectHome()
         self._analysis = analysis(self)
+        self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
 
-        self.stochasticLagrangian = StochasticLagrangian.stochasticLagrangianDataLayer(self)
     def processorList(self,caseDirectory):
         """
             Returns the list of processors directories in the case
@@ -63,7 +65,7 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        return Workflow_Eulerian(workflowfile)
+        return workflow_Eulerian(workflowfile)
 
     def getMesh(self,caseDirectory,parallel=True,time=0):
         """
@@ -189,86 +191,86 @@ class OFToolkit(workflowToolkit):
             field = self.OFObjectHome.getField(fieldName, flowType=simulationType, additionalFieldsDescription=fileaddition)
             field.write(caseDirectory=caseDirectory, location=0)
             field.write(caseDirectory=caseDirectory, location="0.orig")
-            field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=True)
+            field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=False,parallelBoundary=True)
 
-    def compareWorkflows(self,workflowsTypes):
-        """
-            Lists all the simulations of the type (flow, dispersion, flowdispersion)
-            and return the differences between each group
-        Parameters
-        ----------
-        workflowsTypes
-
-        Returns
-        -------
-
-        """
-        groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc\
-                                                   in self.getSimulationDocuments(type=workflowsTypes)])).drop_duplicates()
-
-        resList = []
-        for group in groupsList:
-            wfDict = dict([(doc.desc['name'], doc.desc['name']['flowParameters']) for doc in
-                           self.getSimulationDocuments(type=workflowsTypes,
-                                                       groupName=group)])
-            res = compareJSONS(wfDict)
-            resList.append(res.assign(groupName=group))
-
-        return pandas.concat(resList)
+    # def compareWorkflows_AllGroups(self,workflowsTypes):
+    #     """
+    #         Lists all the simulations of the type (flow, dispersion, flowdispersion)
+    #         and return the differences between each group
+    #     Parameters
+    #     ----------
+    #     workflowsTypes
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc\
+    #                                                in self.getSimulationDocuments(type=workflowsTypes)])).drop_duplicates()
+    #
+    #     resList = []
+    #     for group in groupsList:
+    #         wfDict = dict([(doc.desc['name'], doc.desc['name']['flowParameters']) for doc in
+    #                        self.getSimulationDocuments(type=workflowsTypes,
+    #                                                    groupName=group)])
+    #         res = compareJSONS(wfDict)
+    #         resList.append(res.assign(groupName=group))
+    #
+    #     return pandas.concat(resList)
 
     ########################################## baseTemplateHandler
     #
     #  Retrieves the base workflows.
     #
-    def getBaseFlow_directory(self, parameters : dict):
-        """
-            Return the name of the requested directory.
+    # def getBaseFlow_directory(self, parameters : dict):
+    #     """
+    #         Return the name of the requested directory.
+    #
+    #     Parameters
+    #     ----------
+    #     parameters: dict
+    #         The json of the directory:
+    #             {
+    #                 name : ...
+    #             }
+    #
+    #     projectName : str
+    #         The name of the project (not used in this procedure).
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     return parameters['name'],os.path.basename(parameters['name'])
 
-        Parameters
-        ----------
-        parameters: dict
-            The json of the directory:
-                {
-                    name : ...
-                }
-
-        projectName : str
-            The name of the project (not used in this procedure).
-
-        Returns
-        -------
-
-        """
-        return parameters['name'],os.path.basename(parameters['name'])
-
-    def getBaseFlow_simulationName(self, parameters):
-        """
-            Check if the directory is already the db.
-            If it is, then return the id.
-
-        Parameters
-        ----------
-        parameters: dict
-            The json of the directory:
-                {
-                    name : ...
-                }
-        projectName : str
-            The name of the project.
-
-        Returns
-        -------
-
-        """
-        docList = self.getSimulationsDocuments(workflowName=parameters['name'],type=workflowToolkit.DOC_TYPE)
-        if len(docList) >0:
-            if len(docList) > 1:
-                import warnings
-                warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
-            return docList[0].resource,parameters['name']
-        else:
-            raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
-
+    # def getBaseFlow_simulationName(self, parameters):
+    #     """
+    #         Check if the directory is already the db.
+    #         If it is, then return the id.
+    #
+    #     Parameters
+    #     ----------
+    #     parameters: dict
+    #         The json of the directory:
+    #             {
+    #                 name : ...
+    #             }
+    #     projectName : str
+    #         The name of the project.
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     docList = self.getSimulationsDocuments(workflowName=parameters['name'],type=workflowToolkit.DOC_TYPE)
+    #     if len(docList) >0:
+    #         if len(docList) > 1:
+    #             import warnings
+    #             warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
+    #         return docList[0].resource,parameters['name']
+    #     else:
+    #         raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
+    #
 
 
 class analysis:
@@ -361,7 +363,7 @@ class analysis:
         -------
             list of DB documents.
         """
-        wrkflow = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        wrkflow = self.datalayer.getCaseListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
         if wrkflow is None:
             raise ValueError(f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
         simulationName = wrkflow['desc']['simulationName']
@@ -371,3 +373,95 @@ class analysis:
             qry['filterName'] = filterName
 
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
+
+
+class presentation:
+
+    def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
+        """
+            Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
+            In paraview, each timestep is a different file.
+
+        Parameters
+        -----------
+        data: dask.dataframe or pandas.dataframe
+            The data to present
+
+        outputdirectory: str
+            The directory to write the files in
+
+        timeFactor : int
+            Multiply the time by a factro to make the time step round (so that paraview will recognize it).
+
+        filename: str
+            The filename to write.
+
+        Returns
+        -------
+            None
+        """
+        for times, timedata in data.groupby("time"):
+            with open(os.path.join(outputdirectory, f"{filename}_{str(int(timeFactor * times)).replace('.', '_')}.csv"),
+                      "w") as outputfile:
+                outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
+
+    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True):
+        """
+            Writes the data as a VTK vtu file.
+
+
+
+        :param data: panas.Dataframe.
+                The data in a dataframe of pandas.
+        :param outputdirectory:
+        :param filename: str
+                    The filename
+        :param timeNameOutput: bool
+                    If true, use the time as the suffix to the filename. Else, use running number.
+        :return:
+        """
+        namePath = os.path.join(outputdirectory, filename)
+        os.makedirs(outputdirectory, exist_ok=True)
+
+        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+
+            data = dict(mass=timeData.mass.values)
+            x = timeData.globalX.values
+            y = timeData.globalY.values
+            z = timeData.globalZ.values
+            pointsToVTK(finalFile, x, y, z, data)
+
+    def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):
+        """
+            Converts the data to structured grid, and calcualtes the cocnentration
+
+            ** for now, the ppm is of SF6.
+
+        :param data:
+        :param outputdirectory:
+        :param filename:
+        :param timeNameOutput: bool
+                    Use the time or sequence for the output file name.
+        :param extents: dict
+                    with keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+        :param dxdydz: float
+                    The mesh steps.
+
+        :return:
+        """
+        namePath = os.path.join(outputdirectory, filename)
+        os.makedirs(outputdirectory, exist_ok=True)
+
+        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+            # assign the timestep into the large mesh of that time step.
+            fulldata = self.analysis.calcConcentrationTimeStepFullMesh(timeData, extents, dxdydz=dxdydz)
+
+            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+
+            X, Y, Z = numpy.meshgrid(fulldata.xI, fulldata.yI, fulldata.zI)
+
+            C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
+
+            data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
+            structuredToVTK(finalFile, X, Y, Z, pointData=data)

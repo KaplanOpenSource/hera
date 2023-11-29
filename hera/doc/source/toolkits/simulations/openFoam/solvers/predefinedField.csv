@@ -1,0 +1,14 @@
+Simulation Type, Field name, type  , units , component names
+incompressible   ,    U      ,vector ,   m/s ,  Ux Uy Uz
+incompressible   ,    p      ,scalar ,   m^2/s^2 ,
+incompressible   ,    epsilon,scalar ,   m^2/s^3 ,
+incompressible   ,    nut    ,scalar ,   m^2/s ,
+incompressible   ,    k      ,scalar ,   m^2/s^2 ,
+compressible   ,    U        ,vector ,   m/s ,  Ux Uy Uz
+compressible   ,    p        ,scalar ,   kg/m/s^2 ,
+compressible   ,    p_rhg    ,scalar ,   kg/m/s^2 ,
+compressible   ,    T        ,scalar ,   K ,
+dispersion      ,  Hmix       , scalar , m ,
+dispersion      ,  ustar      , scalar , m/s,
+dispersion      ,  CellHeights, scalar , m,
+
