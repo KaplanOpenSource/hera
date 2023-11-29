@@ -13,12 +13,11 @@ from dask import dataframe
 from itertools import product
 from dask.delayed import delayed
 
-class toolkitExtension_LagrangianSolver:
+class absractStochasticLagrangianSolver_toolkitExtension:
     """
         A base class that handles all the stochastic lagrangian things (datalauer
     """
     toolkit = None
-    logger  = None # take the logger from the OF toolkit.
 
     analysis = None # link to the analysis of the StochasticLagrnagian
     presentation = None # link to the presentation of the stochasticLagrangian
@@ -27,7 +26,6 @@ class toolkitExtension_LagrangianSolver:
 
     def __init__(self,toolkit):
         self.toolkit = toolkit
-        self.logger = toolkit.logger
 
     def createDispersionFlowField(self,flowName, flowData, OriginalFlowField, overwrite:bool=False, useDBSupport: bool = True):
         """
@@ -138,7 +136,7 @@ class toolkitExtension_LagrangianSolver:
 
         # 1. Get the case directory of the original flow.
         logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
-        docList = self.toolkit.getWorkflowDocumentFromDB(originalFlow['source'])
+        docList = self.toolkit.getCaseListDocumentFromDB(originalFlow['source'])
 
         if len(docList) == 0:
             logger.deug(f"that flow is not in the DB. trying to interpret as a directory ")
@@ -152,7 +150,7 @@ class toolkitExtension_LagrangianSolver:
                     workflowGroup = os.path.basename(originalFlowCaseDir)
                 else:
                     err = f"The directory {originalFlow['source']} is not a case directory (doesn't have system or constant subdirs)"
-                    self.logger.critical(err)
+                    logger.critical(err)
                     raise ValueError(err)
 
         elif len(docList) > 1:
@@ -319,7 +317,7 @@ class toolkitExtension_LagrangianSolver:
                 dest_proc_timestep     = os.path.join(dispersionFlowFieldDirectory,os.path.basename(origDir),dest_time) if parallelOriginal else os.path.join(dispersionFlowFieldDirectory,dest_time)
                 logger.debug(f"\t Copying {orig_proc_timestep} to {dest_proc_timestep}")
                 if os.path.exists(dest_proc_timestep):
-                    self.logger.debug(f"path {dest_proc_timestep} exists... removing before copy")
+                    logger.debug(f"path {dest_proc_timestep} exists... removing before copy")
                     shutil.rmtree(dest_proc_timestep)
                 shutil.copytree(orig_proc_timestep,dest_proc_timestep)
 
@@ -327,21 +325,21 @@ class toolkitExtension_LagrangianSolver:
                     orig_constant = os.path.join(origDir,"constant")
                     parallelOrSinglePathConstant = [os.path.basename(origDir), "constant"] if parallelOriginal else ["constant"]
                     dest_constant = os.path.join(dispersionFlowFieldDirectory,*parallelOrSinglePathConstant)
-                    self.logger.info(f"Copying the mesh in {orig_constant} to  {dest_constant}")
+                    logger.info(f"Copying the mesh in {orig_constant} to  {dest_constant}")
                     shutil.copytree(orig_constant, dest_constant)
                 else:
                     orig_constant_polymesh = os.path.abspath(os.path.join(origDir, "constant", "polyMesh"))
                     parallelOrSinglePathConstant = [os.path.basename(origDir), "constant","polyMesh"] if parallelOriginal else ["constant","polyMesh"]
                     destination_constant_polymesh = os.path.join(dispersionFlowFieldDirectory, *parallelOrSinglePathConstant)
-                    self.logger.info(f"Linking mesh in {orig_constant_polymesh} to {destination_constant_polymesh}")
+                    logger.info(f"Linking mesh in {orig_constant_polymesh} to {destination_constant_polymesh}")
                     if not os.path.exists(destination_constant_polymesh):
-                        self.logger.debug(f"Linking {orig_constant_polymesh} -> {destination_constant_polymesh}")
+                        logger.debug(f"Linking {orig_constant_polymesh} -> {destination_constant_polymesh}")
                         os.makedirs(os.path.dirname(destination_constant_polymesh), exist_ok=True)
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
 
             for field in dispersionFieldList:
-                self.logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
+                logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
                 field.write(caseDirectory=dispersionFlowFieldDirectory,
                             location=str(dest_time),
                             parallel=parallelOriginal,
@@ -355,7 +353,7 @@ class toolkitExtension_LagrangianSolver:
             if doc is None:
                 logger.debug("Updating the metadata of the record with the new group ID and simulation name")
 
-                self.logger.debug("Adding record to the database")
+                logger.debug("Adding record to the database")
                 self.toolkit.addSimulationsDocument(resource=dispersionFlowFieldDirectory, type=self.toolkit.OF_FLOWDISPERSION, dataFormat=datatypes.STRING, desc=querydict)
 
             ret = dispersionFlowFieldDirectory
@@ -410,111 +408,113 @@ class toolkitExtension_LagrangianSolver:
             The workflow (synchronized with the DB).
             The disk will also be definitly synchronized only if rewrite flag is true.
         """
+        logger = get_classMethod_logger(self,"createDispersionCaseDirectory")
+
         if (updateDB and exportFromDB):
             err = "Cannot use both --updateDB and --exportFromDB"
-            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
-        self.logger.execution(f"----- Start -----")
+        logger.execution(f"----- Start -----")
 
         if hermes_dispersionWorkflow.name is None:
-            self.logger.error("Must set the name property in the  dispersionWorkflow object")
+            logger.error("Must set the name property in the  dispersionWorkflow object")
             raise ValueError("Must set the name property in the  dispersionWorkflow object")
 
         dispersionDirectoryName = os.path.abspath(os.path.join(self.toolkit.filesDirectory,hermes_dispersionWorkflow.name))
 
-        self.logger.info(f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowField}.")
+        logger.info(f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowField}.")
 
-        self.logger.debug(f"Trying to find the dispersionFlowField in the DB to determine the directory")
-        dispersionFlowFieldDocumentList = self.toolkit.getWorkflowDocumentFromDB(hermes_dispersionWorkflow.dispersionFlowField)
+        logger.debug(f"Trying to find the dispersionFlowField in the DB to determine the directory")
+        dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(hermes_dispersionWorkflow.dispersionFlowField)
         if len(dispersionFlowFieldDocumentList) == 0:
-            self.logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowField} in DB.")
-            self.logger.debug(f"Trying again to look for the directory of the dispersion flow in the DB")
-            dispersionFlowFieldDocumentList = self.toolkit.getWorkflowDocumentFromDB(os.path.abspath(hermes_dispersionWorkflow.dispersionFlowField))
+            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowField} in DB.")
+            logger.debug(f"Trying again to look for the directory of the dispersion flow in the DB")
+            dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(os.path.abspath(hermes_dispersionWorkflow.dispersionFlowField))
             if len(dispersionFlowFieldDocumentList) == 0:
                 err = f"The {hermes_dispersionWorkflow.dispersionFlowField} is not in the DB. Add it before you can continue"
-                self.logger.critical(err)
+                logger.critical(err)
                 raise ValueError(err)
 
-        self.logger.execution(f"Found dispersion flow field in DB under the name {dispersionFlowFieldDocumentList[0].desc['workflowName']}.")
+        logger.execution(f"Found dispersion flow field in DB under the name {dispersionFlowFieldDocumentList[0].desc['workflowName']}.")
         if hermes_dispersionWorkflow.dispersionFlowField != dispersionFlowFieldDocumentList[0].desc['workflowName']:
-            self.logger.debug(f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowField} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
+            logger.debug(f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowField} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
             hermes_dispersionWorkflow.dispersionFlowField = dispersionFlowFieldDocumentList[0].desc['workflowName']
 
         dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
         dispersionFlowFieldDirectory = dispersionFlowFieldDocumentList[0].resource
-        self.logger.info(f"Using dispersion flow field {dispersionFlowFieldName} with directory {dispersionFlowFieldDirectory}")
+        logger.info(f"Using dispersion flow field {dispersionFlowFieldName} with directory {dispersionFlowFieldDirectory}")
 
         updateWorkflow = False
         foundInconsistency = None
         needDBAdd = False
 
         # 1. Check if the dispersion workflow name is in the DB under a different name.
-        self.logger.execution("Querying DB to see if the a workflow exists with a similar name")
-        doc_nameQueryList = self.toolkit.getWorkflowDocumentFromDB(hermes_dispersionWorkflow.name)
+        logger.execution("Querying DB to see if the a workflow exists with a similar name")
+        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(hermes_dispersionWorkflow.name)
         if len(doc_nameQueryList) > 0:
-            self.logger.execution("Found a workflow with the same name. Check for inconsistency between DB and input")
+            logger.execution("Found a workflow with the same name. Check for inconsistency between DB and input")
 
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
             res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, hermes_dispersionWorkflow])
             if len(res.columns) == 1:
-                self.logger.info(f"The workflow in the DB is identical to the disk.")
+                logger.info(f"The workflow in the DB is identical to the disk.")
                 hermes_dispersionWorkflow = hermes_dispersionWorkflow
             else:
-                self.logger.execution(f"The workflow in the DB is different than the disk: \n\n {res}")
+                logger.execution(f"The workflow in the DB is different than the disk: \n\n {res}")
                 if exportFromDB:
                     hermes_dispersionWorkflow = doc_similarWorkflow
                 elif updateDB:
-                    self.logger.execution("Updating the DB with the workflow from disk")
+                    logger.execution("Updating the DB with the workflow from disk")
                     hermes_dispersionWorkflow = hermes_dispersionWorkflow
                     updateWorkflow = True
                     foundInconsistency = res
                 else:
                     err = f"The workflow in {hermes_dispersionWorkflow} file and in the DB are different. Use the --updateDB to update the DB or --exportFromDB to rewrite the file"
-                    self.logger.error(err)
+                    logger.error(err)
                     raise ValueError(err)
         else:
-            self.logger.execution("Record not found. Querying DB to see if that workflow exists under a different name")
+            logger.execution("Record not found. Querying DB to see if that workflow exists under a different name")
 
             otherWorkflows = self.toolkit.getHermesWorkflowFromDB(hermes_dispersionWorkflow)
-            self.logger.debug(f"Found {len(otherWorkflows)} records that match workflow.")
+            logger.debug(f"Found {len(otherWorkflows)} records that match workflow.")
             if len(otherWorkflows) > 0:
                 foundNames = [x.desc['workflowName'] for x in otherWorkflows]
-                self.logger.info(f"The workflows {','.join(foundNames)} match the workflow that was given as input, but have different names.")
+                logger.info(f"The workflows {','.join(foundNames)} match the workflow that was given as input, but have different names.")
                 if not allowDuplicate:
                     err = f"Found the input workflow under the names {','.join(foundNames)}. The supplied name is {hermes_dispersionWorkflow.name}. " \
                           f"Force the addition of a duplicate case by using the --allowDuplicate flag"
-                    self.logger.error(err)
+                    logger.error(err)
                     raise FileExistsError(err)
                 else:
-                    self.logger.execution("--allowDuplicate was supplied, so allowing duplication addition to DB")
+                    logger.execution("--allowDuplicate was supplied, so allowing duplication addition to DB")
                     needDBAdd = True
 
-        self.logger.execution(f"Check if dispersion {dispersionDirectoryName} already exists. If it is remove for fresh start only if it needs rewrite and the  --rewrite was supplied")
+        logger.execution(f"Check if dispersion {dispersionDirectoryName} already exists. If it is remove for fresh start only if it needs rewrite and the  --rewrite was supplied")
         if os.path.isdir(dispersionDirectoryName):
-            self.logger.debug("Directory already exists")
+            logger.debug("Directory already exists")
             if foundInconsistency is not None:
-                self.logger.execution(
+                logger.execution(
                     f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
                 if rewrite:
-                    self.logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
+                    logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
                     shutil.rmtree(dispersionDirectoryName)
                 else:
                     err = f"The dispersion directory {dispersionDirectoryName} already exists, and the input workflow does not match DB: \n{res}\n\n Use --rewrite to force removing and recreating"
-                    self.logger.error(err)
+                    logger.error(err)
                     raise ValueError(err)
 
         # 3. Create the dispersion case and link to the workflow.
-        self.logger.info(f"Creating dispersion case {dispersionDirectoryName}  and linking to {dispersionFlowFieldDirectory}")
+        logger.info(f"Creating dispersion case {dispersionDirectoryName}  and linking to {dispersionFlowFieldDirectory}")
         self.toolkit.stochasticLagrangian.createAndLinkDispersionCaseDirectory(dispersionDirectoryName, dispersionFlowDirectory=dispersionFlowFieldDirectory)
 
         # 5. Add/update to the DB.
-        self.logger.execution("add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
+        logger.execution("add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
         if needDBAdd:
             groupName = hermes_dispersionWorkflow.name.split("_")[0]
             groupID = hermes_dispersionWorkflow.name.split("_")[1]
 
-            self.logger.execute(f"Adding new document with group {groupName} and {groupID}")
+            logger.execute(f"Adding new document with group {groupName} and {groupID}")
             self.toolkit.addSimulationsDocument(resource=dispersionDirectoryName,\
                                                 dataFormat=datatypes.STRING,\
                                                 type=self.toolkit.DOCTYPE_WORKFLOW,\
@@ -528,29 +528,30 @@ class toolkitExtension_LagrangianSolver:
                                                     )\
                                                 )
         elif updateWorkflow:
-                self.logger.execute("Updating workflow")
+                logger.execute("Updating workflow")
                 doc = doc_nameQueryList[0]
                 doc.desc['workflow'] = hermes_dispersionWorkflow.json
                 doc.desc['parameters'] = hermes_dispersionWorkflow.parametersJSON
 
                 jsonstr = json.dumps(doc.desc,indent=4)
-                self.logger.debug(f"Saving desc \n{jsonstr}\n to DB")
+                logger.debug(f"Saving desc \n{jsonstr}\n to DB")
                 doc.save()
 
     def createAndLinkDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
+        logger = get_classMethod_logger(self,"createAndLinkDispersionCaseDirectory")
         dispersionDirectory = os.path.abspath(dispersionDirectory)
         dispersionFlowDirectory = os.path.abspath(dispersionFlowDirectory)
-        self.logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlowDirectory}")
+        logger.info(f"Creating dispersion at {dispersionDirectory} with base flow {dispersionFlowDirectory}")
 
         if not os.path.isdir(dispersionFlowDirectory):
             err = f"The {dispersionFlowDirectory} is not not a directory."
-            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
         constantDir = os.path.join(dispersionDirectory, "constant")
         systemDir = os.path.join(dispersionDirectory, "system")
 
-        self.logger.debug(f"Copying constant and system from the base flow")
+        logger.debug(f"Copying constant and system from the base flow")
         if os.path.exists(constantDir):
             shutil.rmtree(constantDir)
 
@@ -561,18 +562,18 @@ class toolkitExtension_LagrangianSolver:
         shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), systemDir)
 
         for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
-            self.logger.execution(f"Working on processor {proc}")
+            logger.execution(f"Working on processor {proc}")
             fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
             destination = os.path.join(dispersionDirectory, os.path.basename(proc), "constant", "polyMesh")
             os.makedirs(os.path.dirname(destination), exist_ok=True)
-            self.logger.debug(f"\t Linking: ln -s {fullpath} {destination}")
-            self.logger.debug(f"\t Linking root case : ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
+            logger.debug(f"\t Linking: ln -s {fullpath} {destination}")
+            logger.debug(f"\t Linking root case : ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
             os.system(f"ln -s {fullpath} {destination}")
             os.system(f"ln -s {os.path.abspath(proc)} {os.path.join(dispersionDirectory, os.path.basename(proc))}/rootCase")
 
             # create the 0 directory in all processors.
             os.makedirs(os.path.join(dispersionDirectory, os.path.basename(proc), '0'), exist_ok=True)
-            self.logger.debug(f"Creating the 0 time in {os.path.join(dispersionDirectory, os.path.basename(proc), '0')} ")
+            logger.debug(f"Creating the 0 time in {os.path.join(dispersionDirectory, os.path.basename(proc), '0')} ")
 
         # linking the decpomposePar dict from the root.
         # root_decomposePar = os.path.abspath(os.path.join(dispersionFlow,"system","decomposeParDict"))
@@ -580,14 +581,14 @@ class toolkitExtension_LagrangianSolver:
         # os.system(f"ln -s {root_decomposePar} {decompose_dest}")
 
         # linking the rootCase in the root directory of the dispersion dispersionDirectory.
-        self.logger.debug(f"Linking the root case: ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
+        logger.debug(f"Linking the root case: ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
         os.system(f"ln -s {dispersionFlowDirectory} {os.path.join(dispersionDirectory, 'rootCase')}")
 
         # create the 0 directory in the root.
-        self.logger.debug(f"Making the 0 in {os.path.join(dispersionDirectory, '0')}")
+        logger.debug(f"Making the 0 in {os.path.join(dispersionDirectory, '0')}")
         os.makedirs(os.path.join(dispersionDirectory, '0'), exist_ok=True)
 
-        self.logger.info("... Done")
+        logger.info("... Done")
 
     @property
     def sourcesTypeList(self):
@@ -801,7 +802,7 @@ class toolkitExtension_LagrangianSolver:
                                       converters=cnvrtDict,
                                       names=columnNames)
         except ValueError:
-            self.logger.execute(f"{filePath} is not a cvs, going to a specialized parser")
+            logger.execute(f"{filePath} is not a cvs, going to a specialized parser")
             newData = []
 
         if len(newData) == 0:
@@ -926,7 +927,7 @@ class toolkitExtension_LagrangianSolver:
         logger.debug(f"The output is\n{newData.dtypes}")
         return newData
 
-    def readCloudData(self,caseDescriptor,timeList=None,withVelocity=False,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False,cache=True,overwrite=False):
+    def getCaseResults(self,caseDescriptor,timeList=None,withVelocity=False,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False,cache=True,overwrite=False):
         """
             Reads cloud data from the disk.
 
@@ -959,7 +960,7 @@ class toolkitExtension_LagrangianSolver:
         """
         logger = get_classMethod_logger(self,"readCloudData")
         logger.debug(f"Checking to see if the data {caseDescriptor} is cached in the DB")
-        cachedDoc = self.toolkit.getItemsFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind="Cache",cloudName=cloudName)
+        cachedDoc = self.toolkit.getCaseDocumentFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE, dockind="Cache", cloudName=cloudName)
 
         if len(cachedDoc)==0:
             logger.debug("Data is not cached, calculate it")
@@ -974,7 +975,7 @@ class toolkitExtension_LagrangianSolver:
 
         if calculateData:
             logger.info(f"Calculating the data. Trying to find the case described by: {caseDescriptor}")
-            docList = self.toolkit.getItemsFromDB(caseDescriptor,doctype=self.toolkit.DOCTYPE_WORKFLOW)
+            docList = self.toolkit.getCaseDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW)
             if len(docList) == 0:
                 logger.debug("not found, trying as a directory")
                 finalCasePath = os.path.abspath(caseDescriptor)

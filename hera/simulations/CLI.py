@@ -40,7 +40,7 @@ def WorkflowsGroup_list(args):
     workflowName = args.workflowName
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    wftk.workflow_listInGroups(workflowType=simulationType, workflowName=workflowName)
+    wftk.listGroups(workflowType=simulationType, workflowName=workflowName)
 
 
 def workflow_add(args):
@@ -99,12 +99,12 @@ def workflow_add(args):
     execute = args.execute
 
     try:
-        wftk.addToGroup(workflowJSON=workflowFile,
-                        groupName= args.workflowGroup,
-                        assignName=args.assignName,
-                        overwrite=args.overwrite,
-                        execute=execute,
-                        force=args.force)
+        wftk.addCaseToGroup(workflowJSON=workflowFile,
+                            groupName= args.workflowGroup,
+                            assignName=args.assignName,
+                            overwrite=args.overwrite,
+                            execute=execute,
+                            force=args.force)
 
     except FileExistsError as e:
         err = f"{str(e)}, use --force if you want to have duplicate records"
@@ -136,7 +136,7 @@ def workflow_delete(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    simulationList = wftk.getWorkflowDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getCaseListDocumentFromDB(list(arguments.workflows))
 
     completeRemove = []
 
@@ -189,7 +189,7 @@ def workflow_export(arguments):
         projectName = caseConfiguration['projectName']
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    simulationList = wftk.getWorkflowDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getCaseListDocumentFromDB(list(arguments.workflows))
 
     for sim in simulationList:
         outfileName = f"{sim['desc']['workflowName']}.json"
@@ -324,7 +324,7 @@ def workflow_list(arguments):
     #
     # else:
 
-    simDocument = wftk.getWorkflowDocumentFromDB(arguments.object)
+    simDocument = wftk.getCaseListDocumentFromDB(arguments.object)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
@@ -332,9 +332,9 @@ def workflow_list(arguments):
     listNodes     = arguments.nodes
     parameters    = arguments.parameters
 
-    simulationList = wftk.workflow_list(workflowGroup=workflowGroup,
-                                        listNodes=listNodes,
-                                        listParameters=parameters)
+    simulationList = wftk.listSimulations(workflowGroup=workflowGroup,
+                                          listNodes=listNodes,
+                                          listParameters=parameters)
 
 
     title = f"The simulations in group *{workflowGroup}*  in project *{projectName}* "
@@ -479,7 +479,7 @@ def workflow_compare(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    res = wftk.workflow_compare(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
+    res = wftk.workflowCompare(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
 
 
     if arguments.format == "pandas":

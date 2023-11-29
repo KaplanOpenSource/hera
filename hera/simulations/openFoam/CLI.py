@@ -107,7 +107,7 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
 
     logger.info(f"Listing all dispersion flows in project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    res = tk.workflow_compare(workflowsType="stochasticLagrangianSolver")
+    res = tk.workflowCompare(workflowsType="stochasticLagrangianSolver")
 
     if arguments.format == "pandas":
         for group in res.groupName.unique():
@@ -130,9 +130,6 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
         print(f"Could not found any workflows to compare in project {projectName}")
     else:
         print(output)
-
-
-
 
         if arguments.file is not None:
             flName = arguments.file if "." in arguments.file else f"{arguments.file}.{ext}"
@@ -183,7 +180,7 @@ def stochasticLagrangian_dispersion_create(arguments):
 
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
-    doc = tk.getItemsFromDB(dispersionFlowFieldName,tk.OF_FLOWDISPERSION)
+    doc = tk.getCaseDocumentFromDB(dispersionFlowFieldName, tk.OF_FLOWDISPERSION)
     if len(doc)==0:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
         if not os.path.exists(dispersionFlowFieldName):

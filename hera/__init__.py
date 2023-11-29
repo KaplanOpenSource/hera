@@ -17,7 +17,10 @@ sys.path.append(FREECADPATH)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
-
+2.13.0
+--------
+    #97: 
+        - Updated the interface to the openfoam solver
     #102: 
         - Fixing the LSM to use the configuration to JSON. 
 
