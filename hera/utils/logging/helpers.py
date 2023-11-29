@@ -26,8 +26,6 @@ def get_classMethod_logger(instance, name=None):
     lgname = instance.__class__.__module__ + "." + instance.__class__.__qualname__ if name is None else instance.__class__.__module__ + "." + instance.__class__.__qualname__ + "." + name
     return logging.getLogger(lgname)
 
-
-
 def get_default_logging_config(*, disable_existing_loggers: bool = False) -> dict:
     defaultLocalConfig = os.path.join(HERA_DEFAULT_LOG_DIR,'heraLogging.config')
     if not os.path.isfile(defaultLocalConfig):

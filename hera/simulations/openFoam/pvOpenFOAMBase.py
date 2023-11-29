@@ -4,10 +4,10 @@ import numpy
 import dask.dataframe as dd
 
 import os
-import vtk.numpy_interface.dataset_adapter as dsa
 import xarray
 
 #### import the simple module from the paraview
+import paraview.vtk.numpy_interface.dataset_adapter as dsa
 import paraview.simple as pvsimple
 from paraview import servermanager
 

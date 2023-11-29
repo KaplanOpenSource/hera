@@ -32,9 +32,12 @@ class OFObjectHome:
 
         incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
                                   p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
+                                  p_rgh=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
                                   epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]", componentNames=None),
                                   nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]", componentNames=None),
                                   k=dict(dimensions="[ 0 2 -2 0 0 0 0 ]", componentNames=None),
+                                  T=dict(dimensions="[ 0 0 0 1 0 0 0 ]", componentNames=None),
+                                  Tbackground=dict(dimensions="[ 0 0 0 1 0 0 0 ]", componentNames=None)
                                   )
 
         compressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
@@ -122,7 +125,7 @@ class OFObjectHome:
         flowType        = configuration.get("flowType", None)
         fieldDimensions = configuration.get("dimensions", None)
         fieldComponents = configuration.get("components", None)
-        data = configuration.get("internalField"),
+        data = configuration.get("internalField")
         fieldBoundary = configuration.get("boundaryConditions", dict())
         self.logger.debug(f"Adding the boundaries condition 'zerGradient' to all the boundaries that were not specified")
         for bnd in meshBoundary:
@@ -407,14 +410,13 @@ class OFObject:
                     raise ValueError(errStr)
 
             for processorName in procPaths:
-                procID = int(processorName[9:])
-                if isinstance(data, pandas.DataFrame) or isinstance(data, dask.dataframe):
+                if isinstance(data, (pandas.DataFrame,dask.dataframe.DataFrame)):
+                    procID = int(os.path.basename(processorName)[9:])
                     procData = data.query("processor == @procID")
                     if isinstance(data, dask.dataframe):
                         procData = procData.compute()
-                    else:
-                        procData = data
-
+                else:
+                    procData = data
 
                 fullFileName = os.path.join(caseDirectory, processorName, str(location), fileName)
                 self.logger.debug(f"Writing to file {fullFileName}")
@@ -764,21 +766,13 @@ boundaryField
                 bstr += "}\n"
                 boundaryConditions += bstr
 
-                if parallel:
-                    boundaryConditions += """
-    "proc.*"
-    {
-        type            processor;
-    }
-"""
-        elif parallel:
-
+        if parallel:
             boundaryConditions += """
-    "proc.*"
-    {
-        type            processor;
-    }
-"""
+"proc.*"
+{
+    type            processor;
+}
+                    """
         else:
             boundaryConditions += """
     ".*"
@@ -786,7 +780,6 @@ boundaryField
         type            zeroGradient;
     }
 """
-
         boundaryConditions +="""
 }        
  """

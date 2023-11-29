@@ -9,10 +9,18 @@ if python_version < (3, 8):
 from .utils.logging.helpers import initialize_logging
 initialize_logging(disable_existing_loggers=False)
 
+## Adding the Freecad to the python path.
+FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
+import sys
+sys.path.append(FREECADPATH)
+
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
-
+2.13.0
+--------
+    #95:  Updating the changes for the experiment in 10.2023
+    #97:  Updated the interface to the openfoam solver
     #102: 
         - Fixing the LSM to use the configuration to JSON. 
 

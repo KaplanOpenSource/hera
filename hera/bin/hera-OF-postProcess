@@ -1,3 +1,6 @@
+"""
+    DEPRACATED!.
+"""
 #! /usr/bin/env python
 
 import argparse

@@ -114,13 +114,12 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
     datasetCount = configurations[datasetName].unique().shape[0]
 
     for grpid, grpdata in configurations.groupby([parameterName]+indexList):
-
         logger.debug(f"Testing {grpid} --> {grpdata[valueName]} ")
         if grpdata[valueName].unique().shape[0] > 1:
             logger.debug(f"{grpid}:: Normal Field. Different  ")
             diffList.append(grpdata.copy())
 
-        if grpdata[valueName].count() < datasetCount:
+        if 0 < grpdata[valueName].count() < datasetCount:
             diffList.append(grpdata.copy())
 
     if len(diffList) > 0:
@@ -129,7 +128,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
             ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
     else:
-        ret = data[['workflowName']].drop_duplicates()
+        ret = data[[datasetName]].drop_duplicates()
 
 
     return ret
