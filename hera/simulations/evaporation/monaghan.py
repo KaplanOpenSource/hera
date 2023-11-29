@@ -1,7 +1,7 @@
 import pandas
 import numpy
 from unum.units import *
-from ..gaussian.Meteorology import StandardMeteorolgyConstant
+from ..gaussian.Meteorology import StandardMeteorolgyConstant_powerLaw
 from ..utils import tounit,tonumber
 from pyriskassessment.agents.Agents import Agent
 from unum import Unum
@@ -55,7 +55,7 @@ class MonaghanConstantConditions(object):
 
     @meteorology.setter
     def meteorology(self,value):
-        if not isinstance(value,StandardMeteorolgyConstant):
+        if not isinstance(value, StandardMeteorolgyConstant_powerLaw):
             raise ValueError("Meteorolgoy must be a pynumericalmodels.gaussian.Meteorology.StandardMeteorolgyConstant")
         self._standardMeteorolgyConstant = value
 

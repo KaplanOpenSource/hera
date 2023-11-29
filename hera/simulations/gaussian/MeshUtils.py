@@ -157,8 +157,7 @@ class GaussianToMesh(object):
         gaussY = xarray.DataArray(1/(twoPiFactor*sigy)*numpy.exp(-0.5*((yCoords-y)/sigy)**2), dims='y',coords={'y':yCoords})
 
         fullX, fullY = xarray.broadcast(gaussX, gaussY)
-
-        ret = fullX*fullY*gaussian[QName].asNumber(QUnits)
+        ret = fullX*fullY*gaussian[QName] *((1*kg).asNumber(QUnits))
         if addTo is not None:
             ret = addTo+ ret
 

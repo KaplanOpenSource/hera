@@ -283,6 +283,26 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
 
         return data
 
+    def updateDataWithVersion(self,olddata,newdata):
+        """
+            This procedure gets an old data with version <xx> in field 'version'
+            and creates a copy with version+1, then updates all the  data from the new data into it (including
+            data that did not exist).
+
+            For example, lets assume that the old data is
+
+            deviceName, 
+
+        Parameters
+        ----------
+        olddata
+        newdata
+
+        Returns
+        -------
+
+        """
+
 class TrialSetWithData(argosDataObjects.TrialSet):
 
     def _initTrials(self):

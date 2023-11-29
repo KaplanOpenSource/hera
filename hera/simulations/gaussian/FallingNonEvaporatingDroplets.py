@@ -380,8 +380,8 @@ class FallingNonEvaporatingDroplets(object):
         correction = self._correctionfunc()
         ret = ret.assign(sigmaXCorrected=ret['sigmaX']*correction)\
            .assign(sigmaZCorrected=ret['sigmaZ']*correction)\
-           .assign(Q=self.Q.asUnit(kg))\
-           .assign(diameter=self.particleDiameter.asUnit(um))
+           .assign(Q=self.Q.asNumber(kg))\
+           .assign(diameter=self.particleDiameter.asNumber(um))
         return ret
 
 
@@ -398,6 +398,7 @@ class FallingNonEvaporatingDroplets(object):
                 U = (u,w)
                 U_p = (u_p,w_p)
         """
+
         x, yc, z, dist, u_p, w_p = y
 
         z = numpy.max(z,0)
@@ -416,6 +417,9 @@ class FallingNonEvaporatingDroplets(object):
         # 1. Calculate |U-U_p|
         Uabs = ((u_p - U)**2 + w_p**2)**0.5
 
+        # 1. Calculate |Up|
+        Uparticle = (u_p**2 + w_p**2)**0.5
+
         # 2. Calculate Re
         Re = (rho_air*Uabs * self.particleDiameter / nu_air).asNumber()
 
@@ -433,7 +437,7 @@ class FallingNonEvaporatingDroplets(object):
         newy[0] = u_p.asNumber(m/s)                   # x
         newy[1] = 0                                   # y
         newy[2] = w_p.asNumber(m/s)                   # z
-        newy[3] = Uabs.asNumber(m/s)                  # dist - distance,
+        newy[3] = Uparticle.asNumber(m/s)                  # dist - distance,
         newy[4] = new_u_p.asNumber()    # u_p
         newy[5] = new_w_p.asNumber()    # w_p
         return newy
