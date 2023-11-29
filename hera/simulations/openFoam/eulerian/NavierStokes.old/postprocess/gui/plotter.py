@@ -32,10 +32,9 @@ import json
 # import io
 # sys.path.insert(0,'..')
 # from pvOpenFOAMBase import pvOFBase
-from scipy.optimize import curve_fit
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QListWidget, QCheckBox, QMessageBox\
-    , QComboBox, QFileDialog, QGridLayout
+    , QComboBox, QFileDialog
 # import PyQt5.QtGui
 from PyQt5.QtCore import pyqtSlot
 # from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -46,9 +45,7 @@ import math
 import datetime
 
 import re
-import numpy as np
-from scipy.interpolate import Rbf, griddata, interpn
-from scipy import integrate
+from scipy.interpolate import griddata
 from scipy import stats
 import sklearn.metrics
 from sklearn.cross_decomposition import CCA
@@ -4240,7 +4237,6 @@ class App(QWidget):
 #        self.reader1 = None
 
     def on_click_stream_lines(self):
-        import matplotlib.colors as mcolors
         cc=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 #            cc=['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:pink','tab:gray','tab:olive','tab:cyan']
         files=[]        
@@ -4489,9 +4485,6 @@ class App(QWidget):
             plt.colorbar()    
             plt.title('stramlines')
 
-            
-            from scipy.signal import fftconvolve            
-                        
             # make some data
             y=zi#numpy.linspace(0,10,40)
             x=xi#numpy.linspace(0,10,50)
@@ -5926,9 +5919,6 @@ class App(QWidget):
                         grid_hr.ravel(),  #10
 #                        grid_hn.ravel(),  #11
                         angle] #12
-
-
-            from sklearn import preprocessing
 
             # normdp = preprocessing.normalize([dplim])[0]
             # normdn = preprocessing.normalize([dnlim])[0]
