@@ -41,7 +41,7 @@ if __name__ == "__main__":
                                         help='If exsists, list the nodes of each simulation with their parameters (replace --nodes)')
     #listSimulations_parser.add_argument('--JSON', dest="json", default=False, type=bool,
     #                                    help='If exsists, return the results as JSON and not as pandas table')
-    listSimulations_parser.set_defaults(func=CLI.listSimulations)
+    listSimulations_parser.set_defaults(func=CLI.workflow_list)
 
     ##
     #   Adds a workfow to the project. Optional execution.
@@ -96,9 +96,7 @@ if __name__ == "__main__":
 
     compare_parser.add_argument('--file', dest="file", default=None,
                                         help='write the output to a file')
-
-
-    compare_parser.set_defaults(func=CLI.workflowCompare)
+    compare_parser.set_defaults(func=CLI.workflow_compare)
 
     ### ------------------------
     delete_parser = subparsers.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
