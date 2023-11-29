@@ -52,7 +52,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
             avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
             avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
-            avg['wind_dir_bar'] = (90 - avg['wind_dir_bar']) % 360
+            avg['wind_dir_bar'] = (270 - avg['wind_dir_bar']) % 360
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
@@ -67,7 +67,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
             self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
             self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
-            self._RawData['wind_dir'] = (90 - self._RawData['wind_dir']) % 360
+            self._RawData['wind_dir'] = (270 - self._RawData['wind_dir']) % 360
 
 
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
