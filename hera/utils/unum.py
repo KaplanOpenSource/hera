@@ -69,8 +69,11 @@ def unumToStr(obj):
     return ret
 
 def strToUnum(value):
-    try:
-        ret = eval(str(value))
-    except:
+    if isinstance(value,Unum):
         ret = value
+    else:
+        try:
+            ret = eval(str(value))
+        except:
+            ret = value
     return ret
