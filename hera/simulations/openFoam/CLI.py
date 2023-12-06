@@ -42,8 +42,6 @@ def simpleFoam_createEmpty(arguments):
                        additionalFieldsDescription  =arguments.fieldsDescription)
 
 
-    logger.execution(f"----- End -----")
-
 def stochasticLagrangian_dispersionFlow_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
