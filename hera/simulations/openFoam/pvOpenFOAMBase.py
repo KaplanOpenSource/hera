@@ -7,14 +7,17 @@ import os
 import xarray
 
 #### import the simple module from the paraview
-import paraview.vtk.numpy_interface.dataset_adapter as dsa
-import paraview.simple as pvsimple
-from paraview import servermanager
+try:
+    import paraview.vtk.numpy_interface.dataset_adapter as dsa
+    import paraview.simple as pvsimple
+    from paraview import servermanager
+    #### disable automatic camera reset on 'Show'
+    pvsimple._DisableFirstRenderCameraReset()
+except ImportError:
+    print("paraview module is not Found!. VTK pipeline wont work")
 
 from hera.utils.logging import helpers as hera_logging
 
-#### disable automatic camera reset on 'Show'
-pvsimple._DisableFirstRenderCameraReset()
 
 
 class paraviewOpenFOAM:
