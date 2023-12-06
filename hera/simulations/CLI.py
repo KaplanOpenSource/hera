@@ -138,8 +138,7 @@ def workflow_delete(arguments):
 
     simulationList = wftk.getCaseListDocumentFromDB(list(arguments.workflows))
 
-    completeRemove = []
-
+    completeRemove = ['import shutil']
 
     for sim in simulationList:
         shouldRemove = True
@@ -152,6 +151,7 @@ def workflow_delete(arguments):
                 with open(outfileName,"w") as outfile:
                     json.dump(sim['desc']['workflow'],outfile,indent=4)
             else:
+                print(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
                 logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
                 shouldRemove = False
 
@@ -327,6 +327,7 @@ def workflow_list(arguments):
     simDocument = wftk.getCaseListDocumentFromDB(arguments.object)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+        return
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes
