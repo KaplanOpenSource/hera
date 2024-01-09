@@ -8,8 +8,8 @@ from hera.utils.logging import initialize_logging,with_logger
 if __name__ == "__main__":
     initialize_logging(
          with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
-         with_logger("hermes.bin", handlers=['console'], level='DEBUG', propagate=False),
-         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+         with_logger("hermes.bin", handlers=['console'], level='INFO', propagate=False),
+         with_logger("hera.bin", handlers=['console'], level='INFO', propagate=False),
     )
     logger = logging.getLogger("hera.bin.hera-openfoam")
 
@@ -31,6 +31,16 @@ if __name__ == "__main__":
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
     simpleFoam_parser_createEmpty.set_defaults(func=CLI.simpleFoam_createEmpty)
+
+    ## ================== pimpleFoam
+    pimpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles pimpleFOAM solver')
+    pimpleFoam_subparser = pimpleFoam_parser.add_subparsers(help='Handles pimpleFOAM solver')
+
+    pimpleFoam_parser_createEmpty = pimpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
+    pimpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    pimpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    pimpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.simpleFoam_createEmpty)
 
     ## ================== indoorFOAMBoussinesq
     simpleFoam_parser = subparsers.add_parser('indoorFOAMBoussinesq', help='Handles indoorFOAMBoussinesq solver')
@@ -89,7 +99,7 @@ if __name__ == "__main__":
     injector_parser = stochasticLagrnagian_subparser.add_parser('injectors', help='Creates an initial configuration for the lagrangian particles')
     injector_subparser = injector_parser.add_subparsers(help='Creates injectors')
 
-    manualInjection_parser = injector_subparser.add_parser('manualInjection', help='Creates an initial configuration for the lagrangian particles')
+    manualInjection_parser = injector_subparser.add_parser('positionFile', help='Creates an initial configuration for the lagrangian particles')
     manualInjection_subparser = manualInjection_parser.add_subparsers(help='Creates an initial configuration for the lagrangian particles')
 
     source_cylinder_subparser = manualInjection_subparser.add_parser('cylinder', help='Creates a cylinder initial source shapre')
@@ -102,6 +112,10 @@ if __name__ == "__main__":
 
     source_createReleaseRateFile_subparser = manualInjection_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
+
+
+
+
 
     ############################################
     ### ------------------------------ ObjUtils

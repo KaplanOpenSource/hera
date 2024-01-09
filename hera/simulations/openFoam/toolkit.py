@@ -9,7 +9,7 @@ from ..hermesWorkflowToolkit import workflowToolkit
 from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
 from ...utils.jsonutils import loadJSON,compareJSONS
-#from evtk.hl import pointsToVTK, structuredToVTK
+from evtk import hl import as evtk_hl
 
 class OFToolkit(workflowToolkit):
     """
@@ -37,7 +37,8 @@ class OFToolkit(workflowToolkit):
                          toolkitName="OFworkflowToolkit")
 
         self.OFObjectHome = OFObjectHome()
-        self._analysis = analysis(self)
+        self._analysis = Analysis(self)
+        self._presentation = Presentation(self,self.analysis)
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
 
     def processorList(self,caseDirectory):
@@ -273,7 +274,7 @@ class OFToolkit(workflowToolkit):
     #
 
 
-class analysis:
+class Analysis:
     """
         The analysis of the OpenFOAM.
 
@@ -375,7 +376,7 @@ class analysis:
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
 
 
-class presentation:
+class Presentation:
 
     def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """
@@ -405,7 +406,7 @@ class presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True,xcoord="x",ycoord="y",zcoord="z"):
         """
             Writes the data as a VTK vtu file.
 
@@ -427,10 +428,10 @@ class presentation:
             finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
 
             data = dict(mass=timeData.mass.values)
-            x = timeData.globalX.values
-            y = timeData.globalY.values
-            z = timeData.globalZ.values
-            pointsToVTK(finalFile, x, y, z, data)
+            x = timeData[xcoord].values
+            y = timeData[ycoord].values
+            z = timeData[zcoord].values
+            evtk_hl.pointsToVTK(finalFile, x, y, z, data)
 
     def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):
         """
@@ -464,4 +465,4 @@ class presentation:
             C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
 
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
-            structuredToVTK(finalFile, X, Y, Z, pointData=data)
+            evtk_hl.structuredToVTK(finalFile, X, Y, Z, pointData=data)
