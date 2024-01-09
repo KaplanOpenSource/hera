@@ -145,11 +145,12 @@ def workflow_delete(arguments):
         logger.info(f" Deleting the workflow: {sim['desc']['workflowName']}")
         outfileName = f"{sim['desc']['workflowName']}.json"
 
-        if not arguments.noExport:
+        if arguments.Export:
             logger.execution(f"Exporting the deleted document as {outfileName}")
             if not os.path.isfile(outfileName) or arguments.forceOverwrite:
                 with open(outfileName,"w") as outfile:
-                    json.dump(sim['desc']['workflow'],outfile,indent=4)
+                    outjson = dict(workflow=sim['desc']['workflow'])
+                    json.dump(outjson,outfile,indent=4)
             else:
                 print(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
                 logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
@@ -324,7 +325,7 @@ def workflow_list(arguments):
     #
     # else:
 
-    simDocument = wftk.getCaseListDocumentFromDB(arguments.object)
+    simDocument = wftk.getCaseListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
         return
