@@ -39,7 +39,7 @@ def simpleFoam_createEmpty(arguments):
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
                        simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
-                       additionalFieldsDescription  =arguments.fieldsDescription)
+                       additionalFieldsDescription = arguments.fieldsDescription)
 
 
     logger.execution(f"----- End -----")
