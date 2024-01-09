@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     ## --- Workflows
     listSimulations_parser = list_subparser.add_parser('workflows', help='Lists the workflows in the group of that project.')
-    listSimulations_parser.add_argument('object', type=str, default=None, help='A workflow file, a case directory, a name of simulation, or a group name. If None, print group and simulations in the project.')
+    listSimulations_parser.add_argument('group', type=str, default=None, help='The simulation group to list')
     listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
     listSimulations_parser.add_argument('--nodes', dest="nodes",action="store_true", default=False, help='If exsists, list the nodes of each simulation')
     listSimulations_parser.add_argument('--parameters', dest="parameters", action="store_true", default=False,
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     delete_parser = subparsers.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
     delete_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to remove')
     delete_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    delete_parser.add_argument('--no-export',dest="noExport", default=False, action="store_true", help='Does not save the deleted workflow to the disk')
+    delete_parser.add_argument('--export',dest="Export", default=False, action="store_true", help='Export the deleted file from the DB to the disk')
     delete_parser.add_argument('--overwrite', dest="forceOverwrite", default=False, action="store_true",
                                help='Overwrite the export if the file exists')
 

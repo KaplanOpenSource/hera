@@ -514,7 +514,7 @@ class workflowToolkit(abstractToolkit):
         logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
-        docList = self.getCasesInGroup(groupName=groupName, workflowType=theSolver, **currentQuery)
+        docList = self.getCasesInGroup(groupName=groupName, **currentQuery)
 
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
@@ -525,7 +525,7 @@ class workflowToolkit(abstractToolkit):
 
             #   b. Check if the name of the simulation already exists in the group
             self.logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
-            docList = self.getCasesInGroup(groupName=groupName, workflowType=theSolver, workflowName=workflowName)
+            docList = self.getCasesInGroup(groupName=groupName, workflowName=workflowName)
 
             if len(docList) == 0:
                 self.logger.info("Simulation is not in the DB, adding... ")

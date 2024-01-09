@@ -39,7 +39,7 @@ def simpleFoam_createEmpty(arguments):
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
                        simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
-                       additionalFieldsDescription  =arguments.fieldsDescription)
+                       additionalFieldsDescription = arguments.fieldsDescription)
 
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
@@ -228,7 +228,7 @@ def stochasticLagrangian_source_cylinder(arguments):
     dispersionName = arguments.dispersionName
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    tk.stochasticLagrangian.writeManualInjectionSource(type="Cylinder",dispersionName=dispersionName, **params)
+    tk.stochasticLagrangian.writeParticlePositionFile(type="Cylinder",dispersionName=dispersionName, **params)
 
 
 def stochasticLagrangian_source_makeEscapedMassFile(args):
