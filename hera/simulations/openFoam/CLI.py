@@ -12,6 +12,7 @@ from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
+
 def simpleFoam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
@@ -39,8 +40,10 @@ def simpleFoam_createEmpty(arguments):
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
                        simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
-                       additionalFieldsDescription = arguments.fieldsDescription)
+                       additionalFieldsDescription  =arguments.fieldsDescription)
 
+
+    logger.execution(f"----- End -----")
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
     logger = logging.getLogger("hera.bin")
@@ -178,7 +181,7 @@ def stochasticLagrangian_dispersion_create(arguments):
 
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
-    doc = tk.getCaseDocumentFromDB(dispersionFlowFieldName, tk.OF_FLOWDISPERSION)
+    doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.OF_FLOWDISPERSION)
     if len(doc)==0:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
         if not os.path.exists(dispersionFlowFieldName):
@@ -277,6 +280,68 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
     f.write(newstr)
     f.close()
 
+def stochasticLagrangian_postProcess_toParquet(arguments):
+    """
+        Creates a parquet file from the case results
+    """
+    logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
+    logger.execution(f"----- Start -----")
+    logger.debug(f"  Got arguments: {arguments}")
+
+    if ('projectName' in arguments) and (arguments.projectName is not None):
+        projectName = arguments.projectName
+    else:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+
+    logger.info(f"Using project {projectName} for cloud name {arguments.cloudName}")
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    tk.stochasticLagrangian.getCaseResults(caseDescriptor=arguments.case,withVelocity=True,withMass=True,overwrite=arguments.overwrite,cloudName=arguments.cloudName)
+
+
+def stochasticLagrangian_postProcess_toVTK(arguments):
+    """
+        Creates VTK files from the case.
+        Creates the parquet file if does not exist.
+    """
+    logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
+    logger.execution(f"----- Start -----")
+    logger.debug(f"  Got arguments: {arguments}")
+
+    if ('projectName' in arguments) and (arguments.projectName is not None):
+        projectName = arguments.projectName
+    else:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+
+    logger.info(f"Using project {projectName}")
+
+    if 'outputdir' in arguments:
+        base_outputdir = os.getcwd() if arguments.outputdir is None else arguments.outputdir
+    else:
+        base_outputdir = os.getcwd()
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    docList = tk.getWorkflowDocumentFromDB(arguments.case)
+    if len(docList) == 0:
+        logger.info(f"The name {arguments.case} is not found. Try to use it as a directory")
+        if os.path.isdir(arguments.case):
+            logger.info(f"Found {arguments.case} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
+            outputName = arguments.case
+            cache = False
+    else:
+        doc = docList[0]
+        outputName = doc.desc['workflowName']
+        cache = True
+
+    outputdir = os.path.join(base_outputdir,"VTK",outputName)
+    logger.info(f"Writing values to directory {outputdir}")
+    os.makedirs(outputdir,exist_ok=True)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName,withVelocity=True,withMass=True,cache=cache)
+    tk.presentation.toUnstructuredVTK(data=data, outputdirectory=outputdir, filename=arguments.cloudName, timeNameOutput=True, xcoord="x", ycoord="y", zcoord="z")
 
 
 def objects_createVerticesAndBoundary(arguments):
