@@ -9,7 +9,10 @@ from ..hermesWorkflowToolkit import workflowToolkit
 from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
 from ...utils.jsonutils import loadJSON,compareJSONS
-from evtk import hl import as evtk_hl
+from ...utils.logging import get_classMethod_logger
+from evtk import hl as evtk_hl #import pointsToVTK, gridToVTK
+import dask.dataframe as dd
+from itertools import chain
 
 class OFToolkit(workflowToolkit):
     """
@@ -378,6 +381,10 @@ class Analysis:
 
 class Presentation:
 
+    def __init__(self,datalayer,analysis):
+        self.datalayer = datalayer
+        self.analysis = analysis
+
     def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """
             Writes the globalPositions (globalX,globalY,globalZ) as  CSV for visualization in paraview.
@@ -406,7 +413,7 @@ class Presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True,xcoord="x",ycoord="y",zcoord="z"):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True,fieldList=None,xcoord="x",ycoord="y",zcoord="z",timecoord="time"):
         """
             Writes the data as a VTK vtu file.
 
@@ -421,17 +428,41 @@ class Presentation:
                     If true, use the time as the suffix to the filename. Else, use running number.
         :return:
         """
+        logger = get_classMethod_logger(self, "toUnstructuredVTK")
         namePath = os.path.join(outputdirectory, filename)
         os.makedirs(outputdirectory, exist_ok=True)
+        logger.info(f"Writing unstructured VTK file to base filename: {namePath}")
 
-        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+        logger.debug("Getting the field names")
+        if fieldList is None:
+            fieldList = [x for x in data.columns if x not in [xcoord,ycoord,zcoord]]
 
-            data = dict(mass=timeData.mass.values)
-            x = timeData[xcoord].values
-            y = timeData[ycoord].values
-            z = timeData[zcoord].values
-            evtk_hl.pointsToVTK(finalFile, x, y, z, data)
+        if isinstance(data,dd.DataFrame):
+            logger.debug("The input type is dask dataframe. Getting timesteps and then using partition")
+            timeList = [z for z in chain(*[x.index.unique().compute() for x in data.partitions])]
+            for indx,time in enumerate(timeList):
+                timeData = data.loc[time].compute()
+                outdata = dict((x,timeData[x].values) for x in fieldList)
+                finalfile = f"{namePath}_{indx}"
+                logger.info(f"Writing time step {time} to {finalfile}")
+
+                x = timeData[xcoord].values
+                y = timeData[ycoord].values
+                z = timeData[zcoord].values
+                evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
+        else:
+            # all the data is loaded:
+            for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+                outdata = dict((x,timeData[x].values) for x in fieldList)
+                finalfile = f"{namePath}_{indx}"
+                logger.info(f"Writing time step {time} to {finalfile}")
+                
+                x = timeData[xcoord].values
+                y = timeData[ycoord].values
+                z = timeData[zcoord].values
+                evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
+
+
 
     def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):
         """
