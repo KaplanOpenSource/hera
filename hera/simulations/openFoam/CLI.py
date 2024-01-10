@@ -13,7 +13,7 @@ from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
 
-def Foam_createEmpty(arguments):
+def simpleFoam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -29,6 +29,7 @@ def Foam_createEmpty(arguments):
 
             raise ValueError(err)
 
+
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
@@ -43,45 +44,6 @@ def Foam_createEmpty(arguments):
 
 
     logger.execution(f"----- End -----")
-
-def foam_templates_list(arguments):
-
-    logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
-    logger.debug(f" arguments: {arguments}")
-
-    projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesTemplates(arguments.solver)
-
-    ttl = f"The templates for project {tk.projectName} with solver {arguments.solver}"
-    print()
-    print("-" * len(ttl))
-    print(ttl)
-    print("-"*len(ttl))
-    print(templates)
-
-def foam_templates_create(arguments):
-    logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
-    logger.debug(f" arguments: {arguments}")
-
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=None)
-
-    projectName = arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
-    outputPath = projectName if arguments.projectPath is None else arguments.projectPath
-    tk.createProjectDirectory(outputPath=outputPath,projectName=projectName)
-
-    templates = tk.listHermesTemplates(arguments.solver)
-    if arguments.templateName not in templates.index:
-        err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
-        print(err)
-        raise ValueError(err)
-
-    groupName = arguments.templateName if arguments.groupName is None else arguments.groupName
-
-    with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
-        json.dump(tk.getDatasourceData(arguments.templateName),outFile, indent=4)
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
     logger = logging.getLogger("hera.bin")
@@ -336,8 +298,8 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
     logger.info(f"Using project {projectName} for cloud name {arguments.cloudName}")
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=arguments.case,withVelocity=True,withMass=True,overwrite=arguments.overwrite,cloudName=arguments.cloudName)
-    tk.stochasticLagrangian.presentation.toVTU(data,outDirectory=arguments.outputDirectory,outFile=os.path.basename(arguments.case))
+    tk.stochasticLagrangian.getCaseResults(caseDescriptor=arguments.case,withVelocity=True,withMass=True,overwrite=arguments.overwrite,cloudName=arguments.cloudName)
+
 
 def stochasticLagrangian_postProcess_toVTK(arguments):
     """
