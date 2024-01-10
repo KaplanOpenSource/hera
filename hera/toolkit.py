@@ -29,7 +29,8 @@ class ToolkitHome:
     GIS_BUILDINGS  = "GIS_Buildings"
     GIS_TILES       = "GIS_Tiles"
     #GIS_RASTER     = "GIS_Raster"
-    GIS_TOPOGRAPHY = "GIS_Topography"
+    GIS_VECTOR_TOPOGRAPHY = "GIS_Vector_Topography"
+    GIS_RASTER_TOPOGRAPHY = "GIS_Raster_Topography"
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
@@ -59,7 +60,9 @@ class ToolkitHome:
 
             GIS_Tiles      =  dict(cls = "hera.measurements.GIS.raster.tiles.TilesToolkit",desc=None),
 
-            GIS_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",desc=None),
+            GIS_Vector_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",desc=None),
+
+            GIS_Raster_Topography = dict(cls = "hera.measurements.GIS.raster.topography.TopographyToolkit",desc=None),
 
             GIS_Demography = dict(cls = "hera.measurements.GIS.vector.demography.DemographyToolkit",desc=None),
 
