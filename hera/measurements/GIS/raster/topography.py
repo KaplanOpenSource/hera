@@ -4,6 +4,38 @@
     Should be organized when needed.
 
 """
+from .... import toolkit
+#import geopandas
+#from shapely.geometry import Polygon, box
+#from hera.datalayer.datahandler import datatypes
+
+class TopographyToolkit(toolkit.abstractToolkit):
+
+
+    def __init__(self, projectName, toolkitName = 'TopographyToolkit', filesDirectory=None):
+        """
+            Initializes vector data toolkit.
+
+        Parameters
+        ----------
+        projectName: str
+            The project Name that the toolkit is initialized on
+        toolkitName: str
+            the specific toolkit, getting from the child.
+
+        FilesDirectory: str or None
+                The path to save a regions files when they are created.
+
+                if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.
+
+                if None, then tries to get the default path of the project from the config. if it does not
+                exist, then use the current directory.
+
+        """
+        super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory)
+
+
+
 
 # srtmDocs = self.getMeasurementsDocumentsAsDict(name="SRTM")
 # self._srtmBounds = []

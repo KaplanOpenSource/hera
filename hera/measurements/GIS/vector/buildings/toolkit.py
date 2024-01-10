@@ -81,15 +81,23 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         self.logger.info("---- Start ---")
         try:
             self.logger.execution("Loading Freecad")
-            from freecad import app as FreeCAD
-            import Part
-            import Mesh
+         #   from freecad import app as FreeCAD
+         #   import Part
+         #   import Mesh
         except ImportError as e:
             logging.error("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
             raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
         maxheight = -500
-        FreeCADDOC = FreeCAD.newDocument("Unnamed")
+        FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
+        import sys
+        sys.path.append(FREECADPATH)
+        import FreeCAD
+        try:
+                FreeCADDOC = FreeCAD.newDocument("Unnamed")
+        except:
+                print('lllllllllllll')
+#        FreeCADDOC = FreeCAD.newDocument("Unnamed")
 
         shp = buildingData # olv version compatability
 
