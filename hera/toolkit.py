@@ -229,50 +229,6 @@ class abstractToolkit(Project):
             self._FilesDirectory = filesDirectory
 
 
-    def _getConfigDocument(self):
-        """
-        Returns the document of the config.
-        If there is no config document, return empty dictionary.
-
-        Returns
-        -------
-
-         dict
-                The configuration of the toolkit.
-        """
-        config_type = f"{self.projectName}__{self.toolkitName}__config__"
-        documents = self.getCacheDocuments(type=config_type)
-        if len(documents) == 0:
-            documents = self.addCacheDocument(type=config_type,
-                                  resource="",
-                                  dataFormat=datatypes.STRING,
-                                  desc={})
-            ret = documents
-        else:
-            ret =documents[0]
-
-        return ret
-
-    def getConfig(self):
-        """
-        Returns the config document's description.
-        If there is no config document, return empty dictionary.
-
-        Returns
-        -------
-        dict
-                The configuration of the toolkit.
-        """
-        doc = self._getConfigDocument()
-        return doc["desc"]
-
-    def setConfig(self, **kwargs):
-        """
-            Create a config document or updates an existing config document.
-        """
-        doc = self._getConfigDocument()
-        doc.desc.update(kwargs)
-        doc.save()
 
     def getDataSourceMap(self,**filters):
         """
