@@ -252,13 +252,10 @@ class abstractToolkit(Project):
 
         ret = []
         for doc in docList:
-            ret.append(dict(datasourceName=doc.desc[TOOLKIT_DATASOURCE_NAME],
-                            version=  str(doc.desc[TOOLKIT_DATASOURCE_VERSION]),
-                            toolkit = doc.desc['toolkit'],
-                            dataFormat=doc['dataFormat'],
-                            resource=doc['resource']
-                            )
-                       )
+            dta = dict(dataFormat=doc['dataFormat'],
+                 resource=doc['resource'])
+            dta.update(doc.desc)
+            ret.append(dta)
         return ret
 
     def getDataSourceTable(self, **filters):
