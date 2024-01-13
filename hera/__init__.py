@@ -17,6 +17,10 @@ sys.path.append(FREECADPATH)
 from .toolkit import ToolkitHome
 toolkitHome = ToolkitHome()
 """
+
+    #110:   Updating the datalayer documentation and converting it to Jupyter-lab
+            Moving the config from the toolkit to the project. 
+
 2.13.0
 --------
     #95:  Updating the changes for the experiment in 10.2023
