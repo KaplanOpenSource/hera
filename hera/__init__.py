@@ -1,4 +1,4 @@
-__version__ = '2.13.1'
+__version__ = '2.13.2'
 
 import sys
 python_version = sys.version_info
@@ -21,6 +21,8 @@ toolkitHome = ToolkitHome()
 
     #110:   Updating the datalayer documentation and converting it to Jupyter-lab
             Moving the config from the toolkit to the project. 
+2.13.2
+--------
 
     #113:   * Adding a default read-only project that can be used to access general databases. 
             * When projectName is None in the contruction of the Project class, attempt to load the 
