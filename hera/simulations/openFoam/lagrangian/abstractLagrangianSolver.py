@@ -351,13 +351,15 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 orig_proc_timestep = os.path.join(origDir,orig_time)
                 dest_proc_timestep     = os.path.join(dispersionFlowFieldDirectory,os.path.basename(origDir),dest_time) if parallelOriginal else os.path.join(dispersionFlowFieldDirectory,dest_time)
                 if os.path.exists(dest_proc_timestep):
-                    logger.debug(f"path {dest_proc_timestep} exists... removing before copy")
+                    logger.debug(f"path {dest_proc_timestep} exists... removing before copy/link")
                     shutil.rmtree(dest_proc_timestep)
+
                 if linkDataSymbolically:
-                    logger.debug(f"Linking contents of {dest_proc_timestep} -> {dest_proc_timestep}")
+                    logger.debug(f"Linking contents of {orig_proc_timestep} -> {dest_proc_timestep}")
                     os.makedirs(dest_proc_timestep,exist_ok=True)
                     for flnName in glob.glob(os.path.join(orig_proc_timestep,"*")):
-                        os.system(f"ln -s {flnName} {dest_proc_timestep}")
+                        logger.debug(f"ln -s {os.path.abspath(flnName)} {dest_proc_timestep}")
+                        os.system(f"ln -s {os.path.abspath(flnName)} {dest_proc_timestep}")
                 else:
                     logger.debug(f"\t Copying {orig_proc_timestep} to {dest_proc_timestep}")
                     shutil.copytree(orig_proc_timestep,dest_proc_timestep)
@@ -1407,8 +1409,4 @@ class analysis:
         else:
             data = docList[0].getData(usePandas=True)
 
-        return data
-
-
-
-
+        return dat
