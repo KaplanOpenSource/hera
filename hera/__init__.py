@@ -10,16 +10,22 @@ from .utils.logging.helpers import initialize_logging
 initialize_logging(disable_existing_loggers=False)
 
 ## Adding the Freecad to the python path.
-FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
-import sys
-sys.path.append(FREECADPATH)
+# FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
+# import sys
+# sys.path.append(FREECADPATH)
 
 from .toolkit import ToolkitHome
+from .datalayer import Project
 toolkitHome = ToolkitHome()
 """
 
     #110:   Updating the datalayer documentation and converting it to Jupyter-lab
             Moving the config from the toolkit to the project. 
+
+    #113:   * Adding a default read-only project that can be used to access general databases. 
+            * When projectName is None in the contruction of the Project class, attempt to load the 
+              project name from the caseConfiguration.json.  
+        
 
 2.13.0
 --------
