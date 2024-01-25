@@ -205,7 +205,7 @@ class Project:
                     logger.error(err)
                     raise ValueError(err)
                 else:
-                    projectName   = projectName['projectName']
+                    projectName   = configuration['projectName']
             else:
                 logger.debug(f"configuration file {confFile} is not found. Using the default project: DEFAULTPROJECT={self.DEFAULTPROJECT}")
                 projectName = self.DEFAULTPROJECT

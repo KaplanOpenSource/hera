@@ -10,11 +10,12 @@ from .utils.logging.helpers import initialize_logging
 initialize_logging(disable_existing_loggers=False)
 
 ## Adding the Freecad to the python path.
-FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
-import sys
-sys.path.append(FREECADPATH)
+# FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
+# import sys
+# sys.path.append(FREECADPATH)
 
 from .toolkit import ToolkitHome
+from .datalayer import Project
 toolkitHome = ToolkitHome()
 """
 
