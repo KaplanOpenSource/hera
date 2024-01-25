@@ -1,7 +1,8 @@
+import os
 import pandas
 from .datahandler import datatypes
-from ..utils.logging import helpers as hera_logging
-
+from ..utils.logging import get_classMethod_logger
+from ..utils import loadJSON
 
 from .collection import AbstractCollection,\
     Cache_Collection,\
@@ -60,6 +61,10 @@ class Project:
     _simulations  = None
 
     datatypes = datatypes
+
+    DEFAULTPROJECT = "defaultProject"
+
+
 
     @property
     def measurements(self) -> Measurements_Collection:
@@ -158,22 +163,54 @@ class Project:
         doc.desc.update(kwargs)
         doc.save()
 
-    def __init__(self, projectName, databaseName=None,loggerName=None):
+    def __init__(self, projectName=None, databaseName=None,configurationPath=None):
         """
             Initialize the project class.
 
         Parameters
         ----------
-        projectName: str
+        projectName: str default None
                 The name of the project.
+                If projectName is None, try to load it from the [configurationPath]/caseConfiguration.json
+                if configurationPath is None, load it from the current directory.
+                the structure of this file is
+
+                ```
+                    {
+                        "projectName" : [project Name]
+                    }
+                ```
 
         databaseName: str
                 the name of the database to use. If None, use the default database (the name of the current databaseName).
 
-        :param loggerName: str
+        :param configurationPath: str
                 Determine the name of the logger. if None, use the classpath of the current class.
         """
-        self.logger = hera_logging.get_logger(self, loggerName)
+        logger = get_classMethod_logger(self,"init")
+        if projectName is None:
+            configurationPath = os.getcwd() if configurationPath is None else configurationPath
+            confFile = os.path.join(configurationPath, "caseConfiguration.json")
+            logger.debug(f"projectName is None, try to load file {confFile}")
+            if os.path.exists(confFile):
+                logger.debug(f"Load as JSON")
+                configuration = loadJSON(confFile)
+                if 'projectName' not in configuration:
+                    err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
+                    err += """conifguration should be :
+{
+    'projectName' : [project name]
+}                                        
+"""
+                    logger.error(err)
+                    raise ValueError(err)
+                else:
+                    projectName   = projectName['projectName']
+            else:
+                logger.debug(f"configuration file {confFile} is not found. Using the default project: DEFAULTPROJECT={self.DEFAULTPROJECT}")
+                projectName = self.DEFAULTPROJECT
+
+        logger.info(f"Initializing with logger {projectName}")
         self._projectName = projectName
 
         self._measurements  = Measurements_Collection(user=databaseName)
@@ -264,6 +301,12 @@ class Project:
         -------
             The new document
         """
+        logger = get_classMethod_logger(self, "init")
+        if self.projectName == self.DEFAULTPROJECT:
+            err = f"project {self.projectName} is read-only. "
+            logger.error(err)
+            raise RuntimeError(err)
+
         return self.measurements.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, desc=desc)
 
     def deleteMeasurementsDocuments(self, **kwargs):
@@ -346,6 +389,12 @@ class Project:
         -------
             The new document
         """
+        logger = get_classMethod_logger(self, "init")
+        if self.projectName == self.DEFAULTPROJECT:
+            err = f"project {self.projectName} is read-only. "
+            logger.error(err)
+            raise RuntimeError(err)
+
         return self.simulations.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,
                                desc=desc)
 
@@ -427,6 +476,12 @@ class Project:
         -------
             The new document
         """
+        logger = get_classMethod_logger(self, "init")
+        if self.projectName == self.DEFAULTPROJECT:
+            err = f"project {self.projectName} is read-only. "
+            logger.error(err)
+            raise RuntimeError(err)
+
         return self.cache.addDocument(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type,desc=desc)
 
     def deleteCacheDocuments(self, **kwargs):
@@ -444,3 +499,16 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
+    @staticmethod
+    def getProjectList(cls,user=None):
+        """
+            Return the list with the names of the existing projects .
+
+        :param user: str
+            The name of the database.
+
+        Returns
+        -------
+            list.
+        """
+        return list(set(AbstractCollection(user=user).getProjectList()))
