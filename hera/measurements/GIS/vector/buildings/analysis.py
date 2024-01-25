@@ -7,7 +7,6 @@ import pandas
 import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.datalayer import datatypes,nonDBMetadataFrame
 from hera.measurements.GIS.vector import topography
 
@@ -92,7 +91,7 @@ class analysis():
 
 
 
-    def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData,externalShape=None, saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, overwrite=False):
+    def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData,externalShape=None, overwrite=False):
         """
 
         Parameters
@@ -115,11 +114,6 @@ class analysis():
                 will be used in the crs of the building data.
 
                 If None, then use the boundaries of the buidingData.
-
-        saveMode :
-            - None, does not add to the DB.
-            - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
-            - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
 
         overwrite : bool
             If true, write over data and update the database
@@ -203,12 +197,9 @@ class analysis():
 
 
 
-    def LambdaFromDatasource(self, windMeteorologicalDirection, resolution, shapeDataOrName,datasourceName, crs=None, saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, overwrite=False):
+    def LambdaFromDatasource(self, windMeteorologicalDirection, resolution, shapeDataOrName,datasourceName, crs=None, overwrite=False):
         """
         Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
-
-        TODO:
-            Extend to account for changing wind direction in the city.
 
         Parameters
         ----------
@@ -224,11 +215,7 @@ class analysis():
                 The definition of the shape to use.
         crs: [optional], int
             if None, use the crs of the datasource.
-
-        saveMode: str
-            - None, does not add to the DB.
-            - toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists
-            - toolkit.TOOLKIT_SAVEMODE_FILEANDDB         throws exception.
+            if not None, set the
 
 
         overwrite: bool
@@ -253,8 +240,10 @@ class analysis():
                                                    resolution=resolution,
                                                    buildingsData=buildingsData,
                                                    externalShape=bounds,
-                                                   saveMode=saveMode,
                                                    overwrite=overwrite)
+
+        if crs is not None:
+            domainLambda.crs = crs
 
         return domainLambda
 
@@ -413,7 +402,7 @@ class Blocks(object):
                            blockDict['xMax%s' % self._Level][0], blockDict['yMax%s' % self._Level][0])
         boxToIntersect = geopandas.GeoDataFrame([extent], columns=['geometry'])
         self._Buildings.crs = boxToIntersect.crs
-        buildings = geopandas.overlay(self._Buildings, boxToIntersect, how='intersection')
+        buildings = geopandas.overlay(self._Buildings, boxToIntersect, how='intersection',keep_geom_type=True)
         OnebuildingsBlock = Blocks(level=0, df=boxToIntersect, size=200)  # buildings,box
         OnebuildingsBlock._Buildings = buildings
         OnebuildingsBlock._ExteriorBlock = extent
@@ -459,7 +448,7 @@ class Blocks(object):
                 Map_A_p = Map_A_p
             else:
                 if self._Buildings.geometry[i].geom_type == 'MultiPolygon':
-                    for poly in self._Buildings.geometry[i]:
+                    for poly in self._Buildings.geometry[i].geoms:
                         Map_A_p = Map_A_p + poly.area
                         area = area + poly.area
                 else:
@@ -545,7 +534,7 @@ class Blocks(object):
                         self._Buildings.at[i, 'BLDG_HT'] = bldHeight
 
                 if self._Buildings.geometry[i].geom_type == 'MultiPolygon':
-                    for poly in self._Buildings.geometry[i]:
+                    for poly in self._Buildings.geometry[i].geoms:
                         Map_A_f = Map_A_f + self._A_f(Polygon(poly), bldHeight, windDirection)
                 else:
 
