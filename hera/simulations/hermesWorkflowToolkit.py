@@ -4,14 +4,13 @@ import pandas
 import shutil
 import os
 from ..toolkit import abstractToolkit
-from ..utils import loadJSON,compareJSONS
+from ..utils import loadJSON,compareJSONS,convertJSONtoPandas
 from ..utils.query import dictToMongoQuery
-from ..utils.dataframeutils import compareDataframeConfigurations
 from ..datalayer import datatypes
 import numpy
 import pydoc
 import warnings
-from ..utils.logging import with_logger,get_classMethod_logger
+from ..utils.logging import get_classMethod_logger
 
 try:
     from hermes import workflow
@@ -272,6 +271,7 @@ class workflowToolkit(abstractToolkit):
             Identify the simulation from :
              - Resource (thedirectory name)
              - Simulation name
+             - group
              - Its workflow
              - workfolow dict.
 
@@ -292,19 +292,73 @@ class workflowToolkit(abstractToolkit):
 
         Returns
         -------
-            A document, or None if not found. .
+            A list of document, or None if not found. .
         """
 
         if isinstance(nameOrWorkflowFileOrJSONOrResource,list):
             docList = []
             for simulationItem in nameOrWorkflowFileOrJSONOrResource:
-                docList += self.getCaseDocumentFromDB(simulationItem)
+                docList += self.getCaseDocumentFromDB(simulationItem,**query)
         else:
-            docList = self.getCaseDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            docList = self.getCaseDocumentFromDB(nameOrWorkflowFileOrJSONOrResource,**query)
 
         return docList
 
-    def getCasesInGroup(self, groupName: str, **kwargs):
+    def getCaseTableFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list, workflow],withParameters=False, **query):
+        """
+            Returns the Simulations from DB as a pandas dataframe (e.g table).
+            The nameOrWorkflowFileOrJSONOrResource can be either group name
+
+            Identify the simulation from :
+             - Resource (thedirectory name)
+             - Simulation name
+             - Its workflow
+             - workfolow dict.
+
+            Return the first item that was found.
+
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource: str, dict
+
+        Can be
+             - Resource (thedirectory name)
+             - Simulation name
+             - Its workflow
+             - workfolow dict.
+
+        withParameters : bool
+            If true, add the parameters as flattened JSON.
+
+        query : dict
+            Additional query cireteria to the DB.
+
+        Returns
+        -------
+            A pandas.DataFrame with all the simulation
+        """
+        simList = self.getCaseListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource,**query)
+
+        resList = []
+        for doc in simList :
+            docData = dict(doc.desc) # copy.
+            del docData['workflow']
+            params = docData['parameters']
+            del docData['parameters']
+
+            if withParameters:
+                retData = convertJSONtoPandas(params)
+            else:
+                retData = pandas.DataFrame()
+
+            for keyName,keyValue in docData.items():
+                retData[keyName] = keyValue
+
+            resList.append(retData)
+
+        return pandas.concat(resList,ignore_index=True)
+
+        def getCasesInGroup(self, groupName: str, **kwargs):
         """
             Return a list of all the simulations.old with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
@@ -326,7 +380,7 @@ class workflowToolkit(abstractToolkit):
 
         Returns
         -------
-            list of mongo documents.
+            list of  documents.
 
         """
         return self.getSimulationsDocuments(groupName=groupName, type=self.DOCTYPE_WORKFLOW, **kwargs)
@@ -729,6 +783,7 @@ class workflowToolkit(abstractToolkit):
         if len(docLists)==0:
             print(f"There are no workflow-groups in project {self.projectName}")
         else:
+
             data = pandas.DataFrame([dict(type=doc['desc']['workflowType'],workflowName=doc['desc']['workflowName'],groupName=doc['desc']['groupName']) for doc in docLists])
 
             for (groupType,groupName),grpdata in data.groupby(["type","groupName"]):
@@ -740,13 +795,41 @@ class workflowToolkit(abstractToolkit):
                     for simName in grpdata.workflowName.unique():
                         print(f"\t\t + {simName}")
 
+    def tableGroups(self,groupName=None,**filters):
+        """
+            Lists all the simulation groups of the current project.
 
+        Parameters
+        ----------
 
+        groupName : str
+            Filter only the simulations from that group
 
+        filters : key-value
+            Additional filters on the parameters of the workflow.
 
+        Returns
+        -------
+            pandas.DataFrame.
+        """
 
+        qry = dict(type=self.DOCTYPE_WORKFLOW)
+        if groupName is not None:
+            qry['groupName'] = groupName
 
+        if len(filters) > 0:
+            qry.update(dictToMongoQuery(filters,prefix="parameters"))
 
+        docLists = self.getSimulationsDocuments(**qry)
+
+        resList = []
+        for doc in docLists:
+            docData = dict(doc.desc)  # copy.
+            del docData['workflow']
+            del docData['parameters']
+            resList.append(docData)
+
+        return pandas.DataFrame(resList)
 
 
 
