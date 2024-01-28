@@ -306,7 +306,35 @@ class workflowToolkit(abstractToolkit):
 
         return docList
 
-    def getWorkflowInGroup(self, groupName: str, **kwargs):
+    def getWorkflowInGroup(self, groupName: str, **filters):
+        """
+            Return a list of all the workflows in the group.
+
+        Parameters
+        ----------
+
+        groupName : str
+            Filter only the simulations from that group
+
+        filters : key-value
+            Additional filters on the parameters of the workflow.
+
+        Returns
+        -------
+            pandas.DataFrame.
+        """
+
+        qry = dict(type=self.DOCTYPE_WORKFLOW)
+        if groupName is not None:
+            qry['groupName'] = groupName
+
+        if len(filters) > 0:
+            qry.update(dictToMongoQuery(filters,prefix="parameters"))
+
+        return self.getSimulationsDocuments(**qry)
+
+
+
     def getWorkflowTableFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list, workflow],withParameters=False, **query):
         """
             Returns the Simulations from DB as a pandas dataframe (e.g table).
@@ -360,33 +388,6 @@ class workflowToolkit(abstractToolkit):
             resList.append(retData)
 
         return pandas.concat(resList,ignore_index=True)
-
-        def getCasesInGroup(self, groupName: str, **kwargs):
-        """
-            Return a list of all the simulations.old with the name as a prefic, and of the requested simuationType.
-            Returns the list of the documents.
-
-            If the simuationType is None use the default simuationType (WORKFLOW).
-
-        Parameters
-        ----------
-
-        groupName : str
-            The prefix name of all the runs.
-
-        simulationType : str [optional]
-            The type of the workflow.
-            if None, return all.
-
-        kwargs: additional filtering criteria.
-                Use mongodb criteria.
-
-        Returns
-        -------
-            list of mongo documents.
-
-        """
-        return self.getSimulationsDocuments(groupName=groupName, type=self.DOCTYPE_WORKFLOW, **kwargs)
 
     def findAvailableName(self, simulationGroup: str, **kwargs):
         """
@@ -675,6 +676,7 @@ class workflowToolkit(abstractToolkit):
             pandas.DataFrame, json (depends on the input flags).
             Return the differences between the parametrs of the requested Workflow.
         """
+        logger = get_classMethod_logger(self, "compareWorkflow")
         if Workflow is None:
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         logger.info("--- Start ---")
@@ -814,15 +816,7 @@ class workflowToolkit(abstractToolkit):
         -------
             pandas.DataFrame.
         """
-
-        qry = dict(type=self.DOCTYPE_WORKFLOW)
-        if groupName is not None:
-            qry['groupName'] = groupName
-
-        if len(filters) > 0:
-            qry.update(dictToMongoQuery(filters,prefix="parameters"))
-
-        docLists = self.getSimulationsDocuments(**qry)
+        docLists = self.getWorkflowInGroup(groupName=groupName,**filters)
 
         resList = []
         for doc in docLists:
