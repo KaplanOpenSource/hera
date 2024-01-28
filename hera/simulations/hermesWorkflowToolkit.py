@@ -115,6 +115,7 @@ class workflowToolkit(abstractToolkit):
         -------
             hermesWorkflow object.
         """
+        logger = get_classMethod_logger(self, "getHermesWorkflowFromJSON")
         workFlowJSON = loadJSON(workflow)
         ky = workFlowJSON['workflow'].get('solver',None)
 
@@ -125,7 +126,7 @@ class workflowToolkit(abstractToolkit):
 
         if hermesWFObj is None:
             err = f"The workflow type {ky} not found"
-            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
         return hermesWFObj(workFlowJSON,name=name)
@@ -157,11 +158,11 @@ class workflowToolkit(abstractToolkit):
             list (returnFirst is False)
             hermes workflow.
         """
-
+        logger = get_classMethod_logger(self, "getHermesWorkflowFromDB")
         docList = self.getCaseListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, **query)
 
         if len(docList) == 0:
-            self.logger.error(f"... not found. ")
+            logger.error(f"... not found. ")
             ret = None
         else:
             ret = self.getHemresWorkflowFromDocument(documentList=docList,returnFirst=returnFirst)
@@ -191,6 +192,7 @@ class workflowToolkit(abstractToolkit):
         -------
             doc or empty list if not found.
         """
+        logger = get_classMethod_logger(self, "getWorkflowDocumentFromDB")
         doctype = self.DOCTYPE_WORKFLOW if doctype is None else doctype
         # try to find it as a name
         mongo_crit = dictToMongoQuery(query)
@@ -198,16 +200,16 @@ class workflowToolkit(abstractToolkit):
         retrieve_func = getattr(self,f"get{dockind}Documents")
 
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
-            self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
+            logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
             docList = retrieve_func(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
             if len(docList) == 0:
-                self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
+                logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
                 docList = retrieve_func(resource=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
                 if len(docList) == 0:
-                    self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
+                    logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
                     docList = retrieve_func(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
                     if len(docList) == 0:
-                        self.logger.debug(f"... not found. Try to query as a json. ")
+                        logger.debug(f"... not found. Try to query as a json. ")
                         try:
                             jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
                             wf = self.getHermesWorkflowFromJSON(jsn)
@@ -216,7 +218,7 @@ class workflowToolkit(abstractToolkit):
                             docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
                         except ValueError:
 
-                            # self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
+                            # logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
                             # if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
                             #     from ..datalayer.document import nonDBMetadataFrame
                             #     workflowName = os.path.basename(nameOrWorkflowFileOrJSONOrResource).split(".")[0]
@@ -239,21 +241,21 @@ class workflowToolkit(abstractToolkit):
                             #                              )
                             #     docList = [res]
                             # else:
-                            self.logger.debug(f"not found")
+                            logger.debug(f"not found")
                             docList = []
                         except IsADirectoryError:
-                            self.logger.debug(f"not found")
+                            logger.debug(f"not found")
                             docList = []
                     else:
-                        self.logger.info(f"... Found it as workflow group ")
+                        logger.info(f"... Found it as workflow group ")
                 else:
-                    self.logger.info(f"... Found it as resource ")
+                    logger.info(f"... Found it as resource ")
             else:
-                self.logger.info(f"... Found it as name")
+                logger.info(f"... Found it as name")
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict) or isinstance(nameOrWorkflowFileOrJSONOrResource, workflow):
             qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON if isinstance(nameOrWorkflowFileOrJSONOrResource, workflow) else nameOrWorkflowFileOrJSONOrResource
-            self.logger.debug(f"Searching for {qryDict} using parameters")
+            logger.debug(f"Searching for {qryDict} using parameters")
             currentQuery = dictToMongoQuery(qryDict, prefix="parameters")
             currentQuery.update(mongo_crit)
             docList = retrieve_func(**currentQuery, type=self.DOCTYPE_WORKFLOW)
@@ -537,7 +539,7 @@ class workflowToolkit(abstractToolkit):
         cleanName = workflowJSON.split(".")[0]
 
         #   b. loading the workflow.
-        self.logger.debug(f"Loading the workflow JSON {workflowJSON}")
+        logger.debug(f"Loading the workflow JSON {workflowJSON}")
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
         theSolver = hermesWF.solver
@@ -547,9 +549,9 @@ class workflowToolkit(abstractToolkit):
         #   c. Determining the simulation name, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
-            self.logger.debug("Generating ID from the DB")
+            logger.debug("Generating ID from the DB")
             groupID, workflowName = self.findAvailableName(simulationGroup=groupName, workflowType=theSolver)
-            self.logger.debug(f" Got id : {groupID} and suggested name {workflowName}")
+            logger.debug(f" Got id : {groupID} and suggested name {workflowName}")
         else:
             workflowName = cleanName
             try:
@@ -559,9 +561,9 @@ class workflowToolkit(abstractToolkit):
             except IndexError:
                 # The name has no _ in it...
                 groupID = None
-            self.logger.debug(f"Use input as simulation : {workflowName} with the group {groupID}")
+            logger.debug(f"Use input as simulation : {workflowName} with the group {groupID}")
 
-        self.logger.info(f"Simulation name is {workflowName} with type {theSolver} in simulation group {groupName} with id {groupID}.")
+        logger.info(f"Simulation name is {workflowName} with type {theSolver} in simulation group {groupName} with id {groupID}.")
 
         # 2. Check if exists in the DB.
 
@@ -574,16 +576,16 @@ class workflowToolkit(abstractToolkit):
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
             wrn = f"The requested workflow {workflowName} has similar parameters to the workflow **{doc['desc']['workflowName']}** in simulation group {groupName}."
-            self.logger.warning(wrn)
+            logger.warning(wrn)
             raise FileExistsError(wrn)
         else:
 
             #   b. Check if the name of the simulation already exists in the group
-            self.logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
+            logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
             docList = self.getWorkflowInGroup(groupName=groupName, workflowName=workflowName)
 
             if len(docList) == 0:
-                self.logger.info("Simulation is not in the DB, adding... ")
+                logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
                                                   dataFormat=datatypes.STRING,
                                                   type=self.DOCTYPE_WORKFLOW,
@@ -597,14 +599,14 @@ class workflowToolkit(abstractToolkit):
                                                   )
 
             elif overwrite:
-                self.logger.info("Simulation in the DB, overwrite=True.  Updating... ")
+                logger.info("Simulation in the DB, overwrite=True.  Updating... ")
                 doc = docList[0]
                 doc['desc']['workflow'] = hermesWF.json
                 doc['desc']['parameters'] = hermesWF.parametersJSON
                 doc.save()
             else:
                 info = f"The simulation {workflowName} with type {theSolver} is already in the database in group {groupName}. use the overwrite=True to update the record."
-                self.logger.info(info)
+                logger.info(info)
 
         # 3.  Building and running the workflow.
         if execute:
@@ -626,7 +628,7 @@ class workflowToolkit(abstractToolkit):
 
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
             executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
-            self.logger.debug(executionStr)
+            logger.debug(executionStr)
             os.system(executionStr)
 
 
@@ -675,7 +677,7 @@ class workflowToolkit(abstractToolkit):
         """
         if Workflow is None:
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
-        self.logger.info("--- Start ---")
+        logger.info("--- Start ---")
 
         workflowList = []
         for workflowName in list(Workflow):
