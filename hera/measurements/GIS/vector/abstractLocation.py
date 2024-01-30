@@ -3,7 +3,7 @@ import os
 import io
 from hera import toolkit
 import geopandas
-from hera.measurements.GIS.shapes import ShapesToolKit
+from .shapes import ShapesToolKit
 import pandas
 import geojson
 
@@ -55,7 +55,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         """
         #self.logger.info(f"Toolkit {toolkitName} in project {projectName} - Initializing")
         super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory)
-
+        logger = get_classMethod_logger(self, "init")
         if filesDirectory is None:
             self.logger.execution("Directory is not given, tries to load from default or using the current directory")
             self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
