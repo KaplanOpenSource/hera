@@ -106,7 +106,6 @@ class abstractWorkflow(hermes.workflow):
 ##############################################################################
 ##                          Workflow Eulerian/Lagrangian
 ##############################################################################
-
 class workflow_Eulerian(abstractWorkflow):
     """
         This class manages the hermes workflow of openFOAM that is designated to
@@ -290,7 +289,6 @@ class workflow_Eulerian(abstractWorkflow):
 
     ############## geometryHandler
     # Defines the geometry objects and sets up the snappy hex mesh.
-
     def geometryHandler_topography(self,regionName, geometryJSON, workingDirectory, configuration,overwrite=False):
         """
             Build the topography STL using the topography toolkit.

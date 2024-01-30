@@ -1,8 +1,11 @@
-from .datalayer import Project,datatypes
+import json
+
+from .datalayer import Project
 import os
 import pandas
 import numpy
 import pydoc
+from .utils.logging import get_classMethod_logger
 
 TOOLKIT_DATASOURCE_TYPE = "ToolkitDataSource"
 TOOLKIT_TOOLKITNAME_FIELD       = "toolkit"
@@ -33,8 +36,8 @@ class ToolkitHome:
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
-    LSM            = "LSM.old"
-    OF_LSM         =  "OF_LSM"
+    LSM            = "LSM"
+
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
@@ -149,6 +152,30 @@ class abstractToolkit(Project):
 
     _FilesDirectory = None
 
+    @classmethod
+    def createProjectDirectory(cls,outputPath,projectName=None):
+        """
+            Creates a basic caseConfiguration file
+            with the requested project name.
+
+        Parameters
+        ----------
+        outputPath : str
+            The path to create the configuration file in.
+            Create if does not exist.
+
+        projectName : str
+            The nme of the project.
+
+        Returns
+        -------
+            None.
+        """
+        os.makedirs(os.path.abspath(outputPath),exist_ok=True)
+        basicOut = dict(projectName=projectName)
+        with open(os.path.join(os.path.abspath(outputPath),"caseConfiguration.json"),'w') as outFile:
+            json.dump(basicOut,outFile,indent=4)
+
     @property
     def FilesDirectory(self):
         """
@@ -216,19 +243,21 @@ class abstractToolkit(Project):
 
         """
         super().__init__(projectName=projectName)
+        logger = get_classMethod_logger(self,"init")
         self._toolkitname = toolkitName
-        self._projectName = projectName
 
         if filesDirectory is None:
-            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
-            self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            self.logger.execution(f"Using {self._FilesDirectory}")
+            logger.execution("Directory is not given, tries to load from default or using the current directory")
+            try:
+                self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
+            except ValueError:
+                self._FilesDirectory = os.getcwd()
+
+            logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
-
-
 
     def getDataSourceMap(self,**filters):
         """
