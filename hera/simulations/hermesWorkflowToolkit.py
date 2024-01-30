@@ -68,6 +68,29 @@ class workflowToolkit(abstractToolkit):
         #                  WorkflowTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
         # }
 
+    def listHermesTemplates(self,solverName):
+        """
+            Returns a list of all the templates that were loaded for that specific solver.
+
+        Parameters
+        ----------
+        solverName : str
+
+
+        Returns
+        -------
+
+        """
+        retList = []
+        for doc in self.getDatasourceDocumentsList(desc__solver=solverName):
+            data = dict(doc.desc['desc'])
+            data['templateName'] = doc.desc['datasourceName']
+            retList.append(data)
+
+        if len(retList) >0:
+            return pandas.DataFrame(retList).set_index("templateName")
+        else:
+            return pandas.DataFrame()
 
     def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
         """

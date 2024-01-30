@@ -1,4 +1,4 @@
-import pandas
+import numpy
 import os
 import glob
 from .OFObjects import OFField
@@ -98,42 +98,42 @@ class OFToolkit(workflowToolkit):
         """
 
         # 1. Run the postProcess utility to set the cell centers
-
-        self.logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
+        logger = get_classMethod_logger(self,"getMesh")
+        logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
 
         casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
 
         useParallel= False
         if parallel:
-            self.logger.debug(f"Attempt to load parallel case")
+            logger.debug(f"Attempt to load parallel case")
             # Check if the case is decomposed, if it is, run it.
             proc0dir = os.path.join(caseDirectory,"processor0")
 
             if os.path.exists(proc0dir):
-                self.logger.debug(f"Found parallel case, using decomposed case")
+                logger.debug(f"Found parallel case, using decomposed case")
                 useParallel = True
             else:
-                self.logger.debug(f"parallel case NOT found. Using composed case")
+                logger.debug(f"parallel case NOT found. Using composed case")
 
         # Calculating the cell centers
         checkPath = os.path.join(caseDirectory,"processor0",str(time),"C") if useParallel else os.path.join(caseDirectory,str(time),"C")
         parallelExec = "-parallel" if useParallel else ""
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
-            self.logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
+            logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
             os.system(f"foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
-            self.logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
             if not os.path.exists(checkPath):
-                self.logger.error("Error running the writeCellCentres. Check mesh")
+                logger.error("Error running the writeCellCentres. Check mesh")
                 raise RuntimeError("Error running the writeCellCentres. Check mesh")
         else:
-            self.logger.debug(f"Cell centers exist in {caseType} case.")
+            logger.debug(f"Cell centers exist in {caseType} case.")
 
         cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
-        self.logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
+        logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
         ret =  cellCenters.load(caseDirectory,times=time,parallelCase=useParallel)
 
-        self.logger.info(f"--- End ---")
+        logger.info(f"--- End ---")
         return ret
 
     def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
