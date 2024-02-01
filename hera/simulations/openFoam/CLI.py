@@ -44,7 +44,7 @@ def simpleFoam_createEmpty(arguments):
 
     logger.execution(f"----- End -----")
 
-def simpleFoam_templates_list(arguments):
+def foam_templates_list(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -60,7 +60,7 @@ def simpleFoam_templates_list(arguments):
     print("-"*len(ttl))
     print(templates)
 
-def simpleFoam_templates_create(arguments):
+def foam_templates_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
