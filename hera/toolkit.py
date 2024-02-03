@@ -1,8 +1,8 @@
-from .datalayer import Project,datatypes
+from .datalayer import Project
 import os
 import pandas
-import numpy
 import pydoc
+from .utils.logging import get_classMethod_logger
 
 TOOLKIT_DATASOURCE_TYPE = "ToolkitDataSource"
 TOOLKIT_TOOLKITNAME_FIELD       = "toolkit"
@@ -48,8 +48,6 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
-
-            Logging        = dict(cls = "hera.utils.logging.toolkit.loggingToolkit"),
 
             GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",desc=None),
 
@@ -215,16 +213,17 @@ class abstractToolkit(Project):
             The directory to save datasource
 
         """
+        logger = get_classMethod_logger(self,"init")
         super().__init__(projectName=projectName)
         self._toolkitname = toolkitName
-        self._projectName = projectName
+
 
         if filesDirectory is None:
-            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
+            logger.execution("Directory is not given, tries to load from default or using the current directory")
             self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            self.logger.execution(f"Using {self._FilesDirectory}")
+            logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
 
