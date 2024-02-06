@@ -13,7 +13,7 @@ from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
 
-def simpleFoam_createEmpty(arguments):
+def Foam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -45,6 +45,7 @@ def simpleFoam_createEmpty(arguments):
     logger.execution(f"----- End -----")
 
 def foam_templates_list(arguments):
+
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -81,7 +82,6 @@ def foam_templates_create(arguments):
 
     with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
         json.dump(tk.getDatasourceData(arguments.templateName),outFile, indent=4)
-
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
     logger = logging.getLogger("hera.bin")
