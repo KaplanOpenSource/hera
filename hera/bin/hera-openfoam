@@ -27,7 +27,7 @@ def addSolverTemplateOptions(subparser,solverName):
     templates_list.set_defaults(func=CLI.foam_templates_list)
 
     ## ---------------- create case from template
-    templates_create = simpleFoam_templates_subparser.add_parser('create', help='List the existing templates in the project for that solver')
+    templates_create = templates_subparser.add_parser('create', help='List the existing templates in the project for that solver')
     templates_create.add_argument('projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_create.add_argument('templateName', type=str, default=None, help=projectNameHelpDesc)
     templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.simpleFoam_createEmpty)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     pimpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     pimpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     pimpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.simpleFoam_createEmpty)
+    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="pimpleFoam")
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.oguraPhillipShallowConvectionFOAM_createEmpty)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
