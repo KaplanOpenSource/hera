@@ -38,6 +38,7 @@ class ToolkitHome:
     RISKASSESSMENT = "RiskAssessment"
     LSM            = "LSM"
 
+    DATA           = "heraData"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
@@ -52,7 +53,7 @@ class ToolkitHome:
     def __init__(self):
         self._toolkits = dict(
 
-            Logging        = dict(cls = "hera.utils.logging.toolkit.loggingToolkit"),
+            heraData       = dict(cls="hera.utils.heradata.dataToolkit"),
 
             GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",desc=None),
 
