@@ -18,6 +18,13 @@ from .toolkit import ToolkitHome
 from .datalayer import Project
 toolkitHome = ToolkitHome()
 """
+    #117 : Updating the format of the hera data. 
+           Adding a toolkit to handle the data, and use the standard loading to make sure that 
+           all the data is loaded through this mechanis. Thus, the hera-data-load is redundent and 
+           the project can be initialized with all the data using the CLI
+           
+           We have changed the format of the datasources. So it should also be updated with this version.  
+
     #108: * Updating the openFOAM CLI. 
           * Fixing a bug in the creation of the dispersion flow field. It was created with a local 
             directories and not with the global ones. 
