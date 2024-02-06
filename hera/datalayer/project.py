@@ -64,6 +64,7 @@ class Project:
 
     DEFAULTPROJECT = "defaultProject"
 
+    _allowWritingToDefaultProject = None # A flag to allow the update of the default project. Used to add the datasources to it.
 
 
     @property
@@ -152,6 +153,8 @@ class Project:
         dict
                 The configuration of the toolkit.
         """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
         doc = self._getConfigDocument()
         return doc["desc"]
 
@@ -159,6 +162,9 @@ class Project:
         """
             Create a config document or updates an existing config document.
         """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+
         doc = self._getConfigDocument()
         doc.desc.update(kwargs)
         doc.save()
@@ -188,6 +194,8 @@ class Project:
                 Determine the name of the logger. if None, use the classpath of the current class.
         """
         logger = get_classMethod_logger(self,"init")
+        self._allowWritingToDefaultProject = False
+
         if projectName is None:
             configurationPath = os.getcwd() if configurationPath is None else configurationPath
             confFile = os.path.join(configurationPath, "caseConfiguration.json")
@@ -302,7 +310,7 @@ class Project:
             The new document
         """
         logger = get_classMethod_logger(self, "init")
-        if self.projectName == self.DEFAULTPROJECT:
+        if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
             logger.error(err)
             raise RuntimeError(err)
@@ -390,7 +398,7 @@ class Project:
             The new document
         """
         logger = get_classMethod_logger(self, "init")
-        if self.projectName == self.DEFAULTPROJECT:
+        if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
             logger.error(err)
             raise RuntimeError(err)
@@ -477,7 +485,7 @@ class Project:
             The new document
         """
         logger = get_classMethod_logger(self, "init")
-        if self.projectName == self.DEFAULTPROJECT:
+        if self.projectName == self.DEFAULTPROJECT and not self._allowWritingToDefaultProject:
             err = f"project {self.projectName} is read-only. "
             logger.error(err)
             raise RuntimeError(err)
