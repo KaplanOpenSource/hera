@@ -13,7 +13,7 @@ from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
 
-def Foam_createEmpty(arguments):
+def simpleFoam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -39,13 +39,12 @@ def Foam_createEmpty(arguments):
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
                        simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
-                       additionalFieldsDescription  =arguments.fieldsDescription)
+                       additionalFieldsDescription = arguments.fieldsDescription)
 
 
     logger.execution(f"----- End -----")
 
-def foam_templates_list(arguments):
-
+def simpleFoam_templates_list(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -61,7 +60,7 @@ def foam_templates_list(arguments):
     print("-"*len(ttl))
     print(templates)
 
-def foam_templates_create(arguments):
+def simpleFoam_templates_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -82,6 +81,7 @@ def foam_templates_create(arguments):
 
     with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
         json.dump(tk.getDatasourceData(arguments.templateName),outFile, indent=4)
+
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
     logger = logging.getLogger("hera.bin")
