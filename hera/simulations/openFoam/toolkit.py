@@ -1,4 +1,4 @@
-import pandas
+import numpy
 import os
 import glob
 from .OFObjects import OFField
@@ -9,7 +9,10 @@ from ..hermesWorkflowToolkit import workflowToolkit
 from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
 from ...utils.jsonutils import loadJSON,compareJSONS
-#from evtk.hl import pointsToVTK, structuredToVTK
+from ...utils.logging import get_classMethod_logger
+from evtk import hl as evtk_hl #import pointsToVTK, gridToVTK
+import dask.dataframe as dd
+from itertools import chain
 
 class OFToolkit(workflowToolkit):
     """
@@ -37,7 +40,8 @@ class OFToolkit(workflowToolkit):
                          toolkitName="OFworkflowToolkit")
 
         self.OFObjectHome = OFObjectHome()
-        self._analysis = analysis(self)
+        self._analysis = Analysis(self)
+        self._presentation = Presentation(self,self.analysis)
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
 
     def processorList(self,caseDirectory):
@@ -94,42 +98,42 @@ class OFToolkit(workflowToolkit):
         """
 
         # 1. Run the postProcess utility to set the cell centers
-
-        self.logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
+        logger = get_classMethod_logger(self,"getMesh")
+        logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
 
         casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
 
         useParallel= False
         if parallel:
-            self.logger.debug(f"Attempt to load parallel case")
+            logger.debug(f"Attempt to load parallel case")
             # Check if the case is decomposed, if it is, run it.
             proc0dir = os.path.join(caseDirectory,"processor0")
 
             if os.path.exists(proc0dir):
-                self.logger.debug(f"Found parallel case, using decomposed case")
+                logger.debug(f"Found parallel case, using decomposed case")
                 useParallel = True
             else:
-                self.logger.debug(f"parallel case NOT found. Using composed case")
+                logger.debug(f"parallel case NOT found. Using composed case")
 
         # Calculating the cell centers
         checkPath = os.path.join(caseDirectory,"processor0",str(time),"C") if useParallel else os.path.join(caseDirectory,str(time),"C")
         parallelExec = "-parallel" if useParallel else ""
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
-            self.logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
+            logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
             os.system(f"foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
-            self.logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
             if not os.path.exists(checkPath):
-                self.logger.error("Error running the writeCellCentres. Check mesh")
+                logger.error("Error running the writeCellCentres. Check mesh")
                 raise RuntimeError("Error running the writeCellCentres. Check mesh")
         else:
-            self.logger.debug(f"Cell centers exist in {caseType} case.")
+            logger.debug(f"Cell centers exist in {caseType} case.")
 
         cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
-        self.logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
+        logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
         ret =  cellCenters.load(caseDirectory,times=time,parallelCase=useParallel)
 
-        self.logger.info(f"--- End ---")
+        logger.info(f"--- End ---")
         return ret
 
     def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
@@ -273,7 +277,7 @@ class OFToolkit(workflowToolkit):
     #
 
 
-class analysis:
+class Analysis:
     """
         The analysis of the OpenFOAM.
 
@@ -375,7 +379,11 @@ class analysis:
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
 
 
-class presentation:
+class Presentation:
+
+    def __init__(self,datalayer,analysis):
+        self.datalayer = datalayer
+        self.analysis = analysis
 
     def to_paraview_CSV(self, data, outputdirectory, filename, timeFactor=1):
         """
@@ -405,7 +413,7 @@ class presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True,fieldList=None,xcoord="x",ycoord="y",zcoord="z",timecoord="time"):
         """
             Writes the data as a VTK vtu file.
 
@@ -420,17 +428,41 @@ class presentation:
                     If true, use the time as the suffix to the filename. Else, use running number.
         :return:
         """
+        logger = get_classMethod_logger(self, "toUnstructuredVTK")
         namePath = os.path.join(outputdirectory, filename)
         os.makedirs(outputdirectory, exist_ok=True)
+        logger.info(f"Writing unstructured VTK file to base filename: {namePath}")
 
-        for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-            finalFile = f"{namePath}_{int(timeName)}" if timeNameOutput else f"{namePath}_{indx}"
+        logger.debug("Getting the field names")
+        if fieldList is None:
+            fieldList = [x for x in data.columns if x not in [xcoord,ycoord,zcoord]]
 
-            data = dict(mass=timeData.mass.values)
-            x = timeData.globalX.values
-            y = timeData.globalY.values
-            z = timeData.globalZ.values
-            pointsToVTK(finalFile, x, y, z, data)
+        if isinstance(data,dd.DataFrame):
+            logger.debug("The input type is dask dataframe. Getting timesteps and then using partition")
+            timeList = [z for z in chain(*[x.index.unique().compute() for x in data.partitions])]
+            for indx,time in enumerate(timeList):
+                timeData = data.loc[time].compute()
+                outdata = dict((x,timeData[x].values) for x in fieldList)
+                finalfile = f"{namePath}_{indx}"
+                logger.info(f"Writing time step {time} to {finalfile}")
+
+                x = timeData[xcoord].values
+                y = timeData[ycoord].values
+                z = timeData[zcoord].values
+                evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
+        else:
+            # all the data is loaded:
+            for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+                outdata = dict((x,timeData[x].values) for x in fieldList)
+                finalfile = f"{namePath}_{indx}"
+                logger.info(f"Writing time step {time} to {finalfile}")
+                
+                x = timeData[xcoord].values
+                y = timeData[ycoord].values
+                z = timeData[zcoord].values
+                evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
+
+
 
     def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):
         """
@@ -464,4 +496,4 @@ class presentation:
             C = numpy.ascontiguousarray(fulldata.transpose("yI", "xI", "zI").values)
 
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
-            structuredToVTK(finalFile, X, Y, Z, pointData=data)
+            evtk_hl.structuredToVTK(finalFile, X, Y, Z, pointData=data)

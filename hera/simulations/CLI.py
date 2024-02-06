@@ -99,7 +99,7 @@ def workflow_add(args):
     execute = args.execute
 
     try:
-        wftk.addCaseToGroup(workflowJSON=workflowFile,
+        wftk.addWorkflowToGroup(workflowJSON=workflowFile,
                             groupName= args.workflowGroup,
                             assignName=args.assignName,
                             overwrite=args.overwrite,
@@ -128,7 +128,6 @@ def workflow_delete(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.delete")
     logger.info(f" -- Starting: Deleting workflows --")
 
-
     if arguments.projectName is None:
         logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
@@ -136,21 +135,19 @@ def workflow_delete(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    simulationList = wftk.getCaseListDocumentFromDB(list(arguments.workflows))
-
+    simulationList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
     completeRemove = []
-
-
     for sim in simulationList:
         shouldRemove = True
         logger.info(f" Deleting the workflow: {sim['desc']['workflowName']}")
         outfileName = f"{sim['desc']['workflowName']}.json"
 
-        if not arguments.noExport:
+        if arguments.Export:
             logger.execution(f"Exporting the deleted document as {outfileName}")
             if not os.path.isfile(outfileName) or arguments.forceOverwrite:
                 with open(outfileName,"w") as outfile:
-                    json.dump(sim['desc']['workflow'],outfile,indent=4)
+                    outjson = dict(workflow=sim['desc']['workflow'])
+                    json.dump(outjson,outfile,indent=4)
             else:
                 logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
                 shouldRemove = False
@@ -189,7 +186,7 @@ def workflow_export(arguments):
         projectName = caseConfiguration['projectName']
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    simulationList = wftk.getCaseListDocumentFromDB(list(arguments.workflows))
+    simulationList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
 
     for sim in simulationList:
         outfileName = f"{sim['desc']['workflowName']}.json"
@@ -324,7 +321,7 @@ def workflow_list(arguments):
     #
     # else:
 
-    simDocument = wftk.getCaseListDocumentFromDB(arguments.object)
+    simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
         print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
@@ -332,9 +329,9 @@ def workflow_list(arguments):
     listNodes     = arguments.nodes
     parameters    = arguments.parameters
 
-    simulationList = wftk.listSimulations(workflowGroup=workflowGroup,
-                                          listNodes=listNodes,
-                                          listParameters=parameters)
+    simulationList = wftk.listWorkflows(workflowGroup=workflowGroup,
+                                        listNodes=listNodes,
+                                        listParameters=parameters)
 
 
     title = f"The simulations in group *{workflowGroup}*  in project *{projectName}* "
@@ -479,7 +476,7 @@ def workflow_compare(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    res = wftk.workflowCompare(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
+    res = wftk.compareWorkflow(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
 
 
     if arguments.format == "pandas":
