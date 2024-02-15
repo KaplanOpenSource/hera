@@ -334,35 +334,48 @@ def load_handler(arguments):
 
 
 if __name__=="__main__":
-    logger = logging.getLogger("hera.bin.hera_datalayer")
-    logger.info(" -- Starting: adding workflow to the group --")
+    logger = logging.getLogger("hera.bin.hera_projects")
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
+    # ------------------- project management
+    parser_project = subparsers.add_parser('project', help='lists objects')
+    project_subparsers = parser_project.add_subparsers(help='sub-command help')
 
-    parser_list = subparsers.add_parser('list', help='lists objects')
-    subparsers_list = parser.add_subparsers(help='sub-command help')
-
-    subparsers_list.add_parser('projects', help='lists the projects of the user')
-
-
-
+    # list
+    parser_list = project_subparsers.add_parser('list', help='lists objects')
     parser_list.set_defaults(func=handler_list)
 
-
-
-
-    ### Dump
+    ### Dump/save
+    parser_dump = project_subparsers.add_parser('dump', help='Saves the project record to the disk')
     parser_dump.add_argument('projectName',nargs=1,type=str,help='The project name')
     parser_dump.add_argument('--fileName',type=str, help='save to',default=None,required=False)
     parser_dump.add_argument('query',metavar='query',nargs='*', type=str, help='the query parameters')
     parser_dump.set_defaults(func=dump_handler)
 
     ### Load
-    parser_load = subparsers.add_parser('load', help='load records from a file')
+    parser_load = project_subparsers.add_parser('load', help='load records from a file')
     parser_load.add_argument('fileName',nargs=1,type=str, help='dataFile')
+    parser_load.add_argument('projectName', type=str, help='The workflow file to load')
     parser_load.set_defaults(func=load_handler)
+
+    # ----------------- Repository
+    repository_parser = subparsers.add_parser('repository', help='handling repositories')
+    repository_subparsers = repository_parser.add_subparsers(help='sub-command help')
+
+    # list
+    parser_list = repository_subparsers.add_parser('list', help='lists objects')
+    parser_list.set_defaults(func=handler_list)
+
+
+
+    ### add
+    parser_load = project_subparsers.add_parser('add', help='load records from a file')
+    parser_load.add_argument('fileName',nargs=1,type=str, help='dataFile')
+    parser_load.add_argument('projectName', type=str, help='The workflow file to load')
+    parser_load.set_defaults(func=load_handler)
+
 
     ##################### exec
     args = parser.parse_args()
