@@ -13,7 +13,7 @@ from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
 
-def simpleFoam_createEmpty(arguments):
+def Foam_incompressible_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -44,7 +44,7 @@ def simpleFoam_createEmpty(arguments):
 
     logger.execution(f"----- End -----")
 
-def simpleFoam_templates_list(arguments):
+def foam_templates_list(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -60,7 +60,7 @@ def simpleFoam_templates_list(arguments):
     print("-"*len(ttl))
     print(templates)
 
-def simpleFoam_templates_create(arguments):
+def foam_templates_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -414,7 +414,12 @@ def objects_createVerticesAndBoundary(arguments):
 
     verticesList = []
     for x,y,z in zip(xList,yList,zList):
-        verticesList.append([corners[x], corners[y], corners[z]])
+        xshift = 0.1 if 'Max' in x else -0.1
+        yshift = 0.1 if 'Max' in y else -0.1
+        zshift = 0.1 if 'Max' in z else -0.1
+
+
+        verticesList.append([corners[x]+xshift, corners[y]+yshift, corners[z]+zshift])
     print(json.dumps(dict(vertices=verticesList), indent=4))
 
     print("\n\n\n")

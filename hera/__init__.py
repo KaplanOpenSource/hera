@@ -25,6 +25,11 @@ toolkitHome = ToolkitHome()
            
            We have changed the format of the datasources. So it should also be updated with this version.  
 
+          * a bug in the objects_createVerticesAndBoundary: 
+            the boundaries were tight on the object and therefor it didnt remove the old boundary 
+            of the domain which caused problems. Creating now constant 10cm gap in the model. 
+            In the case that it is too large, change to be 0.1% of the length or something. 
+
     #108: * Updating the openFOAM CLI. 
           * Fixing a bug in the creation of the dispersion flow field. It was created with a local 
             directories and not with the global ones. 

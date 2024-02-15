@@ -101,12 +101,12 @@ class dataToolkit(toolkitHome.abstractToolkit):
         else:
             logger.info(f"Source {dataSourceName} already exists in {projectName}")
 
-    def loadAllRepositoriesInList(self,projectName,overwrite=False):
+    def loadAllEntriesInAllRepositories(self,projectName,overwrite=False):
         for repository in self.getDataSourceMap().keys():
             logger.info(f"Loading the repository {repository}")
-            self.loadAllRepository(projectName,overwrite=overwrite)
+            self.loadAllEntriesInRepository(projectName,overwrite=overwrite)
 
-    def loadAllRepository(self, projectName, repositoryName,overwrite=False):
+    def loadAllEntriesInRepository(self, projectName, repositoryName,overwrite=False):
         """
             Loads all the datasets from the requested repository
         Parameters
