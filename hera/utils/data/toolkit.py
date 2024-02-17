@@ -1,12 +1,13 @@
 import json
 import argparse
 from ... import toolkitHome
-from utils.jsonutils import loadJSON
+from ... import toolkit
+from ..jsonutils import loadJSON
 from ..logging import get_classMethod_logger
 import pathlib
 import os
 
-class dataToolkit(toolkitHome.abstractToolkit):
+class dataToolkit(toolkit.abstractToolkit):
     """
         A toolkit to handle the data (replacing the function of hera-data).
 

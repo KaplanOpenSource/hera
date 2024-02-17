@@ -8,7 +8,7 @@ class LowFrequencyAbstractParser:
     """
         An abstract parser class for the low frequency.
 
-        All parsers_old must derive from this class and set the station name and time columns.
+        All parsers must derive from this class and set the station name and time columns.
     """
     _station_column = None
     _time_coloumn = None
