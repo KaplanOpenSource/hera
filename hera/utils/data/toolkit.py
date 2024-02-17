@@ -33,7 +33,6 @@ class dataToolkit(toolkitHome.abstractToolkit):
     def __init__(self):
         super().__init__(toolkitName="heradata", projectName=self.DEFAULTPROJECT, filesDirectory=None)
 
-
     def addRepository(self,repositoryName,repositoryPath):
         """
             A path to the repository
@@ -54,10 +53,15 @@ class dataToolkit(toolkitHome.abstractToolkit):
         return self.getDataSourceTable()
 
     def getRepository(self,repositoryName):
+        logger = get_classMethod_logger(self, "getRepository")
+
+        logger.info(f"Trying to find repository {repositoryName} in project {self.DEFAULTPROJECT}")
         repo = self.getDatasourceData(datasourceName=repositoryName)
+
+
         return loadJSON(repo)
 
-    def loadDataSource(self,projectName,dataItem,toolkitName,repositoryName):
+    def loadDataSourceToProject(self, projectName, dataItem, toolkitName, repositoryName):
         """
             Loads a specific datasource to the toolkit of the requested project.
 
@@ -81,30 +85,31 @@ class dataToolkit(toolkitHome.abstractToolkit):
 
         datasourcesDict = conf[dataItem]
 
-        if dataSourceName not in datasourcesDict:
-            err = f"The datasource {dataSourceName} does not exist. Existing datasource are: {','.join(datasourcesDict.keys())}"
+        if dataItem not in datasourcesDict:
+            err = f"The datasource {dataItem} does not exist. Existing datasource are: {','.join(datasourcesDict.keys())}"
             logger.error(err)
             raise ValueError(err)
 
-        dataSourceDesc = datasourcesDict[dataSourceName]
+        dataSourceDesc = datasourcesDict[dataItem]
         # dataSourceDesc["resource"] = os.path.join(pathlib.Path(__file__).parent.absolute(),dataSourceDesc["resource"])
 
         toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
-        datasource = toolkit.getDatasourceDocument(datasourceName=dataSourceName)
+        datasource = toolkit.getDatasourceDocument(datasourceName=dataItem)
 
         if datasource is None:
-            toolkit.addDataSource(dataSourceName=dataSourceName, **dataSourceDesc)
-            logger.info(f"Added source {dataSourceName} to toolkit {toolkitName} in project {projectName}")
+            toolkit.addDataSource(dataSourceName=dataItem, **dataSourceDesc)
+            logger.info(f"Added source {dataItem} to toolkit {toolkitName} in project {projectName}")
         else:
-            logger.info(f"Source {dataSourceName} already exists in {projectName}")
+            logger.info(f"Source {dataItem} already exists in {projectName}")
 
-    def loadAllEntriesInAllRepositories(self,projectName,overwrite=False):
+    def loadAllDatasourcesInAllRepositoriesToProject(self,projectName,overwrite=False):
+        logger = get_classMethod_logger(self, "loadAllDatasourcesInAllRepositoriesToProject")
         for repository in self.getDataSourceMap().keys():
             logger.info(f"Loading the repository {repository}")
-            self.loadAllEntriesInRepository(projectName,overwrite=overwrite)
+            self.loadAllDatasourcesInRepositoryToProject(projectName, overwrite=overwrite)
 
-    def loadAllEntriesInRepository(self, projectName, repositoryName,overwrite=False):
+    def loadAllDatasourcesInRepositoryToProject(self, projectName, repositoryName, overwrite=False):
         """
             Loads all the datasets from the requested repository
         Parameters
@@ -117,12 +122,13 @@ class dataToolkit(toolkitHome.abstractToolkit):
         -------
 
         """
+        logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryToProject")
         conf = self.getRepository(repositoryName)
 
+        logger.info(f"Loading the items in {repositoryName} repository to the {projectName}")
         for toolkit, datasourcesDict in conf.items():
-
             for dataSourceName in datasourcesDict.keys():
-                print(f"Loading {dataSourceName} to toolkit {toolkit}")
+                logger.info(f"\t\tLoading {dataSourceName} to toolkit {toolkit}")
 
                 dataSourceDesc = datasourcesDict[dataSourceName]
                 dataSourceDesc["resource"] = os.path.join(pathlib.Path(__file__).parent.absolute(),
@@ -133,12 +139,12 @@ class dataToolkit(toolkitHome.abstractToolkit):
 
                 if datasource is None:
                     toolkit.addDataSource(dataSourceName=dataSourceName, **dataSourceDesc)
-                    print(f"Added source {dataSourceName} to tool {toolkit} in project {projectName}")
-                elif args.overwrite:
+                    logger.info(f"Added source {dataSourceName} to tool {toolkit} in project {projectName}")
+                elif overwrite:
                     datasource = toolkit.getDatasourceDocument(datasourceName=dataSourceName)
                     datasource['resource'] = os.path.abspath(dataSourceDesc["resource"])
                     datasource['desc']['desc'] = dataSourceDesc.get("desc", {})
                     datasource.save()
-                    print(f"Updated source {dataSourceName} in tool {toolkit} in project {projectName}")
+                    logger.info(f"Updated source {dataSourceName} in tool {toolkit} in project {projectName}")
                 else:
-                    print(f"Source {dataSourceName} already exists in {projectName}. Use --overwrite to force update")
+                    logger.error(f"Source {dataSourceName} already exists in {projectName}. Use --overwrite to force update")
