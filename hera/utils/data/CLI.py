@@ -6,6 +6,7 @@ import logging
 from ...datalayer import getProjectList,Project,createProjectDirectory,removeConnection,addOrUpdateDatabase,getMongoJSON
 from ...datalayer import All as datalayer_All
 from .. import loadJSON
+from .toolkit import dataToolkit
 import pandas
 
 def project_list(arguments):
@@ -125,10 +126,22 @@ def project_load(arguments):
 
 
 def repository_list(argumets):
-    pass
+    dtk = dataToolkit()
+
+    repDataframe = dtk.getRepositoryTable()
+    with pandas.option_context('display.max_rows', None,
+                               'display.max_columns', None,
+                               'display.width', 1000,
+                               'display.precision', 3,
+                               'display.colheader_justify', 'center'):
+        print(repDataframe)
 
 def repository_add(argumets):
-    pass
+    logger = logging.getLogger("hera.bin.repository_add")
+    dtk = dataToolkit()
+    logger.info(f"Adding the path {argumets.repositoryPath} is loaded as {argumets.repositoryName}")
+    dtk.addRepository(repositoryName=argumets.repositoryName,
+                      repositoryPath=argumets.repositoryPath)
 
 def db_list(arguments):
     """
