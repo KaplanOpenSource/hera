@@ -15,7 +15,7 @@ class RawdataAnalysis:
         self._datalayer = datalayer
 
     def singlePointTurbulenceStatistics(self,
-                                        deviceNameOrData,
+                                        sonicData,
                                         samplingWindow,
                                         start,
                                         end,
@@ -32,7 +32,7 @@ class RawdataAnalysis:
 
         Parameters
         ----------
-        deviceNameOrData : str / pandas.DataFrame / dask.Dataframe / None
+        sonicData : str / pandas.DataFrame / dask.Dataframe / None
             the data to process.
 
             if str, queries the database with the deviceName as input.
@@ -77,10 +77,8 @@ class RawdataAnalysis:
                       }
         identifier.update(kwargs)
 
-        if isinstance(deviceNameOrData, pandas.DataFrame) or isinstance(deviceNameOrData, dask.dataframe.DataFrame):
-
-            rawData = deviceNameOrData
-
+        if isinstance(sonicData, pandas.DataFrame) or isinstance(sonicData, dask.dataframe.DataFrame):
+         rawData = sonicData
         else:
             raise ValueError("deviceNameOrData must be a dask/pandas dataframe")
 

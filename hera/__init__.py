@@ -16,8 +16,30 @@ initialize_logging(disable_existing_loggers=False)
 
 from .toolkit import ToolkitHome
 from .datalayer import Project
+
+from .utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
+
 toolkitHome = ToolkitHome()
+
 """
+    #117 :  * Completing the management of projects. 
+            * Completing the management of databases.
+            * Completing the management of repositories.  
+            * Adding the documentations.
+            * Refactoring the documentation structure. 
+    
+    #117 : Updating the format of the hera data. 
+           Adding a toolkit to handle the data, and use the standard loading to make sure that 
+           all the data is loaded through this mechanis. Thus, the hera-data-load is redundent and 
+           the project can be initialized with all the data using the CLI
+           
+           We have changed the format of the datasources. So it should also be updated with this version.  
+
+          * a bug in the objects_createVerticesAndBoundary: 
+            the boundaries were tight on the object and therefor it didnt remove the old boundary 
+            of the domain which caused problems. Creating now constant 10cm gap in the model. 
+            In the case that it is too large, change to be 0.1% of the length or something. 
+
     #108: * Updating the openFOAM CLI. 
           * Fixing a bug in the creation of the dispersion flow field. It was created with a local 
             directories and not with the global ones. 
