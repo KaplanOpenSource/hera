@@ -209,11 +209,13 @@ class Project:
                     }
                 ```
 
-        databaseName: str
-                the name of the database to use. If None, use the default database (the name of the current databaseName).
+        connectionName: str
+                The name of the DB connection. If not specified, use the
+                connection with the linux user name.
 
         :param configurationPath: str
-                Determine the name of the logger. if None, use the classpath of the current class.
+                The path to the caseConfiguration.json file.
+                If not supplied, use the current directory.
         """
         logger = get_classMethod_logger(self,"init")
         self._allowWritingToDefaultProject = False

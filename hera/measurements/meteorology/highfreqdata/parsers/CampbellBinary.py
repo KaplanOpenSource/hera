@@ -2,8 +2,6 @@ import os
 import glob
 import struct
 import pandas
-import dask.dataframe as dd
-
 
 class Parser(object):
     _lut = None
@@ -20,28 +18,14 @@ class Parser(object):
         self._basenum = 0
         self._chunkSize = chunkSize
 
-    def parse(self, path, fromTime=None, toTime=None, **metadata):
+    def parse(self, path, fromTime=None, toTime=None):
         if os.path.isfile(path):
             df = self.getPandasFromFile(path, fromTime=fromTime, toTime=toTime)
         else:
             df = self.getPandasFromDir(path, fromTime=fromTime, toTime=toTime)
 
-        metadata_dict = dict()
-        stations = df['station'].unique()
-        for station in stations:
-            station_metadata = metadata_dict.setdefault(station, dict())
-            station_df = df.query("station==@station")
-            instruments = station_df['instrument'].unique()
-            for instrument in instruments:
-                instrument_df = station_df.query("instrument==@instrument")
-                heights = list(instrument_df['height'].unique())
-                instrument_metadata = station_metadata.setdefault(instrument, dict())
-                for height in heights:
-                    metadata.update(dict(station=station, instrument=instrument, height=int(height)))
-                    instrument_metadata.setdefault(int(height), metadata.copy())
 
-        loaded_dask = dd.from_pandas(df, npartitions=1)
-        return loaded_dask, metadata_dict
+        return df
 
     def getPandasFromFile(self, path, fromTime, toTime):
         cbi = CampbellBinaryInterface(file=path)

@@ -16,7 +16,7 @@ initialize_logging(disable_existing_loggers=False)
 
 from .toolkit import ToolkitHome
 from .datalayer import Project
-from .utils.data.toolkit import dataToolkit
+
 from .utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
 
 toolkitHome = ToolkitHome()
@@ -25,6 +25,8 @@ toolkitHome = ToolkitHome()
     #117 :  * Completing the management of projects. 
             * Completing the management of databases.
             * Completing the management of repositories.  
+            * Adding the documentations.
+            * Refactoring the documentation structure. 
     
     #117 : Updating the format of the hera data. 
            Adding a toolkit to handle the data, and use the standard loading to make sure that 
