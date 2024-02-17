@@ -62,7 +62,7 @@ if __name__ == "__main__":
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     pimpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     pimpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     pimpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
+    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="pimpleFoam")
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")

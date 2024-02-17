@@ -38,6 +38,7 @@ class ToolkitHome:
     RISKASSESSMENT = "RiskAssessment"
     LSM            = "LSM"
 
+    DATA           = "heraData"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
@@ -51,8 +52,6 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
-
-            Logging        = dict(cls = "hera.utils.logging.toolkit.loggingToolkit"),
 
             GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",desc=None),
 
@@ -69,13 +68,13 @@ class ToolkitHome:
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",desc=None),
 
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
-            LSM            = dict(cls = "hera.simulations.LSM.old.toolkit.LSMToolkit",desc=None),
+            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
 
-            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.old.toolkit.OFLSMToolkit"),
+            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
 
-            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
+            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit"),
 
-            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
+            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit"),
 
             experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
@@ -151,30 +150,6 @@ class abstractToolkit(Project):
     _presentation = None # holds the presentation layer
 
     _FilesDirectory = None
-
-    @classmethod
-    def createProjectDirectory(cls,outputPath,projectName=None):
-        """
-            Creates a basic caseConfiguration file
-            with the requested project name.
-
-        Parameters
-        ----------
-        outputPath : str
-            The path to create the configuration file in.
-            Create if does not exist.
-
-        projectName : str
-            The nme of the project.
-
-        Returns
-        -------
-            None.
-        """
-        os.makedirs(os.path.abspath(outputPath),exist_ok=True)
-        basicOut = dict(projectName=projectName)
-        with open(os.path.join(os.path.abspath(outputPath),"caseConfiguration.json"),'w') as outFile:
-            json.dump(basicOut,outFile,indent=4)
 
     @property
     def FilesDirectory(self):
