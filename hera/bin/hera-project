@@ -1,8 +1,7 @@
 #! /usr/bin/env python
 import argparse
-import textwrap
-import json
-from hera import datalayer
+import logging
+from hera.utils.data import CLI
 
 # class ArgumentParser(argparse.ArgumentParser):
 #     def print_help(self):
@@ -293,44 +292,41 @@ from hera import datalayer
 #
 # globals()['%s_handler' % args.command[0]](args.args)
 
-def handler_list(args):
-
-
-def dump_handler(args):
-
-    outputFileName = args.fileName
-
-    fullQuery=dict(projectName = args.projectName[0])
-
-    for queryElement in args.query:
-        fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
-
-
-    docList = []
-    for doc in datalayer.All.getDocuments(**fullQuery):
-        docDict = doc.asDict()
-        if ('docid' not in docDict['desc']):
-            docDict['desc']['docid'] = str(doc.id)
-
-        docList.append(docDict)
-
-    outStr = json.dumps(docList,indent=4)
-
-    if outputFileName is not None:
-        with open(outputFileName,"w") as outputFile:
-            outputFile.write(outStr)
-
-    print(outStr)
-
-
-def load_handler(arguments):
-    with open(arguments.fileName[0], 'r') as myFile:
-        docsDict = json.load(myFile)
-
-    for doc in docsDict:
-        cls = doc['_cls'].split(".")[1]
-        del doc['_cls']
-        getattr(datalayer, cls).addDocument(**doc)
+# def dump_handler(args):
+#
+#     outputFileName = args.fileName
+#
+#     fullQuery=dict(projectName = args.projectName[0])
+#
+#     for queryElement in args.query:
+#         fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+#
+#
+#     docList = []
+#     for doc in datalayer.All.getDocuments(**fullQuery):
+#         docDict = doc.asDict()
+#         if ('docid' not in docDict['desc']):
+#             docDict['desc']['docid'] = str(doc.id)
+#
+#         docList.append(docDict)
+#
+#     outStr = json.dumps(docList,indent=4)
+#
+#     if outputFileName is not None:
+#         with open(outputFileName,"w") as outputFile:
+#             outputFile.write(outStr)
+#
+#     print(outStr)
+#
+#
+# def load_handler(arguments):
+#     with open(arguments.fileName[0], 'r') as myFile:
+#         docsDict = json.load(myFile)
+#
+#     for doc in docsDict:
+#         cls = doc['_cls'].split(".")[1]
+#         del doc['_cls']
+#         getattr(datalayer, cls).addDocument(**doc)
 
 
 if __name__=="__main__":
@@ -339,48 +335,82 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    # ------------------- project management
-    parser_project = subparsers.add_parser('project', help='lists objects')
-    project_subparsers = parser_project.add_subparsers(help='sub-command help')
+    # ------------------- database management
+    db_project = subparsers.add_parser('db', help='Database management')
+    db_subparsers = db_project.add_subparsers(help='Database management')
 
-    # list
-    parser_list = project_subparsers.add_parser('list', help='lists objects')
-    parser_list.set_defaults(func=handler_list)
+    # List
+    db_list = db_subparsers.add_parser('list', help='list project')
+    db_list.add_argument('--onlyName', dest="fulldetails", default=True, action="store_false",
+                             help='Print only the database connection names')
+    db_list.set_defaults(func=CLI.db_list)
+
+    # Create
+    db_new = db_subparsers.add_parser('create', help='create a project')
+    db_new.add_argument('connectionName', type=str,  help='The database name to create')
+    db_new.add_argument('--username', type=str,  required=True,help='The username')
+    db_new.add_argument('--password', type=str,  required=True,help='The database name to create')
+    db_new.add_argument('--IP', type=str,  required=True,help='The database name to create')
+    db_new.add_argument('--databaseName', type=str, required=True, help='The database name to create')
+    db_new.set_defaults(func=CLI.db_create)
+
+    # Remove
+    db_remove = db_subparsers.add_parser('remove', help='create a project')
+    db_remove.add_argument('connectionName', type=str, default=None, help='The database name to create')
+    db_remove.set_defaults(func=CLI.db_remove)
+
+    # ------------------- project management
+    parser_project = subparsers.add_parser('project', help='projects management')
+    project_subparsers = parser_project.add_subparsers(help='projects management')
+
+    # List
+    parser_list = project_subparsers.add_parser('list', help='list project')
+    parser_list.add_argument('--connectionName', dest="connectionName", type=str, default=None,
+                            help='connection to use. The default is the user name')
+    parser_list.add_argument('--onlyName', dest="fulldetails", default=True, action="store_false",help='Print only the project name')
+    parser_list.set_defaults(func=CLI.project_list)
+
+    # Create
+    parser_new = project_subparsers.add_parser('create', help='create a project')
+    parser_new.add_argument('projectName', type=str, default=None, help='The project name to create')
+    parser_new.add_argument('--directory', dest="directory",type=str, default=None, help='directory to create the project in')
+    parser_new.set_defaults(func=CLI.project_create)
 
     ### Dump/save
     parser_dump = project_subparsers.add_parser('dump', help='Saves the project record to the disk')
-    parser_dump.add_argument('projectName',nargs=1,type=str,help='The project name')
-    parser_dump.add_argument('--fileName',type=str, help='save to',default=None,required=False)
+    parser_dump.add_argument('projectName', type=str, default=None, help='The project name to create')
     parser_dump.add_argument('query',metavar='query',nargs='*', type=str, help='the query parameters')
-    parser_dump.set_defaults(func=dump_handler)
+    parser_dump.add_argument('--fileName',type=str, help='save to',default=None,required=False)
+    parser_dump.add_argument('--format', dest="outputFormat", default="table",choices=['table','json'], help='Print only the project name')
+    parser_dump.set_defaults(func=CLI.project_dump)
 
     ### Load
     parser_load = project_subparsers.add_parser('load', help='load records from a file')
-    parser_load.add_argument('fileName',nargs=1,type=str, help='dataFile')
+    parser_load.add_argument('projectName', type=str, default=None, help='The project name to create')
     parser_load.add_argument('projectName', type=str, help='The workflow file to load')
-    parser_load.set_defaults(func=load_handler)
+    parser_load.set_defaults(func=CLI.project_load)
 
     # ----------------- Repository
     repository_parser = subparsers.add_parser('repository', help='handling repositories')
     repository_subparsers = repository_parser.add_subparsers(help='sub-command help')
 
     # list
-    parser_list = repository_subparsers.add_parser('list', help='lists objects')
-    parser_list.set_defaults(func=handler_list)
-
-
+    repository_list = repository_subparsers.add_parser('list', help='lists objects')
+    repository_list.set_defaults(func=CLI.repository_list)
 
     ### add
-    parser_load = project_subparsers.add_parser('add', help='load records from a file')
-    parser_load.add_argument('fileName',nargs=1,type=str, help='dataFile')
-    parser_load.add_argument('projectName', type=str, help='The workflow file to load')
-    parser_load.set_defaults(func=load_handler)
-
+    repository_load = repository_subparsers.add_parser('add', help='Add the data repository to the database')
+    repository_load.add_argument('projectName', type=str, help='The workflow file to load')
+    repository_load.add_argument('fileName',nargs=1,type=str, help='dataFile')
+    repository_load.set_defaults(func=CLI.repository_add)
 
     ##################### exec
-    args = parser.parse_args()
-    print(args)
-    args.func(args)
+    parsed = parser.parse_args()
+    logger.debug(f"Got {parsed} in the command line")
+    if 'func' not in parsed:
+        parser.print_help()
+    else:
+        parsed.func(parsed)
 
 
 

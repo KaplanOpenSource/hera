@@ -16,9 +16,9 @@ class AbstractCollection(object):
     def type(self):
         return self._type
 
-    def __init__(self, ctype=None, user=None):
+    def __init__(self, ctype=None, connectionName=None):
         self._type = ctype
-        self._metadataCol = getDBObject('Metadata', user) if self.type is None else getDBObject(ctype, user)
+        self._metadataCol = getDBObject('Metadata', connectionName) if self.type is None else getDBObject(ctype, connectionName)
 
     def getDocumentsAsDict(self, projectName, with_id=False, **query):
         """
@@ -194,11 +194,11 @@ class Measurements_Collection(AbstractCollection):
         Abstract collection that contains documents of measurements.old
     """
 
-    def __init__(self, user=None):
+    def __init__(self, connectionName=None):
         if version == 2:
-            super(Measurements_Collection, self).__init__(ctype='Measurements', user=user)
+            super(Measurements_Collection, self).__init__(ctype='Measurements', connectionName=connectionName)
         elif version == 3:
-            super().__init__(ctype='Measurements', user=user)
+            super().__init__(ctype='Measurements', connectionName=connectionName)
     #
     # def meta(self):
     #     return self._metadataCol
@@ -209,19 +209,19 @@ class Simulations_Collection(AbstractCollection):
         Abstract collection that contains documents of Simulations
     """
 
-    def __init__(self, user=None):
+    def __init__(self, connectionName=None):
         if version == 2:
-            super(Simulations_Collection, self).__init__(ctype='Simulations', user=user)
+            super(Simulations_Collection, self).__init__(ctype='Simulations', connectionName=connectionName)
         elif version == 3:
-            super().__init__(ctype='Simulations', user=user)
+            super().__init__(ctype='Simulations', connectionName=connectionName)
 
 class Cache_Collection(AbstractCollection):
     """
         Abstract collection that contains documents of Cache
     """
 
-    def __init__(self, user=None):
+    def __init__(self, connectionName=None):
         if version == 2:
-            super(Cache_Collection, self).__init__(ctype='Cache', user=user)
+            super(Cache_Collection, self).__init__(ctype='Cache', connectionName=connectionName)
         elif version == 3:
-            super().__init__(ctype='Cache', user=user)
+            super().__init__(ctype='Cache', connectionName=connectionName)

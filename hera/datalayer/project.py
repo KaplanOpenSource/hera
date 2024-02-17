@@ -1,3 +1,4 @@
+import json
 import os
 import pandas
 from .datahandler import datatypes
@@ -9,20 +10,41 @@ from .collection import AbstractCollection,\
     Measurements_Collection,\
     Simulations_Collection
 
-
-def getProjectList(user=None):
+def getProjectList(connectionName=None):
     """
         Return the list with the names of the existing projects .
 
-    :param user: str
+    :param connectionName: str
         The name of the database.
 
     Returns
     -------
         list.
     """
-    return list(set(AbstractCollection(user=user).getProjectList()))
+    return list(set(AbstractCollection(connectionName=connectionName).getProjectList()))
 
+def createProjectDirectory(outputPath,projectName=None):
+    """
+        Creates a basic caseConfiguration file
+        with the requested project name.
+
+    Parameters
+    ----------
+    outputPath : str
+        The path to create the configuration file in.
+        Create if does not exist.
+
+    projectName : str
+        The nme of the project.
+
+    Returns
+    -------
+        None.
+    """
+    os.makedirs(os.path.abspath(outputPath),exist_ok=True)
+    basicOut = dict(projectName=projectName)
+    with open(os.path.join(os.path.abspath(outputPath),"caseConfiguration.json"),'w') as outFile:
+        json.dump(basicOut,outFile,indent=4)
 
 
 class Project:
@@ -169,7 +191,7 @@ class Project:
         doc.desc.update(kwargs)
         doc.save()
 
-    def __init__(self, projectName=None, databaseName=None,configurationPath=None):
+    def __init__(self, projectName=None, connectionName=None, configurationPath=None):
         """
             Initialize the project class.
 
@@ -221,10 +243,10 @@ class Project:
         logger.info(f"Initializing with logger {projectName}")
         self._projectName = projectName
 
-        self._measurements  = Measurements_Collection(user=databaseName)
-        self._cache      = Cache_Collection(user=databaseName)
-        self._simulations   = Simulations_Collection(user=databaseName)
-        self._all           =   AbstractCollection(user=databaseName)
+        self._measurements  = Measurements_Collection(connectionName=connectionName)
+        self._cache      = Cache_Collection(connectionName=connectionName)
+        self._simulations   = Simulations_Collection(connectionName=connectionName)
+        self._all           =   AbstractCollection(connectionName=connectionName)
 
 
 
@@ -286,6 +308,39 @@ class Project:
             List of documents.
         """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
+
+    def addDocumentFromDict(self,documentDict):
+        """
+            Load the document to the project.
+            The structure of the dict is:
+            {
+                _cls : "Metadata.<Cache|Measurements|Simulations>
+                desc : {...},
+                type : "...",
+                resource : ""
+                dataFormat : ""
+            }
+
+        Parameters
+        ----------
+        documentDict :  dict
+            The dictionary with the data of the document
+
+        Returns
+        -------
+
+        """
+        addingDict = dict(documentDict)
+        if 'projectName' in addingDict:
+            del addingDict['projectName']
+        docType = addingDict['_cls'].split(".")[1]
+        del addingDict['_cls']
+
+        addingFunc = getattr(self,f"add{docType}Document")
+        if addingFunc is None:
+            raise ValueError(f"The document type {docType} is not found")
+
+        addingFunc(**addingDict)
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
@@ -519,4 +574,4 @@ class Project:
         -------
             list.
         """
-        return list(set(AbstractCollection(user=user).getProjectList()))
+        return list(set(AbstractCollection(connectionName=user).getProjectList()))

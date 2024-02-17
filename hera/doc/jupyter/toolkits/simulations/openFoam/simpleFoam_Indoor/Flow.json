@@ -1,0 +1,869 @@
+{
+    "workflow": {
+        "root": null,
+        "solver": "simpleFoam",
+        "SolvedFields": "p U k epsilon nut",
+        "AuxFields": "",
+        "Templates": [],
+        "nodeList": [
+            "Parameters",
+            "createEmptyCase",
+            "CopyObjectToCase",
+            "CopyBuildingObject",
+            "blockMesh",
+            "snappyHexMesh",
+            "surfaceFeatures",
+            "decomposePar",
+            "controlDict",
+            "fvSchemes",
+            "fvSolution",
+            "physicalProperties",
+            "momentumTransport",
+            "defineNewBoundaryConditions",
+            "buildAllRun",
+            "fileWriter"
+        ],
+        "nodes": {
+            "Parameters": {
+                "Execution": {
+                    "input_parameters": {
+                        "OFversion": "of10",
+                        "targetDirectory": "{#moduleName}",
+                        "objectFile": "EWTModel.obj",
+                        "decomposeProcessors": 16
+                    }
+                },
+                "type": "general.Parameters"
+            },
+            "createEmptyCase": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openfoam {workflow.solver} createEmptyCaseDirectory {Parameters.output.targetDirectory} --fields {workflow.SolvedFields}"
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "CopyObjectToCase": {
+                "Execution": {
+                    "input_parameters": {
+                        "Source": "{Parameters.output.objectFile}",
+                        "Target": "{Parameters.output.targetDirectory}/{Parameters.output.objectFile}"
+                    },
+                    "requires": "createEmptyCase"
+                },
+                "type": "general.CopyFile"
+            },
+            "CopyBuildingObject": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "surfaceMeshConvert {Parameters.output.objectFile} {Parameters.output.targetDirectory}/constant/triSurface/building.obj -scaleIn 0.001 -case {Parameters.output.targetDirectory}"
+                    },
+                    "requires": "CopyObjectToCase"
+                },
+                "type": "general.RunOsCommand"
+            },
+            "blockMesh": {
+                "Execution": {
+                    "input_parameters": {
+                        "geometry": {},
+                        "boundary": [
+                            {
+                                "name": "Walls",
+                                "type": "wall",
+                                "faces": []
+                            }
+                        ],
+                        "vertices": [
+                            [
+                                -0.5025,
+                                -0.5025,
+                                -0.001
+                            ],
+                            [
+                                0.5025,
+                                -0.5025,
+                                -0.001
+                            ],
+                            [
+                                0.5025,
+                                0.5025,
+                                -0.001
+                            ],
+                            [
+                                -0.5025,
+                                0.5025,
+                                -0.001
+                            ],
+                            [
+                                -0.5025,
+                                -0.5025,
+                                0.15
+                            ],
+                            [
+                                0.5025,
+                                -0.5025,
+                                0.15
+                            ],
+                            [
+                                0.5025,
+                                0.5025,
+                                0.15
+                            ],
+                            [
+                                -0.5025,
+                                0.5025,
+                                0.15
+                            ]
+                        ],
+                        "defaultPatch": "patch",
+                        "convertToMeters": "1",
+                        "blocks": [
+                            {
+                                "hex": [
+                                    0,
+                                    1,
+                                    2,
+                                    3,
+                                    4,
+                                    5,
+                                    6,
+                                    7
+                                ],
+                                "cellCount": [
+                                    330,
+                                    150,
+                                    6
+                                ],
+                                "grading": [
+                                    1,
+                                    1,
+                                    1
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "type": "openFOAM.mesh.BlockMesh"
+            },
+            "snappyHexMesh": {
+                "Execution": {
+                    "input_parameters": {
+                        "modules": {
+                            "castellatedMesh": true,
+                            "snap": true,
+                            "layers": true,
+                            "mergeTolerance": 1e-06
+                        },
+                        "Geometry": {
+                            "objects": {},
+                            "refinementSurfaces": {},
+                            "regions": {},
+                            "layers": {
+                                "nSurfaceLayers": 10
+                            }
+                        },
+                        "castellatedMeshControls": {
+                            "maxLocalCells": 100000,
+                            "maxGlobalCells": 100000000,
+                            "minRefinementCells": 40,
+                            "maxLoadUnbalance": 0.1,
+                            "nCellsBetweenLevels": 8,
+                            "resolveFeatureAngle": 30,
+                            "allowFreeStandingZoneFaces": true,
+                            "locationInMesh": [
+                                0.2,
+                                0.2,
+                                0.1
+                            ]
+                        },
+                        "snapControls": {
+                            "nSmoothPatch": 5,
+                            "tolerance": 6.0,
+                            "nSolveIter": 200,
+                            "nRelaxIter": 5,
+                            "nFeatureSnapIter": 10,
+                            "explicitFeatureSnap": false,
+                            "multiRegionFeatureSnap": false,
+                            "implicitFeatureSnap": true
+                        },
+                        "addLayersControls": {
+                            "relativeSizes": true,
+                            "expansionRatio": 1.05,
+                            "finalLayerThickness": 0.9,
+                            "minThickness": 0.01,
+                            "featureAngle": 100,
+                            "slipFeatureAngle": 30,
+                            "nLayerIter": 50,
+                            "nRelaxedIter": 20,
+                            "nRelaxIter": 5,
+                            "nGrow": 0,
+                            "nSmoothSurfaceNormals": 1,
+                            "nSmoothNormals": 3,
+                            "nSmoothThickness": 10,
+                            "maxFaceThicknessRatio": 0.5,
+                            "maxThicknessToMedialRatio": 0.3,
+                            "minMedianAxisAngle": 90,
+                            "nMedialAxisIter": 10,
+                            "nBufferCellsNoExtrude": 0,
+                            "additionalReporting": false
+                        },
+                        "meshQualityControls": {
+                            "maxNonOrtho": 65,
+                            "maxBoundarySkewness": 20,
+                            "maxInternalSkewness": 4,
+                            "maxConcave": 80,
+                            "minVol": 1e-13,
+                            "minTetQuality": -1e+30,
+                            "minArea": -1,
+                            "minTwist": 0.02,
+                            "minDeterminant": 0.001,
+                            "minFaceWeight": 0.05,
+                            "minVolRatio": 0.01,
+                            "minTriangleTwist": -1,
+                            "nSmoothScale": 4,
+                            "errorReduction": 0.75,
+                            "relaxed": {
+                                "maxNonOrtho": 75
+                            }
+                        },
+                        "geometry": {
+                            "objects": {
+                                "building": {
+                                    "objectName": "building",
+                                    "objectType": "obj",
+                                    "levels": "1",
+                                    "refinementRegions": {
+                                        "mode": "distance",
+                                        "levels": [
+                                            [
+                                                1,
+                                                2
+                                            ]
+                                        ]
+                                    },
+                                    "refinementSurfaceLevels": [
+                                        1,
+                                        2
+                                    ],
+                                    "patchType": "wall",
+                                    "regions": {
+                                        "inlet": {
+                                            "type": "wall",
+                                            "refinementSurfaceLevels": [
+                                                1,
+                                                2
+                                            ]
+                                        },
+                                        "outlet": {
+                                            "type": "wall",
+                                            "refinementSurfaceLevels": [
+                                                1,
+                                                2
+                                            ]
+                                        },
+                                        "Walls": {
+                                            "type": "wall",
+                                            "refinementSurfaceLevels": [
+                                                1,
+                                                2
+                                            ]
+                                        }
+                                    },
+                                    "layers": {
+                                        "nSurfaceLayers": 10
+                                    }
+                                }
+                            },
+                            "gemeotricalEntities": {}
+                        }
+                    }
+                },
+                "type": "openFOAM.mesh.SnappyHexMesh"
+            },
+            "surfaceFeatures": {
+                "Execution": {
+                    "input_parameters": {
+                        "OFversion": "{Parameters.output.OFversion}",
+                        "geometryData": "{snappyHexMesh.input_parameters.geometry.objects}",
+                        "includeAngle": 150,
+                        "nonManifoldEdges": true,
+                        "openEdges": true
+                    },
+                    "type": "openFOAM.systemExecuters.surfaceFeaturesDict"
+                },
+                "type": "openFOAM.system.SurfaceFeatures"
+            },
+            "g": {
+                "Execution": {
+                    "input_parameters": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -9.8
+                    }
+                },
+                "type": "openFOAM.constant.g"
+            },
+            "decomposePar": {
+                "Execution": {
+                    "input_parameters": {
+                        "numberOfSubdomains": "{Parameters.output.decomposeProcessors}"
+                    }
+                },
+                "type": "openFOAM.system.DecomposePar"
+            },
+            "controlDict": {
+                "Execution": {
+                    "input_parameters": {
+                        "values": {
+                            "application": "{workflow.solver}",
+                            "startFrom": "startTime",
+                            "startTime": 0,
+                            "stopAt": "endTime",
+                            "endTime": 600,
+                            "deltaT": 0.01,
+                            "writeControl": "adjustableRunTime",
+                            "writeInterval": 1,
+                            "runTimeModifiable": true,
+                            "interpolate": true,
+                            "adjustTimeStep": true,
+                            "purgeWrite": 0,
+                            "writeFormat": "ascii",
+                            "writePrecision": 7,
+                            "writeCompression": false,
+                            "timeFormat": "general",
+                            "timePrecision": 6,
+                            "maxCo": 0.5,
+                            "functions": [],
+                            "libs": []
+                        }
+                    }
+                },
+                "type": "openFOAM.system.ControlDict"
+            },
+            "fvSchemes": {
+                "Execution": {
+                    "input_parameters": {
+                        "default": {
+                            "ddtScheme": "Euler",
+                            "gradSchemes": {
+                                "type": "Gauss",
+                                "name": "linear"
+                            },
+                            "divSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": ""
+                            },
+                            "interpolationSchemes": "linear",
+                            "snGradSchemes": "uncorrected",
+                            "wallDist": "meshWave",
+                            "laplacianSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": "uncorrected"
+                            }
+                        },
+                        "fields": {
+                            "p": {
+                                "fluxRequired ": true,
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "(1|A(U))",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "U": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMISTV",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "nuEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    },
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "AnisotropicDiffusion",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ],
+                                "fluxRequired": false
+                            },
+                            "k": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMIST",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "DkEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "corrected"
+                                    }
+                                ]
+                            },
+                            "epsilon": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMIST",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "DepsilonEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "corrected"
+                                    }
+                                ]
+                            },
+                            "p_rgh": {
+                                "fluxRequired": true
+                            },
+                            "div((nuEff*dev2(T(grad(U)))))": {
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 1,
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": ""
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.FvSchemes"
+            },
+            "fvSolution": {
+                "Execution": {
+                    "input_parameters": {
+                        "fields": {
+                            "p": {
+                                "solver": "GAMG",
+                                "preconditioner": "DIC",
+                                "tolerance": 0,
+                                "relTol": 0.1,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "GAMG",
+                                    "preconditioner": "DIC",
+                                    "tolerance": 1e-06,
+                                    "relTol": 0,
+                                    "maxIter": 5000,
+                                    "smoother": "DICGaussSeidel"
+                                },
+                                "smoother": "GaussSeidel"
+                            },
+                            "U": {
+                                "solver": "PBiCG",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-10,
+                                "relTol": 1e-05,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PBiCG",
+                                    "preconditioner": "DILU",
+                                    "tolerance": 1e-10,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                }
+                            },
+                            "epsilon": {
+                                "solver": "PBiCG",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.001,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PBiCG",
+                                    "preconditioner": "DILU",
+                                    "tolerance": 1e-08,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                }
+                            },
+                            "k": {
+                                "solver": "PBiCG",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.001,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PBiCG",
+                                    "preconditioner": "DILU",
+                                    "tolerance": 1e-08,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                }
+                            },
+                            "p_rgh": {
+                                "solver": "GAMG",
+                                "tolerance": 0,
+                                "relTol": 0.1,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "GAMG",
+                                    "smoother": "DICGaussSeidel",
+                                    "tolerance": 1e-06,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                },
+                                "smoother": "GaussSeidel"
+                            },
+                            "T": {
+                                "solver": "PBiCG",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.001,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PBiCG",
+                                    "preconditioner": "DILU",
+                                    "tolerance": 1e-08,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                }
+                            },
+                            "Tbackground": {
+                                "solver": "PBiCG",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.001,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PBiCG",
+                                    "preconditioner": "DILU",
+                                    "tolerance": 1e-08,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                }
+                            }
+                        },
+                        "solverProperties": {
+                            "algorithm": "SIMPLE",
+                            "residualControl": {
+                                "p": 0.0001,
+                                "U": 0.0001,
+                                "k": 0.0001,
+                                "epsilon": 0.0001
+                            },
+                            "solverFields": {
+                                "nNonOrthogonalCorrectors": 2,
+                                "pRefCell": 0,
+                                "pRefValue": 0,
+                                "momentumPredictor": "yes",
+                                "nOuterCorrectors": 1,
+                                "nCorrectors": 1,
+                                "nonlinearSolver": "yes"
+                            },
+                            "relaxationFactors": {}
+                        },
+                        "relaxationFactors": {
+                            "fields": {
+                                "p": 0.15,
+                                "U": 0.15,
+                                "k": 0.15,
+                                "epsilon": 0.15
+                            },
+                            "equations": {
+                                "p": {
+                                    "factor": 0.4,
+                                    "final": 0.4
+                                },
+                                "U": {
+                                    "factor": 0.7,
+                                    "final": 0.7
+                                },
+                                "k": {
+                                    "factor": 0.7,
+                                    "final": 0.7
+                                },
+                                "epsilon": {
+                                    "factor": 0.7,
+                                    "final": 0.7
+                                }
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.FvSolution"
+            },
+            "physicalProperties": {
+                "Execution": {
+                    "input_parameters": {
+                        "transportModel": "Newtonian",
+                        "nu": 1e-02,
+                        "parameters": {
+                            "nu": {
+                                "dimensions": "[0 2 -1 0 0 0 0]",
+                                "value": 1e-05
+                            },
+                            "beta": {
+                                "dimensions": "[0 0 0 -1 0 0 0]",
+                                "value": 0.0033333333333333335,
+                                "printName": true
+                            },
+                            "Tref": {
+                                "dimensions": "[0 0 0 1 0 0 0]",
+                                "value": 300,
+                                "printName": true
+                            },
+                            "Pr": {
+                                "dimensions": "[0 0 0 0 0 0 0]",
+                                "value": 0.7,
+                                "printName": true
+                            },
+                            "Prt": {
+                                "dimensions": "[0 0 0 0 0 0 0]",
+                                "value": 1,
+                                "printName": true
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.constant.physicalProperties"
+            },
+            "momentumTransport": {
+                "Execution": {
+                    "input_parameters": {
+                        "simulationType": "RAS",
+                        "Model": "LienLeschziner",
+                        "turbulence": false
+                    }
+                },
+                "type": "openFOAM.constant.momentumTransport"
+            },
+            "defineNewBoundaryConditions": {
+                "Execution": {
+                    "input_parameters": {
+                        "fields": {
+                            "U": {
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform (0.4 0 0)"
+                                    },
+                                    "outlet": {
+                                        "type": "zeroGradient"
+                                    },
+                                    "Walls": {
+                                        "type": "noSlip"
+                                    }
+                                }
+                            },
+                            "epsilon": {
+                                "internalField": "uniform 6.4e-6",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform  6.3e-5"
+                                    },
+                                    "outlet": {
+                                        "type": "zeroGradient"
+                                    },
+                                    "Walls": {
+                                        "type": "zeroGradient"
+                                    }
+                                }
+                            },
+                            "k": {
+                                "internalField": "uniform 6e-4",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform  6e-4"
+                                    },
+                                    "outlet": {
+                                        "type": "zeroGradient",
+                                        "value": "uniform  6e-4"
+                                    },
+                                    "Walls": {
+                                        "type": "kLowReWallFunction",
+                                        "refValue": "uniform  6e-4",
+                                        "value": "uniform  6e-4"
+                                    }
+                                }
+                            },
+                            "nut": {
+                                "internalField": "uniform 1e-3",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "nutLowReWallFunction",
+                                        "refValue": "uniform  0",
+                                        "value": "uniform  0"
+                                    },
+                                    "outlet": {
+                                        "type": "nutLowReWallFunction",
+                                        "refValue": "uniform  0",
+                                        "value": "uniform  0"
+                                    },
+                                    "Walls": {
+                                        "type": "nutLowReWallFunction",
+                                        "refValue": "uniform  0",
+                                        "value": "uniform  0"
+                                    }
+                                }
+                            },
+                            "p": {
+                                "internalField": "uniform 0",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "zeroGradient"
+                                    },
+                                    "outlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform 0"
+                                    },
+                                    "Walls": {
+                                        "type": "fixedFluxPressure",
+                                        "rho": "rhok",
+                                        "value": "uniform 0"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.ChangeDictionary"
+            },
+            "buildAllRun": {
+                "Execution": {
+                    "input_parameters": {
+                        "casePath": "{Parameters.output.targetDirectory}",
+                        "caseExecution": {
+                            "parallelCase": true,
+                            "slurm": false,
+                            "getNumberOfSubdomains": 10,
+                            "runFile": []
+                        },
+                        "parallelCase": true,
+                        "runFile": [
+                            {
+                                "name": "blockMesh",
+                                "couldRunInParallel": false,
+                                "parameters": null
+                            },
+                            {
+                                "name": "surfaceFeatures",
+                                "parameters": "-dict system/building",
+                                "couldRunInParallel": false
+                            },
+                            {
+                                "name": "decomposePar",
+                                "parameters": "-force",
+                                "couldRunInParallel": false
+                            },
+                            {
+                                "name": "snappyHexMesh",
+                                "parameters": "-overwrite",
+                                "couldRunInParallel": true
+                            },
+                            {
+                                "name": "ls -d processor* | xargs -i cp -r 0.parallel/* ./{}/0/ $1",
+                                "parameters": null,
+                                "couldRunInParallel": false,
+                                "foamJob": false
+                            },
+                            {
+                                "name": "changeDictionary",
+                                "parameters": null,
+                                "couldRunInParallel": true
+                            }
+                        ]
+                    },
+                    "requires": "createEmptyCase"
+                },
+                "type": "openFOAM.BuildAllrun"
+            },
+            "fileWriter": {
+                "Execution": {
+                    "input_parameters": {
+                        "directoryPath": ".",
+                        "Files": {
+                            "blockMesh": {
+                                "fileName": "system/blockMeshDict",
+                                "fileContent": "{blockMesh.output.openFOAMfile}"
+                            },
+                            "decomposePar": {
+                                "fileName": "system/decomposeParDict",
+                                "fileContent": "{decomposePar.output.openFOAMfile}"
+                            },
+                            "snappyHexMeshDict": {
+                                "fileName": "system/snappyHexMeshDict",
+                                "fileContent": "{snappyHexMesh.output.openFOAMfile}"
+                            },
+                            "g": {
+                                "fileName": "constant/g",
+                                "fileContent": "{g.output.openFOAMfile}"
+                            },
+                            "controlDict": {
+                                "fileName": "system/controlDict",
+                                "fileContent": "{controlDict.output.openFOAMfile}"
+                            },
+                            "fvSchemes": {
+                                "fileName": "system/fvSchemes",
+                                "fileContent": "{fvSchemes.output.openFOAMfile}"
+                            },
+                            "fvSolution": {
+                                "fileName": "system/fvSolution",
+                                "fileContent": "{fvSolution.output.openFOAMfile}"
+                            },
+                            "physphysicalProperties": {
+                                "fileName": "constant/physicalProperties",
+                                "fileContent": "{physicalProperties.output.openFOAMfile}"
+                            },
+                            "momentumTransport": {
+                                "fileName": "constant/momentumTransport",
+                                "fileContent": "{momentumTransport.output.openFOAMfile}"
+                            },
+                            "changeDictionary": {
+                                "fileName": "system/changeDictionaryDict",
+                                "fileContent": "{defineNewBoundaryConditions.output.openFOAMfile}"
+                            },
+                            "surfaceFeatures": {
+                                "fileName": "system",
+                                "fileContent": "{surfaceFeatures.output.openFOAMfile}"
+                            }
+                        },
+                        "casePath": "{Parameters.output.targetDirectory}"
+                    },
+                    "requires": "createEmptyCase"
+                },
+                "type": "general.FilesWriter"
+            }
+        }
+    }
+}

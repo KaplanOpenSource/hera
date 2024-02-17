@@ -153,30 +153,6 @@ class abstractToolkit(Project):
 
     _FilesDirectory = None
 
-    @classmethod
-    def createProjectDirectory(cls,outputPath,projectName=None):
-        """
-            Creates a basic caseConfiguration file
-            with the requested project name.
-
-        Parameters
-        ----------
-        outputPath : str
-            The path to create the configuration file in.
-            Create if does not exist.
-
-        projectName : str
-            The nme of the project.
-
-        Returns
-        -------
-            None.
-        """
-        os.makedirs(os.path.abspath(outputPath),exist_ok=True)
-        basicOut = dict(projectName=projectName)
-        with open(os.path.join(os.path.abspath(outputPath),"caseConfiguration.json"),'w') as outFile:
-            json.dump(basicOut,outFile,indent=4)
-
     @property
     def FilesDirectory(self):
         """
