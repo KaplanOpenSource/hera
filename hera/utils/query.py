@@ -2,6 +2,17 @@ import pandas
 import json
 
 def andClause(excludeFields=[], **kwargs):
+    """
+        Builds a pandas query str
+    Parameters
+    ----------
+    excludeFields
+    kwargs
+
+    Returns
+    -------
+
+    """
 
     L = []
     for key, value in kwargs.items():
