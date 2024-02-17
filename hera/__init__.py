@@ -1,4 +1,4 @@
-__version__ = '2.13.2'
+__version__ = '2.14.0'
 
 import sys
 python_version = sys.version_info
@@ -22,6 +22,8 @@ from .utils.logging import with_logger,initialize_logging, get_logger,getClassLo
 toolkitHome = ToolkitHome()
 
 """
+2.14.0
+------
     #117 :  * Completing the management of projects. 
             * Completing the management of databases.
             * Completing the management of repositories.  
