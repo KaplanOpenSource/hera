@@ -22,6 +22,11 @@ from .utils.logging import with_logger,initialize_logging, get_logger,getClassLo
 toolkitHome = ToolkitHome()
 
 """
+    #119:   - Adding add_formatter,add_FileHandler that could be used 
+              to define local log file handlers and formatters. 
+              
+            - Adding logging helpers. 
+
 2.14.1
 ------
     #109 : * Updating the stl creation in the topography and buildings toolkit. 
