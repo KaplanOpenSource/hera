@@ -1,11 +1,6 @@
-
-import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
-import os
 import geopandas
 import numpy
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-from hera.datalayer import datatypes, nonDBMetadataFrame
 from hera.utils.logging import get_classMethod_logger
 import math
 from .... import toolkit
@@ -117,27 +112,6 @@ class TilesToolkit(toolkit.abstractToolkit):
 
         extent = [gdf.iloc[0].geometry.x,gdf.iloc[1].geometry.x,gdf.iloc[1].geometry.y,gdf.iloc[0].geometry.y]
         return img,extent
-
-
-    def getImageAndStore(self,regionName, center,zoomlevel):
-        """
-            Gets an image and stores it in the project.
-
-        Parameters
-        ----------
-        regionName : The name of the image.
-        center : a tuple with te center is WSG84 coordinates.
-        zoomlevel : The zoom level to get
-
-
-        Returns
-        -------
-
-        """
-        qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
-               abstractLocation.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
-        qry.update(filters)
-        docList = self.getCacheDocuments(type=self.doctype, **qry)
 
 
 
@@ -275,3 +249,26 @@ class presentation:
         ax = plt.imshow(image, extent=extents)
         return ax
 
+
+
+    #
+    # def getImageAndStore(self,regionName, center,zoomlevel):
+    #     """
+    #         Gets an image and stores it in the project.
+    #
+    #     Parameters
+    #     ----------
+    #     regionName : The name of the image.
+    #     center : a tuple with te center is WSG84 coordinates.
+    #     zoomlevel : The zoom level to get
+    #
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
+    #            abstractLocation.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
+    #     qry.update(filters)
+    #     docList = self.getCacheDocuments(type=self.doctype, **qry)
+    #
