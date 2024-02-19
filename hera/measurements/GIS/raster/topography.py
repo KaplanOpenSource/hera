@@ -9,6 +9,11 @@ from .... import toolkit
 #from shapely.geometry import Polygon, box
 #from hera.datalayer.datahandler import datatypes
 
+from hera import toolkitHome
+import numpy as np
+import math
+from osgeo import gdal
+
 class TopographyToolkit(toolkit.abstractToolkit):
 
 
@@ -35,6 +40,142 @@ class TopographyToolkit(toolkit.abstractToolkit):
         super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory)
 
 
+    def getPointElevation(lat, long, projectName = "default"):
+        """
+            get the elevation above sea level in meters from DEM for a point
+            SRTM30 means 30 meters resolution
+
+        Parameters
+        ----------
+        lat
+        long
+        source - can be SRTM30, SRTM90
+
+        Returns
+        -------
+        eleveation above sea level
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.getPointElevation(33.459,35.755)
+
+        What to fix
+        -----------
+        We need to make sure that we have "default" projectName
+        We need to give warning if outside Israel
+        We need to be sure that we use SRTM30 and not SRTM90
+
+        """
+        # lat = 33.459 # elevation should be ~820 according to amud anan
+        # long = 35.755 # elevation should be ~820 according to amud anan
+        filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
+
+        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName=projectName)
+        doc = tk.getDatasourceDocumentsList()[0]
+        fheight = doc.resource + '/' + filename
+
+        ds = gdal.Open(fheight)
+        myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+        myarray[myarray < -1000] = 0  # deal with problematic points
+        gt = ds.GetGeoTransform()
+        rastery = (long - gt[0]) / gt[1]
+        rasterx = (lat - gt[3]) / gt[5]
+        height11 = myarray[int(rasterx), int(rastery)]
+        height12 = myarray[int(rasterx) + 1, int(rastery)]
+        height21 = myarray[int(rasterx), int(rastery) + 1]
+        height22 = myarray[int(rasterx) + 1, int(rastery) + 1]
+        height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
+        height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
+        elevation = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
+
+        return elevation
+
+
+
+    def getDomainElevation(point1, point2, projectName = "default"):
+        """
+            get the elevation above sea level in meters from DEM for a domain
+            SRTM30 means 30 meters resolution
+
+        Parameters
+        ----------
+        point1 (lat, long)
+        point2 (lat, long)
+        source - can be SRTM30, SRTM90
+
+        Returns
+        -------
+        eleveation above sea level
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.getPointElevation(33.459,35.755)
+
+        What to fix
+        -----------
+        We need to make sure that we have "default" projectName
+        We need to give warning if outside Israel
+        We need to be sure that we use SRTM30 and not SRTM90
+
+        """
+        # lat = 33.459 # elevation should be ~820 according to amud anan
+        # long = 35.755 # elevation should be ~820 according to amud anan
+
+        minlat = min(point1[0], point2[0])
+        maxlat = max(point1[0], point2[0])
+        minlong = min(point1[1], point2[1])
+        maxlong = max(point1[1], point2[1])
+        if (int(maxlong)-int(minlong)>0) or (int(maxlat)-int(minlat)>0):
+            assert ("This domain is too big for us, we have to change the code to deal with it")
+        heightmap=[] # append([lat long height])
+        print ('bounding',minlat, maxlat, minlong, maxlong)
+
+        filename = 'N'+str(int(minlat))+'E'+str(int(minlong)).zfill(3)+'.hgt'
+
+        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName=projectName)
+        doc = tk.getDatasourceDocumentsList()[0]
+        fheight = doc.resource + '/'+ filename
+
+        ds = gdal.Open(fheight)
+
+        if int(maxlong) - int(minlong) == 1:
+            matlong = 2
+        else:
+            matlong = 1
+        if int(maxlat) - int(minlat) == 1:
+            matlat = 2
+        else:
+            matlat = 1
+        mat=np.zeros([np.array(ds.GetRasterBand(1).ReadAsArray()).shape[0]*matlong,np.array(ds.GetRasterBand(1).ReadAsArray()).shape[0]*matlat])
+        if matlong==1 and matlat==1:
+            filename = 'N' + str(int(minlat)) + 'E' + str(int(minlong)).zfill(
+                3) + '.hgt'  # filename=r'/data3/GIS_Data/Elevation/SRTM30m/N33E035.hgt'
+            fheight = doc.resource + '/' + filename
+            ds = gdal.Open(fheight)
+            myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+            myarray[myarray < -1000] = 0  # deal with problematic points
+            gt = ds.GetGeoTransform()
+            mat[:,:]=myarray
+            gt0 = gt[0]
+            gt3 = gt[3]
+            gt1 = gt[1]
+            gt5 = gt[5]
+        gt = ds.GetGeoTransform()
+        rasterymin = math.floor((minlong - gt0) / gt1)
+        rasterymax = math.ceil((maxlong - gt0) / gt1)
+        rasterxmax = math.floor((minlat - gt3) / gt5)
+        rasterxmin = math.ceil((maxlat - gt3) / gt5)
+        points = []
+        print('gt',gt)
+        print('rasterx',rasterxmin, rasterxmax,rasterymin, rasterymax)
+        for y in range(rasterymin,rasterymax):
+            for x in range(rasterxmin, rasterxmax):
+                xlat = x * gt[5] + gt[3]
+                ylong = y * gt[1] + gt[0]
+                points.append([xlat, ylong, myarray[x, y]])
+        return points
 
 
 # srtmDocs = self.getMeasurementsDocumentsAsDict(name="SRTM")

@@ -225,10 +225,62 @@ if __name__ == "__main__":
     vv = np.asarray([-3.42, -2.84 ,-2.32, -2.97, -2.47, -2.17])
     vv = np.asarray([-1.30, -2.84 ,-0.10, -2.61, -2.49, -1.72])
     
+    uu = np.asarray([-0.21,  0.31 ,-0.33, -1.14,  2.36,  0.97]) #comfortpressure4 (10m newnew)
+    vv = np.asarray([-2.50, -2.35 ,-1.87,  0.30, -2.64, -2.31])
+
+    uu = np.asarray([-0.01,  0.02 ,-0.69, -1.07,  0.39,  0.49]) #comfortpressure4 (10m newnew)
+    vv = np.asarray([-2.25, -2.47 ,-1.57,  0.32, -1.86, -2.13])
+
+    uu = np.asarray([ 0.06, -0.25 ,-0.46, -1.79,  0.14,  0.48]) #comfortpressure4 (7870)
+    vv = np.asarray([-2.44, -2.57 ,-1.45, -0.67, -1.49, -2.12])
+    uu = np.asarray([ 0.04, -0.24 ,-0.46, -1.77,  0.13,  0.50]) #comfortpressure4 (7899)
+    vv = np.asarray([-2.43, -2.56 ,-1.46, -0.67, -1.48, -2.12])
+    uu = np.asarray([ 0.02, -0.23 ,-0.45, -1.75,  0.11,  0.52]) #comfortpressure4 (7944)
+    vv = np.asarray([-2.42, -2.54 ,-1.46, -0.68, -1.47, -2.12])
+    uu = np.asarray([-0.11, -0.23 ,-0.48, -1.64, -0.03,  0.47]) #comfortpressure3 (8305)
+    vv = np.asarray([-2.42, -2.44 ,-1.52, -0.76, -1.35, -2.12])
+    uu = np.asarray([ 2.02,  2.43 , 2.34,  0.56,  2.69,  2.78]) #comfortpressure3 (1490m top=outlet)
+    vv = np.asarray([-3.30, -2.60 ,-1.62, -0.58,  2.32, -2.42])
+    uu = np.asarray([ 1.18,  1.68 , 2.17,  0.17,  0.08,  0.37]) #comfortpressure3 (2490m top=outlet)
+    vv = np.asarray([-3.44, -3.88 ,-2.92, -3.48,  3.42, -3.11])
+    uu = np.asarray([ 0.72,  1.00 , 0.81,  0.47,  2.35,  1.20]) #windarroundbuildingwrf 40000
+    vv = np.asarray([-2.62, -1.95 ,-1.94, -1.20, -2.10, -2.14])
+    uu = np.asarray([ 0.74,  0.82 , 0.75,  0.46,  2.35,  1.16]) #windarroundbuildingwrf 50000
+    vv = np.asarray([-2.62, -1.85 ,-1.85, -1.08, -2.17, -2.17])
+    uu = np.asarray([ 0.47,  0.56 , 0.99,  0.02,  1.91,  1.04]) #windarroundbuildingwrf 684000
+    vv = np.asarray([-1.73, -0.86 ,-1.17, -1.15, -0.90, -1.39])
+    uu = np.asarray([ 0.28 ,  0.99,  1.24,  1.47,  2.08,  2.24]) #windarroundbuildingwrf2 154000
+    vv = np.asarray([-0.81 , -1.08, -0.98, -1.03, -1.49, -2.32])
+    uu = np.asarray([ 0.52 ,  0.81,  1.11,  1.55,  1.82,  1.57]) #windarroundbuildingwrf2 471000
+    vv = np.asarray([-1.41 , -0.74, -0.60, -0.42, -0.74, -1.75])
+    uu = np.asarray([ 0.46 ,  0.78,  1.11,  1.50,  1.87,  1.42]) #windarroundbuildingwrf2 581000
+    vv = np.asarray([-1.33 , -0.68, -0.54, -0.43, -0.75, -1.59])
+    uu = np.asarray([ 0.16 , -0.19,  0.27, -0.57,  0.10, -0.762]) #windarroundbuildingwrf2 new 113000 (0.03 fvsolusion)
+    vv = np.asarray([-1.07 , -1.42, -0.86, -1.61, -1.74, -3.18])
+    uu = np.asarray([-0.02 , -0.05,  0.40, -0.66,  0.66,  1.20]) #windarroundbuildingwrf2 new 227000
+    vv = np.asarray([-1.08 , -1.28, -0.98, -1.99, -1.31, -2.21])
+    uu = np.asarray([-0.02 , -0.10,  0.40, -0.38,  0.93,  1.78]) #windarroundbuildingwrf2 new 256000 fin
+    vv = np.asarray([-1.07 , -1.26, -0.94, -1.97, -1.31, -2.09])
+    uu = np.asarray([ 0.26 ,  0.71,  0.94,  0.59,  0.75,  0.51]) #windarroundbuildingwrf2 new 113000 0.03 + temperature
+    vv = np.asarray([-0.89 , -1.00, -0.95, -1.21, -1.58, -2.69])
+    uu = np.asarray([ 0.18 ,  0.65,  0.92,  0.63,  0.84,  0.65]) #windarroundbuildingwrf2 new 113000 0.03 + temperature
+    vv = np.asarray([-0.82 , -0.80, -0.81, -1.29, -1.50, -2.36])
+
+    uu = np.asarray([-0.01 ,  0.43,  0.65, -0.06,  1.49,  1.04]) #windarroundbuildingwrf2 154000b
+    vv = np.asarray([-1.21 , -2.20, -1.29, -1.08, -2.29, -3.15])
+    uu = np.asarray([-0.20 ,  1.29, -0.54, -1.08,  0.20,  0.26]) #windarroundbuildingwrf2 260000b
+    vv = np.asarray([-1.35 , -2.45, -0.77, -2.36, -2.06, -2.99])
+    uu = np.asarray([ 0.46 ,  1.15,  0.21,  1.13,  1.88,  2.08]) #windarroundbuildingwrf3 40000
+    vv = np.asarray([-2.35 , -2.26, -0.70, -1.64, -2.38, -1.72])
+    uu = np.asarray([ 0.51 ,  0.92, -0.06,  1.01,  1.81,  1.89]) #windarroundbuildingwrf3 51000
+    vv = np.asarray([-2.22 , -2.19, -0.42, -1.55, -2.35, -1.69])
 
     
     uu = np.asarray([-1.22  ,  1.14,  1.05,  3.69, 3.03, 3.51]) #wrf probe
     vv = np.asarray([-1.52, -1.22, -.39, -.04, -1.09, -2.73])
+    
+    uu = np.asarray([1.08  ,  2.07,  1.12,  2.04,  2.09,  2.14]) #wrf2 comforepressure3
+    vv = np.asarray([-3.1  , -2.70, -2.41, -2.56, -2.72, -2.25])
     
   
     # uu = np.asarray([]) #p5wrf probe10
@@ -241,10 +293,10 @@ if __name__ == "__main__":
     import math
     import numpy as np    
 
-    ws0=np.asarray([1.5,2.,1.8,1.9,3.8,2.9]) # 1306202318GMT
+    ws0=np.asarray([1.5,2.,1.8,1.9,3.8,2.9]) # 13/06/2023 18GMT
     wd0=np.asarray([334,286,262,294,308,305])
-    uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2)
-    vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2)
+    uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 0.66  1.92  1.78  1.74  2.99  2.38]
+    vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-1.35 -0.55  0.25 -0.77 -2.34 -1.66]
     
     # uu0 = np.asarray([ 0.65,  1.92, 1.78,  1.73,  2.99,  2.37])
     # vv0 = np.asarray([-1.34, -0.55, 0.25, -0.77, -2.33, -1.66])
@@ -258,21 +310,21 @@ if __name__ == "__main__":
     ws=np.zeros_like(uu)
     wd=np.zeros_like(uu)
     for i in range(len(uu)):
-        wd[i] =math.atan2(vv[i], uu[i])*180/math.pi
-        # wd[i] =math.atan(vv[i]/uu[i])*180/math.pi
         wd[i]=round(math.atan(uu[i]/vv[i])*180/math.pi,2)
         ws[i]=round((uu[i]**2.+vv[i]**2.)**.5,2)
         if wd[i]<90:
             wd[i]+=360
+        # wd[i] =math.atan2(vv[i], uu[i])*180/math.pi
+        # wd[i] =math.atan(vv[i]/uu[i])*180/math.pi
         # if wd[i]<90:
         #     wd[i]+=180
         print(i,round(uu[i],2),round(vv[i],2),round(ws[i],2), round(wd[i],2))
         
-    print('u-',stat(uu0, uu, kind='r2'),stat(uu0, uu, kind='r'), stat(uu0, uu, kind='rmse'),'/',round(np.mean(uu),4),'+-',round(np.std(uu),4),'>>',round(np.mean(uu0),4),'+-',round(np.std(uu0),4))
-    print('v-',stat(vv0, vv, kind='r2'),stat(vv0, vv, kind='r'), stat(vv0, vv, kind='rmse'),'/',round(np.mean(vv),4),'+-',round(np.std(vv),4),'>>',round(np.mean(vv0),4),'+-',round(np.std(vv0),4))
-    print('s-',stat(ws0, ws, kind='r2'),stat(ws0, ws, kind='r'), stat(ws0, ws, kind='mae'), stat(ws0, ws, kind='rmse'),'/',round(np.mean(ws),4),'+-',round(np.std(ws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
-    print('d-',stat(wd0, wd, kind='r2'),stat(wd0, wd, kind='r'), stat(wd0, wd, kind='mae'), stat(wd0, wd, kind='rmse'),'/',round(np.mean(wd),4),'+-',round(np.std(wd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
-    print('u')
+    print('u:',stat(uu0, uu, kind='r2'),stat(uu0, uu, kind='r'), stat(uu0, uu, kind='rmse'),'/',round(np.mean(uu),4),'+-',round(np.std(uu),4),'>>',round(np.mean(uu0),4),'+-',round(np.std(uu0),4))
+    print('v:',stat(vv0, vv, kind='r2'),stat(vv0, vv, kind='r'), stat(vv0, vv, kind='rmse'),'/',round(np.mean(vv),4),'+-',round(np.std(vv),4),'>>',round(np.mean(vv0),4),'+-',round(np.std(vv0),4))
+    print('s:',stat(ws0, ws, kind='r2'),stat(ws0, ws, kind='r'), stat(ws0, ws, kind='mae'), stat(ws0, ws, kind='rmse'),'/',round(np.mean(ws),4),'+-',round(np.std(ws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
+    print('d:',stat(wd0, wd, kind='r2'),stat(wd0, wd, kind='r'), stat(wd0, wd, kind='mae'), stat(wd0, wd, kind='rmse'),'/',round(np.mean(wd),4),'+-',round(np.std(wd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
+    print('u (obs, model)')
     print (uu0)
     print (uu)
     print('v')
