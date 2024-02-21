@@ -21,6 +21,8 @@ toolkitHome = ToolkitHome()
               
             - Adding logging helpers.
             - Adding unum tutorial.  
+            - Adding query tutorial 
+            
 
 2.14.0
 ------
