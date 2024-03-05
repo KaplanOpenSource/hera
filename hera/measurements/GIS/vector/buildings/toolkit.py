@@ -98,17 +98,11 @@ class BuildingsToolkit(toolkit.VectorToolkit):
             raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
         maxheight = -500
-        FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
-        import sys
-        sys.path.append(FREECADPATH)
-        import FreeCAD
-        import Part
-        import Mesh
         try:
                 FreeCADDOC = FreeCAD.newDocument("Unnamed")
         except:
-                print('lllllllllllll')
-#        FreeCADDOC = FreeCAD.newDocument("Unnamed")
+            err = "FreeCAD not found. Install before using this function and add to the PYTHONPATH"
+            raise ValueError(err)
 
         shp = buildingData # olv version compatability
 
@@ -230,7 +224,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
             desc = {
                     toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
-#                    toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                    toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
             }
 
             if doc is None:
@@ -266,7 +260,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         docList = self.getCacheDocuments(**desc)
         return None if len(docList)==0 else docList[0]
 
-    def buildingstorToSTL(point1, point2, domainname, outputfile):
+    def buildingsToSTL(self,point1, point2, domainname, outputfile):
         """
             write stl file of the buildings in a domain
 
@@ -289,13 +283,12 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         -----------
 
         """
-        bt = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName="testbamba")  # tlvbig
         #print("poinat1")
         bounding = [point1[0], point1[1], point2[0], point2[1]]
         # bounding = point1
 
-        bt.addRegion(bounding, domainname, crs=2039)
-        reg = bt.cutRegionFromSource(domainname, datasourceName='BNTL', isBounds=True, crs=2039)
+        self.addRegion(bounding, domainname, crs=2039)
+        reg = self.cutRegionFromSource(domainname, datasourceName='BNTL', isBounds=True, crs=2039)
 
         bt.regionToSTL(domainname, outputfile, 'BNTL')
         return
@@ -313,10 +306,8 @@ if __name__ == "__main__":
     # lis = vt.getRegionNameList()
     reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
     data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
-    ba= analysis(None)
-    lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
-    ba= analysis(None)
-    lm = ba.LambdaFromBuildingData(270, 200, data)
+    lm = bt.analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
+    lm = bt.LambdaFromBuildingData(270, 200, data)
     # lm = bt._analysis.LambdaFromDatasource(270, 200, 'test', exteriorBlockNameOrData=reg, crs=2039)
     # p=1
 
