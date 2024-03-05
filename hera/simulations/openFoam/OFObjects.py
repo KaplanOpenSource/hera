@@ -933,7 +933,6 @@ class OFList(OFObject):
 #
 #               Mesh handling
 #########################################################################
-
 class OFMeshBoundary:
 
     _case = None

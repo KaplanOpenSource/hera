@@ -12,7 +12,8 @@ from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
-def simpleFoam_createEmpty(arguments):
+
+def Foam_incompressible_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -28,7 +29,6 @@ def simpleFoam_createEmpty(arguments):
 
             raise ValueError(err)
 
-
         projectName = configuration['projectName']
     else:
         projectName = arguments.projectName
@@ -39,10 +39,49 @@ def simpleFoam_createEmpty(arguments):
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
                        simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
-                       additionalFieldsDescription  =arguments.fieldsDescription)
+                       additionalFieldsDescription = arguments.fieldsDescription)
 
 
     logger.execution(f"----- End -----")
+
+def foam_templates_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    templates = tk.listHermesTemplates(arguments.solver)
+
+    ttl = f"The templates for project {tk.projectName} with solver {arguments.solver}"
+    print()
+    print("-" * len(ttl))
+    print(ttl)
+    print("-"*len(ttl))
+    print(templates)
+
+def foam_templates_create(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=None)
+
+    projectName = arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
+    outputPath = projectName if arguments.projectPath is None else arguments.projectPath
+    tk.createProjectDirectory(outputPath=outputPath,projectName=projectName)
+
+    templates = tk.listHermesTemplates(arguments.solver)
+    if arguments.templateName not in templates.index:
+        err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
+        print(err)
+        raise ValueError(err)
+
+    groupName = arguments.templateName if arguments.groupName is None else arguments.groupName
+
+    with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
+        json.dump(tk.getDatasourceData(arguments.templateName),outFile, indent=4)
+
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
     logger = logging.getLogger("hera.bin")
@@ -180,7 +219,7 @@ def stochasticLagrangian_dispersion_create(arguments):
 
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
-    doc = tk.getCaseDocumentFromDB(dispersionFlowFieldName, tk.OF_FLOWDISPERSION)
+    doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.OF_FLOWDISPERSION)
     if len(doc)==0:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
         if not os.path.exists(dispersionFlowFieldName):
@@ -230,7 +269,7 @@ def stochasticLagrangian_source_cylinder(arguments):
     dispersionName = arguments.dispersionName
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    tk.stochasticLagrangian.writeManualInjectionSource(type="Cylinder",dispersionName=dispersionName, **params)
+    tk.stochasticLagrangian.writeParticlePositionFile(type="Cylinder",dispersionName=dispersionName, **params)
 
 
 def stochasticLagrangian_source_makeEscapedMassFile(args):
@@ -279,6 +318,68 @@ def stochasticLagrangian_source_makeEscapedMassFile(args):
     f.write(newstr)
     f.close()
 
+def stochasticLagrangian_postProcess_toParquet(arguments):
+    """
+        Creates a parquet file from the case results
+    """
+    logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
+    logger.execution(f"----- Start -----")
+    logger.debug(f"  Got arguments: {arguments}")
+
+    if ('projectName' in arguments) and (arguments.projectName is not None):
+        projectName = arguments.projectName
+    else:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+
+    logger.info(f"Using project {projectName} for cloud name {arguments.cloudName}")
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=arguments.case,withVelocity=True,withMass=True,overwrite=arguments.overwrite,cloudName=arguments.cloudName)
+    tk.stochasticLagrangian.presentation.toVTU(data,outDirectory=arguments.outputDirectory,outFile=os.path.basename(arguments.case))
+
+def stochasticLagrangian_postProcess_toVTK(arguments):
+    """
+        Creates VTK files from the case.
+        Creates the parquet file if does not exist.
+    """
+    logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
+    logger.execution(f"----- Start -----")
+    logger.debug(f"  Got arguments: {arguments}")
+
+    if ('projectName' in arguments) and (arguments.projectName is not None):
+        projectName = arguments.projectName
+    else:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+
+    logger.info(f"Using project {projectName}")
+
+    if 'outputdir' in arguments:
+        base_outputdir = os.getcwd() if arguments.outputdir is None else arguments.outputdir
+    else:
+        base_outputdir = os.getcwd()
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    docList = tk.getWorkflowDocumentFromDB(arguments.case)
+    if len(docList) == 0:
+        logger.info(f"The name {arguments.case} is not found. Try to use it as a directory")
+        if os.path.isdir(arguments.case):
+            logger.info(f"Found {arguments.case} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
+            outputName = arguments.case
+            cache = False
+    else:
+        doc = docList[0]
+        outputName = doc.desc['workflowName']
+        cache = True
+
+    outputdir = os.path.join(base_outputdir,"VTK",outputName)
+    logger.info(f"Writing values to directory {outputdir}")
+    os.makedirs(outputdir,exist_ok=True)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName,withVelocity=True,withMass=True,cache=cache)
+    tk.presentation.toUnstructuredVTK(data=data, outputdirectory=outputdir, filename=arguments.cloudName, timeNameOutput=True, xcoord="x", ycoord="y", zcoord="z")
 
 
 def objects_createVerticesAndBoundary(arguments):
@@ -313,7 +414,12 @@ def objects_createVerticesAndBoundary(arguments):
 
     verticesList = []
     for x,y,z in zip(xList,yList,zList):
-        verticesList.append([corners[x], corners[y], corners[z]])
+        xshift = 0.1 if 'Max' in x else -0.1
+        yshift = 0.1 if 'Max' in y else -0.1
+        zshift = 0.1 if 'Max' in z else -0.1
+
+
+        verticesList.append([corners[x]+xshift, corners[y]+yshift, corners[z]+zshift])
     print(json.dumps(dict(vertices=verticesList), indent=4))
 
     print("\n\n\n")

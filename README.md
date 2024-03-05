@@ -6,13 +6,13 @@
 
 ### 2.1. Prerequisites
 
-1. Linux OS (currently checked: Ubuntu 20.04)
+1. Linux OS (currently checked: Ubuntu 22.04)
 
-2. Python 3.8 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
+2. Python 3.9 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
 
-3. pip 22.1.2 - [follow instructions](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#debian-ubuntu)
+3. latest pip  - [follow instructions](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#debian-ubuntu)
 
-4. MongoDB version 5.0 - [Download & follow instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/), and make sure it's running on the default port (27017).
+4. MongoDB version 6.0 - [Download & follow instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/), and make sure it's running on the default port (27017).
 
 
 ### 2.2. Installation method
@@ -78,9 +78,9 @@ Create the following empty folders within the home folder
 `.pyhera/log/`
 
 
-#### 2.4.1 Manual
+#### 2.4.1 Hera configuration files
 
-Create the following json file within .pyhera folder
+Create the following json file within .pyhera folder. The file contains the address and credentails for the MongoDB. If file not created manually, it will be created at first import of hera, but without values, so the import will fails.
 
 `.pyhera/config.json`
 
@@ -95,8 +95,6 @@ Create the following json file within .pyhera folder
 }
 ```
 
-TODO This shold be tested to see if any choice would work.
-
 * username - should match the name of your user in the ubuntu system.
 * {host} - should be changed to the location of mongoDB, if ran locally it is typically "127.0.0.1"
 * {dbName} - name of database 
@@ -105,17 +103,19 @@ TODO This shold be tested to see if any choice would work.
 
 Afterwards save and exit.
 
-Startup mongoDB `mongosh`
+#### 2.4.2 MongoDB Schema
 
-Type in the following commands to enter both users:
+Startup mongoDB `mongosh`. (More parameters are requird if mongodb is not local or requires authentication).
+
+Type in the following commands to create admin and regular users:
 
 ```JavaScript
 use admin
 
 db.createUser(
   {
-    user: "MathAdmin",
-    pwd: "MathAdmin",
+    user: "Admin",
+    pwd: "Admin",
     roles: [ { role: "userAdminAnyDatabase", db: "admin" } , "readWriteAnyDatabase"]
   }
 )
@@ -130,14 +130,14 @@ db.createUser(
   }
 )
 ```
-TODO: TEST/ASK if both configurations are necessary
+
 * {username} - should be replaced with the same username written in config.json (above)
 * {password} - should be replaced with the same password written in config.json (above)
 * {dbName} - should be replaced with the same dbName written in config.json (above)
 
 Exit mongosh
 
-#### 2.4.2 Use predefined names
+#### 2.4.3 Use predefined names
 
 This is especially convenient if you don't have MongoDB installed, as it
 uses docker for it (you need docker installed, though...)
@@ -199,3 +199,25 @@ Finally, create the following json file within `.pyhera` folder:
 }
 ```
 where `<username>` should be replaced by your username on your system.
+
+# 3. Additional software for the  hera ecosystem
+
+### 3.1 Paraview
+
+Paraview may be use to view the results in a convenient GUI. Paraview my be downloaded from [paraview.org](https://www.paraview.org/download/) and includes python libraries. To prevent conflicts between your python version and Paraview pythons version. make sure to use Paraview with you python. If specific paraview is required, it is recommended to manually download and compile the same python version and install hera in it.
+
+Add Paraview libs to PYTHONPATH - Example
+```
+export PYTHONPATH=/raid/software/ParaView-5.11.0-MPI-Linux-Python3.9-x86_64/lib/python3.9/site-packages/:$PYTHONPATH
+
+```
+
+### 3.2 FreeCad
+
+Freecad is an open source CAD software. FreeCad can be embedded in python. it is required to install `freecad-python3` pkg (apt) and add the lbrary path (default:'/usr/lib/freecad-python3/lib/') to PYTHONPATH env or dynamically in the code like:
+```python
+FREECADPATH = '/usr/lib/freecad-python3/lib/' # path to your FreeCAD.so or FreeCAD.pyd file,
+import sys
+sys.path.append(FREECADPATH)
+```
+[more information on embedding freecad in freecad sitep](https://wiki.freecad.org/Embedding_FreeCAD)

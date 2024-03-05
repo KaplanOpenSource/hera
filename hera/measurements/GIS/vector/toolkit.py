@@ -2,7 +2,8 @@ import io
 from hera import toolkit
 import geopandas as gp
 from shapely.geometry import Polygon, box
-from hera.datalayer.datahandler import datatypes
+from ....utils.logging import get_classMethod_logger
+
 
 TOOLKIT_VECTOR_REGIONNAME = "regionName"
 
@@ -135,7 +136,7 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         docList = self.getCacheDocuments(type=docType,**desc) # regionName=regionName,crs=crs
         if len(docList) == 0:
-            self.addCacheDocument(resource = data,type=docType, dataFormat=datatypes.JSON_GEOPANDAS, desc=desc)
+            self.addCacheDocument(resource = data,type=docType, dataFormat=self.datatypes.JSON_GEOPANDAS, desc=desc)
         else:
             doc = docList[0]
             doc.resource = data
@@ -167,6 +168,7 @@ class VectorToolkit(toolkit.abstractToolkit):
         -------
 
         """
+        logger = get_classMethod_logger(self, "regionToSTL")
         self.logger.info("-- Start --")
 
         if isinstance(shapeDataOrName, str):

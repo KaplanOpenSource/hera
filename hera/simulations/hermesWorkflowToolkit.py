@@ -56,7 +56,7 @@ class workflowToolkit(abstractToolkit):
             The project that the workflow will be used i.
 
         filesDirectory : str
-            The directory to write all the workflows and the outputs. default is current directory.
+            The directory to write all the Workflow and the outputs. default is current directory.
         """
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
@@ -64,15 +64,38 @@ class workflowToolkit(abstractToolkit):
 
         # ## Create the simulationType->object map
         # self._simulationTypeMap = {
-        #                 workflowsTypes.WORKFLOW.value : "hermes.workflow",
-        #                  workflowsTypes.OF_DISPERSION.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
-        #                  workflowsTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
+        #                 WorkflowTypes.WORKFLOW.value : "hermes.workflow",
+        #                  WorkflowTypes.OF_DISPERSION.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Dispersion",
+        #                  WorkflowTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
         # }
 
+    def listHermesTemplates(self,solverName):
+        """
+            Returns a list of all the templates that were loaded for that specific solver.
+
+        Parameters
+        ----------
+        solverName : str
+
+
+        Returns
+        -------
+
+        """
+        retList = []
+        for doc in self.getDatasourceDocumentsList(desc__solver=solverName):
+            data = dict(doc.desc['desc'])
+            data['templateName'] = doc.desc['datasourceName']
+            retList.append(data)
+
+        if len(retList) >0:
+            return pandas.DataFrame(retList).set_index("templateName")
+        else:
+            return pandas.DataFrame()
 
     def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
         """
-            Return a hermes-workflow (or a list of hermes workflows) to the user.
+            Return a hermes-workflow (or a list of hermes Workflow) to the user.
 
         Parameters
         ----------
@@ -134,7 +157,7 @@ class workflowToolkit(abstractToolkit):
 
     def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,**query):
         """
-                Retrieve workflows from the DB as hermes.workflow objects (or its derivatives).
+                Retrieve Workflow from the DB as hermes.workflow objects (or its derivatives).
 
                 If the workflow is string, use it as a name. If the workflow is dict,
                 use it as a filter on the paramters
@@ -159,7 +182,7 @@ class workflowToolkit(abstractToolkit):
             hermes workflow.
         """
 
-        docList = self.getCaseListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, **query)
+        docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, **query)
 
         if len(docList) == 0:
             self.logger.error(f"... not found. ")
@@ -170,7 +193,7 @@ class workflowToolkit(abstractToolkit):
 
 
 
-    def getCaseDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations", **query):
+    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations", **query):
         """
             Tries to find item as name, workflow directory , groupname or through the resource.
             Additional queries are also applicable.
@@ -246,11 +269,11 @@ class workflowToolkit(abstractToolkit):
                             self.logger.debug(f"not found")
                             docList = []
                     else:
-                        self.logger.debug(f"... Found it as workflow group ")
+                        self.logger.info(f"... Found it as workflow group ")
                 else:
-                    self.logger.debug(f"... Found it as resource ")
+                    self.logger.info(f"... Found it as resource ")
             else:
-                self.logger.debug(f"... Found it as name")
+                self.logger.info(f"... Found it as name")
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict) or isinstance(nameOrWorkflowFileOrJSONOrResource, workflow):
             qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON if isinstance(nameOrWorkflowFileOrJSONOrResource, workflow) else nameOrWorkflowFileOrJSONOrResource
@@ -264,7 +287,7 @@ class workflowToolkit(abstractToolkit):
         return docList
 
 
-    def getCaseListDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list, workflow], **query):
+    def getWorkflowListDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list, workflow], **query):
         """
             Returns the simulation document from the DB.
             The nameOrWorkflowFileOrJSONOrResource can be either group name
@@ -298,13 +321,13 @@ class workflowToolkit(abstractToolkit):
         if isinstance(nameOrWorkflowFileOrJSONOrResource,list):
             docList = []
             for simulationItem in nameOrWorkflowFileOrJSONOrResource:
-                docList += self.getCaseDocumentFromDB(simulationItem)
+                docList += self.getWorkflowDocumentFromDB(simulationItem)
         else:
-            docList = self.getCaseDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
 
         return docList
 
-    def getCasesInGroup(self, groupName: str, **kwargs):
+    def getWorkflowInGroup(self, groupName: str, **kwargs):
         """
             Return a list of all the simulations.old with the name as a prefic, and of the requested simuationType.
             Returns the list of the documents.
@@ -357,7 +380,7 @@ class workflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getCasesInGroup(groupName=simulationGroup, **kwargs)
+        simList = self.getWorkflowInGroup(groupName=simulationGroup, **kwargs)
         group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
         if len(group_ids) == 0:
             newID = 1
@@ -390,7 +413,7 @@ class workflowToolkit(abstractToolkit):
         return f"{baseName}_{formatted_number}"
 
 
-    def addCaseToGroup(self,
+    def addWorkflowToGroup(self,
                        workflowJSON: str,
                        groupName: str = None,
                        overwrite: bool = False,
@@ -433,7 +456,7 @@ class workflowToolkit(abstractToolkit):
             If false, throw an exception if the record exists.
 
         force : bool
-            Allow duplicate workflows in the project.
+            Allow duplicate Workflow in the project.
 
         assignName : bool
             If true, finds the next available id and saves it in the DB.
@@ -514,7 +537,7 @@ class workflowToolkit(abstractToolkit):
         logger.debug(f"Checking if the workflow already exists in the db unde the same group and type.")
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
-        docList = self.getCasesInGroup(groupName=groupName, workflowType=theSolver, **currentQuery)
+        docList = self.getWorkflowInGroup(groupName=groupName, **currentQuery)
 
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
@@ -525,7 +548,7 @@ class workflowToolkit(abstractToolkit):
 
             #   b. Check if the name of the simulation already exists in the group
             self.logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
-            docList = self.getCasesInGroup(groupName=groupName, workflowType=theSolver, workflowName=workflowName)
+            docList = self.getWorkflowInGroup(groupName=groupName, workflowName=workflowName)
 
             if len(docList) == 0:
                 self.logger.info("Simulation is not in the DB, adding... ")
@@ -576,17 +599,17 @@ class workflowToolkit(abstractToolkit):
 
 
 
-    def compareWorkflowsObj(self,
+    def compareWorkflowObj(self,
                          workflowList,
                          longFormat : bool = False):
         """
-            Compares the parameters of the workflows to each other.
+            Compares the parameters of the Workflow to each other.
 
 
         Parameters
         ----------
         workflowList : list of hermes workflow objects
-                The list of workflows to compare.
+                The list of Workflow to compare.
         Returns
         -------
 
@@ -594,18 +617,18 @@ class workflowToolkit(abstractToolkit):
         return compareJSONS(**dict([(wf.name,wf.parametersJSON) for wf in workflowList]),
                             longFormat=longFormat)
 
-    def workflowCompare(self,
-                        workFlows: Union[list, str],
+    def compareWorkflow(self,
+                        Workflow: Union[list, str],
                         longFormat : bool = False,
                         transpose  : bool = False) -> Union[dict, pandas.DataFrame]:
         """
-            Compares two or more hermes workflows.
+            Compares two or more hermes Workflow.
 
         Parameters
         ----------
-        workFlows : str,list
+        Workflow : str,list
                 A single input uses it as a group name,
-                a list is the list of case names to compare.
+                a list is the list of Workflow names to compare.
 
         diffParams: bool
                 If true display only differences.
@@ -616,28 +639,28 @@ class workflowToolkit(abstractToolkit):
         Returns
         -------
             pandas.DataFrame, json (depends on the input flags).
-            Return the differences between the parametrs of the requested cases.
+            Return the differences between the parametrs of the requested Workflow.
         """
-        if workFlows is None:
+        if Workflow is None:
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
         self.logger.info("--- Start ---")
 
         workflowList = []
-        for workflowName in list(workFlows):
+        for workflowName in list(Workflow):
             if os.path.exists(workflowName):
                 workflowList.append(self.getHermesWorkflowFromJSON(workflowName,name=workflowName))
             else:
-                simulationList = self.getCaseListDocumentFromDB(workflowName)
+                simulationList = self.getWorkflowListDocumentFromDB(workflowName)
                 groupworkflowList = [workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory,name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
                 workflowList+=groupworkflowList
 
-        res = self.compareWorkflowsObj(workflowList,longFormat=longFormat)
+        res = self.compareWorkflowObj(workflowList,longFormat=longFormat)
 
         return res.T if transpose else res
 
-    def workflowCompareInGroup(self, workflowGroup, longFormat=False, transpose=False) :
+    def compareWorkflowInGroup(self, workflowGroup, longFormat=False, transpose=False) :
         """
-            Compares all the workflows in the group name.
+            Compares all the Workflow in the group name.
 
         Parameters
         ----------
@@ -648,15 +671,15 @@ class workflowToolkit(abstractToolkit):
         -------
             Pandas with the difference in the parameter names.
         """
-        simulationList = self.getCasesInGroup(groupName=workflowGroup)
+        simulationList = self.getWorkflowInGroup(groupName=workflowGroup)
         workflowList = [workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory,name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
-        res = self.compareWorkflowsObj(workflowList,longFormat=longFormat)
+        res = self.compareWorkflowObj(workflowList,longFormat=longFormat)
         return res.T if transpose else res
 
-    def listSimulations(self,
-                        workflowGroup:str,
-                        listNodes : bool = False,
-                        listParameters : bool = False) -> Union[pandas.DataFrame,dict]:
+    def listWorkflows(self,
+                      workflowGroup:str,
+                      listNodes : bool = False,
+                      listParameters : bool = False) -> Union[pandas.DataFrame,dict]:
         """
             Lists all the simulations in the simulation group (of this project).
 
@@ -688,7 +711,7 @@ class workflowToolkit(abstractToolkit):
             A list of the simulations.old and their values.
 
         """
-        simulationList = self.getCasesInGroup(groupName=workflowGroup)
+        simulationList = self.getWorkflowInGroup(groupName=workflowGroup)
         ret = []
         for simdoc in simulationList:
             val = dict(workflowName=simdoc['desc']['workflowName'])

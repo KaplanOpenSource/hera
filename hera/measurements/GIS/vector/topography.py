@@ -11,8 +11,9 @@ import dask
 from numpy import array, sqrt
 import pandas
 
-from hera.measurements.GIS.vector import toolkit
-from hera.simulations.utils import coordinateHandler
+from . import toolkit
+from ....simulations.utils import coordinateHandler
+from ....utils.logging import get_classMethod_logger
 
 from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE
 
@@ -58,19 +59,20 @@ class TopographyToolkit(toolkit.VectorToolkit):
 
         """
         topography = super().cutRegionFromSource(shapeDataOrName=shapeDataOrName, datasourceName=datasourceName, isBounds =isBounds, crs =crs)
+        logger = get_classMethod_logger(self, "cutRegionFromSource")
         if isinstance(shapeDataOrName, str):
             shape = self.getRegionData(shapeDataOrName)
         else:
             shape = self._RegionToGeopandas(shapeDataOrName, crs=crs)
             doc = self.getDatasourceDocument(datasourceName=datasourceName)
-            self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
+            logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
             doc.desc['desc'].update({'crs': 2039})
             if 'crs' not in doc.desc['desc']:
-                self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
+                logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
                 raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
 
             if shape.crs is None:
-                self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
+                logger.execution("The region was defined without crs. Using the crs of the datasource.")
                 shape.crs = doc.desc['desc']['crs']
                 shape = shape.to_crs(topography.crs)
 
@@ -122,18 +124,19 @@ class TopographyToolkit(toolkit.VectorToolkit):
             The STL string.
 
         """
-        self.logger.info("-- Start --")
+        logger = get_classMethod_logger(self, "regionToSTL")
+        logger.info("-- Start --")
 
         topography = self.cutRegionFromSource(shapeDataOrName, datasourceName=datasourceName, isBounds=True, crs=crs)
 
 
         if len(topography) == 0:
-            self.logger.warning("The requested region is empty. ")
+            logger.warning("The requested region is empty. ")
             stlstr = None
         else:
             stlstr = self.stlFactory.vectorToSTL(topography,dxdy=dxdy)
 
-        self.logger.info("-- End --")
+        logger.info("-- End --")
 
         return stlstr
 
