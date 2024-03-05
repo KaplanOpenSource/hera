@@ -453,3 +453,28 @@ if __name__=="__main__":
     ########################################################
     parsed = parser.parse_args()
     parsed.func(parsed)
+
+
+
+#####################
+
+from hera.simulations.openFoam import OFWorkflow,OFObjects
+from hera.measurements.GIS.vector.buildings import analysis
+#hwf = Workflow_Flow(args.workflowFile)
+buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName='projectName')
+of_tk        = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName='projectName')
+
+caseDirectory = '/data5/NOBACKUP/nirb/Simulations/Haifa/test'
+ba = analysis.analysis(None)
+shapeDataOrName = [177933, 663923, 178933, 664423]
+datasourceName = r'/data3/GIS_Data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/'
+lambdaBuildings = ba.LambdaFromDatasource(270, 200,shapeDataOrName, datasourceName )
+
+
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+ba.LambdaFromBuildingData(windMeteorologicalDirection=270,
+                                                   resolution=200,
+                                                   buildingsData=datasourceName,
+                                                   externalShape=shapeDataOrName,
+                                                   saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                                                   overwrite=False)

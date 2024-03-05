@@ -122,22 +122,22 @@ class analysis():
         -------
 
         """
-        self.logger.info("--- Start ---")
+#nir        self.logger.info("--- Start ---")
 
         if isinstance(buildingsData,str):
-            self.logger.debug("Reading the bounds from StringIO")
+            #nir            self.logger.debug("Reading the bounds from StringIO")
             data = geopandas.read_file(io.StringIO(buildingsData))
         elif isinstance(buildingsData, geopandas.GeoDataFrame):
-            self.logger.debug("Using the user input")
+            #nir            self.logger.debug("Using the user input")
             data = buildingsData
         else:
             err = f"buildingsData must be str or geopandas.GeoDataFrame. Got {type(buildingsData)}"
-            self.logger.error(err)
+            #nir self.logger.error(err)
             raise ValueError(err)
 
         if data.crs is None:
             err = "The buildingData crs must be set"
-            self.logger.error(err)
+            #nir            self.logger.error(err)
             raise ValueError(err)
 
         if isinstance(externalShape, str):
@@ -152,30 +152,29 @@ class analysis():
                  "crs":data.crs.to_epsg()
                }
 
-
-        self.logger.info(f"Check if cached data exists for data {desc}")
+        #nir        self.logger.info(f"Check if cached data exists for data {desc}")
         dataDoc = self.datalayer.getCacheDocuments(type="Lambda_Buildings",**desc)
 
-        if self.logger.isEnabledFor(logging.DEBUG):
-            dbgstr = "Cached data Not found"  if len(dataDoc) == 0 else "Found data in the cache"
-            self.logger.debug(dbgstr)
+        #nir        if self.logger.isEnabledFor(logging.DEBUG):
+        dbgstr = "Cached data Not found"  if len(dataDoc) == 0 else "Found data in the cache"
+            #nir            self.logger.debug(dbgstr)
 
         if len(dataDoc)==0 or overwrite:
-            self.logger.info(f"Calculatings lambda data with bounds {bounds.total_bounds}")
+            #nir            self.logger.info(f"Calculatings lambda data with bounds {bounds.total_bounds}")
             domainLambda = Blocks(level=0, df=bounds, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=windMeteorologicalDirection)
 
             if len(dataDoc) == 0:
-                self.logger.debug("Adding new record to the DB")
+                #nir                self.logger.debug("Adding new record to the DB")
                 doc = self.datalayer.addCacheDocument(resource="",
                                                       dataFormat=datatypes.GEOPANDAS,
                                                       type="Lambda_Buildings",
                                                       desc=desc)
                 filename = f"{str(doc.id)}.geojson"
                 outputfileFull = os.path.abspath(os.path.join(self._datalayer.filesDirectory, filename))
-                self.logger.debug(f"Writing Lambda data to {outputfileFull}")
+                #nir                self.logger.debug(f"Writing Lambda data to {outputfileFull}")
 
             else:
-                self.logger.info("Updating old record.")
+                #nir                self.logger.info("Updating old record.")
                 doc = dataDoc[0]
                 outputfileFull = doc.resource
 
@@ -184,15 +183,15 @@ class analysis():
             doc.save()
 
         else:
-            self.logger.debug("Return found data in DB")
+            #nir            self.logger.debug("Return found data in DB")
             try:
                 domainLambda = dataDoc[0].getData()
             except fiona.errors.DriverError:
                 errmsg = f"The cached data in location {dataDoc[0].resource} is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache."
-                self.logger.error(errmsg)
+                #nir                self.logger.error(errmsg)
                 raise FileNotFoundError(errmsg)
 
-        self.logger.info("---- End ----")
+        #nir        self.logger.info("---- End ----")
         return domainLambda
 
 
@@ -226,7 +225,7 @@ class analysis():
         -------
         GeoDataFrame of the grid geometry with the calculated parameters: lambdaP,lambdaF,hc
         """
-        self.logger.info("--- Start ---")
+#nir        self.logger.info("--- Start ---")
 
         buildingsData = self.datalayer.cutRegionFromSource(shapeDataOrName=shapeDataOrName,
                                                            datasourceName=datasourceName, crs=crs)

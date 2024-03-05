@@ -4,6 +4,211 @@
     Should be organized when needed.
 
 """
+from .... import toolkit
+
+from hera import toolkitHome
+from hera.measurements.GIS.vector.topography import stlFactory
+import numpy as np
+import math
+from osgeo import gdal
+from pyproj import Transformer
+
+
+class TopographyToolkit(toolkit.abstractToolkit):
+
+    def __init__(self, projectName, toolkitName = 'TopographyToolkit', filesDirectory=None):
+        """
+            Initializes vector data toolkit.
+
+        Parameters
+        ----------
+        projectName: str
+            The project Name that the toolkit is initialized on
+        toolkitName: str
+            the specific toolkit, getting from the child.
+
+        FilesDirectory: str or None
+                The path to save a regions files when they are created.
+
+                if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.
+
+                if None, then tries to get the default path of the project from the config. if it does not
+                exist, then use the current directory.
+
+        """
+        super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory)
+
+    def getPointElevation(lat, long, projectName = "default"):
+        """
+            get the elevation above sea level in meters from DEM for a point
+            SRTM30 means 30 meters resolution
+
+        Parameters
+        ----------
+        lat
+        long
+        source - can be SRTM30, SRTM90
+
+        Returns
+        -------
+        eleveation above sea level
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.getPointElevation(33.459,35.755)
+
+        What to fix
+        -----------
+        We need to make sure that we have "default" projectName
+        We need to give warning if outside Israel
+        We need to be sure that we use SRTM30 and not SRTM90
+
+        """
+        # lat = 33.459 # elevation should be ~820 according to amud anan
+        # long = 35.755 # elevation should be ~820 according to amud anan
+        filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
+
+        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=projectName)
+        doc = tk.getDatasourceDocumentsList()[0]
+        fheight = doc.resource + '/' + filename
+
+        ds = gdal.Open(fheight)
+        myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+        myarray[myarray < -1000] = 0  # deal with problematic points
+        gt = ds.GetGeoTransform()
+        rastery = (long - gt[0]) / gt[1]
+        rasterx = (lat - gt[3]) / gt[5]
+        height11 = myarray[int(rasterx), int(rastery)]
+        if (int(rasterx)+1>=myarray.shape[0]) or (int(rastery)+1>=myarray.shape[1]):
+            height12 = height11
+            height21 = height11
+            height22 = height11
+        else:
+            height12 = myarray[int(rasterx) + 1, int(rastery)]
+            height21 = myarray[int(rasterx), int(rastery) + 1]
+            height22 = myarray[int(rasterx) + 1, int(rastery) + 1]
+        height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
+        height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
+        elevation = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
+
+        return elevation
+
+
+
+    def getDomainElevation(point1, point2, outputfile, projectName = "default"):
+        """
+            create STL from DEM
+            We use ITM coordinates because we need flat boundaries.
+
+        Parameters
+        ----------
+        point1 (lat, long)
+        point2 (lat, long)
+        outputfile - where to write the stl
+
+        Returns
+        -------
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.getDomainElevation([200000, 740000], [201000, 741000], 'test1.stl')
+
+        What to fix
+        -----------
+
+        """
+        miny = point1[1]  # y
+        maxy = point2[1]
+        minx = point1[0]  # x
+        maxx = point2[0]
+        dxdy = 30
+
+        NX = 1 + math.ceil((maxx - minx) / dxdy)
+        NY = 1 + math.ceil((maxy - miny) / dxdy)
+        grid_x = np.zeros([NX, NY])
+        grid_y = np.zeros_like(grid_x)
+        grid_z = np.zeros_like(grid_x)
+        i = minx
+        j = miny
+        for i in range(NX):
+            for j in range(NY):
+                x = minx + i * dxdy
+                y = miny + j * dxdy
+                lat, long = TopographyToolkit.ITMtolatlong([x, y])
+                z = TopographyToolkit.getPointElevation(long, lat)
+                grid_x[i, j] = x
+                grid_y[i, j] = y
+                grid_z[i, j] = z
+
+        a = stlFactory()
+        stlstr = a.rasterToSTL(grid_x, grid_y, grid_z, 'solidName')
+
+        with open(outputfile, "w") as stlfile:
+            stlfile.write(stlstr)
+
+        return
+
+    def latlongtoITM(point1):
+        """
+            change the coordinate system, from lat long to x y
+
+        Parameters
+        ----------
+        lat
+        long
+
+        Returns
+        -------
+        x, y in ITM
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.latlongtoITM([35.159,32.755])
+
+        What to fix
+        -----------
+        """
+        ITM = "epsg:2039"
+        WGS84 = "epsg:4327"
+        lat = point1[0]
+        long = point1[1]
+        coordTransformer = Transformer.from_crs(WGS84, ITM, always_xy=True)
+        x, y = coordTransformer.transform(lat, long)
+        return x,y
+
+    def ITMtolatlong(point1):
+        """
+            change the coordinate system, from x y (ITM) to lat long
+
+        Parameters
+        ----------
+        x
+        y
+
+        Returns
+        -------
+        lat, long
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.ITMtolatlong([200000, 740000])
+
+        What to fix
+        -----------
+        """
+        ITM = "epsg:2039"
+        WGS84 = "epsg:4327"
+        x = point1[0]
+        y = point1[1]
+        coordTransformer2 = Transformer.from_crs(ITM, WGS84, always_xy=True)
+        lat, long = coordTransformer2.transform(x, y)
+        return lat, long
+
+
 
 # srtmDocs = self.getMeasurementsDocumentsAsDict(name="SRTM")
 # self._srtmBounds = []
