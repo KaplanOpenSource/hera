@@ -112,7 +112,7 @@ class experimentHome(toolkit.abstractToolkit):
 
     # def parserList(self):
     #     """
-    #         Return the list of parsers_old.
+    #         Return the list of parsers.
     #
     #     Returns
     #     -------

@@ -1,0 +1,275 @@
+{
+    "workflow": {
+        "root": null,
+        "solver": "StochasticLagrangianSolver",
+        "Templates": [],
+        "nodeList": [
+            "Parameters",
+            "ControlDict",
+            "makeDispersionFlowField",
+            "createCellHeights",
+            "makeDispersionCase",
+            "KinematicCloudProperties",
+            "physicalProperties",
+            "momentumTransport",
+            "makeSource",
+            "g",
+            "IndoorDict",
+            "dispersionWriter"
+        ],
+        "nodes": {
+            "Parameters": {
+                "Execution": {
+                    "input_parameters": {
+                        "originalFlowField": "Flow",
+                        "dispersionFlowField": "Ustar_5cm_sec",
+                        "dispersionCase": "{#moduleName}",
+                        "SourceCenter": "0 0 0.05",
+                        "radius": 0.1,
+                        "height": 0.01,
+                        "particleCount": 1000
+                    }
+                },
+                "type": "general.Parameters"
+            },
+            "ControlDict": {
+                "Execution": {
+                    "input_parameters": {
+                        "values": {
+                            "application": "StochasticLagrangianSolver",
+                            "startFrom": "startTime",
+                            "startTime": 0,
+                            "stopAt": "endTime",
+                            "endTime": 2400,
+                            "deltaT": 1,
+                            "writeControl": "adjustableRunTime",
+                            "writeInterval": 1,
+                            "runTimeModifiable": true,
+                            "interpolate": true,
+                            "adjustTimeStep": true,
+                            "purgeWrite": 0,
+                            "writeFormat": "ascii",
+                            "writePrecision": 7,
+                            "writeCompression": false,
+                            "timeFormat": "general",
+                            "timePrecision": 6,
+                            "maxCo": 0.5,
+                            "functions": [],
+                            "libs": []
+                        }
+                    }
+                },
+                "type": "openFOAM.system.ControlDict"
+            },
+            "makeDispersionFlowField": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openfoam stochasticLagrangian dispersionFlow create {Parameters.output.originalFlowField} --DFF {Parameters.output.dispersionFlowField}"
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "createCellHeights": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "foamJob -parallel -wait indoorDistanceFromWalls  -time 0:",
+                        "changeDirTo": "{Parameters.output.originalFlowField}_DFF_{Parameters.output.dispersionFlowField}"
+                    }
+                },
+                "type": "general.RunOsCommand",
+                "requires": [
+                    "makeDispersionFlowField"
+                ]
+            },
+            "makeDispersionCase": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openfoam stochasticLagrangian dispersion create {Parameters.output.dispersionCase} {Parameters.output.originalFlowField}_DFF_{Parameters.output.dispersionFlowField} --overwrite"
+                    }
+                },
+                "type": "general.RunOsCommand",
+                "requires": [
+                    "makeDispersionFlowField"
+                ]
+            },
+            "KinematicCloudProperties": {
+                "Execution": {
+                    "input_parameters": {
+                        "activeCloud": "true",
+                        "stochasticTurbulenceModel": "Indoor",
+                        "passiveTrace": true,
+                        "injectors": {
+                            "release": {
+                                "type": "continuousInjection",
+                                "massTotal": 0.015,
+                                "parcelBasisType": "mass",
+                                "nParticle": 1,
+                                "StartOfInjection": 0,
+                                "positionsFile": "kinematicCloudPositions",
+                                "U0": [
+                                    0.2,
+                                    0,
+                                    0
+                                ],
+                                "sizeDistribution": {
+                                    "type": "fixedValue",
+                                    "diameter": 0.006
+                                },
+                                "EndOfInjection": 120
+                            }
+                        },
+                        "forces": [
+                            "sphereDrag",
+                            "gravity"
+                        ],
+                        "patchInteraction": {
+                            "interactionType": "LocalInteraction",
+                            "patches": {
+                                "cwalls": {
+                                    "type": "rebound"
+                                },
+                                "inlet": {
+                                    "type": "escape"
+                                },
+                                "outlet": {
+                                    "type": "escape"
+                                },
+                                "walls": {
+                                    "type": "rebound"
+                                }
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.dispersion.KinematicCloudProperties"
+            },
+            "physicalProperties": {
+                "Execution": {
+                    "input_parameters": {
+                        "transportModel": "Newtonian",
+                        "nu": 1e-05,
+                        "parameters": {
+                            "nu": {
+                                "dimensions": "[0 2 -1 0 0 0 0]",
+                                "value": 1e-05
+                            },
+                            "beta": {
+                                "dimensions": "[0 0 0 -1 0 0 0]",
+                                "value": 0.0033333333333333335,
+                                "printName": true
+                            },
+                            "Tref": {
+                                "dimensions": "[0 0 0 1 0 0 0]",
+                                "value": 300,
+                                "printName": true
+                            },
+                            "Pr": {
+                                "dimensions": "[0 0 0 0 0 0 0]",
+                                "value": 0.7,
+                                "printName": true
+                            },
+                            "Prt": {
+                                "dimensions": "[0 0 0 0 0 0 0]",
+                                "value": 1,
+                                "printName": true
+                            },
+                            "rhoInf": {
+                                "dimensions": "[1 -3 0 0 0 0 0]",
+                                "value": 1.2,
+                                "printName": true
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.constant.physicalProperties"
+            },
+            "momentumTransport": {
+                "Execution": {
+                    "input_parameters": {
+                        "simulationType": "laminar"
+                    }
+                },
+                "type": "openFOAM.constant.momentumTransport"
+            },
+            "makeSource": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openfoam stochasticLagrangian injectors positionFile cylinder {Parameters.output.dispersionCase} --radius {Parameters.output.radius} --center {Parameters.output.SourceCenter} --height {Parameters.output.height} --particles {Parameters.output.particleCount}"
+                    }
+                },
+                "type": "general.RunOsCommand",
+                "requires": [
+                    "makeDispersionCase"
+                ]
+            },
+            "g": {
+                "Execution": {
+                    "input_parameters": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -9.8
+                    }
+                },
+                "type": "openFOAM.constant.g"
+            },
+            "IndoorDict": {
+                "Execution": {
+                    "input_parameters": {
+                        "C0": 3,
+                        "g": 9.81,
+                        "coriolisFactor": 0.0001,
+                        "zd": 0.1,
+                        "Qh": 100,
+                        "T0": 100,
+                        "stable": false,
+                        "_g": 9.81,
+                        "fc": 0.0001
+                    }
+                },
+                "type": "openFOAM.dispersion.IndoorDict"
+            },
+            "dispersionWriter": {
+                "Execution": {
+                    "input_parameters": {
+                        "directoryPath": null,
+                        "Files": {
+                            "controlDict": {
+                                "fileName": "system/controlDict",
+                                "fileContent": "{ControlDict.output.openFOAMfile}"
+                            },
+                            "g": {
+                                "fileName": "constant/g",
+                                "fileContent": "{g.output.openFOAMfile}"
+                            },
+                            "IndoorDict": {
+                                "fileName": "system/IndoorDict",
+                                "fileContent": "{IndoorDict.output.openFOAMfile}"
+                            },
+                            "physicalProperties": {
+                                "fileName": "constant/physicalProperties",
+                                "fileContent": "{physicalProperties.output.openFOAMfile}"
+                            },
+                            "momentumTransport": {
+                                "fileName": "constant/momentumTransport",
+                                "fileContent": "{momentumTransport.output.openFOAMfile}"
+                            },
+                            "KinematicCloudProperties": {
+                                "fileName": "constant/kinematicCloudProperties",
+                                "fileContent": "{KinematicCloudProperties.output.openFOAMfile}"
+                            }
+                        },
+                        "casePath": "{Parameters.output.dispersionCase}"
+                    }
+                },
+                "type": "general.FilesWriter",
+                "requires": [
+                    "makeDispersionCase"
+                ]
+            }
+        }
+    }
+}

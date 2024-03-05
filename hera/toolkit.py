@@ -1,8 +1,11 @@
-from .datalayer import Project,datatypes
+import json
+
+from .datalayer import Project
 import os
 import pandas
 import numpy
 import pydoc
+from .utils.logging import get_classMethod_logger
 
 TOOLKIT_DATASOURCE_TYPE = "ToolkitDataSource"
 TOOLKIT_TOOLKITNAME_FIELD       = "toolkit"
@@ -34,8 +37,9 @@ class ToolkitHome:
     GIS_DEMOGRAPHY = "GIS_Demography"
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
-    LSM            = "LSM.old"
-    OF_LSM         =  "OF_LSM"
+    LSM            = "LSM"
+
+    DATA           = "heraData"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
@@ -49,8 +53,6 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
-
-            Logging        = dict(cls = "hera.utils.logging.toolkit.loggingToolkit"),
 
             GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",desc=None),
 
@@ -69,13 +71,13 @@ class ToolkitHome:
             GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",desc=None),
 
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
-            LSM            = dict(cls = "hera.simulations.LSM.old.toolkit.LSMToolkit",desc=None),
+            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
 
-            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.old.toolkit.OFLSMToolkit"),
+            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
 
-            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.datalayer.HighFreqToolKit"),
+            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit"),
 
-            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.datalayer.lowFreqToolKit"),
+            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit"),
 
             experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
@@ -219,63 +221,21 @@ class abstractToolkit(Project):
 
         """
         super().__init__(projectName=projectName)
+        logger = get_classMethod_logger(self,"init")
         self._toolkitname = toolkitName
-        self._projectName = projectName
 
         if filesDirectory is None:
-            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
-            self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            self.logger.execution(f"Using {self._FilesDirectory}")
+            logger.execution("Directory is not given, tries to load from default or using the current directory")
+            try:
+                self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
+            except ValueError:
+                self._FilesDirectory = os.getcwd()
+
+            logger.execution(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
-
-
-    def _getConfigDocument(self):
-        """
-        Returns the document of the config.
-        If there is no config document, return empty dictionary.
-
-        Returns
-        -------
-
-         dict
-                The configuration of the toolkit.
-        """
-        config_type = f"{self.projectName}__{self.toolkitName}__config__"
-        documents = self.getCacheDocuments(type=config_type)
-        if len(documents) == 0:
-            documents = self.addCacheDocument(type=config_type,
-                                  resource="",
-                                  dataFormat=datatypes.STRING,
-                                  desc={})
-            ret = documents
-        else:
-            ret =documents[0]
-
-        return ret
-
-    def getConfig(self):
-        """
-        Returns the config document's description.
-        If there is no config document, return empty dictionary.
-
-        Returns
-        -------
-        dict
-                The configuration of the toolkit.
-        """
-        doc = self._getConfigDocument()
-        return doc["desc"]
-
-    def setConfig(self, **kwargs):
-        """
-            Create a config document or updates an existing config document.
-        """
-        doc = self._getConfigDocument()
-        doc.desc.update(kwargs)
-        doc.save()
 
     def getDataSourceMap(self,**filters):
         """
@@ -299,13 +259,10 @@ class abstractToolkit(Project):
 
         ret = []
         for doc in docList:
-            ret.append(dict(datasourceName=doc.desc[TOOLKIT_DATASOURCE_NAME],
-                            version=  str(doc.desc[TOOLKIT_DATASOURCE_VERSION]),
-                            toolkit = doc.desc['toolkit'],
-                            dataFormat=doc['dataFormat'],
-                            resource=doc['resource']
-                            )
-                       )
+            dta = dict(dataFormat=doc['dataFormat'],
+                 resource=doc['resource'])
+            dta.update(doc.desc)
+            ret.append(dta)
         return ret
 
     def getDataSourceTable(self, **filters):

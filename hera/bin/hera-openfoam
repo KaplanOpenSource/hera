@@ -5,11 +5,42 @@ from hera.simulations.openFoam import CLI
 from hera.utils.logging import initialize_logging,with_logger
 
 
+def addSolverTemplateOptions(subparser,solverName):
+    """
+        Adds the template options.
+    Parameters
+    ----------
+    parser
+
+    Returns
+    -------
+
+    """
+    ## ---------------- templates.
+    parser_templates  = subparser.add_parser('templates', help='Manages the templates of  simpleFoam')
+    templates_subparser = parser_templates.add_subparsers(help='Manages the templates of  simpleFoam')
+
+    ## ---------------- list templates
+    templates_list = templates_subparser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_list.set_defaults(solver=solverName)
+    templates_list.set_defaults(func=CLI.foam_templates_list)
+
+    ## ---------------- create case from template
+    templates_create = templates_subparser.add_parser('create', help='List the existing templates in the project for that solver')
+    templates_create.add_argument('projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_create.add_argument('templateName', type=str, default=None, help=projectNameHelpDesc)
+    templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
+    templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
+    templates_create.set_defaults(solver=solverName)
+    templates_create.set_defaults(func=CLI.foam_templates_create)
+
+
 if __name__ == "__main__":
     initialize_logging(
          with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
-         with_logger("hermes.bin", handlers=['console'], level='DEBUG', propagate=False),
-         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+         with_logger("hermes.bin", handlers=['console'], level='INFO', propagate=False),
+         with_logger("hera.bin", handlers=['console'], level='INFO', propagate=False),
     )
     logger = logging.getLogger("hera.bin.hera-openfoam")
 
@@ -26,12 +57,41 @@ if __name__ == "__main__":
     simpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles simpleFOAM solver')
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
+    ## ---------------- create empty directory
     simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
     simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.simpleFoam_createEmpty)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
 
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
+
+    ## ================== pimpleFoam
+    pimpleFoam_parser = subparsers.add_parser('pimpleFoam', help='Handles pimpleFOAM solver')
+    pimpleFoam_subparser = pimpleFoam_parser.add_subparsers(help='Handles pimpleFOAM solver')
+
+    pimpleFoam_parser_createEmpty = pimpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
+    pimpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    pimpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    pimpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="pimpleFoam")
+
+    ## ================== oguraPhillipShallowConvectionFOAM
+    simpleFoam_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM', help='Handles indoorFOAMBoussinesq solver')
+    simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
+
+    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
+    simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
 
     ## ================== StochasticLagrantianSolver
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
@@ -79,7 +139,7 @@ if __name__ == "__main__":
     injector_parser = stochasticLagrnagian_subparser.add_parser('injectors', help='Creates an initial configuration for the lagrangian particles')
     injector_subparser = injector_parser.add_subparsers(help='Creates injectors')
 
-    manualInjection_parser = injector_subparser.add_parser('manualInjection', help='Creates an initial configuration for the lagrangian particles')
+    manualInjection_parser = injector_subparser.add_parser('positionFile', help='Creates an initial configuration for the lagrangian particles')
     manualInjection_subparser = manualInjection_parser.add_subparsers(help='Creates an initial configuration for the lagrangian particles')
 
     source_cylinder_subparser = manualInjection_subparser.add_parser('cylinder', help='Creates a cylinder initial source shapre')
@@ -90,8 +150,23 @@ if __name__ == "__main__":
     source_cylinder_subparser.add_argument('--particles', type=str, help="The radius of the cylinder.")
     source_cylinder_subparser.set_defaults(func=CLI.stochasticLagrangian_source_cylinder)
 
+    ## -- create source files.
     source_createReleaseRateFile_subparser = manualInjection_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
+
+    ## -- post process
+    postProcess_parser = stochasticLagrnagian_subparser.add_parser('postProcess', help='post process for the  lagrangian particles')
+    postProcess_subparser = postProcess_parser.add_subparsers(help='Creates injectors')
+
+    postProcess_vtk_subparser = postProcess_subparser.add_parser('toVTK', help='Creates a VTK files of the lagrangian particles')
+    postProcess_vtk_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow or directory")
+    postProcess_vtk_subparser.add_argument('--outputDirectory', type=str, default="VTK",help="The path to save the VTK files. ")
+    postProcess_vtk_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
+    postProcess_vtk_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
+    postProcess_vtk_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toParquet)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
 
     ############################################
     ### ------------------------------ ObjUtils
