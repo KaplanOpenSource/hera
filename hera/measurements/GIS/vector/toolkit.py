@@ -179,35 +179,34 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         dct = dict(bbox=shape) if isBounds else dict(mask=shape)
 
-        if isinstance(datasourceName, str):
-            doc = self.getDatasourceDocument(datasourceName=datasourceName)
-            if doc is None:
-                self.logger.error(f"datasource {datasourceName} not found in project {self.projectName}")
-                raise ValueError(f"datasource {datasourceName} not found in project {self.projectName}")
+        doc = self.getDatasourceDocument(datasourceName=datasourceName)
+        if doc is None:
+            self.logger.error(f"datasource {datasourceName} not found in project {self.projectName}")
+            raise ValueError(f"datasource {datasourceName} not found in project {self.projectName}")
 
-            self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
+        self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
 
-            doc.desc['desc'].update({'crs': 2039})
-            if 'crs' not in doc.desc['desc']:
-                self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
-                raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
+        doc.desc['desc'].update({'crs': 2039})
+        if 'crs' not in doc.desc['desc']:
+            self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
+            raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
 
-            if shape.crs is None:
-                self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
-                shape.crs = doc.desc['desc']['crs']
-            elif shape.crs.to_epsg() != doc.desc['desc']['crs']:
-                self.logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
-                shape = shape.to_crs(doc.desc['desc']['crs'])
-            else:
-                self.logger.execution("shape and region crs match.")
+        if shape.crs is None:
+            self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
+            shape.crs = doc.desc['desc']['crs']
+        elif shape.crs.to_epsg() != doc.desc['desc']['crs']:
+            self.logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
+            shape = shape.to_crs(doc.desc['desc']['crs'])
+        else:
+            self.logger.execution("shape and region crs match.")
 
-            if doc is None:
-                sourceList = self.getDataSourceTable()['datasourceName'].str.cat()
-                err = f"The Data sources available in the project are: " + sourceList
-                self.logger.error(err)
-                raise ValueError(err)
-            else:
-                return doc.getData(**dct)
+        if doc is None:
+            sourceList = self.getDataSourceTable()['datasourceName'].str.cat()
+            err = f"The Data sources available in the project are: " + sourceList
+            self.logger.error(err)
+            raise ValueError(err)
+        else:
+            return doc.getData(**dct)
 
     def getRegionNameList(self):
         """

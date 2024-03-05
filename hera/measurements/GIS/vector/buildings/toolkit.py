@@ -1,12 +1,21 @@
 import numpy
 import os
 import logging
+from hera import toolkitHome
 from hera.measurements.GIS.vector import toolkit
 from hera.measurements.GIS.vector.buildings.analysis import analysis
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 from hera.datalayer import datatypes
 import geopandas
 import matplotlib.pyplot as plt
+
+#FREECADPATH = '/usr/lib/freecad-python3/lib/'  # Or add to PythonPath
+#import sys
+#sys.path.append(FREECADPATH)
+
+import FreeCAD
+import Part
+import Mesh
 
 
 class BuildingsToolkit(toolkit.VectorToolkit):
@@ -93,6 +102,8 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         import sys
         sys.path.append(FREECADPATH)
         import FreeCAD
+        import Part
+        import Mesh
         try:
                 FreeCADDOC = FreeCAD.newDocument("Unnamed")
         except:
@@ -219,8 +230,8 @@ class BuildingsToolkit(toolkit.VectorToolkit):
 
             desc = {
                     toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
-                    toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
-                   }
+#                    toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+            }
 
             if doc is None:
                 self.addCacheDocument(type=self.doctype,
@@ -255,6 +266,40 @@ class BuildingsToolkit(toolkit.VectorToolkit):
         docList = self.getCacheDocuments(**desc)
         return None if len(docList)==0 else docList[0]
 
+    def buildingstorToSTL(point1, point2, domainname, outputfile):
+        """
+            write stl file of the buildings in a domain
+
+        Parameters
+        ----------
+        point1 lower left corner (ITM)
+        point2 upper right corner
+        domainname - domain name
+        outputfile - where to write the file
+
+        Returns
+        -------
+
+        How to use
+        ----------
+        from hera.measurements.GIS.vector.buildings.toolkit import BuildingsToolkit
+        BuildingsToolkit.buildingstorToSTL([200000, 740000], [201000, 741000], 'test', 'test2.stl')
+
+        What to fix
+        -----------
+
+        """
+        bt = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName="testbamba")  # tlvbig
+        #print("poinat1")
+        bounding = [point1[0], point1[1], point2[0], point2[1]]
+        # bounding = point1
+
+        bt.addRegion(bounding, domainname, crs=2039)
+        reg = bt.cutRegionFromSource(domainname, datasourceName='BNTL', isBounds=True, crs=2039)
+
+        bt.regionToSTL(domainname, outputfile, 'BNTL')
+        return
+
 
 if __name__ == "__main__":
     fig, ax = plt.subplots()
@@ -268,7 +313,10 @@ if __name__ == "__main__":
     # lis = vt.getRegionNameList()
     reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
     data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
+    ba= analysis(None)
     lm = bt._analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
+    ba= analysis(None)
+    lm = ba.LambdaFromBuildingData(270, 200, data)
     # lm = bt._analysis.LambdaFromDatasource(270, 200, 'test', exteriorBlockNameOrData=reg, crs=2039)
     # p=1
 

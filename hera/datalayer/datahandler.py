@@ -218,7 +218,7 @@ class DataHandler_JSON_pandas(object):
 class DataHandler_JSON_geopandas(object):
     @staticmethod
     def getData(resource,desc=None,**kwargs):
-        df = geopandas.GeoDataFrame.from_features(pandas.read_json(resource)["features"])
+        df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
 
