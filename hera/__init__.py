@@ -8,20 +8,22 @@ if python_version < (3, 8):
 # Have some initial default logging configuration in case the user hasn't set any
 from .utils.logging.helpers import initialize_logging
 initialize_logging(disable_existing_loggers=False)
-
-## Adding the Freecad to the python path.
-# FREECADPATH = '/usr/lib/freecad-python3/lib/' # Or add to PythonPath
-# import sys
-# sys.path.append(FREECADPATH)
+from .utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
 
 from .toolkit import ToolkitHome
 from .datalayer import Project
 
-from .utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
-
 toolkitHome = ToolkitHome()
 
 """
+    #119:   - Adding add_formatter,add_FileHandler that could be used 
+              to define local log file handlers and formatters. 
+              
+            - Adding logging helpers.
+            - Adding unum tutorial.  
+            - Adding query tutorial 
+            
+
 2.14.1
 ------
     #109 : * Updating the stl creation in the topography and buildings toolkit. 

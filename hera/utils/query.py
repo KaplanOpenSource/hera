@@ -90,7 +90,7 @@ def dictToMongoQuery(dictObj,prefix=""):
     def _dictTomongo(dictObj,local_perfix):
         for key,value in dictObj.items():
             if key in ['type','in','ne','lt','lte','gt','gte','not','all','size','exists','nin','not']:
-                key = f"{key}__"
+                key = f"{key}"
 
             new_prefix = key if local_perfix=="" else "%s__%s" % (local_perfix, key)
             determineType(value,new_prefix)

@@ -6,7 +6,6 @@ import math
 import os
 from scipy.interpolate import griddata
 from shapely.geometry import LineString
-from hera import toolkit
 import dask
 from numpy import array, sqrt
 import pandas
@@ -15,7 +14,8 @@ from . import toolkit
 from ....simulations.utils import coordinateHandler
 from ....utils.logging import get_classMethod_logger
 
-from hera.toolkit import TOOLKIT_SAVEMODE_ONLYFILE
+from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
+from .... import toolkit
 
 
 class TopographyToolkit(toolkit.VectorToolkit):
