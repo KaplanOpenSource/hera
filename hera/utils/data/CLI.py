@@ -78,6 +78,10 @@ def project_create(arguments):
     createProjectDirectory(outputPath=directory,projectName=arguments.projectName)
     print(f"Created project {arguments.projectName} in directory {directory}")
 
+    if arguments.loadRepositories:
+        dtk = dataToolkit()
+        dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName,overwrite=arguments.overwrite)
+
 def project_dump(arguments):
 
     fullQuery=dict(projectName = arguments.projectName)
@@ -129,12 +133,15 @@ def repository_list(argumets):
     dtk = dataToolkit()
 
     repDataframe = dtk.getRepositoryTable()
-    with pandas.option_context('display.max_rows', None,
-                               'display.max_columns', None,
-                               'display.width', 1000,
-                               'display.precision', 3,
-                               'display.colheader_justify', 'center'):
-        print(repDataframe)
+    if len(repDataframe) ==0:
+        print("No repositories loaded")
+    else:
+        with pandas.option_context('display.max_rows', None,
+                                   'display.max_columns', None,
+                                   'display.width', 1000,
+                                   'display.precision', 3,
+                                   'display.colheader_justify', 'center'):
+            print(repDataframe)
 
 def repository_add(argumets):
     logger = logging.getLogger("hera.bin.repository_add")
