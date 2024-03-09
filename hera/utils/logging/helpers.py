@@ -11,13 +11,14 @@ EXECUTION = 15
 
 HERA_DEFAULT_LOG_DIR = pathlib.Path.home() / ".pyhera" / "log"
 
+MODE_APPEND = 'a'
+MODE_WRITE = 'w'
 
 # This function is named to match the style of the stdlib logging module
 # noinspection PyPep8Naming
 def getClassLogger(cls: type):
     name = cls.__module__ + "." + cls.__qualname__
     return logging.getLogger(name)
-
 
 def get_logger(instance, name=None):
     return getClassLogger(instance.__class__) if name is None else logging.getLogger(name)
@@ -79,9 +80,10 @@ def initialize_logging(*logger_overrides: (str, dict), disable_existing_loggers:
         os.makedirs(HERA_DEFAULT_LOG_DIR,exist_ok=False)
     _define_logger_execution()
     config = get_default_logging_config(disable_existing_loggers=disable_existing_loggers)
-    for logger_name, logger_dict in logger_overrides:
+    for logger_name, logger_dict, logger_type in logger_overrides:
         # This says: Use whatever was configured, if any, and update with what was provided
-        config['loggers'].setdefault(logger_name, logger_dict).update(logger_dict)
+        config[logger_type].setdefault(logger_name, logger_dict).update(logger_dict)
+
     logging.config.dictConfig(config)
 
 
@@ -94,4 +96,52 @@ def with_logger(logger_name, level=None, handlers=None, propagate=None) -> (str,
     for key in empty:
         del logger_dict[key]
 
-    return logger_name, logger_dict
+    return logger_name, logger_dict,'loggers'
+
+def add_FileHandler(handlerName,fileName,mode='w',formatter='default'):
+    """
+        Define a FileHandler.
+
+    Parameters
+    ----------
+    handlerName
+    fileName
+    mode : str
+        The mode for the file:
+            - 'w' : overwrite
+            - 'a' : append
+
+    Returns
+    -------
+
+    """
+    fileHandler_dict = {"class":"logging.FileHandler","filename":fileName,"mode":mode,"formatter":formatter}
+    # Remove from dict parameters not supplied; this allows the use here
+    # to just override specific settings on existing loggers
+    empty = [key for key, value in fileHandler_dict.items() if value is None]
+    for key in empty:
+        del fileHandler_dict[key]
+
+    return handlerName, fileHandler_dict,'handlers'
+
+def add_formatter(formatterName,format,datefmt="%Y-%m-%d %H:%M:%S"):
+    """
+        Adding the formatter.
+    Parameters
+    ----------
+    formatterName
+    format
+    datefmt
+
+    Returns
+    -------
+
+    """
+    formatter_dict = {"format":format,"datefmt":datefmt}
+    # Remove from dict parameters not supplied; this allows the use here
+    # to just override specific settings on existing loggers
+    empty = [key for key, value in formatter_dict.items() if value is None]
+    for key in empty:
+        del formatter_dict[key]
+
+    return formatterName, formatter_dict,'formatters'

@@ -48,6 +48,8 @@ if __name__=="__main__":
     parser_new = project_subparsers.add_parser('create', help='create a project')
     parser_new.add_argument('projectName', type=str, default=None, help='The project name to create')
     parser_new.add_argument('--directory', dest="directory",type=str, default=None, help='directory to create the project in')
+    parser_new.add_argument('--noRepositories', dest="loadRepositories",default=True,action="store_false")
+    parser_new.add_argument('--dont-overwrite',dest="overwrite",default=False,action="store_true")
     parser_new.set_defaults(func=CLI.project_create)
 
     ### Dump/save
