@@ -10,7 +10,7 @@ from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
 from ...utils.jsonutils import loadJSON,compareJSONS
 from ...utils.logging import get_classMethod_logger
-from evtk import hl as evtk_hl #import pointsToVTK, gridToVTK
+from evtk import hl as evtk_hl
 import dask.dataframe as dd
 from itertools import chain
 
@@ -197,85 +197,25 @@ class OFToolkit(workflowToolkit):
             field.write(caseDirectory=caseDirectory, location="0.orig")
             field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=False,parallelBoundary=True)
 
-    # def compareWorkflows_AllGroups(self,workflowsTypes):
-    #     """
-    #         Lists all the simulations of the type (flow, dispersion, flowdispersion)
-    #         and return the differences between each group
-    #     Parameters
-    #     ----------
-    #     workflowsTypes
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
-    #     groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc\
-    #                                                in self.getSimulationDocuments(type=workflowsTypes)])).drop_duplicates()
-    #
-    #     resList = []
-    #     for group in groupsList:
-    #         wfDict = dict([(doc.desc['name'], doc.desc['name']['flowParameters']) for doc in
-    #                        self.getSimulationDocuments(type=workflowsTypes,
-    #                                                    groupName=group)])
-    #         res = compareJSONS(wfDict)
-    #         resList.append(res.assign(groupName=group))
-    #
-    #     return pandas.concat(resList)
 
-    ########################################## baseTemplateHandler
-    #
-    #  Retrieves the base workflows.
-    #
-    # def getBaseFlow_directory(self, parameters : dict):
-    #     """
-    #         Return the name of the requested directory.
-    #
-    #     Parameters
-    #     ----------
-    #     parameters: dict
-    #         The json of the directory:
-    #             {
-    #                 name : ...
-    #             }
-    #
-    #     projectName : str
-    #         The name of the project (not used in this procedure).
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
-    #     return parameters['name'],os.path.basename(parameters['name'])
+    def caseConfiguration_createObj(self,name,objFile,workflowObj=None):
+        """
+            Creating the JSON in the caseConfiguration for the objects.
 
-    # def getBaseFlow_simulationName(self, parameters):
-    #     """
-    #         Check if the directory is already the db.
-    #         If it is, then return the id.
-    #
-    #     Parameters
-    #     ----------
-    #     parameters: dict
-    #         The json of the directory:
-    #             {
-    #                 name : ...
-    #             }
-    #     projectName : str
-    #         The name of the project.
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
-    #     docList = self.getSimulationsDocuments(workflowName=parameters['name'],type=workflowToolkit.DOC_TYPE)
-    #     if len(docList) >0:
-    #         if len(docList) > 1:
-    #             import warnings
-    #             warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
-    #         return docList[0].resource,parameters['name']
-    #     else:
-    #         raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
-    #
+            The JSON for the object is:
 
+
+        Parameters
+        ----------
+        name
+        objFile
+        workflowObj
+
+        Returns
+        -------
+
+        """
+        pass
 
 class Analysis:
     """
@@ -497,3 +437,85 @@ class Presentation:
 
             data = dict(C_kg_m3=C)  # 1kg/m**3=160000ppm
             evtk_hl.structuredToVTK(finalFile, X, Y, Z, pointData=data)
+
+
+
+
+    # def compareWorkflows_AllGroups(self,workflowsTypes):
+    #     """
+    #         Lists all the simulations of the type (flow, dispersion, flowdispersion)
+    #         and return the differences between each group
+    #     Parameters
+    #     ----------
+    #     workflowsTypes
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     groupsList = pandas.DataFrame(dict(groups=[doc.desc['groupName'] for doc\
+    #                                                in self.getSimulationDocuments(type=workflowsTypes)])).drop_duplicates()
+    #
+    #     resList = []
+    #     for group in groupsList:
+    #         wfDict = dict([(doc.desc['name'], doc.desc['name']['flowParameters']) for doc in
+    #                        self.getSimulationDocuments(type=workflowsTypes,
+    #                                                    groupName=group)])
+    #         res = compareJSONS(wfDict)
+    #         resList.append(res.assign(groupName=group))
+    #
+    #     return pandas.concat(resList)
+
+    ########################################## baseTemplateHandler
+    #
+    #  Retrieves the base workflows.
+    #
+    # def getBaseFlow_directory(self, parameters : dict):
+    #     """
+    #         Return the name of the requested directory.
+    #
+    #     Parameters
+    #     ----------
+    #     parameters: dict
+    #         The json of the directory:
+    #             {
+    #                 name : ...
+    #             }
+    #
+    #     projectName : str
+    #         The name of the project (not used in this procedure).
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     return parameters['name'],os.path.basename(parameters['name'])
+
+    # def getBaseFlow_simulationName(self, parameters):
+    #     """
+    #         Check if the directory is already the db.
+    #         If it is, then return the id.
+    #
+    #     Parameters
+    #     ----------
+    #     parameters: dict
+    #         The json of the directory:
+    #             {
+    #                 name : ...
+    #             }
+    #     projectName : str
+    #         The name of the project.
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     docList = self.getSimulationsDocuments(workflowName=parameters['name'],type=workflowToolkit.DOC_TYPE)
+    #     if len(docList) >0:
+    #         if len(docList) > 1:
+    #             import warnings
+    #             warnings.warn(f"Found more than 1 simulation with the name {parameters['name']}. Return the first one")
+    #         return docList[0].resource,parameters['name']
+    #     else:
+    #         raise ValueError(f"Cannot find flows with the name {parameters['name']}. Use hera-OF-flows list to see the names of existing simulations.old.")
+    #
