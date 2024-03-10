@@ -84,6 +84,8 @@ Create the following empty folders within the home folder
 
 `.pyhera/log/`
 
+mkdir -p ~/.pyhera/log/
+
 
 #### 2.4.1 Hera configuration files
 
