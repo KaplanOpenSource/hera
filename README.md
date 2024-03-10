@@ -14,6 +14,9 @@
 
 4. MongoDB version 6.0 - [Download & follow instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/), and make sure it's running on the default port (27017).
 
+5. Several required ubuntu Packages
+   
+   sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev
 
 ### 2.2. Installation method
 ### User Level:
@@ -21,6 +24,10 @@ Proceed to the installation section.
 
 ### Virtual Environment:
 Setup a virtual environment within hera folder and activate it and proceed to the  installation section.
+export HERAENVPATH=~/heraenv
+mkdir $HERAENVPATH
+virtualenv $HERAENVPATH
+source $HERAENVPATH/bin/activate
 
 ### 2.3. Installation
 
