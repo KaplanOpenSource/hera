@@ -1,4 +1,4 @@
-__version__ = '2.14.1'
+__version__ = '2.14.2'
 
 import sys
 python_version = sys.version_info
