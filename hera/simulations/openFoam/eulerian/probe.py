@@ -5,13 +5,13 @@ Created on Mon Mar 11 10:38:03 2024
 
 @author: nirb
 
-This function plot how variable x change in time using probe data
+This function plots how variable x changes in time using probe data
 """
 import matplotlib.pyplot as plt
 
 def plotProbe(file, times, vectors, el):
     
-    dirr = dir.replace("/"," ")
+    dirr = file.replace("/"," ")
     simulation = dirr.split(" ")[len(dirr.split(" "))-5]
 
     ele=[]
