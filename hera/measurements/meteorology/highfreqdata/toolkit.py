@@ -2,6 +2,7 @@ from .analysis.analysislayer import RawdataAnalysis
 from .... import toolkit
 from .... import get_classMethod_logger
 from .parsers.CampbellBinary import Parser
+from .parsers.TOA5 import ASCIIParser
 
 class HighFreqToolKit(toolkit.abstractToolkit):
     """
@@ -61,3 +62,21 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         """
         campelParser = Parser(chunkSize = chunkSize)
         return campelParser.parse(path=binaryFile,fromTime=fromTime,toTime=toTime)
+
+    def asciiToParquet(self, path, fromTime=None, toTime=None):
+        """
+            Reads the ascii file from fromTime to toTime and return a list of dataframes.
+
+
+        Parameters
+        ----------
+        path
+        fromTime
+        toTime
+
+        Returns
+        -------
+        number of dataframes depending on number of devices in the ascii file
+        """
+        asciiParser = ASCIIParser()
+        return asciiParser.parse(path=path, fromTime=fromTime, toTime=toTime)
