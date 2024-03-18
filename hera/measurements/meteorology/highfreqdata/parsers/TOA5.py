@@ -18,13 +18,13 @@ class ASCIIParser:
         dfs = []
         allDevices = pd.read_csv(path)                                                                                  ## Read all csv
         allDevices = allDevices.rename(columns=allDevices.iloc[0])[3:].reset_index(drop=True)                           ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
-        for devince_ID in range(1,number_of_devices+1):                                                                 ## iterate in all cols and devices
+        for device_ID in range(1,number_of_devices+1):                                                                 ## iterate in all cols and devices
             if cols[0] =="U":
-                columnsName = ['TIMESTAMP','RECORD'] + [f"{x}_{devince_ID}" for x in cols]                              ##For raw sonic there is _
-                columnNameMapping = dict([(f"{x}_{devince_ID}", f"{x}") for x in cols])
+                columnsName = ['TIMESTAMP','RECORD'] + [f"{x}_{device_ID}" for x in cols]                              ##For raw sonic there is _
+                columnNameMapping = dict([(f"{x}_{device_ID}", f"{x}") for x in cols])
             else:
-                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}{devince_ID}" for x in cols]                              ## For TCT there is no _
-                columnNameMapping = dict([(f"{x}{devince_ID}", f"{x}") for x in cols])
+                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}{device_ID}" for x in cols]                              ## For TCT there is no _
+                columnNameMapping = dict([(f"{x}{device_ID}", f"{x}") for x in cols])
 
             columnNameMapping['TIMESTAMP'] = 'TIMESTAMP'
             columnNameMapping['RECORD'] = 'RECORD'
