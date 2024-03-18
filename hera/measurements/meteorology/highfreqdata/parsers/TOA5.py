@@ -52,6 +52,8 @@ class ASCIIParser:
                 cols = ['TC_T', 'TRH', 'RH']
             number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
 
+
+
             return cols,number_of_devices
 
     def getPandasFromDir(self,path, fromTime, toTime):
