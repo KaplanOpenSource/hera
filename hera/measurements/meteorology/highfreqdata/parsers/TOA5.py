@@ -2,25 +2,30 @@ import csv
 import pandas as pd
 
 
-class Parser:
+class ASCIIParser:
     def __init__(self):
         pass
 
-    def parse(self, path :str, fromTime=None, toTime=None):                             ## Will return N parquet files as number of devices inside a binary file
-        if path[len(path)-4:] == ".dat":                                                ## File path includes .dat at the end
-            dfs = self.getPandasFromFile(self, path, fromTime, toTime)
+    def parse(self, path :str, fromTime=None, toTime=None):                                                             ## Will return N parquet files as number of devices inside a binary file
+        if path[len(path)-4:] == ".dat":                                                                                ## File path includes .dat at the end
+            dfs = self.getPandasFromFile(path, fromTime, toTime)
         else:
-            dfs = self.getPandasFromDir(self, path, fromTime, toTime)                   ## Folder Path if it does not include .dat at the  end
+            dfs = self.getPandasFromDir(path, fromTime, toTime)                                                         ## Folder Path if it does not include .dat at the  end
         return dfs
 
     def getPandasFromFile(self, path, fromTime, toTime):
-        cols,number_of_devices = self.get_columns(path)                                 ## Read metadata for detecting Raw Sonic or TCT and Number of Devices
+        cols,number_of_devices = self.get_columns(path)                                                                 ## Read metadata for detecting Raw Sonic or TCT and Number of Devices
         dfs = []
-        allDevices = pd.read_csv(path)                                                  ## Read all csv
-        allDevices = allDevices.rename(columns=df.iloc[0])[3:].reset_index(drop=True)   ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
-        for devince_ID in range(1,number_of_devices+1):                                 ## iterate in all cols and devices
-            columnsName = ['TIMESTAMP','RECORD'] + [f"{x}_{devince_ID}" for x in cols]
-            columnNameMapping = dict([(f"{x}_{i}", f"{x}") for x in cols])
+        allDevices = pd.read_csv(path)                                                                                  ## Read all csv
+        allDevices = allDevices.rename(columns=allDevices.iloc[0])[3:].reset_index(drop=True)                           ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
+        for devince_ID in range(1,number_of_devices+1):                                                                 ## iterate in all cols and devices
+            if cols[0] =="U":
+                columnsName = ['TIMESTAMP','RECORD'] + [f"{x}_{devince_ID}" for x in cols]                              ##For raw sonic there is _
+                columnNameMapping = dict([(f"{x}_{devince_ID}", f"{x}") for x in cols])
+            else:
+                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}{devince_ID}" for x in cols]                              ## For TCT there is no _
+                columnNameMapping = dict([(f"{x}{devince_ID}", f"{x}") for x in cols])
+
             columnNameMapping['TIMESTAMP'] = 'TIMESTAMP'
             columnNameMapping['RECORD'] = 'RECORD'
 
