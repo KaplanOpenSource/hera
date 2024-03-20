@@ -16,6 +16,20 @@ class ASCIIParser:
         return dfs
 
     def getPandasFromFile(self, path, fromTime, toTime):
+        """
+         Reads the ascii file from fromTime to toTime and returns dictionary where
+         Key is Device ID and value is dataframe for the corresponding device.
+         Parameters
+         ---------
+           path: str
+           fromTime:  None, str - should include date and hour seperated with space (order does not matter)
+           toTime: None, str - should include date and hour seperated with space (order does not matter)
+
+           Returns
+           -------
+           Dictionary where Key is Device ID and value is dataframe for the corresponding device.
+        """
+
         cols,number_of_devices = self.get_columns(path)                                                                 ## Read metadata for detecting Raw Sonic or TCT and Number of Devices
         dfs = {}
         allDevices = pd.read_csv(path)                                                                                  ## Read all csv
@@ -43,6 +57,19 @@ class ASCIIParser:
         return dfs
 
     def get_columns(self,path):
+        """
+         Reads the ascii file columns and returns columns names and number of devices
+         ---------
+           path: str
+
+           Returns
+           -------
+           columns names and number of devices.
+           - ['U','V','W','T'] for Raw Sonic
+           - ['TC_T', 'TRH', 'RH'] for TCT
+
+        """
+
         with open(path) as meta_data:
             meta_data_reader = csv.reader(meta_data)
             device_type = next(meta_data_reader)[-1]
@@ -52,11 +79,21 @@ class ASCIIParser:
                 cols = ['TC_T', 'TRH', 'RH']
             number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
 
-
-
             return cols,number_of_devices
 
     def getPandasFromDir(self,path, fromTime, toTime):
+        """
+         Recives Directory of ASCII files and returns dictionary where Key is Device ID and value is dataframe for the corresponding device.
+         ---------
+           path: str
+           fromTime:  None, str - should include date and hour seperated with space (order does not matter)
+           toTime: None, str - should include date and hour seperated with space (order does not matter)
+
+           Returns
+           -------
+           Dictionary where Key is Device ID and value is dataframe for the corresponding device.
+        """
+
         allDevices_in_directory = {}
         for file_path in tqdm(os.listdir(path)):
             file_path = os.path.join(path,file_path)
@@ -73,13 +110,25 @@ class ASCIIParser:
         return allDevices_in_directory
 
     def fromTime_toTime_handler(self,df,fromTime,toTime):
+        """
+         Recives dataframe and time intervals, returns dataframe within time interval .
+
+         Parameters
+         ---------
+           df: pd.DataFrame
+           fromTime: None, str - should include date and hour seperated with space (order does not matter)
+           toTime: None, str - should include date and hour seperated with space (order does not matter)
+
+           Returns
+           -------
+           return dataframe between fromTime until toTime
+        """
+
         df = df.set_index('TIMESTAMP')
         start = None
         end = None
 
         #assert len(fromTime.split(" "))==2 and len(toTime.split(" "))==2, "Please enter date and time with space seperation"
-
-
         if fromTime and toTime:
             assert pd.to_datetime(fromTime) <= pd.to_datetime(toTime), f"fromTime {fromTime} is larger than toTime {toTime}"
             start = str(pd.to_datetime(fromTime))
