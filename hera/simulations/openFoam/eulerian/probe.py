@@ -24,6 +24,7 @@ def plotProbe(file, times, vectors, el):
         plt.plot(times[::jp],ele[i][::jp], label=str(i))
     plt.legend()
     plt.title(simulation)
+    plt.show()
     
     return
 
