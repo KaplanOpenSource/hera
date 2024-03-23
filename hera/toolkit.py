@@ -86,7 +86,7 @@ class ToolkitHome:
         )
 
 
-    def getToolkit(self, toolkitName, projectName, filesDirectory=None, **kwargs):
+    def getToolkit(self, toolkitName, projectName=None, filesDirectory=None, **kwargs):
         """
             Returns a toolkit for the requested project.
 
@@ -237,6 +237,27 @@ class abstractToolkit(Project):
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
 
+    def getDataSourceList(self,**filters):
+        """
+            Returns a list of the data source names
+        Parameters
+        ----------
+        filters
+
+        Returns
+        -------
+
+        """
+        docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
+                                                toolkit=self.toolkitName,
+                                                **filters)
+
+        ret = []
+        for doc in docList:
+            ret.append(doc['desc']['datasourceName'])
+
+        return ret
+
     def getDataSourceMap(self,**filters):
         """
             Return the list of all data sources and their versions that are related to this toolkit
@@ -277,7 +298,7 @@ class abstractToolkit(Project):
         else:
             return pandas.concat((Table),ignore_index=True)
 
-    def getDatasourceDocumentsList(self, **kwargs):
+    def getDataSourceDocumentsList(self, **kwargs):
         """
             Return all the datasources associated with this toolkit.
 
@@ -290,7 +311,7 @@ class abstractToolkit(Project):
         queryDict.update(**kwargs)
         return self.getMeasurementsDocuments(**queryDict)
 
-    def getDatasourceDocument(self, datasourceName, version=None, **filters):
+    def getDataSourceDocument(self, datasourceName, version=None, **filters):
         """
             Return the document of the datasource.
             If version is not specified, return the latest version.
@@ -337,7 +358,33 @@ class abstractToolkit(Project):
             ret =docList[0]
         return ret
 
-    def getDatasourceData(self, datasourceName=None, version=None,**filters):
+    def getDataSourceDocuments(self, datasourceName, version=None, **filters):
+        """
+            Returns a list with the datasource. This is for the complteness of the interface.
+            That is, making it similar to the Measurement, Cache and Simulation document retrieval.
+
+        Parameters
+        ----------
+        datasourceName: str
+            The datasourceName of the source
+            if None, return the default source (if set).
+
+        version: tuple
+            The version of the source.
+            if not found, return the latest source
+
+
+        filters:
+            Additional parameters to the query.
+
+        Returns
+        -------
+                A list that containes the document of the source. (empty list  if not found)
+        """
+        doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
+        return [] if doc is None else [doc]
+
+    def getDataSourceData(self, datasourceName=None, version=None, **filters):
         """
             Returns the data from the datasource.
 
@@ -361,8 +408,7 @@ class abstractToolkit(Project):
                 The data of the source. (None if not found)
         """
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
-        doc = self.getDatasourceDocument(datasourceName=datasourceName, version=version,**filters)
-
+        doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         return None if doc is None else doc.getData()
 
     def addDataSource(self,dataSourceName,resource,dataFormat,version=(0,0,1),overwrite=False,**kwargs):
@@ -396,9 +442,8 @@ class abstractToolkit(Project):
         kwargs[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
         kwargs[TOOLKIT_DATASOURCE_NAME] = dataSourceName
         kwargs[TOOLKIT_DATASOURCE_VERSION] = version
-
-        if (self.getDatasourceDocument(dataSourceName,version=version) is None) or overwrite:
-            if self.getDatasourceDocument(dataSourceName,version=version) is not None:  # not None = Exist
+        if (self.getDataSourceDocument(dataSourceName, version=version) is None) or overwrite:
+            if self.getDataSourceDocument(dataSourceName, version=version) is not None:  # not None = Exist
                 # print("Delete existing, and add new data source.")
                 delargs = {TOOLKIT_DATASOURCE_NAME : dataSourceName,
                            TOOLKIT_DATASOURCE_VERSION :  version}
@@ -418,9 +463,10 @@ class abstractToolkit(Project):
         return doc
 
 
-    def deleteDataSourceDocuments(self,**filters):
+    def deleteDataSource(self, datasourceName, version=None, **filters):
 
-        filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName # {'toolkit' : self.toolkitName}
+        doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
+        doc.delete()
 
-        return self.deleteMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,**filters)
+        return doc
 

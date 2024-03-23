@@ -111,7 +111,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             List of LSMTemplates
 
         """
-        docList = self.getDatasourceDocumentsList(**query)
+        docList = self.getDataSourceDocumentsList(**query)
         return [LSMTemplate(doc,self) for doc in docList]
 
     def getTemplateByName(self,templateName,templateVersion=None):
@@ -143,7 +143,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         -------
             The template by the name
         """
-        doc = self.getDatasourceDocument(datasourceName=templateName,version=templateVersion)
+        doc = self.getDataSourceDocument(datasourceName=templateName, version=templateVersion)
         return LSMTemplate(doc,self)
 
     def getTemplatesTable(self, **query):
@@ -152,7 +152,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         :param query:
         :return:
         """
-        docList = self.getDatasourceDocumentsList(**query)
+        docList = self.getDataSourceDocumentsList(**query)
         if len(docList) > 0:
             descList = [doc.desc.copy() for doc in docList]
             for (i, desc) in enumerate(descList):
@@ -212,7 +212,7 @@ class LSMToolkit(toolkit.abstractToolkit):
         doc = None
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
 
-            doc = self.getDatasourceDocument(templateName)
+            doc = self.getDataSourceDocument(templateName)
 
             if doc is None:
 

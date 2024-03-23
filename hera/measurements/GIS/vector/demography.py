@@ -219,7 +219,7 @@ class analysis:
             raise ValueError("Must specify regionName if saveMode is set to save data")
 
         if isinstance(dataSourceOrData, str):
-            Data = self.datalayer.getDatasourceData(dataSourceOrData, dataSourceVersion)
+            Data = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
             if Data is None:
                 Data = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:
@@ -323,7 +323,7 @@ class analysis:
             poly = shapeNameOrData
 
         if isinstance(dataSourceOrData,str):
-            demography = self.datalayer.getDatasourceData(dataSourceOrData,dataSourceVersion)
+            demography = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
             if demography is None:
                 demography = geopandas.read_file(io.StringIO(dataSourceOrData))
         else:

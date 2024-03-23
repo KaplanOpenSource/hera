@@ -83,7 +83,7 @@ class workflowToolkit(abstractToolkit):
 
         """
         retList = []
-        for doc in self.getDatasourceDocumentsList(desc__solver=solverName):
+        for doc in self.getDataSourceDocumentsList(desc__solver=solverName):
             data = dict(doc.desc['desc'])
             data['templateName'] = doc.desc['datasourceName']
             retList.append(data)

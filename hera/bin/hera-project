@@ -2,8 +2,18 @@
 import argparse
 import logging
 from hera.utils.data import CLI
+from hera.utils.logging import initialize_logging,with_logger
 
 if __name__=="__main__":
+    initialize_logging(
+          with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
+
+
+    #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+    #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+    )
+
     logger = logging.getLogger("hera.bin.hera_projects")
 
     parser = argparse.ArgumentParser()
@@ -49,7 +59,7 @@ if __name__=="__main__":
     parser_new.add_argument('projectName', type=str, default=None, help='The project name to create')
     parser_new.add_argument('--directory', dest="directory",type=str, default=None, help='directory to create the project in')
     parser_new.add_argument('--noRepositories', dest="loadRepositories",default=True,action="store_false")
-    parser_new.add_argument('--dont-overwrite',dest="overwrite",default=False,action="store_true")
+    parser_new.add_argument('--dont-overwrite',dest="overwrite",default=True,action="store_true")
     parser_new.set_defaults(func=CLI.project_create)
 
     ### Dump/save
@@ -75,10 +85,22 @@ if __name__=="__main__":
     repository_list.set_defaults(func=CLI.repository_list)
 
     ### add
-    repository_load = repository_subparsers.add_parser('add', help='Add the data repository to the database')
-    repository_load.add_argument('repositoryName', type=str, help='The name of the repository')
-    repository_load.add_argument('repositoryPath', type=str, help='The name of the repository')
+    repository_load = repository_subparsers.add_parser('add', help='Add the data repository to the default project')
+    repository_load.add_argument('repositoryName', type=str, help='The full path to the repository descriptor file of the repository')
+    repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                help='overwrite the existing workflow with the same name')
     repository_load.set_defaults(func=CLI.repository_add)
+
+    ### remove
+    repository_remove = repository_subparsers.add_parser('remove', help='Remove data repository from the default project')
+    repository_remove.add_argument('repositoryName', type=str, help='name of the repository')
+    repository_remove.set_defaults(func=CLI.repository_remove)
+
+    ### show
+    repository_show = repository_subparsers.add_parser('show', help='Show the items in the data repository')
+    repository_show.add_argument('repositoryName', type=str, help='name of the repository')
+    repository_show.set_defaults(func=CLI.repository_show)
+
 
     ##################### exec
     parsed = parser.parse_args()
