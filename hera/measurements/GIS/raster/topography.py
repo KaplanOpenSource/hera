@@ -70,7 +70,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
         filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
 
         tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=projectName)
-        doc = tk.getDatasourceDocumentsList()[0]
+        doc = tk.getDataSourceDocumentsList()[0]
         fheight = doc.resource + '/' + filename
 
         ds = gdal.Open(fheight)

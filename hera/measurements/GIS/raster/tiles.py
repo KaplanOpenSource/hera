@@ -97,7 +97,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         tileULX, tileULY = self.deg2tile(gdf.iloc[0].geometry.y,gdf.iloc[0].geometry.x, zoomlevel)
         tileLRX, tileLRY = self.deg2tile(gdf.iloc[1].geometry.y,gdf.iloc[1].geometry.x, zoomlevel)
 
-        tileurl = self.getDatasourceData(tileServer)
+        tileurl = self.getDataSourceData(tileServer)
         tileurl = tileServer if tileurl is None else tileurl
         img,extent =  self._getImageFromTiles([tileULX, tileULY],[tileLRX, tileLRY], zoomlevel,tileurl)
 

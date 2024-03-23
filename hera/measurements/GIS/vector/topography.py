@@ -15,10 +15,10 @@ from ....simulations.utils import coordinateHandler
 from ....utils.logging import get_classMethod_logger
 
 from ....toolkit import TOOLKIT_SAVEMODE_ONLYFILE
-from .... import toolkit
+from .toolkit import VectorToolkit
 
 
-class TopographyToolkit(toolkit.VectorToolkit):
+class TopographyToolkit(VectorToolkit):
 
     @property
     def stlFactory(self):

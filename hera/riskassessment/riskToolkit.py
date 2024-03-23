@@ -64,7 +64,7 @@ class RiskToolkit(abstractToolkit):
         :return:
         """
         if isinstance(nameOrDesc, str):
-            descriptor = self.getDatasourceData(nameOrDesc,version=version)
+            descriptor = self.getDataSourceData(nameOrDesc, version=version)
             if descriptor is None:
                 raise ValueError(f"Agent {nameOrDesc} is not found. Load it with hera-risk-agent load")
 
@@ -84,7 +84,7 @@ class RiskToolkit(abstractToolkit):
             A list of agent names.
 
         """
-        return self.getDatasourceDocumentsList()
+        return self.getDataSourceDocumentsList()
 
     def loadAgent(self, name, agentDescription, version,saveMode=TOOLKIT_SAVEMODE_FILEANDDB):
         """
@@ -145,7 +145,7 @@ class RiskToolkit(abstractToolkit):
         name = agentDescription['name']
         version = agentDescription.get('version',None)
 
-        agentDoc = self.getDatasourceDocument(datasourceName=name,version=version)
+        agentDoc = self.getDataSourceDocument(datasourceName=name, version=version)
 
         if agentDoc is None:
             self.addDataSource(name, resource=json.dumps(agentDescription), dataFormat=datatypes.JSON_DICT, **agentDescription)

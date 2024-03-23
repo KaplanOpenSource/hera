@@ -16,6 +16,10 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+    #122:   - Adding support for repositories. 
+            - Repositories can be either datasources of the toolkit, or just regular measurements, cache, or simulations. 
+            - The data in the repositories is automatically added when a project is created. 
+
     #119:   - Adding add_formatter,add_FileHandler that could be used 
               to define local log file handlers and formatters. 
               

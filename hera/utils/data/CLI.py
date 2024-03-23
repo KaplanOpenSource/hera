@@ -146,9 +146,71 @@ def repository_list(argumets):
 def repository_add(argumets):
     logger = logging.getLogger("hera.bin.repository_add")
     dtk = dataToolkit()
-    logger.info(f"Adding the path {argumets.repositoryPath} is loaded as {argumets.repositoryName}")
-    dtk.addRepository(repositoryName=argumets.repositoryName,
-                      repositoryPath=argumets.repositoryPath)
+
+    repositoryName = os.path.basename(argumets.repositoryName).split(".")[0]
+
+    logger.info(f"Adding the repository {argumets.repositoryName} as name {repositoryName}")
+    dtk.addRepository(repositoryName=repositoryName,
+                      repositoryPath=argumets.repositoryName,
+                      overwrite=argumets.overwrite)
+
+def repository_remove(arguments):
+    logger = logging.getLogger("hera.bin.repository_remove")
+    dtk = dataToolkit()
+
+    datasourceName = arguments.repositoryName
+    logger.info(f"Removing the datasource {datasourceName}")
+    dtk.deleteDataSource(datasourceName=datasourceName)
+
+
+def repository_show(arguments):
+    logger = logging.getLogger("hera.bin.repository_remove")
+    dtk = dataToolkit()
+
+    datasourceName = arguments.repositoryName
+    logger.info(f"Listing the datasource {datasourceName}")
+    repositoryData = dtk.getDataSourceData(datasourceName=datasourceName)
+    for toolkitName, toolDesc in repositoryData.items():
+        ttl = f"\t\t\033[1mToolkit:\033[0m {toolkitName}"
+        print("#"*(2*len(ttl.expandtabs())))
+        print(ttl)
+        print("#"*(2*len(ttl.expandtabs())))
+
+        print(f"DataSource")
+        print("===========")
+        for repName,repItems in toolDesc.get("dataSource",{}).items():
+            ttl = f"\033[1mRepository name:\033[0m {repName}"
+            print(f"\t{ttl}")
+            print("\t"+"-"*len(ttl))
+            with pandas.option_context('display.max_rows', None,
+                                       'display.max_columns', None,
+                                       'display.width', 1000,
+                                       'display.precision', 3,
+                                       'display.colheader_justify', 'center'):
+                print(pandas.DataFrame.from_dict(repItems,orient='index',columns=['Value']))
+
+        for additionalType in ['Measuerments','Cache','Simulations']:
+            if additionalType in toolDesc:
+                print(additionalType)
+                print("="*len(additionalType))
+
+                for repName,repItems in toolDesc.get(additionalType,{}).items():
+                    ttl = f"\tRepository name: {repName}"
+                    print(ttl)
+                    print("-" * (2 * len(ttl.expandtabs())))
+                    print(f"Is path? {repItems['isPath']}")
+                    print(f"Is path? {repItems['isPath']}")
+                    if repItems['isPath']:
+                        print(f"\tAbsolute path{repItems.get('absolutePath',False)}")
+
+                    with pandas.option_context('display.max_rows', None,
+                                               'display.max_columns', None,
+                                               'display.width', 1000,
+                                               'display.precision', 3,
+                                               'display.colheader_justify', 'center'):
+                        print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
+
+
 
 def db_list(arguments):
     """
