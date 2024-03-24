@@ -1,11 +1,9 @@
 import numpy
 import os
 import logging
-from hera import toolkitHome
-from hera.measurements.GIS.vector import toolkit
-from hera.measurements.GIS.vector.buildings.analysis import analysis
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-from hera.datalayer import datatypes
+from ..toolkit import VectorToolkit
+from .analysis import analysis
+from .....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
 import geopandas
 import matplotlib.pyplot as plt
 
@@ -17,8 +15,7 @@ import FreeCAD
 import Part
 import Mesh
 
-
-class BuildingsToolkit(toolkit.VectorToolkit):
+class BuildingsToolkit(VectorToolkit):
     """
         Toolkit to manage the buildings.
 
@@ -230,7 +227,7 @@ class BuildingsToolkit(toolkit.VectorToolkit):
             if doc is None:
                 self.addCacheDocument(type=self.doctype,
                                       resource=os.path.abspath(outputFileName),
-                                      dataFormat=datatypes.STRING,
+                                      dataFormat=self.datatypes.STRING,
                                       desc=desc)
             else:
                 doc.resource = os.path.abspath(outputFileName)

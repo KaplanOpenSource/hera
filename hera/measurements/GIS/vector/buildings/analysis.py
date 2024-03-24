@@ -7,8 +7,6 @@ import pandas
 import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
-from hera.datalayer import datatypes,nonDBMetadataFrame
-from hera.measurements.GIS.vector import topography
 
 
 import logging
@@ -166,7 +164,7 @@ class analysis():
             if len(dataDoc) == 0:
                 #nir                self.logger.debug("Adding new record to the DB")
                 doc = self.datalayer.addCacheDocument(resource="",
-                                                      dataFormat=datatypes.GEOPANDAS,
+                                                      dataFormat=self.datatypes.GEOPANDAS,
                                                       type="Lambda_Buildings",
                                                       desc=desc)
                 filename = f"{str(doc.id)}.geojson"

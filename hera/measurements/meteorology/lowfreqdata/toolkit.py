@@ -154,7 +154,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
 
     def _storeStation(self,datasourceName,stationData,parser,metadata=dict()):
 
-        doc = self.getDatasourceData(datasourceName=datasourceName)
+        doc = self.getDataSourceData(datasourceName=datasourceName)
 
         if doc is None:
 

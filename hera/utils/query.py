@@ -34,7 +34,7 @@ def andClause(excludeFields=[], **kwargs):
     return " and ".join(L)
 
 
-def dictToMongoQuery(dictObj,prefix=""):
+def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
     """
         Convets a dict object to a mongodb query.
 
@@ -70,6 +70,13 @@ def dictToMongoQuery(dictObj,prefix=""):
     :param  prefix: prefix for the mongoDB query fields.
                     used to select only a part of the document description.
 
+    prefixExclude : str
+            Prefix to exclude from the addition to the dict.
+            This is used to query a document from the DB, and we to pass to the query
+            the parameters without the 'desc'
+
+
+
     :param dictObj:
             A dictionary with fields and values.
     :return:
@@ -77,25 +84,26 @@ def dictToMongoQuery(dictObj,prefix=""):
     """
     ret = {}
 
-    def determineType(value, prefix):
+    def determineType(value, prefix,prefixExclude):
         if isinstance(value, dict):
-            _dictTomongo(value, local_perfix=prefix)
+            _dictTomongo(value, local_perfix=prefix,prefixExclude=prefixExclude)
         elif isinstance(value, list):
             for indx,listValue in enumerate(value):
                 new_prefix = f"{prefix}__{indx}"
-                determineType(listValue,new_prefix)
+                determineType(listValue,new_prefix,prefixExclude)
         else:
             ret[prefix] = value
 
-    def _dictTomongo(dictObj,local_perfix):
+    def _dictTomongo(dictObj,local_perfix,prefixExclude):
         for key,value in dictObj.items():
-            if key in ['type','in','ne','lt','lte','gt','gte','not','all','size','exists','nin','not']:
-                key = f"{key}"
+            if key==prefixExclude:
+                new_prefix = local_perfix
+            else:
+                new_prefix = key if local_perfix=="" else "%s__%s" % (local_perfix, key)
 
-            new_prefix = key if local_perfix=="" else "%s__%s" % (local_perfix, key)
-            determineType(value,new_prefix)
+            determineType(value,new_prefix,prefixExclude)
 
-    _dictTomongo(dictObj,local_perfix=prefix)
+    _dictTomongo(dictObj,local_perfix=prefix,prefixExclude=prefixExclude)
     return ret
 
 
