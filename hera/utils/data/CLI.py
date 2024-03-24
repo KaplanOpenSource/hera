@@ -138,6 +138,7 @@ def repository_list(argumets):
     else:
         with pandas.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.max_colwidth', None,
                                    'display.width', 1000,
                                    'display.precision', 3,
                                    'display.colheader_justify', 'center'):
@@ -146,9 +147,56 @@ def repository_list(argumets):
 def repository_add(argumets):
     logger = logging.getLogger("hera.bin.repository_add")
     dtk = dataToolkit()
-    logger.info(f"Adding the path {argumets.repositoryPath} is loaded as {argumets.repositoryName}")
-    dtk.addRepository(repositoryName=argumets.repositoryName,
-                      repositoryPath=argumets.repositoryPath)
+
+    repositoryName = os.path.basename(argumets.repositoryName).split(".")[0]
+
+    logger.info(f"Adding the repository {argumets.repositoryName} as name {repositoryName}")
+    dtk.addRepository(repositoryName=repositoryName,
+                      repositoryPath=argumets.repositoryName,
+                      overwrite=argumets.overwrite)
+
+def repository_remove(arguments):
+    logger = logging.getLogger("hera.bin.repository_remove")
+    dtk = dataToolkit()
+
+    datasourceName = arguments.repositoryName
+    logger.info(f"Removing the datasource {datasourceName}")
+    dtk.deleteDataSource(datasourceName=datasourceName)
+
+
+def repository_show(arguments):
+    logger = logging.getLogger("hera.bin.repository_remove")
+    dtk = dataToolkit()
+
+    datasourceName = arguments.repositoryName
+    logger.info(f"Listing the datasource {datasourceName}")
+    repositoryData = dtk.getDataSourceData(datasourceName=datasourceName)
+    dataTypeList = ['DataSource','Measurements','Cache','Simulations']
+
+    for toolkitName, toolDesc in repositoryData.items():
+        ttl = f"\t\t\033[1mToolkit:\033[0m {toolkitName}"
+        print("#"*(2*len(ttl.expandtabs())))
+        print(ttl)
+        print("#"*(2*len(ttl.expandtabs())))
+
+        for datatype in dataTypeList:
+            print("="*len(datatype))
+            print(f"{datatype}")
+            print("="*len(datatype))
+
+            for repName,repItems in toolDesc.get(datatype,{}).items():
+                ttl = f"\033[1mName:\033[0m {repName}"
+                print(f"\t{ttl}")
+                print("-" * (2 * len(ttl.expandtabs())))
+                print(f"Is it relative path? {repItems['isRelativePath']}")
+                with pandas.option_context('display.max_rows', None,
+                                           'display.max_columns', None,
+                                           'display.width', 1000,
+                                           'display.max_colwidth', None,
+                                           'display.precision', 3,
+                                           'display.colheader_justify', 'center'):
+                    print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
+                    print("\n")
 
 def db_list(arguments):
     """

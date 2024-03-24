@@ -219,8 +219,9 @@ def createDBConnection(connectionName, mongoConfig, alias=None):
     new_Metadata = type('Metadata', (DynamicDocument, MetadataFrame), {'meta': {'db_alias': '%s-alias' % dbName,
                                                                                 'allow_inheritance': True,
                                                                                 'auto_create_indexes': True,
-                                                                                'indexes': [('geometery', '2dsphere')]
-                                                                                }
+                                                                                'indexes': ['projectName']
+                                                                                },
+                                                                       '__str__' : lambda self: MetadataFrame.__str__(self)
                                                                        }
                         )
 

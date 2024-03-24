@@ -30,7 +30,7 @@ def registerInProject(projectName, experimentName, experimentPath):
 
     toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
 
-    datasource = toolkit.getDatasourceDocument(datasourceName=experimentName)
+    datasource = toolkit.getDataSourceDocument(datasourceName=experimentName)
 
     if datasource is not None:
         toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)

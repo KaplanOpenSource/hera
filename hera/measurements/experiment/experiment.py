@@ -84,7 +84,7 @@ class experimentHome(toolkit.abstractToolkit):
             that was derived for the specific experiment.
         """
         self.logger.info(f"Getting experiment {experimentName}")
-        L = self.getDatasourceDocument(datasourceName=experimentName)
+        L = self.getDataSourceDocument(datasourceName=experimentName)
         if L:
             self.logger.info(f"Found experiment. Loading")
             experimentPath=L.desc['experimentPath']
