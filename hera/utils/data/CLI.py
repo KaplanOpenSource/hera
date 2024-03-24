@@ -138,6 +138,7 @@ def repository_list(argumets):
     else:
         with pandas.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.max_colwidth', None,
                                    'display.width', 1000,
                                    'display.precision', 3,
                                    'display.colheader_justify', 'center'):
@@ -170,47 +171,32 @@ def repository_show(arguments):
     datasourceName = arguments.repositoryName
     logger.info(f"Listing the datasource {datasourceName}")
     repositoryData = dtk.getDataSourceData(datasourceName=datasourceName)
+    dataTypeList = ['DataSource','Measurements','Cache','Simulations']
+
     for toolkitName, toolDesc in repositoryData.items():
         ttl = f"\t\t\033[1mToolkit:\033[0m {toolkitName}"
         print("#"*(2*len(ttl.expandtabs())))
         print(ttl)
         print("#"*(2*len(ttl.expandtabs())))
 
-        print(f"DataSource")
-        print("===========")
-        for repName,repItems in toolDesc.get("dataSource",{}).items():
-            ttl = f"\033[1mRepository name:\033[0m {repName}"
-            print(f"\t{ttl}")
-            print("\t"+"-"*len(ttl))
-            with pandas.option_context('display.max_rows', None,
-                                       'display.max_columns', None,
-                                       'display.width', 1000,
-                                       'display.precision', 3,
-                                       'display.colheader_justify', 'center'):
-                print(pandas.DataFrame.from_dict(repItems,orient='index',columns=['Value']))
+        for datatype in dataTypeList:
+            print("="*len(datatype))
+            print(f"{datatype}")
+            print("="*len(datatype))
 
-        for additionalType in ['Measuerments','Cache','Simulations']:
-            if additionalType in toolDesc:
-                print(additionalType)
-                print("="*len(additionalType))
-
-                for repName,repItems in toolDesc.get(additionalType,{}).items():
-                    ttl = f"\tRepository name: {repName}"
-                    print(ttl)
-                    print("-" * (2 * len(ttl.expandtabs())))
-                    print(f"Is path? {repItems['isPath']}")
-                    print(f"Is path? {repItems['isPath']}")
-                    if repItems['isPath']:
-                        print(f"\tAbsolute path{repItems.get('absolutePath',False)}")
-
-                    with pandas.option_context('display.max_rows', None,
-                                               'display.max_columns', None,
-                                               'display.width', 1000,
-                                               'display.precision', 3,
-                                               'display.colheader_justify', 'center'):
-                        print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
-
-
+            for repName,repItems in toolDesc.get(datatype,{}).items():
+                ttl = f"\033[1mName:\033[0m {repName}"
+                print(f"\t{ttl}")
+                print("-" * (2 * len(ttl.expandtabs())))
+                print(f"Is it relative path? {repItems['isRelativePath']}")
+                with pandas.option_context('display.max_rows', None,
+                                           'display.max_columns', None,
+                                           'display.width', 1000,
+                                           'display.max_colwidth', None,
+                                           'display.precision', 3,
+                                           'display.colheader_justify', 'center'):
+                    print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
+                    print("\n")
 
 def db_list(arguments):
     """

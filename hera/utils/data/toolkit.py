@@ -98,17 +98,13 @@ class dataToolkit(toolkit.abstractToolkit):
                     logger.info(f"Loading {itemName} to toolkit {toolkitName} (ProjectName {toolkit.projectName}")
 
                     theItem = itemDesc["item"]
-                    isPath = itemDesc["isPath"]
-                    isAbsolute = itemDesc.get("absolutePath", True)
+                    isRelativePath = itemDesc.get("isRelativePath",True)
                     logger.debug(f"Checking if {itemName} resource is a path {isPath}, is it absolute? {isAbsolute}")
 
-                    if isPath:
-                        logger.debug(f"Checking if {itemName} resource is absolute or relative: {itemDesc.get('absolutePath', False)}")
-                        if isAbsolute:
-                            theItem["resource"] = theItem["resource"]
-                        else:
-                            logger.debug(f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
-                            theItem["resource"] = os.path.join(basedir, theItem["resource"])
+                    if isRelativePath:
+                        logger.debug(f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
+                        theItem["resource"] = os.path.join(basedir, theItem["resource"])
+
 
                     logger.debug(f"Checking if the data item {itemName} is already in the project")
                     if key == 'DataSource':
@@ -118,7 +114,7 @@ class dataToolkit(toolkit.abstractToolkit):
                         retrieveFunc = getattr(toolkit,retrieveFuncName)
                         if retrieveFunc is None:
                             raise ValueError(f"function {retrieveFuncName} not found. Key {key} must be : DataSource, Measurement, Cache, or Simulation")
-                        itemQry = dictToMongoQuery(**theItem)
+                        itemQry = dictToMongoQuery(theItem)
                         datasource = retrieveFunc(**itemQry)
 
                     logger.debug(f"Found {len(datasource)} documents")
