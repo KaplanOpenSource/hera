@@ -80,7 +80,7 @@ def foam_templates_create(arguments):
     groupName = arguments.templateName if arguments.groupName is None else arguments.groupName
 
     with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
-        json.dump(tk.getDatasourceData(arguments.templateName),outFile, indent=4)
+        json.dump(tk.getDataSourceData(arguments.templateName), outFile, indent=4)
 
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
