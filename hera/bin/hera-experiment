@@ -15,11 +15,11 @@ if __name__ =="__main__":
 
     projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from configuration.json in your directory'
 
-    parser_prepare = parser.add_parser('list', help='Lists the experiments in your project')
+    parser_prepare = subparsers.add_parser('list', help='Lists the experiments in your project')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.set_defaults(func=CLI.listExperiments)
+    parser_prepare.set_defaults(func=CLI.experiments_list)
 
-    parser_add = parser.add_parser('registerInProject', help='register the experiment in the project')
+    parser_add = subparsers.add_parser('registerInProject', help='register the experiment in the project')
     parser_add.add_argument('experimentName', type=str,help='The project to load the data')
     parser_add.add_argument('experimentPath', type=str, help='The experiment name')
     parser_add.add_argument('projectName', type=str, help='The path to the experiment files')

@@ -8,7 +8,6 @@ def experiments_list(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
-
     if 'projectName' not in arguments:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
 
@@ -18,8 +17,7 @@ def experiments_list(arguments):
         projectName = arguments.projectName
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT,projectName=projectName)
-
-    tk.list
+    print(tk.list)
 
 def registerInProject(projectName, experimentName, experimentPath):
 
