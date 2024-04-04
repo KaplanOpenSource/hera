@@ -404,9 +404,15 @@ class parquetDataEngineHera(datalayer.Project):
         self.logger.execution("------- Start --------")
         self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
-        collection = self.getMeasurementsDocuments(type = 'Experiment_rawData',experimentName=self.experimentName,deviceType = deviceType,**query)
+
+        if isLong:
+            collection = self.getMeasurementsDocuments(type='Experiment_rawData', experimentName=self.experimentName,
+                                                       deviceType=deviceType, deviceName=deviceName, **query)
+        else:
+            collection = self.getMeasurementsDocuments(type = 'Experiment_rawData',experimentName=self.experimentName,deviceType = deviceType,**query)
+
         if len(collection) == 0:
-            return pandas.DataFrame()
+                return pandas.DataFrame()
 
         data = collection[0].getData(engine="fastparquet")
 
