@@ -204,7 +204,6 @@ def update(arguments):
     dtk = dataToolkit()
     dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName, overwrite=arguments.overwrite)
 
-
 def db_list(arguments):
     """
         List the databases in the
