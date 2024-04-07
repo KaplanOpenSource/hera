@@ -3,28 +3,70 @@ import json
 import argparse
 from hera.measurements.experiment import CLI
 import os
-
-
-#  Load the path to th experiment to hera
-
-
+from hera.utils.logging import initialize_logging,with_logger
+import logging
 
 if __name__ =="__main__":
+    initialize_logging(
+          with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
+
+
+    #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+    #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+    )
+
+    logger = logging.getLogger("hera.bin.hera_experiment")
+
+
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='Topic:')
 
-    projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from configuration.json in your directory'
+    ###experiment
+    parser_experiment = subparsers.add_parser('experiment', help='experiments management')
+    experiment_subparsers = parser_experiment.add_subparsers(help='experiments management')
 
-    parser_prepare = subparsers.add_parser('list', help='Lists the experiments in your project')
-    parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.set_defaults(func=CLI.experiments_list)
+    ## List
+    experiment_list = experiment_subparsers.add_parser('list', help='Lists the experiments in your project')
+    experiment_list.add_argument('--projectName', type=str, default=None, help='The project name. [Optional]. If does not exist take from configuration.json in your directory')
+    experiment_list.set_defaults(func=CLI.experiments_list)
 
-    parser_add = subparsers.add_parser('registerInProject', help='register the experiment in the project')
-    parser_add.add_argument('experimentName', type=str,help='The project to load the data')
-    parser_add.add_argument('experimentPath', type=str, help='The experiment name')
-    parser_add.add_argument('projectName', type=str, help='The path to the experiment files')
+    ## Table
+    experiment_table = experiment_subparsers.add_parser('table', help='Table of the experiments in specified project')
+    experiment_table.add_argument('--projectName', type=str, default=None, help='The project name. [Optional]. If does not exist take from configuration.json in your directory')
+    experiment_table.set_defaults(func=CLI.experiments_table)
 
-    parser_add.set_defaults(func=CLI.registerInProject)
+    ## Get Data of Experiment
+    experiment_getData = experiment_subparsers.add_parser('data', help='Get data of specified experiment')
+    experiment_getData.add_argument('--projectName', type=str, default=None, help='The project name. [Optional]. If does not exist take from configuration.json in your directory')
+    experiment_getData.add_argument('experiment', type=str, default=None, help='Experiment Name')
+    experiment_getData.add_argument('deviceType', type=str, default=None, help='Device Type name')
+    experiment_getData.add_argument('--deviceName', type=str, default=None, help='Device Name')
+    experiment_getData.add_argument('--perDevice', type=str, default=None, help='If data is stored perDevice (long experiment or not). If true - device name must be specified')
+    experiment_getData.set_defaults(func=CLI.get_experiment_data)
 
-    args = parser.parse_args()
 
+    ## Create Experiment for project
+    # experiment_create = experiment_subparsers.add_parser('create', help='Table of the experiments in specified project')
+
+
+    ## Create Repository JSON from zip file
+    repo_from_zip = experiment_subparsers.add_parser('createRepo', help='Table of the experiments in specified project')
+    repo_from_zip.add_argument('pathToZipFile', type=str, default=None, help='Path to zip to read from')
+    repo_from_zip.add_argument('--repoFileName', type=str, default=None, help='Path to create Repository JSON file')
+
+
+
+    # ## Add
+    # parser_add = experiment_subparsers.add_parser('registerInProject', help='register the experiment in the project')
+    # parser_add.add_argument('experimentName', type=str,help='The project to load the data')
+    # parser_add.add_argument('experimentPath', type=str, help='The experiment name')
+    # parser_add.add_argument('projectName', type=str, help='The path to the experiment files')
+    # parser_add.set_defaults(func=CLI.registerInProject)
+
+    ##################### exec
+    parsed = parser.parse_args()
+    if 'func' not in parsed:
+        parser.print_help()
+    else:
+        parsed.func(parsed)

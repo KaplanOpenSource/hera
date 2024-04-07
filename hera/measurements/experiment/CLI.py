@@ -5,7 +5,7 @@ from ... import toolkitHome
 
 
 def experiments_list(arguments):
-    logger = logging.getLogger("hera.bin")
+    logger = logging.getLogger("hera.bin.experiment_experiments_list")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     if 'projectName' not in arguments:
@@ -17,7 +17,39 @@ def experiments_list(arguments):
         projectName = arguments.projectName
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT,projectName=projectName)
-    print(tk.list)
+    print(tk.keys())
+
+
+def experiments_table(arguments):
+    logger = logging.getLogger("hera.bin.experiment_experiments_table")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    if 'projectName' not in arguments:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+    else:
+        projectName = arguments.projectName
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT,projectName=projectName)
+    print(tk.getExperimentsTable())
+
+
+def get_experiment_data(arguments):
+    logger = logging.getLogger("hera.bin.experiment_get_experiment_data")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    if 'projectName' not in arguments:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+
+        configuration = loadJSON(configurationFile)
+        projectName = configuration['projectName']
+    else:
+        projectName = arguments.projectName
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
+    print(tk.getExperiment(arguments.experiment).getExperimentData().getData(arguments.deviceType, deviceName=arguments.deviceName ,perDevice=arguments.perDevice))
 
 def registerInProject(projectName, experimentName, experimentPath):
 
