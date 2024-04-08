@@ -85,8 +85,9 @@ class dataToolkit(toolkit.abstractToolkit):
         logger.info(f"Loading repository {repositoryName}")
         repdoc = self.getDataSourceDocument(repositoryName)
         conf = repdoc.getData()
+        logger.info(f"Data: {conf}")
         basedir = os.path.dirname(repdoc.resource)
-
+        logger.info(f"basedir: {basedir}")
         logger.info(f"Loading the items in {repositoryName} repository to the {projectName}")
         for toolkitName, toolkitDict in conf.items():
 
@@ -99,7 +100,7 @@ class dataToolkit(toolkit.abstractToolkit):
 
                     theItem = itemDesc["item"]
                     isRelativePath = itemDesc.get("isRelativePath",True)
-                    logger.debug(f"Checking if {itemName} resource is a path {isPath}, is it absolute? {isAbsolute}")
+                    # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
                     if isRelativePath:
                         logger.debug(f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")

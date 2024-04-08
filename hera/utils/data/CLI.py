@@ -198,6 +198,12 @@ def repository_show(arguments):
                     print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
                     print("\n")
 
+def update(arguments):
+    logger = logging.getLogger("hera.bin.update")
+
+    dtk = dataToolkit()
+    dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName, overwrite=arguments.overwrite)
+
 def db_list(arguments):
     """
         List the databases in the
