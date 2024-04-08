@@ -404,7 +404,6 @@ class parquetDataEngineHera(datalayer.Project):
         self.logger.execution("------- Start --------")
         self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
-
         if perDevice:
             assert deviceName, "If perDeivce=True then deviceName Should be defined!"
 
