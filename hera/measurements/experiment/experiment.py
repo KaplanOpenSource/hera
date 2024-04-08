@@ -11,7 +11,7 @@ except ImportError:
 
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
 from hera.utils.jsonutils import loadJSON
-
+import logging
 
 class experimentHome(toolkit.abstractToolkit):
     """
@@ -24,8 +24,8 @@ class experimentHome(toolkit.abstractToolkit):
     CODE_DIRECTORY = 'code'
 
     def __init__(self, projectName, filesDirectory=None):
-
         super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory)
+        self.logger = logging.getLogger()
         self.logger.info("Init experiment toolkit")
 
     #

@@ -1,5 +1,6 @@
 import json
 
+
 from .datalayer import Project
 import os
 import pandas
@@ -448,7 +449,7 @@ class abstractToolkit(Project):
                 delargs = {TOOLKIT_DATASOURCE_NAME : dataSourceName,
                            TOOLKIT_DATASOURCE_VERSION :  version}
 
-                self.deleteDataSourceDocuments(**delargs)
+                self.deleteDataSource(**delargs)
             #else:
                 # print("Does not exist: add data source.")
 
