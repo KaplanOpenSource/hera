@@ -51,6 +51,19 @@ def get_experiment_data(arguments):
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
     print(tk.getExperiment(arguments.experiment).getExperimentData().getData(arguments.deviceType, deviceName=arguments.deviceName ,perDevice=arguments.perDevice))
 
+
+def create_experiment(arguments):
+    logger = logging.getLogger("hera.bin.experiment_create_experiment")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    if arguments.path:
+        experiment_path = arguments.path
+    else:
+        experiment_path = os.getcwd()
+
+    os.makedirs(str(os.path.join(experiment_path,'code')),exist_ok=True)
+
+
 def registerInProject(projectName, experimentName, experimentPath):
 
     dataSourceDesc = dict()
