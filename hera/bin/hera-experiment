@@ -50,8 +50,9 @@ if __name__ =="__main__":
     experiment_create = experiment_subparsers.add_parser('create', help='Table of the experiments in specified project')
     experiment_create.add_argument('experimentName', type=str, default=None, help='The name of the experiment (will determine the name of the toolkit file and the class name)')
     experiment_create.add_argument('--path', type=str, default=None, help='Path to put the experiment. If does not exist, use the current directory.')
-    experiment_create.add_argument('--experimentMetaData', type=zip, default=None, help='The zip from the argos web containing the metadata.')
+    experiment_create.add_argument('--zip', type=str, default=None, help='The zip from the argos web containing the metadata.')
     experiment_create.set_defaults(func=CLI.create_experiment)
+
 
     # ## Add
     # parser_add = experiment_subparsers.add_parser('registerInProject', help='register the experiment in the project')
