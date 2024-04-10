@@ -130,11 +130,14 @@ def create_experiment(arguments):
     os.makedirs(os.path.join(experiment_path,'code'),exist_ok=True)
 
     logger.debug(f" checking if class script already exists..")
-    class_script = open(f"{os.path.join(experiment_path, 'code', arguments.experimentName)}.py", "x")
+    try:
+        class_script = open(f"{os.path.join(experiment_path, 'code', arguments.experimentName)}.py", "x")
+        logger.debug(f" creating the experiment class since it does not exists")
+        create_empty_class()
+    except:
+        logger.debug(f" experiment class already exists ")
 
     logger.debug(f" creating data directory if not exist")
-    create_empty_class()
-
     os.makedirs(os.path.join(experiment_path, 'data'), exist_ok=True)
 
     if arguments.zip:
