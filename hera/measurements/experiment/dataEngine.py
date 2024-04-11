@@ -383,7 +383,7 @@ class parquetDataEngineHera(datalayer.Project):
 
         return data
 
-    def getData(self, deviceType, deviceName=None, startTime=None, endTime=None,autoCompute=False,**query):
+    def getData(self, deviceType, deviceName=None, startTime=None, endTime=None,autoCompute=False,perDevice=False,**query):
         """
             Returns the data from of the device type. Queries on device if it exists.
 
@@ -404,10 +404,11 @@ class parquetDataEngineHera(datalayer.Project):
         self.logger.execution("------- Start --------")
         self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
+        if perDevice:
+            assert deviceName, "If perDeivce=True then deviceName should be defined!"
 
-        if isLong:
             collection = self.getMeasurementsDocuments(type='Experiment_rawData', experimentName=self.experimentName,
-                                                       deviceType=deviceType, deviceName=deviceName, **query)
+                                                        deviceType=deviceType, deviceName=deviceName, **query)
         else:
             collection = self.getMeasurementsDocuments(type = 'Experiment_rawData',experimentName=self.experimentName,deviceType = deviceType,**query)
 
