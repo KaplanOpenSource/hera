@@ -1,4 +1,4 @@
-__version__ = '2.14.2'
+__version__ = '2.15'
 
 import sys
 python_version = sys.version_info
@@ -16,6 +16,11 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+2.15
+----
+    #134:   - ExperimentToolkit: Adding support for storage of device data per device or per device type 
+            - Adding the CLI for handling experiment. 
+            - Adding documentation
     #122:   - Adding support for repositories. 
             - Repositories can be either datasources of the toolkit, or just regular measurements, cache, or simulations. 
             - The data in the repositories is automatically added when a project is created. 
