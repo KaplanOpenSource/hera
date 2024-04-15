@@ -110,7 +110,7 @@ def create_experiment(arguments):
 
                                                                       }
                                                                   }
-        with open(os.path.join(experiment_path,'repository.json'), "w") as f:
+        with open(os.path.join(experiment_path,f'{arguments.experimentName}_repository.json'), "w") as f:
             json.dump(repo, f, indent=4)
 
         logger.debug(f" finished creating the repository json file")
@@ -120,7 +120,7 @@ def create_experiment(arguments):
         os.makedirs(os.path.join(experiment_path, 'runtimeExperimentData'), exist_ok=True)
         logger.debug(f" creating Datasources_Configurations json")
         config = {"experimentName": arguments.experimentName}
-        with open(os.path.join(experiment_path, 'runtimeExperimentData','Datasources_Configurations'), "w") as f:
+        with open(os.path.join(experiment_path, 'runtimeExperimentData','Datasources_Configurations.json'), "w") as f:
             json.dump(config, f, indent=2)
         logger.debug(f" saved Datasources_Configurations json")
         shutil.copy(arguments.zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{arguments.experimentName}.zip'))
