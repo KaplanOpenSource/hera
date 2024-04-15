@@ -38,7 +38,7 @@ if __name__ =="__main__":
     experiment_getData.add_argument('experiment', type=str, default=None, help='Experiment Name')
     experiment_getData.add_argument('deviceType', type=str, default=None, help='Device Type name')
     experiment_getData.add_argument('--deviceName', type=str, default=None, help='Device Name')
-    experiment_getData.add_argument('--perDevice', type=str, default=None, help='If data is stored perDevice (long experiment or not). If true - device name must be specified')
+    experiment_getData.add_argument('--perDevice', type=bool, default=None, help='If data is stored perDevice (long experiment or not). If true - device name must be specified')
     experiment_getData.set_defaults(func=CLI.get_experiment_data)
 
 

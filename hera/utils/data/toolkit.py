@@ -70,6 +70,7 @@ class dataToolkit(toolkit.abstractToolkit):
                 self.loadAllDatasourcesInRepositoryToProject(projectName,repositoryName=repository, overwrite=overwrite)
             except ValueError as e:
                 logger.info(f"Did not loaded repository: {repository}, since an error occured when tried to load it.\n The error message: {e}")
+                
 
     def loadAllDatasourcesInRepositoryToProject(self, projectName, repositoryName, overwrite=False):
         """
