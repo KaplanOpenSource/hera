@@ -6,6 +6,8 @@ from argos.experimentSetup.dataObjects import ExperimentZipFile
 import pandas
 import json
 import shutil
+from hera import datalayer
+
 
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
@@ -51,9 +53,12 @@ def get_experiment_data(arguments):
     else:
         projectName = arguments.projectName
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
-    print(tk.getExperiment(arguments.experiment).getExperimentData().getData(arguments.deviceType, deviceName=arguments.deviceName ,perDevice=arguments.perDevice))
+    if projectName not in datalayer.getProjectList():
+        raise ValueError(f"Project '{projectName}' does not exists")
 
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
+    parquet = tk.getExperiment(arguments.experiment).getExperimentData().getData(arguments.deviceType, deviceName=arguments.deviceName ,perDevice=arguments.perDevice)
+    print(pandas.DataFrame(parquet))
 
 def create_experiment(arguments):
     logger = logging.getLogger("hera.bin.experiment_create_experiment")
@@ -90,7 +95,7 @@ def create_experiment(arguments):
                                                                                "dataSourceName": arguments.experimentName,
                                                                                "resource": "",
                                                                                "experimentPath": experiment_path,
-                                                                               "dataFormat": "datatypes.PARQUET",
+                                                                               "dataFormat": "parquet",
                                                                                "overwrite": "True"
                                                                            }
                                                                       }
@@ -102,7 +107,7 @@ def create_experiment(arguments):
                                                                   "item": {
                                                                       "type": "Experiment_rawData",
                                                                       "resource": os.path.join(experiment_path,'data',deviceType),
-                                                                      "dataFormat": "datatypes.PARQUET",
+                                                                      "dataFormat": "parquet",
                                                                       "desc": {
                                                                           "deviceType": deviceType,
                                                                           "experimentName": arguments.experimentName,
@@ -144,21 +149,21 @@ def create_experiment(arguments):
         create_repository()
         make_runtimeExperimentData()
 
-def registerInProject(projectName, experimentName, experimentPath):
-
-    dataSourceDesc = dict()
-    dataSourceDesc['handlerPath'] = os.path.abspath(experimentPath)
-
-    dataSourceDesc['className'] = experimentName + 'Toolkit'
-
-    toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
-
-    datasource = toolkit.getDataSourceDocument(datasourceName=experimentName)
-
-    if datasource is not None:
-        toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
-        print(f"Added source {experimentName} to tool  in project {projectName}")
-    else:
-        toolkit.deleteDataSourceDocuments(datasourceName=experimentName)
-        toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
-        print(f"Source {experimentName} already exists in {projectName}, delete current source")
+# def registerInProject(projectName, experimentName, experimentPath):
+#
+#     dataSourceDesc = dict()
+#     dataSourceDesc['handlerPath'] = os.path.abspath(experimentPath)
+#
+#     dataSourceDesc['className'] = experimentName + 'Toolkit'
+#
+#     toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
+#
+#     datasource = toolkit.getDataSourceDocument(datasourceName=experimentName)
+#
+#     if datasource is not None:
+#         toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
+#         print(f"Added source {experimentName} to tool  in project {projectName}")
+#     else:
+#         toolkit.deleteDataSourceDocuments(datasourceName=experimentName)
+#         toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
+#         print(f"Source {experimentName} already exists in {projectName}, delete current source")
