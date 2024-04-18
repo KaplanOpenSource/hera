@@ -43,11 +43,20 @@ if __name__ =="__main__":
 
 
     ## Create Experiment for project
-    experiment_create = subparsers.add_parser('create', help='Table of the experiments in specified project')
+    experiment_create = subparsers.add_parser('create', help='create a new experiment directory')
     experiment_create.add_argument('experimentName', type=str, default=None, help='The name of the experiment (will determine the name of the toolkit file and the class name)')
     experiment_create.add_argument('--path', type=str, default=None, help='Path to put the experiment. If does not exist, use the current directory.')
     experiment_create.add_argument('--zip', type=str, default=None, help='The zip from the argos web containing the metadata.')
     experiment_create.set_defaults(func=CLI.create_experiment)
+
+    ## Load experiment to Project
+    experiment_load = subparsers.add_parser('load', help='load experiment to project')
+    experiment_load.add_argument('--experiment', type=str, default=None, help='Path to experiment directory. If not provided,uses current directory.')
+    experiment_load.add_argument('projectName', type=str, default=None, help='Name of new/existing project')
+    experiment_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                 help='overwrite the existing projcet with experiment or not.')
+    experiment_load.set_defaults(func=CLI.load_experiment_to_project)
+
 
 
     # ## Add
