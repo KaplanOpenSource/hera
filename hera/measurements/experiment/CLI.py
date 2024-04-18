@@ -7,7 +7,8 @@ import pandas
 import json
 import shutil
 from hera import datalayer
-
+from ...utils.data.toolkit import dataToolkit
+import glob
 
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
@@ -148,6 +149,38 @@ def create_experiment(arguments):
     if arguments.zip:
         create_repository()
         make_runtimeExperimentData()
+
+def load_experiment_to_project(arguments):
+    logger = logging.getLogger("hera.bin.experiment_load_experiment_to_project")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    if arguments.experiment:
+        experiment_path = arguments.experiment
+    else:
+        experiment_path = os.getcwd()
+
+    repository = glob.glob(f"{experiment_path}/*_repository.json")
+    if len(repository)==0:
+        raise ValueError(f"Can't find repository file in path directory: {experiment_path}. \n Make sure the path is an experiment directory")
+    if len(repository)>1:
+        raise ValueError(f" More than 1 repositories found in directory.")
+
+    repository = repository[0]
+    repository_name = repository.split("/")[-1]
+
+    if arguments.projectName not in datalayer.getProjectList():
+        logger.info(f" No project with name {arguments.projectName}, will create a new one.")
+
+    data_tk = dataToolkit()
+    data_tk.addRepository(repositoryName=repository_name,
+                      repositoryPath=repository,
+                      overwrite=False)
+    try:
+        data_tk.loadAllDatasourcesInRepositoryToProject(arguments.projectName,repositoryName=repository_name, overwrite=arguments.overwrite)
+    except ValueError as e:
+        logger.error(f"Couldn't load Repository. Error message: {e}")
+
+    data_tk.deleteDataSource(datasourceName=repository_name)
 
 # def registerInProject(projectName, experimentName, experimentPath):
 #
