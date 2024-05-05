@@ -150,6 +150,63 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return
 
+    def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = "default"):
+        """
+            create STL from equation
+
+        Parameters
+        ----------
+        point1 (lat, long)
+        point2 (lat, long)
+        outputfile - where to write the stl
+        amplitude - of the wave [m]
+        cosx - x axis frequency, optional
+        cosy - y axis frequency, optional
+
+        Returns
+        -------
+
+        How to use
+        ----------
+        from hera.measurements.GIS.raster.topography import TopographyToolkit
+        TopographyToolkit.setDomainElevation([200000, 740000], [201000, 741000], 'test1.stl', amplitude=10, cosx=.5, cosy=.2)
+
+
+        What to fix
+        -----------
+
+        """
+        miny = point1[1]  # y
+        maxy = point2[1]
+        minx = point1[0]  # x
+        maxx = point2[0]
+        dxdy = 30
+
+        NX = 1 + math.ceil((maxx - minx) / dxdy)
+        NY = 1 + math.ceil((maxy - miny) / dxdy)
+        grid_x = np.zeros([NX, NY])
+        grid_y = np.zeros_like(grid_x)
+        grid_z = np.zeros_like(grid_x)
+        i = minx
+        j = miny
+        for i in range(NX):
+            for j in range(NY):
+                x = minx + i * dxdy
+                y = miny + j * dxdy
+                z = amplitude*(2.+math.cos(math.pi+i*cosx))*(2.+math.cos(math.pi+j*cosy))
+                grid_x[i, j] = x
+                grid_y[i, j] = y
+                grid_z[i, j] = z
+
+        a = stlFactory()
+        stlstr = a.rasterToSTL(grid_x, grid_y, grid_z, 'solidName')
+
+        with open(outputfile, "w") as stlfile:
+            stlfile.write(stlstr)
+
+        return
+
+    
     def latlongtoITM(point1):
         """
             change the coordinate system, from lat long to x y
