@@ -65,8 +65,12 @@ class dataToolkit(toolkit.abstractToolkit):
     def loadAllDatasourcesInAllRepositoriesToProject(self,projectName,overwrite=False):
         logger = get_classMethod_logger(self, "loadAllDatasourcesInAllRepositoriesToProject")
         for repository in self.getDataSourceList():
-            logger.info(f"Loading the repository {repository}")
-            self.loadAllDatasourcesInRepositoryToProject(projectName,repositoryName=repository, overwrite=overwrite)
+            try:
+                logger.info(f"Loading the repository {repository}")
+                self.loadAllDatasourcesInRepositoryToProject(projectName,repositoryName=repository, overwrite=overwrite)
+            except ValueError as e:
+                logger.info(f"Did not loaded repository: {repository}, since an error occured when tried to load it.\n The error message: {e}")
+                
 
     def loadAllDatasourcesInRepositoryToProject(self, projectName, repositoryName, overwrite=False):
         """
