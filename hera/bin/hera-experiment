@@ -22,36 +22,41 @@ if __name__ =="__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='Topic:')
 
-    ###experiment
-    parser_experiment = subparsers.add_parser('experiment', help='experiments management')
-    experiment_subparsers = parser_experiment.add_subparsers(help='experiments management')
-
     ## List
-    experiment_list = experiment_subparsers.add_parser('list', help='Lists the experiments in your project')
+    experiment_list = subparsers.add_parser('list', help='Lists the experiments in your project')
     experiment_list.add_argument('--projectName', type=str, default=None, help='The project name. [Optional]. If does not exist take from configuration.json in your directory')
     experiment_list.set_defaults(func=CLI.experiments_list)
 
     ## Table
-    experiment_table = experiment_subparsers.add_parser('table', help='Table of the experiments in specified project')
+    experiment_table = subparsers.add_parser('table', help='Table of the experiments in specified project')
     experiment_table.add_argument('--projectName', type=str, default=None, help='The project name. [Optional]. If does not exist take from configuration.json in your directory')
     experiment_table.set_defaults(func=CLI.experiments_table)
 
     ## Get Data of Experiment
-    experiment_getData = experiment_subparsers.add_parser('data', help='Get data of specified experiment')
+    experiment_getData = subparsers.add_parser('data', help='Get data of specified experiment')
     experiment_getData.add_argument('--projectName', type=str, default=None, help='The project name. [Optional]. If does not exist take from configuration.json in your directory')
     experiment_getData.add_argument('experiment', type=str, default=None, help='Experiment Name')
     experiment_getData.add_argument('deviceType', type=str, default=None, help='Device Type name')
     experiment_getData.add_argument('--deviceName', type=str, default=None, help='Device Name')
-    experiment_getData.add_argument('--perDevice', type=str, default=None, help='If data is stored perDevice (long experiment or not). If true - device name must be specified')
+    experiment_getData.add_argument('--perDevice', type=bool, default=None, help='If data is stored perDevice (long experiment or not). If true - device name must be specified')
     experiment_getData.set_defaults(func=CLI.get_experiment_data)
 
 
     ## Create Experiment for project
-    experiment_create = experiment_subparsers.add_parser('create', help='Table of the experiments in specified project')
+    experiment_create = subparsers.add_parser('create', help='create a new experiment directory')
     experiment_create.add_argument('experimentName', type=str, default=None, help='The name of the experiment (will determine the name of the toolkit file and the class name)')
     experiment_create.add_argument('--path', type=str, default=None, help='Path to put the experiment. If does not exist, use the current directory.')
     experiment_create.add_argument('--zip', type=str, default=None, help='The zip from the argos web containing the metadata.')
     experiment_create.set_defaults(func=CLI.create_experiment)
+
+    ## Load experiment to Project
+    experiment_load = subparsers.add_parser('load', help='load experiment to project')
+    experiment_load.add_argument('--experiment', type=str, default=None, help='Path to experiment directory. If not provided,uses current directory.')
+    experiment_load.add_argument('projectName', type=str, default=None, help='Name of new/existing project')
+    experiment_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                 help='overwrite the existing projcet with experiment or not.')
+    experiment_load.set_defaults(func=CLI.load_experiment_to_project)
+
 
 
     # ## Add
