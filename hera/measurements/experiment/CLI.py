@@ -84,7 +84,6 @@ def create_experiment(arguments):
     def create_repository():
         logger.debug(f" Since zip file is provided, creating a repository..")
         metadata = ExperimentZipFile(arguments.zip)
-        deviceTable = metadata.trialSet['Measurements']['Measurement'].entitiesTable("design")
 
         repo = {}
         perDevice = False         ##Will be defined by the updated zip format!
@@ -99,23 +98,33 @@ def create_experiment(arguments):
                                                                                "dataFormat": "parquet",
                                                                                "overwrite": "True"
                                                                            }
+
                                                                       }
 
         repo['experiment']['Measurements'] = {}
-        for deviceType in list(set(deviceTable.entityType)):
-            if not perDevice:
-                repo['experiment']['Measurements'][deviceType] = {"isRelativePath": "True",
-                                                                  "item": {
-                                                                      "type": "Experiment_rawData",
-                                                                      "resource": os.path.join(experiment_path,'data',deviceType),
-                                                                      "dataFormat": "parquet",
-                                                                      "desc": {
-                                                                          "deviceType": deviceType,
-                                                                          "experimentName": arguments.experimentName,
-                                                                        }
 
+        entities_dict_list = metadata.getExperimentEntities()
+
+        for entity in entities_dict_list:
+            if 'Station' != entity['entityTypeName']:
+                if not perDevice:
+                    parquet_name = entity['entityTypeName']
+                else:
+                    parquet_name = entity['entityName']
+
+                if parquet_name not in repo['experiment']['Measurements'].keys():
+                        repo['experiment']['Measurements'][entity['entityTypeName']] = {"isRelativePath": "True",
+                                                                      "item": {
+                                                                          "type": "Experiment_rawData",
+                                                                          "resource": os.path.join(experiment_path,'data',parquet_name),
+                                                                          "dataFormat": "parquet",
+                                                                          "desc": {
+                                                                              "deviceType": entity['entityTypeName'],
+                                                                              "experimentName": arguments.experimentName,
+                                                                            }
+                                                                          }
                                                                       }
-                                                                  }
+
         with open(os.path.join(experiment_path,f'{arguments.experimentName}_repository.json'), "w") as f:
             json.dump(repo, f, indent=4)
 
