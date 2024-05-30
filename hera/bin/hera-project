@@ -92,11 +92,11 @@ if __name__=="__main__":
     repository_list.set_defaults(func=CLI.repository_list)
 
     ### add
-    repository_load = repository_subparsers.add_parser('add', help='Add the data repository to the default project')
-    repository_load.add_argument('repositoryName', type=str, help='The full path to the repository descriptor file of the repository')
-    repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+    repository_add = repository_subparsers.add_parser('add', help='Add the data repository to the default project')
+    repository_add.add_argument('repositoryName', type=str, help='The full path to the repository descriptor file of the repository')
+    repository_add.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                 help='overwrite the existing workflow with the same name')
-    repository_load.set_defaults(func=CLI.repository_add)
+    repository_add.set_defaults(func=CLI.repository_add)
 
     ### remove
     repository_remove = repository_subparsers.add_parser('remove', help='Remove data repository from the default project')
@@ -108,6 +108,13 @@ if __name__=="__main__":
     repository_show.add_argument('repositoryName', type=str, help='name of the repository')
     repository_show.set_defaults(func=CLI.repository_show)
 
+    ### load
+    repository_load = repository_subparsers.add_parser('load', help='Load the repository to a project')
+    repository_load.add_argument('repositoryName', type=str, help='name of the repository')
+    repository_load.add_argument('projectName', type=str, help='name of the project')
+    repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                help='overwrite the existing workflow with the same name')
+    repository_load.set_defaults(func=CLI.repository_load)
 
 
     ##################### exec

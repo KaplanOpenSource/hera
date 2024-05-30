@@ -70,7 +70,7 @@ class dataToolkit(toolkit.abstractToolkit):
                 self.loadAllDatasourcesInRepositoryToProject(projectName,repositoryName=repository, overwrite=overwrite)
             except ValueError as e:
                 logger.info(f"Did not loaded repository: {repository}, since an error occured when tried to load it.\n The error message: {e}")
-                
+
 
     def loadAllDatasourcesInRepositoryToProject(self, projectName, repositoryName, overwrite=False):
         """
@@ -93,8 +93,14 @@ class dataToolkit(toolkit.abstractToolkit):
         basedir = os.path.dirname(repdoc.resource)
         logger.info(f"basedir: {basedir}")
         logger.info(f"Loading the items in {repositoryName} repository to the {projectName}")
-        for toolkitName, toolkitDict in conf.items():
+        self.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
+                                                     repositoryJSON=conf,
+                                                     overwrite=overwrite)
 
+    def loadAllDatasourcesInRepositoryJSONToProject(self, projectName, repositoryJSON, overwrite=False):
+        logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
+        for toolkitName, toolkitDict in repositoryJSON.items():
+            logger.info(f"Loading into toolkit  {toolkitName}")
             toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
             for key,docTypeDict in toolkitDict.items():
