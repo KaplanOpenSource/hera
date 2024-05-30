@@ -9,6 +9,9 @@ import shutil
 from hera import datalayer
 from ...utils.data.toolkit import dataToolkit
 import glob
+import requests
+import zipfile
+from hera import toolkitHome
 
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
@@ -84,10 +87,9 @@ def create_experiment(arguments):
     def create_repository():
         logger.debug(f" Since zip file is provided, creating a repository..")
         metadata = ExperimentZipFile(arguments.zip)
-        deviceTable = metadata.trialSet['Measurements']['Measurement'].entitiesTable("design")
 
         repo = {}
-        perDevice = False         ##Will be defined by the updated zip format!
+        perDevice = True         ##Will be defined by the updated zip format!
 
         repo['experiment'] = {}
         repo['experiment']['DataSource'] = {}
@@ -99,23 +101,32 @@ def create_experiment(arguments):
                                                                                "dataFormat": "parquet",
                                                                                "overwrite": "True"
                                                                            }
+
                                                                       }
 
         repo['experiment']['Measurements'] = {}
-        for deviceType in list(set(deviceTable.entityType)):
+
+        entities_dict_list = metadata.getExperimentEntities()
+        for i,entity in enumerate(entities_dict_list):
             if not perDevice:
-                repo['experiment']['Measurements'][deviceType] = {"isRelativePath": "True",
-                                                                  "item": {
+                parquet_name = entity['entityTypeName']
+            else:
+                parquet_name = entity['entityName']
+
+            if parquet_name not in repo['experiment']['Measurements'].keys():
+                repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
+                                                                      "item": {
                                                                       "type": "Experiment_rawData",
-                                                                      "resource": os.path.join(experiment_path,'data',deviceType),
+                                                                      "resource": os.path.join(experiment_path,'data',parquet_name),
                                                                       "dataFormat": "parquet",
                                                                       "desc": {
-                                                                          "deviceType": deviceType,
-                                                                          "experimentName": arguments.experimentName,
-                                                                        }
-
+                                                                              "deviceType": entity['entityTypeName'],
+                                                                              "experimentName": arguments.experimentName,
+                                                                              "deviceName": entity['entityName']
+                                                                            }
+                                                                          }
                                                                       }
-                                                                  }
+
         with open(os.path.join(experiment_path,f'{arguments.experimentName}_repository.json'), "w") as f:
             json.dump(repo, f, indent=4)
 
@@ -182,21 +193,153 @@ def load_experiment_to_project(arguments):
 
     data_tk.deleteDataSource(datasourceName=repository_name)
 
-# def registerInProject(projectName, experimentName, experimentPath):
-#
-#     dataSourceDesc = dict()
-#     dataSourceDesc['handlerPath'] = os.path.abspath(experimentPath)
-#
-#     dataSourceDesc['className'] = experimentName + 'Toolkit'
-#
-#     toolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
-#
-#     datasource = toolkit.getDataSourceDocument(datasourceName=experimentName)
-#
-#     if datasource is not None:
-#         toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
-#         print(f"Added source {experimentName} to tool  in project {projectName}")
-#     else:
-#         toolkit.deleteDataSourceDocuments(datasourceName=experimentName)
-#         toolkit.addDataSource(dataSourceName=experimentName, resource="t", dataFormat='str', **dataSourceDesc)
-#         print(f"Source {experimentName} already exists in {projectName}, delete current source")
+def create_ims_experiment(arguments):
+    logger = logging.getLogger("hera.bin.create_ims_experiment")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    if arguments.path:
+        experiment_path = arguments.path
+    else:
+        experiment_path = os.getcwd()
+
+    if 'token.json' not in os.listdir(experiment_path):
+        raise ValueError(f"No token file found in directory {experiment_path}. For creating an IMS experiment, 'token.json' file must be in the directory.")
+
+    f = open(f'{experiment_path}/token.json')
+    token = json.load(f)
+
+    def create_zip_for_ims():
+        logger = logging.getLogger("hera.bin.create_zip_for_ims")
+        logger.execution(f"----- Start -----")
+        logger.debug(f" Reaching URL...")
+
+        url = "https://api.ims.gov.il/v1/Envista/stations"
+        headers = {
+            "Authorization": token['Authorization']
+        }
+        try:
+            response = requests.request("GET", url, headers=headers)
+            data = json.loads(response.text.encode('utf8'))
+        except ValueError as e:
+            logger.error(f"Couldn't reach URL. Error message: {e}")
+
+        logger.debug(f" Downloaded metadata from URL succecfully.")
+        logger.debug(f" Will create ZIP file now..")
+
+        zip_file = {}
+        zip_file['version'] = '3.0.0'
+        zip_file['name'] = 'IMS_experiment'
+        zip_file['startDate'] = ''
+        zip_file['endDate'] = ''
+        zip_file['description'] = ''
+        zip_file['trialTypes'] = []
+        zip_file['imageStandalone'] = []
+        zip_file['imageEmbedded'] = []
+
+        stations = []
+
+        for station_dict in data:
+            if station_dict['active']:
+                device = {}
+                device['name'] = station_dict['name']
+                device['description'] = ''
+                device['attributes'] = [{'name': 'stationId', 'value': station_dict['stationId']},
+                                        {'name': 'stationsTag', 'value': station_dict['stationsTag']},
+                                        {'name': 'location', 'value': station_dict['location']},
+                                        {'name': 'timebase', 'value': station_dict['timebase']},
+                                        {'name': 'active', 'value': station_dict['active']},
+                                        {'name': 'owner', 'value': station_dict['owner']},
+                                        {'name': 'regionId', 'value': station_dict['regionId']},
+                                        {'name': 'monitors', 'value': station_dict['monitors']}]
+
+                stations.append(device)
+
+        zip_file['deviceTypes'] = [{"name": 'STATION',
+                                    'attributeTypes': [],
+                                    "devices": stations}]
+
+        logger.debug(f" Finished fetching metadata. Will save zip now.")
+        json_object = json.dumps(zip_file, indent=4)
+        with open(f"{experiment_path}/data.json", "w") as outfile:
+            outfile.write(json_object)
+
+        with zipfile.ZipFile(f'{experiment_path}/IMS.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(f'data.json')
+
+        logger.debug(f" Finished creating zip file.")
+
+
+    def write_download_function():
+        logger = logging.getLogger("hera.bin.write_download_function")
+        logger.execution(f"----- Start -----")
+        logger.debug(f" Will write download function to experiment class...")
+
+        with open(f"{experiment_path}/code/IMS_experiment.py", "a") as f:
+            f.write('\n\n')
+            f.write("\tdef download(self,start='',end='latest', concat=True):\n")
+            f.write("\t\tfrom tqdm import tqdm\n")
+            f.write("\t\timport pandas as pd\n")
+            f.write("\t\timport time\n")
+            f.write("\t\timport os\n")
+            f.write("\t\timport json\n")
+            f.write("\t\timport requests\n")
+            f.write("\t\tfrom datetime import datetime,timedelta\n")
+            f.write("\t\turl = 'https://api.ims.gov.il/v1/Envista/stations'\n")
+            f.write(f"\t\tf = open('{experiment_path}/token.json')\n")
+            f.write(f"\t\ttoken = json.load(f)\n")
+            f.write("\t\theaders = {'Authorization': token['Authorization']}\n")
+            f.write("\t\tresponse = requests.request('GET', url, headers=headers)\n")
+            f.write("\t\tdata = json.loads(response.text.encode('utf8'))\n")
+            f.write("\t\tfor station_dict in tqdm(data):\n")
+            f.write("\t\t\tif station_dict['active']:\n")
+            f.write("\t\t\t\tstation_id = station_dict['stationId']\n")
+            f.write("\t\t\t\tchances = 10\n")
+            f.write(f"\t\t\t\tpath_to_data = os.path.join('{experiment_path}','data',station_dict['name'])\n")
+            f.write("\t\t\t\tif concat:\n")
+            f.write("\t\t\t\t\ttry:\n")
+            f.write(f"\t\t\t\t\t\tstart = pd.read_csv(path_to_data)['datetime'].iloc[-1].split('T')[0].replace('-','/')\n")
+            f.write("\t\t\t\t\texcept:\n")
+            f.write("\t\t\t\t\t\tstart = datetime.today().strftime('%Y-%m-%d')\n")
+            f.write("\t\t\t\tif end == 'latest':\n")
+            f.write("\t\t\t\t\tend = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')\n")
+            f.write("\t\t\t\twhile(chances>0):\n")
+            f.write("\t\t\t\t\ttry:\n")
+            f.write("\t\t\t\t\t\turl = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data?from={start}&to={end}'\n")
+            f.write("\t\t\t\t\t\tresponse = requests.request('GET', url, headers=headers)\n")
+            f.write("\t\t\t\t\t\tstation_data = json.loads(response.text.encode('utf8'))\n")
+            f.write("\t\t\t\t\t\tcsv = pd.DataFrame()\n")
+            f.write("\t\t\t\t\t\tfor i,time_stamp_dict in enumerate(station_data['data']):\n")
+            f.write("\t\t\t\t\t\t\tcsv.at[i,'datetime'] = time_stamp_dict['datetime']\n")
+            f.write("\t\t\t\t\t\t\tfor column in time_stamp_dict['channels']:\n")
+            f.write("\t\t\t\t\t\t\t\tcsv.at[i,column['name']] = column['value']\n")
+            f.write(f"\t\t\t\t\t\tif concat:\n")
+            f.write(f"\t\t\t\t\t\t\tpd.concat([pd.read_csv(path_to_data),csv],axis=0).to_csv(path_to_data,index=False)\n")
+            f.write(f"\t\t\t\t\t\telse:\n")
+            f.write(f"\t\t\t\t\t\t\tcsv.to_csv(path_to_data,index=False)\n")
+            f.write("\t\t\t\t\t\tbreak\n"),
+            f.write("\t\t\t\t\texcept:\n")
+            f.write("\t\t\t\t\t\tchances -= 1\n")
+            f.write("\t\t\t\tif chances==0:\n")
+            f.write("\t\t\t\t\tif not os.path.isfile(path_to_data):\n")
+            f.write(f"\t\t\t\t\t\tpd.DataFrame().to_csv(path_to_data,index=False)\n")
+
+
+
+            f.close()
+
+
+
+    create_zip_for_ims()
+    arguments.zip  = f"{experiment_path}/IMS.zip"
+    arguments.experimentName = 'IMS_experiment'
+    create_experiment(arguments)
+    write_download_function()
+
+
+def download(arguments):
+    logger = logging.getLogger("hera.bin.download_ims")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+    experimentToolKit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=arguments.project)
+
+    experimentToolKit.getExperiment('IMS_experiment').download(start=arguments.start,end=arguments.end,concat=arguments.concat)

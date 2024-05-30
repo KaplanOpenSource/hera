@@ -223,7 +223,13 @@ export PYTHONPATH=/raid/software/ParaView-5.11.0-MPI-Linux-Python3.9-x86_64/lib/
 
 ### 3.2 FreeCad
 
-Freecad is an open source CAD software. FreeCad can be embedded in python. it is required to install `freecad-python3` pkg (apt) and add the lbrary path (default:'/usr/lib/freecad-python3/lib/') to PYTHONPATH env or dynamically in the code like:
+Freecad is an open source CAD software. FreeCad can be embedded in python. 
+
+It is required to install `freecad-python3` pkg (apt). In ubuntu, 
+
+```sudo apt-get install libfreecad-python3-0.19```
+
+Then, add the library path (default:'/usr/lib/freecad-python3/lib/') to PYTHONPATH env or dynamically in the code like:
 ```python
 FREECADPATH = '/usr/lib/freecad-python3/lib/' # path to your FreeCAD.so or FreeCAD.pyd file,
 import sys
