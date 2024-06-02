@@ -238,6 +238,10 @@ class abstractToolkit(Project):
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
 
+    @property
+    def classLoggerName(self):
+        return str(get_classMethod_logger(self,"{the_function_name}")).split(" ")[1]
+
     def getDataSourceList(self,**filters):
         """
             Returns a list of the data source names

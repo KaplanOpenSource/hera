@@ -17,7 +17,6 @@ if __name__ =="__main__":
     )
     logger = logging.getLogger("hera.bin.hera_experiment")
 
-
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='Topic:')
 

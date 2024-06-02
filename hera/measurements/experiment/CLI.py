@@ -72,16 +72,16 @@ def create_experiment(arguments):
         experiment_path = arguments.path
     else:
         experiment_path = os.getcwd()
+
     def create_empty_class():
         logger.debug(f" creating an empty class for implementation..")
-        class_script = open(f"{os.path.join(experiment_path, 'code', arguments.experimentName)}.py", "w")
-        class_script.write(f"from hera.measurements.experiment.experiment import experimentSetupWithData")
-        class_script.write("\n\n\n")
-        class_script.write(f"class {arguments.experimentName}(experimentSetupWithData):")
-        class_script.write("\n")
-        class_script.write("\t###Implement your code here if you wish.\n")
-        class_script.write("\tpass")
-        class_script.close()
+        with open(f"{os.path.join(experiment_path, 'code', arguments.experimentName)}.py", "w") as class_script:
+            class_script.write(f"from hera.measurements.experiment.experiment import experimentSetupWithData")
+            class_script.write("\n\n\n")
+            class_script.write(f"class {arguments.experimentName}(experimentSetupWithData):")
+            class_script.write("\n")
+            class_script.write("\t###Implement your code here if you wish.\n")
+            class_script.write("\tpass")
         logger.debug(f" finished creating an empty class for implementation..")
 
     def create_repository():
@@ -93,7 +93,7 @@ def create_experiment(arguments):
 
         repo['experiment'] = {}
         repo['experiment']['DataSource'] = {}
-        repo['experiment']['DataSource'][arguments.experimentName] = {"isRelativePath": "True",
+        repo['experiment']['DataSource'][arguments.experimentName] = {"isRelativePath": "False",
                                                                            "item":{
                                                                                "dataSourceName": arguments.experimentName,
                                                                                "resource": "",
@@ -117,8 +117,8 @@ def create_experiment(arguments):
                 repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
                                                                       "item": {
                                                                       "type": "Experiment_rawData",
-                                                                      "resource": os.path.join(experiment_path,'data',parquet_name),
-                                                                      "dataFormat": "parquet",
+                                                                      "resource": os.path.join('data',f"{parquet_name}.parquet"),
+                                                                      "dataFormat": "string",
                                                                       "desc": {
                                                                               "deviceType": entity['entityTypeName'],
                                                                               "experimentName": arguments.experimentName,
@@ -322,9 +322,6 @@ def create_ims_experiment(arguments):
             f.write("\t\t\t\tif chances==0:\n")
             f.write("\t\t\t\t\tif not os.path.isfile(path_to_data):\n")
             f.write(f"\t\t\t\t\t\tpd.DataFrame().to_csv(path_to_data,index=False)\n")
-
-
-
             f.close()
 
 

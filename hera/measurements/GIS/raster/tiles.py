@@ -168,6 +168,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger.info(f"Getting the Image  (tiles {sqrx}x{sqry}) from {tileServer}")
         for i, j in product(range(sqrx), range(sqry)):
             #response = requests.get(f"http://192.168.14.118/resat_tiles/{zoomlevel}/{tileLLX + i}/{}.png")
+            logger.debug(f"Getting address {tileServer.format(z=zoomLevel,x=ulTiles[0] + i,y=ulTiles[1] + j)}")
             response = requests.get(tileServer.format(z=zoomLevel,x=ulTiles[0] + i,y=ulTiles[1] + j))
             img = Image.open(BytesIO(response.content))
             logger.debug(f"({i},{j}) --> {ulTiles[0] + i}, {ulTiles[1] + j}")
@@ -223,22 +224,30 @@ class presentation:
         -------
             return the ax of the figure.
         """
+
         if isinstance(imageNameOrData,str):
             doc = self.datalayer.getImage(imageNameOrData,**filters)
             extents = [doc.desc['minX'], doc.desc['maxX'], doc.desc['minY'], doc.desc['maxY']]
             image = doc.getData()
+        elif isinstance(imageNameOrData,tuple):
+            if extents is not None:
+                raise ValueError("extents must be None if imageNameOrData is the tuple (image,extents)")
+            image = imageNameOrData[0]
+            extents = imageNameOrData[1]
         else:
             image = imageNameOrData
             if extents is None:
                     raise ValueError("extents must be supplied if imageNameOrData is image")
 
             if isinstance(extents, dict):
-                extents = [extents['minX'], extents['maxX'], extents['minY'], extents['maxY']]
+                if 'minX' in extents:
+                    extents = [extents['minX'], extents['maxX'], extents['minY'], extents['maxY']]
+                else:
+                    extents = [extents['left'], extents['right'], extents['bottom'], extents['top']]
             elif isinstance(extents, list):
                 extents = extents
             else:
-                raise ValueError("extents is either a list(minX, maxX, minY, maxY) or dict(minX=, maxX=, minY=, maxY=)")
-
+                raise ValueError("extents is either a list(minX, maxX, minY, maxY), dict(minX=, maxX=, minY=, maxY=), or dict(left=, right=, bottom=, top=)")
 
         if ax is None:
             fig, ax = plt.subplots()
