@@ -2,10 +2,11 @@ import json
 import argparse
 from ... import toolkitHome
 from ... import toolkit
-from ...utils import loadJSON,dictToMongoQuery
+from ...utils import loadJSON, dictToMongoQuery
 from ..logging import get_classMethod_logger
 import pathlib
 import os
+
 
 class dataToolkit(toolkit.abstractToolkit):
     """
@@ -31,10 +32,11 @@ class dataToolkit(toolkit.abstractToolkit):
 
        }
     """
+
     def __init__(self):
         super().__init__(toolkitName="heradata", projectName=self.DEFAULTPROJECT, filesDirectory=None)
 
-    def addRepository(self,repositoryName,repositoryPath,overwrite=False):
+    def addRepository(self, repositoryName, repositoryPath, overwrite=False):
         """
             A path to the repository
         Parameters
@@ -46,31 +48,33 @@ class dataToolkit(toolkit.abstractToolkit):
         -------
 
         """
-        self._allowWritingToDefaultProject = True # allows the addition of datasource to the Default project.
+        self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
 
         repositoryPath = f"{repositoryPath}.json" if "json" not in repositoryPath else repositoryPath
-        self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),dataFormat=self.datatypes.JSON_DICT,overwrite=overwrite)
+        self.addDataSource(dataSourceName=repositoryName, resource=os.path.abspath(repositoryPath),
+                           dataFormat=self.datatypes.JSON_DICT, overwrite=overwrite)
         self._allowWritingToDefaultProject = False
 
     def getRepositoryTable(self):
         return self.getDataSourceTable()
 
-    def getRepository(self,repositoryName):
+    def getRepository(self, repositoryName):
         logger = get_classMethod_logger(self, "getRepository")
         logger.info(f"Trying to find repository {repositoryName} in project {self.DEFAULTPROJECT}")
         repo = self.getDataSourceData(datasourceName=repositoryName)
 
         return loadJSON(repo)
 
-    def loadAllDatasourcesInAllRepositoriesToProject(self,projectName,overwrite=False):
+    def loadAllDatasourcesInAllRepositoriesToProject(self, projectName, overwrite=False):
         logger = get_classMethod_logger(self, "loadAllDatasourcesInAllRepositoriesToProject")
         for repository in self.getDataSourceList():
             try:
                 logger.info(f"Loading the repository {repository}")
-                self.loadAllDatasourcesInRepositoryToProject(projectName,repositoryName=repository, overwrite=overwrite)
+                self.loadAllDatasourcesInRepositoryToProject(projectName, repositoryName=repository,
+                                                             overwrite=overwrite)
             except ValueError as e:
-                logger.info(f"Did not loaded repository: {repository}, since an error occured when tried to load it.\n The error message: {e}")
-
+                logger.info(
+                    f"Did not loaded repository: {repository}, since an error occured when tried to load it.\n The error message: {e}")
 
     def loadAllDatasourcesInRepositoryToProject(self, projectName, repositoryName, overwrite=False):
         """
@@ -94,43 +98,45 @@ class dataToolkit(toolkit.abstractToolkit):
         logger.info(f"basedir: {basedir}")
         logger.info(f"Loading the items in {repositoryName} repository to the {projectName}")
         self.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
-                                                     repositoryJSON=conf,
-                                                     overwrite=overwrite)
+                                                         repositoryJSON=conf,
+                                                         basedir=basedir,
+                                                         overwrite=overwrite)
 
-    def loadAllDatasourcesInRepositoryJSONToProject(self, projectName, repositoryJSON, overwrite=False):
+    def loadAllDatasourcesInRepositoryJSONToProject(self, projectName, repositoryJSON,basedir, overwrite=False):
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
         for toolkitName, toolkitDict in repositoryJSON.items():
             logger.info(f"Loading into toolkit  {toolkitName}")
             toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
-            for key,docTypeDict in toolkitDict.items():
+            for key, docTypeDict in toolkitDict.items():
                 logger.info(f"Loading document type {key} to toolkit {toolkitName}")
-                for itemName,itemDesc in docTypeDict.items():
+                for itemName, itemDesc in docTypeDict.items():
                     logger.info(f"Loading {itemName} to toolkit {toolkitName} (ProjectName {toolkit.projectName}")
 
                     theItem = itemDesc["item"]
-                    isRelativePath = itemDesc.get("isRelativePath",True)
+                    isRelativePath = itemDesc.get("isRelativePath", True)
                     # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
                     if isRelativePath:
-                        logger.debug(f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
+                        logger.debug(
+                            f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
                         theItem["resource"] = os.path.join(basedir, theItem["resource"])
-
 
                     logger.debug(f"Checking if the data item {itemName} is already in the project")
                     if key == 'DataSource':
                         datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
                     else:
                         retrieveFuncName = f"get{key}Documents"
-                        retrieveFunc = getattr(toolkit,retrieveFuncName)
+                        retrieveFunc = getattr(toolkit, retrieveFuncName)
                         if retrieveFunc is None:
-                            raise ValueError(f"function {retrieveFuncName} not found. Key {key} must be : DataSource, Measurement, Cache, or Simulation")
+                            raise ValueError(
+                                f"function {retrieveFuncName} not found. Key {key} must be : DataSource, Measurement, Cache, or Simulation")
                         itemQry = dictToMongoQuery(theItem)
                         datasource = retrieveFunc(**itemQry)
 
                     logger.debug(f"Found {len(datasource)} documents")
 
-                    if len(datasource)==0:
+                    if len(datasource) == 0:
                         logger.debug("Adding a new document")
                         if key == 'DataSource':
                             funcName = f"add{key}"
@@ -148,7 +154,7 @@ class dataToolkit(toolkit.abstractToolkit):
                     elif overwrite:
                         logger.debug("Updating an existing document")
                         dataitem = datasource[0]
-                        dataitem['resource'] = os.path.abspath(theItem["resource"])
+                        dataitem['resource'] = theItem["resource"]
                         curDesc = theItem.get("desc", {})
                         curDesc.update(dataitem['desc'])
                         dataitem['desc'] = curDesc
@@ -157,10 +163,3 @@ class dataToolkit(toolkit.abstractToolkit):
                     else:
                         logger.error(
                             f"Source {itemName} already exists in {projectName}. Use --overwrite to force update")
-
-
-
-
-
-
-

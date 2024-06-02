@@ -7,9 +7,7 @@ from hera.utils.logging import initialize_logging,with_logger
 if __name__=="__main__":
     initialize_logging(
           with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-        with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
-
-
+          with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
     #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
     #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
     )
