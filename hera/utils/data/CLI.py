@@ -134,7 +134,7 @@ def repository_list(argumets):
 
     repDataframe = dtk.getRepositoryTable()
     if len(repDataframe) ==0:
-        print("No repositories loaded")
+        print("The user does not have repositories.")
     else:
         with pandas.option_context('display.max_rows', None,
                                    'display.max_columns', None,
@@ -202,7 +202,7 @@ def repository_load(argumets):
     logger = logging.getLogger("hera.bin.repository_load")
     dtk = dataToolkit()
 
-    repositoryFile = os.path.basename(argumets.repositoryName)
+    repositoryFile = argumets.repositoryName
     if 'projectName' in argumets:
         projectName = argumets.projectName
     else:
@@ -212,7 +212,8 @@ def repository_load(argumets):
     repositoryJSON= loadJSON(repositoryFile)
     dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
                                                     repositoryJSON=repositoryJSON,
-                                                    overwrite=False)
+                                                    basedir=os.path.dirname(argumets.repositoryName),
+                                                    overwrite=argumets.overwrite)
 
 def update(arguments):
     logger = logging.getLogger("hera.bin.update")
