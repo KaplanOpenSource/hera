@@ -5,6 +5,9 @@ Created on Tue May 21 18:01:43 2024
 
 @author: nirb
 """
+
+# we should use different roughness to buildings and to topo
+
 # MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
 
 # data is from https://zenodo.org/records/8367523
@@ -157,7 +160,16 @@ def lc2roughnesslength(lc, lctype=1):
            rl = 0.05 # Bamba choice
     
     return rl
-    
+
+def roughnesslength2sandgrainroughness(rl):
+#Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
+# https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
+# eq. 5: Equivalent sand grain roughness (m) is z0*30
+
+# we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
+# Cs value can be set as 0.5
+
+    return rl*30.0 # return Ks value 
 
 if __name__ == "__main__":
     filename = r'lc_mcd12q1v061.t1_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif' # 500m resolution
@@ -172,5 +184,4 @@ if __name__ == "__main__":
     
     mylc = getlc(filepath, lat, long)
     print (mylc, lc2roughnesslength(mylc))
-    print (getlc(filepath, lat, long))
         
