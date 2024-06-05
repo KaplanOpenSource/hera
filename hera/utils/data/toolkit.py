@@ -106,60 +106,69 @@ class dataToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
         for toolkitName, toolkitDict in repositoryJSON.items():
             logger.info(f"Loading into toolkit  {toolkitName}")
-            toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+            try:
+                toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
-            for key, docTypeDict in toolkitDict.items():
-                logger.info(f"Loading document type {key} to toolkit {toolkitName}")
-                for itemName, itemDesc in docTypeDict.items():
-                    logger.info(f"Loading {itemName} to toolkit {toolkitName} (ProjectName {toolkit.projectName}")
+                for key, docTypeDict in toolkitDict.items():
+                    logger.info(f"Loading document type {key} to toolkit {toolkitName}")
+                    for itemName, itemDesc in docTypeDict.items():
+                        logger.info(f"Loading {itemName} to toolkit {toolkitName} (ProjectName {toolkit.projectName}")
 
-                    theItem = itemDesc["item"]
-                    isRelativePath = itemDesc.get("isRelativePath", True)
-                    # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
+                        theItem = itemDesc["item"]
+                        isRelativePath = bool(itemDesc.get("isRelativePath", True))
+                        # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
-                    if isRelativePath:
-                        logger.debug(
-                            f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
-                        theItem["resource"] = os.path.join(basedir, theItem["resource"])
+                        if isRelativePath:
+                            logger.debug(
+                                f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
+                            theItem["resource"] = os.path.join(basedir, theItem["resource"])
 
-                    logger.debug(f"Checking if the data item {itemName} is already in the project")
-                    if key == 'DataSource':
-                        datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
-                    else:
-                        retrieveFuncName = f"get{key}Documents"
-                        retrieveFunc = getattr(toolkit, retrieveFuncName)
-                        if retrieveFunc is None:
-                            raise ValueError(
-                                f"function {retrieveFuncName} not found. Key {key} must be : DataSource, Measurement, Cache, or Simulation")
-                        itemQry = dictToMongoQuery(theItem)
-                        datasource = retrieveFunc(**itemQry)
-
-                    logger.debug(f"Found {len(datasource)} documents")
-
-                    if len(datasource) == 0:
-                        logger.debug("Adding a new document")
+                        logger.debug(f"Checking if the data item {itemName} is already in the project")
                         if key == 'DataSource':
-                            funcName = f"add{key}"
-                            theItem['dataSourceName'] = itemName
-                            theItem['overwrite'] = overwrite
+                            datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
                         else:
-                            funcName = f"add{key}Document"
+                            retrieveFuncName = f"get{key}Documents"
+                            retrieveFunc = getattr(toolkit, retrieveFuncName)
+                            if retrieveFunc is None:
+                                raise ValueError(
+                                    f"function {retrieveFuncName} not found. Key {key} must be : DataSource, Measurement, Cache, or Simulation")
+                            qrydict = dict(theItem)
+                            del qrydict['resource']
+                            del qrydict['dataFormat']
 
-                        logger.debug(f"Adding the document of type {key} using the function {funcName}")
-                        func = getattr(toolkit, funcName)
+                            itemQry = dictToMongoQuery(qrydict)
+                            datasource = retrieveFunc(**itemQry)
 
-                        func(**theItem)
-                        logger.info(f"Added source {itemName} to tool {toolkitName} in project {projectName}")
+                        logger.debug(f"Found {len(datasource)} documents")
 
-                    elif overwrite:
-                        logger.debug("Updating an existing document")
-                        dataitem = datasource[0]
-                        dataitem['resource'] = theItem["resource"]
-                        curDesc = theItem.get("desc", {})
-                        curDesc.update(dataitem['desc'])
-                        dataitem['desc'] = curDesc
-                        dataitem.save()
-                        logger.info(f"Updated source {itemName} in tool {toolkitName} in project {projectName}")
-                    else:
-                        logger.error(
-                            f"Source {itemName} already exists in {projectName}. Use --overwrite to force update")
+                        if len(datasource) == 0:
+                            logger.debug("Adding a new document")
+                            if key == 'DataSource':
+                                funcName = f"add{key}"
+                                theItem['dataSourceName'] = itemName
+                                theItem['overwrite'] = overwrite
+                            else:
+                                funcName = f"add{key}Document"
+
+                            logger.debug(f"Adding the document of type {key} using the function {funcName}")
+                            func = getattr(toolkit, funcName)
+
+                            func(**theItem)
+                            logger.info(f"Added source {itemName} to tool {toolkitName} in project {projectName}")
+
+                        elif overwrite:
+                            logger.debug("Updating an existing document")
+                            dataitem = datasource[0]
+                            dataitem['resource'] = theItem["resource"]
+                            dataitem['dataFormat'] = theItem['dataFormat']
+                            curDesc = theItem.get("desc", {})
+                            curDesc.update(dataitem['desc'])
+                            dataitem['desc'] = curDesc
+                            dataitem.save()
+                            logger.info(f"Updated source {itemName} in tool {toolkitName} in project {projectName}")
+                        else:
+                            logger.error(
+                                f"Source {itemName} already exists in {projectName}. Use --overwrite to force update")
+            except Exception as e:
+                err = f"The error {e} occured while adding toolkit {toolkitName}... skipping!!!"
+                logger.error(err)
