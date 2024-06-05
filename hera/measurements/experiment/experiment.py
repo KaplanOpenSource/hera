@@ -87,7 +87,7 @@ class experimentHome(toolkit.abstractToolkit):
         L = self.getDataSourceDocument(datasourceName=experimentName)
         if L:
             self.logger.info(f"Found experiment. Loading")
-            experimentPath=L.desc['experimentPath']
+            experimentPath=L.getData()
             sys.path.append(os.path.join(experimentPath,self.CODE_DIRECTORY))
             self.logger.debug(f"Adding path {os.path.join(experimentPath,self.CODE_DIRECTORY)} to classpath")
             toolkitName = f"{experimentName}.{experimentName}"
