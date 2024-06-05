@@ -212,7 +212,7 @@ def repository_load(argumets):
     repositoryJSON= loadJSON(repositoryFile)
     dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
                                                     repositoryJSON=repositoryJSON,
-                                                    basedir=os.path.dirname(argumets.repositoryName),
+                                                    basedir=os.path.dirname(os.path.abspath(argumets.repositoryName)),
                                                     overwrite=argumets.overwrite)
 
 def update(arguments):
