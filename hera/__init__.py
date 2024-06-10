@@ -1,4 +1,4 @@
-__version__ = '2.15'
+__version__ = '2.15.1'
 
 import sys
 python_version = sys.version_info
@@ -16,6 +16,8 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+2.15.1
+    #161:   - Adding the jupyter-lab-script that find the ip and runs the jupyter.  
 2.15
 ----
     #134:   - ExperimentToolkit: Adding support for storage of device data per device or per device type 
