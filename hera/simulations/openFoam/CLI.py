@@ -65,19 +65,23 @@ def foam_templates_create(arguments):
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=None)
+    if 'projectName' in arguments:
+        logger.debug("Take the projectName from the arguments")
+        projectName = arguments.projectName
+    else:
+        logger.debug("Take the projectName from the directory")
+        projectName = None
 
-    projectName = arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
-    outputPath = projectName if arguments.projectPath is None else arguments.projectPath
-    tk.createProjectDirectory(outputPath=outputPath,projectName=projectName)
-
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
     templates = tk.listHermesTemplates(arguments.solver)
     if arguments.templateName not in templates.index:
         err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
-        print(err)
+        logger.error(err)
         raise ValueError(err)
 
+    outputPath = os.getcwd() if arguments.projectPath is None else arguments.projectPath
     groupName = arguments.templateName if arguments.groupName is None else arguments.groupName
+    logger.info(f"Saving the simulation with the group name: {groupName}")
 
     with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
         json.dump(tk.getDataSourceData(arguments.templateName), outFile, indent=4)
