@@ -7,7 +7,7 @@ class simpleFoam_toolkitExtension(absractEulerianSolver_toolkitExtension):
         super().__init__(toolkit=toolkit,solverName="simpleFOAM",incompressible=True)
 
 
-    def buildSpecializedField(self,workflow,turbulenceType,):
+    def buildSpecializedField(self,workflow,turbulenceType):
         """
             Updating the field of the workflow.
 

@@ -1,7 +1,57 @@
-# import geopandas
-# import shapely
-# import pandas
-#
+import numpy
+import geopandas
+import shapely
+import pandas
+
+# ESPG codes
+WSG84 = 4326
+ITM   = 2039 # Israeli
+ED50_ZONE36N = 23036
+
+def convertCRS(points,inputCRS,outputCRS,**kwargs):
+    """
+        Converts the points in data, assuming to be in input CRS to points in output CRS.
+
+    Parameters
+    ----------
+    data : numpy.array (2D), pandas.DataFrame, list of 2-tuples
+            An array of (x,y) points.
+
+    inputCRS : integer,
+            An EPSG code of the original points
+
+    outputCRS : integer, an EPSG
+            An EPSG code of the output points.
+
+    kwargs :
+            Additional information.
+            if data is DataFrame:
+                - 'x' : The name of the x column, default "x"
+                - 'y' : The name of the y column, default "y"
+
+    Returns
+    -------
+            pandas with columns x,y in the correct CRS.
+
+    """
+    if isinstance(points,numpy.array):
+        origpoints = geompandas.points_from_xy(points[0,:],
+                                               points[1,:])
+
+    elif isinstance(points,pandas.DataFrame):
+        origpoints = geopandas.points_from_xy(points[kwargs.get("x","x")],
+                                               points[kwargs.get("y","y")])
+    elif isinstance(points,list):
+        origpoints = geompandas.points_from_xy([x[0] for x in points],
+                                               [x[1] for x in points])
+
+    else:
+        raise ValueError(f"points must be numpy.array,pandas.DataFrame, or list. Not {type(points)}")
+
+
+    origpoints.crs = inputCRS
+    return origpoints.to_crs(outputCRS)
+
 # def PolygonDataFrameIntersection(dataframe, polygon):
 #     """
 #     Creates a new dataframe based on the intersection of a dataframe and a polygon.
