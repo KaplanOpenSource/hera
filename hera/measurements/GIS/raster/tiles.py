@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import geopandas
 import numpy
-from hera.utils.logging import get_classMethod_logger
 import math
+from ....utils.logging import get_classMethod_logger
 from .... import toolkit
 from itertools import product
 from PIL import Image
