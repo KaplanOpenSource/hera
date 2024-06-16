@@ -1,0 +1,77 @@
+#! /usr/bin/env python
+from hera.utils.logging import initialize_logging,with_logger
+import argparse
+import logging
+from hera.measurements.GIS import CLI
+
+
+if __name__ == "__main__":
+    initialize_logging(
+         with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+         with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False),
+    )
+    logger = logging.getLogger("hera.bin.hera-GIS")
+
+    projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from caseConfiguration'
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help='Topic:')
+
+    ##############################################
+    ### ---------------------- Topography (vector)
+    ##############################################
+    topography_vector_parser = subparsers.add_parser('topography_vector', help='Handles the topography')
+    topography_vector_subparser = topography_vector_parser.add_subparsers(help='Handles the topography')
+
+    ## ---------------- create empty directory
+    topography_vector_parser_list = topography_vector_subparser.add_parser('list', help='Lists datasources')
+    topography_vector_parser_list.set_defaults(func=CLI.topography_vector_list)
+
+
+    ##############################################
+    ### ---------------------- Topography (raster)
+    ##############################################
+    topography_raster_parser = subparsers.add_parser('topography_raster', help='Handles the topography (raster)')
+    topography_raster_subparser = topography_raster_parser.add_subparsers(help='Handles the topography (raster)')
+
+    ## ---------------- list datasource
+    topography_raster_parser_list = topography_raster_subparser.add_parser('list', help='Lists datasources')
+    topography_raster_parser_list.set_defaults(func=CLI.topography_raster_list)
+
+    ## ---------------- create STL file
+    topography_raster_parser_toSTL = topography_raster_subparser.add_parser('toSTL', help='Write the topography as STL')
+    topography_raster_parser_toSTL.add_argument('--left', type=str, required=True, help='The directory to create')
+    topography_raster_parser_toSTL.add_argument('--bottom', type=str, required=True,help='The directory to create')
+    topography_raster_parser_toSTL.add_argument('--right', type=str, required=True,help='The directory to create')
+    topography_raster_parser_toSTL.add_argument('--top', type=str, required=True,help='The directory to create')
+    topography_raster_parser_toSTL.add_argument('--dxdy', type=str, default=30, help='The resolution of the mesh, Default is 30m')
+    topography_raster_parser_toSTL.add_argument('--inputCRS', type=str, help='The CRS of the input coordinates, The default is WSG84')
+    topography_raster_parser_toSTL.add_argument('--outputCRS', type=str, help='The CRS of the output STL (default ITM)')
+    topography_raster_parser_toSTL.add_argument('--dataSourceName', default=None, type=str, help='The name of the datasource, if not supplied, use the default of the toolkit. ')
+    topography_raster_parser_toSTL.add_argument('--solidName', default="Topography", type=str, help='The name of the datasource, if not supplied, use the default of the toolkit. ')
+    topography_raster_parser_toSTL.add_argument('--fileName', type=str, required=True, help='The name of the file STL')
+    topography_raster_parser_toSTL.set_defaults(func=CLI.topography_raster_topography)
+
+    ##############################################
+    ### ---------------------- Buildings
+    ##############################################
+    buildings_parser = subparsers.add_parser('buildings', help='Handles the buildings')
+    buildings_subparser = buildings_parser.add_subparsers(help='Handles the buildings')
+
+    ## ---------------- create empty directory
+    buildings_parser_list = buildings_subparser.add_parser('list', help='Lists datasources')
+    buildings_parser_list.set_defaults(func=CLI.buildings_parser_list)
+
+
+    #-------------------------------------------------
+
+    parsed = parser.parse_args()
+
+    logger.debug(f"Got {parsed} in the command line")
+    if 'func' not in parsed:
+        parser.print_help()
+    else:
+        logger.debug("Activating the function")
+        parsed.func(parsed)
+
+
