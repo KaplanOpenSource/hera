@@ -17,7 +17,9 @@ toolkitHome = ToolkitHome()
 
 """
 2.15.1
-    #161:   - Adding the jupyter-lab-script that find the ip and runs the jupyter.  
+    #161:   - Adding the jupyter-lab-script that find the ip and runs the jupyter.
+            - Adding toSTL for hera-GIS
+            - Adding CRS points transformation.   
 2.15
 ----
     #134:   - ExperimentToolkit: Adding support for storage of device data per device or per device type 

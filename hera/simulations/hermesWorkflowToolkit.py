@@ -505,7 +505,7 @@ class workflowToolkit(abstractToolkit):
         cleanName = workflowJSON.split(".")[0]
 
         #   b. loading the workflow.
-        self.logger.debug(f"Loading the workflow JSON {workflowJSON}")
+        logger.debug(f"Loading the workflow JSON {workflowJSON}")
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
         theSolver = hermesWF.solver
@@ -515,9 +515,9 @@ class workflowToolkit(abstractToolkit):
         #   c. Determining the simulation name, group name and group id
         groupName = groupName if groupName is not None else cleanName.split("_")[0]
         if assignName:
-            self.logger.debug("Generating ID from the DB")
+            logger.debug("Generating ID from the DB")
             groupID, workflowName = self.findAvailableName(simulationGroup=groupName, workflowType=theSolver)
-            self.logger.debug(f" Got id : {groupID} and suggested name {workflowName}")
+            logger.debug(f" Got id : {groupID} and suggested name {workflowName}")
         else:
             workflowName = cleanName
             try:
@@ -527,9 +527,9 @@ class workflowToolkit(abstractToolkit):
             except IndexError:
                 # The name has no _ in it...
                 groupID = None
-            self.logger.debug(f"Use input as simulation : {workflowName} with the group {groupID}")
+            logger.debug(f"Use input as simulation : {workflowName} with the group {groupID}")
 
-        self.logger.info(f"Simulation name is {workflowName} with type {theSolver} in simulation group {groupName} with id {groupID}.")
+        logger.info(f"Simulation name is {workflowName} with type {theSolver} in simulation group {groupName} with id {groupID}.")
 
         # 2. Check if exists in the DB.
 
@@ -542,16 +542,16 @@ class workflowToolkit(abstractToolkit):
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
             wrn = f"The requested workflow {workflowName} has similar parameters to the workflow **{doc['desc']['workflowName']}** in simulation group {groupName}."
-            self.logger.warning(wrn)
+            logger.warning(wrn)
             raise FileExistsError(wrn)
         else:
 
             #   b. Check if the name of the simulation already exists in the group
-            self.logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
+            logger.debug(f"Check if the name of the simulation {workflowName} already exists in the group")
             docList = self.getWorkflowInGroup(groupName=groupName, workflowName=workflowName)
 
             if len(docList) == 0:
-                self.logger.info("Simulation is not in the DB, adding... ")
+                logger.info("Simulation is not in the DB, adding... ")
                 doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
                                                   dataFormat=datatypes.STRING,
                                                   type=self.DOCTYPE_WORKFLOW,
@@ -565,14 +565,14 @@ class workflowToolkit(abstractToolkit):
                                                   )
 
             elif overwrite:
-                self.logger.info("Simulation in the DB, overwrite=True.  Updating... ")
+                logger.info("Simulation in the DB, overwrite=True.  Updating... ")
                 doc = docList[0]
                 doc['desc']['workflow'] = hermesWF.json
                 doc['desc']['parameters'] = hermesWF.parametersJSON
                 doc.save()
             else:
                 info = f"The simulation {workflowName} with type {theSolver} is already in the database in group {groupName}. use the overwrite=True to update the record."
-                self.logger.info(info)
+                logger.info(info)
 
         # 3.  Building and running the workflow.
         if execute:
@@ -594,7 +594,7 @@ class workflowToolkit(abstractToolkit):
 
             pythonPath = os.path.join(self.FilesDirectory, f"{workflowName}")
             executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
-            self.logger.debug(executionStr)
+            logger.debug(executionStr)
             os.system(executionStr)
 
 
@@ -641,9 +641,10 @@ class workflowToolkit(abstractToolkit):
             pandas.DataFrame, json (depends on the input flags).
             Return the differences between the parametrs of the requested Workflow.
         """
+        logger = get_classMethod_logger(self, "compareWorkflow")
         if Workflow is None:
             raise NotImplementedError("compare() requires the 'hermes' library, which is nor installed")
-        self.logger.info("--- Start ---")
+        logger.info("--- Start ---")
 
         workflowList = []
         for workflowName in list(Workflow):

@@ -5,18 +5,21 @@
 
 """
 from .... import toolkit
-
-from hera import toolkitHome
-from hera.measurements.GIS.vector.topography import stlFactory
-import numpy as np
+from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
+from ....utils.logging import get_classMethod_logger
+import numpy
 import math
 from osgeo import gdal
 from pyproj import Transformer
-
+from itertools import product
+import pandas
+import os
+import xarray
+import geopandas
 
 class TopographyToolkit(toolkit.abstractToolkit):
 
-    def __init__(self, projectName, toolkitName = 'TopographyToolkit', filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None):
         """
             Initializes vector data toolkit.
 
@@ -36,18 +39,22 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 exist, then use the current directory.
 
         """
-        super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName = 'TopographyToolkit', filesDirectory=filesDirectory)
 
-    def getPointElevation(lat, long, projectName = "default"):
+    def getPointElevation(self,lat, long,dataSourceName=None):
         """
             get the elevation above sea level in meters from DEM for a point
             SRTM30 means 30 meters resolution
 
         Parameters
         ----------
-        lat
-        long
-        source - can be SRTM30, SRTM90
+        lat : float
+            Latitiute in the WSG projection
+        long : float
+            Longitude in the WSG projection
+
+        dataSourceName: string
+            The name of the datasources loaded. Use getDataSourceList to see which datasource were loaded.
 
         Returns
         -------
@@ -55,26 +62,28 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         How to use
         ----------
-        from hera.measurements.GIS.raster.topography import TopographyToolkit
-        TopographyToolkit.getPointElevation(33.459,35.755)
+        from hera import toolkitHome
+        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER)
+        tk.getPointElevation(lat = 33.459,long = 35.755)
 
-        What to fix
-        -----------
-        We need to make sure that we have "default" projectName
-        We need to give warning if outside Israel
-        We need to be sure that we use SRTM30 and not SRTM90
-
+        This should return ~  ~820 according to amud anan.
         """
-        # lat = 33.459 # elevation should be ~820 according to amud anan
-        # long = 35.755 # elevation should be ~820 according to amud anan
+        logger = get_classMethod_logger(self,"getPointElevation")
+
         filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
+        logger.info(f"Getting elevation from file {filename}")
 
-        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=projectName)
-        doc = tk.getDataSourceDocumentsList()[0]
-        fheight = doc.resource + '/' + filename
+        if dataSourceName is None:
+            dataSourceName = self.getConfig()['defaultSRTM']
 
-        ds = gdal.Open(fheight)
-        myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+        if dataSourceName is None:
+            raise ValueError(f"The datasource is not found!")
+
+        logger.debug(f"Getting the data source {dataSourceName}")
+        fheight = os.path.join(self.getDataSourceData(dataSourceName),filename)
+
+        ds =  gdal.Open(fheight)
+        myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
         myarray[myarray < -1000] = 0  # deal with problematic points
         gt = ds.GetGeoTransform()
         rastery = (long - gt[0]) / gt[1]
@@ -94,61 +103,153 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return elevation
 
-
-
-    def getDomainElevation(point1, point2, outputfile, projectName = "default"):
+    def getPointListElevation(self, pointList, dataSourceName=None):
         """
-            create STL from DEM
-            We use ITM coordinates because we need flat boundaries.
 
         Parameters
         ----------
-        point1 (lat, long)
-        point2 (lat, long)
-        outputfile - where to write the stl
+        latList
+        longList
+        dataSourceName
 
         Returns
         -------
 
-        How to use
-        ----------
-        from hera.measurements.GIS.raster.topography import TopographyToolkit
-        TopographyToolkit.getDomainElevation([200000, 740000], [201000, 741000], 'test1.stl')
+        """
+        logger = get_classMethod_logger(self, "getPointListElevation")
+        logger.info(f"Computing the elevation for a list of {len(pointList)} points")
+        logger.debug("Computing the file name for each point")
+        pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0)
 
-        What to fix
-        -----------
+
+        if dataSourceName is None:
+            dataSourceName = self.getConfig()['defaultSRTM']
+        logger.info(f"Getting the elevation for the points. Using datasource {dataSourceName}")
+
+        if dataSourceName is None:
+            err = "The datasource is not found!"
+            logger.error(err)
+            raise ValueError(err)
+
+        ret = pointList.copy()
+        for grpid,grp in pointList.groupby("filename"):
+            logger.debug(f"Processing the group {grpid}")
+            fheight = os.path.join(self.getDataSourceData(dataSourceName), grpid)
+            logger.debug(f"Getting data from the file {fheight}")
+            ds = gdal.Open(fheight)
+            myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
+            myarray[myarray < -1000] = 0  # deal with problematic points
+            gt = ds.GetGeoTransform()
+            for itemindx,item in grp.iterrows():
+                rastery = (item.lon - gt[0]) / gt[1]
+                rasterx = (item.lat - gt[3]) / gt[5]
+                height11 = myarray[int(rasterx), int(rastery)]
+                if (int(rasterx)+1>=myarray.shape[0]) or (int(rastery)+1>=myarray.shape[1]):
+                    height12 = height11
+                    height21 = height11
+                    height22 = height11
+                else:
+                    height12 = myarray[int(rasterx) + 1, int(rastery)]
+                    height21 = myarray[int(rasterx), int(rastery) + 1]
+                    height22 = myarray[int(rasterx) + 1, int(rastery) + 1]
+                height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
+                height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
+                elevation = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
+                ret.loc[itemindx,'elevation'] = elevation
+        return ret
+
+    def getDomainElevation(self, left,bottom,right,top,dxdy = 30,inputCRS=WSG84,outputCRS=ITM,dataSourceName=None):
+        """
+            Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.
+
+            Assumes the coordinates are given in the input CRS, and outputted in the output CRS.
+
+            Note, that in order to get 30m resultion, we convert the coordinates to ITM and then convert them back to
+            WSG84. This will work well in IL.
+
+        Parameters
+        ----------
+        lowerleft_point : float
+                The lower left corner
+        upperright_point: float
+                The upper right corner
+
+        dxdy : float
+                The resolution in m (default m).
+        inputCRS : The ESPG code of the input projection.
+
+        outputCRS : The ESPG code of the output projection.
+                    [Default ITM]
+        Returns
+        -------
+            xarrat with the fields
+            - X : X[i,j] - the x coordinate
+            - Y:  Y[i,j] - the y coordinate
+            - Height: Height[i,j] - the height of the surface at point  (X[i,j],Y[i,j])
+        """
+        logger = get_classMethod_logger(self,"getDomainElevation")
+
+        logger.info("Converting input coordinates to ITM (to have meters)")
+        itm_points = convertCRS([[left,bottom],[right,top]],inputCRS=inputCRS,outputCRS=ITM)
+        logger.debug(f"... Got {itm_points}")
+        logger.info("Getting the coordinates")
+        itm_lowerleft, itm_upperright = itm_points
+
+        itm_gridx = numpy.arange(itm_lowerleft.x,itm_upperright.x)
+        itm_gridy = numpy.arange(itm_lowerleft.y,itm_upperright.y)
+
+        logger.info("Converting the coordinates to WSG84 for SRTM data")
+        wsg_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=WSG84)
+
+        logger.info("Getting output coords")
+        if outputCRS != ITM:
+            output_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=outputCRS)
+        else:
+            XX,YY = zip(*[x for x in product(itm_gridx,itm_gridy)])
+            output_coords = geopandas.points_from_xy(XX,YY)
+
+        grid_x = numpy.zeros([len(itm_gridx), len(itm_gridy)])
+        grid_y = numpy.zeros_like(grid_x)
+        grid_z = numpy.zeros_like(grid_x)
+
+        pointList = pandas.DataFrame([dict(lon=pnt.x,lat=pnt.y,lon_output=pnt_output.x,lat_output=pnt_output.y) for pnt,pnt_output in zip(wsg_coords,output_coords)])
+        pointHeights = self.getPointListElevation(pointList) #.set_index(["lon","lat"])
+
+        logger.info("Converting the output to the desired coordinates.")
+        grid_y = pointHeights['lon_output'].values.reshape(len(itm_gridx), len(itm_gridy)).T
+        grid_x = pointHeights['lat_output'].values.reshape(len(itm_gridx), len(itm_gridy)).T
+        grid_z = pointHeights['elevation'].values.reshape(len(itm_gridx), len(itm_gridy)).T
+
+
+        retArray =  xarray.Dataset(data_vars=dict(X=(["i","j"],grid_x),
+                                                  Y=(["i","j"],grid_y),
+                                                  Elevation=(["i", "j"], grid_z)),coords=dict(i=("i",numpy.arange(grid_y.shape[0])),j=("j",numpy.arange(grid_y.shape[1]) )))
+
+        return retArray
+
+    def getDomainElevation_STL(self, left,bottom,right,top,dxdy = 30,inputCRS=WSG84,outputCRS=ITM,dataSourceName=None,solidName="Topography"):
+        """
+            Return the STL string from xarray dataset with the following fields:
+        Parameters
+        ----------
+        lowerleft_point : float
+                The lower left corner
+        upperright_point: float
+                The upper right corner
+
+        dxdy : float
+                The resolution in m (default m).
+        inputCRS : The ESPG code of the input projection.
+
+        outputCRS : The ESPG code of the output projection.
+                    [Default ITM]
+        Returns
+        -------
 
         """
-        miny = point1[1]  # y
-        maxy = point2[1]
-        minx = point1[0]  # x
-        maxx = point2[0]
-        dxdy = 30
-
-        NX = 1 + math.ceil((maxx - minx) / dxdy)
-        NY = 1 + math.ceil((maxy - miny) / dxdy)
-        grid_x = np.zeros([NX, NY])
-        grid_y = np.zeros_like(grid_x)
-        grid_z = np.zeros_like(grid_x)
-        i = minx
-        j = miny
-        for i in range(NX):
-            for j in range(NY):
-                x = minx + i * dxdy
-                y = miny + j * dxdy
-                lat, long = TopographyToolkit.ITMtolatlong([x, y])
-                z = TopographyToolkit.getPointElevation(long, lat)
-                grid_x[i, j] = x
-                grid_y[i, j] = y
-                grid_z[i, j] = z
-
-        a = stlFactory()
-        stlstr = a.rasterToSTL(grid_x, grid_y, grid_z, 'solidName')
-
-        with open(outputfile, "w") as stlfile:
-            stlfile.write(stlstr)
-
-        return
+        elevation = self.getDomainElevation(left=left,right=right,top=top,bottom=bottom,dxdy=dxdy,inputCRS=inputCRS,outputCRS=outputCRS,dataSourceName=dataSourceName)
+        stlstr = stlFactory().rasterToSTL(elevation['X'].values, elevation['Y'].values, elevation['Elevation'].values,solidName=solidName)
+        return stlstr
 
     def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = "default"):
         """
@@ -184,9 +285,9 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         NX = 1 + math.ceil((maxx - minx) / dxdy)
         NY = 1 + math.ceil((maxy - miny) / dxdy)
-        grid_x = np.zeros([NX, NY])
-        grid_y = np.zeros_like(grid_x)
-        grid_z = np.zeros_like(grid_x)
+        grid_x = numpy.zeros([NX, NY])
+        grid_y = numpy.zeros_like(grid_x)
+        grid_z = numpy.zeros_like(grid_x)
         i = minx
         j = miny
         for i in range(NX):
@@ -236,34 +337,6 @@ class TopographyToolkit(toolkit.abstractToolkit):
         x, y = coordTransformer.transform(lat, long)
         return x,y
 
-    def ITMtolatlong(point1):
-        """
-            change the coordinate system, from x y (ITM) to lat long
-
-        Parameters
-        ----------
-        x
-        y
-
-        Returns
-        -------
-        lat, long
-
-        How to use
-        ----------
-        from hera.measurements.GIS.raster.topography import TopographyToolkit
-        TopographyToolkit.ITMtolatlong([200000, 740000])
-
-        What to fix
-        -----------
-        """
-        ITM = "epsg:2039"
-        WGS84 = "epsg:4327"
-        x = point1[0]
-        y = point1[1]
-        coordTransformer2 = Transformer.from_crs(ITM, WGS84, always_xy=True)
-        lat, long = coordTransformer2.transform(x, y)
-        return lat, long
 
 
 
@@ -428,3 +501,4 @@ class TopographyToolkit(toolkit.abstractToolkit):
 #     height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
 #
 #     return height
+
