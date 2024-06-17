@@ -188,7 +188,7 @@ class Project:
             raise ValueError("Default project cannot use configuration")
 
         doc = self._getConfigDocument()
-        if update:
+        if keep_old_values:
             doc.desc.update(kwargs)
         else:
             doc['desc'] = kwargs
