@@ -1,7 +1,8 @@
 import io
 from hera import toolkit
-import geopandas as gp
+import geopandas 
 from shapely.geometry import Polygon, box
+from ..utils import ITM,ED50_ZONE36N,WSG84
 from ....utils.logging import get_classMethod_logger
 
 
@@ -33,35 +34,15 @@ class VectorToolkit(toolkit.abstractToolkit):
         """
         super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory)
 
-        # FileDirectoryCheck in abstractToolkit
-
-    # @staticmethod
-    # def geopandasToGeoJson(geoData):
-    #     features = []
-    #     insert_features = lambda X: features.append(
-    #         geojson.Feature(geometry=geojson.Point((X["long"],
-    #                                                 X["lat"],
-    #                                                 X["elev"])),
-    #                         properties=dict(name=X["name"],
-    #                                         description=X["description"])))
-    #     geoData.apply(insert_features, axis=1)
-    #     with open('map1.geojson', 'w', encoding='utf8') as fp:
-    #         geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
-
     @staticmethod
     def geopandasToGeoJson(geoData):
-
-        if isinstance(geoData,gp.GeoDataFrame):
+        if isinstance(geoData,geopandas.GeoDataFrame):
             dataHandler = io.BytesIO()
             geoData.to_file(dataHandler,driver='GeoJSON')
             return dataHandler.getvalue().decode('ascii')
 
         else:
             raise ValueError("Function receives only GeoDataFrame")
-
-    @property
-    def _docType(self):
-        return  f"{self.toolkitName}_region"
 
     def _RegionToGeopandas(self, regionData, crs = None):
         """
@@ -81,22 +62,19 @@ class VectorToolkit(toolkit.abstractToolkit):
         -------
 
         """
-
-        if isinstance(regionData,gp.GeoDataFrame):
-
+        if isinstance(regionData,geopandas.GeoDataFrame):
             data = regionData
-
         elif isinstance(regionData, dict):
-            data = gp.GeoDataFrame.from_features(regionData['features'])
+            data = geopandas.GeoDataFrame.from_features(regionData['features'])
 
         elif isinstance(regionData, list):
             try:
-                data =gp.GeoDataFrame({'geometry':[box(regionData[0], regionData[1], regionData[2], regionData[3])]})
+                data =geopandas.GeoDataFrame({'geometry':[box(regionData[0], regionData[1], regionData[2], regionData[3])]})
             except Exception as e:
                 raise ValueError(f"Can't create region shape from regionData list, The list should contain the following input: xmin,ymin,xmax,ymax ")
 
         elif isinstance(regionData, Polygon):
-            data = gp.GeoDataFrame({'geometry':[regionData]})
+            data = geopandas.GeoDataFrame({'geometry':[regionData]})
         else:
             raise ValueError(f" regionData paremeter must be: GeoDataFrame/GeoJSON/list/Polygon")
 
@@ -108,52 +86,19 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         return data
 
-    def addRegion(self,regionData, regionName, crs = None): #isBounds - save the shape as Bbox or not , use can add CRS for the point list or shape
-        """
-                Add region shape to DB.
-
-                Parameters
-                ----------
-                regionData: geoPandas , geoJson, shaply geometry
-                    The project Name that the toolkit is initialized on
-                regionName: str
-                   The document name to save with in DB.
-
-                isBounds: Boolean
-                    If the requested region
-
-                crs: int
-                    the EPSG number represent the region coordinate system.
-                    * The crs is not saved to the db with the region when it is specified in the geoPandas, only when sendding
-                      the crs to the function.
-
-        """
-        desc ={TOOLKIT_VECTOR_REGIONNAME: regionName,'crs':crs}
-        docType = self._docType
-
-        data = self._RegionToGeopandas(regionData, crs = crs).to_json()
-        # data = self.geopandasToGeoJson(data)
-
-        docList = self.getCacheDocuments(type=docType,**desc) # regionName=regionName,crs=crs
-        if len(docList) == 0:
-            self.addCacheDocument(resource = data,type=docType, dataFormat=self.datatypes.JSON_GEOPANDAS, desc=desc)
-        else:
-            doc = docList[0]
-            doc.resource = data
-            doc.save()
-
-
-
-    def cutRegionFromSource(self, shapeDataOrName, datasourceName, isBounds = False, crs = None): # If  shapeDataOrName is data: if is Bounds = True: use the Bbox of shape as the region, else use the shpae as the region
+    def cutRegionFromSource(self, datasourceDocument, shape, isBounds = False, inputCRS = WSG84):
         """
             Cuts a the shape from the requested datasource
 
+
         Parameters
         ----------
-        shapeDataOrName: GeoDataFrame,dict,list,Polygon
-            The shape data to use.
+        datasourceDocument: hera document.
+                The datasource.
 
-                        list - a box with the corners in [xmin,ymin,xmax,ymax]
+        shape : list, dict, geopandas.
+            list - a box with the corners in [xmin,ymin,xmax,ymax]
+            dict - geoJSON
 
         datasourceName : str
             The name of the satasource to cur from.
@@ -161,102 +106,30 @@ class VectorToolkit(toolkit.abstractToolkit):
         isBounds : bool
             If true, use the bounding box fo the polygon.
 
-        crs : int
+        inputCRS : int, default is WWSG84=4326.
             The EPSG of the coordinate system of the shape (if it is a shape and not in the dtasource ative coordinates).
 
         Returns
         -------
-
+            geopandas of the right shape.
         """
         logger = get_classMethod_logger(self, "regionToSTL")
-        self.logger.info("-- Start --")
 
-        if isinstance(shapeDataOrName, str):
-            shape= self.getRegionData(shapeDataOrName)
+        regionWithCRS = self._RegionToGeopandas(shape, crs = inputCRS)
+
+        logger.debug(f"The crs of the input is {regionWithCRS.crs}")
+        logger.debug(f"The shape is {regionWithCRS.iloc[0]}")
+        dct = dict(bbox=regionWithCRS) if isBounds else dict(mask=regionWithCRS)
+
+        if regionWithCRS.crs is None:
+            logger.execution("The region was defined without crs. Using the crs of the datasource.")
+            regionWithCRS.crs = datasourceDocument.desc['crs']
+        elif regionWithCRS.crs.to_epsg() != datasourceDocument.desc['crs']:
+            logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
+            regionWithCRS = regionWithCRS.to_crs(datasourceDocument.desc['crs'])
         else:
-            shape = self._RegionToGeopandas(shapeDataOrName, crs = crs)
+            logger.execution("shape and region crs match.")
 
-        self.logger.debug(f"The crs of the input is {shape.crs}")
-        self.logger.debug(f"The shape is {shape.iloc[0]}")
-
-        dct = dict(bbox=shape) if isBounds else dict(mask=shape)
-
-        doc = self.getDatasourceDocument(datasourceName=datasourceName)
-        if doc is None:
-            self.logger.error(f"datasource {datasourceName} not found in project {self.projectName}")
-            raise ValueError(f"datasource {datasourceName} not found in project {self.projectName}")
-
-        self.logger.debug(f"The datasource {datasourceName} is pointing to {doc.resource}")
-
-        doc.desc['desc'].update({'crs': 2039})
-        if 'crs' not in doc.desc['desc']:
-            self.logger.error(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
-            raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
-
-        if shape.crs is None:
-            self.logger.execution("The region was defined without crs. Using the crs of the datasource.")
-            shape.crs = doc.desc['desc']['crs']
-        elif shape.crs.to_epsg() != doc.desc['desc']['crs']:
-            self.logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
-            shape = shape.to_crs(doc.desc['desc']['crs'])
-        else:
-            self.logger.execution("shape and region crs match.")
-
-        if doc is None:
-            sourceList = self.getDataSourceTable()['datasourceName'].str.cat()
-            err = f"The Data sources available in the project are: " + sourceList
-            self.logger.error(err)
-            raise ValueError(err)
-        else:
-            return doc.getData(**dct)
-
-    def getRegionNameList(self):
-        """
-            Return the list of region names.
-
-        :return:
-        """
-        docType = self._docType
-        return [doc.desc[TOOLKIT_VECTOR_REGIONNAME] for doc in self.getCacheDocuments(type=doc)]
-
-    def getRegionData(self, regionName):
-
-        """
-
-                Parameters
-                ---------
-
-                    regionName: str
-                            The name of the region
-                Returns
-                -------
-                    Return the vectorData with the region anme
-        """
-        doc = self.getRegionDocumentByName(regionName=regionName)
-        return None if doc is None else doc.getData()
-
-    def getRegionDocumentByName(self, regionName):
-        """
-
-        Parameters
-        ---------
-
-            regionName: str
-                    The name of the region
-        Returns
-        -------
-            Return the vectorData with the region anme
-        """
-        qry ={TOOLKIT_VECTOR_REGIONNAME: regionName}
-        qry['type'] = self._docType
-        shapeDoc = self.getCacheDocuments(**qry)
-        return None if len(shapeDoc)==0 else shapeDoc[0]
-
-
-    def deleteRegion(self,regionName):
-
-        self.deleteCacheDocuments(desc ={TOOLKIT_VECTOR_REGIONNAME: regionName},type=self._docType)
-
-
+        return datasourceDocument.getData(**dct)
 
 

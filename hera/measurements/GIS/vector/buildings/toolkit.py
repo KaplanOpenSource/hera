@@ -1,19 +1,23 @@
 import numpy
 import os
-import logging
+import geopandas
 from ..toolkit import VectorToolkit
 from .analysis import analysis
-from .....toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
-import geopandas
+
+try:
+#    logger.execution("Trying to Load the FreeCAD module")
+    import FreeCAD
+    import Part
+    import Mesh
+except ImportError as e:
+#    logger.error(f"Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL: {e}")
+    raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
+
 import matplotlib.pyplot as plt
+from .....utils.logging import get_classMethod_logger
+from ...utils import WSG84, ITM, ED50_ZONE36N
+from ..... import toolkitHome
 
-#FREECADPATH = '/usr/lib/freecad-python3/lib/'  # Or add to PythonPath
-#import sys
-#sys.path.append(FREECADPATH)
-
-import FreeCAD
-import Part
-import Mesh
 
 class BuildingsToolkit(VectorToolkit):
     """
@@ -29,81 +33,81 @@ class BuildingsToolkit(VectorToolkit):
                                 default value: HT_LAND
     """
 
-    _BuildingHeightColumn = None
-
-    @property
-    def BuildingHeightColumn(self):
-        return self._BuildingHeightColumn
-
-    @BuildingHeightColumn.setter
-    def BuildingHeightColumn(self, value):
-        self._BuildingHeightColumn = value
-
-    @property
-    def LandHeightColumn(self):
-        return self._LandHeightColumns
-
-    @LandHeightColumn.setter
-    def LandHeightColumn(self, value):
-        self._LandHeightColumns = value
-
-
     def __init__(self, projectName, filesDirectory=None):
 
         super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory)
         self._analysis = analysis(dataLayer=self)
 
-        self._BuildingHeightColumn = "BLDG_HT"
-        self._LandHeightColumns   = 'HT_LAND'
-        self.name   = projectName 
-
-    @property
-    def doctype(self):
-        return f"{self.name}_STL"
-
-
-    def geoPandasToSTL(self,buildingData,outputFileName,flat=None):
+    def getBuildingHeightFromRasterTopographyToolkit(self, buildingData, topographyDataSource=None):
         """
-                Converts a building data (in geopandas format) to STL using the Freecad module.
+            Get the topography height of each building (at its center) in the building data using the topography toolkit.
 
         Parameters
         ----------
-        buildingData : geopandas.GeoDataFrame
-                The building data
+        buildingData : geopandas.geoDataFrame.
+                A building
 
-        outputFileName : str
-                Full path to the output file.
-
-
-        flat: None or float.
-                The base of the building.
-                If None, use the buildings height.
+        topographyDataSource : string  default None
+            The name of the datasource in the topography toolkit. If None, use the default datasource there.
 
         Returns
         -------
-            float
-                The maximal height that was found
+            geopandas.DataFrame with 'elevation' as a column.
         """
-        self.logger.info("---- Start ---")
-        try:
-            self.logger.execution("Loading Freecad")
-         #   from freecad import app as FreeCAD
-         #   import Part
-         #   import Mesh
-        except ImportError as e:
-            logging.error("Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL")
-            raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
+        topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
+        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WSG84))
+        return buildingData.join(elevations)
 
-        maxheight = -500
+    def buildingsGeopandasToSTLRasterTopography(self,
+                                                buildingData,
+                                                buildingHeightColumn,
+                                                buildingElevationColumn,
+                                                outputFileName,
+                                                flatTerrain = False,
+                                                referenceTopography = 0,
+                                                nonFlatTopographyShift=10):
+        """
+                Converts a building data (in geopandas format) to STL using the FreeCAD module.
+                Using the raster topography to estimate the height of each building.
+
+                This is a low level procedure. It can be used, but the easier way to use the toolkit is
+                to generate the buildings from an area using the regionToSTL procedure.
+
+                We must save the file to the disk, as it is the current implementation of FreeCAD.
+
+        Parameters
+        ----------
+        buildingData : geopandas.DataFrame
+        buildingHeightColumn : string
+            The name of the column that holds the height of the buildings in [m].
+        buildingElevationColumn: string
+            The name of the column that holds the elevation of the building.
+
+        outputFileName : string
+            The absolute path of the output STL
+
+        flatTerrain : bool
+            If true, use a flat terrain.
+        nonFlatTopographyShift : float
+            shift the house with respect to its height in the topography.
+
+        referenceTopography : float [default 0]
+            If flatTerrain, use this as the reference height for the buildings.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "geoPandasToSTL")
+        logger.info(f"Converting {len(buildingData)} to STL. Using {'flat' if flatTerrain else 'topography'} settings")
+
         try:
-                FreeCADDOC = FreeCAD.newDocument("Unnamed")
+            FreeCADDOC = FreeCAD.newDocument("Unnamed")
         except:
             err = "FreeCAD not found. Install before using this function and add to the PYTHONPATH"
             raise ValueError(err)
 
-        shp = buildingData # olv version compatability
-
-        for indx,building in shp.iterrows():  # converting al the buildings
+        for indx, building in buildingData.iterrows():  # converting al the buildings
 
             try:
                 walls = building['geometry'].exterior.xy
@@ -112,55 +116,74 @@ class BuildingsToolkit(VectorToolkit):
                 continue
 
             if indx % 100 == 0:
-                self.logger.execution(f"{indx}/{len(shp)} shape file is executed")
+                logger.execution(f"{indx}/{len(buildingData)} shape file is executed")
 
-
-            wallsheight = building[self.BuildingHeightColumn]
-            if flat is None:
-                altitude = building[self.LandHeightColumn]
-            else:
-                altitude = flat
-
-            self.logger.debug(f" Building -- {indx} --")
-            self.logger.debug("newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch"+ str(indx) +"')")
+            wallsheight = building[buildingHeightColumn]
+            altitude = referenceTopography if flatTerrain else building[buildingElevationColumn] - nonFlatTopographyShift
+            logger.debug(f" Building -- {indx} --")
+            logger.debug("newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch" + str(indx) + "')")
             newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch' + str(indx))
 
-            self.logger.debug(f"newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, {altitude}), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))")
+            logger.debug(
+                f"newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, {altitude}), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))")
             newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, altitude),  # 2*k-1
-                                                             FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+                                                    FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
 
-            for xy0,xy1 in zip(walls[:-1],walls[1:]):
-                self.logger.debug(f"newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector({xy0[0]}, {xy0[1]}, {altitude}),FreeCAD.Vector({xy1[0]}, {xy1[1]}, {altitude})))")
-                newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(xy0[0], xy0[1], altitude),FreeCAD.Vector(xy1[0], xy1[1], altitude)))
+            for xy0, xy1 in zip(walls[:-1], walls[1:]):
+                logger.debug(
+                    f"newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector({xy0[0]}, {xy0[1]}, {altitude}),FreeCAD.Vector({xy1[0]}, {xy1[1]}, {altitude})))")
+                newSketch.addGeometry(
+                    Part.LineSegment(FreeCAD.Vector(xy0[0], xy0[1], altitude),
+                                     FreeCAD.Vector(xy1[0], xy1[1], altitude)))
 
-            self.logger.debug("FreeCADDOC.addObject('Part::Extrusion', 'building" + str(indx) + "')")
+            logger.debug("FreeCADDOC.addObject('Part::Extrusion', 'building" + str(indx) + "')")
             newPad = FreeCADDOC.addObject("Part::Extrusion", "building" + str(indx))
-            self.logger.debug("newPad.Base = newSketch")
+            logger.debug("newPad.Base = newSketch")
             newPad.Base = newSketch
-            buildingTopAltitude = wallsheight # + altitude  # wallsheight + altitude
-            maxheight = max(maxheight, buildingTopAltitude)
-            self.logger.debug(f"newPad.LengthFwd = {buildingTopAltitude}")
-            newPad.LengthFwd = wallsheight
-
-            self.logger.debug("newPad.Solid = True")
+            buildingTopAltitude = wallsheight + nonFlatTopographyShift # the paddign is from the bottom of the buildings, which is nonFlatTopographyShift lower.
+            logger.debug(f"newPad.LengthFwd = {buildingTopAltitude}")
+            newPad.LengthFwd = buildingTopAltitude
+            logger.debug("newPad.Solid = True")
             newPad.Solid = True
-
-            self.logger.debug("newPad.Symmetric = False")
+            logger.debug("newPad.Symmetric = False")
             newPad.Symmetric = False
+            FreeCADDOC.recompute()
+
+        logger.execution(f"Writing the STL {outputFileName}")
+        Mesh.export(FreeCADDOC.Objects, outputFileName)
 
 
+    def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WSG84,withElevation=False):
+        """
+            Return the buildings geopandas for the region.
 
-        FreeCADDOC.recompute() # maybe it should be in the loop.
+        Parameters
+        ----------
+        minx : float
+        miny
+        maxx
+        may
+        dataSourceName
+        withElevation : bool
+            If True, use the topography (raster) toolkit to get the heghts.
+            for now, uses the default datasource in the raster toolkit.
 
-        outputfileFull = os.path.abspath(os.path.join(self.FilesDirectory,outputFileName))
-        self.logger.execution(f"Writing the STL {outputfileFull}")
-        Mesh.export(FreeCADDOC.Objects, outputfileFull)
+        Returns
+        -------
 
-        self.logger.info(f"geoPandasToSTL - End. Max height found {maxheight}")
-        return maxheight
+        """
+        if dataSourceName is None:
+            dataSourceName = self.getConfig()["defaultBuildingDataSource"]
 
+        doc = self.getDataSourceDocument(dataSourceName)
+        buildings = self.cutRegionFromSource(doc, shape=[minx, miny, maxx, maxy], inputCRS=inputCRS)
 
-    def regionToSTL(self, regionNameOrData, outputFileName,dataSourceName,flat=None,saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, crs=None):
+        if withElevation:
+            buildings = self.getBuildingHeightFromRasterTopographyToolkit(buildings)
+
+        return buildings
+
+    def regionToSTL(self, regionNameOrData, outputFileName, dataSourceName, flat=None, saveMode=None, crs=None):
         """
             Converts the document to the stl and saves it to the disk.
             Adds the stl file to the DB.
@@ -200,14 +223,14 @@ class BuildingsToolkit(VectorToolkit):
         """
         self.logger.info("---- Start ----")
 
-        if not isinstance(regionNameOrData,geopandas.GeoDataFrame):
+        if not isinstance(regionNameOrData, geopandas.GeoDataFrame):
             shp = self.cutRegionFromSource(regionNameOrData, datasourceName=dataSourceName, isBounds=True, crs=crs)
         else:
             shp = regionNameOrData
 
         self.logger.info(f"Region {regionNameOrData} consists of {len(shp)} buildings")
 
-        maxheight = self.geoPandasToSTL(buildingData=shp, outputFileName=outputFileName, flat=flat)
+        maxheight = self.buildingsGeopandasToSTL(buildingData=shp, outputFileName=outputFileName, flat=flat)
 
         if saveMode in [TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
                         TOOLKIT_SAVEMODE_FILEANDDB]:
@@ -220,8 +243,8 @@ class BuildingsToolkit(VectorToolkit):
                 raise ValueError(f"STL {regionNameSTL} exists in project {self.projectName}")
 
             desc = {
-                    toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
-                    toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName
+                toolkit.TOOLKIT_VECTOR_REGIONNAME: regionNameSTL,
+                toolkit.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName
             }
 
             if doc is None:
@@ -236,28 +259,7 @@ class BuildingsToolkit(VectorToolkit):
 
         return maxheight
 
-
-    def getSTL(self,regionNameSTL):
-        """
-            Retrive the STL from the DB
-
-        Parameters
-        ----------
-        regionNameSTL: str
-            The name of the regiona name STL.
-
-        Returns
-        -------
-            The document of the STL.
-        """
-        desc = {
-                "vector":regionNameSTL,
-                "type" : self.doctype
-                }
-        docList = self.getCacheDocuments(**desc)
-        return None if len(docList)==0 else docList[0]
-
-    def buildingsToSTL(self,point1, point2, domainname, outputfile):
+    def buildingsToSTL(self, point1, point2, domainname, outputfile):
         """
             write stl file of the buildings in a domain
 
@@ -280,7 +282,7 @@ class BuildingsToolkit(VectorToolkit):
         -----------
 
         """
-        #print("poinat1")
+        # print("poinat1")
         bounding = [point1[0], point1[1], point2[0], point2[1]]
         # bounding = point1
 
@@ -290,30 +292,30 @@ class BuildingsToolkit(VectorToolkit):
         bt.regionToSTL(domainname, outputfile, 'BNTL')
         return
 
+    if __name__ == "__main__":
+        fig, ax = plt.subplots()
+        bt = BuildingsToolkit('kaplan', filesDirectory='/home/hadas/Hadas_S/Kaplan/')
+        reg = [177933, 663923, 178933, 664423]
+        # reg = bt.cutRegionFromSource(reg, 'BNTL', True)
+        # reg.to_file('/home/hadas/Hadas_S/Kaplan/BNTL.shp')
+        reg.plot(ax=ax)
+        bt.addRegion(reg, 'buildings', crs=2039)
+        # reg =[177933,663923,178933,664923]
+        # lis = vt.getRegionNameList()
+        reg = bt.cutRegionFromSource('new9', dataSourceName='BNTL', isBounds=True, crs=2039)
+        data = gps.GeoDataFrame.from_file(
+            '/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
+        lm = bt.analysis.LambdaOfDomain(270, 200, buildingsDataSourceNameOrData=data, crs=2039)
+        lm = bt.LambdaFromBuildingData(270, 200, data)
+        # lm = bt._analysis.LambdaFromDatasource(270, 200, 'test', exteriorBlockNameOrData=reg, crs=2039)
+        # p=1
 
-if __name__ == "__main__":
-    fig, ax = plt.subplots()
-    bt = BuildingsToolkit('kaplan',filesDirectory ='/home/hadas/Hadas_S/Kaplan/')
-    reg = [177933, 663923, 178933, 664423]
-    # reg = bt.cutRegionFromSource(reg, 'BNTL', True)
-    # reg.to_file('/home/hadas/Hadas_S/Kaplan/BNTL.shp')
-    reg.plot(ax=ax)
-    bt.addRegion(reg, 'buildings',crs = 2039)
-    # reg =[177933,663923,178933,664923]
-    # lis = vt.getRegionNameList()
-    reg = bt.cutRegionFromSource('new9',dataSourceName='BNTL',isBounds = True, crs = 2039)
-    data = gps.GeoDataFrame.from_file('/mnt/public/omri_hadas/Production_Mode/Dispersion_Model/Haifa09_aerosols/LSM_for_SOURCE_ESTIMATION_epsilon_version/Lambda_Inputs/Haifa_Krayot_202323_741796/290_rez_200_afterBLD_correction/BLD_krayot_after_correction.shp')
-    lm = bt.analysis.LambdaOfDomain(270,200,buildingsDataSourceNameOrData=data,crs = 2039)
-    lm = bt.LambdaFromBuildingData(270, 200, data)
-    # lm = bt._analysis.LambdaFromDatasource(270, 200, 'test', exteriorBlockNameOrData=reg, crs=2039)
-    # p=1
-
-# newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch3180')
-# newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 19.86), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
-# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179062.00002653955, 662887.8099938995, 19.86),FreeCAD.Vector(179028.70002653956, 662904.1199938995, 19.86)))
-# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179028.70002653956, 662904.1199938995, 19.86),FreeCAD.Vector(179038.50002653955, 662923.9999938995, 19.86)))
-# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179038.50002653955, 662923.9999938995, 19.86),FreeCAD.Vector(179071.80002653957, 662907.6199938995, 19.86)))
-# newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179071.80002653957, 662907.6199938995, 19.86),FreeCAD.Vector(179062.00002653955, 662887.8099938995, 19.86)))
-# FreeCADDOC.addObject('Part::Extrusion', 'building3180')
-# newPad.Base = newSketch
-# newPad.LengthFwd = 21.62
+    # newSketch = FreeCADDOC.addObject('Sketcher::SketchObject', 'Sketch3180')
+    # newSketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 19.86), FreeCAD.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+    # newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179062.00002653955, 662887.8099938995, 19.86),FreeCAD.Vector(179028.70002653956, 662904.1199938995, 19.86)))
+    # newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179028.70002653956, 662904.1199938995, 19.86),FreeCAD.Vector(179038.50002653955, 662923.9999938995, 19.86)))
+    # newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179038.50002653955, 662923.9999938995, 19.86),FreeCAD.Vector(179071.80002653957, 662907.6199938995, 19.86)))
+    # newSketch.addGeometry(Part.LineSegment(FreeCAD.Vector(179071.80002653957, 662907.6199938995, 19.86),FreeCAD.Vector(179062.00002653955, 662887.8099938995, 19.86)))
+    # FreeCADDOC.addObject('Part::Extrusion', 'building3180')
+    # newPad.Base = newSketch
+    # newPad.LengthFwd = 21.62

@@ -1,4 +1,4 @@
-__version__ = '2.15.1'
+__version__ = '2.15.2'
 
 import sys
 python_version = sys.version_info
@@ -16,6 +16,9 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+2.15.2 
+    #168:   - Added the building toolkit. 
+            - Still need to fix the lambda calculations. 
 2.15.1
     #161:   - Adding the jupyter-lab-script that find the ip and runs the jupyter.
             - Adding toSTL for hera-GIS
