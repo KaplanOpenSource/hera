@@ -7,26 +7,18 @@ import pandas
 import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
+from .....utils.logging import get_classMethod_logger
 
-
-import logging
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
 
 class analysis():
 
-    _datalayer = None
-
-    @property
-    def logger(self):
-        return self._datalayer.logger
-
-    @property
-    def datalayer(self):
-        return self._datalayer
-
     def __init__(self, dataLayer):
-        self._datalayer = dataLayer
+        self.datalayer = dataLayer
+        cnfg = dict(self.datalayer.getConfig())
+        cnfg.setdefault("analysis_CacheCounter",0)
+        self.datalayer.setConfig(**cnfg)
 
     def ConvexPolygons(self, regionNameOrData, buffer=100):
         """
@@ -89,7 +81,7 @@ class analysis():
 
 
 
-    def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData,externalShape=None, overwrite=False):
+    def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData, overwrite=False,saveCache=True):
         """
 
         Parameters
@@ -105,13 +97,7 @@ class analysis():
                 The columns are:
                     -
                     -
-
                 The crs of the building data must be set.
-
-        externalShape : str, shape [optional]
-                will be used in the crs of the building data.
-
-                If None, then use the boundaries of the buidingData.
 
         overwrite : bool
             If true, write over data and update the database
@@ -120,129 +106,73 @@ class analysis():
         -------
 
         """
-#nir        self.logger.info("--- Start ---")
+        logger = get_classMethod_logger(self, "LambdaFromBuildingData")
+        logger.info("--- Start ---")
 
         if isinstance(buildingsData,str):
-            #nir            self.logger.debug("Reading the bounds from StringIO")
+            logger.debug("Reading the bounds from StringIO")
             data = geopandas.read_file(io.StringIO(buildingsData))
         elif isinstance(buildingsData, geopandas.GeoDataFrame):
-            #nir            self.logger.debug("Using the user input")
+            logger.debug("Using the user input")
             data = buildingsData
         else:
             err = f"buildingsData must be str or geopandas.GeoDataFrame. Got {type(buildingsData)}"
-            #nir self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
         if data.crs is None:
             err = "The buildingData crs must be set"
-            #nir            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
-        if isinstance(externalShape, str):
-            bounds= self.datalayer.getRegionData(externalShape)
-        else:
-            bounds = self.datalayer._RegionToGeopandas(externalShape, crs = data.crs)
-
         desc = {
-                 "bounds" : bounds.total_bounds,
+                 "bounds" : data.total_bounds,
                  BUILDINGS_LAMBDA_WIND_DIRECTION: windMeteorologicalDirection,
                  BUILDINGS_LAMBDA_RESOLUTION : resolution,
                  "crs":data.crs.to_epsg()
                }
 
-        #nir        self.logger.info(f"Check if cached data exists for data {desc}")
+        logger.info(f"Check if cached data exists for data {desc}")
         dataDoc = self.datalayer.getCacheDocuments(type="Lambda_Buildings",**desc)
 
-        #nir        if self.logger.isEnabledFor(logging.DEBUG):
-        dbgstr = "Cached data Not found"  if len(dataDoc) == 0 else "Found data in the cache"
-            #nir            self.logger.debug(dbgstr)
-
         if len(dataDoc)==0 or overwrite:
-            #nir            self.logger.info(f"Calculatings lambda data with bounds {bounds.total_bounds}")
-            domainLambda = Blocks(level=0, df=bounds, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=windMeteorologicalDirection)
+            logger.info(f"Calculatings lambda data with bounds {data.total_bounds}")
+            domainLambda = Blocks(level=0, df=data, size=resolution).iterBlocks(size=resolution).Lambda(data, windDirection=windMeteorologicalDirection)
 
-            if len(dataDoc) == 0:
-                #nir                self.logger.debug("Adding new record to the DB")
-                doc = self.datalayer.addCacheDocument(resource="",
-                                                      dataFormat=self.datatypes.GEOPANDAS,
-                                                      type="Lambda_Buildings",
-                                                      desc=desc)
-                filename = f"{str(doc.id)}.geojson"
-                outputfileFull = os.path.abspath(os.path.join(self._datalayer.filesDirectory, filename))
-                #nir                self.logger.debug(f"Writing Lambda data to {outputfileFull}")
+            if saveCache:
+                if len(dataDoc) == 0:
+                    logger.debug("Adding new record to the DB")
+                    doc = self.datalayer.addCacheDocument(resource="",
+                                                          dataFormat=self.datatypes.GEOPANDAS,
+                                                          type="Lambda_Buildings",
+                                                         desc=desc)
+                    fileID = self.getConfig()["analysis_CacheCounter"]
+                    self.setConfig(analysis_CacheCounter=fileID+1)
+                    filename = f"LambdaGeoJson_{fileID}.geojson"
+                    outputfileFull = os.path.abspath(os.path.join(self._datalayer.filesDirectory, filename))
+                    logger.debug(f"Writing Lambda data to {outputfileFull}")
 
-            else:
-                #nir                self.logger.info("Updating old record.")
-                doc = dataDoc[0]
-                outputfileFull = doc.resource
+                elif len(dataDoc)>0:
+                    logger.info("Updating old record.")
+                    doc = dataDoc[0]
+                    outputfileFull = doc.resource
 
-            domainLambda.to_file(outputfileFull,driver='GeoJSON')
-            doc.resource = outputfileFull
-            doc.save()
+                domainLambda.to_file(outputfileFull,driver='GeoJSON')
+                doc.resource = outputfileFull
+                doc.save()
 
         else:
-            #nir            self.logger.debug("Return found data in DB")
+            logger.debug("Return found data in DB")
             try:
                 domainLambda = dataDoc[0].getData()
             except fiona.errors.DriverError:
                 errmsg = f"The cached data in location {dataDoc[0].resource} is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache."
-                #nir                self.logger.error(errmsg)
+                logger.error(errmsg)
                 raise FileNotFoundError(errmsg)
 
-        #nir        self.logger.info("---- End ----")
+        logger.info("---- End ----")
         return domainLambda
 
-
-
-    def LambdaFromDatasource(self, windMeteorologicalDirection, resolution, shapeDataOrName,datasourceName, crs=None, overwrite=False):
-        """
-        Calculate average λf and λp of a rectangular domain from BNTL buildings layer.
-
-        Parameters
-        ----------
-        windMeteorologicalDirection: float
-              The meteorological wind direction.
-        resolution: int
-                    The size of the block in meter.
-
-        dataSourceName: str
-                the name of the buildings datasource.
-
-        shapeDataOrName:  str, polygon or [xmin,ymin,xmax,ymax]
-                The definition of the shape to use.
-        crs: [optional], int
-            if None, use the crs of the datasource.
-            if not None, set the
-
-
-        overwrite: bool
-            Calculate the results even if data in the db.
-            if it exists in db, update.
-
-        Returns
-        -------
-        GeoDataFrame of the grid geometry with the calculated parameters: lambdaP,lambdaF,hc
-        """
-#nir        self.logger.info("--- Start ---")
-
-        buildingsData = self.datalayer.cutRegionFromSource(shapeDataOrName=shapeDataOrName,
-                                                           datasourceName=datasourceName, crs=crs)
-
-        if isinstance(shapeDataOrName, str):
-            bounds= self.datalayer.getRegionData(shapeDataOrName)
-        else:
-            bounds = self.datalayer._RegionToGeopandas(shapeDataOrName, crs = crs)
-
-        domainLambda = self.LambdaFromBuildingData(windMeteorologicalDirection=windMeteorologicalDirection,
-                                                   resolution=resolution,
-                                                   buildingsData=buildingsData,
-                                                   externalShape=bounds,
-                                                   overwrite=overwrite)
-
-        if crs is not None:
-            domainLambda.crs = crs
-
-        return domainLambda
 
 
 class Blocks(object):
