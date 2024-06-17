@@ -103,8 +103,11 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return elevation
 
-    def getPointListElevation(self, pointList, dataSourceName=None):
+    def getPointListElevation(self, pointList, dataSourceName=None,inputCRS=WSG84):
         """
+            Return the elevation of the point list.
+
+            For now we assume that pointList is in WSG84 coordinates.
 
         Parameters
         ----------
@@ -116,10 +119,29 @@ class TopographyToolkit(toolkit.abstractToolkit):
         -------
 
         """
+        totalNumberOfPoints = pointList.shape[0]
         logger = get_classMethod_logger(self, "getPointListElevation")
-        logger.info(f"Computing the elevation for a list of {len(pointList)} points")
+        logger.info(f"Computing the elevation for a list of {totalNumberOfPoints} points")
         logger.debug("Computing the file name for each point")
-        pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0)
+
+
+        if isinstance(pointList,geopandas.geoseries.GeoSeries):
+            pointList = pointList.to_frame("point").assign(filename=pointList.apply(lambda row: 'N' + str(int(row.y)) + 'E' + str(int(row.x)).zfill(3) + '.hgt' ),
+                                                           lon=pointList.x,
+                                                           lat=pointList.y,
+                                                           elevation=0)
+
+        elif isinstance(pointList,geopandas.geodataframe.GeoDataFrame):
+            if 'point' not in pointList:
+                error = "GeoDataFrame must contain a field 'point' that contain the points of interest"
+                logger.error(error)
+                raise ValueError(error)
+            pointList = pointList.assign(filename=pointList.apply(lambda row: 'N' + str(int(row.point.y)) + 'E' + str(int(row.point.x)).zfill(3) + '.hgt', axis=1),
+                                         lon=pointList.point.x,
+                                         lat=pointList.point.y,
+                                         elevation=0)
+        else:
+            pointList = pointList.assign(filename=pointList.apply(lambda x: 'N' + str(int(x.lat)) + 'E' + str(int(x.lon)).zfill(3) + '.hgt' ,axis=1),elevation=0)
 
 
         if dataSourceName is None:
@@ -131,9 +153,10 @@ class TopographyToolkit(toolkit.abstractToolkit):
             logger.error(err)
             raise ValueError(err)
 
-        ret = pointList.copy()
+        processed = 0
+
         for grpid,grp in pointList.groupby("filename"):
-            logger.debug(f"Processing the group {grpid}")
+            logger.info(f"\tProcessing the group {grpid} with {grp.shape[0]}. Processed so far {processed}/{totalNumberOfPoints}")
             fheight = os.path.join(self.getDataSourceData(dataSourceName), grpid)
             logger.debug(f"Getting data from the file {fheight}")
             ds = gdal.Open(fheight)
@@ -155,10 +178,11 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12
                 height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22
                 elevation = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2
-                ret.loc[itemindx,'elevation'] = elevation
-        return ret
+                pointList.loc[itemindx,'elevation'] = elevation
+                processed += grp.shape[0]
+        return pointList
 
-    def getDomainElevation(self, left,bottom,right,top,dxdy = 30,inputCRS=WSG84,outputCRS=ITM,dataSourceName=None):
+    def getDomainElevation(self, xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None):
         """
             Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.
 
@@ -190,13 +214,13 @@ class TopographyToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,"getDomainElevation")
 
         logger.info("Converting input coordinates to ITM (to have meters)")
-        itm_points = convertCRS([[left,bottom],[right,top]],inputCRS=inputCRS,outputCRS=ITM)
+        itm_points = convertCRS([[xmin, ymin], [xmax, ymax]], inputCRS=inputCRS, outputCRS=ITM)
         logger.debug(f"... Got {itm_points}")
         logger.info("Getting the coordinates")
         itm_lowerleft, itm_upperright = itm_points
 
-        itm_gridx = numpy.arange(itm_lowerleft.x,itm_upperright.x)
-        itm_gridy = numpy.arange(itm_lowerleft.y,itm_upperright.y)
+        itm_gridx = numpy.arange(itm_lowerleft.x,itm_upperright.x,dxdy)
+        itm_gridy = numpy.arange(itm_lowerleft.y,itm_upperright.y,dxdy)
 
         logger.info("Converting the coordinates to WSG84 for SRTM data")
         wsg_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=WSG84)
@@ -216,10 +240,9 @@ class TopographyToolkit(toolkit.abstractToolkit):
         pointHeights = self.getPointListElevation(pointList) #.set_index(["lon","lat"])
 
         logger.info("Converting the output to the desired coordinates.")
-        grid_y = pointHeights['lon_output'].values.reshape(len(itm_gridx), len(itm_gridy)).T
-        grid_x = pointHeights['lat_output'].values.reshape(len(itm_gridx), len(itm_gridy)).T
-        grid_z = pointHeights['elevation'].values.reshape(len(itm_gridx), len(itm_gridy)).T
-
+        grid_y = pointHeights['lat_output'].values.reshape(len(itm_gridx), len(itm_gridy))
+        grid_x = pointHeights['lon_output'].values.reshape(len(itm_gridx), len(itm_gridy))
+        grid_z = pointHeights['elevation'].values.reshape(len(itm_gridx), len(itm_gridy))
 
         retArray =  xarray.Dataset(data_vars=dict(X=(["i","j"],grid_x),
                                                   Y=(["i","j"],grid_y),
@@ -227,7 +250,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return retArray
 
-    def getDomainElevation_STL(self, left,bottom,right,top,dxdy = 30,inputCRS=WSG84,outputCRS=ITM,dataSourceName=None,solidName="Topography"):
+    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None, solidName="Topography"):
         """
             Return the STL string from xarray dataset with the following fields:
         Parameters
@@ -247,95 +270,95 @@ class TopographyToolkit(toolkit.abstractToolkit):
         -------
 
         """
-        elevation = self.getDomainElevation(left=left,right=right,top=top,bottom=bottom,dxdy=dxdy,inputCRS=inputCRS,outputCRS=outputCRS,dataSourceName=dataSourceName)
+        elevation = self.getDomainElevation(xmin=minx, xmax=maxx, ymax=maxy, ymin=miny, dxdy=dxdy, inputCRS=inputCRS, outputCRS=outputCRS, dataSourceName=dataSourceName)
         stlstr = stlFactory().rasterToSTL(elevation['X'].values, elevation['Y'].values, elevation['Elevation'].values,solidName=solidName)
         return stlstr
 
-    def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = "default"):
-        """
-            create STL from equation
-
-        Parameters
-        ----------
-        point1 (lat, long)
-        point2 (lat, long)
-        outputfile - where to write the stl
-        amplitude - of the wave [m]
-        cosx - x axis frequency, optional
-        cosy - y axis frequency, optional
-
-        Returns
-        -------
-
-        How to use
-        ----------
-        from hera.measurements.GIS.raster.topography import TopographyToolkit
-        TopographyToolkit.setDomainElevation([200000, 740000], [201000, 741000], 'test1.stl', amplitude=10, cosx=.5, cosy=.2)
-
-
-        What to fix
-        -----------
-
-        """
-        miny = point1[1]  # y
-        maxy = point2[1]
-        minx = point1[0]  # x
-        maxx = point2[0]
-        dxdy = 30
-
-        NX = 1 + math.ceil((maxx - minx) / dxdy)
-        NY = 1 + math.ceil((maxy - miny) / dxdy)
-        grid_x = numpy.zeros([NX, NY])
-        grid_y = numpy.zeros_like(grid_x)
-        grid_z = numpy.zeros_like(grid_x)
-        i = minx
-        j = miny
-        for i in range(NX):
-            for j in range(NY):
-                x = minx + i * dxdy
-                y = miny + j * dxdy
-                z = amplitude*(2.+math.cos(math.pi+i*cosx))*(2.+math.cos(math.pi+j*cosy))
-                grid_x[i, j] = x
-                grid_y[i, j] = y
-                grid_z[i, j] = z
-
-        a = stlFactory()
-        stlstr = a.rasterToSTL(grid_x, grid_y, grid_z, 'solidName')
-
-        with open(outputfile, "w") as stlfile:
-            stlfile.write(stlstr)
-
-        return
-
-    
-    def latlongtoITM(point1):
-        """
-            change the coordinate system, from lat long to x y
-
-        Parameters
-        ----------
-        lat
-        long
-
-        Returns
-        -------
-        x, y in ITM
-
-        How to use
-        ----------
-        from hera.measurements.GIS.raster.topography import TopographyToolkit
-        TopographyToolkit.latlongtoITM([35.159,32.755])
-
-        What to fix
-        -----------
-        """
-        ITM = "epsg:2039"
-        WGS84 = "epsg:4327"
-        lat = point1[0]
-        long = point1[1]
-        coordTransformer = Transformer.from_crs(WGS84, ITM, always_xy=True)
-        x, y = coordTransformer.transform(lat, long)
-        return x,y
+    # def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = "default"):
+    #     """
+    #         create STL from equation
+    #
+    #     Parameters
+    #     ----------
+    #     point1 (lat, long)
+    #     point2 (lat, long)
+    #     outputfile - where to write the stl
+    #     amplitude - of the wave [m]
+    #     cosx - x axis frequency, optional
+    #     cosy - y axis frequency, optional
+    #
+    #     Returns
+    #     -------
+    #
+    #     How to use
+    #     ----------
+    #     from hera.measurements.GIS.raster.topography import TopographyToolkit
+    #     TopographyToolkit.setDomainElevation([200000, 740000], [201000, 741000], 'test1.stl', amplitude=10, cosx=.5, cosy=.2)
+    #
+    #
+    #     What to fix
+    #     -----------
+    #
+    #     """
+    #     miny = point1[1]  # y
+    #     maxy = point2[1]
+    #     minx = point1[0]  # x
+    #     maxx = point2[0]
+    #     dxdy = 30
+    #
+    #     NX = 1 + math.ceil((maxx - minx) / dxdy)
+    #     NY = 1 + math.ceil((maxy - miny) / dxdy)
+    #     grid_x = numpy.zeros([NX, NY])
+    #     grid_y = numpy.zeros_like(grid_x)
+    #     grid_z = numpy.zeros_like(grid_x)
+    #     i = minx
+    #     j = miny
+    #     for i in range(NX):
+    #         for j in range(NY):
+    #             x = minx + i * dxdy
+    #             y = miny + j * dxdy
+    #             z = amplitude*(2.+math.cos(math.pi+i*cosx))*(2.+math.cos(math.pi+j*cosy))
+    #             grid_x[i, j] = x
+    #             grid_y[i, j] = y
+    #             grid_z[i, j] = z
+    #
+    #     a = stlFactory()
+    #     stlstr = a.rasterToSTL(grid_x, grid_y, grid_z, 'solidName')
+    #
+    #     with open(outputfile, "w") as stlfile:
+    #         stlfile.write(stlstr)
+    #
+    #     return
+    #
+    #
+    # def latlongtoITM(point1):
+    #     """
+    #         change the coordinate system, from lat long to x y
+    #
+    #     Parameters
+    #     ----------
+    #     lat
+    #     long
+    #
+    #     Returns
+    #     -------
+    #     x, y in ITM
+    #
+    #     How to use
+    #     ----------
+    #     from hera.measurements.GIS.raster.topography import TopographyToolkit
+    #     TopographyToolkit.latlongtoITM([35.159,32.755])
+    #
+    #     What to fix
+    #     -----------
+    #     """
+    #     ITM = "epsg:2039"
+    #     WGS84 = "epsg:4327"
+    #     lat = point1[0]
+    #     long = point1[1]
+    #     coordTransformer = Transformer.from_crs(WGS84, ITM, always_xy=True)
+    #     x, y = coordTransformer.transform(lat, long)
+    #     return x,y
 
 
 
