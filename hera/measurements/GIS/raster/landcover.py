@@ -121,6 +121,8 @@ def getlc(filepath, lat, long):
 
 def lc2roughnesslength(lc, lctype=1):
     # https://wes.copernicus.org/articles/6/1379/2021/ table a2
+    # https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
+        
     if lctype == 1:
         if lc == 0: # Water
            rl = 0.0001 # depends on waves that depends on wind
