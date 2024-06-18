@@ -53,7 +53,7 @@ def convertCRS(points,inputCRS,outputCRS,**kwargs):
                                                points[kwargs.get("y","y")])
     elif isinstance(points,list):
         if len(points) == 1:
-            origpoints = geopandas.points_from_xy([points[0]],[points[1]])
+            origpoints = geopandas.points_from_xy([points[0][0]],[points[0][1]])
         else:
             origpoints = geopandas.points_from_xy([x[0] for x in points],[x[1] for x in points])
 

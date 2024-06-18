@@ -180,7 +180,7 @@ class Project:
         doc = self._getConfigDocument()
         return doc["desc"]
 
-    def setConfig(self, **kwargs):
+    def setConfig(self,keep_old_values=True, **kwargs):
         """
             Create a config document or updates an existing config document.
         """
@@ -188,7 +188,10 @@ class Project:
             raise ValueError("Default project cannot use configuration")
 
         doc = self._getConfigDocument()
-        doc.desc.update(kwargs)
+        if keep_old_values:
+            doc.desc.update(kwargs)
+        else:
+            doc['desc'] = kwargs
         doc.save()
 
     def __init__(self, projectName=None, connectionName=None, configurationPath=None):
