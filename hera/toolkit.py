@@ -32,6 +32,7 @@ class ToolkitHome:
 
     GIS_BUILDINGS  = "GIS_Buildings"
     GIS_TILES       = "GIS_Tiles"
+    GIS_LANDCOVER   = "GIS_LandCover"
     #GIS_RASTER     = "GIS_Raster"
     GIS_VECTOR_TOPOGRAPHY = "GIS_Vector_Topography"
     GIS_RASTER_TOPOGRAPHY = "GIS_Raster_Topography"
@@ -54,22 +55,12 @@ class ToolkitHome:
 
     def __init__(self):
         self._toolkits = dict(
-
-            GIS_Vector=dict(cls="hera.measurements.GIS.vector.vector.VectorToolkit",desc=None),
-
             GIS_Buildings  = dict(cls = "hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit",desc=None),
-
-            #GIS_Raster     = dict(cls = "hera.measurements.GIS.raster.toolkit.RasterToolkit",desc=None),
-
             GIS_Tiles      =  dict(cls = "hera.measurements.GIS.raster.tiles.TilesToolkit",desc=None),
-
             GIS_Vector_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",desc=None),
-
             GIS_Raster_Topography = dict(cls = "hera.measurements.GIS.raster.topography.TopographyToolkit",desc=None),
-
             GIS_Demography = dict(cls = "hera.measurements.GIS.vector.demography.DemographyToolkit",desc=None),
-
-            GIS_Shapes     = dict(cls = "hera.measurements.GIS.shapes.ShapesToolKit",desc=None),
+            GIS_LandCover     = dict(cls = "hera.measurements.GIS.raster.landcover.LandCoverToolkit",desc=None),
 
             RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
             LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
