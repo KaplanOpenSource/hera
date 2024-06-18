@@ -111,7 +111,7 @@ class dataToolkit(toolkit.abstractToolkit):
 
                 for key, docTypeDict in toolkitDict.items():
                     logger.info(f"Loading document type {key} to toolkit {toolkitName}")
-
+                    print(toolkitName)
                     if key.title()=='Config':
                         toolkit.setConfig(**docTypeDict)
                     else:

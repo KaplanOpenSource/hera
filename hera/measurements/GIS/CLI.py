@@ -1,6 +1,7 @@
 from hera import toolkitHome
-from hera.utils import WSG84,ITM
+from hera.utils import WSG84, ITM
 import logging
+
 
 def topography_vector_list(arguments):
     """
@@ -20,9 +21,10 @@ def topography_vector_list(arguments):
     else:
         projectName = None
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_VECTOR_TOPOGRAPHY,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_VECTOR_TOPOGRAPHY, projectName=projectName)
     print(f"Loaded topography (vector) datasources for the project {tk.projectName}")
     print(tk.getDataSourceTable())
+
 
 def topography_raster_list(arguments):
     """
@@ -42,11 +44,12 @@ def topography_raster_list(arguments):
     else:
         projectName = None
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=projectName)
     print(f"Loaded topography (raster) datasources for the project {tk.projectName}")
     print(tk.getDataSourceTable())
 
-def topography_raster_topography(arguments):
+
+def topography_raster_toSTL(arguments):
     """
         Gets the coordinates and saves an STL file.
 
@@ -73,7 +76,7 @@ def topography_raster_topography(arguments):
     else:
         projectName = None
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=projectName)
     logger.info(f"Working on project {projectName}")
 
     dxdy = arguments.dxdy if "dxdy" in arguments else 30
@@ -81,22 +84,21 @@ def topography_raster_topography(arguments):
     outputCRS = ITM if arguments.outputCRS is None else arguments.outputCRS
     dataSourceName = None if arguments.dataSourceName is None else arguments.dataSourceName
 
-    stlString = tk.getDomainElevation_STL(left=arguments.left,
-                              bottom=arguments.bottom,
-                              right=arguments.right,
-                              top=arguments.top,
-                              dxdy=dxdy,
-                              inputCRS=inputCRS,
-                              outputCRS=outputCRS,
-                              dataSourceName=dataSourceName)
-    fileName =arguments.fileName
+    stlString = tk.getDomainElevation_STL(minx=arguments.minx,
+                                          miny=arguments.miny,
+                                          maxx=arguments.maxx,
+                                          maxy=arguments.maxy,
+                                          dxdy=dxdy,
+                                          inputCRS=inputCRS,
+                                          outputCRS=outputCRS,
+                                          dataSourceName=dataSourceName)
+    fileName = arguments.fileName
     if '.stl' not in fileName:
         fileName = f"{fileName}.stl"
 
     logger.info(f"Writing STL to the file:  {fileName}")
-    with open(fileName,"w") as outSTLFile:
+    with open(fileName, "w") as outSTLFile:
         outSTLFile.write(stlString)
-
 
 
 def buildings_parser_list(arguments):
@@ -117,6 +119,36 @@ def buildings_parser_list(arguments):
     else:
         projectName = None
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
     print(f"Loaded buildings datasources for the project {tk.projectName}")
     print(tk.getDataSourceTable())
+
+
+def buildings_raster_toSTL(arguments):
+    logger = logging.getLogger("hera.bin.measuerments.GIS")
+
+    if "projectName" in arguments:
+        projectName = arguments.projectName
+    else:
+        projectName = None
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
+    logger.info(f"Working on project {projectName}")
+
+    dxdy = arguments.dxdy if "dxdy" in arguments else 30
+    inputCRS = WSG84 if arguments.inputCRS is None else arguments.inputCRS
+    outputCRS = ITM if arguments.outputCRS is None else arguments.outputCRS
+    dataSourceName = None if arguments.dataSourceName is None else arguments.dataSourceName
+
+    buildings = tk.getBuildingsFromRectangle(minx=arguments.minx,
+                                             miny=arguments.miny,
+                                             maxx=arguments.maxx,
+                                             maxy=arguments.maxy,
+                                             withElevation=True)
+    fileName = arguments.fileName
+
+    if '.stl' not in fileName:
+        fileName = f"{fileName}.stl"
+
+    tk.buildingsGeopandasToSTLRasterTopography(buildings, "BLDG_HT", "elevation", fileName)
+    logger.info(f"Writing STL to the file:  {fileName}")
