@@ -73,75 +73,6 @@ def create_experiment(arguments):
     else:
         experiment_path = os.getcwd()
 
-    def create_empty_class():
-        logger.debug(f" creating an empty class for implementation..")
-        with open(f"{os.path.join(experiment_path, 'code', arguments.experimentName)}.py", "w") as class_script:
-            class_script.write(f"from hera.measurements.experiment.experiment import experimentSetupWithData")
-            class_script.write("\n\n\n")
-            class_script.write(f"class {arguments.experimentName}(experimentSetupWithData):")
-            class_script.write("\n")
-            class_script.write("\t###Implement your code here if you wish.\n")
-            class_script.write("\tpass")
-        logger.debug(f" finished creating an empty class for implementation..")
-
-    def create_repository():
-        logger.debug(f" Since zip file is provided, creating a repository..")
-        metadata = ExperimentZipFile(arguments.zip)
-
-        repo = {}
-        perDevice = True         ##Will be defined by the updated zip format!
-
-        repo['experiment'] = {}
-        repo['experiment']['DataSource'] = {}
-        repo['experiment']['DataSource'][arguments.experimentName] = {"isRelativePath": "False",
-                                                                           "item":{
-                                                                               "dataSourceName": arguments.experimentName,
-                                                                               "resource": "",
-                                                                               "experimentPath": experiment_path,
-                                                                               "dataFormat": "parquet",
-                                                                               "overwrite": "True"
-                                                                           }
-
-                                                                      }
-
-        repo['experiment']['Measurements'] = {}
-
-        entities_dict_list = metadata.getExperimentEntities()
-        for i,entity in enumerate(entities_dict_list):
-            if not perDevice:
-                parquet_name = entity['entityTypeName']
-            else:
-                parquet_name = entity['entityName']
-
-            if parquet_name not in repo['experiment']['Measurements'].keys():
-                repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
-                                                                      "item": {
-                                                                      "type": "Experiment_rawData",
-                                                                      "resource": os.path.join('data',f"{parquet_name}.parquet"),
-                                                                      "dataFormat": "string",
-                                                                      "desc": {
-                                                                              "deviceType": entity['entityTypeName'],
-                                                                              "experimentName": arguments.experimentName,
-                                                                              "deviceName": entity['entityName']
-                                                                            }
-                                                                          }
-                                                                      }
-
-        with open(os.path.join(experiment_path,f'{arguments.experimentName}_repository.json'), "w") as f:
-            json.dump(repo, f, indent=4)
-
-        logger.debug(f" finished creating the repository json file")
-
-    def make_runtimeExperimentData():
-        logger.debug(f" creating runtimeExperimentData directory if it does not exists")
-        os.makedirs(os.path.join(experiment_path, 'runtimeExperimentData'), exist_ok=True)
-        logger.debug(f" creating Datasources_Configurations json")
-        config = {"experimentName": arguments.experimentName}
-        with open(os.path.join(experiment_path, 'runtimeExperimentData','Datasources_Configurations.json'), "w") as f:
-            json.dump(config, f, indent=2)
-        logger.debug(f" saved Datasources_Configurations json")
-        shutil.copy(arguments.zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{arguments.experimentName}.zip'))
-
 
     logger.debug(f" creating code directory if not exist")
     os.makedirs(os.path.join(experiment_path,'code'),exist_ok=True)
@@ -150,7 +81,7 @@ def create_experiment(arguments):
     try:
         class_script = open(f"{os.path.join(experiment_path, 'code', arguments.experimentName)}.py", "x")
         logger.debug(f" creating the experiment class since it does not exists")
-        create_empty_class()
+        _create_empty_class(experiment_path,arguments.experimentName)
     except:
         logger.debug(f" experiment class already exists ")
 
@@ -158,8 +89,80 @@ def create_experiment(arguments):
     os.makedirs(os.path.join(experiment_path, 'data'), exist_ok=True)
 
     if arguments.zip:
-        create_repository()
-        make_runtimeExperimentData()
+        _create_repository(arguments.zip,experiment_path,arguments.experimentName)
+        _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
+
+def _create_empty_class(experiment_path,experimentName):
+    logger = logging.getLogger("hera.bin._create_empty_class")
+    logger.debug(f" creating an empty class for implementation..")
+    with open(f"{os.path.join(experiment_path, 'code', experimentName)}.py", "w") as class_script:
+        class_script.write(f"from hera.measurements.experiment.experiment import experimentSetupWithData")
+        class_script.write("\n\n\n")
+        class_script.write(f"class {experimentName}(experimentSetupWithData):")
+        class_script.write("\n")
+        class_script.write("\t###Implement your code here if you wish.\n")
+        class_script.write("\tpass")
+    logger.debug(f" finished creating an empty class for implementation..")
+
+def _create_repository(zip,experiment_path,experimentName):
+    logger = logging.getLogger("hera.bin._create_repository")
+    logger.debug(f" Since zip file is provided, creating a repository..")
+    metadata = ExperimentZipFile(zip)
+
+    repo = {}
+    perDevice = True         ##Will be defined by the updated zip format!
+
+    repo['experiment'] = {}
+    repo['experiment']['DataSource'] = {}
+    repo['experiment']['DataSource'][experimentName] = {"isRelativePath": "False",
+                                                                       "item":{
+                                                                           "dataSourceName": experimentName,
+                                                                           "resource": "",
+                                                                           "experimentPath": experiment_path,
+                                                                           "dataFormat": "parquet",
+                                                                           "overwrite": "True"
+                                                                       }
+
+                                                                  }
+
+    repo['experiment']['Measurements'] = {}
+
+    entities_dict_list = metadata.getExperimentEntities()
+    for i,entity in enumerate(entities_dict_list):
+        if not perDevice:
+            parquet_name = entity['entityTypeName']
+        else:
+            parquet_name = entity['entityName']
+
+        if parquet_name not in repo['experiment']['Measurements'].keys():
+            repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
+                                                                  "item": {
+                                                                  "type": "Experiment_rawData",
+                                                                  "resource": os.path.join('data',f"{parquet_name}.parquet"),
+                                                                  "dataFormat": "string",
+                                                                  "desc": {
+                                                                          "deviceType": entity['entityTypeName'],
+                                                                          "experimentName": experimentName,
+                                                                          "deviceName": entity['entityName']
+                                                                        }
+                                                                      }
+                                                                  }
+
+    with open(os.path.join(experiment_path,f'{experimentName}_repository.json'), "w") as f:
+        json.dump(repo, f, indent=4)
+
+    logger.debug(f" finished creating the repository json file")
+
+def _make_runtimeExperimentData(zip,experiment_path,experimentName):
+    logger = logging.getLogger("hera.bin._make_runtimeExperimentData")
+    logger.debug(f" creating runtimeExperimentData directory if it does not exists")
+    os.makedirs(os.path.join(experiment_path, 'runtimeExperimentData'), exist_ok=True)
+    logger.debug(f" creating Datasources_Configurations json")
+    config = {"experimentName": experimentName}
+    with open(os.path.join(experiment_path, 'runtimeExperimentData','Datasources_Configurations.json'), "w") as f:
+        json.dump(config, f, indent=2)
+    logger.debug(f" saved Datasources_Configurations json")
+    shutil.copy(zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{experimentName}.zip'))
 
 def load_experiment_to_project(arguments):
     logger = logging.getLogger("hera.bin.experiment_load_experiment_to_project")
@@ -192,151 +195,3 @@ def load_experiment_to_project(arguments):
         logger.error(f"Couldn't load Repository. Error message: {e}")
 
     data_tk.deleteDataSource(datasourceName=repository_name)
-
-def create_ims_experiment(arguments):
-    logger = logging.getLogger("hera.bin.create_ims_experiment")
-    logger.execution(f"----- Start -----")
-    logger.debug(f" arguments: {arguments}")
-    if arguments.path:
-        experiment_path = arguments.path
-    else:
-        experiment_path = os.getcwd()
-
-    if 'token.json' not in os.listdir(experiment_path):
-        raise ValueError(f"No token file found in directory {experiment_path}. For creating an IMS experiment, 'token.json' file must be in the directory.")
-
-    f = open(f'{experiment_path}/token.json')
-    token = json.load(f)
-
-    def create_zip_for_ims():
-        logger = logging.getLogger("hera.bin.create_zip_for_ims")
-        logger.execution(f"----- Start -----")
-        logger.debug(f" Reaching URL...")
-
-        url = "https://api.ims.gov.il/v1/Envista/stations"
-        headers = {
-            "Authorization": token['Authorization']
-        }
-        try:
-            response = requests.request("GET", url, headers=headers)
-            data = json.loads(response.text.encode('utf8'))
-        except ValueError as e:
-            logger.error(f"Couldn't reach URL. Error message: {e}")
-
-        logger.debug(f" Downloaded metadata from URL succecfully.")
-        logger.debug(f" Will create ZIP file now..")
-
-        zip_file = {}
-        zip_file['version'] = '3.0.0'
-        zip_file['name'] = 'IMS_experiment'
-        zip_file['startDate'] = ''
-        zip_file['endDate'] = ''
-        zip_file['description'] = ''
-        zip_file['trialTypes'] = []
-        zip_file['imageStandalone'] = []
-        zip_file['imageEmbedded'] = []
-
-        stations = []
-
-        for station_dict in data:
-            if station_dict['active']:
-                device = {}
-                device['name'] = station_dict['name']
-                device['description'] = ''
-                device['attributes'] = [{'name': 'stationId', 'value': station_dict['stationId']},
-                                        {'name': 'stationsTag', 'value': station_dict['stationsTag']},
-                                        {'name': 'location', 'value': station_dict['location']},
-                                        {'name': 'timebase', 'value': station_dict['timebase']},
-                                        {'name': 'active', 'value': station_dict['active']},
-                                        {'name': 'owner', 'value': station_dict['owner']},
-                                        {'name': 'regionId', 'value': station_dict['regionId']},
-                                        {'name': 'monitors', 'value': station_dict['monitors']}]
-
-                stations.append(device)
-
-        zip_file['deviceTypes'] = [{"name": 'STATION',
-                                    'attributeTypes': [],
-                                    "devices": stations}]
-
-        logger.debug(f" Finished fetching metadata. Will save zip now.")
-        json_object = json.dumps(zip_file, indent=4)
-        with open(f"{experiment_path}/data.json", "w") as outfile:
-            outfile.write(json_object)
-
-        with zipfile.ZipFile(f'{experiment_path}/IMS.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
-            zipf.write(f'data.json')
-
-        logger.debug(f" Finished creating zip file.")
-
-
-    def write_download_function():
-        logger = logging.getLogger("hera.bin.write_download_function")
-        logger.execution(f"----- Start -----")
-        logger.debug(f" Will write download function to experiment class...")
-
-        with open(f"{experiment_path}/code/IMS_experiment.py", "a") as f:
-            f.write('\n\n')
-            f.write("\tdef download(self,start='',end='latest', concat=True):\n")
-            f.write("\t\tfrom tqdm import tqdm\n")
-            f.write("\t\timport pandas as pd\n")
-            f.write("\t\timport time\n")
-            f.write("\t\timport os\n")
-            f.write("\t\timport json\n")
-            f.write("\t\timport requests\n")
-            f.write("\t\tfrom datetime import datetime,timedelta\n")
-            f.write("\t\turl = 'https://api.ims.gov.il/v1/Envista/stations'\n")
-            f.write(f"\t\tf = open('{experiment_path}/token.json')\n")
-            f.write(f"\t\ttoken = json.load(f)\n")
-            f.write("\t\theaders = {'Authorization': token['Authorization']}\n")
-            f.write("\t\tresponse = requests.request('GET', url, headers=headers)\n")
-            f.write("\t\tdata = json.loads(response.text.encode('utf8'))\n")
-            f.write("\t\tfor station_dict in tqdm(data):\n")
-            f.write("\t\t\tif station_dict['active']:\n")
-            f.write("\t\t\t\tstation_id = station_dict['stationId']\n")
-            f.write("\t\t\t\tchances = 10\n")
-            f.write(f"\t\t\t\tpath_to_data = os.path.join('{experiment_path}','data',station_dict['name'])\n")
-            f.write("\t\t\t\tif concat:\n")
-            f.write("\t\t\t\t\ttry:\n")
-            f.write(f"\t\t\t\t\t\tstart = pd.read_csv(path_to_data)['datetime'].iloc[-1].split('T')[0].replace('-','/')\n")
-            f.write("\t\t\t\t\texcept:\n")
-            f.write("\t\t\t\t\t\tstart = datetime.today().strftime('%Y-%m-%d')\n")
-            f.write("\t\t\t\tif end == 'latest':\n")
-            f.write("\t\t\t\t\tend = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')\n")
-            f.write("\t\t\t\twhile(chances>0):\n")
-            f.write("\t\t\t\t\ttry:\n")
-            f.write("\t\t\t\t\t\turl = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data?from={start}&to={end}'\n")
-            f.write("\t\t\t\t\t\tresponse = requests.request('GET', url, headers=headers)\n")
-            f.write("\t\t\t\t\t\tstation_data = json.loads(response.text.encode('utf8'))\n")
-            f.write("\t\t\t\t\t\tcsv = pd.DataFrame()\n")
-            f.write("\t\t\t\t\t\tfor i,time_stamp_dict in enumerate(station_data['data']):\n")
-            f.write("\t\t\t\t\t\t\tcsv.at[i,'datetime'] = time_stamp_dict['datetime']\n")
-            f.write("\t\t\t\t\t\t\tfor column in time_stamp_dict['channels']:\n")
-            f.write("\t\t\t\t\t\t\t\tcsv.at[i,column['name']] = column['value']\n")
-            f.write(f"\t\t\t\t\t\tif concat:\n")
-            f.write(f"\t\t\t\t\t\t\tpd.concat([pd.read_csv(path_to_data),csv],axis=0).to_csv(path_to_data,index=False)\n")
-            f.write(f"\t\t\t\t\t\telse:\n")
-            f.write(f"\t\t\t\t\t\t\tcsv.to_csv(path_to_data,index=False)\n")
-            f.write("\t\t\t\t\t\tbreak\n"),
-            f.write("\t\t\t\t\texcept:\n")
-            f.write("\t\t\t\t\t\tchances -= 1\n")
-            f.write("\t\t\t\tif chances==0:\n")
-            f.write("\t\t\t\t\tif not os.path.isfile(path_to_data):\n")
-            f.write(f"\t\t\t\t\t\tpd.DataFrame().to_csv(path_to_data,index=False)\n")
-            f.close()
-
-
-
-    create_zip_for_ims()
-    arguments.zip  = f"{experiment_path}/IMS.zip"
-    arguments.experimentName = 'IMS_experiment'
-    create_experiment(arguments)
-    write_download_function()
-
-
-def download(arguments):
-    logger = logging.getLogger("hera.bin.download_ims")
-    logger.execution(f"----- Start -----")
-    logger.debug(f" arguments: {arguments}")
-    experimentToolKit = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=arguments.project)
-
-    experimentToolKit.getExperiment('IMS_experiment').download(start=arguments.start,end=arguments.end,concat=arguments.concat)
