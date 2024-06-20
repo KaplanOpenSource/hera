@@ -1,4 +1,5 @@
 .idea
+.ipynb*
 hera/doc/build
 hera/doc/source/auto_examples
 hera/doc/source/datalayer/addgetdata.rst
