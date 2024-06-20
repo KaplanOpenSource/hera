@@ -3,7 +3,7 @@ import dask.dataframe
 import xarray
 import json
 import geopandas
-import gdal
+from osgeo import gdal
 import matplotlib.image as mpimg
 import sys
 import pickle
