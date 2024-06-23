@@ -117,9 +117,8 @@ def _create_repository(zip,experiment_path,experimentName):
     repo['experiment']['DataSource'][experimentName] = {"isRelativePath": "False",
                                                                        "item":{
                                                                            "dataSourceName": experimentName,
-                                                                           "resource": "",
-                                                                           "experimentPath": experiment_path,
-                                                                           "dataFormat": "parquet",
+                                                                           "resource": experiment_path,
+                                                                           "dataFormat": "string",
                                                                            "overwrite": "True"
                                                                        }
 
@@ -139,7 +138,7 @@ def _create_repository(zip,experiment_path,experimentName):
                                                                   "item": {
                                                                   "type": "Experiment_rawData",
                                                                   "resource": os.path.join('data',f"{parquet_name}.parquet"),
-                                                                  "dataFormat": "string",
+                                                                  "dataFormat": "parquet",
                                                                   "desc": {
                                                                           "deviceType": entity['entityTypeName'],
                                                                           "experimentName": experimentName,
