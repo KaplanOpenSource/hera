@@ -1,9 +1,11 @@
 import os
 import json
+
+import numpy
+
 from ... import toolkitHome
 from ...utils import loadJSON
-from ...utils.logging import helpers as hera_logging
-from ...utils.freeCAD import getObjFileBoundaries
+from ...utils.logging import get_classMethod_logger
 from itertools import product
 
 try:
@@ -186,6 +188,77 @@ class workflow_Eulerian(abstractWorkflow):
 
         """
         self.defineNewBoundaryConditions['fields'] = icnode['data']
+
+    def set_blockMesh_blockBoundaries(self,minx,maxx,miny,maxy,minz,maxz,dx,dy,dz):
+        """
+            Sets the blockmesh dictionary
+        Parameters
+        ----------
+        minx : float
+
+        maxx : float
+        miny : float
+        maxy : float
+        minz : float
+        maxz : float
+        dx : float
+            The x spacing in m.
+        dy : float
+            The y spacing in m.
+        dz: float
+            The z = spacing in m
+        Returns
+        -------
+            None
+        """
+        logger = get_classMethod_logger(self,"set_blockMesh_boundaries")
+        logger.info(f"Setting the blockMesh with block that spans from  [{minx},{miny},{minz}] to [{maxx},{maxy},{maxz}]")
+        Xlist = [minx,maxx,maxx,minx]
+        Ylist = [miny, miny, maxy, maxy]
+        Zlist = [minz, maxz]
+
+        VerticesList = []
+        for h,xy in product(Zlist,zip(Xlist,Ylist)):
+            VerticesList.append([xy[0],xy[1],h])
+
+        blockMesh = self.blockMesh
+        blockMesh['vertices'] = VerticesList
+        blockMesh["hex"] = [x for x in range(8)]
+        blockMesh["cellCount"] = [int(numpy.ceil((maxx-minx)/dx)),
+                                  int(numpy.ceil((maxy - miny) / dy)),
+                                  int(numpy.ceil((maxz - minz) / dz))]
+
+
+
+    def set_blockMesh_blockHeight(self,Z,dz):
+        """
+            Sets the blockmesh dictionary
+        Parameters
+        ----------
+        minx : float
+
+        maxx : float
+        miny : float
+        maxy : float
+        minz : float
+        maxz : float
+        dx : float
+            The x spacing in m.
+        dy : float
+            The y spacing in m.
+        dz: float
+            The z = spacing in m
+        Returns
+        -------
+            None
+        """
+        blockMesh = self.blockMesh
+        verticsList=  blockMesh['vertices']
+        for i in range(len(verticsList[4:])):
+            verticsList[i][2] = Z
+
+        minZ = verticsList[0][2]
+        blockMesh["cellCount"][2] = (Z-minZ)/dz
 
 
 #### Lagrangian
