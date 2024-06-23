@@ -417,7 +417,7 @@ class parquetDataEngineHera(datalayer.Project):
 
         data = collection[0].getData(engine="fastparquet")
 
-        if deviceName is not None:
+        if deviceName is not None and not perDevice:
             data = data.query(f"deviceName == '{deviceName}'")
 
         # ### This is just because the current pandas are not TZ-aware.
