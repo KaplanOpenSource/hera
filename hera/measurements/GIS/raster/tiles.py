@@ -57,7 +57,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         """
         return self.Z0RES / (2 ** zoomlevel) * numpy.cos(numpy.deg2rad(latitude))
 
-    def getImageFromCorners(self, left,right,bottom,top, zoomlevel,tileServer,inputCRS=WSG84,outputCRS=WSG84):
+    def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel, tileServer, inputCRS=WSG84, outputCRS=WSG84):
         """
             Gets the image from the lower left corner and upper right cornet.
             The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True
@@ -65,7 +65,7 @@ class TilesToolkit(toolkit.abstractToolkit):
 
         Parameters
         ----------
-        left,right,bottom,top : float
+        minx,maxx,miny,maxy : float
             The left, right bottom and up of the image.
         zoomlevel :
         tileServer
@@ -84,8 +84,8 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info("------- Start")
 
-        lon = [top,bottom]
-        lat = [left, right]
+        lon = [maxy, miny]
+        lat = [minx, maxx]
 
         gdf = geopandas.GeoDataFrame(
             None, geometry=geopandas.points_from_xy(lat, lon), crs=inputCRS  # "EPSG:4326"
