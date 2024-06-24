@@ -45,6 +45,7 @@ if __name__ =="__main__":
     experiment_create.add_argument('experimentName', type=str, default=None, help='The name of the experiment (will determine the name of the toolkit file and the class name)')
     experiment_create.add_argument('--path', type=str, default=None, help='Path to put the experiment. If does not exist, use the current directory.')
     experiment_create.add_argument('--zip', type=str, default=None, help='The zip from the argos web containing the metadata.')
+    experiment_create.add_argument('--relative',type=bool,default=False,help='If datasource path is relative or not. Default is False')
     experiment_create.set_defaults(func=CLI.create_experiment)
 
     ## Load experiment to Project
