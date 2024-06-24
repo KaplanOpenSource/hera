@@ -3,7 +3,7 @@ import dask.dataframe
 import warnings
 import pydoc
 import pandas
-
+import logging
 
 from ....datalayer import datatypes
 from ....datalayer.document import nonDBMetadataFrame
@@ -46,6 +46,7 @@ class lowFreqToolKit(toolkit.abstractToolkit):
                 The project name
         """
         super().__init__(projectName=projectName, toolkitName="lowFreqMeteorology", filesDirectory=filesDirectory)
+        self.logger = logging.getLogger()
         self.logger.info("Init Low frequency data")
 
         self._analysis = analysis(self)
