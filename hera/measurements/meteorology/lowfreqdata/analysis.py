@@ -1,4 +1,4 @@
-from hera.analytics.statistics import calcDist2d
+from hera.utils.statistics import calcDist2d
 import numpy
 import pandas
 import dask
