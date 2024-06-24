@@ -89,7 +89,7 @@ def create_experiment(arguments):
     os.makedirs(os.path.join(experiment_path, 'data'), exist_ok=True)
 
     if arguments.zip:
-        _create_repository(arguments.zip,experiment_path,arguments.experimentName)
+        _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
         _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
 
 def _create_empty_class(experiment_path,experimentName):
@@ -104,7 +104,7 @@ def _create_empty_class(experiment_path,experimentName):
         class_script.write("\tpass")
     logger.debug(f" finished creating an empty class for implementation..")
 
-def _create_repository(zip,experiment_path,experimentName):
+def _create_repository(zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
     logger.debug(f" Since zip file is provided, creating a repository..")
     metadata = ExperimentZipFile(zip)
@@ -112,12 +112,19 @@ def _create_repository(zip,experiment_path,experimentName):
     repo = {}
     perDevice = True         ##Will be defined by the updated zip format!
 
+    if relative:
+        is_relative = 'True'
+        resource_path = '.'
+    else:
+        is_relative = 'False'
+        resource_path = experiment_path
+
     repo['experiment'] = {}
     repo['experiment']['DataSource'] = {}
-    repo['experiment']['DataSource'][experimentName] = {"isRelativePath": "False",
+    repo['experiment']['DataSource'][experimentName] = {"isRelativePath": is_relative,
                                                                        "item":{
                                                                            "dataSourceName": experimentName,
-                                                                           "resource": experiment_path,
+                                                                           "resource": resource_path,
                                                                            "dataFormat": "string",
                                                                            "overwrite": "True"
                                                                        }
