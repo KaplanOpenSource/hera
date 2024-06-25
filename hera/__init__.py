@@ -16,6 +16,10 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+2.15.3
+    #174     - Added the ability to activate ageneral function in the repository 
+                TODO : add documentation to it. 
+              - Refactoring the internals of the data toolkit. 
 2.15.2 
     #168:   - Added the building toolkit. 
             - Still need to fix the lambda calculations. 
