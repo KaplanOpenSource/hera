@@ -1,6 +1,5 @@
 import os
 import json
-
 import numpy
 
 from ... import toolkitHome
@@ -42,7 +41,6 @@ class abstractWorkflow(hermes.workflow):
                 Holds the data of the database (optional).
         """
         super().__init__(workflowJSON=workflowJSON,name=name)
-        self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowHeraDocument = workflowHeraDocument
 
         self._requiredNodeList = ['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter', 'defineNewBoundaryConditions','Parameters']
@@ -101,8 +99,44 @@ class abstractWorkflow(hermes.workflow):
         return self['parameters']
 
     @property
+    def buildAllRun(self):
+        return self['buildAllRun']
+
+    @property
     def defineNewBoundaryConditions(self):
         return self['defineNewBoundaryConditions']
+
+
+    def __setitem__(self, key, value):
+        """
+            Adds the node to the workflow.
+
+            This procedure also updates the nodeList and the buildAllRun node.
+            It will add it after the 'nodeListPosition' object.
+            The value is a dict with the fields:
+
+            - allRun : dict
+                An object that specifies the all run entry:
+
+                - "name": The command that activates this node.
+                - "parameters": additional parameters
+                - "couldRunInParallel": bool , Can this command run in parallel.
+                - "foamJob": bool , is it a foamJob commandor just a regular script.
+
+            - nodeListPosition : string or int, [optional]
+                    If exists, write the new node after the node name (if string) or its position (if int).
+                    if does not exist, add at the end.
+            - node             :  dict
+                    The data of the node
+        Parameters
+        ----------
+        key
+        value
+
+        Returns
+        -------
+
+        """
 
 ##############################################################################
 ##                          Workflow Eulerian/Lagrangian
@@ -261,6 +295,19 @@ class workflow_Eulerian(abstractWorkflow):
         blockMesh["cellCount"][2] = (Z-minZ)/dz
 
 
+    def foam_snappyhexmesh_addobject(self,dataOrFile,objectFile):
+        """
+            Adds a
+        Parameters
+        ----------
+        dataOrFile
+        objectFile
+
+        Returns
+        -------
+
+        """
+
 #### Lagrangian
 
 class workflow_Lagrangian(abstractWorkflow):
@@ -276,12 +323,12 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
-
+        logger = get_classMethod_logger(self,"init")
         # Make sure that the
         # dispersionFlowField exists
         if 'dispersionFlowField' not in self.parameters.parameters:
             err = "The StochasticLagrangianSolver must have a dispersionFlowField specification in the parameters node"
-            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
     @property

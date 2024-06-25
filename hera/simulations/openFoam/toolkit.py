@@ -198,12 +198,18 @@ class OFToolkit(workflowToolkit):
             field.write(caseDirectory=caseDirectory, location="0.parallel",parallel=False,parallelBoundary=True)
 
 
-    def caseConfiguration_createObj(self,name,objFile,workflowObj=None):
+    def template_add(self,name,objFile,workflowObj=None):
         """
-            Creating the JSON in the caseConfiguration for the objects.
+            Adds a templates to the toolkit.
 
-            The JSON for the object is:
-
+            Templates can be
+                - Flow : Holds Hermes flow templates.
+                - Node : Holds a hermes node objects
+                - Field : Holds a field templates.
+                        This can be
+                            * xarray
+                            * pandas/dask
+                            * constant
 
         Parameters
         ----------
@@ -401,8 +407,6 @@ class Presentation:
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
                 evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
-
-
 
     def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):
         """
