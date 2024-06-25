@@ -2,6 +2,8 @@ from hera.utils.statistics import calcDist2d
 import numpy
 import pandas
 import dask
+import pandas as pd
+
 
 WINTER = 'Winter'
 SPRING = 'Spring'
@@ -108,10 +110,14 @@ class analysis:
 
         curdata = data.dropna(subset=[Field])
 
-        curdata = curdata.query("%s > -9990" % Field)
+        curdata[Field] = curdata[Field].where(curdata[Field] > -5000)
+        # curdata = curdata.query("%s > -9990" % Field)
+
         curdata=curdata.assign(curdate=curdata.index)
+        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
         curdata=curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
+        curdata = curdata.dropna()
         y = curdata[Field]
         x = curdata['houronly']
 

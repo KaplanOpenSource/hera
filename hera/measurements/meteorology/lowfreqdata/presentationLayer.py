@@ -6,9 +6,8 @@ import seaborn
 import dask.dataframe
 from itertools import product
 
-from .analysis import seasonsdict
-
-
+from .analysis import seasonsdict,analysis
+import pandas as pd
 
 class presenation:
 
@@ -246,6 +245,12 @@ class SeasonalPlots(Plots):
         ax :
 
         """
+        try:
+            data = data.set_index("datetime")
+        except:
+            if data.index.name!='datetime':
+                raise Exception("No column 'datetime' in dataframe.!")
+
 
         if ax is None:
             fig, ax = plt.subplots(2,2,figsize=figsize)
@@ -253,6 +258,7 @@ class SeasonalPlots(Plots):
             plt.sca(ax)
 
         curdata=data.assign(curdate=data.index)
+        curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
         curdata = curdata.assign(monthonly=curdata.curdate.dt.month)
 
         axPositionList = [x for x in product(range(ax.shape[0]), range(ax.shape[1]))]
@@ -264,7 +270,7 @@ class SeasonalPlots(Plots):
             if isinstance(seasondata,dask.dataframe.DataFrame):
                 seasondata = seasondata.compute()
 
-            CS,CFS,ax_i=dailyplots.plotProbContourf(seasondata,
+            CS,CFS,ax_i= DailyPlots(self._presentation).plotProbContourf(seasondata,
                                                     plotField,
                                                     ax= ax[axPosition[0], axPosition[1]],
                                                     colorbar=False,
@@ -329,6 +335,11 @@ class DailyPlots(Plots):
         -------
         ax : The axes object
         """
+        try:
+            data = data.set_index("datetime")
+        except:
+            if data.index.name!='datetime':
+                raise Exception("No column 'datetime' in dataframe.!")
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -341,14 +352,15 @@ class DailyPlots(Plots):
 
         # curdata = data.dropna(subset=[plotField])
         curdata = data.copy()
-        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -9000)
+        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -5000)
 
         # curdata = curdata.query("%s > -9990" % plotField)
         curdata = curdata.assign(curdate=curdata.index)
+        curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
 
-        ax= seaborn.scatterplot(curdata['houronly'], curdata[plotField], ax=ax, **scatter_props)
+        ax= seaborn.scatterplot(x=curdata['houronly'], y=curdata[plotField], ax=ax, **scatter_props)
 
         ax_func_props = dict(self._plotfieldaxfuncdict.get(plotField, dict()))
         ax_func_props.update(self._axfuncdict)
@@ -388,7 +400,11 @@ class DailyPlots(Plots):
         line :
 
         """
-
+        try:
+            data = data.set_index("datetime")
+        except:
+            if data.index.name!='datetime':
+                raise Exception("No column 'datetime' in dataframe.!")
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -399,11 +415,12 @@ class DailyPlots(Plots):
         line_props.update(line_properties)
 
         curdata = data.copy()
-        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -9000)
+        curdata[plotField] = curdata[plotField].where(curdata[plotField] > -5000)
 
         # curdata = data.dropna(subset=[plotField])
         # curdata = curdata.query("%s > -9990" % plotField)
         curdata = curdata.assign(curdate=curdata.index)
+        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
         curdata = curdata.assign(dateonly=curdata.curdate.dt.date.astype(str))
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
@@ -414,7 +431,7 @@ class DailyPlots(Plots):
             dailydata = curdata.query(qstring)
 
         # ax= seaborn.lineplot(dailydata['houronly'], dailydata[plotField], ax=ax, **line_props)
-        line = plt.plot(dailydata['houronly'], dailydata[plotField], axes=ax, label=date, **line_props)
+        line = plt.plot(dailydata['houronly'], dailydata[plotField], label=f"{plotField}", **line_props)
         if legend==True:
             ax.legend()
 
@@ -424,6 +441,9 @@ class DailyPlots(Plots):
 
         for func in ax_func_props:
             getattr(ax, func)(ax_func_props[func])
+
+        ax.set_ylabel(f'{plotField}')
+        ax.set_title(f'{plotField} for {date}')
 
         return ax, line
 
@@ -504,9 +524,15 @@ class DailyPlots(Plots):
         ax : The axes object
         """
 
+        try:
+            data = data.set_index("datetime")
+        except:
+            if data.index.name != 'datetime':
+                raise Exception("No column 'datetime' in dataframe.!")
+
         # Compute histogram #
 
-        x_hist, y_hist, M_hist = calcHourlyDist(data, plotField, normalization=normalization)
+        x_hist, y_hist, M_hist = analysis.calcHourlyDist(data, plotField, normalization=normalization)
 
 
         # Read and update contour and contourf properties #
@@ -561,7 +587,7 @@ class DailyPlots(Plots):
             plt.sca(ax)
 
         if scatter==True:
-            ax = dailyplots.plotScatter(data,plotField,ax=ax,scatter_properties=scatter_properties)
+            ax = self.plotScatter(data,plotField,ax=ax,scatter_properties=scatter_properties)
             # ax = self.plotScatter(data,plotField,ax=ax,scatter_properties=scatter_properties)
 
         CS = plt.contour(x_hist, y_hist, M_hist,levels=countour_levels,**contour_props)
