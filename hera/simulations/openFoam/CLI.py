@@ -44,14 +44,14 @@ def Foam_incompressible_createEmpty(arguments):
 
     logger.execution(f"----- End -----")
 
-def foam_templates_list(arguments):
+def foam_templates_flow_list(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesTemplates(arguments.solver)
+    templates = tk.listHermesFlowTemplates(arguments.solver)
 
     ttl = f"The templates for project {tk.projectName} with solver {arguments.solver}"
     print()
@@ -60,7 +60,7 @@ def foam_templates_list(arguments):
     print("-"*len(ttl))
     print(templates)
 
-def foam_templates_create(arguments):
+def foam_templates_flow_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -73,7 +73,7 @@ def foam_templates_create(arguments):
         projectName = None
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesTemplates(arguments.solver)
+    templates = tk.listHermesFlowTemplates(arguments.solver)
     if arguments.templateName not in templates.index:
         err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
         logger.error(err)
@@ -85,6 +85,23 @@ def foam_templates_create(arguments):
 
     with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
         json.dump(tk.getDataSourceData(arguments.templateName), outFile, indent=4)
+
+def foam_templates_node_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    templates = tk.listHermesNodesTemplates()
+
+    ttl = f"The templates of nodes for project {tk.projectName} with solver {arguments.solver}"
+    print()
+    print("-" * len(ttl))
+    print(ttl)
+    print("-"*len(ttl))
+    print(templates)
+
 
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
