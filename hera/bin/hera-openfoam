@@ -155,6 +155,29 @@ def addMeshOptions(subparser,solverName):
                            help="If netcdf, should supply the parser")
     IC_parser.set_defaults(solver=solverName, func=CLI.foam_BC)
 
+def addSolverCaseManagement(subparser,solverName,incompressible):
+    """
+        Adds the handling of the case.
+    Parameters
+    ----------
+    subparser
+    solverName
+
+    Returns
+    -------
+
+    """
+    parser_templates  = subparser.add_parser('case', help=f'Manages the case of  {solverName}')
+    case_subparser = parser_templates.add_subparsers()
+
+    parser_createEmpty = case_subparser.add_parser('createEmpty', help='Creates a case')
+    parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    parser_createEmpty.set_defaults(incompressible=incompressible)
+    parser_createEmpty.set_defaults(solver=solverName)
+    parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
+
 
 if __name__ == "__main__":
     initialize_logging(
@@ -174,60 +197,57 @@ if __name__ == "__main__":
     ### ------------------------------ SOLVERS
     ############################################
 
+    ## ====================================================
     ## ================== simpleFoam
+    ## ====================================================
     simpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles simpleFOAM solver')
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
-    ## ---------------- create empty directory
-    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=simpleFoam_subparser, solverName="simpleFoam", compressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
 
+    ## ====================================================
     ## ================== pimpleFoam
+    ## ====================================================
     pimpleFoam_parser = subparsers.add_parser('pimpleFoam', help='Handles pimpleFOAM solver')
     pimpleFoam_subparser = pimpleFoam_parser.add_subparsers(help='Handles pimpleFOAM solver')
 
-    pimpleFoam_parser_createEmpty = pimpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    pimpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    pimpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    pimpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=pimpleFoam_subparser, solverName="pimpleFoam", compressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=pimpleFoam_subparser,solverName="pimpleFoam")
 
+    ## ====================================================
     ## ================== oguraPhillipShallowConvectionFOAM
+    ## ====================================================
     oguraPhillipShallowConvectionFOAM_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM', help='Handles indoorFOAMBoussinesq solver')
-    oguraPhillipShallowConvectionFOAM_subparser = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
+    cc = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
 
-    oguraPhillipShallowConvectionFOAM_parser_createEmpty = oguraPhillipShallowConvectionFOAM_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    oguraPhillipShallowConvectionFOAM_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    oguraPhillipShallowConvectionFOAM_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    oguraPhillipShallowConvectionFOAM_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    oguraPhillipShallowConvectionFOAM_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="pimpleFoam", compressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
 
-    ## ================== StochasticLagrantianSolver
+    ## ====================================================
+    ## ================== rhoReactingBuoyantFoam
+    ## ====================================================
     rhoReactingBuoyantFoam_parser = subparsers.add_parser('rhoReactingBuoyantFoam', help='Handles rhoReactingBuoyantFoam')
     rhoReactingBuoyantFoam_subparser = rhoReactingBuoyantFoam_parser.add_subparsers(help='Handles rhoReactingBuoyantFoam')
 
-    rhoReactingBuoyantFoam_parser_createEmpty = rhoReactingBuoyantFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    rhoReactingBuoyantFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    rhoReactingBuoyantFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    rhoReactingBuoyantFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    rhoReactingBuoyantFoam_parser_createEmpty.set_defaults(func=CLI.Foam_compressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=rhoReactingBuoyantFoam_subparser, solverName="rhoReactingBuoyantFoam", compressible=True)
 
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=rhoReactingBuoyantFoam_subparser,solverName="rhoReactingBuoyantFoam")
 
-
-
+    ## ====================================================
     ## ================== StochasticLagrantianSolver
+    ## ====================================================
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
     stochasticLagrnagian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
     #

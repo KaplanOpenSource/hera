@@ -13,7 +13,7 @@ from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 
 
-def Foam_incompressible_createEmpty(arguments):
+def Foam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -35,10 +35,12 @@ def Foam_incompressible_createEmpty(arguments):
 
     logger.info(f"Using project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    
+
+    simulationType = tk.SIMULATIONTYPE_INCOMPRESSIBLE if arguments.incompressible else tk.SIMULATIONTYPE_COMPRESSIBLE
+
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
-                       simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
+                       simulationType=simulationType,
                        additionalFieldsDescription = arguments.fieldsDescription)
 
 
