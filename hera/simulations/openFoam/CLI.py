@@ -11,7 +11,7 @@ from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
-
+from .OFObjects import  OFObjectHome
 
 def Foam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
@@ -46,9 +46,23 @@ def Foam_createEmpty(arguments):
 
     logger.execution(f"----- End -----")
 
+def Foam_parser_FieldDescription(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start : Foam_parser_FieldDescription -----")
+    logger.debug(f" arguments: {arguments}")
+
+    if len(arguments.fields) > 0:
+        jsonExample = dict()
+        for fieldName in arguments.fields:
+            jsonExample[fieldName] = dict(dimensions=OFObjectHome.getDimensions(),componentNames=None)
+
+
+
+
+
 def foam_templates_flow_list(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.execution(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
