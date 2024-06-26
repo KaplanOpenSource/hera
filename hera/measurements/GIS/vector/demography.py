@@ -15,7 +15,6 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     _populationTypes = None # A dictionary with the names of the population types.
 
-    _shapes = None
     _buildings = None
     _analysis = None
 
@@ -60,7 +59,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
 
-        self._shapes    = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_SHAPES,projectName=projectName)
+
         self._buildings = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=projectName)
 
 
