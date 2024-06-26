@@ -1,0 +1,480 @@
+#! /usr/bin/env python
+
+"""
+    DEPRACATED!. use hera-openfoam instead.
+
+
+    Utils to generate openFOAM templtes.
+
+    uses the configuration file.
+
+"""
+import numpy
+import argparse
+import json
+import os
+import pandas
+from hera.utils,.utils.jsonutils import loadJSON
+from hera.simulations.openFoam import ofObjectHome, Workflow_Flow, Workflow_Dispersion
+from hera import toolkitHome
+import glob
+
+def createEmpty(args):
+
+    caseDir = args.caseDirectory
+    fieldList = args.fields
+    additionalFields = args.fieldData
+    print(f"Making case {caseDir} with fields {','.join(fieldList)}")
+
+    # Make the case :
+    if os.path.isfile(caseDir):
+        raise ValueError(f"The file {caseDir} exists as a file. Cannot create a directory. Please remove/rename it and rerun. ")
+
+    os.makedirs(os.path.join(caseDir,"constant"),exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "system"),exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "constant","triSurface"), exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "0"),exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "0.orig"), exist_ok=True)
+    os.makedirs(os.path.join(caseDir, "0.parallel"), exist_ok=True)
+
+    fileaddition = dict()
+    if additionalFields is not None:
+        if os.path.exists(args.fieldData):
+            with open(args.fieldData) as infile:
+                fileaddition = json.load(infile)['fields']
+
+    # Makes the empty fields
+    for fieldName in fieldList:
+        field = ofObjectHome().getField(fieldName, flowType=args.simulationType, additionalFieldsDescription=fileaddition)
+        field.write(caseDirectory=caseDir, location=0)
+        field.write(caseDirectory=caseDir, location="0.orig")
+        field.emptyParallelField(caseDirectory=caseDir)
+
+def createBuildings(args):
+
+    configuration = loadJSON(args.configurationFile)
+
+    regionCoords = configuration['regions'].get(args.regionName,None)
+
+    if regionCoords is None:
+        raise ValueError(f"The region{args.regionName} is not found. Found the regions: {','.join(configuration['regions'].keys())}")
+
+    bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
+
+    stlFileName = f"{args.outputFile.split('.')[0]}.stl"
+
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS ,
+                                projectName=configuration['projectName'])
+
+    tk.regionToSTL(regionNameOrData=bx,
+                   outputFileName=stlFileName,
+                   flat=None,
+                   datasourceName=args.datasource,
+                   saveMode=toolkitHome.TOOLKIT_SAVEMODE_NOSAVE)
+
+def createTopography(args):
+    configuration = loadJSON(args.configurationFile)
+
+    regionCoords = configuration['regions'].get(args.regionName,None)
+
+    if regionCoords is None:
+        raise ValueError(f"The region{args.regionName} is not found. Found the regions: {','.join(configuration['regions'].keys())}")
+
+    bx = [regionCoords['parameters']['xmin'], regionCoords['parameters']['ymin'], regionCoords['parameters']['xmax'], regionCoords['parameters']['ymax']]
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_TOPOGRAPHY,
+                                projectName=configuration['projectName'])
+    stl = tk.regionToSTL(shapeDataOrName=bx,
+                         dxdy = args.dxdy,
+                         datasourceName=args.datasource)
+
+    stlFileName = f"{args.outputFile.split('.')[0]}.stl"
+    with open(stlFileName,"w") as stlfile:
+        stlfile.write(stl)
+
+def windProfile(args):
+    """
+        Creates a wind profile according to the urban canopy.
+
+        Currently, only the log-normal wind profile is implemented.
+
+    Parameters
+    ----------
+    args
+        - caseDirectory
+
+    Returns
+    -------
+
+    """
+    hwf = Workflow_Flow(args.workflowFile)
+    projectName = hwf.parameters['projectName']
+
+    buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=projectName)
+    of_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+
+    buildingsData =  dict(hwf.parameters['domains'][args.buildingDomainName])
+    buildingsData['crs'] = None
+
+    caseDirectory = hwf.parameters['caseDirectory']
+
+    # 1. Prepeare station file.
+            # currently just take 1 speed and direction.
+    wind = pandas.DataFrame(hwf.parameters['wind'])
+
+    # 2. Prepare the lambda geopandas. (write in the case directory)
+            #--> check if the file exists, if it does, then use it.
+    lambdaBuildings = buildings_tk.analysis.LambdaFromDatasource(windMeteorologicalDirection=wind.MeteorologicalDirection.mean(),
+                                                                 resolution=hwf.parameters['LambdaCalculationResolution'],
+                                                                 **buildingsData)
+
+    # 3. Get the cell centers.
+
+    #### This should change to get height above topography of the mesh.
+    ##   It has the buildingDomainName. So it should take the topography and try to calculate the height of the cells.
+    ##   Should solve synthetic data in which the topogrpahy is synthetic or does not exist.
+    meshCells = of_tk.getMesh(caseDirectory)
+
+    # 4. Calculate the Ux,Uy of each point in the mesh.
+    from hera.simulations.openFoam.NavierStokes.preprocess.canopyWindProfile import urbanLogNormalProfile
+    data = urbanLogNormalProfile(cellCenters=meshCells,lambdaGrid=lambdaBuildings,stations=wind)
+    data = data.assign(Uz=0)
+    # 5. Write in the constant/U0 file.
+    dims = of_tk.OFObjectHome.getDimensions(m=1, s=-1)
+    newField = of_tk.OFObjectHome.getField(fieldName="U0", componentNames=['Ux', 'Uy', 'Uz'], dimensions=dims)
+    newField.write(caseDirectory=caseDirectory, location="constant", data=data)
+
+def listRegions(args):
+    """
+        Lists all the regions of the obj file so that they could be inserted to the snappyHexMesh node.
+
+    Parameters
+    ----------
+    args.objectFile : the obj file.
+
+
+    Returns
+    -------
+        Prints a list of regions with their type .
+    """
+    try:
+        from freecad import app as FreeCAD
+        import Mesh
+    except ImportError:
+        self.logger.error("freecad module  is not installed in the environment")
+        raise ImportError("freecad is not installed. please install it before trying again.")
+
+    # Load the file
+    fileName = args.objectFile
+    Mesh.open(fileName)
+    objFile  = FreeCAD.getDocument("Unnamed")
+
+    if objFile is None:
+        print(f"{fileName} not found")
+        exit()
+
+    outputDict = dict()
+
+    for regionObj in objFile.findObjects():
+        outputDict[regionObj.Name] = dict(name=regionObj.Name,type="wall|patch")
+
+    print(json.dumps(outputDict,indent=4,sort_keys=True))
+
+def createBoundaryConditions(args):
+    """
+        Creates the list of the boudnary conditions for each fieldin the object .
+
+    Parameters
+    ----------
+    args: arguments from the command line.
+
+        .workflowFile - The path to the template workflow
+        .objectFile - the object file.
+
+    Returns
+    -------
+
+    """
+    #hwf = hermesOpenFOAMWorkflow(args.workflowFile)
+
+    try:
+        from freecad import app as FreeCAD
+        import Mesh
+    except ImportError:
+        self.logger.error("freecad module  is not installed in the environment")
+        raise ImportError("freecad is not installed. please install it before trying again.")
+
+    # Load the file
+    fileName = args.objectFile
+    Mesh.open(fileName)
+    objFile  = FreeCAD.getDocument("Unnamed")
+
+    ret = dict()
+    for fieldName in args.fields:
+
+        boundary = dict()
+        for  regionObj in objFile.findObjects():
+                    boundary[regionObj.Name] = dict(type="zeroGradient",value="")
+        ret[fieldName] = dict(boundaryField=boundary)
+
+    print(json.dumps(ret, indent=4, sort_keys=True))
+
+def prepareDispersionCase(args):
+    """
+        Prepares the dispersion case:
+
+         * Copies a template to the new directory,
+         * Sets up references to the root directory.
+
+
+         Assumes the root directory is parallel.
+
+
+    :param args:
+             - args : a list :
+                Location:
+                   0 : The name of the dispersion template
+                   1 : The name of the new dispersion case.
+                   2 : The name of the root case.
+    :return:
+    """
+    case     = os.path.abspath(args.dispersionCase)
+    flowCase = os.path.abspath(args.baseFlow)
+
+    constantDir = os.path.join(case,"constant")
+    systemDir   = os.path.join(case, "system")
+    os.makedirs(constantDir,exist_ok=True)
+    os.makedirs(systemDir, exist_ok=True)
+
+    for fls in glob.glob(os.path.join(flowCase,"constant","*")):
+        os.system(f"ln -s {fls} {constantDir}")
+
+    for fls in glob.glob(os.path.join(flowCase,"system","*")):
+        os.system(f"ln -s {fls} {systemDir}")
+
+    for proc in glob.glob(os.path.join(flowCase,"processor*")):
+        fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
+        destination = os.path.join(case, os.path.basename(proc), "constant", "polyMesh")
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        os.system(f"ln -s {fullpath} {destination}")
+        os.system(f"ln -s {os.path.abspath(proc)} {os.path.join(case, os.path.basename(proc))}/rootCase")
+
+        # create the 0 directory in all processors.
+        os.makedirs(os.path.join(case, os.path.basename(proc), '0'), exist_ok=True)
+
+
+
+    # linking the decpomposePar dict from the root.
+    #root_decomposePar = os.path.abspath(os.path.join(flowCase,"system","decomposeParDict"))
+    #decompose_dest    = os.path.abspath(os.path.join(case,"system"))
+    #os.system(f"ln -s {root_decomposePar} {decompose_dest}")
+
+    # linking the rootCase in the root directory of the dispersion case.
+    os.system(f"ln -s {flowCase} {os.path.join(case,'rootCase')}")
+
+    # create the 0 directory in the root.
+    os.makedirs(os.path.join(case,'0'),exist_ok=True)
+
+def makeSourceCylinder(args):
+
+    center = args.center
+    params = dict(x=center[0],
+                  y=center[1],
+                  z=center[2],
+                  radius = args.radius,
+                  height = args.height,
+                  nParticles=args.particles
+                  )
+    case   = os.path.abspath(args.case[0])
+
+    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
+
+    LSMtoolkit.makeSource(type="Cylinder", **params)
+
+def makeEscapedMassFile(args):
+    """
+        Creates an openfoam mass overtime file for the lagrangian output
+        from a dataframe.
+
+    Parameters
+    ----------
+    args
+
+    Returns
+    -------
+
+    """
+
+    case   = os.path.abspath(args.casePath)
+    massFileName = f"{args.patch}Mass" if args.massFileName is None else args.massFileName
+    dt = args.dt
+    LSMtoolkit = toolkitHome.getToolkit(toolkitHome.OF_LSM,"tmpProject",casePath=case)
+    data = LSMtoolkit.analysis.getMassFromLog(logFile=args.logFile,solver=args.solver)
+    data = data.loc[data.filterType == args.patch].loc[data.action == args.action]
+    data["diffMass"] = data.mass.diff()
+    data = data.fillna(0)
+    if dt is None:
+        timesteps = data.time
+    else:
+        timesteps = numpy.arange(data.time.min(),data.time.max(),float(dt))
+        times = pandas.DataFrame({"time":timesteps})
+        data = data.set_index("time").join(times.set_index("time"),how="outer").reset_index()
+        data = data.interpolate()
+    newstr = "/*--------------------------------*- C++ -*----------------------------------*\n" \
+             "| =========                 |                                                 |\n" \
+             "| \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |\n" \
+             "|  \    /   O peration     | Version:  dev                                   |\n" \
+             "|   \  /    A nd           | Web:      www.OpenFOAM.org                      |\n" \
+             "|    \/     M anipulation  |                                                 |\n" \
+             "\*---------------------------------------------------------------------------*/\n" \
+             "FoamFile\n{    version     2.0;\n    format      ascii;\n    class       scalarField;\n    object      kinematicCloudPositions;\n}\n" \
+             f"// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n{len(data)}\n(\n"
+    for time in timesteps:
+        newstr += f"{float(data.loc[data.time==time].diffMass)}\n"
+    newstr += ")"
+    print("saving in ",os.path.join(case,"constant",massFileName))
+    f = open(os.path.join(case,"constant",massFileName), "w")
+    f.write(newstr)
+    f.close()
+
+
+
+if __name__=="__main__":
+
+    # ### ---- Debugging
+    # from hera.utils.logging.helpers import initialize_logging, with_logger
+    # initialize_logging(
+    #     with_logger("hera.simulations.old.openFoam",handlers=['console'],level='DEBUG',propagate=False),
+    #     with_logger("hera.measurements.old.GIS.vector",handlers=['console'],level='EXECUTION',propagate=False),
+    #     with_logger("hera.measurements.old.GIS.vector.buildings", handlers=['console'], level='DEBUG', propagate=False),
+    # )
+    # ### ---- Debugging
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    ########################################################
+    parser_createEmpty  = subparsers.add_parser('createEmpty', help='Creates an empty case with empty fields')
+    parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    parser_createEmpty.add_argument('--fields',
+                                    nargs='*',
+                                    type=str,
+                                    help='[list of field]')
+    parser_createEmpty.add_argument('--simulationType',nargs="?",choices=["compressible","incompressible","dispersion"],default='incompressible',const="incompressible",help="Is it a compressible simulation")
+    parser_createEmpty.add_argument('--fieldData', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    parser_createEmpty.set_defaults(func=createEmpty)
+
+
+    ########################################################
+    ######################################################## STLOBJFiles
+    ########################################################
+    parser_stlUtils = subparsers.add_parser('STLOBJUtils', help='Utilities for debugging STL and obj files ')
+    stlUtils_subparsers = parser_stlUtils.add_subparsers(help='Utilities for debugging STL and obj files ')
+
+    parser_createBuildings = stlUtils_subparsers.add_parser('buildings', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createBuildings.add_argument('configurationFile', type=str, help='The configuration file')
+    parser_createBuildings.add_argument('regionName', type=str, help='the region to build')
+    parser_createBuildings.add_argument('datasource', type=str, help='the datasource to use')
+    parser_createBuildings.add_argument('outputFile', type=str, help='the output file name')
+    parser_createBuildings.set_defaults(func=createBuildings)
+
+    ########################################################
+
+    parser_createTopography = stlUtils_subparsers.add_parser('topography', help='Creates an stl for the desired region. Mostly for debugging')
+    parser_createTopography.add_argument('configurationFile', type=str, help='The configuration file')
+    parser_createTopography.add_argument('regionName', type=str, help='the region to build')
+    parser_createTopography.add_argument('datasource', type=str, help='the datasource to use')
+    parser_createTopography.add_argument('outputFile', type=str, help='the output file name')
+    parser_createTopography.add_argument('--dxdy', dest='dxdy',default=50,type=int, help='the resolution')
+    parser_createTopography.set_defaults(func=createTopography)
+
+    ########################################################
+
+    parser_createTopography = stlUtils_subparsers.add_parser('listRegions', help='Lists the regions ')
+    parser_createTopography.add_argument('objectFile', type=str, help='The object file')
+    parser_createTopography.set_defaults(func=listRegions)
+
+    parser_createTopography = stlUtils_subparsers.add_parser('createBoundaryConditions', help='Creates the boundary conditions for all the variable sin the ')
+    parser_createTopography.add_argument('objectFile', type=str, help='The objectFile file')
+    parser_createTopography.add_argument('--f', '--fields', dest="fields", type=str, nargs='+', required=True,help="The list of the fields to create")
+    parser_createTopography.set_defaults(func=createBoundaryConditions)
+
+    ########################################################
+    #########################  Flow ########################
+    ########################################################
+
+    flowParser   = subparsers.add_parser('flow', help='Utilities for flow scenarios ')
+    ######################################################## Initial conditions
+    flowParserP    = flowParser.add_subparsers(help='Utilities for Flow workflows')
+    parser_initial = flowParserP.add_parser('initialConditions', help='Utilities for debugging STL and obj files ')
+
+    initial_subparsers = parser_initial.add_subparsers(help='Utilities for debugging STL and obj files ')
+    parser_createWind = initial_subparsers.add_parser('windProfile',help='Creates a wind profile on an existing case')
+    parser_createWind.add_argument('workflowFile', type=str, help='The workflow file')
+    parser_createWind.add_argument('buildingDomainName', type=str, help='The name of the geometry region to use from the params node')
+    parser_createWind.set_defaults(func=windProfile)
+
+    ########################################################
+    #########################  Dispersion ##################
+    ########################################################
+    dispersionParser   = subparsers.add_parser('dispersion', help='Utilities for dispersion scenarios ')
+    dispersionParserP = dispersionParser.add_subparsers(help='Utilities for Dispersion workflows')
+    #### Prepare dispersion
+    parser_prepareDisperionCase = dispersionParserP.add_parser('prepareDispersionCase', help='executePipeline help')
+    parser_prepareDisperionCase.add_argument("dispersionCase",type=str,help="The target flow case")
+    parser_prepareDisperionCase.add_argument("baseFlow",type=str,help="the flow field to use")
+    parser_prepareDisperionCase.set_defaults(func=prepareDispersionCase)
+
+    ############################ Source
+    ########## Cylinder
+    parser_makeSourceCylinder = dispersionParserP.add_parser('makeSourceCylinder', help='executePipeline help')
+    parser_makeSourceCylinder.add_argument('case',
+                             nargs=1,
+                             type=str,
+                             help='[dispersion case dir]')
+    parser_makeSourceCylinder.add_argument('--radius', dest="radius", required=True,type=float)
+    parser_makeSourceCylinder.add_argument('--center',nargs=3, dest="center",type=float, required=True)
+    parser_makeSourceCylinder.add_argument('--height', dest="height", required=True,type=float)
+    parser_makeSourceCylinder.add_argument('--particles', dest="particles", required=True,type=int)
+    parser_makeSourceCylinder.set_defaults(func=makeSourceCylinder)
+
+    # makeEscapedMassFile
+    parser_makeEscapedMassFile = dispersionParserP.add_parser('makeEscapedMassFile', help='makeEscapedMassFile help')
+    parser_makeEscapedMassFile.add_argument('logFile',type=str)
+    parser_makeEscapedMassFile.add_argument('casePath', type=str)
+    parser_makeEscapedMassFile.add_argument('patch', type=str)
+    parser_makeEscapedMassFile.add_argument('-dt', type=str)
+    parser_makeEscapedMassFile.add_argument('-massFileName', type=str)
+    parser_makeEscapedMassFile.add_argument('-solver', type=str,default="StochasticLagrangianSolver")
+    parser_makeEscapedMassFile.add_argument('-action', type=str, default="escape")
+    parser_makeEscapedMassFile.set_defaults(func=makeEscapedMassFile)
+
+
+    ########################################################
+    parsed = parser.parse_args()
+    parsed.func(parsed)
+
+
+
+#####################
+
+from hera.simulations.openFoam import OFWorkflow,OFObjects
+from hera.measurements.GIS.vector.buildings import analysis
+#hwf = Workflow_Flow(args.workflowFile)
+buildings_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName='projectName')
+of_tk        = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName='projectName')
+
+caseDirectory = '/data5/NOBACKUP/nirb/Simulations/Haifa/test'
+ba = analysis.analysis(None)
+shapeDataOrName = [177933, 663923, 178933, 664423]
+datasourceName = r'/data3/GIS_Data/BNTL_MALE_ARZI/BNTL_MALE_ARZI/'
+lambdaBuildings = ba.LambdaFromDatasource(270, 200,shapeDataOrName, datasourceName )
+
+
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+ba.LambdaFromBuildingData(windMeteorologicalDirection=270,
+                                                   resolution=200,
+                                                   buildingsData=datasourceName,
+                                                   externalShape=shapeDataOrName,
+                                                   saveMode=TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,
+                                                   overwrite=False)

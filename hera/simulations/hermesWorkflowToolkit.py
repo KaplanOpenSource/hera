@@ -69,7 +69,7 @@ class workflowToolkit(abstractToolkit):
         #                  WorkflowTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
         # }
 
-    def listHermesTemplates(self,solverName):
+    def listHermesFlowTemplates(self, solverName):
         """
             Returns a list of all the templates that were loaded for that specific solver.
 
@@ -83,7 +83,7 @@ class workflowToolkit(abstractToolkit):
 
         """
         retList = []
-        for doc in self.getDataSourceDocumentsList(desc__solver=solverName):
+        for doc in self.getDataSourceDocumentsList(desc__solver=solverName,desc__component="Flow"):
             data = dict(doc.desc['desc'])
             data['templateName'] = doc.desc['datasourceName']
             retList.append(data)
@@ -92,6 +92,61 @@ class workflowToolkit(abstractToolkit):
             return pandas.DataFrame(retList).set_index("templateName")
         else:
             return pandas.DataFrame()
+
+    def getHermesFlowTemplate(self, hermesFlowName):
+        """
+            Get a hermes flow template
+        Parameters
+        ----------
+        solverName
+
+        Returns
+        -------
+
+        """
+        return self.getDataSourceData(hermesFlowName,desc__component="Flow")
+
+    def listHermesNodesTemplates(self):
+        """
+            Returns a list of all the templates that were loaded for that specific solver.
+
+        Parameters
+        ----------
+        solverName : str
+
+
+        Returns
+        -------
+
+        """
+        retList = []
+        for doc in self.getDataSourceDocumentsList(desc__component="Node"):
+            data = dict(doc.desc['desc'])
+            data['nodeName'] = doc.desc['datasourceName']
+            retList.append(data)
+
+        if len(retList) >0:
+            return pandas.DataFrame(retList).set_index("nodeName")
+        else:
+            return pandas.DataFrame()
+
+    def getHermesNodeTemplate(self, hermesNodeName):
+        """
+            Get a hermes flow template
+        Parameters
+        ----------
+        solverName
+
+        Returns
+        -------
+
+        """
+        return self.getDataSourceData(hermesNodeName, desc__component="Node")
+
+
+
+
+
 
     def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
         """

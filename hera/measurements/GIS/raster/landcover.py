@@ -1,189 +1,328 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue May 21 18:01:43 2024
-
-@author: nirb
-"""
-
-# we should use different roughness to buildings and to topo
-
-# MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
-
-# data is from https://zenodo.org/records/8367523
-# type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1
-
-# Land Cover Type 1: IGBP global vegetation classification scheme
-# Land Cover Type 2: University of Maryland (UMD) scheme
-
-
-        # DataField    Name                    Data      Dimensions
-        #                                      Type
-
-        # DataField_1  Land_Cover_Type_1       UINT8     Dimension_1
-        #                                                Dimension_2
-
-        #         Description:    land cover types (IGBP)
-
-
-        #         DataField_1 HDF Attributes:
-
-        #            long_name      STRING  1   PGE    "Land_Cover_Type_1"
-        #            units          STRING  1   PGE     "class number"
-        #            valid_range    uint8    2   PGE     0 16
-        #            _FillValue     uint8    1   PGE     255
-        #            Water          uint8    1   PGE     0
-        #            Evergreen needleleaf forest 
-        #                           uint8    1   PGE     1
-        #            Evergreen broadleaf forest 
-        #                           uint8    1   PGE     2
-        #            Deciduous needleleaf forest 
-        #                           uint8    1   PGE     3
-        #            Deciduous broadleaf forest 
-        #                           uint8    1   PGE     4
-        #            Mixed forests  unit8    1   PGE     5
-        #            Closed shrubland
-        #                           unit8    1   PGE     6
-        #            Open shrublands
-        #                           unit8    1   PGE     7
-        #            Woody savannas unit8    1   PGE     8
-        #            Savannas       unit8    1   PGE     9
-        #            Grasslands     unit8    1   PGE    10
-        #            Permanent wetlands
-        #                           unit8    1   PGE    11
-        #            Croplands      unit8    1   PGE    12
-        #            Urban and built-up
-        #                           unit8    1   PGE    13
-        #            Cropland/natural vegetation mosaic
-        #                           unit8    1   PGE    14
-        #            Snow and ice   unit8    1   PGE    15
-        #            Barren or sparsely vegetated
-        #                           unit8    1   PGE    16
-
-        # DataField_2  Land_Cover_Type_2       UINT8     Dimension_1
-        #                                                Dimension_2
-
-        #         Description:    land cover types (UMD)
-
-
-        #         DataField_2 HDF Attributes:
-        #            long_name      STRING   1   PGE    "Land_Cover_Type_2"
-        #            units          STRING   1   PGE     "class number"
-        #            valid_range    uint8    2   PGE     0 16
-        #            _FillValue     uint8    1   PGE     255
-        #            Water          uint8    1   PGE     0
-        #            Evergreen needleleaf forest 
-        #                           uint8    1   PGE     1
-        #            Evergreen broadleaf forest 
-        #                           uint8    1   PGE     2
-        #            Deciduous needleleaf forest 
-        #                           uint8    1   PGE     3
-        #            Decidous broadleaf forest 
-        #                           uint8    1   PGE     4
-        #            Mixed forests  uint8    1   PGE     5
-        #            Closed shrublands
-        #                            unit8   1   PGE     6
-        #            Open shrubland  unit8   1   PGE     7
-        #            Woody savannas  unit8   1   PGE     8	
-        #            Savannas       unit8    1   PGE     9   
-        #            Grasslands     uint8    1   PGE    10
-        #            Croplands      unit8    1   PGE    12
-        #            Urban and built-up
-        #                           unit8    1   PGE    13
-        #            Barren or sparsely vegetated
-        #                           unit8    1   PGE    16
-                                  
-
-# Land cover may change between winter and summer
-# urban area may change over the years
-
-from osgeo import gdal
+from .... import toolkit
+from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
+from ....utils.logging import get_classMethod_logger
+import numpy
 import math
-import matplotlib.pyplot as plt
-    
-def getlc(filepath, lat, long):
+from osgeo import gdal
+from pyproj import Transformer
+from itertools import product
+import pandas
+import os
+import xarray
+import geopandas
 
-    ds = gdal.Open(filepath)
-    width = ds.RasterXSize
-    height = ds.RasterYSize
-    gt = ds.GetGeoTransform()
-    minx = gt[0]
-    maxx = gt[0] + width*gt[1] + height*gt[2]
-    miny = gt[3] + width*gt[4] + height*gt[5] 
-    maxy = gt[3] 
-    img = ds.GetRasterBand(1).ReadAsArray()
-    # plt.figure()
-    # plt.imshow(img)
-    # plt.show()
-    x = math.floor((lat - gt[3])/gt[5])
-    y = math.floor((long - gt[0])/gt[1])
-    return (img[x,y])
+class LandCoverToolkit(toolkit.abstractToolkit):
+    """
+    We should use different roughness to buildings and to topo
 
-def lc2roughnesslength(lc, lctype=1):
-    # https://wes.copernicus.org/articles/6/1379/2021/ table a2
-    # https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
-        
-    if lctype == 1:
-        if lc == 0: # Water
-           rl = 0.0001 # depends on waves that depends on wind
-        elif lc == 1: # Evergreen needleleaf forest
-           rl = 1.0
-        elif lc == 2: # Evergreen broadleaf forest 
-           rl = 1.0 
-        elif lc == 3: # Deciduous needleleaf forest 
-           rl = 1.0
-        elif lc == 4: # Deciduous broadleaf forest 
-           rl = 1.0 
-        elif lc == 5: # Mixed forests
-           rl = 1.0 
-        elif lc == 6: # Closed shrubland
-           rl = 0.05
-        elif lc == 7: # Open shrublands
-           rl = 0.06
-        elif lc == 8: # Woody savannas
-           rl = 0.05
-        elif lc == 9: # Savannas
-           rl = 0.15
-        elif lc == 10: # Grasslands
-           rl = 0.12
-        elif lc == 11: # Permanent wetlands
-           rl = 0.3
-        elif lc == 12: # Croplands
-           rl = 0.15
-        elif lc == 13: # Urban and built-up
-           rl = 0.8
-        elif lc == 14: # Cropland/natural vegetation mosaic
-           rl = 0.14
-        elif lc == 15: # Snow and ice
-           rl = 0.001
-        elif lc == 16: # Barren or sparsely vegetated
-           rl = 0.01
-        else:
-           rl = 0.05 # Bamba choice
-    
-    return rl
+     MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
 
-def roughnesslength2sandgrainroughness(rl):
-#Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
-# https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
-# eq. 5: Equivalent sand grain roughness (m) is z0*30
+      data is from https://zenodo.org/records/8367523
+      type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1
 
-# we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
-# Cs value can be set as 0.5
+      Land Cover Type 1: IGBP global vegetation classification scheme
+      Land Cover Type 2: University of Maryland (UMD) scheme
 
-    return rl*30.0 # return Ks value 
+      DataField    Name                    Data      Dimensions
+                                           Type
 
-if __name__ == "__main__":
-    filename = r'lc_mcd12q1v061.t1_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif' # 500m resolution
-    # filename = r'lc_mcd12q1v061.t2_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif'
-    # filename = r'lc_mcd12q1v061.t5_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif'
-    # filename = r'lc_mcd12q1v061.t1_c_500m_s_20200101_20201231_go_epsg.4326_v20230818.tif'
-    
-    filepath = r'/data3/GIS_Data/LC/'+filename
-    
-    lat = 31.88
-    long = 34.743
-    
-    mylc = getlc(filepath, lat, long)
-    print (mylc, lc2roughnesslength(mylc))
-        
+      DataField_1  Land_Cover_Type_1       UINT8     Dimension_1
+                                                     Dimension_2
+
+              Description:    land cover types (IGBP)
+
+              DataField_1 HDF Attributes:
+
+                 long_name      STRING  1   PGE    "Land_Cover_Type_1"
+                 units          STRING  1   PGE     "class number"
+                 valid_range    uint8    2   PGE     0 16
+                 _FillValue     uint8    1   PGE     255
+                 Water          uint8    1   PGE     0
+                 Evergreen needleleaf forest
+                                uint8    1   PGE     1
+                 Evergreen broadleaf forest
+                                uint8    1   PGE     2
+                 Deciduous needleleaf forest
+                                uint8    1   PGE     3
+                 Deciduous broadleaf forest
+                                uint8    1   PGE     4
+                 Mixed forests  unit8    1   PGE     5
+                 Closed shrubland
+                                unit8    1   PGE     6
+                 Open shrublands
+                                unit8    1   PGE     7
+                 Woody savannas unit8    1   PGE     8
+                 Savannas       unit8    1   PGE     9
+                 Grasslands     unit8    1   PGE    10
+                 Permanent wetlands
+                                unit8    1   PGE    11
+                 Croplands      unit8    1   PGE    12
+                 Urban and built-up
+                                unit8    1   PGE    13
+                 Cropland/natural vegetation mosaic
+                                unit8    1   PGE    14
+                 Snow and ice   unit8    1   PGE    15
+                 Barren or sparsely vegetated
+                                unit8    1   PGE    16
+
+      DataField_2  Land_Cover_Type_2       UINT8     Dimension_1
+                                                     Dimension_2
+
+              Description:    land cover types (UMD)
+
+              DataField_2 HDF Attributes:
+                 long_name      STRING   1   PGE    "Land_Cover_Type_2"
+                 units          STRING   1   PGE     "class number"
+                 valid_range    uint8    2   PGE     0 16
+                 _FillValue     uint8    1   PGE     255
+                 Water          uint8    1   PGE     0
+                 Evergreen needleleaf forest
+                                uint8    1   PGE     1
+                 Evergreen broadleaf forest
+                                uint8    1   PGE     2
+                 Deciduous needleleaf forest
+                                uint8    1   PGE     3
+                 Decidous broadleaf forest
+                                uint8    1   PGE     4
+                 Mixed forests  uint8    1   PGE     5
+                 Closed shrublands
+                                 unit8   1   PGE     6
+                 Open shrubland  unit8   1   PGE     7
+                 Woody savannas  unit8   1   PGE     8
+                 Savannas       unit8    1   PGE     9
+                 Grasslands     uint8    1   PGE    10
+                 Croplands      unit8    1   PGE    12
+                 Urban and built-up
+                                unit8    1   PGE    13
+                 Barren or sparsely vegetated
+                                unit8    1   PGE    16
+
+      Land cover may change between winter and summer
+      urban area may change over the years
+    """
+
+    def __init__(self, projectName, filesDirectory=None):
+        """
+            Initializes land cover data toolkit.
+
+        Parameters
+        ----------
+        projectName: str
+            The project Name that the toolkit is initialized on
+        toolkitName: str
+            the specific toolkit, getting from the child.
+
+        FilesDirectory: str or None
+                The path to save a regions files when they are created.
+
+                if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.
+
+                if None, then tries to get the default path of the project from the config. if it does not
+                exist, then use the current directory.
+
+        """
+        super().__init__(projectName=projectName, toolkitName = 'LandCoverToolkit', filesDirectory=filesDirectory)
+
+    def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
+        """
+            Returns the roughness depending on the type.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude coodinates.
+
+        lat : float
+            The latitute coordinates.
+
+        inputCRS : int
+            The ESPRG of the coordinates.
+
+        dataSourceName : string , default None
+            The name of the data source to use. Using default datasource if None.
+
+        Returns
+        -------
+
+        """
+        dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
+        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+        ds = self.getDataSourceData(dataSourceName)
+        img = ds.GetRasterBand(1).ReadAsArray()
+        gt = ds.GetGeoTransform()
+
+        width = ds.RasterXSize
+        height = ds.RasterYSize
+        minx = gt[0]
+        maxx = gt[0] + width * gt[1] + height * gt[2]
+        miny = gt[3] + width * gt[4] + height * gt[5]
+        maxy = gt[3]
+        x = math.floor((lat - gt[3]) / gt[5])
+        y = math.floor((long - gt[0]) / gt[1])
+        return img[x, y]
+
+    def getLandCover(self,xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WSG84, dataSourceName=None):
+        pass
+
+
+    def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
+        """
+            Get the land type and then convert to roughness.
+
+        Parameters
+        ----------
+        lon
+        lat
+        inputCRS
+        dataSourceName
+
+        Returns
+        -------
+
+        """
+        dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
+        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+        landcover = self.getLandCoverAtPoint(lon=lon,lat=lat,inputCRS=inputCRS,dataSourceName=dataSourceName)
+
+        handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
+        return handlerFunction(landcover)
+
+
+    def handleType1(self,landcover):
+        """
+        Converting land type to roughness.
+
+        Based on the paper:
+            * https://wes.copernicus.org/articles/6/1379/2021/ table a2
+            * https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
+
+        Parameters
+        ----------
+        roughness
+
+        Returns
+        -------
+
+        """
+        roughnessDict = {
+            0 : 0.0001, # Water,  depends on waves that depends on wind
+            1 : 1,       # Evergreen needleleaf forest
+            2:  1,         # Evergreen broadleaf forest
+            3:  1,  # Deciduous needleleaf forest
+            4:  1, # Deciduous broadleaf forest
+            5:  1, # Mixed forests
+            6:  0.05, # Closed shrubland
+            7:  0.06, # Open shrublands
+            8: 0.05, # Woody savannas
+            9: 0.15,  # Savannas
+            10: 0.12,  # Grasslands
+            11: 0.3, # Permanent wetlands
+            12: 0.15, # Croplands
+            13: 0.8, # Urban and built-up
+            14: 0.14, # Cropland/natural vegetation mosaic
+            15: 0.001, # Snow and ice
+            16: 0.01, # Barren or sparsely vegetated
+        }
+        return roughnessDict.get(landcover,0.05)
+
+
+# #!/usr/bin/env python3
+# # -*- coding: utf-8 -*-
+# """
+# Created on Tue May 21 18:01:43 2024
+#
+# @author: nirb
+# """
+#
+#
+# from osgeo import gdal
+# import math
+# import matplotlib.pyplot as plt
+#
+# def getlc(filepath, lat, long):
+#
+#     ds = gdal.Open(filepath)
+#     img = ds.GetRasterBand(1).ReadAsArray()
+#     gt = ds.GetGeoTransform()
+#
+#     width = ds.RasterXSize
+#     height = ds.RasterYSize
+#     minx = gt[0]
+#     maxx = gt[0] + width*gt[1] + height*gt[2]
+#     miny = gt[3] + width*gt[4] + height*gt[5]
+#     maxy = gt[3]
+#     # plt.figure()
+#     # plt.imshow(img)
+#     # plt.show()
+#     x = math.floor((lat - gt[3])/gt[5])
+#     y = math.floor((long - gt[0])/gt[1])
+#     return (img[x,y])
+#
+# def lc2roughnesslength(lc, lctype=1):
+#     # https://wes.copernicus.org/articles/6/1379/2021/ table a2
+#     # https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
+#
+#     if lctype == 1:
+#         if lc == 0: # Water
+#            rl = 0.0001 # depends on waves that depends on wind
+#         elif lc == 1: # Evergreen needleleaf forest
+#            rl = 1.0
+#         elif lc == 2: # Evergreen broadleaf forest
+#            rl = 1.0
+#         elif lc == 3: # Deciduous needleleaf forest
+#            rl = 1.0
+#         elif lc == 4: # Deciduous broadleaf forest
+#            rl = 1.0
+#         elif lc == 5: # Mixed forests
+#            rl = 1.0
+#         elif lc == 6: # Closed shrubland
+#            rl = 0.05
+#         elif lc == 7: # Open shrublands
+#            rl = 0.06
+#         elif lc == 8: # Woody savannas
+#            rl = 0.05
+#         elif lc == 9: # Savannas
+#            rl = 0.15
+#         elif lc == 10: # Grasslands
+#            rl = 0.12
+#         elif lc == 11: # Permanent wetlands
+#            rl = 0.3
+#         elif lc == 12: # Croplands
+#            rl = 0.15
+#         elif lc == 13: # Urban and built-up
+#            rl = 0.8
+#         elif lc == 14: # Cropland/natural vegetation mosaic
+#            rl = 0.14
+#         elif lc == 15: # Snow and ice
+#            rl = 0.001
+#         elif lc == 16: # Barren or sparsely vegetated
+#            rl = 0.01
+#         else:
+#            rl = 0.05 # Bamba choice
+#
+#     return rl
+#
+# def roughnesslength2sandgrainroughness(rl):
+# #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏
+# # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
+# # eq. 5: Equivalent sand grain roughness (m) is z0*30
+#
+# # we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
+# # Cs value can be set as 0.5
+#
+#     return rl*30.0 # return Ks value
+#
+# if __name__ == "__main__":
+#     filename = r'lc_mcd12q1v061.t1_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif' # 500m resolution
+#     # filename = r'lc_mcd12q1v061.t2_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif'
+#     # filename = r'lc_mcd12q1v061.t5_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif'
+#     # filename = r'lc_mcd12q1v061.t1_c_500m_s_20200101_20201231_go_epsg.4326_v20230818.tif'
+#
+#     filepath = r'/data3/GIS_Data/LC/'+filename
+#
+#     lat = 31.88
+#     long = 34.743
+#
+#     mylc = getlc(filepath, lat, long)
+#     print (mylc, lc2roughnesslength(mylc))
+#

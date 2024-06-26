@@ -11,9 +11,9 @@ from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
+from .OFObjects import  OFObjectHome
 
-
-def Foam_incompressible_createEmpty(arguments):
+def Foam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -35,23 +35,39 @@ def Foam_incompressible_createEmpty(arguments):
 
     logger.info(f"Using project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    
+
+    simulationType = tk.SIMULATIONTYPE_INCOMPRESSIBLE if arguments.incompressible else tk.SIMULATIONTYPE_COMPRESSIBLE
+
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
-                       simulationType=tk.SIMULATIONTYPE_INCOMPRESSIBLE,
+                       simulationType=simulationType,
                        additionalFieldsDescription = arguments.fieldsDescription)
 
 
     logger.execution(f"----- End -----")
 
-def foam_templates_list(arguments):
+def Foam_parser_FieldDescription(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.execution(f"----- Start : Foam_parser_FieldDescription -----")
+    logger.debug(f" arguments: {arguments}")
+
+    if len(arguments.fields) > 0:
+        jsonExample = dict()
+        for fieldName in arguments.fields:
+            jsonExample[fieldName] = dict(dimensions=OFObjectHome.getDimensions(),componentNames=None)
+
+
+
+
+
+def foam_templates_flow_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesTemplates(arguments.solver)
+    templates = tk.listHermesFlowTemplates(arguments.solver)
 
     ttl = f"The templates for project {tk.projectName} with solver {arguments.solver}"
     print()
@@ -60,7 +76,7 @@ def foam_templates_list(arguments):
     print("-"*len(ttl))
     print(templates)
 
-def foam_templates_create(arguments):
+def foam_templates_flow_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -73,7 +89,7 @@ def foam_templates_create(arguments):
         projectName = None
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesTemplates(arguments.solver)
+    templates = tk.listHermesFlowTemplates(arguments.solver)
     if arguments.templateName not in templates.index:
         err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
         logger.error(err)
@@ -85,6 +101,23 @@ def foam_templates_create(arguments):
 
     with open(os.path.join(outputPath,f"{groupName}_1.json"),"w") as outFile:
         json.dump(tk.getDataSourceData(arguments.templateName), outFile, indent=4)
+
+def foam_templates_node_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    projectName = None if 'projectName' not in arguments else arguments.projectName # from hera 2.13.2 the toolkit searches the project name in the case file.
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    templates = tk.listHermesNodesTemplates()
+
+    ttl = f"The templates of nodes for project {tk.projectName} with solver {arguments.solver}"
+    print()
+    print("-" * len(ttl))
+    print(ttl)
+    print("-"*len(ttl))
+    print(templates)
+
 
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
@@ -429,6 +462,92 @@ def objects_createVerticesAndBoundary(arguments):
     print("\n\n\n")
     print("----- Boundary conditions -------------")
     print(json.dumps(ret, indent=4, sort_keys=True))
+
+
+############################################################## Workflow.
+def foam_mesh_blockMesh(arguments):
+    """
+        Adjusts the blockMesh according to the stl file.
+
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    pass
+
+def foam_mesh_setDomainHeight(arguments):
+    """
+        Sets the height of the domain and updates the number of cells.
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    pass
+
+
+def foam_snappyhexmesh_addobject(arguments):
+    """
+        Adding the snappy hex mesh node (if does not exist).
+        If exists, just adds the object.
+
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    pass
+
+def foam_snappyhexmesh_setLocationInDomain(arguments):
+    """
+        Sets the location in mesh.
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    pass
+
+
+def foam_IC(arguments):
+    """
+        Sets the Initial conditions.
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    pass
+
+
+def foam_BC(arguments):
+    """
+        Sets the boundary codntions.
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    pass
 
 
 
