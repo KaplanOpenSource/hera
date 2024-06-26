@@ -56,7 +56,7 @@ class OFObjectHome:
                       dispersion = dispersionDict)
 
     @staticmethod
-    def getDimensions(self,kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
+    def getDimensions(kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
         """
             Returns the openfaom dimensions vector.
         Parameters
@@ -201,7 +201,7 @@ class OFObjectHome:
                 self.logger.critical(err)
                 raise ValueError(err)
 
-            self.predifinedFields.update(additionalFieldsDescription)
+            self.predifinedFields[flowType].update(additionalFieldsDescription)
             fieldList = self.predifinedFields[flowType].keys()
             if fieldName not in fieldList:
                 err = f"Field {fieldName} does not exist in flowType {flowType}. Existing fields are: {','.join(fieldList)}"
