@@ -245,6 +245,8 @@ class SeasonalPlots(Plots):
         ax :
 
         """
+        if isinstance(data, dask.dataframe.DataFrame):
+            data = data.compute()
         try:
             data = data.set_index("datetime")
         except:
@@ -335,6 +337,9 @@ class DailyPlots(Plots):
         -------
         ax : The axes object
         """
+        if isinstance(data, dask.dataframe.DataFrame):
+            data = data.compute()
+
         try:
             data = data.set_index("datetime")
         except:
@@ -400,6 +405,9 @@ class DailyPlots(Plots):
         line :
 
         """
+        if isinstance(data, dask.dataframe.DataFrame):
+            data = data.compute()
+
         try:
             data = data.set_index("datetime")
         except:
@@ -420,7 +428,7 @@ class DailyPlots(Plots):
         # curdata = data.dropna(subset=[plotField])
         # curdata = curdata.query("%s > -9990" % plotField)
         curdata = curdata.assign(curdate=curdata.index)
-        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
+        curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
         curdata = curdata.assign(dateonly=curdata.curdate.dt.date.astype(str))
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
@@ -523,7 +531,8 @@ class DailyPlots(Plots):
         CFS : contourf set
         ax : The axes object
         """
-
+        if isinstance(data, dask.dataframe.DataFrame):
+            data = data.compute()
         try:
             data = data.set_index("datetime")
         except:
