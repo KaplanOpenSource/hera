@@ -1,4 +1,4 @@
-__version__ = '2.15.2'
+__version__ = '2.15.4'
 
 import sys
 python_version = sys.version_info
@@ -16,6 +16,8 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+2.15.4
+    #182    - Added the default tile server in the tile toolkit. 
 2.15.3
     #174     - Added the ability to activate ageneral function in the repository 
                 TODO : add documentation to it. 
