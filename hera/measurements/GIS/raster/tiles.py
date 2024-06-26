@@ -57,7 +57,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         """
         return self.Z0RES / (2 ** zoomlevel) * numpy.cos(numpy.deg2rad(latitude))
 
-    def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel, tileServer, inputCRS=WSG84, outputCRS=WSG84):
+    def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel, tileServer=None, inputCRS=WSG84, outputCRS=WSG84):
         """
             Gets the image from the lower left corner and upper right cornet.
             The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True
@@ -68,7 +68,8 @@ class TilesToolkit(toolkit.abstractToolkit):
         minx,maxx,miny,maxy : float
             The left, right bottom and up of the image.
         zoomlevel :
-        tileServer
+        tileServer : string
+            The tile server. If None, get the default one (defaultTileServer in the config)
         inputCRS : int
                 The ESPG of the input coordinates.
         outputCRS: int
@@ -82,10 +83,17 @@ class TilesToolkit(toolkit.abstractToolkit):
 
         """
         logger = get_classMethod_logger(self,name="getImageFromTiles")
-        logger.info("------- Start")
+        logger.info(f"------- Start : {logger.name}")
 
         lon = [maxy, miny]
         lat = [minx, maxx]
+
+        if tileServer is None:
+            tileServer = self.getConfig().get("defaultTileServer",None)
+            if tileServer is None:
+                err = f"There is not default tile server in project {self.projectName}, and time server was not supplied!. exiting."
+                logger.error(err)
+                raise ValueError(err)
 
         gdf = geopandas.GeoDataFrame(
             None, geometry=geopandas.points_from_xy(lat, lon), crs=inputCRS  # "EPSG:4326"
