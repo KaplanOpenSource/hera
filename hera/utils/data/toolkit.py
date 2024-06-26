@@ -125,15 +125,19 @@ class dataToolkit(toolkit.abstractToolkit):
                         err = f"Unkonw Handler {key.title()}. The handler must be {','.join(handlerDict.keys())}. "
                         logger.error(err)
                         raise ValueError(err)
+                    try:
+                        handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
+                    except Exception as e:
+                        err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                        logger.error(err)
 
-                    handler(toolkit=toolkit, itemName=key, itemDesc=docTypeDict, overwrite=overwrite)
 
             except Exception as e:
                 err = f"The error {e} occured while adding toolkit {toolkitName}... skipping!!!"
                 logger.error(err)
 
 
-    def _handle_Config(self,toolkit,itemName,itemDesc,overwrite):
+    def _handle_Config(self,toolkit,itemName,docTypeDict,overwrite,basedir):
         """
             The procedure to handle the config node.
         Parameters
@@ -144,9 +148,9 @@ class dataToolkit(toolkit.abstractToolkit):
         -------
 
         """
-        toolkit.setConfig(**itemDesc)
+        toolkit.setConfig(**docTypeDict)
 
-    def _handle_DataSource(self,toolkit,itemName,docTypeDict,overwrite):
+    def _handle_DataSource(self,toolkit,itemName,docTypeDict,overwrite,basedir):
         """
             Adds a datasource to the toolkit.
         Parameters
@@ -184,7 +188,7 @@ class dataToolkit(toolkit.abstractToolkit):
                 theItem['dataSourceName'] = itemName
                 theItem['overwrite'] = overwrite
                 toolkit.addDataSource(**theItem)
-                logger.info(f"Added source {itemName} to tool {toolkitName} in project {projectName}")
+                logger.info(f"Added source {itemName} to tool {toolkit.toolkitName} in project {toolkit.projectName}")
 
             elif overwrite:
                 logger.debug("Updating an existing document")
@@ -195,9 +199,9 @@ class dataToolkit(toolkit.abstractToolkit):
                 curDesc.update(dataitem['desc'])
                 dataitem['desc'] = curDesc
                 dataitem.save()
-                logger.info(f"Updated source {itemName} in tool {toolkitName} in project {projectName}")
+                logger.info(f"Updated source {itemName} in tool {toolkit.toolkitName} in project {toolkit.projectName}")
             else:
-                logger.error(f"Source {itemName} already exists in {projectName}. Use --overwrite to force update")
+                logger.error(f"Source {itemName} already exists in {toolkit.projectName}. Use --overwrite to force update")
 
     def _DocumentHandler(self, toolkit, itemName, docTypeDict, overwrite, documentType):
         """
@@ -252,7 +256,7 @@ class dataToolkit(toolkit.abstractToolkit):
                 logger.error(
                     f"Source {itemName} already exists in {projectName}. Use --overwrite to force update")
 
-    def _handle_Function(self,toolkit,itemName,docTypeDict,overwrite):
+    def _handle_Function(self,toolkit,itemName,docTypeDict,overwrite,basedir):
         """
             A general function.
 
