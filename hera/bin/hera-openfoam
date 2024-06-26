@@ -21,15 +21,16 @@ def addSolverTemplateOptions(subparser,solverName):
     templates_subparser = parser_templates.add_subparsers()
 
     flow_parser = templates_subparser.add_parser('flow',help='List the existing templates in the project for that solver')
+    flow_subparser = flow_parser.add_subparsers()
 
     ## ---------------- list flow templates
-    templates_list = flow_parser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_list = flow_subparser.add_parser('list', help='List the existing templates in the project for that solver')
     templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_list.set_defaults(solver=solverName)
     templates_list.set_defaults(func=CLI.foam_templates_flow_list)
 
     ## ---------------- create case from template
-    templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
+    templates_create = flow_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
     templates_create.add_argument('templateName', type=str, default=None, help="The template name")
     templates_create.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
@@ -38,25 +39,24 @@ def addSolverTemplateOptions(subparser,solverName):
     templates_create.set_defaults(solver=solverName)
     templates_create.set_defaults(func=CLI.foam_templates_flow_create)
 
-    flow_parser = templates_subparser.add_parser('node',help='List the existing templates in the project for that solver')
+    node_parser = templates_subparser.add_parser('node',help='List the existing templates in the project for that solver')
+    node_subparser = node_parser.add_subparsers()
 
     ## ---------------- list flow templates
-    templates_node_list = flow_parser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_node_list = node_subparser.add_parser('list', help='List the existing templates in the project for that solver')
     templates_node_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_node_list.set_defaults(solver=solverName)
     templates_node_list.set_defaults(func=CLI.foam_templates_node_list)
 
     ## ---------------- create case from template
-    templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
-    templates_create.add_argument('templateName', type=str, default=None, help="The template name")
-    templates_create.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
-    templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
+    templates_node_get = node_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
+    templates_node_get.add_argument('templateName', type=str, default=None, help="The template name")
+    templates_node_get.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_node_get.add_argument('--groupName', type=str, default=None, help="The name of the group")
+    templates_node_get.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
 
     templates_create.set_defaults(solver=solverName)
     templates_create.set_defaults(func=CLI.foam_templates_flow_create)
-
-
 
 
 #foam_templates_node_list
@@ -179,7 +179,7 @@ def addSolverCaseManagement(subparser,solverName,incompressible):
     parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
 
 
-    parser_FieldDescription = case_subparser.add_parser('FieldDescription', help='Creates a template of field description')
+    parser_FieldDescription = case_subparser.add_parser('writeFieldDescription', help='Creates a template of field description')
     parser_FieldDescription.add_argument('fileName', type=str, help='The directory to create')
     parser_FieldDescription.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     parser_FieldDescription.set_defaults(incompressible=incompressible)
@@ -190,7 +190,6 @@ def addSolverCaseManagement(subparser,solverName,incompressible):
 if __name__ == "__main__":
     initialize_logging(
          with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
-         with_logger("hermes.bin", handlers=['console'], level='INFO', propagate=False),
          with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
         with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False),
     )
@@ -212,7 +211,7 @@ if __name__ == "__main__":
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=simpleFoam_subparser, solverName="simpleFoam", compressible=True)
+    addSolverCaseManagement(subparser=simpleFoam_subparser, solverName="simpleFoam", incompressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
@@ -224,7 +223,7 @@ if __name__ == "__main__":
     pimpleFoam_subparser = pimpleFoam_parser.add_subparsers(help='Handles pimpleFOAM solver')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=pimpleFoam_subparser, solverName="pimpleFoam", compressible=True)
+    addSolverCaseManagement(subparser=pimpleFoam_subparser, solverName="pimpleFoam", incompressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=pimpleFoam_subparser,solverName="pimpleFoam")
@@ -233,10 +232,10 @@ if __name__ == "__main__":
     ## ================== oguraPhillipShallowConvectionFOAM
     ## ====================================================
     oguraPhillipShallowConvectionFOAM_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM', help='Handles indoorFOAMBoussinesq solver')
-    cc = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
+    oguraPhillipShallowConvectionFOAM_subparser = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="pimpleFoam", compressible=True)
+    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="pimpleFoam", incompressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
@@ -244,11 +243,11 @@ if __name__ == "__main__":
     ## ====================================================
     ## ================== rhoReactingBuoyantFoam
     ## ====================================================
-    rhoReactingBuoyantFoam_parser = subparsers.add_parser('rhoReactingBuoyantFoam', help='Handles rhoReactingBuoyantFoam')
+    rhoReactingBuoyantFoam_parser = subparsers.add_parser('buoyantReactingFoam', help='Handles rhoReactingBuoyantFoam')
     rhoReactingBuoyantFoam_subparser = rhoReactingBuoyantFoam_parser.add_subparsers(help='Handles rhoReactingBuoyantFoam')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=rhoReactingBuoyantFoam_subparser, solverName="rhoReactingBuoyantFoam", compressible=True)
+    addSolverCaseManagement(subparser=rhoReactingBuoyantFoam_subparser, solverName="rhoReactingBuoyantFoam", incompressible=False)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=rhoReactingBuoyantFoam_subparser,solverName="rhoReactingBuoyantFoam")
@@ -342,6 +341,18 @@ if __name__ == "__main__":
 
     objects_parser_createVerticesAndBoundary.set_defaults(func=CLI.objects_createVerticesAndBoundary)
 
+
+    ## ====================================================
+    ## ================== Workflows
+    ## ====================================================
+    workflow_parser = subparsers.add_parser('workflow', help='Handles hermes workflows')
+    workflow_subparser = workflow_parser.add_subparsers(help='Handles hermes workflow ')
+
+    execute_parser = workflow_subparser.add_parser('buildExecute',help='Creates a dispersionflow, runs the dispersion and adds to DB')
+    execute_parser.add_argument('workflow', type=str, help="The dispersion workflow or directory")
+    execute_parser.add_argument('--force', dest="force", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
+    execute_parser.set_defaults(func=CLI.hermes_buildExecute)
+
     parsed = parser.parse_args()
 
     logger.debug(f"Got {parsed} in the command line")
@@ -350,3 +361,5 @@ if __name__ == "__main__":
     else:
         logger.debug("Activating the function")
         parsed.func(parsed)
+
+
