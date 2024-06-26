@@ -197,7 +197,7 @@ if __name__ == "__main__":
     rhoReactingBuoyantFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     rhoReactingBuoyantFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
     rhoReactingBuoyantFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    rhoReactingBuoyantFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    rhoReactingBuoyantFoam_parser_createEmpty.set_defaults(func=CLI.Foam_compressible_createEmpty)
 
 
 
