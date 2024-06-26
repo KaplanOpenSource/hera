@@ -115,13 +115,16 @@ class abstractWorkflow(hermes.workflow):
             It will add it after the 'nodeListPosition' object.
             The value is a dict with the fields:
 
-            - allRun : dict
+            - buildAllRun : dict
                 An object that specifies the all run entry:
 
                 - "name": The command that activates this node.
                 - "parameters": additional parameters
                 - "couldRunInParallel": bool , Can this command run in parallel.
                 - "foamJob": bool , is it a foamJob commandor just a regular script.
+
+            - fileWriter
+
 
             - nodeListPosition : string or int, [optional]
                     If exists, write the new node after the node name (if string) or its position (if int).
@@ -137,6 +140,10 @@ class abstractWorkflow(hermes.workflow):
         -------
 
         """
+        self.buildAllRun[key] = value['buildAllRun']
+        self.fileWriter[key] = value['fileWriter']
+
+        super().__setitem(key=key,value=value)
 
 ##############################################################################
 ##                          Workflow Eulerian/Lagrangian

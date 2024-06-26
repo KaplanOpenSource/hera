@@ -20,11 +20,13 @@ def addSolverTemplateOptions(subparser,solverName):
     parser_templates  = subparser.add_parser('templates', help=f'Manages the templates of  {solverName}')
     templates_subparser = parser_templates.add_subparsers()
 
-    ## ---------------- list templates
-    templates_list = templates_subparser.add_parser('list', help='List the existing templates in the project for that solver')
+    flow_parser = templates_subparser.add_parser('flow',help='List the existing templates in the project for that solver')
+
+    ## ---------------- list flow templates
+    templates_list = flow_parser.add_parser('list', help='List the existing templates in the project for that solver')
     templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_list.set_defaults(solver=solverName)
-    templates_list.set_defaults(func=CLI.foam_templates_list)
+    templates_list.set_defaults(func=CLI.foam_templates_flow_list)
 
     ## ---------------- create case from template
     templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
@@ -34,7 +36,30 @@ def addSolverTemplateOptions(subparser,solverName):
     templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
 
     templates_create.set_defaults(solver=solverName)
-    templates_create.set_defaults(func=CLI.foam_templates_create)
+    templates_create.set_defaults(func=CLI.foam_templates_flow_create)
+
+    flow_parser = templates_subparser.add_parser('node',help='List the existing templates in the project for that solver')
+
+    ## ---------------- list flow templates
+    templates_node_list = flow_parser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_node_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_node_list.set_defaults(solver=solverName)
+    templates_node_list.set_defaults(func=CLI.foam_templates_node_list)
+
+    ## ---------------- create case from template
+    templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
+    templates_create.add_argument('templateName', type=str, default=None, help="The template name")
+    templates_create.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
+    templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
+
+    templates_create.set_defaults(solver=solverName)
+    templates_create.set_defaults(func=CLI.foam_templates_flow_create)
+
+
+
+
+#foam_templates_node_list
 
 def addMeshOptions(subparser,solverName):
     """
