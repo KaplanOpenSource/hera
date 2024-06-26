@@ -1,9 +1,10 @@
 import os
 import json
+import numpy
+
 from ... import toolkitHome
 from ...utils import loadJSON
-from ...utils.logging import helpers as hera_logging
-from ...utils.freeCAD import getObjFileBoundaries
+from ...utils.logging import get_classMethod_logger
 from itertools import product
 
 try:
@@ -40,7 +41,6 @@ class abstractWorkflow(hermes.workflow):
                 Holds the data of the database (optional).
         """
         super().__init__(workflowJSON=workflowJSON,name=name)
-        self.logger = hera_logging.get_logger(self)  # was: loggedObject(name=None).logger, ignores actual class
         self.workflowHeraDocument = workflowHeraDocument
 
         self._requiredNodeList = ['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter', 'defineNewBoundaryConditions','Parameters']
@@ -99,8 +99,51 @@ class abstractWorkflow(hermes.workflow):
         return self['parameters']
 
     @property
+    def buildAllRun(self):
+        return self['buildAllRun']
+
+    @property
     def defineNewBoundaryConditions(self):
         return self['defineNewBoundaryConditions']
+
+
+    def __setitem__(self, key, value):
+        """
+            Adds the node to the workflow.
+
+            This procedure also updates the nodeList and the buildAllRun node.
+            It will add it after the 'nodeListPosition' object.
+            The value is a dict with the fields:
+
+            - buildAllRun : dict
+                An object that specifies the all run entry:
+
+                - "name": The command that activates this node.
+                - "parameters": additional parameters
+                - "couldRunInParallel": bool , Can this command run in parallel.
+                - "foamJob": bool , is it a foamJob commandor just a regular script.
+
+            - fileWriter
+
+
+            - nodeListPosition : string or int, [optional]
+                    If exists, write the new node after the node name (if string) or its position (if int).
+                    if does not exist, add at the end.
+            - node             :  dict
+                    The data of the node
+        Parameters
+        ----------
+        key
+        value
+
+        Returns
+        -------
+
+        """
+        self.buildAllRun[key] = value['buildAllRun']
+        self.fileWriter[key] = value['fileWriter']
+
+        super().__setitem(key=key,value=value)
 
 ##############################################################################
 ##                          Workflow Eulerian/Lagrangian
@@ -187,6 +230,90 @@ class workflow_Eulerian(abstractWorkflow):
         """
         self.defineNewBoundaryConditions['fields'] = icnode['data']
 
+    def set_blockMesh_blockBoundaries(self,minx,maxx,miny,maxy,minz,maxz,dx,dy,dz):
+        """
+            Sets the blockmesh dictionary
+        Parameters
+        ----------
+        minx : float
+
+        maxx : float
+        miny : float
+        maxy : float
+        minz : float
+        maxz : float
+        dx : float
+            The x spacing in m.
+        dy : float
+            The y spacing in m.
+        dz: float
+            The z = spacing in m
+        Returns
+        -------
+            None
+        """
+        logger = get_classMethod_logger(self,"set_blockMesh_boundaries")
+        logger.info(f"Setting the blockMesh with block that spans from  [{minx},{miny},{minz}] to [{maxx},{maxy},{maxz}]")
+        Xlist = [minx,maxx,maxx,minx]
+        Ylist = [miny, miny, maxy, maxy]
+        Zlist = [minz, maxz]
+
+        VerticesList = []
+        for h,xy in product(Zlist,zip(Xlist,Ylist)):
+            VerticesList.append([xy[0],xy[1],h])
+
+        blockMesh = self.blockMesh
+        blockMesh['vertices'] = VerticesList
+        blockMesh["hex"] = [x for x in range(8)]
+        blockMesh["cellCount"] = [int(numpy.ceil((maxx-minx)/dx)),
+                                  int(numpy.ceil((maxy - miny) / dy)),
+                                  int(numpy.ceil((maxz - minz) / dz))]
+
+
+
+    def set_blockMesh_blockHeight(self,Z,dz):
+        """
+            Sets the blockmesh dictionary
+        Parameters
+        ----------
+        minx : float
+
+        maxx : float
+        miny : float
+        maxy : float
+        minz : float
+        maxz : float
+        dx : float
+            The x spacing in m.
+        dy : float
+            The y spacing in m.
+        dz: float
+            The z = spacing in m
+        Returns
+        -------
+            None
+        """
+        blockMesh = self.blockMesh
+        verticsList=  blockMesh['vertices']
+        for i in range(len(verticsList[4:])):
+            verticsList[i][2] = Z
+
+        minZ = verticsList[0][2]
+        blockMesh["cellCount"][2] = (Z-minZ)/dz
+
+
+    def foam_snappyhexmesh_addobject(self,dataOrFile,objectFile):
+        """
+            Adds a
+        Parameters
+        ----------
+        dataOrFile
+        objectFile
+
+        Returns
+        -------
+
+        """
 
 #### Lagrangian
 
@@ -203,12 +330,12 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
-
+        logger = get_classMethod_logger(self,"init")
         # Make sure that the
         # dispersionFlowField exists
         if 'dispersionFlowField' not in self.parameters.parameters:
             err = "The StochasticLagrangianSolver must have a dispersionFlowField specification in the parameters node"
-            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
     @property

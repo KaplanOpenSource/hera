@@ -20,11 +20,13 @@ def addSolverTemplateOptions(subparser,solverName):
     parser_templates  = subparser.add_parser('templates', help=f'Manages the templates of  {solverName}')
     templates_subparser = parser_templates.add_subparsers()
 
-    ## ---------------- list templates
-    templates_list = templates_subparser.add_parser('list', help='List the existing templates in the project for that solver')
+    flow_parser = templates_subparser.add_parser('flow',help='List the existing templates in the project for that solver')
+
+    ## ---------------- list flow templates
+    templates_list = flow_parser.add_parser('list', help='List the existing templates in the project for that solver')
     templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_list.set_defaults(solver=solverName)
-    templates_list.set_defaults(func=CLI.foam_templates_list)
+    templates_list.set_defaults(func=CLI.foam_templates_flow_list)
 
     ## ---------------- create case from template
     templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
@@ -34,7 +36,155 @@ def addSolverTemplateOptions(subparser,solverName):
     templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
 
     templates_create.set_defaults(solver=solverName)
-    templates_create.set_defaults(func=CLI.foam_templates_create)
+    templates_create.set_defaults(func=CLI.foam_templates_flow_create)
+
+    flow_parser = templates_subparser.add_parser('node',help='List the existing templates in the project for that solver')
+
+    ## ---------------- list flow templates
+    templates_node_list = flow_parser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_node_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_node_list.set_defaults(solver=solverName)
+    templates_node_list.set_defaults(func=CLI.foam_templates_node_list)
+
+    ## ---------------- create case from template
+    templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
+    templates_create.add_argument('templateName', type=str, default=None, help="The template name")
+    templates_create.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
+    templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
+
+    templates_create.set_defaults(solver=solverName)
+    templates_create.set_defaults(func=CLI.foam_templates_flow_create)
+
+
+
+
+#foam_templates_node_list
+
+def addMeshOptions(subparser,solverName):
+    """
+        Adds mesh handling of the subparsers.
+
+    Parameters
+    ----------
+    subparser
+
+    solverName : string
+        The name of the solver.
+
+    Returns
+    -------
+
+    """
+    projectNameHelpDesc = "projectName [optional]"
+
+    ## ---------------- blockMesh.
+    blockmesh_parser  = subparser.add_parser('blockMesh', help=f'Manages blockMesh in {solverName}')
+    blockmesh_subparser = blockmesh_parser.add_subparsers()
+
+    #### ----------------  set boundaries from file.
+    blockmesh_setBoundsFromFile = blockmesh_subparser.add_parser('setBoundsFromFile', help='Sets the boundary in the ')
+    blockmesh_setBoundsFromFile.add_argument('templateName', type=str, default=None, help="The template file Name")
+    blockmesh_setBoundsFromFile.add_argument('fileName', type=str, default=None, help="The topography file Name")
+    blockmesh_setBoundsFromFile.add_argument('--dx', type=str, required=True, help="The dx of a cell block in [m]")
+    blockmesh_setBoundsFromFile.add_argument('--dy', type=str, required=True, help="The dy of a cell block in [m]")
+    blockmesh_setBoundsFromFile.add_argument('--dz', type=str, required=True, help="The dz of a cell block in [m]")
+    blockmesh_setBoundsFromFile.add_argument('--Z', type=str, required=True, help="The maximal Z in [m]")
+    blockmesh_setBoundsFromFile.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    blockmesh_setBoundsFromFile.set_defaults(solver=solverName)
+    blockmesh_setBoundsFromFile.set_defaults(func=CLI.foam_mesh_blockMesh)
+
+    #### ----------------  set the height of the domain
+    blockMesh_setDomainHeight = templates_subparser.add_parser('setDomainHeight', help='Sets the boundary in the ')
+    blockMesh_setDomainHeight.add_argument('templateName', type=str, default=None, help="The template file Name")
+    blockMesh_setDomainHeight.add_argument('Z', type=str, default=None, help="The height")
+    blockMesh_setDomainHeight.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    blockMesh_setDomainHeight.set_defaults(solver=solverName)
+    blockMesh_setDomainHeight.set_defaults(func=CLI.foam_mesh_setDomainHeight)
+
+    ## ---------------- blockMesh.
+    snappyhex_parser  = subparser.add_parser('snappyHexMesh', help=f'Manages snappyHexMesh in {solverName}')
+    snappyhex_subparser = snappyhex_parser.add_subparsers()
+
+    ## ----------------  Add object
+    snappyhex_addObject = snappyhex_subparser.add_parser('addObject', help='Adds the object to snappy')
+    snappyhex_addObject.add_argument('templateName', type=str, default=None, help="A node template file / or resource ")
+    snappyhex_addObject.add_argument('fileName', type=str, default=None, help="The object")
+    snappyhex_addObject.add_argument('--defaults', type=str, default=None, help="The defaults of the system. Either file or defaults of the toolkit")
+    snappyhex_addObject.add_argument('--keepBC', type=str, default=True, action="store_false",  help="If True, keep the BC of the blockMesh, just add the BC of the object. Else, remove the BC of the blockmesh")
+    snappyhex_addObject.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    snappyhex_addObject.set_defaults(solver=solverName)
+    snappyhex_addObject.set_defaults(func=CLI.foam_snappyhexmesh_addobject)
+
+    ## ----------------  Set point
+    snappyhex_setLocationInDomain = snappyhex_subparser.add_parser('setLocationInDomain', help='set the point in he domain')
+    snappyhex_setLocationInDomain.add_argument('templateName', type=str, default=None, help="The template file Name")
+    snappyhex_setLocationInDomain.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    setPoint_subparser = snappyhex_setLocationInDomain.add_subparsers()
+
+    ## ------------------------- As location
+    setPoint_subparser_location = setPoint_subparser.add_parser('point', help='Adds the object to snappy')
+    setPoint_subparser_location.add_argument('x', type=str, default=None, help="x point")
+    setPoint_subparser_location.add_argument('y', type=str, default=None, help="y point")
+    setPoint_subparser_location.add_argument('z', type=str, default=None, help="z point")
+    setPoint_subparser_location.set_defaults(solver=solverName,
+                                             locationType="point",
+                                             func=CLI.foam_snappyhexmesh_setLocationInDomain)
+
+    ## ------------------------- As center
+    setPoint_subparser_center = setPoint_subparser.add_parser('center', help='Adds the object to snappy')
+    setPoint_subparser_center.set_defaults(solver=solverName,
+                                             locationType="center",
+                                             func=CLI.foam_snappyhexmesh_setLocationInDomain)
+
+    ## ---------------- Initial conditions (IC)
+    IC_parser = subparser.add_parser('IC', help=f'Manages initial conditions in {solverName}')
+    IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
+    IC_parser.add_argument('fileName', type=str, default=None,
+                           help="The file name. Can be either netcdf or parquet.   ")
+    IC_parser.add_argument('--parser', type=str, choice=["WRF", "xarray"], default="xarray",
+                           help="If netcdf, should supply the parser")
+    IC_parser.set_defaults(solver=solverName, func=CLI.foam_IC)
+
+    ## ---------------- Boundry conditions (BC)
+    IC_parser = subparser.add_parser('IC', help=f'Manages initial conditions in {solverName}')
+    IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
+    IC_parser.add_argument('fileName', type=str, default=None,
+                           help="The file name. Can be either netcdf or parquet.   ")
+    IC_parser.add_argument('--parser', type=str, choice=["WRF", "xarray"], default="xarray",
+                           help="If netcdf, should supply the parser")
+    IC_parser.set_defaults(solver=solverName, func=CLI.foam_BC)
+
+def addSolverCaseManagement(subparser,solverName,incompressible):
+    """
+        Adds the handling of the case.
+    Parameters
+    ----------
+    subparser
+    solverName
+
+    Returns
+    -------
+
+    """
+    parser_templates  = subparser.add_parser('case', help=f'Manages the case of  {solverName}')
+    case_subparser = parser_templates.add_subparsers()
+
+    parser_createEmpty = case_subparser.add_parser('createEmpty', help='Creates a case')
+    parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
+    parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    parser_createEmpty.set_defaults(incompressible=incompressible)
+    parser_createEmpty.set_defaults(solver=solverName)
+    parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
+
+
+    parser_FieldDescription = case_subparser.add_parser('FieldDescription', help='Creates a template of field description')
+    parser_FieldDescription.add_argument('fileName', type=str, help='The directory to create')
+    parser_FieldDescription.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    parser_FieldDescription.set_defaults(incompressible=incompressible)
+    parser_FieldDescription.set_defaults(solver=solverName)
+    parser_FieldDescription.set_defaults(func=CLI.Foam_parser_FieldDescription)
 
 
 if __name__ == "__main__":
@@ -55,47 +205,57 @@ if __name__ == "__main__":
     ### ------------------------------ SOLVERS
     ############################################
 
+    ## ====================================================
     ## ================== simpleFoam
+    ## ====================================================
     simpleFoam_parser = subparsers.add_parser('simpleFoam', help='Handles simpleFOAM solver')
     simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles simpleFOAM solver')
 
-    ## ---------------- create empty directory
-    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=simpleFoam_subparser, solverName="simpleFoam", compressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
 
+    ## ====================================================
     ## ================== pimpleFoam
+    ## ====================================================
     pimpleFoam_parser = subparsers.add_parser('pimpleFoam', help='Handles pimpleFOAM solver')
     pimpleFoam_subparser = pimpleFoam_parser.add_subparsers(help='Handles pimpleFOAM solver')
 
-    pimpleFoam_parser_createEmpty = pimpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    pimpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    pimpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    pimpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    pimpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=pimpleFoam_subparser, solverName="pimpleFoam", compressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=pimpleFoam_subparser,solverName="pimpleFoam")
 
+    ## ====================================================
     ## ================== oguraPhillipShallowConvectionFOAM
-    simpleFoam_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM', help='Handles indoorFOAMBoussinesq solver')
-    simpleFoam_subparser = simpleFoam_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
+    ## ====================================================
+    oguraPhillipShallowConvectionFOAM_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM', help='Handles indoorFOAMBoussinesq solver')
+    cc = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
 
-    simpleFoam_parser_createEmpty = simpleFoam_subparser.add_parser('createEmptyCaseDirectory', help='Creates a case')
-    simpleFoam_parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    simpleFoam_parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    simpleFoam_parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
-    simpleFoam_parser_createEmpty.set_defaults(func=CLI.Foam_incompressible_createEmpty)
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="pimpleFoam", compressible=True)
 
     ## ----- template handling
     addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
 
+    ## ====================================================
+    ## ================== rhoReactingBuoyantFoam
+    ## ====================================================
+    rhoReactingBuoyantFoam_parser = subparsers.add_parser('rhoReactingBuoyantFoam', help='Handles rhoReactingBuoyantFoam')
+    rhoReactingBuoyantFoam_subparser = rhoReactingBuoyantFoam_parser.add_subparsers(help='Handles rhoReactingBuoyantFoam')
+
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=rhoReactingBuoyantFoam_subparser, solverName="rhoReactingBuoyantFoam", compressible=True)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=rhoReactingBuoyantFoam_subparser,solverName="rhoReactingBuoyantFoam")
+
+    ## ====================================================
     ## ================== StochasticLagrantianSolver
+    ## ====================================================
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
     stochasticLagrnagian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
     #

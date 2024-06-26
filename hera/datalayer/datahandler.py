@@ -3,6 +3,7 @@ import dask.dataframe
 import xarray
 import json
 import geopandas
+from osgeo import gdal
 import matplotlib.image as mpimg
 import sys
 import pickle
@@ -21,12 +22,13 @@ class datatypes:
     STRING = "string"
     TIME   = "time"
     CSV_PANDAS = "csv_pandas"
-    HDF    = "hdf"
+    HDF    = "HDF"
     NETCDF_XARRAY = "netcdf_xarray"
     JSON_DICT = "JSON_dict"
     JSON_PANDAS = "JSON_pandas"
     JSON_GEOPANDAS = "JSON_geopandas"
     GEOPANDAS  = "geopandas"
+    GEOTIFF    = "geotiff"
     PARQUET    =  "parquet"
     IMAGE = "image"
     PICKLE = "pickle"
@@ -35,6 +37,35 @@ class datatypes:
 
 def getHandler(type):
     return globals()['DataHandler_%s' % type]
+
+class DataHandler_geotiff(object):
+    """
+        Loads a single key from HDF file or files.
+
+        Returns a pandas or a dask dataframe.
+
+        The structure of the resource is a dictionary with the keys:
+         -  path: the path to the HDF file (can be a pattern to represent a list of files).
+         -  key : a single key.
+    """
+
+    @staticmethod
+    def getData(resource,rasterBand=1):
+        """
+        Reads a geotiff
+
+        Parameters
+        ----------
+        resource : dict
+            A dictionary with path to the HDF file in the 'path' key, and HDF key in the 'key' key.
+
+
+        Returns
+        -------
+            The gdal at image coordinates.
+        """
+        ds = gdal.Open(resource)
+        return ds
 
 
 class DataHandler_string(object):
