@@ -55,6 +55,7 @@ class OFObjectHome:
                       incompressible=incompressibleDict,
                       dispersion = dispersionDict)
 
+    @staticmethod
     def getDimensions(self,kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
         """
             Returns the openfaom dimensions vector.

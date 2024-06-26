@@ -179,6 +179,14 @@ def addSolverCaseManagement(subparser,solverName,incompressible):
     parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
 
 
+    parser_FieldDescription = case_subparser.add_parser('FieldDescription', help='Creates a template of field description')
+    parser_FieldDescription.add_argument('fileName', type=str, help='The directory to create')
+    parser_FieldDescription.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    parser_FieldDescription.set_defaults(incompressible=incompressible)
+    parser_FieldDescription.set_defaults(solver=solverName)
+    parser_FieldDescription.set_defaults(func=CLI.Foam_parser_FieldDescription)
+
+
 if __name__ == "__main__":
     initialize_logging(
          with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
