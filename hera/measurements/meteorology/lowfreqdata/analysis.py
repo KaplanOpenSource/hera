@@ -114,7 +114,7 @@ class analysis:
         # curdata = curdata.query("%s > -9990" % Field)
 
         curdata=curdata.assign(curdate=curdata.index)
-        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
+        curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
         curdata=curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
         curdata = curdata.dropna()
