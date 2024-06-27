@@ -51,12 +51,20 @@ def Foam_parser_FieldDescription(arguments):
     logger.execution(f"----- Start : Foam_parser_FieldDescription -----")
     logger.debug(f" arguments: {arguments}")
 
-    if len(arguments.fields) > 0:
-        jsonExample = dict()
+    if arguments.fields is not None:
+        field_len = len(arguments.fields)
+    else:
+        field_len = 0
+
+    jsonExample = dict()
+    if field_len >0:
         for fieldName in arguments.fields:
             jsonExample[fieldName] = dict(dimensions=OFObjectHome.getDimensions(),componentNames=None)
+    else:
+        jsonExample["exampleField"] = dict(dimensions=OFObjectHome.getDimensions(), componentNames=None)
 
-
+    with open(arguments.fileName,"w") as outfile:
+        json.dump(jsonExample,outfile,indent=4)
 
 
 
@@ -549,8 +557,16 @@ def foam_BC(arguments):
     """
     pass
 
+def hermes_buildExecute(arguments):
+    try:
+        from hermes.utils.workflowAssembly import handler_build, handler_buildExecute, handler_expand, handler_execute
 
+    except ImportError as e:
+        err = f"hermes package is not found. Cannot build and execute file. "
+        logger.error(err)
+        raise ImportError(err)
 
+    handler_buildExecute(arguments)
 
 # def stochasticLagrangian_dispersion_create(arguments):
 #     """
