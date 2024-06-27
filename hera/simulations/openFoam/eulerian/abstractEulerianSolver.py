@@ -1,7 +1,6 @@
 from ..OFWorkflow import workflow_Eulerian
 from ....utils.freeCAD import getObjFileBoundaries
 from ....utils.logging import get_classMethod_logger
-
 class absractEulerianSolver_toolkitExtension:
 
     toolkit = None
@@ -19,6 +18,11 @@ class absractEulerianSolver_toolkitExtension:
         self.solverName = solverName
         self.incompressible = incompressible
         #self.analysis = analysis(self)
+
+    @property
+    def flowType(self):
+        return self.toolkit.SIMULATIONTYPE_INCOMPRESSIBLE if self.incompressible else SIMULATIONTYPE_COMPRESSIBLE
+
 
     def blockMesh_setBoundFromBounds(self, eulerianWF, minx,maxx,miny,maxy,minz,maxz,dx,dy,dz):
         """
@@ -106,13 +110,39 @@ class absractEulerianSolver_toolkitExtension:
         corners = getObjFileBoundaries(fileName)
         eulerianWF.set_blockMesh_boundaries(**corners, dx=dx,dy=dy, dz=dz)
 
-
-    def specialize_snappyHexMeshFromMesh(self):
+    def writeFieldInCase(self, fieldName,caseDirectory,components,xarrayData, boundaryConditions=None,data=None):
         """
-            Change the snappy hex mesh according to the
-            flow field.
+            Writes
+        Parameters
+        ----------
+        fieldName
+        caseDirectory
+        components
+        xarrayData
+        boundaryConditions
+        data
+
         Returns
         -------
 
         """
-        pass
+
+        """
+            Returns an OF Object.
+
+        Parameters
+        ----------
+        fieldName  : string
+            The name of the field.
+            The field must exist in the field descriptions.
+
+        boundaryConditions
+        data : pandas, list
+            The value of the field (ordered with the cell centers).
+
+        Returns
+        -------
+
+        """
+
+        return self.toolkit.OFObjectHome.getField(fieldName=fieldName,flowType=self.flowType,boundaryConditions=boundaryConditions,data=data)
