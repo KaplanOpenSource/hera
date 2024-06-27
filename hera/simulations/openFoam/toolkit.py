@@ -13,7 +13,8 @@ from ...utils.logging import get_classMethod_logger
 from evtk import hl as evtk_hl
 import dask.dataframe as dd
 from itertools import chain
-
+from itertools import product
+from collections.abc import Iterable
 class OFToolkit(workflowToolkit):
     """
         The goal of this toolkit is to provide the functions that are required to run workflows.
@@ -131,10 +132,31 @@ class OFToolkit(workflowToolkit):
 
         cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
         logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
-        ret =  cellCenters.load(caseDirectory,times=time,parallelCase=useParallel)
+        ret =  cellCenters.readCaseData(caseDirectory, times=time, parallelCase=useParallel)
 
         logger.info(f"--- End ---")
         return ret
+
+    def getDimensions(kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
+        """
+            Returns the openfaom dimensions vector.
+        Parameters
+        ----------
+        kg : int
+
+        m  : int
+        s  : int
+        K  : int
+        mol: int
+        A  : int
+        cd : int
+
+        Returns
+        -------
+            The openfoam unit vector  [kg m s K mol A cd]
+        """
+        return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
+
 
     def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
         """
@@ -222,6 +244,117 @@ class OFToolkit(workflowToolkit):
 
         """
         pass
+
+    def xarrayToSetFieldsDictDomain(self, xarrayData, xColumnName="x", yColumnName="y", zColumnName="z", time=None, timeColumn="time", **kwargs):
+        """
+            Converts the xarray to the setFields dict of the internal domain.
+
+            Not debugged.
+
+            Use
+
+        Parameters
+        ----------
+        xarrayData : xarray dataset
+                The data set as xarray.
+        xColumnName : string
+            The coordinate name of the x-axis
+            If None, ignore that coordinate (the mesh should be in the right dimension).
+        yColumnName: string
+            The coordinate name of the y-axis
+            If None, ignore that coordinate (the mesh should be  in the right dimension).
+        zColumnName: string
+            The coordinate name of the z-axis
+            If None, ignore that coordinate (the mesh should be  in the right dimension).
+        time : string
+            The time is not None, select the closest (nearest neighbours).
+
+            If None ignore the index.
+        kwargs : dict
+            A mapping of OpenFoamField -> dataset Field
+            If the dataset Field is a tuple, then write it as vector.
+            Each component can be either a field, float (to keep fixed value).
+            If you want to map a function, just create its value as a Field name.
+
+            so
+                U = ("u","v",0)
+                will map the feld 'u' as Ux, 'v' as Uy and Uz=0
+
+
+        Returns
+        -------
+            string (setField dict).
+
+        """
+        logger = get_classMethod_logger(self,"xarrayToSetFieldsDict")
+        logger.debug(f"------------ Start  : {logger.name} ")
+
+        coordList = []
+        coordNames = []
+        if xColumnName is not None:
+            coordList.append(xarrayData.coords[xColumnName].shape[0] - 1)
+            coordNames.append(xColumnName)
+        if yColumnName is not None:
+            coordList.append(xarrayData.coords[yColumnName].shape[0] - 1)
+            coordNames.append(yColumnName)
+        if zColumnName is not None:
+            coordList.append(xarrayData.coords[zColumnName].shape[0] - 1)
+            coordNames.append(zColumnName)
+
+        ret = []
+        arryToOFvector = lambda arry : f"({' '.join(arry) } )"
+        for X in product(*coordList):
+            lowerLeft = [xarrayData.coords[coordNames[coordIndx]][ind].item() for coordIndx,ind in enumerate(X)]
+            upperRight = [xarrayData.coords[coordNames[coordIndx]][ind+1].item() for coordIndx, ind in enumerate(X)]
+
+            fielaValueStr = ""
+            for OFField,fieldName in kwargs.items():
+
+                accessDict = dict([(coordname,indx) for (coordname,indx) in zip(coordNames,X)])
+                if time is not None:
+                    timeDict = {timeColumn: time}
+                    valArray = xarrayData.sel(**timeDict,method='nearest')
+
+                else:
+                    valArray= xarrayData
+
+
+                if isinstance(fieldName,Iterable):
+                    valArray = []
+                    for mappedField in fieldName:
+                        if isinstance(mappedField,str):
+                            valArray.append(valArray[mappedField].isel(**accessDict).item())
+                        elif isinstance(mappedField,float) or isinstance(mappedField,int):
+                            valArray.append(mappedField)
+                        else:
+                            err = f"The mapping {OFField}->{fieldName} contains a value that is not a string or number. "
+                            raise ValueError(err)
+                    if len(fieldName) == 3:
+                        fielaValueStr += f"volVectorFieldValue {OFField} {arryToOFvector(valArray)}\n"
+                    elif len(fieldName) == 9:
+                        fielaValueStr += f"volTensorFieldValue {OFField} {arryToOFvector(valArray)}\n"
+                    else:
+                        err = f"The number of components in the  mapping {OFField}->{fieldName} must be 1,3 or 9. got {len(fieldName)}."
+                        raise ValueError(err)
+                else:
+                    value = valArray[fieldName].isel(**accessDict).item()
+
+                    fielaValueStr += f"volScalarFieldValue {OFField} {value}\n"
+
+            BoxRecord = f"""
+                boxToCell 
+                {{
+                    box {arryToOFvector(lowerLeft)} {arryToOFvector(upperRight)};
+                    fieldValues 
+                    (
+                        {fielaValueStr}
+                    
+                    );                  
+                }}
+            """
+            ret.append(BoxRecord)
+        return "\n".join(ret)
+
 
 class Analysis:
     """
