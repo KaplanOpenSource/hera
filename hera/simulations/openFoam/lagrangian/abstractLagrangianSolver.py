@@ -308,7 +308,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         dispersionFieldList = []
         for dispersionFieldName, dispersionFieldData in dispersionFields.items():
             logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
-            field = ofhome.getFieldFromJSON(fieldName=dispersionFieldName,configuration=dispersionFieldData,meshBoundary=meshBoundary)
+            field = ofhome.getFieldFromJSON(fieldName=dispersionFieldName, configuration=dispersionFieldData,
+                                            meshBoundaryPatchNameList=meshBoundary)
             dispersionFieldList.append( field )
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
