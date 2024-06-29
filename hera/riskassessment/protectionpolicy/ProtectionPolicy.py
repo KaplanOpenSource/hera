@@ -274,7 +274,7 @@ class ActionIndoor(abstractAction):
 		alphanum = tonumber(self.alpha,1/s)
 		Cout     = data[self.policy.finalname].squeeze() 
 		
-		for I in range(1,len(self.policy.data[self.policy.datetimename])): 
+		for I in range(1, len(self.policy.data[self.policy.datetimename])):
 			curstep = {self.policy.datetimename : I}
 			prevstep = {self.policy.datetimename : I-1}
 			dt =  (pandas.to_timedelta((data.datetime[curstep] - data.datetime[prevstep]).values)).total_seconds()

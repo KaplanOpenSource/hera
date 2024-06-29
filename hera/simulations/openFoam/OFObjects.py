@@ -4,11 +4,12 @@ import numpy
 import os
 import glob
 from dask.delayed import delayed
-import dask
+from dask import dataframe as dask_dataframe
 from itertools import product,islice
 from io import StringIO
 from ...utils.logging import get_classMethod_logger,get_logger
-
+from . import FIELDTYPE_VECTOR,FIELDTYPE_TENSOR,FIELDTYPE_SCALAR
+from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
 
 #########################################################################
 #               Fields
@@ -22,34 +23,32 @@ class OFObjectHome:
 
     logger =None
 
-    INCOMPRESSIBLE = "incompressible"
-    COMPRESSIBLE   = "compressible"
 
     @property
     def predifinedFields(self):
         return self._predefinedfields
 
     def __init__(self):
-        incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
-                                  p=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
-                                  p_rgh=dict(dimensions=self.getDimensions(m=2, s=-2), componentNames=None),
-                                  epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]", componentNames=None),
-                                  nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]", componentNames=None),
-                                  k=dict(dimensions="[ 0 2 -2 0 0 0 0 ]", componentNames=None),
-                                  T=dict(dimensions="[ 0 0 0 1 0 0 0 ]", componentNames=None),
-                                  Tbackground=dict(dimensions="[ 0 0 0 1 0 0 0 ]", componentNames=None),
-                                  C = dict(dimensions=self.getDimensions(m=1),componentNames=None)
+        incompressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), fieldType=FIELDTYPE_VECTOR),
+                                  p=dict(dimensions=self.getDimensions(m=2, s=-2), fieldType=FIELDTYPE_SCALAR),
+                                  p_rgh=dict(dimensions=self.getDimensions(m=2, s=-2), fieldType=FIELDTYPE_SCALAR),
+                                  epsilon=dict(dimensions="[ 0 2 -3 0 0 0 0 ]", fieldType=FIELDTYPE_SCALAR),
+                                  nut=dict(dimensions="[ 0 2 -1 0 0 0 0 ]", fieldType=FIELDTYPE_SCALAR),
+                                  k=dict(dimensions="[ 0 2 -2 0 0 0 0 ]", fieldType=FIELDTYPE_SCALAR),
+                                  T=dict(dimensions="[ 0 0 0 1 0 0 0 ]", fieldType=FIELDTYPE_SCALAR),
+                                  Tbackground=dict(dimensions="[ 0 0 0 1 0 0 0 ]", fieldType=FIELDTYPE_SCALAR),
+                                  C = dict(dimensions=self.getDimensions(m=1),fieldType=FIELDTYPE_VECTOR)
                                   )
 
-        compressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), componentNames=['Ux', 'Uy', 'Uz']),
-                                p=dict(dimensions=self.getDimensions(kg=1,m=-1, s=-2), componentNames=None),
-                                p_rgh=dict(dimensions=self.getDimensions(kg=1, m=-1, s=-2), componentNames=None),
-                                T=dict(dimensions=self.getDimensions(K=1), componentNames=None)
+        compressibleDict = dict(U=dict(dimensions=self.getDimensions(m=1, s=-1), fieldType=FIELDTYPE_VECTOR),
+                                p=dict(dimensions=self.getDimensions(kg=1,m=-1, s=-2), fieldType=FIELDTYPE_SCALAR),
+                                p_rgh=dict(dimensions=self.getDimensions(kg=1, m=-1, s=-2), fieldType=FIELDTYPE_SCALAR),
+                                T=dict(dimensions=self.getDimensions(K=1), fieldType=FIELDTYPE_SCALAR)
                             )
 
-        dispersionDict = dict(Hmix=dict(dimensions=self.getDimensions(m=1), componentNames=None),
-                              ustar=dict(dimensions=self.getDimensions(m=1,s=-1), componentNames=None),
-                              CellHeights=dict(dimensions=self.getDimensions(m=1), componentNames=None))
+        dispersionDict = dict(Hmix=dict(dimensions=self.getDimensions(m=1), fieldType=FIELDTYPE_SCALAR),
+                              ustar=dict(dimensions=self.getDimensions(m=1,s=-1), fieldType=FIELDTYPE_SCALAR),
+                              CellHeights=dict(dimensions=self.getDimensions(m=1), fieldType=FIELDTYPE_SCALAR))
 
 
         self._predefinedfields=dict(compressible=compressibleDict,
@@ -77,7 +76,7 @@ class OFObjectHome:
         """
         return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
 
-    def addFieldDefinition(self,flowType,name,dimensions,componentNames):
+    def addPredifinedField(self,flowType,name,dimensions,componentNames):
         """
             Adds the field to the field home.
             TODO: Move the entire definition to be a config/datasource and so fields are appended for each project.
@@ -100,8 +99,7 @@ class OFObjectHome:
         """
         self.predifinedFields[flowType][name] = dict(dimensions=self.getDimensions(**dimensions), componentNames=componentNames)
 
-
-    def getFieldFromJSON(self,fieldName : str,configuration : dict,meshBoundary : list):
+    def getEmptyFieldFromJSON(self, fieldName : str, configuration : dict, meshBoundaryPatchNameList : list):
         """
             Creates a field from JSON configuration.
 
@@ -140,7 +138,7 @@ class OFObjectHome:
             }
             For
 
-        meshBoundary : list
+        meshBoundaryPatchNameList : list
             A list with the names of the mesh boundary.
 
 
@@ -155,7 +153,7 @@ class OFObjectHome:
         data = configuration.get("internalField")
         fieldBoundary = configuration.get("boundaryConditions", dict())
         logger.debug(f"Adding the boundaries condition 'zerGradient' to all the boundaries that were not specified")
-        for bnd in meshBoundary:
+        for bnd in meshBoundaryPatchNameList:
             fieldBoundary.setdefault(bnd, dict(type='zeroGradient'))
 
         field = self.getField(fieldName=fieldName,
@@ -166,9 +164,9 @@ class OFObjectHome:
                                 data=data)
         return field
 
-    def getField(self, fieldName, flowType, boundaryConditions=None, data=None):
+    def getEmptyField(self, fieldName, flowType, data=None):
         """
-            Return the field with its dimensions.
+            Return the field object with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
             solution, we haveto supply the group of parameters to which the group belongs.
 
@@ -237,14 +235,33 @@ class OFObjectHome:
         logger.info("----- End -----")
         return ret
 
-    def loadLagrangianDataParallel(self,
-                                   casePath,
-                                   times=None,
-                                   parallelCase=True,
-                                   withVelocity=False,
-                                   withReleaseTimes=False,
-                                   withMass=False,
-                                   cloudName="kinematicCloud"):
+    def getCaseField(self,caseDirectory, fieldName):
+        """
+            Returns a field object, load the data from the case.
+
+        Parameters
+        ----------
+        caseDirectory : string
+            The directory  of the case
+
+        fieldName : string
+            The name of the field
+
+        Returns
+        -------
+
+        """
+        pass
+
+
+    def readLagrangianFieldsToDataFrame(self,
+                                        casePath,
+                                        times=None,
+                                        parallelCase=True,
+                                        withVelocity=False,
+                                        withReleaseTimes=False,
+                                        withMass=False,
+                                        cloudName="kinematicCloud"):
         """
             Extracts results of an LSM run.
 
@@ -292,7 +309,7 @@ class OFObjectHome:
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dask.dataframe.from_delayed(
+            data = dask_dataframe.from_map(
                 [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
                  product(processorList, timeList[1:])])
         else:
@@ -306,55 +323,91 @@ class OFObjectHome:
             else:
                 timeList = numpy.atleast_1d(times)
 
-            data = dask.dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+            data = dask_dataframe.from_map([delayed(loader)(timeName) for timeName in timeList])
 
         return data
-
 
 class OFObject:
     """
         Represents an OF object. i.e a field or a list.
 
-        This will be the interface to handle fields in OF.
-
-        It will provide the interface to load, store and create empty fields.
-
-        Currently, the support for the boundary conditions is limited.
-
+        The data is stored as a dict/ParsedParametreFile
     """
     data = None
     name = None        # The name of the field
     componentNames = None # If none, the field is scalar, else, this is the list of fields.
+    boundaryPatchList = None
+
+    REGION_INTERNSALFIELD = 'internalField'
+    REGION_BOUNDARYFIELD  = 'boundaryField'
 
     @property
-    def fieldType(self):
-        fieldType = "Scalar"
-        if self.componentNames is not None:
-            if len(self.componentNames) == 3:
-                fieldType = "Vector"
-            elif len(self.componentNames) == 9:
-                fieldType = "Tensor"
-            else:
-                raise ValueError(f"Component names for field {self.name} is invalid. ")
-        return fieldType
+    def componentNames(self):
+        if self.fieldType == FIELDTYPE_SCALAR:
+            ret = [self.name]
+        elif self.fieldType == FIELDTYPE_VECTOR:
+            ret = [f"{self.name}{cn}" for cn in ['x','y','z']]
+        else:
+            ret = [f"{self.name}{cn}" for cn in ['xx', 'xy' ,'xz', 'yx' ,'yy', 'yz' ,'zx', 'zy', 'zz']]
 
-    def __init__(self,name,componentNames=None):
+        return ret
+
+    @property
+    def internalField(self):
+        """
+        Return the interinal field data
+        Returns
+        -------
+
+        """
+        return self.data['internalField']
+
+    @property
+    def dimensions(self):
+        return self.data['dimensions']
+
+    @property
+    def boundaryField(self):
+        return self.data['boundaryField']
+
+    def __init__(self,name,fieldType,data):
         """
             Initializes the OF field.
+
+            Use the internalField as data is not None.
+
         Parameters
         ----------
         name: str
             The name of the object
+        fieldType: str
+            The type of the field. scalar, vector or tensor for scalar, vector or tensor object.
 
-        componentNames: list, None
-            If None, then it is a scalar.
-            If list, then it is a list.
+        boundaryPatchList : list
+            The list of the patches
+
+        data : pandas.DataFrame
+            The internalField structure is :
+
+            - Column 1 : the data of columns [1]
+                ...
+            - Column N : The data of column [N]
+            - time     : The time step of the data
+            - type      : internalField/boundaryField
+            - boundaryName : The name of the boundary. None for the internalField
+            - processor : Decomponsed case: processor[i] the name of the processor that holds that data.
+                          Reconstructed case: will be None
         """
         logger = get_classMethod_logger(self,"init")
         logger.info(f"---------Start : {logger.name}")
         self.name = name
-        self.componentNames =componentNames
+        if fieldType not in [FIELDTYPE_TENSOR,FIELDTYPE_SCALAR,FIELDTYPE_VECTOR]:
+            err = f"Field type must be {','.join([FIELDTYPE_TENSOR,FIELDTYPE_SCALAR,FIELDTYPE_VECTOR])}. Got {fieldType}"
+            logger.error(err)
+            raise ValueError(err)
 
+        self.fieldType = fieldType
+        self.data=data
 
     def write(self, caseDirectory, location, fileName=None, parallel=False,parallelBoundary=False):
         """
@@ -480,7 +533,6 @@ class OFObject:
         data: pandas.DataFrame
             The data to convert
 
-
         Returns
         -------
             str.
@@ -522,75 +574,46 @@ FoamFile
     def _writeNew(self, filename, data,parallel,parallelBoundary=False):
         raise NotImplementedError("Implemented specifically for field or list")
 
+
+
 class OFField(OFObject):
-    """
-        Holds a field.
 
-        This object has:
-            - dimensions
-            - internalField
-            - boundaryField
-
-
-    There is a bug in updating an OF field -> removes the boundary conditions.
-
-    """
-    dimensions = None  # The dimensions str (currently just a string without the parsing).
-
-    boundaryConditions = None
-
-
-    def __init__(self,name,dimensions,boundaryConditions=None,componentNames=None,data=None):
+    def __init__(self,name,fieldType,data=None,boundaryPatchList=None):
         """
-            Initializes a field.
+            Initializing the OpenFOAM Field.
+
+            The internalField can be supplied either as a:
+                - list (with the values)
+                - a pandas .
+
+            The boundary field as a:
+                - dict of patch->[list/pandas],
 
         Parameters
         ----------
-        name :  str
-            The name of the field.
+        name : str
+            The name of the field
+        fieldType :
+            The type : scalar, vector or tensor.
+        dimensions : dict
+            The dict of parameters.
+        boundaryPatch : list
+            The name of the patches
 
-        dimensions : str
-            The dimensions of the field.
+        data : pandas.DataFrame
+            The data of the internal field.
 
-        cloudName : str, or None
-            If None, then the field is eulerian. Otherwise,
-            use this property as the field name.
-
-        componentNames: list
-            The name of the components. If None, then the field is a scalar.
-
-        data : float|list, str, pandas.DataFrame, dask.DataFrame
-            The data can be either a flot (for constant scalar) or a list for constant vector or list.
-            If the data is a parquet file, it will load it into a dask.DataFrame
-
-            The structure of a Dataframe (pandas or dask) should be similar to that obtained with the load method.
-            Hence, it is possible to create the parquet file by:
-                obj.load(<case directory>,<time>)
-                obj.data.to_parquet("new-file.parquet")
-
+        boundaryField : pandas.DataFrame
+            The
         """
-        logger = get_classMethod_logger(self,"init")
-        logger.info("------- Start : OFField ------")
-        logger.debug(f"Name {name}, componentName {componentNames}")
-        logger.debug(f"Dimensions {dimensions}")
-        logger.debug(f"Boundary {boundaryConditions}")
-        logger.debug(f"Data {data}")
-        super().__init__(name=name,componentNames=componentNames)
+        super().__init__(name=name,fieldType=fieldType,data=data)
+        self.boundaryPatchList = boundaryPatchList
 
-        self.dimensions = dimensions
-        self.boundaryConditions = boundaryConditions
-        if data is None:
-            self.data = None
-        elif os.path.exists(os.path.abspath(data)) and 'parquet' in data:
-            self.data = dask.Dataframe.read_parquet(os.path.abspath(data))
-        else:
-            self.data=data
-
-    def readCaseData(self, caseDirectory, times=None, parallelCase=True):
+    def getDataframe(self, caseDirectory, times=None, parallelCase=True):
         """
-            Extracts a field to the disk from the requested times.
-            If None, then reads from all the time steps.
-            Reads only the internal field (and not the boundaries).
+            Reads the field into dask/pandas dataframe.
+            It assumes that the field is a list. If it is a non list, then that data will not be returned.
+
 
             If read in parallel, then add the processor to the output columns.
 
@@ -629,13 +652,13 @@ class OFField(OFObject):
             else:
                 timeList = numpy.atleast_1d(times)
 
-            self.data = dask.dataframe.from_delayed(
-                [delayed(extractInternalField)(os.path.join(finalCasePath, processorName, str(timeName), self.name),
-                                               columnNames=self.componentNames,
-                                               time=timeName,
-                                               processor=int(processorName[9:])) for processorName, timeName in product(processorList, timeList)])
+            data = dask_dataframe.from_map(
+                [delayed(extractField)(casePath=os.path.join(finalCasePath, processorName, str(timeName), self.name),
+                                       patchNamesList=self.boundaryPatchList
+                                       columnNames=self.componentNames,
+                                       time=timeName,
+                                       processor=int(processorName[9:])) for processorName, timeName in product(processorList, timeList)])
         else:
-
             if times is None:
                 timeList = sorted([x for x in os.listdir(finalCasePath) if (
                         os.path.isdir(x) and
@@ -645,12 +668,32 @@ class OFField(OFObject):
             else:
                 timeList = numpy.atleast_1d(times)
 
-            self.data = dask.dataframe.from_delayed([delayed(extractInternalField)(os.path.join(finalCasePath, str(timeName), self.name),
-                                                                                   columnNames = self.componentNames,
-                                                                                   time=timeName)
+            data = dask_dataframe.from_map([delayed(extractField)(casePath=os.path.join(finalCasePath, str(timeName), self.name),
+                                                                           columnNames = self.componentNames,
+                                                                           time=timeName)
                                                 for timeName in timeList])
 
-        return self.data
+        return data
+
+    def loadFromPandas(self,dataFrame,pandasToComponentName=dict()):
+        """
+            Initialize the OFObject  from a dataFrame.
+
+            Here just takes the
+
+        Parameters
+        ----------
+        dataFrame : pandas.DataFrame
+            The data in the dataframe.
+        pandasToComponentName : dict
+            A map between the pandas column to the component names.
+
+        Returns
+        -------
+
+        """
+        pass
+
 
     def _updateExisting(self,filename,data,parallel=False):
         """
@@ -778,8 +821,8 @@ class OFField(OFObject):
 boundaryField
 {
 """
-        if self.boundaryConditions is not None:
-            for boundaryPatchName,boundaryData in self.boundaryConditions.items():
+        if self.boundaryField is not None:
+            for boundaryPatchName,boundaryData in self.boundaryField.items():
                 bstr = f"\n{boundaryPatchName}\n"
                 bstr += "{\n"
                 for bcondProp,bcondData in boundaryData.items():
@@ -805,8 +848,6 @@ boundaryField
 }        
  """
         return boundaryConditions
-
-#
 
 class OFList(OFObject):
     """
@@ -890,7 +931,6 @@ class OFMeshBoundary:
     def case(self):
         return self._case
 
-
     def __init__(self,directory:str,checkParallel:bool=True ):
         """
             Reads the boundary from the boundary file of the mesh.
@@ -913,9 +953,6 @@ class OFMeshBoundary:
                     self._boundaryNames += self._readBoundary(os.path.join(proc,"constant","polyMesh","boundary"))
         else:
             self._boundaryNames = self._readBoundary(os.path.join(directory, "constant", "poly", "boundary"))
-
-
-
 
     def getBoundary(self,filterProcessor:bool =True):
         """
@@ -963,189 +1000,26 @@ class OFMeshBoundary:
 #
 #               Utils
 #########################################################################
-def extractInternalField(path, columnNames, **kwargs):
-    """
-        Extract data from openFOAM field file.
+def extractField(casePath, columnNames, patchNameList=None, **kwargs):
+    dataParsedFile = ParsedParameterFile(casePath)
+    ret = []
 
-        The difference brom list file is that field files has boundary conditions as
-        well, and so we must read from the file their length.
+    pndsData = pandas.DataFrame([[x for x in item] for item in dataParsedFile['internalField'].val],
+                                columns=columnNames).assign(**kwargs, region='internalField')
 
+    ret.append(pndsData)
+    for patchName in dataParsedFile['boundaryField']:
 
-    :param path:
-    :param columnNames:
-    **kwargs:
-        Adds this result to the pandas as column.
-    :return:
-        pandas.
-    """
-
-    # 1. find the number of points in the file.
-    L = []
-    with open(path, "r") as thefile:
-        lines = thefile.readline()
-        try:
-            lineCount = int(lines)
-        except ValueError:
-            lineCount = None
-
-        while lineCount is None:
-            lines = thefile.readline()
-            try:
-                lineCount = int(lines)
-            except ValueError:
-                lineCount = None
-
-        for line in islice(thefile, 1, lineCount+1):
-          L.append(line.replace("(","").replace(")",""))
-
-    return pandas.read_csv(StringIO("".join(L)),names=columnNames,sep=" ").assign(**kwargs)
-
-def extractFile(path, columnNames, vector=True, skiphead = 20,skipend = 4):
-    """
-        Extracts data from a openFOAM list file.
-
-        list files has no boundary and so, we can just skip head and end.
-
-    Parameters
-    ----------
-    path: str
-        The path of the file
-    time: str
-        The files' time step
-    columnNames: list of str
-        The names of the columns
-    skiphead: int
-        Number of lines to skip from the beginning of the file
-    skipend: int
-        Number of lines to skip from the ending of the file
-
-    Returns
-    -------
-        Pandas with the data.
-    """
-
-    cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
-    cnvrtDict = dict([(x, cnvrt) for x in columnNames])
-
-    try:
-        newData = pandas.read_csv(path,
-                                  skiprows=skiphead,
-                                  skipfooter=skipend,
-                                  engine='python',
-                                  header=None,
-                                  delim_whitespace=True,
-                                  converters=cnvrtDict,
-                                  names=columnNames)
-    except ValueError:
-        newData = []
-
-    if len(newData) == 0:
-        with open(path, "r") as thefile:
-            lines = thefile.readlines()
-
-        vals = lines[17]
-        data = []
-
-        if vector:
-            if "{" in vals:
-                inputs = vals.split("{")
-                repeat = int(inputs[0])
-                valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
-                data = dict(
-                    [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
-            else:
-                for rcrdListTuple in vals.split("(")[2:]:
-                    record = dict(
-                        [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
-                    data.append(record)
+        if patchNameList is not None:
+            addPatch = True if patchName in patchNameList else False
         else:
-            if "{" in vals:
-                inputs = vals.split("{")
-                repeat = int(inputs[0])
-                value = float(inputs[1].split("}")[0])
-                data = [{columnNames[0]: value} for x in range(repeat)]
-
-            else:
-                valuesList = vals.split("(")[1]
-                for rcrdListItem in valuesList.split(" "):
-                    record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
-                    data.append(record)
-
-        newData = pandas.DataFrame(data)
-
-    return newData.astype(float)
-
-
-def extractBoundaryField(path,boundaryName, columnNames, **kwargs):
-    """
-        Return the boundry condition as a dict:
-        - type
-        - value : pandas.
-            pandas with the column names.
-        - [other values]
-
-    Parameters
-    ----------
-    path : string
-        The dir
-    boundaryName : string
-        the name of the boundary
-
-    columnNames :
-        The type of the data (None for scalar).
-    kwargs :
-        Additional attributes that will be appended to the values pandas.
-
-    Returns
-    -------
-        dict
-    """
-    # 1. find the number of points in the file.
-    logger = logging.getLogger("extractBoundaryField")
-    L = []
-    resDict = dict()
-    with open(path, "r") as thefile:
-        lines = thefile.readline()
-        try:
-            if lines.strip() == boundaryName:
-                lineCount = True
-            else:
-                lineCount = False
-        except ValueError:
-            lineCount = None
-
-        while lineCount:
-            if lines.strip() == boundaryName:
-                lineCount = True
-            else:
-                lineCount = False
-
-        logger.debug(f"Found the boundary {boundaryName}")
-        alldata = []
-        while '}' not in lines:
-            prsed =[x.replace("\n"," ").strip() for x in lines.expandtabs().split(" ") if len(x.strip())>0]
-            logger.debug(f"Parsing the next line: {prsed}")
-
-            if 'value' in prsed[0]:
-
-
-                if 'nonuniform' in prsed[1]:
-
-                elif 'uniform' in prsed[1]:
-
-                else:
-                    resDict[prsed[0]] = " ".join(prsed)
-
-            else:
-                resDict[prsed[0]] =prsed[-1]
-
-            lines = thefile.readline()
-
-        for line in islice(thefile, 1, lineCount+1):
-          L.append(line.replace("(","").replace(")",""))
-
-    return pandas.read_csv(StringIO("".join(L)),names=columnNames,sep=" ").assign(**kwargs)
-
+            addPatch = True
+        if addPatch:
+            pndsData = pandas.DataFrame(
+                [[x for x in item] for item in dataParsedFile['boundaryField'][patchName]['value'].val],
+                columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName)
+        ret.append(pndsData)
+    return pandas.concat(ret)
 
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
                          cloudName="kinematicCloud"):
@@ -1292,3 +1166,148 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
 #         logger.debug(f"Saving the file {self.name} to {filename} ")
 #         with open(filename,'w') as outfile:
 #             outfile.write(fileStrContent)
+#
+# def extractFile(path, columnNames, vector=True, skiphead = 20,skipend = 4):
+#     """
+#         Extracts data from a openFOAM list file.
+#
+#         list files has no boundary and so, we can just skip head and end.
+#
+#     Parameters
+#     ----------
+#     path: str
+#         The path of the file
+#     time: str
+#         The files' time step
+#     columnNames: list of str
+#         The names of the columns
+#     skiphead: int
+#         Number of lines to skip from the beginning of the file
+#     skipend: int
+#         Number of lines to skip from the ending of the file
+#
+#     Returns
+#     -------
+#         Pandas with the data.
+#     """
+#
+#     cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
+#     cnvrtDict = dict([(x, cnvrt) for x in columnNames])
+#
+#     try:
+#         newData = pandas.read_csv(path,
+#                                   skiprows=skiphead,
+#                                   skipfooter=skipend,
+#                                   engine='python',
+#                                   header=None,
+#                                   delim_whitespace=True,
+#                                   converters=cnvrtDict,
+#                                   names=columnNames)
+#     except ValueError:
+#         newData = []
+#
+#     if len(newData) == 0:
+#         with open(path, "r") as thefile:
+#             lines = thefile.readlines()
+#
+#         vals = lines[17]
+#         data = []
+#
+#         if vector:
+#             if "{" in vals:
+#                 inputs = vals.split("{")
+#                 repeat = int(inputs[0])
+#                 valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
+#                 data = dict(
+#                     [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
+#             else:
+#                 for rcrdListTuple in vals.split("(")[2:]:
+#                     record = dict(
+#                         [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
+#                     data.append(record)
+#         else:
+#             if "{" in vals:
+#                 inputs = vals.split("{")
+#                 repeat = int(inputs[0])
+#                 value = float(inputs[1].split("}")[0])
+#                 data = [{columnNames[0]: value} for x in range(repeat)]
+#
+#             else:
+#                 valuesList = vals.split("(")[1]
+#                 for rcrdListItem in valuesList.split(" "):
+#                     record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
+#                     data.append(record)
+#
+#         newData = pandas.DataFrame(data)
+#
+#     return newData.astype(float)
+#
+# def extractBoundaryField(path,boundaryName, columnNames, **kwargs):
+#     """
+#         Return the boundry condition as a dict:
+#         - typenames
+#         - value : pandas.
+#             pandas with the column names.
+#         - [other values]
+#
+#     Parameters
+#     ----------
+#     path : string
+#         The dir
+#     boundaryName : string
+#         the name of the boundary
+#
+#     columnNames :
+#         The type of the data (None for scalar).
+#     kwargs :
+#         Additional attributes that will be appended to the values pandas.
+#
+#     Returns
+#     -------
+#         dict
+#     """
+#     # 1. find the number of points in the file.
+#     logger = logging.getLogger("extractBoundaryField")
+#     L = []
+#     resDict = dict()
+#     with open(path, "r") as thefile:
+#         lines = thefile.readline()
+#         try:
+#             if lines.strip() == boundaryName:
+#                 lineCount = True
+#             else:
+#                 lineCount = False
+#         except ValueError:
+#             lineCount = None
+#
+#         while lineCount:
+#             if lines.strip() == boundaryName:
+#                 lineCount = True
+#             else:
+#                 lineCount = False
+#
+#         logger.debug(f"Found the boundary {boundaryName}")
+#         alldata = []
+#         while '}' not in lines:
+#             prsed =[x.replace("\n"," ").strip() for x in lines.expandtabs().split(" ") if len(x.strip())>0]
+#             logger.debug(f"Parsing the next line: {prsed}")
+#
+#             if 'value' in prsed[0]:
+#
+#
+#                 if 'nonuniform' in prsed[1]:
+#
+#                 elif 'uniform' in prsed[1]:
+#
+#                 else:
+#                     resDict[prsed[0]] = " ".join(prsed)
+#
+#             else:
+#                 resDict[prsed[0]] =prsed[-1]
+#
+#             lines = thefile.readline()
+#
+#         for line in islice(thefile, 1, lineCount+1):
+#           L.append(line.replace("(","").replace(")",""))
+#
+#     return pandas.read_csv(StringIO("".join(L)),names=columnNames,sep=" ").assign(**kwargs)
