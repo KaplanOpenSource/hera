@@ -6168,13 +6168,13 @@ class App(QWidget):
 #            if (self.learnfrom.text()!=''): 
                  print('loading:',self.learnfrom.text())
                  mlx = ml()
-                 mlx.readCaseData('mlx-' + self.learnfrom.text())
+                 mlx.loadCaseData('mlx-' + self.learnfrom.text())
                  print('x loaded')
                  mly = ml()
-                 mly.readCaseData('mly-' + self.learnfrom.text())
+                 mly.loadCaseData('mly-' + self.learnfrom.text())
                  print('y loaded')
                  mlz = ml()
-                 mlz.readCaseData('mlz-' + self.learnfrom.text())
+                 mlz.loadCaseData('mlz-' + self.learnfrom.text())
                  print('z loaded', len(labelsux))
                  rndmsk = np.random.rand(len(labelsux)) < 0.01
                  print('f010:',features[rndmsk])
@@ -6550,7 +6550,7 @@ class App(QWidget):
             features = np.load(learnfile+'features.npy')
             print('mlx3', learnfile, datetime.datetime.now())
             mlx = ml()  
-            mlx.readCaseData('mlx-' + learnfile)
+            mlx.loadCaseData('mlx-' + learnfile)
             indexprint = 5         
             z = np.unique(allfeatures[:,2])
             print ('grid_x2',grid_x.min(), grid_x.max())

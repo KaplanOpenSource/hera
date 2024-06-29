@@ -4,7 +4,7 @@ import glob
 from .OFObjects import OFField
 from .OFWorkflow import workflow_Eulerian
 from .OFObjects import OFObjectHome
-from . import DECOMPOSED_CASE, TYPE_VTK_FILTER
+from . import CASETYPE_DECOMPOSED, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
 from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
@@ -15,6 +15,8 @@ import dask.dataframe as dd
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
+from . import SIMULATIONTYPE_COMPRESSIBLE,SIMULATIONTYPE_INCOMPRESSIBLE,SIMULATIONTYPE_DISPERSION,FIELDTYPE_SCALAR,FIELDTYPE_TENSOR,FIELDTYPE_VECTOR,CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+
 class OFToolkit(workflowToolkit):
     """
         The goal of this toolkit is to provide the functions that are required to run workflows.
@@ -27,9 +29,16 @@ class OFToolkit(workflowToolkit):
     TIME_STEADYSTATE = "steadyState"
     TIME_DYNAMIC = "dynamic"
 
-    SIMULATIONTYPE_COMPRESSIBLE = "compressible"
-    SIMULATIONTYPE_INCOMPRESSIBLE = "incompressible"
-    SIMULATIONTYPE_DISPERSION = "dispersion"
+    SIMULATIONTYPE_COMPRESSIBLE = SIMULATIONTYPE_COMPRESSIBLE
+    SIMULATIONTYPE_INCOMPRESSIBLE = SIMULATIONTYPE_INCOMPRESSIBLE
+    SIMULATIONTYPE_DISPERSION = SIMULATIONTYPE_DISPERSION
+
+    FIELDTYPE_SCALAR = FIELDTYPE_SCALAR
+    FIELDTYPE_VECTOR = FIELDTYPE_VECTOR
+    FIELDTYPE_TENSOR = FIELDTYPE_TENSOR
+
+    CASETYPE_DECOMPOSED = CASETYPE_DECOMPOSED
+    CASETYPE_RECONSTRUCTED = CASETYPE_RECONSTRUCTED
 
     OF_FLOWDISPERSION = "flowDispersion"
 
@@ -132,30 +141,10 @@ class OFToolkit(workflowToolkit):
 
         cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
         logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
-        ret =  cellCenters.readCaseData(caseDirectory, times=time, parallelCase=useParallel)
+        ret =  cellCenters.loadCaseData(caseDirectory, times=time, parallelCase=useParallel)
 
         logger.info(f"--- End ---")
         return ret
-
-    def getDimensions(kg=0,m=0,s=0,K=0,mol=0,A=0,cd=0):
-        """
-            Returns the openfaom dimensions vector.
-        Parameters
-        ----------
-        kg : int
-
-        m  : int
-        s  : int
-        K  : int
-        mol: int
-        A  : int
-        cd : int
-
-        Returns
-        -------
-            The openfoam unit vector  [kg m s K mol A cd]
-        """
-        return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
 
 
     def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
@@ -384,7 +373,7 @@ class Analysis:
         self._datalayer = datalayer
 
 
-    def makeVTKPipeline(self, nameOrWorkflowFileOrJSONOrResource, vtkPipeline, caseType=DECOMPOSED_CASE, servername=None, fieldNames=None):
+    def makeVTKPipeline(self, nameOrWorkflowFileOrJSONOrResource, vtkPipeline, caseType=CASETYPE_DECOMPOSED, servername=None, fieldNames=None):
         """
             Creates a new VTK pipeline from the simulation.
 
