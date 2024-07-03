@@ -36,7 +36,7 @@ def Foam_createEmpty(arguments):
     logger.info(f"Using project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
 
-    simulationType = tk.SIMULATIONTYPE_INCOMPRESSIBLE if arguments.incompressible else tk.SIMULATIONTYPE_COMPRESSIBLE
+    simulationType = tk.FLOWTYPE_INCOMPRESSIBLE if arguments.incompressible else tk.FLOWTYPE_COMPRESSIBLE
 
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,

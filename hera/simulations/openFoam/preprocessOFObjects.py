@@ -7,7 +7,7 @@ from itertools import product
 from ...utils import loadJSON
 from ...utils.logging import get_classMethod_logger
 from . import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
-    FIELDCOMPUTATION_LAGRANGIAN,SIMULATIONTYPE_INCOMPRESSIBLE,SIMULATIONTYPE_COMPRESSIBLE
+    FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE,FLOWTYPE_COMPRESSIBLE
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
 
 from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
@@ -266,7 +266,7 @@ class OFObjectHome:
         else:
             raise ValueError(f"{fieldName} already exists!. Use overwrite=True to overwrite its definition")
 
-    def getEmptyField(self, fieldName, simulationType):
+    def getEmptyField(self, fieldName, flowType):
         """
             Return the field object with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
@@ -279,7 +279,7 @@ class OFObjectHome:
         fieldName: str
             The field name
 
-        simulationType: str
+        flowType: str
             Compressible/incompressible.
 
         Returns
@@ -295,7 +295,7 @@ class OFObjectHome:
             raise ValueError(err)
 
         fieldData = self.fieldDefinitions[fieldName]
-        dimensions = fieldData['dimensions'].get(simulationType, fieldData['dimensions']['default'])
+        dimensions = fieldData['dimensions'].get(flowType, fieldData['dimensions']['default'])
         fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
 
         ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
@@ -371,7 +371,7 @@ class OFObjectHome:
         """
         finalCasePath = os.path.abspath(caseDirectory)
 
-        field = self.getEmptyField(fieldName=fieldName,simulationType=SIMULATIONTYPE_INCOMPRESSIBLE) # the type is important for the dimensions that are not considered here
+        field = self.getEmptyField(fieldName=fieldName, flowType=FLOWTYPE_INCOMPRESSIBLE) # the type is important for the dimensions that are not considered here
 
         if readParallel:
             processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]

@@ -21,7 +21,7 @@ class absractEulerianSolver_toolkitExtension:
 
     @property
     def flowType(self):
-        return self.toolkit.SIMULATIONTYPE_INCOMPRESSIBLE if self.incompressible else SIMULATIONTYPE_COMPRESSIBLE
+        return self.toolkit.FLOWTYPE_INCOMPRESSIBLE if self.incompressible else SIMULATIONTYPE_COMPRESSIBLE
 
 
     def blockMesh_setBoundFromBounds(self, eulerianWF, minx,maxx,miny,maxy,minz,maxz,dx,dy,dz):
