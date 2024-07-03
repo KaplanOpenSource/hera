@@ -6,7 +6,7 @@ import glob
 import shutil
 import json
 from ....datalayer import datatypes
-from ..OFObjects import OFMeshBoundary
+from ..preprocessOFObjects import  OFMeshBoundary
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
 import xarray
