@@ -7,7 +7,7 @@ from itertools import product
 from ...utils import loadJSON
 from ...utils.logging import get_classMethod_logger
 from . import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
-    FIELDCOMPUTATION_LAGRANGIAN
+    FIELDCOMPUTATION_LAGRANGIAN,SIMULATIONTYPE_INCOMPRESSIBLE,SIMULATIONTYPE_COMPRESSIBLE
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
 
 from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
@@ -302,47 +302,7 @@ class OFObjectHome:
                       fieldComputation=fieldData['fieldComputation'])
         return ret
 
-    def getEmptyFieldFromCase(self, fieldName, caseDirectory, flowType):
-        """
-            Gets an empty field, but sets the data structures to support the
-            current directory.
-
-            This is done by reading the cell centers and then using its data to
-            update the field.
-
-        Parameters
-        ----------
-        fieldName: str
-            The field name
-
-        caseDirectory : str
-            The case path to the case directory.
-
-        flowType: str
-            Compressible/incompressible.
-
-        Returns
-        -------
-            OFField.
-
-        """
-        logger = get_classMethod_logger(self, "getEmptyFieldFromCase")
-        logger.info(f"----- Start : {logger.name}")
-        if fieldName not in self.fieldDefinitions.keys():
-            err = f"Field {fieldName} not found. Must supply {','.join(self.fieldDefinitions.keys())}"
-            logger.critical(err)
-            raise ValueError(err)
-
-        fieldData = self.fieldDefinitions[fieldName]
-        dimensions = fieldData['dimensions'].get(flowType, fieldData['dimensions']['default'])
-        fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
-
-        ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
-                      fieldComputation=fieldData['fieldComputation'])
-
-        return ret
-
-    def getFieldFromCase(self, caseDirectory, flowType, fieldName):
+    def getFieldFromCase(self, fieldName, flowType,caseDirectory,timeStep=0, readParallel=True ):
         """
             Returns a field object, load the data from the case.
 
@@ -374,7 +334,81 @@ class OFObjectHome:
 
         ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
                       fieldComputation=fieldData['fieldComputation'])
+
+        ret.readFromCase(caseDirectory,timeStep=timeStep, readParallel=readParallel)
         return ret
+
+
+
+    def readFieldAsDataFrame(self, fieldName, caseDirectory, times=0, readParallel=True,filterInternalPatches=False):
+        """
+            Extracts a field to the disk from the requested times.
+            If None, then reads from all the time steps.
+            Reads only the internal field (and not the boundaries).
+
+            If read in parallel, then add the processor to the output columns.
+
+            Determine if the field is lagrnagian or eulerian and reads respectiveluy
+
+        Parameters
+        ----------
+        caseDirectory
+        times
+        readParallel
+        kwargs :
+            Specialized fields
+
+            Eulerian:
+                - filterInternalPatches : bool [default True]
+                    remove the proc* boundaries.
+            Lagrangian:
+                -  cloudName : string [default : kinematicCloud]
+                    The default cloud name
+
+        Returns
+        -------
+
+        """
+        finalCasePath = os.path.abspath(caseDirectory)
+
+        field = self.getEmptyField(fieldName=fieldName,simulationType=SIMULATIONTYPE_INCOMPRESSIBLE) # the type is important for the dimensions that are not considered here
+
+        if readParallel:
+            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
+            if len(processorList) == 0:
+                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
+
+            if times is None:
+                timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                        os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+            else:
+                timeList = numpy.atleast_1d(times)
+
+            data = pandas.concat([extractFieldFile(os.path.join(finalCasePath, processorName, str(timeName), field.fileName),
+                                           columnNames=field.componentNames,
+                                           time=timeName,filterInternalPatches=filterInternalPatches,
+                                           processor=int(processorName[9:])) for processorName, timeName in
+                 product(processorList, timeList)])
+        else:
+
+            if times is None:
+                timeList = sorted([x for x in os.listdir(finalCasePath) if (
+                        os.path.isdir(x) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+            else:
+                timeList = numpy.atleast_1d(times)
+
+            data = pandas.concat([extractFieldFile(os.path.join(finalCasePath, str(timeName), field.fileName),
+                                           columnNames=field.componentNames,filterInternalPatches=filterInternalPatches,
+                                           time=timeName) for timeName in timeList])
+
+        return data
+
 
 class OFObject:
     """
@@ -504,6 +538,11 @@ class OFObject:
     def writeEmptyField(self, caseDirectory, fileLocation, parallel=False, parallelBoundary=False):
         """
             Overwrites an empty new field (without the data)
+
+            Currently we have two version of write.
+            (write new and write that writes the contents of the field).
+
+            TODO In the future we should merge the two write procedures.
 
         Paramaters
         ----------
@@ -767,73 +806,6 @@ boundaryField
             logger.warning(err)
             raise ValueError("Field not found")
 
-    def readFromCaseAsDataFrame(self, caseDirectory, times=0, readParallel=True,filterInternalPatches=False):
-        """
-            Extracts a field to the disk from the requested times.
-            If None, then reads from all the time steps.
-            Reads only the internal field (and not the boundaries).
-
-            If read in parallel, then add the processor to the output columns.
-
-            Determine if the field is lagrnagian or eulerian and reads respectiveluy
-
-        Parameters
-        ----------
-        caseDirectory
-        times
-        readParallel
-        kwargs :
-            Specialized fields
-
-            Eulerian:
-                - filterInternalPatches : bool [default True]
-                    remove the proc* boundaries.
-            Lagrangian:
-                -  cloudName : string [default : kinematicCloud]
-                    The default cloud name
-
-        Returns
-        -------
-
-        """
-        finalCasePath = os.path.abspath(caseDirectory)
-
-        if readParallel:
-            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
-            if len(processorList) == 0:
-                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
-
-            if times is None:
-                timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                        os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-            else:
-                timeList = numpy.atleast_1d(times)
-
-            data = pandas.concat([extractFieldFile(os.path.join(finalCasePath, processorName, str(timeName), self.fileName),
-                                           columnNames=self.componentNames,
-                                           time=timeName,filterInternalPatches=filterInternalPatches,
-                                           processor=int(processorName[9:])) for processorName, timeName in
-                 product(processorList, timeList)])
-        else:
-
-            if times is None:
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                        os.path.isdir(x) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-            else:
-                timeList = numpy.atleast_1d(times)
-
-            data = pandas.concat([extractFieldFile(os.path.join(finalCasePath, str(timeName), self.fileName),
-                                           columnNames=self.componentNames,filterInternalPatches=filterInternalPatches,
-                                           time=timeName) for timeName in timeList])
-
-        return data
-
     def setFieldFromDataFrame(self,fieldDataFrame):
         """
             Gets a pandas/dask dataframe and sets the OFField to hold this data.
@@ -891,6 +863,23 @@ boundaryField
         retDict['boundaryField'] = boundaryDict
 
         return retDict
+
+    def getDataFrame(self,filterInternalPatches=True):
+        """
+            Returns the data in the field as dataframe.
+        Returns
+        -------
+
+        """
+        ret = []
+        if 'singleProcessor' in self.data:
+            ret.append(ParsedParameterFileToDataFrame(self.data['singleProcessor'],columnNames=self.componentNames,filterInternalPatches=filterInternalPatches))
+        else:
+            for processorName,procParsedFile in self.data.items():
+                ret.append(
+                    ParsedParameterFileToDataFrame(self.data[processorName], columnNames=self.componentNames,filterInternalPatches=filterInternalPatches,processor=int(processorName[9:])))
+
+        return pandas.concat(ret)
 
 class OFList(OFObject):
     """
@@ -1048,7 +1037,9 @@ def extractFieldFile(casePath, columnNames, patchNameList=None,filterInternalPat
     except Exception as e:
         print(casePath)
         raise ValueError(e)
+    return ParsedParameterFileToDataFrame(columnNames=columnNames, patchNameList=patchNameList,filterInternalPatches=filterInternalPatches, **kwargs)
 
+def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=None,filterInternalPatches=True, **kwargs):
     ret = []
     pndsData = pandas.DataFrame([[x for x in item] for item in dataParsedFile['internalField'].val],
                                 columns=columnNames).assign(**kwargs, region='internalField')
@@ -1070,7 +1061,6 @@ def extractFieldFile(casePath, columnNames, patchNameList=None,filterInternalPat
                 columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName)
         ret.append(pndsData)
     return pandas.concat(ret).reset_index().rename(columns=dict(index="processorIndex"))
-
 
 #     def emptyParallelField(self, caseDirectory,timeName:"0.parallel",processor:"", data=None,boundaryField=None):
 #         """
