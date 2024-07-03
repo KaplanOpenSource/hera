@@ -1,26 +1,27 @@
 import numpy
 import os
 import glob
-from .OFObjects import OFField
 from .OFWorkflow import workflow_Eulerian
-from .OFObjects import OFObjectHome
+from .preprocessOFObjects import OFObjectHome
 from . import CASETYPE_DECOMPOSED, TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
 from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
-from ...utils.jsonutils import loadJSON,compareJSONS
+from ...utils.jsonutils import loadJSON, compareJSONS
 from ...utils.logging import get_classMethod_logger
 from evtk import hl as evtk_hl
 import dask.dataframe as dd
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
-from . import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE,FLOWTYPE_DISPERSION,FIELDTYPE_SCALAR,FIELDTYPE_TENSOR,FIELDTYPE_VECTOR,CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE, FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
+    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED
 import pandas
 from dask.delayed import delayed
 import dask
 
-from . import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE
+from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
+
 
 class OFToolkit(workflowToolkit):
     """
@@ -56,10 +57,10 @@ class OFToolkit(workflowToolkit):
 
         self.OFObjectHome = OFObjectHome()
         self._analysis = Analysis(self)
-        self._presentation = Presentation(self,self.analysis)
+        self._presentation = Presentation(self, self.analysis)
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
 
-    def processorList(self,caseDirectory):
+    def processorList(self, caseDirectory):
         """
             Returns the list of processors directories in the case
         Parameters
@@ -73,7 +74,7 @@ class OFToolkit(workflowToolkit):
         """
         return [os.path.basename(proc) for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
 
-    def getHermesWorkflow_Flow(self,workflowfile):
+    def getHermesWorkflow_Flow(self, workflowfile):
         """
             Returns the workflow of the requested JSON file.
         Parameters
@@ -113,16 +114,16 @@ class OFToolkit(workflowToolkit):
         """
 
         # 1. Run the postProcess utility to set the cell centers
-        logger = get_classMethod_logger(self,"getMesh")
+        logger = get_classMethod_logger(self, "getMesh")
         logger.info(f"Start. case {caseDirectory}. Current directory is : {os.getcwd()}.")
 
         casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
 
-        useParallel= False
+        useParallel = False
         if readParallel:
             logger.debug(f"Attempt to load parallel case")
             # Check if the case is decomposed, if it is, run it.
-            proc0dir = os.path.join(caseDirectory,"processor0")
+            proc0dir = os.path.join(caseDirectory, "processor0")
 
             if os.path.exists(proc0dir):
                 logger.debug(f"Found parallel case, using decomposed case")
@@ -131,7 +132,8 @@ class OFToolkit(workflowToolkit):
                 logger.debug(f"parallel case NOT found. Using composed case")
 
         # Calculating the cell centers
-        checkPath = os.path.join(caseDirectory,"processor0",str(time),"C") if useParallel else os.path.join(caseDirectory,str(time),"C")
+        checkPath = os.path.join(caseDirectory, "processor0", str(time), "C") if useParallel else os.path.join(
+            caseDirectory, str(time), "C")
         parallelExec = "-parallel" if useParallel else ""
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
@@ -152,8 +154,7 @@ class OFToolkit(workflowToolkit):
                                                          readParallel=readParallel)
         return cellCenters
 
-
-    def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
+    def createEmptyCase(self, caseDirectory: str, fieldList: list, flowType: str, additionalFieldsDescription=dict()):
         """
             Creates an empty case directory for the simulation.
             fields is a list of fields to create in the case directory.
@@ -170,7 +171,7 @@ class OFToolkit(workflowToolkit):
         fieldList : list
             The list of field names to create
 
-        simulationType : str
+        flowType : str
             compressible, incompressible or dispersion.
             The dimension of the fields is determined by the type of simulation
 
@@ -189,7 +190,8 @@ class OFToolkit(workflowToolkit):
         -------
 
         """
-        print(f"Making case {caseDirectory} with fields {','.join(fieldList)}")
+        logger = get_classMethod_logger(self,"createEmptyCase")
+        logger.info(f"Making case {caseDirectory} with fields {','.join(fieldList)}")
 
         # Make the case :
         if os.path.isfile(caseDirectory):
@@ -205,20 +207,22 @@ class OFToolkit(workflowToolkit):
 
         fileaddition = dict()
         if additionalFieldsDescription is not None:
-                fileaddition = loadJSON(additionalFieldsDescription)
+            fileaddition = loadJSON(additionalFieldsDescription)
 
-        self.OFObjectHome.addFieldDefinitions(**fileaddition)
+        for fieldName, fieldDefs in fileaddition.items():
+            logger.info(f"Adding temporary field {fieldName} to the field directory")
+            self.OFObjectHome.addFieldDefinitions(fieldName=fieldName, **fieldDefs)
 
         # Makes the empty fields
         for fieldName in fieldList:
-            field = self.OFObjectHome.getField(fieldName, flowType=simulationType)
-            field.writeToCase(caseDirectory=caseDirectory, fileLocation=0)
-            field.writeToCase(caseDirectory=caseDirectory, fileLocation="0.orig")
-            field.writeToCase(caseDirectory=caseDirectory, fileLocation="0.parallel", parallel=False,
-                              parallelBoundary=True)
+            logger.info(f"Creating field {fieldName}")
+            field = self.OFObjectHome.getEmptyField(fieldName, flowType=flowType)
+            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=0)
+            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.orig")
+            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.parallel", parallel=False,
+                                  parallelBoundary=True)
 
-
-    def template_add(self,name,objFile,workflowObj=None):
+    def template_add(self, name, objFile, workflowObj=None):
         """
             Adds a templates to the toolkit.
 
@@ -243,7 +247,8 @@ class OFToolkit(workflowToolkit):
         """
         pass
 
-    def xarrayToSetFieldsDictDomain(self, xarrayData, xColumnName="x", yColumnName="y", zColumnName="z", time=None, timeColumn="time", **kwargs):
+    def xarrayToSetFieldsDictDomain(self, xarrayData, xColumnName="x", yColumnName="y", zColumnName="z", time=None,
+                                    timeColumn="time", **kwargs):
         """
             Converts the xarray to the setFields dict of the internal domain.
 
@@ -284,7 +289,7 @@ class OFToolkit(workflowToolkit):
             string (setField dict).
 
         """
-        logger = get_classMethod_logger(self,"xarrayToSetFieldsDict")
+        logger = get_classMethod_logger(self, "xarrayToSetFieldsDict")
         logger.debug(f"------------ Start  : {logger.name} ")
 
         coordList = []
@@ -300,29 +305,28 @@ class OFToolkit(workflowToolkit):
             coordNames.append(zColumnName)
 
         ret = []
-        arryToOFvector = lambda arry : f"({' '.join(arry) } )"
+        arryToOFvector = lambda arry: f"({' '.join(arry)} )"
         for X in product(*coordList):
-            lowerLeft = [xarrayData.coords[coordNames[coordIndx]][ind].item() for coordIndx,ind in enumerate(X)]
-            upperRight = [xarrayData.coords[coordNames[coordIndx]][ind+1].item() for coordIndx, ind in enumerate(X)]
+            lowerLeft = [xarrayData.coords[coordNames[coordIndx]][ind].item() for coordIndx, ind in enumerate(X)]
+            upperRight = [xarrayData.coords[coordNames[coordIndx]][ind + 1].item() for coordIndx, ind in enumerate(X)]
 
             fielaValueStr = ""
-            for OFField,fieldName in kwargs.items():
+            for OFField, fieldName in kwargs.items():
 
-                accessDict = dict([(coordname,indx) for (coordname,indx) in zip(coordNames,X)])
+                accessDict = dict([(coordname, indx) for (coordname, indx) in zip(coordNames, X)])
                 if time is not None:
                     timeDict = {timeColumn: time}
-                    valArray = xarrayData.sel(**timeDict,method='nearest')
+                    valArray = xarrayData.sel(**timeDict, method='nearest')
 
                 else:
-                    valArray= xarrayData
+                    valArray = xarrayData
 
-
-                if isinstance(fieldName,Iterable):
+                if isinstance(fieldName, Iterable):
                     valArray = []
                     for mappedField in fieldName:
-                        if isinstance(mappedField,str):
+                        if isinstance(mappedField, str):
                             valArray.append(valArray[mappedField].isel(**accessDict).item())
-                        elif isinstance(mappedField,float) or isinstance(mappedField,int):
+                        elif isinstance(mappedField, float) or isinstance(mappedField, int):
                             valArray.append(mappedField)
                         else:
                             err = f"The mapping {OFField}->{fieldName} contains a value that is not a string or number. "
@@ -352,8 +356,6 @@ class OFToolkit(workflowToolkit):
             """
             ret.append(BoxRecord)
         return "\n".join(ret)
-
-
 
     def readFieldAsDataframe(self, caseDirectory, times=None, parallelCase=True):
         """
@@ -402,11 +404,11 @@ class OFToolkit(workflowToolkit):
 
             data = dask_dataframe.from_map(
                 [delayed(extractField)(casePath=os.path.join(finalCasePath, processorName, str(timeName), self.name),
-                                       patchNamesList=self.boundaryPatchList
-                 columnNames = self.componentNames,
-                               time = timeName,
-                                      processor = int(processorName[9:])) for processorName, timeName in product(
-                processorList, timeList)])
+                                       patchNamesList=self.boundaryPatchList,
+                                       columnNames=self.componentNames,
+                                       time=timeName,
+                                       processor=int(processorName[9:])) for processorName, timeName in product(
+                    processorList, timeList)])
         else:
             if times is None:
                 timeList = sorted([x for x in os.listdir(finalCasePath) if (
@@ -424,7 +426,6 @@ class OFToolkit(workflowToolkit):
                  for timeName in timeList])
 
         return data
-
 
     def readLagrangianFieldsToDataFrame(self,
                                         casePath,
@@ -500,7 +501,6 @@ class OFToolkit(workflowToolkit):
         return data
 
 
-
 class Analysis:
     """
         The analysis of the OpenFOAM.
@@ -517,7 +517,7 @@ class Analysis:
     def datalayer(self):
         return self._datalayer
 
-    def __init__(self,datalayer):
+    def __init__(self, datalayer):
         """
             Initializes the analysis layer.
         Parameters
@@ -528,8 +528,8 @@ class Analysis:
         """
         self._datalayer = datalayer
 
-
-    def makeVTKPipeline(self, nameOrWorkflowFileOrJSONOrResource, vtkPipeline, caseType=CASETYPE_DECOMPOSED, servername=None, fieldNames=None):
+    def makeVTKPipeline(self, nameOrWorkflowFileOrJSONOrResource, vtkPipeline, caseType=CASETYPE_DECOMPOSED,
+                        servername=None, fieldNames=None):
         """
             Creates a new VTK pipeline from the simulation.
 
@@ -562,11 +562,11 @@ class Analysis:
         return VTKpipeline(datalayer=self.datalayer,
                            pipelineJSON=vtkPipeline,
                            nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResource,
-                           caseType = caseType,
-                           serverName = servername,
-                           fieldNames = fieldNames)
+                           caseType=caseType,
+                           serverName=servername,
+                           fieldNames=fieldNames)
 
-    def getFiltersDocuments(self,nameOrWorkflowFileOrJSONOrResource,filterName=None):
+    def getFiltersDocuments(self, nameOrWorkflowFileOrJSONOrResource, filterName=None):
         """
                 Returns the cache documents of the filters.
 
@@ -593,19 +593,20 @@ class Analysis:
         """
         wrkflow = self.datalayer.getCaseListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
         if wrkflow is None:
-            raise ValueError(f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
+            raise ValueError(
+                f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
         simulationName = wrkflow['desc']['simulationName']
 
         qry = dict(simulationName=simulationName)
         if filterName is not None:
             qry['filterName'] = filterName
 
-        return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**qry)
+        return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **qry)
 
 
 class Presentation:
 
-    def __init__(self,datalayer,analysis):
+    def __init__(self, datalayer, analysis):
         self.datalayer = datalayer
         self.analysis = analysis
 
@@ -637,7 +638,8 @@ class Presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True,fieldList=None,xcoord="x",ycoord="y",zcoord="z",timecoord="time"):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True, fieldList=None, xcoord="x",
+                          ycoord="y", zcoord="z", timecoord="time"):
         """
             Writes the data as a VTK vtu file.
 
@@ -659,14 +661,14 @@ class Presentation:
 
         logger.debug("Getting the field names")
         if fieldList is None:
-            fieldList = [x for x in data.columns if x not in [xcoord,ycoord,zcoord]]
+            fieldList = [x for x in data.columns if x not in [xcoord, ycoord, zcoord]]
 
-        if isinstance(data,dd.DataFrame):
+        if isinstance(data, dd.DataFrame):
             logger.debug("The input type is dask dataframe. Getting timesteps and then using partition")
             timeList = [z for z in chain(*[x.index.unique().compute() for x in data.partitions])]
-            for indx,time in enumerate(timeList):
+            for indx, time in enumerate(timeList):
                 timeData = data.loc[time].compute()
-                outdata = dict((x,timeData[x].values) for x in fieldList)
+                outdata = dict((x, timeData[x].values) for x in fieldList)
                 finalfile = f"{namePath}_{indx}"
                 logger.info(f"Writing time step {time} to {finalfile}")
 
@@ -677,10 +679,10 @@ class Presentation:
         else:
             # all the data is loaded:
             for indx, (timeName, timeData) in enumerate(data.groupby("time")):
-                outdata = dict((x,timeData[x].values) for x in fieldList)
+                outdata = dict((x, timeData[x].values) for x in fieldList)
                 finalfile = f"{namePath}_{indx}"
                 logger.info(f"Writing time step {time} to {finalfile}")
-                
+
                 x = timeData[xcoord].values
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
@@ -793,6 +795,7 @@ class Presentation:
 
         return data
 
+
 def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
     """
         Extracts data from a openFOAM list file.
@@ -869,9 +872,9 @@ def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
 
     return newData.astype(float)
 
+
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
                          cloudName="kinematicCloud"):
-
     print(f"Processing {timeName}")
 
     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
