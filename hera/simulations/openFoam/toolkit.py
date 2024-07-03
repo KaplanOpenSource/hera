@@ -20,6 +20,8 @@ import pandas
 from dask.delayed import delayed
 import dask
 
+from . import SIMULATIONTYPE_COMPRESSIBLE,SIMULATIONTYPE_INCOMPRESSIBLE
+
 class OFToolkit(workflowToolkit):
     """
         The goal of this toolkit is to provide the functions that are required to run workflows.
@@ -84,7 +86,7 @@ class OFToolkit(workflowToolkit):
         """
         return workflow_Eulerian(workflowfile)
 
-    def getMesh(self,caseDirectory,parallel=True,time=0):
+    def getMesh(self, caseDirectory, readParallel=True, time=0):
         """
             Reads the mesh from the mesh directory.
 
@@ -99,7 +101,7 @@ class OFToolkit(workflowToolkit):
             caseDirectory: str
                     The path to the case. Should be absolute in order to determine whether we need to add the -case tot he postProcess.
 
-            parallel: bool
+            readParallel: bool
                     If parallel case exists, read it .
         Returns
         -------
@@ -117,7 +119,7 @@ class OFToolkit(workflowToolkit):
         casePointer = "" if caseDirectory == os.getcwd() else f"-case {caseDirectory}"
 
         useParallel= False
-        if parallel:
+        if readParallel:
             logger.debug(f"Attempt to load parallel case")
             # Check if the case is decomposed, if it is, run it.
             proc0dir = os.path.join(caseDirectory,"processor0")
@@ -142,12 +144,13 @@ class OFToolkit(workflowToolkit):
         else:
             logger.debug(f"Cell centers exist in {caseType} case.")
 
-        cellCenters = OFField(name="C",dimensions="",componentNames=['x','y','z'])
         logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
-        ret =  cellCenters.loadCaseData(caseDirectory, times=time, parallelCase=useParallel)
-
-        logger.info(f"--- End ---")
-        return ret
+        cellCenters = self.OFObjectHome.getFieldFromCase(fieldName="cellCenters",
+                                                         flowType=SIMULATIONTYPE_INCOMPRESSIBLE,
+                                                         caseDirectory=caseDirectory,
+                                                         timeStep=time,
+                                                         readParallel=readParallel)
+        return cellCenters
 
 
     def createEmptyCase(self, caseDirectory :str, fieldList : list, simulationType:str, additionalFieldsDescription  =dict()):
@@ -204,9 +207,11 @@ class OFToolkit(workflowToolkit):
         if additionalFieldsDescription is not None:
                 fileaddition = loadJSON(additionalFieldsDescription)
 
+        self.OFObjectHome.addFieldDefinitions(**fileaddition)
+
         # Makes the empty fields
         for fieldName in fieldList:
-            field = self.OFObjectHome.getField(fieldName, flowType=simulationType, additionalFieldsDescription=fileaddition)
+            field = self.OFObjectHome.getField(fieldName, flowType=simulationType)
             field.writeToCase(caseDirectory=caseDirectory, fileLocation=0)
             field.writeToCase(caseDirectory=caseDirectory, fileLocation="0.orig")
             field.writeToCase(caseDirectory=caseDirectory, fileLocation="0.parallel", parallel=False,
