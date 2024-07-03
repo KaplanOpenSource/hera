@@ -1,5 +1,4 @@
 import warnings
-from .OFObjects import OFObjectHome
 from .OFWorkflow import workflow_Eulerian,workflow_Lagrangian
 
 CASETYPE_DECOMPOSED = 'Decomposed Case'
@@ -13,3 +12,6 @@ SIMULATIONTYPE_DISPERSION = "dispersion"
 FIELDTYPE_SCALAR = "scalar"
 FIELDTYPE_VECTOR = "vector"
 FIELDTYPE_TENSOR = "tensor"
+
+FIELDCOMPUTATION_EULERIAN = "eulerian"
+FIELDCOMPUTATION_LAGRANGIAN = "lagrangian"
