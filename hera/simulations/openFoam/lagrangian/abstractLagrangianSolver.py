@@ -383,10 +383,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
             for field in dispersionFieldList:
                 logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                field.write(caseDirectory=dispersionFlowFieldDirectory,
-                            location=str(dest_time),
-                            parallel=parallelOriginal,
-                            parallelBoundary=parallelOriginal)
+                field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, fileLocation=str(dest_time),
+                                  parallel=parallelOriginal, parallelBoundary=parallelOriginal)
 
 
         logger.info("Finished creating the flow field for the dispersion. ")
