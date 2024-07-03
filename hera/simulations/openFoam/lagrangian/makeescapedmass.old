@@ -46,8 +46,8 @@ def createEmpty(args):
     # Makes the empty fields
     for fieldName in fieldList:
         field = ofObjectHome().getField(fieldName, flowType=args.simulationType, additionalFieldsDescription=fileaddition)
-        field.write(caseDirectory=caseDir, location=0)
-        field.write(caseDirectory=caseDir, location="0.orig")
+        field.writeToCase(caseDirectory=caseDir, fileLocation=0)
+        field.writeToCase(caseDirectory=caseDir, fileLocation="0.orig")
         field.emptyParallelField(caseDirectory=caseDir)
 
 def createBuildings(args):
@@ -142,7 +142,7 @@ def windProfile(args):
     # 5. Write in the constant/U0 file.
     dims = of_tk.OFObjectHome.getDimensions(m=1, s=-1)
     newField = of_tk.OFObjectHome.getField(fieldName="U0", componentNames=['Ux', 'Uy', 'Uz'], dimensions=dims)
-    newField.write(caseDirectory=caseDirectory, location="constant", data=data)
+    newField.writeToCase(caseDirectory=caseDirectory, fileLocation="constant")
 
 def listRegions(args):
     """
