@@ -15,12 +15,12 @@ import dask.dataframe as dd
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
-from . import SIMULATIONTYPE_COMPRESSIBLE,SIMULATIONTYPE_INCOMPRESSIBLE,SIMULATIONTYPE_DISPERSION,FIELDTYPE_SCALAR,FIELDTYPE_TENSOR,FIELDTYPE_VECTOR,CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+from . import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE,FLOWTYPE_DISPERSION,FIELDTYPE_SCALAR,FIELDTYPE_TENSOR,FIELDTYPE_VECTOR,CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
 import pandas
 from dask.delayed import delayed
 import dask
 
-from . import SIMULATIONTYPE_COMPRESSIBLE,SIMULATIONTYPE_INCOMPRESSIBLE
+from . import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE
 
 class OFToolkit(workflowToolkit):
     """
@@ -34,9 +34,9 @@ class OFToolkit(workflowToolkit):
     TIME_STEADYSTATE = "steadyState"
     TIME_DYNAMIC = "dynamic"
 
-    SIMULATIONTYPE_COMPRESSIBLE = SIMULATIONTYPE_COMPRESSIBLE
-    SIMULATIONTYPE_INCOMPRESSIBLE = SIMULATIONTYPE_INCOMPRESSIBLE
-    SIMULATIONTYPE_DISPERSION = SIMULATIONTYPE_DISPERSION
+    FLOWTYPE_COMPRESSIBLE = FLOWTYPE_COMPRESSIBLE
+    FLOWTYPE_INCOMPRESSIBLE = FLOWTYPE_INCOMPRESSIBLE
+    FLOWTYPE_DISPERSION = FLOWTYPE_DISPERSION
 
     FIELDTYPE_SCALAR = FIELDTYPE_SCALAR
     FIELDTYPE_VECTOR = FIELDTYPE_VECTOR
@@ -146,7 +146,7 @@ class OFToolkit(workflowToolkit):
 
         logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
         cellCenters = self.OFObjectHome.getFieldFromCase(fieldName="cellCenters",
-                                                         flowType=SIMULATIONTYPE_INCOMPRESSIBLE,
+                                                         flowType=FLOWTYPE_INCOMPRESSIBLE,
                                                          caseDirectory=caseDirectory,
                                                          timeStep=time,
                                                          readParallel=readParallel)
