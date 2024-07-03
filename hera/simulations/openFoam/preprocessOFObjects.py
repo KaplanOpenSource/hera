@@ -295,7 +295,7 @@ class OFObjectHome:
             raise ValueError(err)
 
         fieldData = self.fieldDefinitions[fieldName]
-        dimensions = fieldData['dimensions'].get(flowType, fieldData['dimensions']['default'])
+        dimensions = fieldData['dimensions'].get(flowType, fieldData['dimensions'].get('default',None))
         fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
 
         ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
@@ -427,6 +427,7 @@ class OFObject:
     REGION_INTERNSALFIELD = 'internalField'
     REGION_BOUNDARYFIELD = 'boundaryField'
 
+
     @property
     def componentNames(self):
         if self.fieldType == FIELDTYPE_SCALAR:
@@ -535,7 +536,7 @@ class OFObject:
                 outputdir.writelines(str(self.data['singleProcessor']))
 
 
-    def writeEmptyField(self, caseDirectory, fileLocation, parallel=False, parallelBoundary=False):
+    def writeEmptyField(self, caseDirectory, timeOrLocation, parallel=False, parallelBoundary=False):
         """
             Overwrites an empty new field (without the data)
 
@@ -579,9 +580,9 @@ class OFObject:
         logger = get_classMethod_logger(self, "write")
         logger.execution("---- Start ----")
         logger.debug(
-            f"caseDirectory {caseDirectory}, location {fileLocation}, parallel {parallel}, boundary parallel {parallelBoundary}")
+            f"caseDirectory {caseDirectory}, location {timeOrLocation}, parallel {parallel}, boundary parallel {parallelBoundary}")
         fileName = self.fileName
-        data = '0' if self.componentNames is None else f"({' '.join(['0' for x in self.componentNames])})"
+        data = '0' if self.fieldType == FIELDTYPE_SCALAR else f"({' '.join(['0' for x in self.componentNames])})"
 
         if parallel:
             logger.execution("Saving fields to parallel case")
@@ -589,12 +590,12 @@ class OFObject:
             procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
             logger.debug(f"The processor found in the case : {','.join(procPaths)}")
             for processorName in procPaths:
-                fullFileName = os.path.join(caseDirectory, processorName, str(fileLocation), fileName)
+                fullFileName = os.path.join(caseDirectory, processorName, str(timeOrLocation), fileName)
                 self._writeNew(filename=fullFileName, data=data, parallel=parallel,
                                parallelBoundary=parallelBoundary)
 
         else:
-            fullFileName = os.path.join(caseDirectory, str(fileLocation), fileName)
+            fullFileName = os.path.join(caseDirectory, str(timeOrLocation), fileName)
             logger.debug(f"Writinge {fullFileName} as composed file")
 
             self._writeNew(filename=fullFileName, data=data, parallel=parallel, parallelBoundary=parallelBoundary)

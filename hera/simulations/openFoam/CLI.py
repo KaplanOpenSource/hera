@@ -11,7 +11,7 @@ from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
-from .OFObjects import  OFObjectHome
+from .preprocessOFObjects import  OFObjectHome
 
 def Foam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
@@ -40,7 +40,7 @@ def Foam_createEmpty(arguments):
 
     tk.createEmptyCase(caseDirectory = arguments.caseDirectory,
                        fieldList = arguments.fields,
-                       simulationType=simulationType,
+                       flowType=simulationType,
                        additionalFieldsDescription = arguments.fieldsDescription)
 
 
