@@ -1,6 +1,9 @@
 from ..OFWorkflow import workflow_Eulerian
 from ....utils.freeCAD import getObjFileBoundaries
 from ....utils.logging import get_classMethod_logger
+from .. import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE
+import pandas
+
 class absractEulerianSolver_toolkitExtension:
 
     toolkit = None
@@ -146,3 +149,45 @@ class absractEulerianSolver_toolkitExtension:
         """
 
         return self.toolkit.OFObjectHome.getField(fieldName=fieldName,flowType=self.flowType,boundaryConditions=boundaryConditions,data=data)
+
+    def IC_getHydrostaticPressure(self,caseDirectory,fieldName="p",groundPressure=101000):
+        """
+            Returns the field p with the hydrostatic pressure defined.
+            Make sure that all the boundaries that are defined as fixedValue will be set.
+
+        Parameters
+        ----------
+        caseDirectory : str
+            The name of the case directory.
+
+        flowType : str
+            The type of the flow compressible/incompressible
+        fieldName : str
+            The name of the case.
+
+        Returns
+        -------
+            OFField
+        """
+        pField = self.toolkit.OFObjectHome.getFieldFromCase(fieldName="p", flowType=FLOWTYPE_INCOMPRESSIBLE if self.incompressible else FLOWTYPE_COMPRESSIBLE,caseDirectory=caseDirectory)
+        cellCenters = self.toolkit.getMesh(caseDirectory=caseDirectory)
+        CC_boundary = cellCenters.getDataFrame().query("region=='boundaryField'")
+        internalFieldCells = cellCenters.getDataFrame().query("region=='internalField'")
+        internalFieldCells = internalFieldCells.assign(p=groundPressure - 9.81 * internalFieldCells.Cz)
+
+        pField.setFieldFromDataFrame(internalFieldCells)
+
+        patchList = []
+        for procName, fieldData in pField.data.items():
+            procNumber = procName[9:]
+            for patchName, patchData in pField.boundaryField(procName).items():
+                if patchData['type'] == "fixedValue":
+                    patchCenters = CC_boundary.query(f"processor=={procNumber} and boundary=='{patchName}'")
+                    patchCenters = patchCenters.assign(p=101000 - 9.81 * patchCenters.Cz)
+                    patchList.append(patchCenters)
+
+        if len(patchList) > 0:
+            patches = pandas.concat(patchList)
+            pField.setFieldFromDataFrame(patches)
+
+        return pField
