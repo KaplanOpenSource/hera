@@ -543,6 +543,44 @@ def foam_IC(arguments):
     """
     pass
 
+def IC_hydrostaticPressure(arguments):
+    """
+        Sets the hydrostatic pressure for the p variable.
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    if 'projectName' not in arguments:
+        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
+        try:
+            configuration = loadJSON(configurationFile)
+        except:
+            err = f"Configuration file {configurationFile} not found! creating a basic file"
+            with open(configurationFile,'w') as defaultConfFile:
+                json.dump(dict(projectName=None),defaultConfFile,indent=4)
+
+            raise ValueError(err)
+
+        projectName = configuration['projectName']
+    else:
+        projectName = arguments.projectName
+
+    logger.info(f"Using project {projectName}")
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+
+    simulationType = tk.FLOWTYPE_INCOMPRESSIBLE if arguments.incompressible else tk.FLOWTYPE_COMPRESSIBLE
+
+    cellCenters = tk.getMesh(arguments.caseDirectory)
+    pField = getattr(tk,arguments.solver).IC_getHydrostaticPressure(arguments.caseDirectory)
+    pField.writeToCase(arguments.caseDirectory, timeOrLocation=arguments.startTime)
 
 def foam_BC(arguments):
     """
