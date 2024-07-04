@@ -3,11 +3,11 @@ import os
 import glob
 from .OFWorkflow import workflow_Eulerian
 from .preprocessOFObjects import OFObjectHome
-from . import CASETYPE_DECOMPOSED, TYPE_VTK_FILTER
+from . import TYPE_VTK_FILTER
 from ..hermesWorkflowToolkit import workflowToolkit
 from .VTKPipeline import VTKpipeline
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
-from ...utils.jsonutils import loadJSON, compareJSONS
+from ...utils.jsonutils import loadJSON
 from ...utils.logging import get_classMethod_logger
 from evtk import hl as evtk_hl
 import dask.dataframe as dd
@@ -16,6 +16,7 @@ from itertools import product
 from collections.abc import Iterable
 from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE, FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
     FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED
+from .eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
 import pandas
 from dask.delayed import delayed
 import dask
@@ -50,6 +51,8 @@ class OFToolkit(workflowToolkit):
 
     stochasticLagrangian = None
 
+    buoyantReactingFoam = None
+
     def __init__(self, projectName, filesDirectory=None):
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
@@ -59,6 +62,7 @@ class OFToolkit(workflowToolkit):
         self._analysis = Analysis(self)
         self._presentation = Presentation(self, self.analysis)
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
+        self.buoyantReactingFoam  = buoyantReactingFoam_toolkitExtension(self)
 
     def processorList(self, caseDirectory):
         """
