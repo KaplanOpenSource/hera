@@ -6,7 +6,7 @@ import glob
 import shutil
 import json
 from ....datalayer import datatypes
-from ..OFObjects import OFMeshBoundary
+from ..preprocessOFObjects import  OFMeshBoundary
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
 import xarray
@@ -308,7 +308,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         dispersionFieldList = []
         for dispersionFieldName, dispersionFieldData in dispersionFields.items():
             logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
-            field = ofhome.getFieldFromJSON(fieldName=dispersionFieldName,configuration=dispersionFieldData,meshBoundary=meshBoundary)
+            field = ofhome.getFieldFromJSON(fieldName=dispersionFieldName, configuration=dispersionFieldData,
+                                            meshBoundaryPatchNameList=meshBoundary)
             dispersionFieldList.append( field )
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
@@ -382,10 +383,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
             for field in dispersionFieldList:
                 logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                field.write(caseDirectory=dispersionFlowFieldDirectory,
-                            location=str(dest_time),
-                            parallel=parallelOriginal,
-                            parallelBoundary=parallelOriginal)
+                field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, fileLocation=str(dest_time),
+                                  parallel=parallelOriginal, parallelBoundary=parallelOriginal)
 
 
         logger.info("Finished creating the flow field for the dispersion. ")
