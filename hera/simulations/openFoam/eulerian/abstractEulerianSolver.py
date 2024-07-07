@@ -1,6 +1,8 @@
 from ..OFWorkflow import workflow_Eulerian
 from ....utils.freeCAD import getObjFileBoundaries
 from ....utils.logging import get_classMethod_logger
+from .. import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE
+import pandas
 
 class absractEulerianSolver_toolkitExtension:
 
@@ -19,6 +21,11 @@ class absractEulerianSolver_toolkitExtension:
         self.solverName = solverName
         self.incompressible = incompressible
         #self.analysis = analysis(self)
+
+    @property
+    def flowType(self):
+        return self.toolkit.FLOWTYPE_INCOMPRESSIBLE if self.incompressible else SIMULATIONTYPE_COMPRESSIBLE
+
 
     def blockMesh_setBoundFromBounds(self, eulerianWF, minx,maxx,miny,maxy,minz,maxz,dx,dy,dz):
         """
@@ -106,13 +113,81 @@ class absractEulerianSolver_toolkitExtension:
         corners = getObjFileBoundaries(fileName)
         eulerianWF.set_blockMesh_boundaries(**corners, dx=dx,dy=dy, dz=dz)
 
-
-    def specialize_snappyHexMeshFromMesh(self):
+    def writeFieldInCase(self, fieldName,caseDirectory,components,xarrayData, boundaryConditions=None,data=None):
         """
-            Change the snappy hex mesh according to the
-            flow field.
+            Writes
+        Parameters
+        ----------
+        fieldName
+        caseDirectory
+        components
+        xarrayData
+        boundaryConditions
+        data
+
         Returns
         -------
 
         """
-        pass
+
+        """
+            Returns an OF Object.
+
+        Parameters
+        ----------
+        fieldName  : string
+            The name of the field.
+            The field must exist in the field descriptions.
+
+        boundaryConditions
+        data : pandas, list
+            The value of the field (ordered with the cell centers).
+
+        Returns
+        -------
+
+        """
+
+        return self.toolkit.OFObjectHome.getField(fieldName=fieldName,flowType=self.flowType,boundaryConditions=boundaryConditions,data=data)
+
+    def IC_getHydrostaticPressure(self,caseDirectory,fieldName="p",groundPressure=101000):
+        """
+            Returns the field p with the hydrostatic pressure defined.
+            Make sure that all the boundaries that are defined as fixedValue will be set.
+
+        Parameters
+        ----------
+        caseDirectory : str
+            The name of the case directory.
+
+        flowType : str
+            The type of the flow compressible/incompressible
+        fieldName : str
+            The name of the case.
+
+        Returns
+        -------
+            OFField
+        """
+        pField = self.toolkit.OFObjectHome.getFieldFromCase(fieldName="p", flowType=FLOWTYPE_INCOMPRESSIBLE if self.incompressible else FLOWTYPE_COMPRESSIBLE,caseDirectory=caseDirectory)
+        cellCenters = self.toolkit.getMesh(caseDirectory=caseDirectory)
+        CC_boundary = cellCenters.getDataFrame().query("region=='boundaryField'")
+        internalFieldCells = cellCenters.getDataFrame().query("region=='internalField'")
+        internalFieldCells = internalFieldCells.assign(p=groundPressure - 9.81 * internalFieldCells.Cz)
+
+        pField.setFieldFromDataFrame(internalFieldCells)
+
+        patchList = []
+        for procName, fieldData in pField.data.items():
+            procNumber = procName[9:]
+            for patchName, patchData in pField.boundaryField(procName).items():
+                if patchData['type'] == "fixedValue":
+                    patchCenters = CC_boundary.query(f"processor=={procNumber} and boundary=='{patchName}'")
+                    patchCenters = patchCenters.assign(p=101000 - 9.81 * patchCenters.Cz)
+                    patchList.append(patchCenters)
+
+        if len(patchList) > 0:
+            patches = pandas.concat(patchList)
+            pField.setFieldFromDataFrame(patches)
+
+        return pField

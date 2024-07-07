@@ -5,7 +5,7 @@ from hera.simulations.openFoam import CLI
 from hera.utils.logging import initialize_logging,with_logger
 
 
-def addSolverTemplateOptions(subparser,solverName):
+def addSolverTemplateOptions(subparser,solverName,incompressible):
     """
         Adds the template options.
     Parameters
@@ -61,7 +61,7 @@ def addSolverTemplateOptions(subparser,solverName):
 
 #foam_templates_node_list
 
-def addMeshOptions(subparser,solverName):
+def addMeshOptions(subparser,solverName,incompressible):
     """
         Adds mesh handling of the subparsers.
 
@@ -95,65 +95,73 @@ def addMeshOptions(subparser,solverName):
     blockmesh_setBoundsFromFile.set_defaults(func=CLI.foam_mesh_blockMesh)
 
     #### ----------------  set the height of the domain
-    blockMesh_setDomainHeight = templates_subparser.add_parser('setDomainHeight', help='Sets the boundary in the ')
+    blockMesh_setDomainHeight = blockmesh_subparser.add_parser('setDomainHeight', help='Sets the boundary in the ')
     blockMesh_setDomainHeight.add_argument('templateName', type=str, default=None, help="The template file Name")
     blockMesh_setDomainHeight.add_argument('Z', type=str, default=None, help="The height")
     blockMesh_setDomainHeight.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     blockMesh_setDomainHeight.set_defaults(solver=solverName)
     blockMesh_setDomainHeight.set_defaults(func=CLI.foam_mesh_setDomainHeight)
 
-    ## ---------------- blockMesh.
-    snappyhex_parser  = subparser.add_parser('snappyHexMesh', help=f'Manages snappyHexMesh in {solverName}')
-    snappyhex_subparser = snappyhex_parser.add_subparsers()
-
-    ## ----------------  Add object
-    snappyhex_addObject = snappyhex_subparser.add_parser('addObject', help='Adds the object to snappy')
-    snappyhex_addObject.add_argument('templateName', type=str, default=None, help="A node template file / or resource ")
-    snappyhex_addObject.add_argument('fileName', type=str, default=None, help="The object")
-    snappyhex_addObject.add_argument('--defaults', type=str, default=None, help="The defaults of the system. Either file or defaults of the toolkit")
-    snappyhex_addObject.add_argument('--keepBC', type=str, default=True, action="store_false",  help="If True, keep the BC of the blockMesh, just add the BC of the object. Else, remove the BC of the blockmesh")
-    snappyhex_addObject.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    snappyhex_addObject.set_defaults(solver=solverName)
-    snappyhex_addObject.set_defaults(func=CLI.foam_snappyhexmesh_addobject)
-
-    ## ----------------  Set point
-    snappyhex_setLocationInDomain = snappyhex_subparser.add_parser('setLocationInDomain', help='set the point in he domain')
-    snappyhex_setLocationInDomain.add_argument('templateName', type=str, default=None, help="The template file Name")
-    snappyhex_setLocationInDomain.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    setPoint_subparser = snappyhex_setLocationInDomain.add_subparsers()
-
-    ## ------------------------- As location
-    setPoint_subparser_location = setPoint_subparser.add_parser('point', help='Adds the object to snappy')
-    setPoint_subparser_location.add_argument('x', type=str, default=None, help="x point")
-    setPoint_subparser_location.add_argument('y', type=str, default=None, help="y point")
-    setPoint_subparser_location.add_argument('z', type=str, default=None, help="z point")
-    setPoint_subparser_location.set_defaults(solver=solverName,
-                                             locationType="point",
-                                             func=CLI.foam_snappyhexmesh_setLocationInDomain)
-
-    ## ------------------------- As center
-    setPoint_subparser_center = setPoint_subparser.add_parser('center', help='Adds the object to snappy')
-    setPoint_subparser_center.set_defaults(solver=solverName,
-                                             locationType="center",
-                                             func=CLI.foam_snappyhexmesh_setLocationInDomain)
+    # ## ---------------- snappyHexMesh.
+    # snappyhex_parser  = subparser.add_parser('snappyHexMesh', help=f'Manages snappyHexMesh in {solverName}')
+    # snappyhex_subparser = snappyhex_parser.add_subparsers()
+    #
+    # ## ----------------  Add object
+    # snappyhex_addObject = snappyhex_subparser.add_parser('addObject', help='Adds the object to snappy')
+    # snappyhex_addObject.add_argument('templateName', type=str, default=None, help="A node template file / or resource ")
+    # snappyhex_addObject.add_argument('fileName', type=str, default=None, help="The object")
+    # snappyhex_addObject.add_argument('--defaults', type=str, default=None, help="The defaults of the system. Either file or defaults of the toolkit")
+    # snappyhex_addObject.add_argument('--keepBC', type=str, default=True, action="store_false",  help="If True, keep the BC of the blockMesh, just add the BC of the object. Else, remove the BC of the blockmesh")
+    # snappyhex_addObject.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    # snappyhex_addObject.set_defaults(solver=solverName)
+    # snappyhex_addObject.set_defaults(func=CLI.foam_snappyhexmesh_addobject)
+    #
+    # ## ----------------  Set point
+    # snappyhex_setLocationInDomain = snappyhex_subparser.add_parser('setLocationInDomain', help='set the point in he domain')
+    # snappyhex_setLocationInDomain.add_argument('templateName', type=str, default=None, help="The template file Name")
+    # snappyhex_setLocationInDomain.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    # setPoint_subparser = snappyhex_setLocationInDomain.add_subparsers()
+    #
+    # ## ------------------------- As location
+    # setPoint_subparser_location = setPoint_subparser.add_parser('point', help='Adds the object to snappy')
+    # setPoint_subparser_location.add_argument('x', type=str, default=None, help="x point")
+    # setPoint_subparser_location.add_argument('y', type=str, default=None, help="y point")
+    # setPoint_subparser_location.add_argument('z', type=str, default=None, help="z point")
+    # setPoint_subparser_location.set_defaults(solver=solverName,
+    #                                          locationType="point",
+    #                                          func=CLI.foam_snappyhexmesh_setLocationInDomain)
+    #
+    # ## ------------------------- As center
+    # setPoint_subparser_center = setPoint_subparser.add_parser('center', help='Adds the object to snappy')
+    # setPoint_subparser_center.set_defaults(solver=solverName,
+    #                                          locationType="center",
+    #                                          func=CLI.foam_snappyhexmesh_setLocationInDomain)
 
     ## ---------------- Initial conditions (IC)
     IC_parser = subparser.add_parser('IC', help=f'Manages initial conditions in {solverName}')
-    IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
-    IC_parser.add_argument('fileName', type=str, default=None,
-                           help="The file name. Can be either netcdf or parquet.   ")
-    IC_parser.add_argument('--parser', type=str, choice=["WRF", "xarray"], default="xarray",
-                           help="If netcdf, should supply the parser")
-    IC_parser.set_defaults(solver=solverName, func=CLI.foam_IC)
+    IC_subparser = IC_parser.add_subparsers()
+
+    #### ----------------  set boundaries from file.
+    IC_setHydrostaticPressure = IC_subparser.add_parser('hydrostaticPressure', help='Sets the pressure to be in hydrostatic pressure ')
+    IC_setHydrostaticPressure.add_argument('caseDirectory', type=str, help="The name of the case to set")
+    IC_setHydrostaticPressure.add_argument('--startTime', type=str,default=0, help="The initial time")
+    IC_setHydrostaticPressure.set_defaults(solver=solverName, func=CLI.IC_hydrostaticPressure,incompressible=incompressible)
+
+    # IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
+    # IC_parser.add_argument('fileName', type=str, default=None,
+    #                        help="The file name. Can be either netcdf or parquet.   ")
+    # IC_parser.add_argument('--parser', type=str, choice=["WRF", "xarray"], default="xarray",
+    #                        help="If netcdf, should supply the parser")
+    # IC_parser.set_defaults(solver=solverName, func=CLI.foam_IC)
 
     ## ---------------- Boundry conditions (BC)
-    IC_parser = subparser.add_parser('IC', help=f'Manages initial conditions in {solverName}')
-    IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
-    IC_parser.add_argument('fileName', type=str, default=None,
-                           help="The file name. Can be either netcdf or parquet.   ")
-    IC_parser.add_argument('--parser', type=str, choice=["WRF", "xarray"], default="xarray",
-                           help="If netcdf, should supply the parser")
-    IC_parser.set_defaults(solver=solverName, func=CLI.foam_BC)
+    # IC_parser = subparser.add_parser('BC', help=f'Manages initial conditions in {solverName}')
+    # IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
+    # IC_parser.add_argument('fileName', type=str, default=None,
+    #                        help="The file name. Can be either netcdf or parquet.   ")
+    # IC_parser.add_argument('--parser', type=str, choice=["WRF", "xarray"], default="xarray",
+    #                        help="If netcdf, should supply the parser")
+    # IC_parser.set_defaults(solver=solverName, func=CLI.foam_BC)
 
 def addSolverCaseManagement(subparser,solverName,incompressible):
     """
@@ -186,7 +194,6 @@ def addSolverCaseManagement(subparser,solverName,incompressible):
     parser_FieldDescription.set_defaults(solver=solverName)
     parser_FieldDescription.set_defaults(func=CLI.Foam_parser_FieldDescription)
 
-
 if __name__ == "__main__":
     initialize_logging(
          with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
@@ -214,7 +221,7 @@ if __name__ == "__main__":
     addSolverCaseManagement(subparser=simpleFoam_subparser, solverName="simpleFoam", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam")
+    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam", incompressible=True)
 
     ## ====================================================
     ## ================== pimpleFoam
@@ -226,7 +233,7 @@ if __name__ == "__main__":
     addSolverCaseManagement(subparser=pimpleFoam_subparser, solverName="pimpleFoam", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=pimpleFoam_subparser,solverName="pimpleFoam")
+    addSolverTemplateOptions(subparser=pimpleFoam_subparser,solverName="pimpleFoam", incompressible=True)
 
     ## ====================================================
     ## ================== oguraPhillipShallowConvectionFOAM
@@ -235,22 +242,25 @@ if __name__ == "__main__":
     oguraPhillipShallowConvectionFOAM_subparser = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="pimpleFoam", incompressible=True)
+    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
+    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
 
     ## ====================================================
-    ## ================== rhoReactingBuoyantFoam
+    ## ================== buoyantReactingFoam
     ## ====================================================
-    rhoReactingBuoyantFoam_parser = subparsers.add_parser('buoyantReactingFoam', help='Handles rhoReactingBuoyantFoam')
-    rhoReactingBuoyantFoam_subparser = rhoReactingBuoyantFoam_parser.add_subparsers(help='Handles rhoReactingBuoyantFoam')
+    buoyantReactingFoam_parser = subparsers.add_parser('buoyantReactingFoam', help='Handles rhoReactingBuoyantFoam')
+    buoyantReactingFoam_subparser = buoyantReactingFoam_parser.add_subparsers(help='Handles rhoReactingBuoyantFoam')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=rhoReactingBuoyantFoam_subparser, solverName="rhoReactingBuoyantFoam", incompressible=False)
+    addSolverCaseManagement(subparser=buoyantReactingFoam_subparser, solverName="buoyantReactingFoam", incompressible=False)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=rhoReactingBuoyantFoam_subparser,solverName="rhoReactingBuoyantFoam")
+    addSolverTemplateOptions(subparser=buoyantReactingFoam_subparser,solverName="buoyantReactingFoam", incompressible=False)
+
+    ## ----- mesh handling
+    addMeshOptions(subparser=buoyantReactingFoam_subparser,solverName="buoyantReactingFoam", incompressible=False)
 
     ## ====================================================
     ## ================== StochasticLagrantianSolver
@@ -326,8 +336,6 @@ if __name__ == "__main__":
     postProcess_vtk_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
     postProcess_vtk_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toParquet)
 
-    ## ----- template handling
-    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM")
 
     ############################################
     ### ------------------------------ ObjUtils
