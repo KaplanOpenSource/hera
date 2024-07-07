@@ -257,7 +257,7 @@ FoamFile
     object      {name};
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-    """.replace("{fieldType}", fieldType).replace("{name}", self.name)
+    """.replace("{fieldType}", fieldType.title()).replace("{name}", self.name)
 
     def _writeNew(self, filename, data, parallel, parallelBoundary=False):
         raise NotImplementedError("Implemented specifically for field or list")
