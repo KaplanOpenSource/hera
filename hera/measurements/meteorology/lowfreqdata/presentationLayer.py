@@ -541,7 +541,7 @@ class DailyPlots(Plots):
 
         # Compute histogram #
 
-        x_hist, y_hist, M_hist = analysis.calcHourlyDist(data, plotField, normalization=normalization)
+        x_hist, y_hist, M_hist = analysis.calcHourlyDist(analysis,data=data, Field=plotField, normalization=normalization)
 
 
         # Read and update contour and contourf properties #
