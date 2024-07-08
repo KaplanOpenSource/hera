@@ -6,7 +6,7 @@ import json
 import glob
 
 import sys
-from . import DECOMPOSED_CASE,RECONSTRUCTED_CASE,TYPE_VTK_FILTER
+from . import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED,TYPE_VTK_FILTER
 from ...utils import loadJSON
 from ...utils.logging import helpers as hera_logging
 from ...datalayer import datatypes
@@ -93,7 +93,7 @@ class VTKpipeline:
     def VTKpipelineJSON(self):
         return self._VTKpipelineJSON
 
-    def __init__(self, datalayer, pipelineJSON, nameOrWorkflowFileOrJSONOrResource, caseType=DECOMPOSED_CASE, serverName=None, fieldNames=None):
+    def __init__(self, datalayer, pipelineJSON, nameOrWorkflowFileOrJSONOrResource, caseType=CASETYPE_DECOMPOSED, serverName=None, fieldNames=None):
         """
             Initializes a VTK pipeline.
 
