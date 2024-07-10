@@ -175,10 +175,11 @@ class dataToolkit(toolkit.abstractToolkit):
         for itemName, itemDesc in docTypeDict.items():
             theItem = itemDesc["item"]
 
-            isRelativePath = bool(itemDesc.get("isRelativePath", True))
+            isRelativePath = itemDesc.get("isRelativePath")
+            assert isRelativePath=='True' or isRelativePath=='False', "isRelativePath must be defined as 'True' or 'False'. "
             # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
-            if isRelativePath:
+            if isRelativePath=='True':
                 logger.debug(
                     f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
                 theItem["resource"] = os.path.join(basedir, theItem["resource"])
