@@ -1,15 +1,9 @@
-import pdb
-
 import pandas
 import os
-import json
 import glob
-
-import sys
-from . import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED,TYPE_VTK_FILTER
-from ...utils import loadJSON
-from ...utils.logging import helpers as hera_logging
-from ...datalayer import datatypes
+from .. import CASETYPE_DECOMPOSED, TYPE_VTK_FILTER
+from ....utils import loadJSON,get_classMethod_logger
+from ....datalayer import datatypes
 paraviewExists = False
 try:
     import paraview.simple as pvsimple
@@ -19,11 +13,10 @@ except ImportError:
 
 from .pvOpenFOAMBase import paraviewOpenFOAM
 
-
-class VTKpipeline:
+class VTKpipelineExecutionContext:
     """
 
-    This is a helper class to handle VTK pipelines.
+    This is a helper class to execute VTK pipelines.
     It has 2 main functions:
 
         * Execute the pipelines and save the results to parquet or netcdf file
@@ -64,26 +57,10 @@ class VTKpipeline:
     _pvOFBase = None  # Holds the OF base.
     _casePath = None
     _reader = None
-    _datalayer = None
-    _simulationDocument = None
-
-    @property
-    def simulationDocument(self):
-
-        if self._simulationDocument is None:
-            if self.datalayer is not None:
-                self._simulationDocument = self.datalayer.getCaseListDocumentFromDB(self._nameOrWorkflowFileOrJSONOrResource)
-
-        return self._simulationDocument
 
     @property
     def reader(self):
         return self._reader
-
-
-    @property
-    def datalayer(self):
-        return self._datalayer
 
     @property
     def pvOFBase(self):
@@ -93,7 +70,7 @@ class VTKpipeline:
     def VTKpipelineJSON(self):
         return self._VTKpipelineJSON
 
-    def __init__(self, datalayer, pipelineJSON, nameOrWorkflowFileOrJSONOrResource, caseType=CASETYPE_DECOMPOSED, serverName=None, fieldNames=None):
+    def __init__(self, pipelineJSON, casePath, caseType=CASETYPE_DECOMPOSED, serverName=None, fieldNames=None):
         """
             Initializes a VTK pipeline.
 
@@ -149,22 +126,11 @@ class VTKpipeline:
 
                 The connection string is printed when the server is initialized.
         """
-        self.logger = hera_logging.get_logger(self)
+        logger = get_classMethod_logger(self,"__init__")
         self._VTKpipelineJSON = loadJSON(pipelineJSON)
-        self._datalayer = datalayer
+
         self._serverName = serverName
         self._caseType = caseType
-        self._nameOrWorkflowFileOrJSONOrResource = nameOrWorkflowFileOrJSONOrResource
-
-        if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
-            casePath = nameOrWorkflowFileOrJSONOrResource
-        else:
-            simDoc = self.simulationDocument
-            if simDoc is not None:
-                casePath = simDoc.resource
-            else:
-                raise ValueError(f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
-
 
         if paraviewExists:
             self._pvOFBase = paraviewOpenFOAM(casePath=casePath,
@@ -181,7 +147,7 @@ class VTKpipeline:
         self._casePath = casePath
         self._fieldNames = self._VTKpipelineJSON["metadata"].get("fieldNames", fieldNames)
 
-    def _initializeReader(self, readerName):
+    def initializeReader(self, readerName="reader"):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -208,16 +174,47 @@ class VTKpipeline:
         :return:
                 the reader
         """
-        self._readerName  = readerName
-        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self._casePath, CaseType=self._caseType, guiName=readerName)
-        self._reader.MeshRegions.SelectAll()
-        self._possibleRegions = list(self._reader.MeshRegions)
-        self._reader.MeshRegions = ['internalMesh']
-        if self._fieldNames is not None:
-            self._reader.CellArrays = self._fieldNames
-        self._reader.UpdatePipeline()
+        self._readerName = readerName
+        self._reader = self.getReader(readerName=readerName)
 
-        return self._reader
+
+    def getReader(self, readerName="reader"):
+        """
+            Constructs a reader and register it in the vtk pipeline.
+
+            Handles either parallel or single format.
+
+        Parameters
+        -----------
+
+        readerName: str
+                The name of the reader.  (of the pipline).
+                When using server, then you can have different pipelines with different names.
+
+        casePath: str
+                a full path to the case directory.
+        CaseType: str
+                Either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
+                for single processor cases.
+        fieldnames: list of str
+                List of field names to load.
+                if None, read all the fields.
+
+        servername: str
+                The address of pvserver. If None, use the local single threaded case.
+        :return:
+                the reader
+        """
+        #self._readerName  = readerName
+        reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self._casePath, CaseType=self._caseType, guiName=readerName)
+        reader.MeshRegions.SelectAll()
+        possibleRegions = list(reader.MeshRegions)
+        reader.MeshRegions = ['internalMesh']
+        if self._fieldNames is not None:
+            reader.CellArrays = self._fieldNames
+        reader.UpdatePipeline()
+
+        return reader
 
 
     def execute(self, sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False,append=False):
@@ -249,16 +246,17 @@ class VTKpipeline:
         -------
             None
         """
-        self.logger.info(f"Executing pipeline")
+        logger = get_classMethod_logger(self, "execute")
+        logger.info(f"Executing pipeline")
         if sourceOrName is None:
-            reader = self._initializeReader(readerName="reader")
+            reader = self.initializeReader(readerName="reader")
         elif isinstance(sourceOrName,str):
-            self.logger.debug(f"Getting the reader {sourceOrName}")
+            logger.debug(f"Getting the reader {sourceOrName}")
             reader = pvsimple.FindSource(sourceOrName)
             if reader is None:
-                reader = self._initializeReader(readerName="reader")
+                reader = self.initializeReader(readerName="reader")
         else:
-            self.logger.debug(f"Gor reader object:  {sourceOrName}")
+            logger.debug(f"Gor reader object:  {sourceOrName}")
             # assume server is connected.
             reader = sourceOrName
 
@@ -315,7 +313,8 @@ class VTKpipeline:
                 to be printed according to format.
 
         """
-        self.logger.info(f"building Filter layer {structureJson}")
+        logger = get_classMethod_logger(self, "_buildFilterLayer")
+        logger.info(f"building Filter layer {structureJson}")
         if structureJson is None:
             return
         for filterGuiName in structureJson:
@@ -323,9 +322,9 @@ class VTKpipeline:
             paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
             filtertype = structureJson[filterGuiName]['type']
             filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
-            self.logger.execution(f"Adding filter {filterGuiName} of type {filtertype} to {father}")
+            logger.execution(f"Adding filter {filterGuiName} of type {filtertype} to {father}")
             for param, pvalue in paramPairList:
-                self.logger.debug(f"...Adding parameters {param} with value {pvalue}")
+                logger.debug(f"...Adding parameters {param} with value {pvalue}")
                 #pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
                 paramnamelist = param.split(".")
                 paramobj = filter
@@ -340,95 +339,4 @@ class VTKpipeline:
                 filterlist.append(filterGuiName)
 
             self._buildFilterLayer(filter, structureJson[filterGuiName].get("downstream", None), filterWrite)
-
-    def loadToProject(self,overwrite=False):
-        """
-            Loads the pipeline results to the database.
-            We assume that the pipeline was already executed, and that the
-
-        Parameters
-        ----------
-        projectName : str
-                The project name to load the data to.
-
-        Returns
-        -------
-
-        """
-        self.logger.info(f"Loading pipeline to project {self.datalayer.projectName}")
-        for filterName, filterData in self.VTKpipelineJSON["pipelines"].items():
-            self.logger.execution(f"Handling filter {filterName}")
-            self._recurseNode(filterName=filterName, filterData=filterData, path="",overwrite=overwrite)
-
-    def _recurseNode(self, filterName, filterData, path,overwrite=False):
-        """
-        This function is recursively passed on the pipeline tree from json file and loads the filters to the database.
-
-        Parameter
-        ----------
-
-        """
-        self.logger.info(f"Adding filter {filterName} in {path}")
-        formatName = filterData.get('write', None)
-        if (formatName is not None) and (formatName != "None"):
-            self.logger.debug("Getting the simulation flow document. Use the path as identifier ")
-            # Find the flow document.
-            flowDoc = self.datalayer.getCaseListDocumentFromDB(self._casePath)
-
-            if len(flowDoc) == 0:
-                self.logger.error(f"P{self._casePath} is not found in the project. Load it using the hera-OF-workflow add ")
-                raise ValueError(
-                    "The simulation in path %s is not found!. Load it to the database first" % self._casePath)
-
-            # Create the new description
-
-            filterDesc = dict(flowDoc['desc'])
-
-            simqry = {
-                "simulationName" : filterDesc['simulationName'],
-                "groupName" : filterDesc['groupName'],
-                "filterName" : filterName
-            }
-
-            # check if it is already loaded.
-            self.logger.debug("Checking if the filter is loaded in the project")
-            docList = self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER,**simqry)
-
-            if len(docList) ==0 or overwrite:
-                self.logger.debug(f"Updating the filter data. Overwrite flag {overwrite}")
-
-                filterDesc = dict(simqry)
-                filterDesc['filterParameters'] = filterData.get('params',{})
-                filterDesc['pipeline'] = self.VTKpipelineJSON
-                filterDesc['filterPath'] = path
-
-                if formatName in ["netcdf","dataArray"]:
-                    resource = glob.glob(os.path.join(self._netcdfdir, "%s_*.nc" % filterName))
-                    currentdatatype = datatypes.NETCDF_XARRAY
-                elif formatName in ["parquet","dataFrame"]:
-                    resource = os.path.join(self._parquetdir, "%s.parquet" % filterName)
-                    currentdatatype = datatypes.PARQUET
-                else:
-                    raise ValueError(
-                        "Format type %s unknown for filter %s. Must be 'netcdf' or 'parquet' (case sensitive!)" % (
-                        formatName, filterName))
-
-                if len(docList) > 0:
-                    self.logger.debug("Updating the existing data")
-                    doc = docList[0]
-                    doc['desc'] = filterDesc
-                    doc['resource'] = resource
-                    doc['dataFormat'] =currentdatatype
-                    doc.update()
-                else:
-                    self.logger.debug("Adding a new record")
-                    self.datalayer.addCacheDocument(desc=filterDesc,type=TYPE_VTK_FILTER,resource=resource,dataFormat = currentdatatype)
-            else:
-                self.logger.warning("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
-
-        self.logger.execution("Processing the downstream filters. ")
-        ds = filterData.get("downstream", {})
-        for filterName, filterData in ds.items():
-            path += "." + filterName
-            self._recurseNode(filterName=filterName, filterData=filterData, path=path,overwrite=overwrite)
 
