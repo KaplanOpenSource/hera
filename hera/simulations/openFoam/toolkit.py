@@ -4,8 +4,8 @@ import glob
 from .OFWorkflow import workflow_Eulerian
 from .preprocessOFObjects import OFObjectHome
 from . import TYPE_VTK_FILTER
-from ..hermesWorkflowToolkit import workflowToolkit
-from .VTKPipeline import VTKpipeline
+from ..hermesWorkflowToolkit import hermesWorkflowToolkit
+from .postProcess.VTKPipeline import VTKPipeLine
 from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
 from ...utils.jsonutils import loadJSON
 from ...utils.logging import get_classMethod_logger
@@ -14,7 +14,7 @@ import dask.dataframe as dd
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
-from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE, FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
+from . import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
     FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED
 from .eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
 import pandas
@@ -24,7 +24,7 @@ import dask
 from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
 
 
-class OFToolkit(workflowToolkit):
+class OFToolkit(hermesWorkflowToolkit):
     """
         The goal of this toolkit is to provide the functions that are required to run workflows.
         and to mange the workflows in the DB.
@@ -532,43 +532,14 @@ class Analysis:
         """
         self._datalayer = datalayer
 
-    def makeVTKPipeline(self, nameOrWorkflowFileOrJSONOrResource, vtkPipeline, caseType=CASETYPE_DECOMPOSED,
-                        servername=None, fieldNames=None):
+    def getVTKPipeline(self):
         """
             Creates a new VTK pipeline from the simulation.
 
-                Identify the simulation from :
-             - Resource (thedirectory name)
-             - Simulation name
-             - Its workflow
-             - workfolow dict.
-
-            Return the first item that was found.
-
         Parameters
         ----------
-        nameOrWorkflowFileOrJSONOrResource: str, dict
-
-        Can be
-             - Resource (thedirectory name)
-             - Simulation name
-             - Its workflow
-             - workfolow dict.
-
-        vtkPipeline : str,dict
-
-            The JSON that describes the VTK pipeline.
-
-        Returns
-        -------
-            analysis.VTKPipeline.VTKpipeline
         """
-        return VTKpipeline(datalayer=self.datalayer,
-                           pipelineJSON=vtkPipeline,
-                           nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResource,
-                           caseType=caseType,
-                           serverName=servername,
-                           fieldNames=fieldNames)
+        return VTKPipeLine()
 
     def getFiltersDocuments(self, nameOrWorkflowFileOrJSONOrResource, filterName=None):
         """
@@ -595,7 +566,7 @@ class Analysis:
         -------
             list of DB documents.
         """
-        wrkflow = self.datalayer.getCaseListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        wrkflow = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
         if wrkflow is None:
             raise ValueError(
                 f"The case {nameOrWorkflowFileOrJSONOrResource} was not found in the project {self.datalayer.projectName}")
@@ -607,6 +578,40 @@ class Analysis:
 
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **qry)
 
+    def executeAndLoad(self,vtkPipeline,sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False,append=False,overwriteMetadata=False):
+        """
+
+        Parameters
+        ----------
+        vtkPipeline : VTKPipeLine
+
+        sourceOrName : Non or string
+            The name of the filter/reader to start with. None will be the default reader.
+
+
+        timeList : list
+                The list of timesteps to read.
+
+        tsBlockNum: int
+                The block number
+        overwrite : bool  [default False]
+               If true, overwrite on the parquet/netcdf file.
+
+        append : bool [default False]
+               If true, append to existing parquet
+
+        overwriteMetadata : bool [default False]
+                If True, overwrite the meatadata of the filters.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"executeAndLoad")
+        logger.info(f"Executing the VTK pipeline")
+        vtkPipeline.execute(sourceOrName=sourceOrName,timeList=timeList, tsBlockNum=tsBlockNum, overwrite=overwrite,append=append)
+        logger.info(f"Loading the VTK pipeline to project {self.datalayer.projectName}")
+        vtkPipeline.loadToProject(datalayer =self.datalayer, overwrite=overwriteMetadata)
 
 class Presentation:
 
@@ -799,7 +804,9 @@ class Presentation:
 
         return data
 
-
+##########################
+####   Utils
+##########################
 def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
     """
         Extracts data from a openFOAM list file.
