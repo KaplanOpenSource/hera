@@ -62,7 +62,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     "originalFlow" : {
                         "source" : <name>,
                         "time" : {
-                            type : "steadyState|dynamic",
+                            type : "steadyState|dynamic",dfList =
                             "timestep" : <time>
                         },
                         linkMeshSymbolically : True
@@ -176,7 +176,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         else:
             logger.debug(f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
             ptPath = ["*"]
-            parallelOriginal = False
+            parallelOriginal = FalsedfList =
 
         TS = [float(os.path.basename(ts)) for ts in glob.glob(os.path.join(originalFlowCaseDir, *ptPath)) if
               os.path.basename(ts).replace(".", "").isdigit()]
@@ -308,8 +308,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         dispersionFieldList = []
         for dispersionFieldName, dispersionFieldData in dispersionFields.items():
             logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
-            field = ofhome.getFieldFromJSON(fieldName=dispersionFieldName, configuration=dispersionFieldData,
-                                            meshBoundaryPatchNameList=meshBoundary)
+            field = ofhome.getFieldFromCase(fieldName,
+                                            flowType,
+                                            caseDirectory,
+                                            timeStep=0)
+
             dispersionFieldList.append( field )
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
@@ -383,8 +386,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
             for field in dispersionFieldList:
                 logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, fileLocation=str(dest_time),
-                                  parallel=parallelOriginal, parallelBoundary=parallelOriginal)
+                field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, timeOrLocation=str(dest_time))
 
 
         logger.info("Finished creating the flow field for the dispersion. ")

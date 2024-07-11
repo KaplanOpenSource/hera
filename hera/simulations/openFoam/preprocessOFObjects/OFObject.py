@@ -1,15 +1,11 @@
 import pandas
-import numpy
 import os
 import glob
-from itertools import product
-from ....utils import loadJSON
 from ....utils.logging import get_classMethod_logger
-from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
-    FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE
-from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
-from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
-from .utils import extractFieldFile,ParsedParameterFileToDataFrame
+from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR
+# from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
+# from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
+# from .utils import extractFieldFile,ParsedParameterFileToDataFrame
 
 class OFObject:
     """
@@ -21,8 +17,6 @@ class OFObject:
     data = None
     name = None  # The name of the field
     fileName = None  # The name of the file ont the disk
-    parallel = None
-
     dimensions = None
 
     REGION_INTERNSALFIELD = 'internalField'
@@ -167,8 +161,6 @@ class OFObject:
                 outputdir = os.path.join(caseDirectory,procName,str(timeOrLocation),self.fileName)
                 with open(outputdir,'w') as outputdir:
                     outputdir.writelines(str(procData).replace("proc.*",'"proc.*"'))
-
-
 
     def writeEmptyField(self, caseDirectory, timeOrLocation, parallel=False, parallelBoundary=False):
         """
