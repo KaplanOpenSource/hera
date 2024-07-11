@@ -127,41 +127,65 @@ def foam_templates_node_list(arguments):
     print(templates)
 
 
+def stochasticLagrangian_dispersionFlow_writeDFF(arguments):
+    """
+        Writes an empty JSON filie of the DFF defition.
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    exampleFile = """{
+                        "name"
+                        "source" : <name>,
+                        "time" : {
+                            type : "steadyState|dynamic",
+                            "timestep" : <time>
+                        },
+                        linkMeshSymbolically : True
+                    },
+                    dispersionDuration : <duration>
+                    dispersionFields : {
+
+                    }"""
+
+    with open(arguments.outFile,"w") as outFile:
+        outFile.writelines(exampleFile)
+
+
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
+    """
+
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
-    if ('projectName' in arguments) and (arguments.projectName is not None):
-        projectName = arguments.projectName
-    else:
-        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
-        configuration = loadJSON(configurationFile)
-        projectName = configuration['projectName']
-
+    projectName = arguments.projectName
     logger.info(f"Adding dispersion flow to project {projectName}")
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=arguments.projectName)
 
-    if ('DFF' in arguments) and (arguments.DFF is not None):
-        dffList = arguments.DFF
-    else:
-        dffList = [x for x in configuration["DispersionFlows"].keys()]
+    flowdata = loadJSON(arguments.DFF)
+    flowName = flowdata['name']
+    logger.info(f"Createing dispersion flows {flowName}")
 
-    logger.info(f"Createing dispersion flows {','.join(dffList)}")
-
-    for flowName in dffList:
-        logger.debug(f"Creating dispersion flow : {flowName}")
-        try:
-            flowdata = configuration["DispersionFlows"][flowName]
-            tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata,OriginalFlowField=arguments.OriginalFlowField,overwrite=arguments.overwrite)
-        except KeyError:
-            err = f"Flow field {flowName} not Found. Found the following flows: {','.join(configuration['flowFields']['Flows'].keys())}"
-            logger.error(err)
-            raise KeyError(err)
-        except FileExistsError:
-            err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
-            logger.error(err)
+    logger.debug(f"Creating dispersion flow : {flowName}")
+    try:
+        tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata,OriginalFlowField=arguments.OriginalFlowField,overwrite=arguments.overwrite)
+    except FileExistsError:
+        err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
+        logger.error(err)
 
     logger.execution(f"----- End -----")
 

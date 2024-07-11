@@ -6,11 +6,8 @@ from itertools import product
 from ....utils import loadJSON
 from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
-    FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE
+    FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE,FLOWTYPE_COMPRESSIBLE
 from .OFField import OFField
-from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
-
-from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
 
 #########################################################################
 #               Fields
@@ -23,6 +20,11 @@ class OFObjectHome:
 
         Reading for posprocess is perfmed with the readFieldAsDataFrame of the toolkit, or with the VTK pipeline.
     """
+
+    FLOWTYPE_INCOMPRESSIBLE = FLOWTYPE_INCOMPRESSIBLE
+    FLOWTYPE_COMPRESSIBLE   = FLOWTYPE_COMPRESSIBLE
+
+
     @property
     def fieldDefinitions(self):
         return self._fieldDefinitions
@@ -337,8 +339,6 @@ class OFObjectHome:
 
         ret.readFromCase(caseDirectory,timeStep=timeStep, readParallel=readParallel)
         return ret
-
-
 
     def readFieldAsDataFrame(self, fieldName, caseDirectory, times=0, readParallel=True,filterInternalPatches=False):
         """

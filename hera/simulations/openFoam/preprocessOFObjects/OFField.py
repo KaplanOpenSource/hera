@@ -1,17 +1,13 @@
 import pandas
-import numpy
 import os
 import glob
-from itertools import product
-from ....utils import loadJSON
 from ....utils.logging import get_classMethod_logger
-from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
-    FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE
+from .. import FIELDTYPE_VECTOR,  FIELDTYPE_SCALAR
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
 from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
 from .OFObject import OFObject
 from .utils import ParsedParameterFileToDataFrame
-
+from .OFMeshBoundary import OFMeshBoundary
 
 class OFField(OFObject):
 
@@ -102,6 +98,7 @@ class OFField(OFObject):
                 fileStrContent += ");\n"
 
         fileStrContent += self._getBoundaryConditionsStr(parallel=parallelBoundary)
+
         with open(filename, 'w') as outfile:
             outfile.write(fileStrContent)
 
@@ -113,6 +110,8 @@ boundaryField
 {
 """
         if len(self.data) > 0:
+            import pdb
+            pdb.set_trace()
             if self.boundaryField() is not None:
                 for boundaryPatchName, boundaryData in self.boundaryField().items():
                     bstr = f"\n{boundaryPatchName}\n"
@@ -147,6 +146,94 @@ type            processor;
     def __iter__(self):
         return self.data.__iter__()
 
+    def readBoundariesFromCase(self, caseDirectory,internalValue=0, readParallel=True):
+        """
+            Reads the boundaries from the case.
+            If the mesh is parallel, the code sets zeroGradient for all the external boundaries,
+            and a processor type for all the internal boundaries.
+
+        Parameters
+        ----------
+
+        caseDirectory : str
+            The directory
+        internalValue : float or list
+            The value of the internalField.
+
+        timeStep : float
+            The timestep to use for getting the directory.
+
+        readParallel : bool
+            Force read parallel if exists.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "readBoundariesFromCase")
+        logger.execution(f"---- Start {logger.name}")
+
+        readSingle = False
+        if readParallel:
+            logger.debug("Trying to read as a parallel case")
+
+            procPaths = [proc for proc in glob.glob(os.path.join(caseDirectory, "processor*"))]
+            if len(procPaths) == 0:
+                logger.debug("Case is not parallel. Try to read it as single processor")
+                readSingle = True
+        else:
+            readSingle = True
+
+        try:
+            if readSingle:
+                logger.debug("Setting as a single processor")
+                bndry = OFMeshBoundary(caseDirectory)
+                retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
+                retDict['dimensions'] = Dimension(*self.dimensionsList)
+                retDict['internalField'] = internalValue
+
+                logger.debug("Setting boundary field")
+                boundaryDict = DictProxy()
+                for boundaryName, boundaryData in self.data['boundaryField'].items():
+                    logger.debug(f"Setting the boundary {boundaryName} to existing value")
+                    boundaryDict[boundaryName] = boundaryData
+
+                for boundaryName in bndry.getBoundary(filterProcessor=False):
+                    interiorBoundary = True if 'proc' in boundaryName else False
+                    logger.debug(f"... boundary {boundaryName}. An interior boundary ? {interiorBoundary}")
+                    boundaryValue = DictProxy()
+                    boundaryValue['type'] = 'processor' if interiorBoundary else 'zeroGradient'
+                    boundaryDict[boundaryName] = boundaryValue
+
+                retDict['boundaryField'] = boundaryDict
+                self.data = dict(singleProcessor=retDict)
+                self.parallel = False
+            else:
+                logger.debug("Setting as a parallel case")
+                self.parallel = True
+
+                for proc in procPaths:
+                    bndry = OFMeshBoundary(proc)
+                    retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
+                    retDict['dimensions'] = Dimension(*self.dimensionsList)
+                    retDict['internalField'] = internalValue
+
+                    boundaryDict = DictProxy()
+                    for boundaryName in bndry.getBoundary(filterProcessor=False):
+                        logger.debug(f"... Setting {boundaryName}")
+                        interiorBoundary = True if 'proc' in boundaryName else False
+                        logger.debug(f"... boundary {boundaryName}. An interior boundary ? {interiorBoundary}")
+                        boundaryValue = DictProxy()
+                        boundaryValue['type'] = 'processor' if interiorBoundary else 'zeroGradient'
+                        boundaryDict[boundaryName] = boundaryValue
+
+                    retDict['boundaryField'] = boundaryDict
+
+                    self.data[os.path.basename(proc)] = retDict
+        except FileNotFoundError as e:
+            err = f"File not found, initializing as an empty field: {e} "
+            logger.warning(err)
+            raise ValueError("Field not found")
 
 
     def readFromCase(self, caseDirectory, timeStep=0, readParallel=True):
@@ -173,7 +260,7 @@ type            processor;
         -------
 
         """
-        logger = get_classMethod_logger(self, "write")
+        logger = get_classMethod_logger(self, "readFromCase")
         logger.execution(f"---- Start {logger.name}")
 
         readSingle = False
@@ -252,6 +339,7 @@ type            processor;
         logger = get_classMethod_logger(self,"_processorToPyFoam")
         retDict = WriteParameterFile(name=self.fileName,className=f"vol{self.fieldType.title()}Field")
         retDict['dimensions'] = Dimension(*self.dimensionsList)
+
         logger.info("Setting internal field")
         internalField = processordataFrame.query("region=='internalField'")
         if len(internalField) > 0 :
@@ -260,8 +348,6 @@ type            processor;
         else:
             logger.debug("Getting the existing internal field")
             retDict['internalField'] = self.data[processorName]['internalField']
-
-
 
         logger.info("Setting boundary field")
         boundaryDict = DictProxy()

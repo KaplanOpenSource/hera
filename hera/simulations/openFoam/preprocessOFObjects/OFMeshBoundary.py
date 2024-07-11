@@ -1,4 +1,5 @@
-
+import os
+import glob
 #########################################################################
 #
 #               Mesh handling
@@ -34,7 +35,7 @@ class OFMeshBoundary:
             for proc in glob.glob(os.path.join(self.case, "processor*")):
                 self._boundaryNames += self._readBoundary(os.path.join(proc, "constant", "polyMesh", "boundary"))
         else:
-            self._boundaryNames = self._readBoundary(os.path.join(directory, "constant", "poly", "boundary"))
+            self._boundaryNames = self._readBoundary(os.path.join(directory, "constant", "polyMesh", "boundary"))
 
     def getBoundary(self, filterProcessor: bool = True):
         """

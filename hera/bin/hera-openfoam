@@ -20,17 +20,14 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     parser_templates  = subparser.add_parser('templates', help=f'Manages the templates of  {solverName}')
     templates_subparser = parser_templates.add_subparsers()
 
-    flow_parser = templates_subparser.add_parser('flow',help='List the existing templates in the project for that solver')
-    flow_subparser = flow_parser.add_subparsers()
-
     ## ---------------- list flow templates
-    templates_list = flow_subparser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_list = templates_subparser.add_parser('list', help='List the existing templates in the project for that solver')
     templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_list.set_defaults(solver=solverName)
     templates_list.set_defaults(func=CLI.foam_templates_flow_list)
 
     ## ---------------- create case from template
-    templates_create = flow_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
+    templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
     templates_create.add_argument('templateName', type=str, default=None, help="The template name")
     templates_create.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
@@ -38,17 +35,6 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
 
     templates_create.set_defaults(solver=solverName)
     templates_create.set_defaults(func=CLI.foam_templates_flow_create)
-
-    node_parser = templates_subparser.add_parser('node',help='List the existing templates in the project for that solver')
-    node_subparser = node_parser.add_subparsers()
-
-    ## ---------------- list flow templates
-    templates_node_list = node_subparser.add_parser('list', help='List the existing templates in the project for that solver')
-    templates_node_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    templates_node_list.set_defaults(solver=solverName)
-    templates_node_list.set_defaults(func=CLI.foam_templates_node_list)
-
-
 
 #foam_templates_node_list
 
@@ -184,6 +170,9 @@ def addSolverCaseManagement(subparser,solverName,incompressible):
     parser_FieldDescription.set_defaults(incompressible=incompressible)
     parser_FieldDescription.set_defaults(solver=solverName)
     parser_FieldDescription.set_defaults(func=CLI.Foam_parser_FieldDescription)
+
+
+
 
 if __name__ == "__main__":
     initialize_logging(
