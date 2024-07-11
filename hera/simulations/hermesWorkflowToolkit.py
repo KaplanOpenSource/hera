@@ -29,7 +29,7 @@ class actionModes(Enum):
     ADDBUILDEXECUTE = auto()
 
 
-class workflowToolkit(abstractToolkit):
+class hermesWorkflowToolkit(abstractToolkit):
     """
         Manages the hermes worflows:
 
@@ -143,11 +143,6 @@ class workflowToolkit(abstractToolkit):
         """
         return self.getDataSourceData(hermesNodeName, desc__component="Node")
 
-
-
-
-
-
     def getHemresWorkflowFromDocument(self,documentList,returnFirst=True):
         """
             Return a hermes-workflow (or a list of hermes Workflow) to the user.
@@ -174,7 +169,6 @@ class workflowToolkit(abstractToolkit):
             ret = [self.getHermesWorkflowFromJSON(doc.desc['workflow'],name=doc.desc['workflowName']) for doc in docList]
 
         return ret
-
 
     def getHermesWorkflowFromJSON(self,workflow : Union[dict,str],name=None):
         """
@@ -208,7 +202,6 @@ class workflowToolkit(abstractToolkit):
             raise ValueError(err)
 
         return hermesWFObj(workFlowJSON,name=name)
-
 
     def getHermesWorkflowFromDB(self,nameOrWorkflowFileOrJSONOrResource : Union[dict, str,list,workflow],returnFirst=True,**query):
         """
@@ -245,8 +238,6 @@ class workflowToolkit(abstractToolkit):
         else:
             ret = self.getHemresWorkflowFromDocument(documentList=docList,returnFirst=returnFirst)
         return ret
-
-
 
     def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations", **query):
         """

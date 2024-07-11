@@ -17,6 +17,7 @@ toolkitHome = ToolkitHome()
 
 """
 2.15.4
+    #187    - Adding the support for VTk pipelines in the openfoam toolkit.   
     #182    - Added the default tile server in the tile toolkit. 
 2.15.3
     #174     - Added the ability to activate ageneral function in the repository 
