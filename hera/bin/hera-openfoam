@@ -48,15 +48,6 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     templates_node_list.set_defaults(solver=solverName)
     templates_node_list.set_defaults(func=CLI.foam_templates_node_list)
 
-    ## ---------------- create case from template
-    templates_node_get = node_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
-    templates_node_get.add_argument('templateName', type=str, default=None, help="The template name")
-    templates_node_get.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    templates_node_get.add_argument('--groupName', type=str, default=None, help="The name of the group")
-    templates_node_get.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
-
-    templates_create.set_defaults(solver=solverName)
-    templates_create.set_defaults(func=CLI.foam_templates_flow_create)
 
 
 #foam_templates_node_list
@@ -245,7 +236,7 @@ if __name__ == "__main__":
     addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
+    addSolverTemplateOptions(subparser=oguraPhillipShallowConvectionFOAM_subparser,solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
 
     ## ====================================================
     ## ================== buoyantReactingFoam

@@ -115,6 +115,7 @@ class dataToolkit(toolkit.abstractToolkit):
         for toolkitName, toolkitDict in repositoryJSON.items():
             logger.info(f"Loading into toolkit  {toolkitName}")
             try:
+
                 toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
                 for key, docTypeDict in toolkitDict.items():
@@ -183,7 +184,7 @@ class dataToolkit(toolkit.abstractToolkit):
                     f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
                 theItem["resource"] = os.path.join(basedir, theItem["resource"])
 
-            logger.debug(f"Checking if the data item {itemName} is already in the project")
+            logger.debug(f"Checking if the data item {itemName} is already in project {self.projectName}")
             datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
 
             if len(datasource) == 0:

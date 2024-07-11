@@ -83,7 +83,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         """
         retList = []
-        for doc in self.getDataSourceDocumentsList(desc__solver=solverName,desc__component="Flow"):
+        for doc in self.getDataSourceDocumentsList(solver=solverName,component="Flow"):
             data = dict(doc.desc['desc'])
             data['templateName'] = doc.desc['datasourceName']
             retList.append(data)
@@ -331,7 +331,6 @@ class hermesWorkflowToolkit(abstractToolkit):
             docList = []
 
         return docList
-
 
     def getWorkflowListDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource : Union[dict, str, list, workflow], **query):
         """
