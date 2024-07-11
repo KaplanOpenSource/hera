@@ -387,9 +387,6 @@ class paraviewOpenFOAM:
         append : bool
                 The
 
-
-
-
         Returns
         -------
 
@@ -410,6 +407,8 @@ class paraviewOpenFOAM:
                 data.set_index("time").to_parquet(outfile,append=append,overwrite=overwrite)
 
                 self.logger.execution("Repartitioning to 100MB per partition")
+                import pdb
+                pdb.set_trace()
                 dd.read_parquet(outfile).repartition(partition_size = "100MB").reset_index().sort_values("time").set_index("time").to_parquet(outfile)
 
         if not os.path.isdir(self.parquetdir):
