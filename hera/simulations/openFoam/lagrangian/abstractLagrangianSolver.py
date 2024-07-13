@@ -6,7 +6,6 @@ import glob
 import shutil
 import json
 from ....datalayer import datatypes
-from ..preprocessOFObjects import  OFMeshBoundary
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
 import xarray
@@ -176,7 +175,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         else:
             logger.debug(f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
             ptPath = ["*"]
-            parallelOriginal = FalsedfList =
+            parallelOriginal = True
 
         TS = [float(os.path.basename(ts)) for ts in glob.glob(os.path.join(originalFlowCaseDir, *ptPath)) if
               os.path.basename(ts).replace(".", "").isdigit()]
@@ -304,16 +303,15 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         logger.info(f"Creating the flow specific fields in the flow needed for the dispersion")
         dispersionFields = flowData['dispersionFields']
 
-        meshBoundary = OFMeshBoundary(originalFlowCaseDir).getBoundary()
         dispersionFieldList = []
         for dispersionFieldName, dispersionFieldData in dispersionFields.items():
             logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
-            field = ofhome.getFieldFromCase(fieldName,
-                                            flowType,
-                                            caseDirectory,
-                                            timeStep=0)
 
-            dispersionFieldList.append( field )
+            ## Check if the field is defined. Then, use the dispersionFieldData to define new fields.
+
+            field = ofhome.getEmptyField(dispersionFieldName, flowType=ofhome.FLOWTYPE_INCOMPRESSIBLE)
+            field.readBoundariesFromCase(originalFlowCaseDir)
+            dispersionFieldList.append(field)
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
         # copy constant, 0 and system.
@@ -388,8 +386,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
                 field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, timeOrLocation=str(dest_time))
 
-
         logger.info("Finished creating the flow field for the dispersion. ")
+        ret = None
         if useDBSupport:
             logger.info("Adding to the database.")
             querydict['workflowName'] = dispersionFlowFieldName
@@ -399,12 +397,12 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.debug("Adding record to the database")
                 self.toolkit.addSimulationsDocument(resource=dispersionFlowFieldDirectory, type=self.toolkit.OF_FLOWDISPERSION, dataFormat=datatypes.STRING, desc=querydict)
 
-            ret = dispersionFlowFieldDirectory
-        else:
-            logger.info(f"Found the requested flow in the flowFields of the project. Updating the description. Returning {docList[0].resource}")
-            doc.desc =querydict
-            doc.save()
-            ret = doc.resource
+                ret = dispersionFlowFieldDirectory
+            else:
+                logger.info(f"Found the requested flow in the flowFields of the project. Updating the description. Returning {docList[0].resource}")
+                doc.desc =querydict
+                doc.save()
+                ret = doc.resource
 
         logger.info("... Done")
         return ret
