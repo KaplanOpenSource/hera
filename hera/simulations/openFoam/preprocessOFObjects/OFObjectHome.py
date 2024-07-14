@@ -215,6 +215,7 @@ class OFObjectHome:
         newStr += "\n);\n"
         return newStr
 
+
     def addFieldDefinitions(self, fieldName, dimensions, fieldType, fieldComputation=FIELDCOMPUTATION_EULERIAN,
                             compressible_dimensions=None, overwrite=False):
         """
@@ -268,7 +269,8 @@ class OFObjectHome:
         else:
             raise ValueError(f"{fieldName} already exists!. Use overwrite=True to overwrite its definition")
 
-    def getEmptyField(self, fieldName, flowType):
+
+    def getEmptyField(self, fieldName, flowType,noOfProc = None, addParallelProc = False):
         """
             Return the field object with its dimensions.
             Since the dimensions of pressure change for compressible/incompressible
@@ -301,7 +303,7 @@ class OFObjectHome:
         fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
 
         ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
-                      fieldComputation=fieldData['fieldComputation'])
+                      fieldComputation=fieldData['fieldComputation'],noOfProc = noOfProc, addParallelProc = addParallelProc)
         return ret
 
     def getFieldFromCase(self, fieldName, flowType,caseDirectory,timeStep=0, readParallel=True ):

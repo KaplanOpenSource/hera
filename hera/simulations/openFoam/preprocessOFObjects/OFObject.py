@@ -100,23 +100,12 @@ class OFObject:
         ----------
         name: str
             The name of the object
-        "fieldType": str
+        fileName: str
+            The name of the file to write.
+        fieldType: str
             The type of the field. scalar, vector or tensor for scalar, vector or tensor object.
-
-        boundaryPatchList : list
-            The list of the patches
-
-        data : pandas.DataFrame
-            The internalField structure is :
-
-            - Column 1 : the data of columns [1]
-                ...
-            - Column N : The data of column [N]
-            - time     : The time step of the data
-            - type      : internalField/boundaryField
-            - boundaryName : The name of the boundary. None for the internalField
-            - processor : Decomponsed case: processor[i] the name of the processor that holds that data.
-                          Reconstructed case: will be None
+        dimensions: dict
+            The dict of the dimenstins.
         """
         logger = get_classMethod_logger(self, "init")
         logger.info(f"---------Start : {logger.name}")
