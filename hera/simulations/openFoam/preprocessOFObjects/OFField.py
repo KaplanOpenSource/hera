@@ -13,7 +13,7 @@ class OFField(OFObject):
 
     fieldComputation = None  # eulerian/ lagrangian.
 
-    def __init__(self, name,fileName, fieldType, fieldComputation, dimensions=None):
+    def __init__(self, name,fileName, fieldType, fieldComputation, dimensions=None,noOfProc=None):
         """
             Initializing the OpenFOAM Field.
 
@@ -43,6 +43,7 @@ class OFField(OFObject):
         """
         super().__init__(name=name,fileName=fileName, fieldType=fieldType, dimensions=dimensions)
         self.fieldComputation = fieldComputation
+        self.initialize(noOfProc=noOfProc)
 
     def _writeNew(self, filename, data, parallel=False, parallelBoundary=False):
         """
@@ -146,6 +147,128 @@ type            processor;
     def __iter__(self):
         return self.data.__iter__()
 
+
+    def getZeroValue(self):
+        """
+            Returns a zero value of a scalar, vector or tensor
+        Returns
+        -------
+
+        """
+        if self.fieldType == FIELDTYPE_SCALAR:
+            return 0
+        elif self.fieldType == FIELDTYPE_VECTOR:
+            return [0,0,0]
+        else: # vector
+            return [0]*9
+
+    def initialize(self,noOfProc=None):
+        """
+            Initializes a field that is either single or multiple processor.
+            If None, initialize as a single processor.
+
+            Initializes the object as a general boundary:
+            that is :
+            the boundary is ".*" with type zeroGradient for all the
+            processors.
+
+        Parameters
+        ----------
+        noOfProc : int or None
+            If None, initialize as a single processor
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"initialize")
+        if noOfProc is None:
+            logger.debug(f"Initializing field {self.name} as single processor")
+            self.parallel = False
+
+            retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
+            retDict['dimensions'] = Dimension(*self.dimensionsList)
+            retDict['internalField'] = self.getZeroValue()
+
+            boundaryValue = DictProxy()
+            boundaryValue['type'] = 'zeroGradient'
+
+            boundaryDict = DictProxy()
+            boundaryDict[".*"] =boundaryValue
+            retDict['boundaryField'] = boundaryDict
+
+            self.data = dict(singleProcessor=retDict)
+
+        else:
+            try:
+                noOfProc = int(noOfProc)
+                if noOfProc < 1:
+                    raise ValueError("must be positive")
+            except Exception:
+                err = f"noOfProc must be a positive integer (greater than 0). Got {noOfProc}"
+                logger.error(err)
+                raise ValueError(err)
+
+            logger.debug(f"Initializing field {self.name} as a multi-processor")
+            self.parallel = True
+            procDict = dict()
+            for procID in range(noOfProc):
+                procName = f"processor{procID}"
+
+                retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
+                retDict['dimensions'] = Dimension(*self.dimensionsList)
+                retDict['internalField'] = self.getZeroValue()
+
+                boundaryValue = DictProxy()
+                boundaryValue['type'] = 'zeroGradient'
+
+                boundaryDict = DictProxy()
+                boundaryDict[".*"] = boundaryValue
+                retDict['boundaryField'] = boundaryDict
+
+                procDict[procName] = retDict
+
+            self.data = procDict
+
+    def setInternalUniformFieldValue(self,value):
+        """
+            Sets the internal field values.
+        Returns
+        -------
+            value : float, list
+                Sets the value of the internal field.
+                must be a flaot for scalar, 3-list and 9-list for vector and tensor.
+        """
+        pass
+
+    def addBoundaryField(self,boundaryName,**kwargs):
+        """
+            Sets the boundary name with the key/value
+        Parameters
+        ----------
+        boundaryName : The name of the boundary to set
+        kwargs :
+            key/value of the names.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"addBoundaryField")
+        if 'singleProcessor' in self.data:
+
+        else:
+            for procName,dictData in 
+
+    def addProcBoundary(self):
+        """
+            Adds the 'proc.*' boundary of typ processor to all the boundary fields.
+        Returns
+        -------
+
+        """
+        pass
+
     def readBoundariesFromCase(self, caseDirectory,internalValue=0, readParallel=True):
         """
             Reads the boundaries from the case.
@@ -234,7 +357,6 @@ type            processor;
             err = f"File not found, initializing as an empty field: {e} "
             logger.warning(err)
             raise ValueError("Field not found")
-
 
     def readFromCase(self, caseDirectory, timeStep=0, readParallel=True):
         """

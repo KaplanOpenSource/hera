@@ -226,6 +226,61 @@ class OFToolkit(hermesWorkflowToolkit):
             field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.parallel", parallel=False,
                                   parallelBoundary=True)
 
+    def writeEmptyField(self,fieldName,flowType,caseDirectory,time=0,readParallel=True,readBoundaryFromCase=False,writeProcBoundary=False):
+        """
+            Writes an empty field in the case.
+
+            If the readBoundaryField is True, then the field is written with the relevant boundaries (that are red from the case).
+            Otherwise, the
+            The field is written ith the g
+
+        Parameters
+        ----------
+        fieldName : str
+            The name of the field
+        flowType : str
+            The flow type (compressible/incompressible)
+        time : float  [default : 0]
+            The time to write the new field in
+        caseDirectory : str
+            The name of te new case directory
+        readParallel : bool
+            If true, then attempt to write as parallel fields.
+        readBoundaryFromCase : bool
+            If True, tries to read the boundary names from the case.
+            Otherwise write the general ".*" boundary field.
+
+        writeProcBoundary : bool
+           If true writes the proc boundaries.
+           If readBoundaryFromCase is True, then write the specific proc for each processor (when it is parallel)
+           Otherwise, write the "proc.*" boundary field.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"writeEmptyField")
+        logger.info(f"Creating the field: {fieldName}. ")
+
+
+        field = self.OFObjectHome.getEmptyField(fieldName=fieldName, flowType=flowType)
+
+        if readBoundaryFromCase:
+            field.readBoundariesFromCase(caseDirectory,readParallel=readParallel)
+
+            if writeProcBoundary:
+                field.a
+
+
+        else:
+            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=time)
+            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=f"{time}.orig", parallel=readParallel)
+            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=f"{time}.parallel", parallel=readParallel,parallelBoundary=writeProcBoundary)
+
+
+
+    #############################################################
+
     def template_add(self, name, objFile, workflowObj=None):
         """
             Adds a templates to the toolkit.
