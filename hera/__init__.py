@@ -17,6 +17,8 @@ toolkitHome = ToolkitHome()
 
 """
 2.15.4
+    #193    - OpenFOAM: Uniting the write new fields and the write of the regular openfoam case. 
+                        also include procedures to read the field from the case, only the boundaries and ect.
     #187    - Adding the support for VTk pipelines in the openfoam toolkit.   
     #182    - Added the default tile server in the tile toolkit. 
 2.15.3
