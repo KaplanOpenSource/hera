@@ -67,9 +67,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         linkMeshSymbolically : True
                     },
                     dispersionDuration : <duration>
-                    dispersionFields : {
-
-                    }
 
             base flow parameters:
             =====================
@@ -303,15 +300,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         logger.info(f"Creating the flow specific fields in the flow needed for the dispersion")
         dispersionFields = flowData['dispersionFields']
 
-        dispersionFieldList = []
-        for dispersionFieldName, dispersionFieldData in dispersionFields.items():
-            logger.debug(f"Creating the flow specific field: {dispersionFieldName}. ")
-
-            ## Check if the field is defined. Then, use the dispersionFieldData to define new fields.
-
-            field = ofhome.getEmptyField(dispersionFieldName, flowType=ofhome.FLOWTYPE_INCOMPRESSIBLE)
-            field.readBoundariesFromCase(originalFlowCaseDir)
-            dispersionFieldList.append(field)
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
         # copy constant, 0 and system.
