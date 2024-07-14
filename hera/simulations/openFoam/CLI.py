@@ -180,7 +180,6 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     flowName = flowdata['name']
     logger.info(f"Createing dispersion flows {flowName}")
 
-    logger.debug(f"Creating dispersion flow : {flowName}")
     try:
         tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,flowData=flowdata,OriginalFlowField=arguments.OriginalFlowField,overwrite=arguments.overwrite)
     except FileExistsError:

@@ -278,8 +278,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             logger.debug(f"Running without DB support, so does not query the db ")
             doc = None
 
-        ofhome = self.toolkit.OFObjectHome
-
         if doc is not None:
             if overwrite:
                 logger.info(f"Starting to overwrite existing dispersion field. Remove existing workflow field.")
@@ -298,8 +296,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         os.makedirs(dispersionFlowFieldDirectory,exist_ok=True)
 
         logger.info(f"Creating the flow specific fields in the flow needed for the dispersion")
-        dispersionFields = flowData['dispersionFields']
 
+        dispersionFields = flowData['dispersionFields']
+        logger.critical("FIX GET THE LIST OF FIELDS FROM THE TEMPLATE. ")
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
         # copy constant, 0 and system.

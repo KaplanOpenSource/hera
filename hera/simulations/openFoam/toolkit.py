@@ -15,14 +15,11 @@ from itertools import chain
 from itertools import product
 from collections.abc import Iterable
 from . import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
-    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED
+    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
 from .eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
 import pandas
 from dask.delayed import delayed
 import dask
-
-from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
-
 
 class OFToolkit(hermesWorkflowToolkit):
     """
@@ -220,19 +217,16 @@ class OFToolkit(hermesWorkflowToolkit):
         # Makes the empty fields
         for fieldName in fieldList:
             logger.info(f"Creating field {fieldName}")
-            field = self.OFObjectHome.getEmptyField(fieldName, flowType=flowType)
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=0)
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.orig")
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.parallel", parallel=False,
-                                  parallelBoundary=True)
+            self.writeEmptyField(fieldName=fieldName,flowType=flowType,caseDirectory=caseDirectory,timeOrLocation=0)
+            self.writeEmptyField(fieldName=fieldName,flowType=flowType,caseDirectory=caseDirectory,timeOrLocation="0.orig")
+            self.writeEmptyField(fieldName=fieldName,flowType=flowType,caseDirectory=caseDirectory,timeOrLocation="0.parallel",writeProcBoundary=True)
 
-    def writeEmptyField(self,fieldName,flowType,caseDirectory,time=0,readParallel=True,readBoundaryFromCase=False,writeProcBoundary=False):
+
+    def writeEmptyField(self,fieldName,flowType,caseDirectory,timeOrLocation=0,readBoundaryFromCase=False,writeProcBoundary=False):
         """
             Writes an empty field in the case.
 
             If the readBoundaryField is True, then the field is written with the relevant boundaries (that are red from the case).
-            Otherwise, the
-            The field is written ith the g
 
         Parameters
         ----------
@@ -240,7 +234,7 @@ class OFToolkit(hermesWorkflowToolkit):
             The name of the field
         flowType : str
             The flow type (compressible/incompressible)
-        time : float  [default : 0]
+        timeOrLocation : float  [default : 0]
             The time to write the new field in
         caseDirectory : str
             The name of te new case directory
@@ -262,22 +256,15 @@ class OFToolkit(hermesWorkflowToolkit):
         logger = get_classMethod_logger(self,"writeEmptyField")
         logger.info(f"Creating the field: {fieldName}. ")
 
-
         field = self.OFObjectHome.getEmptyField(fieldName=fieldName, flowType=flowType)
 
         if readBoundaryFromCase:
-            field.readBoundariesFromCase(caseDirectory,readParallel=readParallel)
+            field.readBoundariesFromCase(caseDirectory,readParallel=True)
 
-            if writeProcBoundary:
-                field.a
+        if writeProcBoundary:
+            field.addProcBoundary()
 
-
-        else:
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=time)
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=f"{time}.orig", parallel=readParallel)
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=f"{time}.parallel", parallel=readParallel,parallelBoundary=writeProcBoundary)
-
-
+        field.writeToCase(caseDirectory=caseDirectory, timeOrLocation=timeOrLocation)
 
     #############################################################
 

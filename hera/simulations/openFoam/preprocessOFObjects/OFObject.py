@@ -72,7 +72,6 @@ class OFObject:
     def processorItems(self):
         return self.data.items()
 
-
     @property
     def dimensionsStr(self):
         return self.getDimensions(**self.dimensions)
