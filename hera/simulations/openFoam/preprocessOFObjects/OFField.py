@@ -49,7 +49,6 @@ class OFField(OFObject):
     def __iter__(self):
         return self.data.__iter__()
 
-
     def getZeroValue(self):
         """
             Returns a zero value of a scalar, vector or tensor
@@ -146,7 +145,6 @@ class OFField(OFObject):
         else:
             for procName,dictData in self.data.items():
                 self.data[procName]['internalField'] = value
-
 
     def addBoundaryField(self,boundaryName,**kwargs):
         """
