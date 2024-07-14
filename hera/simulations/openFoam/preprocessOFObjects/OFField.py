@@ -13,37 +13,35 @@ class OFField(OFObject):
 
     fieldComputation = None  # eulerian/ lagrangian.
 
-    def __init__(self, name,fileName, fieldType, fieldComputation, dimensions=None,noOfProc=None):
+    def __init__(self, name,fileName, fieldType, fieldComputation, dimensions=None,noOfProc=None,addParallelProc=False):
         """
             Initializing the OpenFOAM Field.
 
-            The internalField can be supplied either as a:
-                - list (with the values)
-                - a pandas .
-
-            The boundary field as a:
-                - dict of patch->[list/pandas],
-
         Parameters
         ----------
-        name : str
+        name : : str
             The name of the field
-        "fieldType" :
+        fileName : str
+            The name of the file to use.
+        fieldType : str
             The type : scalar, vector or tensor.
-        dimensions : dict
-            The dict of parameters.
-        boundaryPatch : list
-            The name of the patches
-
-        data : pandas.DataFrame
-            The data of the internal field.
-
-        boundaryField : pandas.DataFrame
-            The
+            Use the constants FIELDTYPE_
+        fieldComputation : str
+            Eulerian/Lagrangian. Important for the loading of the field.
+        dimensions : dicts
+            The dict of the dimensions.
+        noOfProc : None, number
+            The number of processors.
+            If the number is None, use single processor,
+            otherwise initialize with the number of processors.
+        addParallelProc : bool
+            If true, add the parallel fields.
         """
         super().__init__(name=name,fileName=fileName, fieldType=fieldType, dimensions=dimensions)
         self.fieldComputation = fieldComputation
         self.initialize(noOfProc=noOfProc)
+        if addParallelProc:
+            self.addProcBoundary()
 
     def _writeNew(self, filename, data, parallel=False, parallelBoundary=False):
         """
@@ -239,7 +237,12 @@ type            processor;
                 Sets the value of the internal field.
                 must be a flaot for scalar, 3-list and 9-list for vector and tensor.
         """
-        pass
+        if 'singleProcessor' in self.data:
+            self.data['singleProcessor']['internalField'] = value
+        else:
+            for procName,dictData in self.data.items():
+                self.data[procName]['internalField'] = value
+
 
     def addBoundaryField(self,boundaryName,**kwargs):
         """
@@ -255,10 +258,15 @@ type            processor;
 
         """
         logger = get_classMethod_logger(self,"addBoundaryField")
-        if 'singleProcessor' in self.data:
+        boundaryField = DictProxy()
+        for key, value in kwargs.items():
+            boundaryField[key] = value
 
+        if 'singleProcessor' in self.data:
+            self.data['singleProcessor']['boundaryField'][boundaryName] = boundaryField
         else:
-            for procName,dictData in 
+            for procName,dictData in self.data.items():
+                self.data[procName]['boundaryField'][boundaryName] = boundaryField
 
     def addProcBoundary(self):
         """
@@ -267,7 +275,14 @@ type            processor;
         -------
 
         """
-        pass
+        boundaryField = DictProxy()
+        boundaryField['type'] = "processor"
+
+        if 'singleProcessor' in self.data:
+            self.data['singleProcessor']['boundaryField']["proc.*"] = boundaryField
+        else:
+            for procName,dictData in self.data.items():
+                self.data[procName]['boundaryField']["proc.*"] = boundaryField
 
     def readBoundariesFromCase(self, caseDirectory,internalValue=0, readParallel=True):
         """
