@@ -12,6 +12,7 @@ import xarray
 from dask import dataframe
 from itertools import product
 from dask.delayed import delayed
+from .. import FLOWTYPE_INCOMPRESSIBLE
 
 class absractStochasticLagrangianSolver_toolkitExtension:
     """
@@ -28,7 +29,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         self.toolkit = toolkit
         self.analysis = analysis(self)
 
-    def createDispersionFlowField(self,flowName, flowData, OriginalFlowField, overwrite:bool=False, useDBSupport: bool = True):
+    def createDispersionFlowField(self,flowName, flowData, OriginalFlowField,dispersionFieldList,flowType=FLOWTYPE_INCOMPRESSIBLE, overwrite:bool=False, useDBSupport: bool = True):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
             Currently, assumes the case is parallel.
@@ -61,7 +62,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     "originalFlow" : {
                         "source" : <name>,
                         "time" : {
-                            type : "steadyState|dynamic",dfList =
+                            type : "steadyState|dynamic",
                             "timestep" : <time>
                         },
                         linkMeshSymbolically : True
@@ -297,8 +298,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         logger.info(f"Creating the flow specific fields in the flow needed for the dispersion")
 
-        dispersionFields = flowData['dispersionFields']
-        logger.critical("FIX GET THE LIST OF FIELDS FROM THE TEMPLATE. ")
 
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
         # copy constant, 0 and system.
@@ -368,15 +367,18 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         os.makedirs(os.path.dirname(destination_constant_polymesh), exist_ok=True)
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
+            caseDirectory = os.path.join(dispersionFlowFieldDirectory, str(dest_time))
+            for fieldName in dispersionFieldList:
+                logger.info(f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
 
-            for field in dispersionFieldList:
-                logger.info(f"Writing field {field.name} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
+                field = self.toolkit.OFObjectHome.getFieldFromCase(fieldName=fieldName, flowType=flowType,caseDirectory =caseDirectory,timeStep=dest_time)
+
                 field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, timeOrLocation=str(dest_time))
 
         logger.info("Finished creating the flow field for the dispersion. ")
         ret = None
         if useDBSupport:
-            logger.info("Adding to the database.")
+            logger.info("Adding Dispersion flow to the database.")
             querydict['workflowName'] = dispersionFlowFieldName
             if doc is None:
                 logger.debug("Updating the metadata of the record with the new group ID and simulation name")
