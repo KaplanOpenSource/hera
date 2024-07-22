@@ -129,7 +129,7 @@ class dataToolkit(toolkit.abstractToolkit):
                         if key=='DataSource':
                             handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
                         else:
-                            handler(toolkit=toolkit, itemName=key, itemDesc=docTypeDict, overwrite=overwrite,basedir=basedir)
+                            handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
                     except Exception as e:
                         err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
                         logger.error(err)
