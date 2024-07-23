@@ -3,6 +3,7 @@ import os
 import geopandas
 from ..toolkit import VectorToolkit
 from .analysis import analysis
+import logging
 
 try:
 #    logger.execution("Trying to Load the FreeCAD module")
@@ -10,8 +11,10 @@ try:
     import Part
     import Mesh
 except ImportError as e:
+    logger = logging.getLogger("hera.GIS.vector.buildings.toolkit")
+    logger.debug(f"FreeCAD module is not installed in this environment. Cannot convert to STL")
 #    logger.error(f"Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL: {e}")
-    raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
+#    raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
 import matplotlib.pyplot as plt
 from .....utils.logging import get_classMethod_logger
