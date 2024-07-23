@@ -30,7 +30,7 @@ class analysis:
         self._datalayer = dataLayer
 
 
-    def addDatesColumns(data, datecolumn=None, monthcolumn=None):
+    def addDatesColumns(self,data, datecolumn=None, monthcolumn=None):
         """
             This class adds the year,month, date, time, and the season to the dataframe.
 
@@ -74,7 +74,7 @@ class analysis:
 
         return curdata
 
-    def calcHourlyDist(data, Field,bins=30, normalization='density'):
+    def calcHourlyDist(self,data, Field,bins=30, normalization='density'):
         """
                 Calculates hours distribution of the field.
 
