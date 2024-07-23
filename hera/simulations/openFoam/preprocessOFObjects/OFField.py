@@ -13,7 +13,7 @@ class OFField(OFObject):
 
     fieldComputation = None  # eulerian/ lagrangian.
 
-    def __init__(self, name,fileName, fieldType, fieldComputation, dimensions=None,noOfProc=None,addParallelProc=False):
+    def __init__(self, name,fileName, fieldType, fieldComputation, dimensions=None,noOfProc=None,addParallelProc=False,initialize=True):
         """
             Initializing the OpenFOAM Field.
 
@@ -36,12 +36,16 @@ class OFField(OFObject):
             otherwise initialize with the number of processors.
         addParallelProc : bool
             If true, add the parallel fields.
+        initialize : bool
+            If true, initializes the field, else leaves it empty.
+            (the user can initialize it in the future).
         """
         super().__init__(name=name,fileName=fileName, fieldType=fieldType, dimensions=dimensions)
         self.fieldComputation = fieldComputation
-        self.initialize(noOfProc=noOfProc)
-        if addParallelProc:
-            self.addProcBoundary()
+        if initialize:
+            self.initialize(noOfProc=noOfProc)
+            if addParallelProc:
+                self.addProcBoundary()
 
     def __getitem__(self, item):
         return self.data[item]
