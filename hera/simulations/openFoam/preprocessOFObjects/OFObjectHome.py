@@ -8,6 +8,7 @@ from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
     FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE,FLOWTYPE_COMPRESSIBLE
 from .OFField import OFField
+from .utils import extractFieldFile
 
 #########################################################################
 #               Fields
@@ -389,7 +390,7 @@ class OFObjectHome:
         fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
 
         ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
-                      fieldComputation=fieldData['fieldComputation'])
+                      fieldComputation=fieldData['fieldComputation'],initialize=False)
 
         ret.readFromCase(caseDirectory,timeStep=timeStep, readParallel=readParallel)
         return ret

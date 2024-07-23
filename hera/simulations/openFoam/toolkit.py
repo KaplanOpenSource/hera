@@ -148,7 +148,7 @@ class OFToolkit(hermesWorkflowToolkit):
             logger.debug(f"Cell centers exist in {caseType} case.")
 
         logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
-        cellCenters = self.OFObjectHome.getFieldFromCase(fieldName="cellCenters",
+        cellCenters = self.OFObjectHome.readFieldFromCase(fieldName="cellCenters",
                                                          flowType=FLOWTYPE_INCOMPRESSIBLE,
                                                          caseDirectory=caseDirectory,
                                                          timeStep=time,
