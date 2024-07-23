@@ -148,13 +148,21 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     logger.info(f"Adding dispersion flow to project {projectName}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=arguments.projectName)
 
-    flowdata = loadJSON(arguments.DFF)
+    flowdata = loadJSON(arguments.dispersionFlowParams)
     flowName = flowdata['name']
     logger.info(f"Createing dispersion flows {flowName}")
 
+    dispersionFieldList = []
+    if 'dispersionFlowFields' in arguments:
+        if arguments.dispersionFlowFields is not None:
+            dispersionFieldList = numpy.atleast_1d(arguments.dispersionFlowFields)
+
+
     try:
-        tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName, flowData=flowdata,
+        tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,
+                                                          flowData=flowdata,
                                                           OriginalFlowField=arguments.OriginalFlowField,
+                                                          dispersionFieldList=dispersionFieldList,
                                                           overwrite=arguments.overwrite)
     except FileExistsError:
         err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
@@ -186,7 +194,7 @@ def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
         "name": "<name>",
         "originalFlow": {
             "time": {
-                "type": "steadyState|dynamic",
+                "temporalType": "steadyState|dynamic",
                 "timestep": "< time >"
             },
             "linkMeshSymbolically": True

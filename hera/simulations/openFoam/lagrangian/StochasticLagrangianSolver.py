@@ -8,7 +8,7 @@ class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSol
         super().__init__(toolkit=toolkit)
 
     def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, flowType=FLOWTYPE_INCOMPRESSIBLE,
-                                  overwrite: bool = False, useDBSupport: bool = True):
+                                  overwrite: bool = False, useDBSupport: bool = True,dispersionFieldList=[]):
         """
             Building the dispersion field,
         Parameters
@@ -23,7 +23,9 @@ class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSol
         -------
 
         """
-        dispersionFieldList = ['Ustar,cellHeights']
+        for requiredField in  ['ustar','CellHeights']:
+            if requiredField not in dispersionFieldList:
+                dispersionFieldList.append(requiredField)
 
         super().createDispersionFlowField(flowName=flowName,
                                           flowData=flowData,

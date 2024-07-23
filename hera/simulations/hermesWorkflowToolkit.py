@@ -198,7 +198,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         if hermesWFObj is None:
             err = f"The workflow type {ky} not found"
-            self.logger.error(err)
+            logger.error(err)
             raise ValueError(err)
 
         return hermesWFObj(workFlowJSON,name=name)
@@ -233,7 +233,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, **query)
 
         if len(docList) == 0:
-            self.logger.error(f"... not found. ")
+            logger.error(f"... not found. ")
             ret = None
         else:
             ret = self.getHemresWorkflowFromDocument(documentList=docList,returnFirst=returnFirst)
@@ -261,6 +261,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
             doc or empty list if not found.
         """
+        logger = get_classMethod_logger(self,"getWorkflowDocumentFromDB")
         doctype = self.DOCTYPE_WORKFLOW if doctype is None else doctype
         # try to find it as a name
         mongo_crit = dictToMongoQuery(query)
@@ -268,16 +269,16 @@ class hermesWorkflowToolkit(abstractToolkit):
         retrieve_func = getattr(self,f"get{dockind}Documents")
 
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
-            self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
+            logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
             docList = retrieve_func(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
             if len(docList) == 0:
-                self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
+                logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
                 docList = retrieve_func(resource=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
                 if len(docList) == 0:
-                    self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
+                    logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
                     docList = retrieve_func(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
                     if len(docList) == 0:
-                        self.logger.debug(f"... not found. Try to query as a json. ")
+                        logger.debug(f"... not found. Try to query as a json. ")
                         try:
                             jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
                             wf = self.getHermesWorkflowFromJSON(jsn)
@@ -286,7 +287,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                             docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
                         except ValueError:
 
-                            # self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
+                            # logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
                             # if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
                             #     from ..datalayer.document import nonDBMetadataFrame
                             #     workflowName = os.path.basename(nameOrWorkflowFileOrJSONOrResource).split(".")[0]
@@ -309,21 +310,21 @@ class hermesWorkflowToolkit(abstractToolkit):
                             #                              )
                             #     docList = [res]
                             # else:
-                            self.logger.debug(f"not found")
+                            logger.debug(f"not found")
                             docList = []
                         except IsADirectoryError:
-                            self.logger.debug(f"not found")
+                            logger.debug(f"not found")
                             docList = []
                     else:
-                        self.logger.info(f"... Found it as workflow group ")
+                        logger.info(f"... Found it as workflow group ")
                 else:
-                    self.logger.info(f"... Found it as resource ")
+                    logger.info(f"... Found it as resource ")
             else:
-                self.logger.info(f"... Found it as name")
+                logger.info(f"... Found it as name")
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict) or isinstance(nameOrWorkflowFileOrJSONOrResource, workflow):
             qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON if isinstance(nameOrWorkflowFileOrJSONOrResource, workflow) else nameOrWorkflowFileOrJSONOrResource
-            self.logger.debug(f"Searching for {qryDict} using parameters")
+            logger.debug(f"Searching for {qryDict} using parameters")
             currentQuery = dictToMongoQuery(qryDict, prefix="parameters")
             currentQuery.update(mongo_crit)
             docList = retrieve_func(**currentQuery, type=self.DOCTYPE_WORKFLOW)

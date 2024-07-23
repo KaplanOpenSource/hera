@@ -180,7 +180,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         TS.sort()
 
         logger.info(f"Found timesteps : {TS} in original flow")
-        dynamicType = originalFlow['time']['type']
+        dynamicType = originalFlow['time']['temporalType']
 
         timeStep = originalFlow.get("timeStep",None)
         dispersionDuration = flowData["dispersionDuration"]
@@ -247,7 +247,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             querydict = dict(
                 groupName=workflowGroup,
                 flowParameters=dict(
-                    flowFields=flowData['dispersionFields'],
+                    flowFields=dispersionFieldList,
                     dispersionDuration=flowData["dispersionDuration"],
                     originalFlow = originalFlow
                 )
@@ -367,12 +367,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         os.makedirs(os.path.dirname(destination_constant_polymesh), exist_ok=True)
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
-            caseDirectory = os.path.join(dispersionFlowFieldDirectory, str(dest_time))
+
             for fieldName in dispersionFieldList:
                 logger.info(f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-
-                field = self.toolkit.OFObjectHome.getFieldFromCase(fieldName=fieldName, flowType=flowType,caseDirectory =caseDirectory,timeStep=dest_time)
-
+                field = self.toolkit.OFObjectHome.getEmptyFieldFromCase(fieldName=fieldName, flowType=flowType,caseDirectory =dispersionFlowFieldDirectory)
                 field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, timeOrLocation=str(dest_time))
 
         logger.info("Finished creating the flow field for the dispersion. ")
