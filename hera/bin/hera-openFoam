@@ -286,14 +286,18 @@ if __name__ == "__main__":
     dispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('dispersionFlow', help='Creates a dispersion flow from a flow')
     dispersionFlow_parser_subparser = dispersionFlow_parser.add_subparsers(help='Handles the dispersion flows')
 
-    create_dispersionFlow_parser_parser = dispersionFlow_parser_subparser.add_parser('create', help='Creates a dispersion flow from a flow')
-    create_dispersionFlow_parser_parser.add_argument('OriginalFlowField', type=str,help="The name/directory/workflow file of the origninal workflow")
-    create_dispersionFlow_parser_parser.add_argument('--DFF',  type=str,nargs="*", help="A list of DFF to create. default: create all")
-    create_dispersionFlow_parser_parser.add_argument('--configurationFile',default="caseConfiguration.json", type=str, help="A configuration file that holds the data for the run ")
-    create_dispersionFlow_parser_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    create_dispersionFlow_parser_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the case. Deletes the currect directory if needs to')
-    # remove all old - flag to delete the old dispersion flows.
-    create_dispersionFlow_parser_parser.set_defaults(func=CLI.stochasticLagrangian_dispersionFlow_create)
+    create_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('create', help='Creates a dispersion flow from a flow')
+    create_dispersionFlow_parser.add_argument('OriginalFlowField', type=str,help="The name/directory/workflow file of the origninal workflow")
+    create_dispersionFlow_parser.add_argument('dispersionFlowParams', type=str,help="The parameters of the dispersion flow")
+    create_dispersionFlow_parser.add_argument('--dispersionFlowFields',  type=str,nargs="*", help="A list of fields to create")
+    create_dispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    create_dispersionFlow_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the case. Deletes the currect directory if needs to')
+    create_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_dispersionFlow_create)
+
+    create_dispersionFlow_writeTemplate = dispersionFlow_parser_subparser.add_parser('writeTemplate', help='Writes an empty tempate for the dispersion flow')
+    create_dispersionFlow_writeTemplate.add_argument('templateFile', type=str, help="The name of the template workflow")
+    create_dispersionFlow_writeTemplate.set_defaults(func=CLI.stochasticLagrangian_dispersionFlow_writeEmptyTemplate)
+
 
     #
     # ## -- listDispersionFlowFields - build

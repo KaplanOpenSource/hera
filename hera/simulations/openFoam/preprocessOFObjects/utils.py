@@ -1,4 +1,7 @@
 import pandas
+import numpy
+from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
+from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
 
 #########################################################################
 #
@@ -10,11 +13,11 @@ def extractFieldFile(casePath, columnNames, patchNameList=None,filterInternalPat
     except Exception as e:
         print(casePath)
         raise ValueError(e)
-    return ParsedParameterFileToDataFrame(columnNames=columnNames, patchNameList=patchNameList,filterInternalPatches=filterInternalPatches, **kwargs)
+    return ParsedParameterFileToDataFrame(dataParsedFile=dataParsedFile,columnNames=columnNames, patchNameList=patchNameList,filterInternalPatches=filterInternalPatches, **kwargs)
 
 def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=None,filterInternalPatches=True, **kwargs):
     ret = []
-    pndsData = pandas.DataFrame([[x for x in item] for item in dataParsedFile['internalField'].val],
+    pndsData = pandas.DataFrame([[x for x in item] for item in numpy.atleast_2d(dataParsedFile['internalField'].val)],
                                 columns=columnNames).assign(**kwargs, region='internalField')
 
     ret.append(pndsData)
@@ -29,10 +32,12 @@ def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=Non
             addPatch = False
 
         if addPatch:
-            pndsData = pandas.DataFrame(
-                [[x for x in item] for item in dataParsedFile['boundaryField'][patchName]['value'].val],
-                columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName)
-        ret.append(pndsData)
+            if 'value' in dataParsedFile['boundaryField'][patchName]:
+                if len(dataParsedFile['boundaryField'][patchName]['value'].val) >0:
+                    pndsData = pandas.DataFrame(
+                        [[x for x in item] for item in numpy.atleast_2d(dataParsedFile['boundaryField'][patchName]['value'].val)],
+                        columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName)
+                ret.append(pndsData)
     return pandas.concat(ret).reset_index().rename(columns=dict(index="processorIndex"))
 
 #     def emptyParallelField(self, caseDirectory,timeName:"0.parallel",processor:"", data=None,boundaryField=None):

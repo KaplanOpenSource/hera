@@ -127,10 +127,7 @@ class dataToolkit(toolkit.abstractToolkit):
                         logger.error(err)
                         raise ValueError(err)
                     try:
-                        if key=='DataSource':
-                            handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
-                        else:
-                            handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
+                        handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
                     except Exception as e:
                         err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
                         logger.error(err)
@@ -177,7 +174,7 @@ class dataToolkit(toolkit.abstractToolkit):
             theItem = itemDesc["item"]
 
             isRelativePath = itemDesc.get("isRelativePath")
-            assert isRelativePath=='True' or isRelativePath=='False', "isRelativePath must be defined as 'True' or 'False'. "
+            assert (isRelativePath=='True' or isRelativePath=='False') or isinstance(isRelativePath,bool), "isRelativePath must be defined as 'True' or 'False'. "
             # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
             if isRelativePath=='True':

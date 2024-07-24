@@ -8,6 +8,7 @@ from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR, FIELDTYPE_TENSOR, FIELDTYPE_SCALAR, FIELDCOMPUTATION_EULERIAN, \
     FIELDCOMPUTATION_LAGRANGIAN,FLOWTYPE_INCOMPRESSIBLE,FLOWTYPE_COMPRESSIBLE
 from .OFField import OFField
+from .utils import extractFieldFile
 
 #########################################################################
 #               Fields
@@ -184,7 +185,7 @@ class OFObjectHome:
         return f"[{kg} {m} {s} {K} {mol} {A} {cd}]"
 
     @staticmethod
-    def pandasToFoamFormat(data):
+    def pandasToFoamFormat(self,data):
         """
             Converts pandas to a list of values in OF style.
             i.e
@@ -306,26 +307,78 @@ class OFObjectHome:
                       fieldComputation=fieldData['fieldComputation'],noOfProc = noOfProc, addParallelProc = addParallelProc)
         return ret
 
-    def getFieldFromCase(self, fieldName, flowType,caseDirectory,timeStep=0, readParallel=True ):
+
+    def getEmptyFieldFromCase(self,fieldName, flowType,caseDirectory,internalValue=0, readParallel=True ):
         """
-            Returns a field object, load the data from the case.
+            Reads the field structure (processors, boundary fields) from case, but not the data.
+
 
         Parameters
         ----------
-        caseDirectory : string
-            The directory  of the case
+
+        fieldName : string
+            The name of the field
 
         flowType: str
             Compressible/incompressible.
 
-        fieldName : string
-            The name of the field
+        caseDirectory : string
+            The directory  of the case
+
+        internalValue : float
+            Initialize the field. should be a list if the field is a vector
+
+        readParallel : bool
+            If false, read as single processor even if parallel case exists.
 
         Returns
         -------
 
         """
+
         logger = get_classMethod_logger(self, "getEmptyFieldFromCase")
+        logger.info(f"----- Start : {logger.name}")
+        if fieldName not in self.fieldDefinitions.keys():
+            err = f"Field {fieldName} not found. Must supply {','.join(self.fieldDefinitions.keys())}"
+            logger.critical(err)
+            raise ValueError(err)
+
+        fieldData = self.fieldDefinitions[fieldName]
+        dimensions = fieldData['dimensions'].get(flowType, fieldData['dimensions'].get('default', None))
+        fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
+
+        ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
+                      fieldComputation=fieldData['fieldComputation'],initialize=False)
+
+        ret.readBoundariesFromCase(caseDirectory, readParallel=readParallel,internalValue=internalValue)
+        return ret
+
+    def readFieldFromCase(self, fieldName, flowType,caseDirectory,timeStep=0, readParallel=True ):
+        """
+            Returns a field object, load the data from the case.
+
+        Parameters
+        ----------
+
+        fieldName : string
+            The name of the field
+
+        flowType: str
+            Compressible/incompressible.
+
+        caseDirectory : string
+            The directory  of the case
+
+        timeStep : float
+            The time step to read
+
+        readParallel : bool
+            If false, read as single processor even if parallel case exists.
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "readFieldFromCase")
         logger.info(f"----- Start : {logger.name}")
         if fieldName not in self.fieldDefinitions.keys():
             err = f"Field {fieldName} not found. Must supply {','.join(self.fieldDefinitions.keys())}"
@@ -337,7 +390,7 @@ class OFObjectHome:
         fileName = self.fieldDefinitions[fieldName].get("fileName", fieldName)
 
         ret = OFField(name=fieldName, fileName=fileName, dimensions=dimensions, fieldType=fieldData['fieldType'],
-                      fieldComputation=fieldData['fieldComputation'])
+                      fieldComputation=fieldData['fieldComputation'],initialize=False)
 
         ret.readFromCase(caseDirectory,timeStep=timeStep, readParallel=readParallel)
         return ret
