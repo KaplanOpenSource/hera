@@ -190,7 +190,7 @@ class OFField(OFObject):
             for procName,dictData in self.data.items():
                 self.data[procName]['boundaryField']["proc.*"] = boundaryField
 
-    def readBoundariesFromCase(self, caseDirectory,internalValue=0, readParallel=True):
+    def readBoundariesFromCase(self, caseDirectory,internalValue=None, readParallel=True):
         """
             Reads the boundaries from the case.
             If the mesh is parallel, the code sets zeroGradient for all the external boundaries,
@@ -227,6 +227,12 @@ class OFField(OFObject):
                 readSingle = True
         else:
             readSingle = True
+
+        if internalValue is None:
+            internalValue = self.getZeroValue()
+            logger.debug(f"Internal value is None, getting the zero of the current field: {internalValue}")
+
+
 
         try:
             if readSingle:

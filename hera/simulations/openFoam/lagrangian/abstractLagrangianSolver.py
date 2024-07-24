@@ -297,8 +297,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         os.makedirs(dispersionFlowFieldDirectory,exist_ok=True)
 
         logger.info(f"Creating the flow specific fields in the flow needed for the dispersion")
-
-
         logger.info("Copying the configuration directories from the original to the new configuration (in case directory)")
         # copy constant, 0 and system.
         for general in ["constant", "system", "0"]:
@@ -368,9 +366,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
 
+            dispersionFields = flowData.get("dispersionFields",{})
             for fieldName in dispersionFieldList:
                 logger.info(f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                field = self.toolkit.OFObjectHome.getEmptyFieldFromCase(fieldName=fieldName, flowType=flowType,caseDirectory =dispersionFlowFieldDirectory)
+                value = dispersionFields.get(fieldName,None)
+                field = self.toolkit.OFObjectHome.getEmptyFieldFromCase(fieldName=fieldName, flowType=flowType,internalValue=value,caseDirectory =dispersionFlowFieldDirectory)
                 field.writeToCase(caseDirectory=dispersionFlowFieldDirectory, timeOrLocation=str(dest_time))
 
         logger.info("Finished creating the flow field for the dispersion. ")

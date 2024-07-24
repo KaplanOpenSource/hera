@@ -155,7 +155,7 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     dispersionFieldList = []
     if 'dispersionFlowFields' in arguments:
         if arguments.dispersionFlowFields is not None:
-            dispersionFieldList = numpy.atleast_1d(arguments.dispersionFlowFields)
+            dispersionFieldList = list(numpy.atleast_1d(arguments.dispersionFlowFields))
 
 
     try:

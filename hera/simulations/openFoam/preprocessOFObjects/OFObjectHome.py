@@ -308,7 +308,7 @@ class OFObjectHome:
         return ret
 
 
-    def getEmptyFieldFromCase(self,fieldName, flowType,caseDirectory,internalValue=0, readParallel=True ):
+    def getEmptyFieldFromCase(self,fieldName, flowType,caseDirectory,internalValue=None, readParallel=True ):
         """
             Reads the field structure (processors, boundary fields) from case, but not the data.
 

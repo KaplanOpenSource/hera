@@ -206,8 +206,6 @@ def addSolverPostProcess(subparser,solverName,incompressible):
     parser_loadVTK.set_defaults(func=CLI.Foam_postProcess_VTKPipeline_load)
 
 
-
-
 if __name__ == "__main__":
     initialize_logging(
          with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
