@@ -549,6 +549,14 @@ class topographyAnalysis:
         min elevation + location
         mean elevation
         std of elevation
+
+        example
+        -------
+        after creating a project (hera-project project create project-name)
+        from hera import toolkitHome
+        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName="topotest")
+        elevation = tk.getDomainElevation(xmin=34.529,xmax=34.531,ymin=31.160,ymax=31.162)
+        print(tk.analysis.calculateStastics(elevation))
         """
         xmin = elevation['X'].values.min()
         xmax = elevation['X'].values.max()
