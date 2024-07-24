@@ -107,8 +107,8 @@ class dataToolkit(toolkit.abstractToolkit):
 
         handlerDict = dict(Config = self._handle_Config,
                            Datasource = self._handle_DataSource,
-                           Measurements = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Measurements",basedir),
-                           Simulations = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Simulations",basedir),
+                           Measurements = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Measurements",basedir),
+                           Simulations = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Simulations",basedir),
                            Cache = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Cache",basedir),
                            Function = self._handle_Function)
 
@@ -126,10 +126,7 @@ class dataToolkit(toolkit.abstractToolkit):
                         logger.error(err)
                         raise ValueError(err)
                     try:
-                        if key=='DataSource':
-                            handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
-                        else:
-                            handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
+                        handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
                     except Exception as e:
                         err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
                         logger.error(err)
