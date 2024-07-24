@@ -40,6 +40,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         """
         super().__init__(projectName=projectName, toolkitName = 'TopographyToolkit', filesDirectory=filesDirectory)
+        self._analysis = topographyAnalysis(self)
 
     def getPointElevation(self,lat, long,dataSourceName=None):
         """
@@ -525,3 +526,62 @@ class TopographyToolkit(toolkit.abstractToolkit):
 #
 #     return height
 
+
+
+class topographyAnalysis:
+
+    datalayer = None
+
+    def __init__(self,datalayer):
+        self.datalayer = datalayer
+
+    def calculateStastics(self,elevation):
+        """
+            calculate the domain elevation statistics
+        Parameters
+        ----------
+        elevation - elevation data including coordinates
+
+        Returns
+        -------
+        domain size (in meters for ITM, assuming small domain  (rectangle)
+        max elevation + location
+        min elevation + location
+        mean elevation
+        std of elevation
+
+        example
+        -------
+        after creating a project (hera-project project create project-name)
+        from hera import toolkitHome
+        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName="topotest")
+        elevation = tk.getDomainElevation(xmin=34.529,xmax=34.531,ymin=31.160,ymax=31.162)
+        print(tk.analysis.calculateStastics(elevation))
+        """
+        xmin = elevation['X'].values.min()
+        xmax = elevation['X'].values.max()
+        ymin = elevation['Y'].values.min()
+        ymax = elevation['Y'].values.max()
+        domainsize = (xmax - xmin) * (ymax - ymin)
+        domainmean = elevation['Elevation'].values.mean()
+        domainstd = elevation['Elevation'].values.std()
+        domainmax = elevation['Elevation'].values.max()
+        maxpos = numpy.argmax(elevation['Elevation'].values.ravel())
+        domainmaxlocation = (elevation['X'].values.ravel()[maxpos],elevation['Y'].values.ravel()[maxpos])
+        domainmin = elevation['Elevation'].values.min()
+        minpos = numpy.argmin(elevation['Elevation'].values.ravel())
+        domainminlocation = (elevation['X'].values.ravel()[minpos],elevation['Y'].values.ravel()[minpos])
+        elevation_statistics = {
+                "xmin": xmin,
+                "xmax": xmax,
+                "ymin": ymin,
+                "ymax": ymax,
+                "size": domainsize,
+                "mean": domainmean,
+                "std": domainstd,
+                "domainmax": domainmax,
+                "domainmaxlocation": domainmaxlocation,
+                "domainmin": domainmin,
+                "domainminlocation": domainminlocation,
+                }
+        return elevation_statistics
