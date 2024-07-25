@@ -139,7 +139,7 @@ class OFToolkit(hermesWorkflowToolkit):
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
             logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
-            os.system(f"foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres ")
             logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
             if not os.path.exists(checkPath):
                 logger.error("Error running the writeCellCentres. Check mesh")

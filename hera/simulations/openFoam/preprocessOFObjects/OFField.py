@@ -144,6 +144,8 @@ class OFField(OFObject):
                 Sets the value of the internal field.
                 must be a flaot for scalar, 3-list and 9-list for vector and tensor.
         """
+        import pdb
+        pdb.set_trace()
         if 'singleProcessor' in self.data:
             self.data['singleProcessor']['internalField'] = value
         else:

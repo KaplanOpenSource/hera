@@ -149,7 +149,7 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=arguments.projectName)
 
     flowdata = loadJSON(arguments.dispersionFlowParams)
-    flowName = flowdata['name']
+    flowName = os.path.basename(arguments.dispersionFlowParams).split(".")[0]
     logger.info(f"Createing dispersion flows {flowName}")
 
     dispersionFieldList = []
@@ -182,6 +182,11 @@ def IC_hydrostaticPressure(argumets):
 def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
     """
         Writes an empty JSON file for the disprsion flow.
+        The name of the dispersion workflow is the file name
+
+        Also allows the setting of a constant value to the variable.
+        For more compllicated assigments use setFields, or the python interface of hera.
+
     Parameters
     ----------
     arguments
@@ -191,7 +196,6 @@ def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
 
     """
     flowData = {
-        "name": "<name>",
         "originalFlow": {
             "time": {
                 "temporalType": "steadyState|dynamic",
@@ -199,7 +203,10 @@ def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
             },
             "linkMeshSymbolically": True
         },
-        "dispersionDuration": "< duration >"
+        "dispersionDuration": "< duration >",
+        "dispersionFields" : {
+            "<field name>" : "<constant value>"
+        }
     }
     with open(arguments.templateFile,'w') as outFile:
         json.dump(flowData,outFile,indent=4)
