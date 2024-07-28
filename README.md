@@ -211,6 +211,8 @@ where `<username>` should be replaced by your username on your system.
 
 # 3. Additional software for the  hera ecosystem
 
+All the instructions are for Ubuntu OS.
+
 ### 3.1 Paraview
 
 Paraview may be use to view the results in a convenient GUI. Paraview my be downloaded from [paraview.org](https://www.paraview.org/download/) and includes python libraries. To prevent conflicts between your python version and Paraview pythons version. make sure to use Paraview with you python. If specific paraview is required, it is recommended to manually download and compile the same python version and install hera in it.
