@@ -232,7 +232,17 @@ It is required to install `freecad-python3` pkg (apt). In ubuntu,
 Then, add the library path (default:'/usr/lib/freecad-python3/lib/') to PYTHONPATH env or dynamically in the code like:
 ```python
 FREECADPATH = '/usr/lib/freecad-python3/lib/' # path to your FreeCAD.so or FreeCAD.pyd file,
+
 import sys
 sys.path.append(FREECADPATH)
 ```
 [more information on embedding freecad in freecad sitep](https://wiki.freecad.org/Embedding_FreeCAD)
+
+### 3.3 OPENFOAM.ORG
+```
+sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key > /etc/apt/trusted.gpg.d/openfoam.asc"
+sudo add-apt-repository http://dl.openfoam.org/ubuntu
+sudo apt-get -y install openfoam10
+
+cat  ". /opt/openfoam10/etc/bashrc" > of10 # use source of10 to setup OpenFaom environemnt or add to .bashrc
+```
