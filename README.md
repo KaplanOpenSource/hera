@@ -246,5 +246,5 @@ sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key > /etc/apt/trusted.gpg.d/o
 sudo add-apt-repository http://dl.openfoam.org/ubuntu
 sudo apt-get -y install openfoam10
 
-cat  ". /opt/openfoam10/etc/bashrc" > of10 # use source of10 to setup OpenFaom environemnt or add to .bashrc
+echo  ". /opt/openfoam10/etc/bashrc" > of10 # use source of10 to setup OpenFaom environemnt or add to .bashrc
 ```
