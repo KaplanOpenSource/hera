@@ -36,8 +36,12 @@ def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=Non
                 if len(dataParsedFile['boundaryField'][patchName]['value'].val) >0:
                     pndsData = pandas.DataFrame(
                         [[x for x in item] for item in numpy.atleast_2d(dataParsedFile['boundaryField'][patchName]['value'].val)],
-                        columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName)
-                ret.append(pndsData)
+                        columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName,type=dataParsedFile['boundaryField'][patchName]['type'])
+            else:
+                pndsData = pandas.DataFrame([[numpy.nan]*len(columnNames)],columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName,type=dataParsedFile['boundaryField'][patchName]['type'])
+
+            ret.append(pndsData)
+
     return pandas.concat(ret).reset_index().rename(columns=dict(index="processorIndex"))
 
 #     def emptyParallelField(self, caseDirectory,timeName:"0.parallel",processor:"", data=None,boundaryField=None):

@@ -263,7 +263,6 @@ class OFToolkit(hermesWorkflowToolkit):
 
         if writeProcBoundary:
             field.addProcBoundary()
-
         field.writeToCase(caseDirectory=caseDirectory, timeOrLocation=timeOrLocation)
 
     #############################################################

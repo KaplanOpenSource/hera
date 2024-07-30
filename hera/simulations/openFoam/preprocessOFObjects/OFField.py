@@ -4,10 +4,11 @@ import glob
 from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR,  FIELDTYPE_SCALAR
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
+from PyFoam.RunDictionary.BoundaryDict import BoundaryDict
 from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
 from .OFObject import OFObject
 from .utils import ParsedParameterFileToDataFrame
-from .OFMeshBoundary import OFMeshBoundary
+
 
 class OFField(OFObject):
 
@@ -47,6 +48,7 @@ class OFField(OFObject):
             if addParallelProc:
                 self.addProcBoundary()
 
+
     def __getitem__(self, item):
         return self.data[item]
 
@@ -63,9 +65,9 @@ class OFField(OFObject):
         if self.fieldType == FIELDTYPE_SCALAR:
             return 0
         elif self.fieldType == FIELDTYPE_VECTOR:
-            return [0,0,0]
-        else: # vector
-            return [0]*9
+            return Vector(0,0,0)
+        else: # tensor
+            return Tensor(0,0,0,0,0,0,0,0,0)
 
     def initialize(self,noOfProc=None):
         """
@@ -93,13 +95,15 @@ class OFField(OFObject):
 
             retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
             retDict['dimensions'] = Dimension(*self.dimensionsList)
-            retDict['internalField'] = self.getZeroValue()
+            newField = Field(self.getZeroValue())
+            newField.uniform = True
+            retDict['internalField'] = newField
 
             boundaryValue = DictProxy()
             boundaryValue['type'] = 'zeroGradient'
 
             boundaryDict = DictProxy()
-            boundaryDict[".*"] =boundaryValue
+            boundaryDict['".*"'] =boundaryValue
             retDict['boundaryField'] = boundaryDict
 
             self.data = dict(singleProcessor=retDict)
@@ -122,13 +126,15 @@ class OFField(OFObject):
 
                 retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
                 retDict['dimensions'] = Dimension(*self.dimensionsList)
-                retDict['internalField'] = self.getZeroValue()
+                newField = Field(self.getZeroValue())
+                newField.uniform = True
+                retDict['internalField'] = newField
 
                 boundaryValue = DictProxy()
                 boundaryValue['type'] = 'zeroGradient'
 
                 boundaryDict = DictProxy()
-                boundaryDict[".*"] = boundaryValue
+                boundaryDict['".*"'] = boundaryValue
                 retDict['boundaryField'] = boundaryDict
 
                 procDict[procName] = retDict
@@ -144,8 +150,6 @@ class OFField(OFObject):
                 Sets the value of the internal field.
                 must be a flaot for scalar, 3-list and 9-list for vector and tensor.
         """
-        import pdb
-        pdb.set_trace()
         if 'singleProcessor' in self.data:
             self.data['singleProcessor']['internalField'] = value
         else:
@@ -192,6 +196,9 @@ class OFField(OFObject):
             for procName,dictData in self.data.items():
                 self.data[procName]['boundaryField']["proc.*"] = boundaryField
 
+
+
+
     def readBoundariesFromCase(self, caseDirectory,internalValue=None, readParallel=True):
         """
             Reads the boundaries from the case.
@@ -234,15 +241,18 @@ class OFField(OFObject):
             internalValue = self.getZeroValue()
             logger.debug(f"Internal value is None, getting the zero of the current field: {internalValue}")
 
-
+        boundaryTypeDict = dict(processor='processor',
+                                symmetry='symmetry')
 
         try:
             if readSingle:
                 logger.debug("Setting as a single processor")
-                bndry = OFMeshBoundary(caseDirectory)
+                bndry = BoundaryDict(caseDirectory)
                 retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
                 retDict['dimensions'] = Dimension(*self.dimensionsList)
-                retDict['internalField'] = internalValue
+                newField = Field(internalValue)
+                newField.uniform = True
+                retDict['internalField'] = newField
 
                 logger.debug("Setting boundary field")
                 boundaryDict = DictProxy()
@@ -250,11 +260,12 @@ class OFField(OFObject):
                     logger.debug(f"Setting the boundary {boundaryName} to existing value")
                     boundaryDict[boundaryName] = boundaryData
 
-                for boundaryName in bndry.getBoundary(filterProcessor=False):
-                    interiorBoundary = True if 'proc' in boundaryName else False
+                for boundaryName,boundaryData in bndry.getValueDict().items():
+                    boundaryType = boundaryData['type']
+                    interiorBoundary = True if boundaryType =='processor' else False
                     logger.debug(f"... boundary {boundaryName}. An interior boundary ? {interiorBoundary}")
                     boundaryValue = DictProxy()
-                    boundaryValue['type'] = 'processor' if interiorBoundary else 'zeroGradient'
+                    boundaryValue['type'] = boundaryTypeDict.get(boundaryType,'zeroGradient')
                     boundaryDict[boundaryName] = boundaryValue
 
                 retDict['boundaryField'] = boundaryDict
@@ -263,20 +274,22 @@ class OFField(OFObject):
             else:
                 logger.debug("Setting as a parallel case")
                 self.parallel = True
-
                 for proc in procPaths:
-                    bndry = OFMeshBoundary(proc)
+                    bndry = BoundaryDict(proc)
                     retDict = WriteParameterFile(name=self.fileName, className=f"vol{self.fieldType.title()}Field")
                     retDict['dimensions'] = Dimension(*self.dimensionsList)
-                    retDict['internalField'] = internalValue
+                    newField =  Field(internalValue)
+                    newField.uniform = True
+                    retDict['internalField'] = newField
 
                     boundaryDict = DictProxy()
-                    for boundaryName in bndry.getBoundary(filterProcessor=False):
+                    for boundaryName,boundaryData in bndry.getValueDict().items():
                         logger.debug(f"... Setting {boundaryName}")
-                        interiorBoundary = True if 'proc' in boundaryName else False
+                        boundaryType = boundaryData['type']
+                        interiorBoundary = True if boundaryType == 'processor' else False
                         logger.debug(f"... boundary {boundaryName}. An interior boundary ? {interiorBoundary}")
                         boundaryValue = DictProxy()
-                        boundaryValue['type'] = 'processor' if interiorBoundary else 'zeroGradient'
+                        boundaryValue['type'] = boundaryTypeDict.get(boundaryType,'zeroGradient')
                         boundaryDict[boundaryName] = boundaryValue
 
                     retDict['boundaryField'] = boundaryDict
