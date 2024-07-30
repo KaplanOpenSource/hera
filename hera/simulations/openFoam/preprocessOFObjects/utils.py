@@ -31,12 +31,15 @@ def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=Non
         if filterInternalPatches and 'proc' in patchName:
             addPatch = False
 
+
         if addPatch:
             if 'value' in dataParsedFile['boundaryField'][patchName]:
                 if len(dataParsedFile['boundaryField'][patchName]['value'].val) >0:
                     pndsData = pandas.DataFrame(
                         [[x for x in item] for item in numpy.atleast_2d(dataParsedFile['boundaryField'][patchName]['value'].val)],
                         columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName,type=dataParsedFile['boundaryField'][patchName]['type'])
+                else:
+                    continue # skip that boundary 
             else:
                 pndsData = pandas.DataFrame([[numpy.nan]*len(columnNames)],columns=columnNames).assign(**kwargs, region='boundaryField', boundary=patchName,type=dataParsedFile['boundaryField'][patchName]['type'])
 
