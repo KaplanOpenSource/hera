@@ -69,6 +69,10 @@ and then try the original again:
 
 `pip install -r requirements.txt`
 
+Install GADL
+Use the command: "gadlinfo --version" to obtain OS GDAL version and install same version (or as close as possible) via 
+pip isntall --no-cache-dir GDAL==version
+
 ### 2.4. Setup after installation 
 In order for the package to work the following steps are required.
 
