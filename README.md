@@ -6,9 +6,9 @@
 
 ### 2.1. Prerequisites
 
-1. Linux OS (currently checked: Ubuntu 22.04)
+1. Linux OS - Ubuntu 22.04 LTS - System verified only with this version
 
-2. Python 3.9 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
+2. Python 3.9.13 - [python3.9 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.9)
 
 3. latest pip  - [follow instructions](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#debian-ubuntu)
 
