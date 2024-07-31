@@ -11,13 +11,17 @@ import datetime
 import pyproj
 from pyproj import CRS
 from pyproj import Transformer
+from scipy import interpolate
 
 
 # reading of case
 tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM)
 case = r'/data5/NOBACKUP/nirb/Simulations/Haifa/testcode'
+cc = tk.OFObjectHome.readFieldFromCase(fieldName="cellCenters",flowType=tk.FLOWTYPE_INCOMPRESSIBLE,caseDirectory=case)
+
+
 U =   tk.OFObjectHome.readFieldFromCase("U",tk.FLOWTYPE_INCOMPRESSIBLE,case) #"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2/")
-Udf = tk.OFObjectHome.readFieldAsDataFrame("U", case)
+Udf = tk.OFObjectHome.readFieldAsDataFrame("U", case, readParallel=True)
 print(Udf)
 print(U.componentNames)
 A = tk.getMesh(case)
@@ -78,10 +82,11 @@ for i in range(xlatlon.shape[0]):
 from scipy import interpolate
 # making interpolation for each level, the height can be different for each coordinate
 fu=[]
-fy=[]
+fv=[]
 for i in range(heights.shape[0]):
-    fu.append(interpolate.interp2d(xlatlon,ylatlon,data['Ue'][si,13,:,:],kind='cubic'))
-    fv.append(interpolate.interp2d(xlatlon,ylatlon,data['Ve'][si,13,:,:],kind='cubic'))
+    print('build interpolation engine ',i,'/',heights.shape[0])
+    fu.append(interpolate.interp2d(xlatlon,ylatlon,data['Ue'][si,13,:,:],kind='linear')) #cubic
+    fv.append(interpolate.interp2d(xlatlon,ylatlon,data['Ve'][si,13,:,:],kind='linear')) #linear
     
 uxi = []
 vxi = []
@@ -94,9 +99,16 @@ for i in range(len(Adf.Cx.values)):
     yi.append(np.argmin(np.abs(ylatlon[61,:]-Adf.Cx.values[i])))
 for i in range (len(Adf.Cx.values)):
     level = np.argmin(np.abs(heights[:,xi[i],yi[i]]-Adf.Cz.values[i]))
-    ??? calculate level and level+1
-    uxi.append(fu[level](Adf.Cy.values[i],Adf.Cx.values[i])[0])
-    vxi.append(fv[level](Adf.Cy.values[i],Adf.Cx.values[i])[0])
+    height0 = heights[level,xi[i],yi[i]]
+    height1 = heights[level+1,xi[i],yi[i]]
+    ux0 = fu[level](Adf.Cy.values[i],Adf.Cx.values[i])[0]
+    ux1 = fu[level+1](Adf.Cy.values[i],Adf.Cx.values[i])[0]
+    vx0 = fv[level](Adf.Cy.values[i],Adf.Cx.values[i])[0]
+    vx1 = fv[level+1](Adf.Cy.values[i],Adf.Cx.values[i])[0]
+    ux  = ux0*(height1-Adf.Cz.values[i])/(height1-height0)+ux1*(Adf.Cz.values[i]-height0)/(height1-height0)
+    vx  = vx0*(height1-Adf.Cz.values[i])/(height1-height0)+vx1*(Adf.Cz.values[i]-height0)/(height1-height0)    
+    uxi.append(ux)
+    vxi.append(vx)
     
     
 # I wanted to interpolated 3D, but I failed.    
@@ -117,18 +129,10 @@ for i in range (len(Adf.Cx.values)):
 # print(fu(pts))
 
 
-
-
-
-
-
-
-
-
 # writing on the parallel OF case
-toSet = Adf.assign(Ux=Adf.Cx+1,Uy=0,Uz=-1)
+# toSet = Adf.assign(Ux=Adf.Cx+1,Uy=0,Uz=0)
+toSet = Adf.assign(Ux=uxi,Uy=vxi,Uz=0).dropna()
 toSet.head()
 U.setFieldFromDataFrame(toSet)
-U.writeToCase("test","0")
 
 U.writeToCase(case,"0")
