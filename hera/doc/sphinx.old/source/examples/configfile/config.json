@@ -1,0 +1,14 @@
+{
+    "yosi": {
+        "dbIP": "127.0.0.1",
+        "dbName": "yosi-db",
+        "password": "yosi-pwrd",
+        "username": "yosi"
+    },
+    "moshe": {
+        "dbIP": "127.0.0.1",
+        "dbName": "moshe-db",
+        "password": "moshe-pwrd",
+        "username": "moshe"
+    }
+}

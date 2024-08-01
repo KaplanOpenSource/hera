@@ -1,0 +1,10 @@
+{
+  <name>: {
+    "boundaryFields": {
+      <boundary name>: {
+        <boundary condition>
+      }
+    },
+    "internalField": <internal field value>
+  }
+}
