@@ -31,13 +31,11 @@ class experimentHome(toolkit.abstractToolkit):
     #
     def getExperimentsMap(self):
         """
+        Get dictionary of experiments map of project.
 
-            Returns a map of the names
-
-            experiment name -> experiment data dict.
-
-
-        :return:
+        Returns
+        -------
+            dict
         """
         M=dict()
         for experiment in self.getDataSourceMap():
@@ -49,40 +47,23 @@ class experimentHome(toolkit.abstractToolkit):
     def getExperimentsTable(self):
         return self.getDataSourceTable()
 
-    def getExperiment(self,
-                      experimentName,
-                      filesDirectory=None):
+    def getExperiment(self,experimentName,filesDirectory=None):
         """
-        get the experiment data source.
-        get the experiemt path from data source
-        add it to the python path (sys.path.append)
-        get the handler class name
-        get the handler with pydoc.
+        Get the specific experiment class.
 
         Parameters
         ----------
         experimentName : str
-                The name of the experiment
-
-        experimentDataType : str
-                Can be either EXPERIMENTDATALAYER_HERA or EXPERIMENTDATALAYER_DB
-
-        dataSourceConfiguration: dict
-                overwrite the dataSourceConfiguration of the experiment.
-                see ... for details on its structure.
-
+                The name of the experimen
         filesDirectory: str
                 The directory to save the cache/intermediate files.
                 If None, use the [current directory]/experimentCache.
 
-        defaultTrialSetName:str
-                The default trialSetName to use. (in procedures that require trialSetName).
-
         Returns
         -------
-            Instance of the hera.measurements.old.experiment.experiment.experimentSetupWithData
-            that was derived for the specific experiment.
+            experimentSetupWithData
         """
+
         self.logger.info(f"Getting experiment {experimentName}")
         L = self.getDataSourceDocument(datasourceName=experimentName)
         if L:
@@ -108,20 +89,14 @@ class experimentHome(toolkit.abstractToolkit):
 
 
     def keys(self):
-        return [x for x in self.getExperimentsMap()]
+        """
+        Get the experiments names of project.
 
-    # def parserList(self):
-    #     """
-    #         Return the list of parsers.
-    #
-    #     Returns
-    #     -------
-    #         list of str
-    #     """
-    #     className = ".".join(__class__.__module__.split(".")[:-1])
-    #     parserPath = f"{className}.parsers"
-    #     mod = pydoc.locate(parserPath)
-    #     return [x.split("_")[1] for x in dir(mod) if x.startswith("Parser_")]
+        Returns
+        -------
+            list
+        """
+        return [x for x in self.getExperimentsMap()]
 
     def __getitem__(self, item):
         return self.getExperiment(item)
@@ -168,6 +143,13 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             self.entityType[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
 
     def getExperimentData(self):
+        """
+        Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).
+
+        Returns
+        -------
+            parquetDataEngineHera , pandasDataEngineDB or daskDataEngineDB.
+        """
         return self._experimentData
 
     def __init__(self, projectName, pathToExperiment, dataType=PARQUETHERA, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
@@ -282,26 +264,26 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
                     "timestamp")
 
         return data
-
-    def updateDataWithVersion(self,olddata,newdata):
-        """
-            This procedure gets an old data with version <xx> in field 'version'
-            and creates a copy with version+1, then updates all the  data from the new data into it (including
-            data that did not exist).
-
-            For example, lets assume that the old data is
-
-            deviceName, 
-
-        Parameters
-        ----------
-        olddata
-        newdata
-
-        Returns
-        -------
-
-        """
+    #
+    # def updateDataWithVersion(self,olddata,newdata):
+    #     """
+    #     This procedure gets an old data with version <xx> in field 'version'
+    #     and creates a copy with version+1, then updates all the  data from the new data into it (including
+    #     data that did not exist).
+    #
+    #     For example, lets assume that the old data is
+    #
+    #     deviceName,
+    #
+    #     Parameters
+    #     ----------
+    #     olddata
+    #     newdata
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
 
 class TrialSetWithData(argosDataObjects.TrialSet):
 
