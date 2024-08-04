@@ -343,7 +343,7 @@ if __name__ == "__main__":
 
     ## -- post process
     postProcess_parser = stochasticLagrnagian_subparser.add_parser('postProcess', help='post process for the  lagrangian particles')
-    postProcess_subparser = postProcess_parser.add_subparsers(help='Creates injectors')
+    postProcess_subparser = postProcess_parser.add_subparsers(help='Converts the openFOAM to other formats')
 
     postProcess_vtk_subparser = postProcess_subparser.add_parser('toVTK', help='Creates a VTK files of the lagrangian particles')
     postProcess_vtk_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow or directory")

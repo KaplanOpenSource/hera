@@ -971,7 +971,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         except ValueError:
             return False
 
-    def getCaseResults(self,caseDescriptor,timeList=None,withVelocity=False,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False,cache=True,overwrite=False):
+    def getCaseResults(self,caseDescriptor,timeList=None,withVelocity=True,withReleaseTimes=False,withMass=True,cloudName="kinematicCloud",forceSingleProcessor=False,cache=True,overwrite=False):
         """
             Reads cloud data from the disk.
 
@@ -1061,15 +1061,18 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
 
-                ret = dataframe.from_delayed(
-                    [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
-                     product(processorList, timeList)])
+                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
+                              product(processorList, timeList)]
+
+                ret = dask_dataframe.from_map(loader, loaderList)
+
             else:
                 logging.debug(f"Loading single processor data with time list {timeList}")
                 timeList = sorted([x for x in os.listdir(finalCasePath) if (
                         os.path.isdir(x) and self._isTimestep(x))],key=lambda x: float(x))
 
-                ret = dataframe.from_delayed([delayed(loader)(timeName) for timeName in timeList])
+                loaderList = [timeName for timeName in timeList]
+                ret = dask_dataframe.from_map(loader, loaderList)
 
             if cache or overwrite:
                 if len(cachedDoc) >0:
@@ -1392,6 +1395,6 @@ class analysis:
                 data =  None
 
         else:
-            data = docList[0].getData(usePandas=True)
+            data = docList
 
-        return dat
+        return data

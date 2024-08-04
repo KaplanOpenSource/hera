@@ -17,13 +17,9 @@ from scipy import interpolate
 # reading of case
 tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM)
 case = r'/data5/NOBACKUP/nirb/Simulations/Haifa/testcode'
-cc = tk.OFObjectHome.readFieldFromCase(fieldName="cellCenters",flowType=tk.FLOWTYPE_INCOMPRESSIBLE,caseDirectory=case)
-
 
 U =   tk.OFObjectHome.readFieldFromCase("U",tk.FLOWTYPE_INCOMPRESSIBLE,case) #"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2/")
 Udf = tk.OFObjectHome.readFieldAsDataFrame("U", case, readParallel=True)
-print(Udf)
-print(U.componentNames)
 A = tk.getMesh(case)
 Adf = A.getDataFrame() 
 
