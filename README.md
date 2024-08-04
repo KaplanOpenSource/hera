@@ -6,9 +6,9 @@
 
 ### 2.1. Prerequisites
 
-1. Linux OS (currently checked: Ubuntu 22.04)
+1. Linux OS - Ubuntu 22.04 LTS - System verified only with this version
 
-2. Python 3.9 - [python3.8 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.8)
+2. Python 3.9.13 - [python3.9 from Ubuntu packages](https://packages.ubuntu.com/search?keywords=python3.9)
 
 3. latest pip  - [follow instructions](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#debian-ubuntu)
 
@@ -68,6 +68,10 @@ that is instrumental in package installation):
 and then try the original again:
 
 `pip install -r requirements.txt`
+
+Install GADL
+Use the command: "gadlinfo --version" to obtain OS GDAL version and install same version (or as close as possible) via 
+pip isntall --no-cache-dir GDAL==version
 
 ### 2.4. Setup after installation 
 In order for the package to work the following steps are required.
@@ -211,6 +215,8 @@ where `<username>` should be replaced by your username on your system.
 
 # 3. Additional software for the  hera ecosystem
 
+All the instructions are for Ubuntu OS.
+
 ### 3.1 Paraview
 
 Paraview may be use to view the results in a convenient GUI. Paraview my be downloaded from [paraview.org](https://www.paraview.org/download/) and includes python libraries. To prevent conflicts between your python version and Paraview pythons version. make sure to use Paraview with you python. If specific paraview is required, it is recommended to manually download and compile the same python version and install hera in it.
@@ -232,7 +238,17 @@ It is required to install `freecad-python3` pkg (apt). In ubuntu,
 Then, add the library path (default:'/usr/lib/freecad-python3/lib/') to PYTHONPATH env or dynamically in the code like:
 ```python
 FREECADPATH = '/usr/lib/freecad-python3/lib/' # path to your FreeCAD.so or FreeCAD.pyd file,
+
 import sys
 sys.path.append(FREECADPATH)
 ```
 [more information on embedding freecad in freecad sitep](https://wiki.freecad.org/Embedding_FreeCAD)
+
+### 3.3 OPENFOAM.ORG
+```
+sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key > /etc/apt/trusted.gpg.d/openfoam.asc"
+sudo add-apt-repository http://dl.openfoam.org/ubuntu
+sudo apt-get -y install openfoam10
+
+echo  ". /opt/openfoam10/etc/bashrc" > of10 # use source of10 to setup OpenFaom environemnt or add to .bashrc
+```
