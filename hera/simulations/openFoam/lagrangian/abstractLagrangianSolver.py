@@ -48,7 +48,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     2. Creates the symbolic link for the mesh.
                     3. Creates the Hmix and ustar.
                     4. build the change directory and run it.
-                    5. run the create cell heights.
+                    5. run the create distance from walls
                 2.3 return the id
 
         Parameters

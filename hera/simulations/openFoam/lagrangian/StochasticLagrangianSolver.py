@@ -23,7 +23,7 @@ class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSol
         -------
 
         """
-        for requiredField in  ['ustar','CellHeights']:
+        for requiredField in  ['ustar','distanceFromWalls']:
             if requiredField not in dispersionFieldList:
                 dispersionFieldList.append(requiredField)
 
