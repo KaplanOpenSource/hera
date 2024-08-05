@@ -269,13 +269,13 @@ class hermesWorkflowToolkit(abstractToolkit):
         retrieve_func = getattr(self,f"get{dockind}Documents")
 
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
-            logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
+            logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name of kind {dockind}")
             docList = retrieve_func(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
             if len(docList) == 0:
-                logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource.")
+                logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource of kind {dockind}.")
                 docList = retrieve_func(resource=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
                 if len(docList) == 0:
-                    logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
+                    logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group of kind {dockind}.")
                     docList = retrieve_func(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
                     if len(docList) == 0:
                         logger.debug(f"... not found. Try to query as a json. ")
