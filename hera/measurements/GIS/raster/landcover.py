@@ -232,6 +232,18 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return handlerFunction(landcover)
 
 
+    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None):
+        dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
+        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+        if not isBuilding:
+            handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
+            roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
+            landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
+        return landcover
+
+    def getRoughness(self):
+        pass
+
     def handleType1(self,landcover):
         """
         Converting land type to roughness.
