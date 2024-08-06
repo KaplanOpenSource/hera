@@ -241,8 +241,10 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
         return landcover
 
-    def getRoughness(self):
-        pass
+    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False):
+        landcover = self.getLandCover(minlon,minlat,maxlon,maxlat,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
+        landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName)
+        return landcover
 
     def handleType1(self,landcover):
         """
