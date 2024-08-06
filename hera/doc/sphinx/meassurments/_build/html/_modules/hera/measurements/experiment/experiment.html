@@ -84,7 +84,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 
 <div class="viewcode-block" id="experimentHome">
-<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.experiment.experimentHome">[docs]</a>
+<a class="viewcode-back" href="../../../../experiment/index.html#hera.measurements.experiment.experiment.experimentHome">[docs]</a>
 <span class="k">class</span> <span class="nc">experimentHome</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This is the object that function as a factory/home to the other experiments.</span>
@@ -102,7 +102,7 @@
 
     <span class="c1">#</span>
 <div class="viewcode-block" id="experimentHome.getExperimentsMap">
-<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.experiment.experimentHome.getExperimentsMap">[docs]</a>
+<a class="viewcode-back" href="../../../../experiment/index.html#hera.measurements.experiment.experiment.experimentHome.getExperimentsMap">[docs]</a>
     <span class="k">def</span> <span class="nf">getExperimentsMap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get dictionary of experiments map of project.</span>
@@ -123,7 +123,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceTable</span><span class="p">()</span>
 
 <div class="viewcode-block" id="experimentHome.getExperiment">
-<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.experiment.experimentHome.getExperiment">[docs]</a>
+<a class="viewcode-back" href="../../../../experiment/index.html#hera.measurements.experiment.experiment.experimentHome.getExperiment">[docs]</a>
     <span class="k">def</span> <span class="nf">getExperiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">experimentName</span><span class="p">,</span><span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the specific experiment class.</span>
@@ -167,7 +167,7 @@
 
 
 <div class="viewcode-block" id="experimentHome.keys">
-<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.experiment.experimentHome.keys">[docs]</a>
+<a class="viewcode-back" href="../../../../experiment/index.html#hera.measurements.experiment.experiment.experimentHome.keys">[docs]</a>
     <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the experiments names of project.</span>
@@ -187,7 +187,7 @@
 
 
 <div class="viewcode-block" id="experimentSetupWithData">
-<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.experiment.experimentSetupWithData">[docs]</a>
+<a class="viewcode-back" href="../../../../experiment/index.html#hera.measurements.experiment.experiment.experimentSetupWithData">[docs]</a>
 <span class="k">class</span> <span class="nc">experimentSetupWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">ExperimentZipFile</span><span class="p">,</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        A class that unifies the argos.experiment setup with the data.</span>
@@ -227,7 +227,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">[</span><span class="n">entityType</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">EntityTypeWithData</span><span class="p">(</span><span class="n">experiment</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">entityType</span><span class="p">,</span> <span class="n">experimentData</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="p">)</span>
 
 <div class="viewcode-block" id="experimentSetupWithData.getExperimentData">
-<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.experiment.experimentSetupWithData.getExperimentData">[docs]</a>
+<a class="viewcode-back" href="../../../../experiment/index.html#hera.measurements.experiment.experiment.experimentSetupWithData.getExperimentData">[docs]</a>
     <span class="k">def</span> <span class="nf">getExperimentData</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).</span>

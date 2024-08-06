@@ -1,30 +1,9 @@
-.. Meassurments Documentation documentation master file, created by
-   sphinx-quickstart on Tue Jul 30 14:17:49 2024.
+.. Meassurments documentation master file, created by
+   sphinx-quickstart on Thu Aug  1 13:34:11 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Measurements Documentation
-==========================
+Documentation Sections
+======================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-experimentHome Class
-==========================
-.. autoclass:: hera.measurements.experiment.experiment.experimentHome
-   :members:
-   :show-inheritance:
-
-experimentSetupWithData Class
-=================================
-.. autoclass:: hera.measurements.experiment.experiment.experimentSetupWithData
-   :members:
-   :show-inheritance:
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+- `Experiment Documentation <../../experiment/_build/html/index.html>`_

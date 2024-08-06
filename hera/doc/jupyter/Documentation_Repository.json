@@ -468,7 +468,7 @@
       "Type-1": {
         "isRelativePath": "True",
         "item": {
-          "resource": "data/landcover/lc_mcd12q1v061.t2_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif",
+          "resource": "data/landcover/prefixaac.tif",
           "dataFormat": "geotiff",
           "desc": {
             "year": 2021,
