@@ -14,94 +14,94 @@ import xarray as xr
 import numpy as np
 
 class LandCoverToolkit(toolkit.abstractToolkit):
-    """
-    We should use different roughness to buildings and to topo
-
-     MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
-
-      data is from https://zenodo.org/records/8367523
-      type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1
-
-      Land Cover Type 1: IGBP global vegetation classification scheme
-      Land Cover Type 2: University of Maryland (UMD) scheme
-
-      DataField    Name                    Data      Dimensions
-                                           Type
-
-      DataField_1  Land_Cover_Type_1       UINT8     Dimension_1
-                                                     Dimension_2
-
-              Description:    land cover types (IGBP)
-
-              DataField_1 HDF Attributes:
-
-                 long_name      STRING  1   PGE    "Land_Cover_Type_1"
-                 units          STRING  1   PGE     "class number"
-                 valid_range    uint8    2   PGE     0 16
-                 _FillValue     uint8    1   PGE     255
-                 Water          uint8    1   PGE     0
-                 Evergreen needleleaf forest
-                                uint8    1   PGE     1
-                 Evergreen broadleaf forest
-                                uint8    1   PGE     2
-                 Deciduous needleleaf forest
-                                uint8    1   PGE     3
-                 Deciduous broadleaf forest
-                                uint8    1   PGE     4
-                 Mixed forests  unit8    1   PGE     5
-                 Closed shrubland
-                                unit8    1   PGE     6
-                 Open shrublands
-                                unit8    1   PGE     7
-                 Woody savannas unit8    1   PGE     8
-                 Savannas       unit8    1   PGE     9
-                 Grasslands     unit8    1   PGE    10
-                 Permanent wetlands
-                                unit8    1   PGE    11
-                 Croplands      unit8    1   PGE    12
-                 Urban and built-up
-                                unit8    1   PGE    13
-                 Cropland/natural vegetation mosaic
-                                unit8    1   PGE    14
-                 Snow and ice   unit8    1   PGE    15
-                 Barren or sparsely vegetated
-                                unit8    1   PGE    16
-
-      DataField_2  Land_Cover_Type_2       UINT8     Dimension_1
-                                                     Dimension_2
-
-              Description:    land cover types (UMD)
-
-              DataField_2 HDF Attributes:
-                 long_name      STRING   1   PGE    "Land_Cover_Type_2"
-                 units          STRING   1   PGE     "class number"
-                 valid_range    uint8    2   PGE     0 16
-                 _FillValue     uint8    1   PGE     255
-                 Water          uint8    1   PGE     0
-                 Evergreen needleleaf forest
-                                uint8    1   PGE     1
-                 Evergreen broadleaf forest
-                                uint8    1   PGE     2
-                 Deciduous needleleaf forest
-                                uint8    1   PGE     3
-                 Decidous broadleaf forest
-                                uint8    1   PGE     4
-                 Mixed forests  uint8    1   PGE     5
-                 Closed shrublands
-                                 unit8   1   PGE     6
-                 Open shrubland  unit8   1   PGE     7
-                 Woody savannas  unit8   1   PGE     8
-                 Savannas       unit8    1   PGE     9
-                 Grasslands     uint8    1   PGE    10
-                 Croplands      unit8    1   PGE    12
-                 Urban and built-up
-                                unit8    1   PGE    13
-                 Barren or sparsely vegetated
-                                unit8    1   PGE    16
-
-      Land cover may change between winter and summer
-      urban area may change over the years
-    """
+    # """
+    # We should use different roughness to buildings and to topo
+    #
+    #  MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
+    #
+    #   data is from https://zenodo.org/records/8367523
+    #   type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1
+    #
+    #   Land Cover Type 1: IGBP global vegetation classification scheme
+    #   Land Cover Type 2: University of Maryland (UMD) scheme
+    #
+    #   DataField    Name                    Data      Dimensions
+    #                                        Type
+    #
+    #   DataField_1  Land_Cover_Type_1       UINT8     Dimension_1
+    #                                                  Dimension_2
+    #
+    #           Description:    land cover types (IGBP)
+    #
+    #           DataField_1 HDF Attributes:
+    #
+    #              long_name      STRING  1   PGE    "Land_Cover_Type_1"
+    #              units          STRING  1   PGE     "class number"
+    #              valid_range    uint8    2   PGE     0 16
+    #              _FillValue     uint8    1   PGE     255
+    #              Water          uint8    1   PGE     0
+    #              Evergreen needleleaf forest
+    #                             uint8    1   PGE     1
+    #              Evergreen broadleaf forest
+    #                             uint8    1   PGE     2
+    #              Deciduous needleleaf forest
+    #                             uint8    1   PGE     3
+    #              Deciduous broadleaf forest
+    #                             uint8    1   PGE     4
+    #              Mixed forests  unit8    1   PGE     5
+    #              Closed shrubland
+    #                             unit8    1   PGE     6
+    #              Open shrublands
+    #                             unit8    1   PGE     7
+    #              Woody savannas unit8    1   PGE     8
+    #              Savannas       unit8    1   PGE     9
+    #              Grasslands     unit8    1   PGE    10
+    #              Permanent wetlands
+    #                             unit8    1   PGE    11
+    #              Croplands      unit8    1   PGE    12
+    #              Urban and built-up
+    #                             unit8    1   PGE    13
+    #              Cropland/natural vegetation mosaic
+    #                             unit8    1   PGE    14
+    #              Snow and ice   unit8    1   PGE    15
+    #              Barren or sparsely vegetated
+    #                             unit8    1   PGE    16
+    #
+    #   DataField_2  Land_Cover_Type_2       UINT8     Dimension_1
+    #                                                  Dimension_2
+    #
+    #           Description:    land cover types (UMD)
+    #
+    #           DataField_2 HDF Attributes:
+    #              long_name      STRING   1   PGE    "Land_Cover_Type_2"
+    #              units          STRING   1   PGE     "class number"
+    #              valid_range    uint8    2   PGE     0 16
+    #              _FillValue     uint8    1   PGE     255
+    #              Water          uint8    1   PGE     0
+    #              Evergreen needleleaf forest
+    #                             uint8    1   PGE     1
+    #              Evergreen broadleaf forest
+    #                             uint8    1   PGE     2
+    #              Deciduous needleleaf forest
+    #                             uint8    1   PGE     3
+    #              Decidous broadleaf forest
+    #                             uint8    1   PGE     4
+    #              Mixed forests  uint8    1   PGE     5
+    #              Closed shrublands
+    #                              unit8   1   PGE     6
+    #              Open shrubland  unit8   1   PGE     7
+    #              Woody savannas  unit8   1   PGE     8
+    #              Savannas       unit8    1   PGE     9
+    #              Grasslands     uint8    1   PGE    10
+    #              Croplands      unit8    1   PGE    12
+    #              Urban and built-up
+    #                             unit8    1   PGE    13
+    #              Barren or sparsely vegetated
+    #                             unit8    1   PGE    16
+    #
+    #   Land cover may change between winter and summer
+    #   urban area may change over the years
+    # """
 
     def __init__(self, projectName, filesDirectory=None):
         """
@@ -129,7 +129,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
     def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
-            Returns the roughness depending on the type.
+        Get the landcover type integer value in a specific point.
 
         Parameters
         ----------
@@ -139,14 +139,15 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         lat : float
             The latitute coordinates.
 
-        inputCRS : int
+        inputCRS : int , default=WSG84
             The ESPRG of the coordinates.
 
-        dataSourceName : string , default None
-            The name of the data source to use. Using default datasource if None.
+        dataSourceName : string , default=None
+            The name of the data source to use.
 
         Returns
         -------
+            int
 
         """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
@@ -166,6 +167,40 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return img[x, y]
 
     def getLandCover(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None):
+        """
+        Get Xarray LandCover map.
+
+        Parameters
+        ----------
+        minlon : float
+            Minimum value of longitude coodinates.
+
+        minlat : float
+            Minimum value of latitute coodinates.
+
+        maxlon: float
+            Maximum value of longitude coodinates.
+
+        maxlat: float
+            Maximum value of latitute coodinates.
+
+        dxdy: int, default=30
+            Spatial resolution of the output land cover map. Defines the step size for the grid points
+            in both the x (longitude) and y (latitude) directions within the specified bounding box.
+            Smaller values result in finer resolution.
+
+        inputCRS : int , default=WSG84
+            The ESPRG of the coordinates.
+
+        dataSourceName : string , default=None
+            The name of the data source to use.
+
+        Returns
+        -------
+            xarray.DataArray
+
+        """
+
         def vectorizeLandCoverCalc(lat, lon, img, lonUpperLeft, lonResolution, latUpperLeft, latResolution):
             ilat = math.floor((lat - latUpperLeft) / latResolution)
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
@@ -213,17 +248,25 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
     def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
-            Get the land type and then convert to roughness.
+        Get the roughness value of a specific point in the map.
 
         Parameters
         ----------
-        lon
-        lat
-        inputCRS
-        dataSourceName
+        lon : float
+            The longitude coodinates.
+
+        lat : float
+            The latitute coordinates.
+
+        inputCRS : int , default=WSG84
+            The ESPRG of the coordinates.
+
+        dataSourceName : string , default=None
+            The name of the data source to use.
 
         Returns
         -------
+            float
 
         """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
@@ -235,6 +278,25 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
     def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None):
+        """
+        Adds Roughness field (z0) to landcover Xarray.
+
+        Parameters
+        ----------
+        landcover : Xarray
+            Landcover Xarray map in which the Roughness field will be added to.
+
+        isBuilding : bool, default=False
+            Is the landcover containts building area.
+
+        dataSourceName : string , default=None
+            The name of the data source to use.
+
+        Returns
+        -------
+            xarray.DataArray
+
+        """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         if not isBuilding:
@@ -244,25 +306,60 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return landcover
 
     def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False):
+        """
+        Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.
+
+        Parameters
+        ----------
+        minlon : float
+            Minimum value of longitude coodinates.
+
+        minlat : float
+            Minimum value of latitute coodinates.
+
+        maxlon: float
+            Maximum value of longitude coodinates.
+
+        maxlat: float
+            Maximum value of latitute coodinates.
+
+        dxdy: int, default=30
+            Spatial resolution of the output land cover map. Defines the step size for the grid points
+            in both the x (longitude) and y (latitude) directions within the specified bounding box.
+            Smaller values result in finer resolution.
+
+        inputCRS : int , default=WSG84
+            The ESPRG of the coordinates.
+
+        dataSourceName : string , default=None
+            The name of the data source to use.
+
+        isBuilding : bool, default=False
+            Is the landcover containts building area.
+
+        Returns
+        -------
+            xarray.DataArray
+        """
         landcover = self.getLandCover(minlon,minlat,maxlon,maxlat,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
         landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName)
         return landcover
 
     def handleType1(self,landcover):
         """
-        Converting land type to roughness.
-
+        Converting land type of Type-1 to roughness.
         Based on the paper:
             * https://wes.copernicus.org/articles/6/1379/2021/ table a2
             * https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
 
         Parameters
         ----------
-        roughness
+        landcover : int
+            Landcover type value.
 
         Returns
         -------
-
+            float
         """
         roughnessDict = {
             0 : 0.0001, # Water,  depends on waves that depends on wind
@@ -287,6 +384,18 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
     def getCodingMap(self,datasourceName):
+        """
+        Returns dictionary that maps landcover int value to string of landcover.
+
+        Parameters
+        ----------
+        datasourceName: str
+            Datasource type (Type-1, Type-2 etc.)
+
+        Returns
+        -------
+            dict
+        """
         dict = {}
         if datasourceName=='Type-1':
             dict = {
