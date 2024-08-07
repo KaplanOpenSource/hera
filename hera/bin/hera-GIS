@@ -41,10 +41,12 @@ if __name__ == "__main__":
 
     ## ---------------- create STL file
     topography_raster_parser_toSTL = topography_raster_subparser.add_parser('toSTL', help='Write the topography as STL')
-    topography_raster_parser_toSTL.add_argument('--minx', type=str, required=True, help='The directory to create')
-    topography_raster_parser_toSTL.add_argument('--miny', type=str, required=True,help='The directory to create')
-    topography_raster_parser_toSTL.add_argument('--maxx', type=str, required=True,help='The directory to create')
-    topography_raster_parser_toSTL.add_argument('--maxy', type=str, required=True,help='The directory to create')
+    topography_raster_parser_toSTL.add_argument('--minx', type=str, required=True, help='lower x boundingbox')
+    topography_raster_parser_toSTL.add_argument('--miny', type=str, required=True,help='lower y boundingbox')
+    topography_raster_parser_toSTL.add_argument('--maxx', type=str, required=True,help='upper x boundingbox')
+    topography_raster_parser_toSTL.add_argument('--maxy', type=str, required=True,help='lower y boundingbox')
+    topography_raster_parser_toSTL.add_argument('--shiftx', type=str, required=False,help='change the zero x coordinates elsewhere')
+    topography_raster_parser_toSTL.add_argument('--shifty', type=str, required=False,help='change the zero y coordinates elsewhere')
     topography_raster_parser_toSTL.add_argument('--dxdy', type=str, default=30, help='The resolution of the mesh, Default is 30m')
     topography_raster_parser_toSTL.add_argument('--inputCRS', type=str, help='The CRS of the input coordinates, The default is WSG84')
     topography_raster_parser_toSTL.add_argument('--outputCRS', type=str, help='The CRS of the output STL (default ITM)')
