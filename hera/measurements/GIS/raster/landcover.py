@@ -125,6 +125,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         """
         super().__init__(projectName=projectName, toolkitName = 'LandCoverToolkit', filesDirectory=filesDirectory)
 
+
+
     def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
             Returns the roughness depending on the type.
