@@ -7,3 +7,4 @@ Documentation Sections
 ======================
 
 - `Experiment Documentation <../../experiment/_build/html/index.html>`_
+- `Experiment Documentation <../../GIS/_build/html/index.html>`_
