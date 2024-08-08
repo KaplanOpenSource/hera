@@ -1,8 +1,5 @@
 import pandas
-import numpy
-import os
-from argos.manager import experimentSetup, DEPLOY, DESIGN
-import argos
+from argos.manager import  DEPLOY, DESIGN
 from hera.datalayer import datatypes
 
 class experimentAnalysis:

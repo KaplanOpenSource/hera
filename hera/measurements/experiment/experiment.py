@@ -3,6 +3,8 @@ import os
 import pydoc
 import sys
 from ... import toolkit,toolkitHome,datalayer
+from .presentation import experimentPresentation
+from .analysis import experimentAnalysis
 try:
     from argos.experimentSetup import dataObjects as argosDataObjects
     from argos import DESIGN,DEPLOY
@@ -10,7 +12,7 @@ except ImportError:
     print("Must have argos installed and in the path. ")
 
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
-from hera.utils.jsonutils import loadJSON
+from ...utils  import loadJSON
 import logging
 
 class experimentHome(toolkit.abstractToolkit):
@@ -197,7 +199,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             raise ValueError(f"The experiment setup file doesn't exist. Looking for {setupFile}  ")
 
         # Now initialize the data engine.
-        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration, dataType = dataType)
+        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration,experimentObj=self, dataType = dataType)
         self.entityType = dict()
         self.trialSet = dict()
 
@@ -210,11 +212,9 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
         argosDataObjects.ExperimentZipFile.__init__(self,setupFile)
         toolkit.abstractToolkit.__init__(self,projectName=projectName,toolkitName=f"{experimentName}Toolkit",filesDirectory=cacheDir)
 
-        self._sonicHighFreqToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.METEOROLOGY_HIGHFREQ,
-                                                            projectName=projectName,
-                                                            filesDirectory=cacheDir)
-
         self._defaultTrialSetName = defaultTrialSetName
+        self._analysis = experimentAnalysis(self,)
+        self._presentation = experimentPresentation(self,self.analysis)
 
     @property
     def defaultTrialSet(self):
