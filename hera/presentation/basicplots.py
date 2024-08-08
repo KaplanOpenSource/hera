@@ -5,6 +5,8 @@ import seaborn as sns; sns.set()
 import numpy as np
 
 
+
+
 class PlotFields(object):
 
     def __init__(self, data = None):

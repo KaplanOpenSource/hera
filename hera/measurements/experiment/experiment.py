@@ -31,13 +31,11 @@ class experimentHome(toolkit.abstractToolkit):
     #
     def getExperimentsMap(self):
         """
+        Get dictionary of experiments map of project.
 
-            Returns a map of the names
-
-            experiment name -> experiment data dict.
-
-
-        :return:
+        Returns
+        -------
+            dict
         """
         M=dict()
         for experiment in self.getDataSourceMap():
@@ -49,40 +47,23 @@ class experimentHome(toolkit.abstractToolkit):
     def getExperimentsTable(self):
         return self.getDataSourceTable()
 
-    def getExperiment(self,
-                      experimentName,
-                      filesDirectory=None):
+    def getExperiment(self,experimentName,filesDirectory=None):
         """
-        get the experiment data source.
-        get the experiemt path from data source
-        add it to the python path (sys.path.append)
-        get the handler class name
-        get the handler with pydoc.
+        Get the specific experiment class.
 
         Parameters
         ----------
         experimentName : str
-                The name of the experiment
-
-        experimentDataType : str
-                Can be either EXPERIMENTDATALAYER_HERA or EXPERIMENTDATALAYER_DB
-
-        dataSourceConfiguration: dict
-                overwrite the dataSourceConfiguration of the experiment.
-                see ... for details on its structure.
-
+                The name of the experimen
         filesDirectory: str
                 The directory to save the cache/intermediate files.
                 If None, use the [current directory]/experimentCache.
 
-        defaultTrialSetName:str
-                The default trialSetName to use. (in procedures that require trialSetName).
-
         Returns
         -------
-            Instance of the hera.measurements.old.experiment.experiment.experimentSetupWithData
-            that was derived for the specific experiment.
+            experimentSetupWithData
         """
+
         self.logger.info(f"Getting experiment {experimentName}")
         L = self.getDataSourceDocument(datasourceName=experimentName)
         if L:
@@ -108,20 +89,14 @@ class experimentHome(toolkit.abstractToolkit):
 
 
     def keys(self):
-        return [x for x in self.getExperimentsMap()]
+        """
+        Get the experiments names of project.
 
-    # def parserList(self):
-    #     """
-    #         Return the list of parsers.
-    #
-    #     Returns
-    #     -------
-    #         list of str
-    #     """
-    #     className = ".".join(__class__.__module__.split(".")[:-1])
-    #     parserPath = f"{className}.parsers"
-    #     mod = pydoc.locate(parserPath)
-    #     return [x.split("_")[1] for x in dir(mod) if x.startswith("Parser_")]
+        Returns
+        -------
+            list
+        """
+        return [x for x in self.getExperimentsMap()]
 
     def __getitem__(self, item):
         return self.getExperiment(item)
@@ -168,6 +143,13 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             self.entityType[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
 
     def getExperimentData(self):
+        """
+        Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).
+
+        Returns
+        -------
+            parquetDataEngineHera , pandasDataEngineDB or daskDataEngineDB.
+        """
         return self._experimentData
 
     def __init__(self, projectName, pathToExperiment, dataType=PARQUETHERA, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
@@ -282,26 +264,26 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
                     "timestamp")
 
         return data
-
-    def updateDataWithVersion(self,olddata,newdata):
-        """
-            This procedure gets an old data with version <xx> in field 'version'
-            and creates a copy with version+1, then updates all the  data from the new data into it (including
-            data that did not exist).
-
-            For example, lets assume that the old data is
-
-            deviceName, 
-
-        Parameters
-        ----------
-        olddata
-        newdata
-
-        Returns
-        -------
-
-        """
+    #
+    # def updateDataWithVersion(self,olddata,newdata):
+    #     """
+    #     This procedure gets an old data with version <xx> in field 'version'
+    #     and creates a copy with version+1, then updates all the  data from the new data into it (including
+    #     data that did not exist).
+    #
+    #     For example, lets assume that the old data is
+    #
+    #     deviceName,
+    #
+    #     Parameters
+    #     ----------
+    #     olddata
+    #     newdata
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
 
 class TrialSetWithData(argosDataObjects.TrialSet):
 
@@ -361,134 +343,3 @@ class EntityWithData(argosDataObjects.Entity):
 
     def getData(self,startTime=None, endTime=None):
         return self._experimentData.getData(self.entityType.name,self.name,startTime,endTime)
-
-
-
-
-#def loadData(self, fileNameOrData, parser, saveMode=None, **kwargs):
-    #
-    #     """
-    #
-    #     Parameters:
-    #     -----------
-    #     fileNameOrData: str
-    #         path to parse.
-    #
-    #     parser: str
-    #         The name of the parser to use.
-    #
-    #     saveMode: str
-    #         Ingored in this method.
-    #     kwargs: additional parameters
-    #             overWrite - if true, overWrite the database records, else throws exception if exists.
-    #                         default : False.
-    #
-    #     :return:
-    #     """
-    #
-    #     if parser not in self.parserList():
-    #         raise ValueError(f"{parser} is not a valid parser. Must be {','.join(self.parserList())}")
-    #
-    #     if isinstance(fileNameOrData,str):
-    #         pathToData = os.path.abspath(fileNameOrData)
-    #         className = ".".join(__class__.__module__.split(".")[:-1])
-    #         parserPath = f"{className}.parsers.Parser_{parser}"
-    #         parserCls = pydoc.locate(parserPath)
-    #         parser = parserCls()
-    #
-    #         experimentMetadata = parser.parse(pathToData=pathToData)
-    #
-    #     # elif isinstance(fileNameOrData,pandas.DataFrame) or isinstance(fileNameOrData,dask.dataframe):
-    #     #     data = fileNameOrData
-    #     else:
-    #         raise ValueError("fileNameOrData must be a path to a metadata file (or a file), all other posibilities not impolemented yet")
-    #
-    #     overWrite = kwargs.get("overWrite", False)
-    #
-    #     # experimentMetadata = parser.parse(pathToData=pathToData)
-    #
-    #
-    #     # gets the meta data and adds to the DB.
-    #     # A dictionary with the following:
-    #     #
-    #     #   Stations: { the metadata for the stations } (JSON, or pandas)
-    #     #   Devices: [ A list of the metadata of each device, remember to add the folder name of the parquet  (the resource). ].
-    #
-    #     # adds to the db.  (with self.addMeasurementDocument).
-    #
-    #     for experiment, experimentData in experimentMetadata.items():
-    #
-    #         D = experimentData['devices']
-    #
-    #         # Create the data source of the experiment itself.
-    #         L=self.getDatasourceDocument(datasourceName=experiment)
-    #
-    #         if not (L) or (L and overWrite):
-    #             delList=self.deleteDataSourceDocuments(datasourceName=experiment)
-    #
-    #             for delDoc in delList:
-    #
-    #                 self.logger.info("deleted experiment document:")
-    #                 self.logger.info(json.dumps(delDoc, indent=4, sort_keys=True))
-    #
-    #             self.addDataSource(dataSourceName=experiment,
-    #                                resource=experimentData.get('properties',{}),
-    #                                dataFormat=datalayer.datatypes.DICT,
-    #                                handlerPath=fileNameOrData,
-    #                                handlerClass=experimentData['toolkitHandler'])
-    #
-    #         # create the assets
-    #         L = self.getMeasurementsDocuments(type=self.DOCTYPE_ENTITIES,
-    #                                           experiment=experiment)
-    #
-    #         if not (L) or (L and overWrite):
-    #
-    #             delList = self.deleteMeasurementsDocuments(type=self.DOCTYPE_ENTITIES,
-    #                                                        experiment=experiment)
-    #             for deldoc in delList:
-    #                 self.logger.info("deleted entities document:")
-    #                 self.logger.info(json.dumps(deldoc, indent=4, sort_keys=True))
-    #
-    #             desc = dict()
-    #
-    #             desc['experiment'] = experiment
-    #             self.addMeasurementsDocument(resource=experimentMetadata[experiment]['entities'],
-    #                                          type=self.DOCTYPE_ENTITIES,
-    #                                          dataFormat=datalayer.datatypes.DICT,
-    #                                          desc=desc)
-    #
-    #         # create the devices (with the data from the stations).
-    #
-    #         for entityDict in D:
-    #             entity=entityDict["deviceName"]
-    #             path = entityDict['deviceDataPath']
-    #
-    #             if not (os.path.exists(path)):
-    #                 raise FileNotFoundError("Wrong folder path")
-    #             else:
-    #
-    #                 print(f'{path} path to {entity} data  is O.K')
-    #
-    #             L = self.getMeasurementsDocuments(type=self.DOCTYPE_DEVICES,
-    #                                               deviceName=entity,
-    #                                               experiment=experiment)
-    #
-    #             if not (L) or (L and overWrite):
-    #
-    #                 delList = self.deleteMeasurementsDocuments(type=self.DOCTYPE_DEVICES,
-    #                                                            deviceName=entity,
-    #                                                            experiment=experiment)
-    #                 for deldoc in delList:
-    #                     print("delete devices document")
-    #                     print(json.dumps(deldoc, indent=4, sort_keys=True))
-    #
-    #                 print(f'Loading {entity} data to DB')
-    #                 entityDict['experiment'] = experiment
-    #
-    #                 self.addMeasurementsDocument(type=self.DOCTYPE_DEVICES,
-    #                                              dataFormat=datalayer.datatypes.PARQUET,
-    #                                              resource=path,
-    #                                              desc=entityDict)
-    #             else:
-    #                 print(f'{entityDict["deviceName"]} DB list is not empty, but overWrite flag is {overWrite}')
-    #                 print(f'{entityDict["deviceName"]} not stored to DB ')

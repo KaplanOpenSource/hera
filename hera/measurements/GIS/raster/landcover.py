@@ -10,6 +10,8 @@ import pandas
 import os
 import xarray
 import geopandas
+import xarray as xr
+import numpy as np
 
 class LandCoverToolkit(toolkit.abstractToolkit):
     """
@@ -123,6 +125,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         """
         super().__init__(projectName=projectName, toolkitName = 'LandCoverToolkit', filesDirectory=filesDirectory)
 
+
+
     def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
             Returns the roughness depending on the type.
@@ -158,12 +162,54 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         miny = gt[3] + width * gt[4] + height * gt[5]
         maxy = gt[3]
         x = math.floor((lat - gt[3]) / gt[5])
-        y = math.floor((long - gt[0]) / gt[1])
+        y = math.floor((lon - gt[0]) / gt[1])
         return img[x, y]
 
-    def getLandCover(self,xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WSG84, dataSourceName=None):
-        pass
+    def getLandCover(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None):
+        def vectorizeLandCoverCalc(lat, lon, img, lonUpperLeft, lonResolution, latUpperLeft, latResolution):
+            ilat = math.floor((lat - latUpperLeft) / latResolution)
+            ilon = math.floor((lon - lonUpperLeft) / lonResolution)
+            return img[ilat, ilon]
 
+        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=WSG84, outputCRS=ITM)[0]
+        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=WSG84, outputCRS=ITM)[0]
+        x = numpy.arange(min_pp.x, max_pp.x, dxdy)
+        y = numpy.arange(min_pp.y, max_pp.y, dxdy)
+        xx = numpy.zeros((len(x), len(y)))
+        yy = numpy.zeros((len(x), len(y)))
+        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y)]):
+            print((i, j), end="\r")
+            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=inputCRS)[0]
+            xx[i, j] = newpp.x
+            yy[i, j] = newpp.y
+
+        ds = self.getDataSourceData(dataSourceName)
+        img = ds.GetRasterBand(1).ReadAsArray()
+        lonUpperLeft, lonResolution, lonRotation, latUpperLeft, latRotation, latResolution = ds.GetGeoTransform()
+        vectorizedLandCover = numpy.vectorize(lambda tlat, tlon: vectorizeLandCoverCalc(lat=tlat,
+                                                                                        lon=tlon,
+                                                                                        img=img,
+                                                                                        lonUpperLeft=lonUpperLeft,
+                                                                                        lonResolution=lonResolution,
+                                                                                        latUpperLeft=latUpperLeft,
+                                                                                        latResolution=latResolution))
+        landcover = vectorizedLandCover(xx, yy)
+        ### Transform to XArray
+        i = np.arange(landcover.shape[0])
+        j = np.arange(landcover.shape[1])
+        xarray = xr.DataArray(
+            landcover,
+            coords={
+                'i': i,
+                'j': j,
+                'lat': (['i', 'j'], xx),
+                'lon': (['i', 'j'], yy),
+                'landcover': (['i', 'j'], landcover)
+                },
+            dims=['i', 'j']
+            )
+        xarray.attrs['landcover_description'] = self.getCodingMap(dataSourceName)
+        return xarray
 
     def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
@@ -187,6 +233,20 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
         return handlerFunction(landcover)
 
+
+    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None):
+        dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
+        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+        if not isBuilding:
+            handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
+            roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
+            landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
+        return landcover
+
+    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False):
+        landcover = self.getLandCover(minlon,minlat,maxlon,maxlat,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
+        landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName)
+        return landcover
 
     def handleType1(self,landcover):
         """
@@ -225,6 +285,31 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         }
         return roughnessDict.get(landcover,0.05)
 
+
+    def getCodingMap(self,datasourceName):
+        dict = {}
+        if datasourceName=='Type-1':
+            dict = {
+                    0: "Water",
+                    1: "Evergreen needleleaf forest",
+                    2: "Evergreen broadleaf forest",
+                    3: "Deciduous needleleaf forest",
+                    4: "Deciduous broadleaf forest",
+                    5: "Mixed forests",
+                    6: "Closed shrubland",
+                    7: "Open shrublands",
+                    8: "Woody savannas",
+                    9: "Savannas",
+                    10: "Grasslands",
+                    11: "Permanent wetlands",
+                    12: "Croplands",
+                    13: "Urban and built-up",
+                    14: "Cropland/natural vegetation mosaic",
+                    15: "Snow and ice",
+                    16: "Barren or sparsely vegetated"
+                }
+
+        return dict
 
 # #!/usr/bin/env python3
 # # -*- coding: utf-8 -*-
