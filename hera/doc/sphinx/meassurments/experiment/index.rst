@@ -22,9 +22,22 @@ experimentSetupWithData Class
    :members:
    :show-inheritance:
    
-   
+Analysis Layer
+=================================
+
 experimentAnalysis Class
 =================================
 .. autoclass:: hera.measurements.experiment.analysis.experimentAnalysis
+   :members:
+   :show-inheritance:
+   
+   
+Data Layer
+=================================
+   
+parquetDataEngineHera Class
+=================================
+
+.. autoclass:: hera.measurements.experiment.dataEngine.parquetDataEngineHera
    :members:
    :show-inheritance:
