@@ -16,7 +16,7 @@ except ImportError as e:
 
 import matplotlib.pyplot as plt
 from .....utils.logging import get_classMethod_logger
-from ...utils import WSG84, ITM, ED50_ZONE36N
+from ...utils import WGS84, ITM, ED50_ZONE36N
 from ..... import toolkitHome
 
 
@@ -56,7 +56,7 @@ class BuildingsToolkit(VectorToolkit):
             geopandas.DataFrame with 'elevation' as a column.
         """
         topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
-        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WSG84))
+        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84))
         return buildingData.join(elevations)
 
     def buildingsGeopandasToSTLRasterTopography(self,
@@ -154,7 +154,7 @@ class BuildingsToolkit(VectorToolkit):
         Mesh.export(FreeCADDOC.Objects, outputFileName)
 
 
-    def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WSG84,withElevation=False):
+    def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WGS84, withElevation=False):
         """
             Return the buildings geopandas for the region.
 

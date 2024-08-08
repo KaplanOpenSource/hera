@@ -1,5 +1,5 @@
 from .... import toolkit
-from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
+from ..utils import stlFactory,convertCRS,ITM,WGS84,ED50_ZONE36N
 from ....utils.logging import get_classMethod_logger
 import numpy
 import math
@@ -127,7 +127,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
 
-    def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
+    def getLandCoverAtPoint(self, lon, lat, inputCRS=WGS84, dataSourceName=None):
         """
         Get the landcover type integer value in a specific point.
 
@@ -166,7 +166,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         y = math.floor((lon - gt[0]) / gt[1])
         return img[x, y]
 
-    def getLandCover(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None):
+    def getLandCover(self, minlon, minlat, maxlon, maxlat, dxdy = 30, inputCRS=WGS84, dataSourceName=None):
         """
         Get Xarray LandCover map.
 
@@ -206,8 +206,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
             return img[ilat, ilon]
 
-        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=WSG84, outputCRS=ITM)[0]
-        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=WSG84, outputCRS=ITM)[0]
+        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=WGS84, outputCRS=ITM)[0]
+        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=WGS84, outputCRS=ITM)[0]
         x = numpy.arange(min_pp.x, max_pp.x, dxdy)
         y = numpy.arange(min_pp.y, max_pp.y, dxdy)
         xx = numpy.zeros((len(x), len(y)))
@@ -246,7 +246,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         xarray.attrs['landcover_description'] = self.getCodingMap(dataSourceName)
         return xarray
 
-    def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
+    def getRoughnessAtPoint(self, lon, lat, inputCRS=WGS84, dataSourceName=None):
         """
         Get the roughness value of a specific point in the map.
 
@@ -305,7 +305,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
         return landcover
 
-    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False):
+    def getRoughness(self, minlon, minlat, maxlon, maxlat, dxdy = 30, inputCRS=WGS84, dataSourceName=None, isBuilding=False):
         """
         Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.
 
