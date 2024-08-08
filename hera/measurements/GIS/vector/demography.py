@@ -93,12 +93,12 @@ class DemographyToolkit(toolkit.VectorToolkit):
         self.setConfig("filesDirectory",fllpath)
 
 
-    def projectPolygonOnPopulation(self, Shape, projectName=None, populationTypes="All", Data=None):
+    def projectPolygonOnPopulation(self, shapelyPolygon, dataSourceOrData, populationTypes="All", dataSourceVersion=None):
         import warnings
         warnings.warn("Depracted in Version 2.0.0+. Use datalayer.calculatePopulationInPolygon",
                       category=DeprecationWarning,
                       stacklevel=2)
-        self.analysis.calculatePopulationInPolygon(Shape=Shape, projectName=projectName, populationTypes=populationTypes, Data=Data)
+        self.analysis.calculatePopulationInPolygon(shapelyPolygon=Shape, dataSourceOrData=dataSourceOrData, dataSourceVersion=dataSourceVersion, populationTypes=populationTypes)
 
     @property
     def populationTypes(self):
@@ -271,7 +271,7 @@ class analysis:
         return nonDBMetadataFrame(newData) if doc is None else doc
 
     def calculatePopulationInPolygon(self,
-                                     shapeNameOrData,
+                                     shapelyPolygon,
                                      dataSourceOrData,
                                      dataSourceVersion=None,
                                     populationTypes=None):
@@ -314,12 +314,13 @@ class analysis:
         """
 
 
-        if isinstance(shapeNameOrData,str):
-            poly = self.datalayer.shapes.getShape(shapeNameOrData)
-            if poly is None:
-                poly = geopandas.read_file(io.StringIO(shapeNameOrData))
-        else:
-            poly = shapeNameOrData
+        # if isinstance(shapeNameOrData,str):
+        #     poly = self.datalayer.shapes.getShape(shapeNameOrData)
+        #     if poly is None:
+        #         poly = geopandas.read_file(io.StringIO(shapeNameOrData))
+        # else:
+
+        poly = shapelyPolygon
 
         if isinstance(dataSourceOrData,str):
             demography = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
