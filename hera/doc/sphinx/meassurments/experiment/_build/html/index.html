@@ -63,6 +63,7 @@
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#analysis-layer">Analysis Layer</a></li>
 <li><a class="reference internal" href="#experimentanalysis-class">experimentAnalysis Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.addMetadata"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.addMetadata()</span></code></a></li>
@@ -71,6 +72,15 @@
 <li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceTypePlannedMessageCount"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getDeviceTypePlannedMessageCount()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceTypeTransmissionFrequencyOfTrial"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getDeviceTypeTransmissionFrequencyOfTrial()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getTurbulenceStatistics"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getTurbulenceStatistics()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-layer">Data Layer</a></li>
+<li><a class="reference internal" href="#parquetdataenginehera-class">parquetDataEngineHera Class</a><ul>
+<li><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera"><code class="docutils literal notranslate"><span class="pre">parquetDataEngineHera</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getData"><code class="docutils literal notranslate"><span class="pre">parquetDataEngineHera.getData()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial"><code class="docutils literal notranslate"><span class="pre">parquetDataEngineHera.getDataFromTrial()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -177,7 +187,7 @@ If None, use the [current directory]/experimentCache.</p></li>
 <dd><p>Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>parquetDataEngineHera , pandasDataEngineDB or daskDataEngineDB.</p>
+<dd class="field-odd"><p><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera" title="hera.measurements.experiment.dataEngine.parquetDataEngineHera">parquetDataEngineHera</a> , pandasDataEngineDB or daskDataEngineDB.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -191,6 +201,9 @@ If None, use the [current directory]/experimentCache.</p></li>
 
 </dd></dl>
 
+</section>
+<section id="analysis-layer">
+<h1>Analysis Layer<a class="headerlink" href="#analysis-layer" title="Link to this heading"></a></h1>
 </section>
 <section id="experimentanalysis-class">
 <h1>experimentAnalysis Class<a class="headerlink" href="#experimentanalysis-class" title="Link to this heading"></a></h1>
@@ -319,6 +332,71 @@ default False.</p></li>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>singlePointTurbulenceStatistics class</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="data-layer">
+<h1>Data Layer<a class="headerlink" href="#data-layer" title="Link to this heading"></a></h1>
+</section>
+<section id="parquetdataenginehera-class">
+<h1>parquetDataEngineHera Class<a class="headerlink" href="#parquetdataenginehera-class" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.experiment.dataEngine.parquetDataEngineHera">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.experiment.dataEngine.</span></span><span class="sig-name descname"><span class="pre">parquetDataEngineHera</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datasourceConfiguration</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Project</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.experiment.dataEngine.parquetDataEngineHera.getData">
+<span class="sig-name descname"><span class="pre">getData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">deviceType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deviceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">autoCompute</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perDevice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">query</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera.getData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getData" title="Link to this definition"></a></dt>
+<dd><p>Returns the data from of the device type. Queries on device if it exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>deviceType</strong> (<em>str</em>) – The device type.</p></li>
+<li><p><strong>deviceName</strong> (<em>str</em><em>, </em><em>default=None</em>) – The device specific name.</p></li>
+<li><p><strong>startTime</strong> (<em>datetime</em><em>, </em><em>default=None</em>) – The requested starting time to bring the data.</p></li>
+<li><p><strong>endTime</strong> (<em>datetime</em><em>, </em><em>default=None</em>) – The requested ending time to bring the data.</p></li>
+<li><p><strong>autoCompute</strong> (<em>bool</em><em>, </em><em>default=False</em>) – If true, compute and return the pandas. Else return dask.</p></li>
+<li><p><strong>perDevice</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the data organized per device. If false, assumes all data from same type is in the same file. If true, device name should also be defined.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dask.DataFrame, dask.Pandas.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial">
+<span class="sig-name descname"><span class="pre">getDataFromTrial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">deviceType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSet</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deviceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">withMetadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialState</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'deploy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">query</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera.getDataFromTrial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial" title="Link to this definition"></a></dt>
+<dd><p>Return the device data from the set. Use the default trial set if it is None.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>deviceType</strong> (<em>str</em>) – The device type.</p></li>
+<li><p><strong>trialName</strong> (<em>str</em>) – The name of the trial</p></li>
+<li><p><strong>trialSet</strong> (<em>str</em><em> [</em><em>optional</em><em>]</em>) – The trial set. Use default if None</p></li>
+<li><p><strong>deviceName</strong> (<em>str</em><em> [</em><em>optional</em><em>]</em>) – Filter according to one specific Device.</p></li>
+<li><p><strong>startTime</strong> (<em>str</em><em> [</em><em>optional</em><em>]</em>) – Use as start time if exists, otherwise use the trial start Time.</p></li>
+<li><p><strong>endTime</strong> (<em>str</em><em> [</em><em>optional</em><em>]</em>) – Use as end time if exists, otherwise use the trial end Time.</p></li>
+<li><p><strong>withMetadata</strong> (<em>bool</em>) – <dl class="simple">
+<dt>If true adds the following Fields:</dt><dd><ul>
+<li><p>TimeFromReleaseStart: The time elasped from the release start.</p></li>
+<li><p>TimeFromReleaseEnd: The time elasped from the release end.</p></li>
+<li><p>longitude: The position X of the device. Use the trial state to determine the location</p></li>
+<li><p>latitute: The position Y of the device. Use the trial state to determine the location</p></li>
+</ul>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>trialState</strong> (<em>str</em>) – ‘deploy’ or ‘design’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>pd.DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
