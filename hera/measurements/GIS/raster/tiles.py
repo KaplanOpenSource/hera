@@ -8,10 +8,11 @@ from itertools import product
 from PIL import Image
 import requests
 from io import BytesIO
+from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
 
-WSG84 = 4326
-ITM = 2039
-ED50_ZONE36N = 23036
+# WSG84 = 4326
+# ITM = 2039
+# ED50_ZONE36N = 23036
 
 class TilesToolkit(toolkit.abstractToolkit):
     """
@@ -217,7 +218,7 @@ class presentation:
     def __init__(self,dataLayer):
         self._datalayer = dataLayer
 
-    def plot(self, imageNameOrData,extents=None, ax=None,**filters):
+    def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,**filters):
         """
             Plot the image
 
@@ -262,6 +263,13 @@ class presentation:
         else:
             plt.sca(ax)
 
+
+        lower_point = [extents[0],extents[2]]
+        upper_right  = [extents[1],extents[3]]
+        lower_left_converted = convertCRS(points=[lower_point], inputCRS=WSG84, outputCRS=ITM)[0]
+        upper_right_converted = convertCRS(points=[upper_right], inputCRS=WSG84, outputCRS=ITM)[0]
+
+        extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
 
         ax = plt.imshow(image, extent=extents)
         return ax
