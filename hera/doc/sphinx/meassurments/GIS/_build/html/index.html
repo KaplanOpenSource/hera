@@ -46,6 +46,7 @@
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">GIS Documentation</a></li>
 <li><a class="reference internal" href="#raster">Raster</a></li>
+<li><a class="reference internal" href="#landcover-toolkit">LandCover Toolkit</a></li>
 <li><a class="reference internal" href="#landcovertoolkit-class">LandCoverToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getCodingMap()</span></code></a></li>
@@ -55,6 +56,22 @@
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessAtPoint()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessFromLandcover()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.handleType1"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.handleType1()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a></li>
+<li><a class="reference internal" href="#tilestoolkit-class">TilesToolkit Class</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit"><code class="docutils literal notranslate"><span class="pre">TilesToolkit</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners"><code class="docutils literal notranslate"><span class="pre">TilesToolkit.getImageFromCorners()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom"><code class="docutils literal notranslate"><span class="pre">TilesToolkit.tileScaleAtLatLonZoom()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tilestoolkit-presentation-class">TilesToolkit Presentation Class</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.presentation"><code class="docutils literal notranslate"><span class="pre">presentation</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.presentation.plot"><code class="docutils literal notranslate"><span class="pre">presentation.plot()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -92,6 +109,9 @@
 </section>
 <section id="raster">
 <h1>Raster<a class="headerlink" href="#raster" title="Link to this heading"></a></h1>
+</section>
+<section id="landcover-toolkit">
+<h1>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h1>
 </section>
 <section id="landcovertoolkit-class">
 <h1>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h1>
@@ -235,6 +255,92 @@ Based on the paper:</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="tiles-toolkit">
+<h1>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h1>
+</section>
+<section id="tilestoolkit-class">
+<h1>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.TilesToolkit">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">TilesToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#TilesToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.TilesToolkit" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></p>
+<p>A class to handle an image that represents a location.
+Looks up the location in the public database in project ‘imageLocation’.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners">
+<span class="sig-name descname"><span class="pre">getImageFromCorners</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miny</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoomlevel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tileServer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#TilesToolkit.getImageFromCorners"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners" title="Link to this definition"></a></dt>
+<dd><p>Gets the image from the lower left corner and upper right cornet - [left,right,bottom,top] in the coordinate system of the outputCRS.
+The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in Israel 1993 / Israeli TM Grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>minx</strong> (<em>float</em>) – Minimux X coordinate value of the image.</p></li>
+<li><p><strong>miny</strong> (<em>float</em>) – Minimux Y coordinate value of the image.</p></li>
+<li><p><strong>maxx</strong> (<em>float</em>) – Maximum X coordinate value of the image.</p></li>
+<li><p><strong>maxy</strong> (<em>float</em>) – Maximum X coordinate value of the image.</p></li>
+<li><p><strong>zoomlevel</strong> (<em>int</em>) – The zoom to retrieve. usually up to ~19. (highest).</p></li>
+<li><p><strong>tileServer</strong> (<em>string</em><em>, </em><em>default=None</em>) – The tile server. If None, get the default one (defaultTileServer in the config)</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>,</em><em>default=WSG84</em>) – The ESPG of the input coordinates.</p></li>
+<li><p><strong>outputCRS</strong> (<em>int.default=WSG84</em>) – The ESPG of the output coordinates.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom">
+<span class="sig-name descname"><span class="pre">tileScaleAtLatLonZoom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">latitude</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">longitude</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoomlevel</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#TilesToolkit.tileScaleAtLatLonZoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom" title="Link to this definition"></a></dt>
+<dd><p>Returns the scale of a tile im meters at the location and zoom level</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>latitude</strong> (<em>float</em>) – The latitude in WGS84</p></li>
+<li><p><strong>longitude</strong> (<em>float</em>) – The longitude in WGS</p></li>
+<li><p><strong>zoomlevel</strong> (<em>int</em>) – The zoom to retrieve. usually up to ~19. (highest).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="tilestoolkit-presentation-class">
+<h1>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.presentation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.presentation.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imageNameOrData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2039</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extents</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">filters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#presentation.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation.plot" title="Link to this definition"></a></dt>
+<dd><p>Plot the image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>imageNameOrData</strong> (<em>str</em><em> or </em><em>numpy.array</em>) – Name of datasource image in DB or image itself in numpy.array.</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>,</em><em>default=WSG84</em>) – The ESPG of the input coordinates.</p></li>
+<li><p><strong>outputCRS</strong> (<em>int.default=WSG84</em>) – The ESPG of the output coordinates.</p></li>
+<li><p><strong>extents</strong> (<em>list</em><em> of </em><em>scalars</em><em> (</em><em>left</em><em>, </em><em>right</em><em>, </em><em>bottom</em><em>, </em><em>top</em><em>)</em><em>, </em><em>default=None</em>) – The bounding box in data coordinates that the image will fill. The image is stretched individually along x and y to fill the box.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes._axes.Axes</em>) – Axis to plot.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>matplotlib.image.AxesImage</p>
 </dd>
 </dl>
 </dd></dl>
