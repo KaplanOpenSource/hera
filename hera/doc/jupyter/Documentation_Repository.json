@@ -399,7 +399,7 @@
       "localTileServer": {
         "isRelativePath": "False",
         "item": {
-          "resource": "http://192.168.14.172/tiles/{z}/{x}/{y}.png",
+          "resource": "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
           "dataFormat": "string"
         }
       }
