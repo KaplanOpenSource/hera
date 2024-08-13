@@ -395,6 +395,9 @@
     }
   },
 "GIS_Tiles": {
+    "Config": {
+      "defaultTileServer": "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+    },
     "DataSource": {
       "localTileServer": {
         "isRelativePath": "False",
