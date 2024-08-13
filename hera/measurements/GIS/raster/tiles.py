@@ -16,10 +16,8 @@ from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
 
 class TilesToolkit(toolkit.abstractToolkit):
     """
-        A class to handle an image that represents a location.
-
-        Looks up the location in the public database in project 'imageLocation'.
-
+    A class to handle an image that represents a location.
+    Looks up the location in the public database in project 'imageLocation'.
     """
     WSG84 = 4326
     ITM    = 2039
@@ -42,46 +40,59 @@ class TilesToolkit(toolkit.abstractToolkit):
 
     def tileScaleAtLatLonZoom(self,latitude,longitude,zoomlevel):
         """
-            Returns the scale of a tile im meters at the location and zoom level
+        Returns the scale of a tile im meters at the location and zoom level
+
         Parameters
         ----------
-        latitude :  float
-                The latitude in WGS84
+        latitude : float
+            The latitude in WGS84
+
         longitude : float
-                The longitude in WGS
-        zoomlevel
+            The longitude in WGS
+
+        zoomlevel : int
+            The zoom to retrieve. usually up to ~19. (highest).
 
         Returns
         -------
-            float,
-            The scale in m of one tile
+            float
         """
         return self.Z0RES / (2 ** zoomlevel) * numpy.cos(numpy.deg2rad(latitude))
 
     def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel, tileServer=None, inputCRS=WSG84, outputCRS=WSG84):
         """
-            Gets the image from the lower left corner and upper right cornet.
-            The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True
-            and in Israel 1993 / Israeli TM Grid
+        Gets the image from the lower left corner and upper right cornet - [left,right,bottom,top] in the coordinate system of the outputCRS.
+        The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in Israel 1993 / Israeli TM Grid.
 
         Parameters
         ----------
-        minx,maxx,miny,maxy : float
-            The left, right bottom and up of the image.
-        zoomlevel :
-        tileServer : string
+        minx: float
+            Minimux X coordinate value of the image.
+
+        miny: float
+            Minimux Y coordinate value of the image.
+
+        maxx: float
+            Maximum X coordinate value of the image.
+
+        maxy: float
+            Maximum X coordinate value of the image.
+
+        zoomlevel : int
+            The zoom to retrieve. usually up to ~19. (highest).
+
+        tileServer : string, default=None
             The tile server. If None, get the default one (defaultTileServer in the config)
-        inputCRS : int
-                The ESPG of the input coordinates.
-        outputCRS: int
-                The ESPG of the output coordinates.
+
+        inputCRS : int,default=WSG84
+            The ESPG of the input coordinates.
+
+        outputCRS: int.default=WSG84
+            The ESPG of the output coordinates.
 
         Returns
         -------
-            Tuple,
-                Image and extent [left,right,bottom,top] in the
-                coordinate system of the outputCRS.
-
+            tuple
         """
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info(f"------- Start : {logger.name}")
@@ -208,7 +219,9 @@ class TilesToolkit(toolkit.abstractToolkit):
         return self.getMeasurementsDocuments(type=self.doctype, **filters)
 
 class presentation:
-
+    """
+    Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.
+    """
     _datalayer = None
 
     @property
@@ -220,18 +233,28 @@ class presentation:
 
     def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,**filters):
         """
-            Plot the image
+        Plot the image.
 
         Parameters
         ----------
+        imageNameOrData: str or numpy.array
+            Name of datasource image in DB or image itself in numpy.array.
 
-        imageName: str or image (numpy.array)
-            str - the resource name in the DB .
-            if its array then its the data
+        inputCRS : int,default=WSG84
+            The ESPG of the input coordinates.
+
+        outputCRS: int.default=WSG84
+            The ESPG of the output coordinates.
+
+        extents: list of scalars (left, right, bottom, top), default=None
+            The bounding box in data coordinates that the image will fill. The image is stretched individually along x and y to fill the box.
+
+        ax: matplotlib.axes._axes.Axes
+            Axis to plot.
 
         Returns
         -------
-            return the ax of the figure.
+            matplotlib.image.AxesImage
         """
 
         if isinstance(imageNameOrData,str):

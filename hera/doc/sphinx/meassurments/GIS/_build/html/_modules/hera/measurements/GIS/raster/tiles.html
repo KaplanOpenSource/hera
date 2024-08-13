@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hera.measurements.GIS.raster.tiles &mdash; GIS  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            GIS
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">GIS</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hera.measurements.GIS.raster.tiles</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hera.measurements.GIS.raster.tiles</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">geopandas</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">....utils.logging</span> <span class="kn">import</span> <span class="n">get_classMethod_logger</span>
+<span class="kn">from</span> <span class="nn">....</span> <span class="kn">import</span> <span class="n">toolkit</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">stlFactory</span><span class="p">,</span><span class="n">convertCRS</span><span class="p">,</span><span class="n">ITM</span><span class="p">,</span><span class="n">WSG84</span><span class="p">,</span><span class="n">ED50_ZONE36N</span>
+
+<span class="c1"># WSG84 = 4326</span>
+<span class="c1"># ITM = 2039</span>
+<span class="c1"># ED50_ZONE36N = 23036</span>
+
+<div class="viewcode-block" id="TilesToolkit">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.tiles.TilesToolkit">[docs]</a>
+<span class="k">class</span> <span class="nc">TilesToolkit</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to handle an image that represents a location.</span>
+<span class="sd">    Looks up the location in the public database in project &#39;imageLocation&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">WSG84</span> <span class="o">=</span> <span class="mi">4326</span>
+    <span class="n">ITM</span>    <span class="o">=</span> <span class="mi">2039</span>
+    <span class="n">ED50_ZONE36N</span> <span class="o">=</span> <span class="mi">23036</span>
+
+    <span class="n">Z0RES</span> <span class="o">=</span> <span class="mf">156543.03</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">doctype</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">toolkitName</span><span class="si">}</span><span class="s2">_PNG&quot;</span>
+
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span>
+                         <span class="n">toolkitName</span><span class="o">=</span><span class="s2">&quot;Tiles&quot;</span><span class="p">,</span>
+                         <span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">presentation</span><span class="p">(</span><span class="n">dataLayer</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TilesToolkit.tileScaleAtLatLonZoom">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom">[docs]</a>
+    <span class="k">def</span> <span class="nf">tileScaleAtLatLonZoom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">latitude</span><span class="p">,</span><span class="n">longitude</span><span class="p">,</span><span class="n">zoomlevel</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the scale of a tile im meters at the location and zoom level</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        latitude : float</span>
+<span class="sd">            The latitude in WGS84</span>
+
+<span class="sd">        longitude : float</span>
+<span class="sd">            The longitude in WGS</span>
+
+<span class="sd">        zoomlevel : int</span>
+<span class="sd">            The zoom to retrieve. usually up to ~19. (highest).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z0RES</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">zoomlevel</span><span class="p">)</span> <span class="o">*</span> <span class="n">numpy</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">deg2rad</span><span class="p">(</span><span class="n">latitude</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="TilesToolkit.getImageFromCorners">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners">[docs]</a>
+    <span class="k">def</span> <span class="nf">getImageFromCorners</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">zoomlevel</span><span class="p">,</span> <span class="n">tileServer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the image from the lower left corner and upper right cornet - [left,right,bottom,top] in the coordinate system of the outputCRS.</span>
+<span class="sd">        The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in Israel 1993 / Israeli TM Grid.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        minx: float</span>
+<span class="sd">            Minimux X coordinate value of the image.</span>
+
+<span class="sd">        miny: float</span>
+<span class="sd">            Minimux Y coordinate value of the image.</span>
+
+<span class="sd">        maxx: float</span>
+<span class="sd">            Maximum X coordinate value of the image.</span>
+
+<span class="sd">        maxy: float</span>
+<span class="sd">            Maximum X coordinate value of the image.</span>
+
+<span class="sd">        zoomlevel : int</span>
+<span class="sd">            The zoom to retrieve. usually up to ~19. (highest).</span>
+
+<span class="sd">        tileServer : string, default=None</span>
+<span class="sd">            The tile server. If None, get the default one (defaultTileServer in the config)</span>
+
+<span class="sd">        inputCRS : int,default=WSG84</span>
+<span class="sd">            The ESPG of the input coordinates.</span>
+
+<span class="sd">        outputCRS: int.default=WSG84</span>
+<span class="sd">            The ESPG of the output coordinates.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            tuple</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;getImageFromTiles&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;------- Start : </span><span class="si">{</span><span class="n">logger</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">lon</span> <span class="o">=</span> <span class="p">[</span><span class="n">maxy</span><span class="p">,</span> <span class="n">miny</span><span class="p">]</span>
+        <span class="n">lat</span> <span class="o">=</span> <span class="p">[</span><span class="n">minx</span><span class="p">,</span> <span class="n">maxx</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">tileServer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tileServer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;defaultTileServer&quot;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tileServer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;There is not default tile server in project </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="si">}</span><span class="s2">, and time server was not supplied!. exiting.&quot;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span>
+            <span class="kc">None</span><span class="p">,</span> <span class="n">geometry</span><span class="o">=</span><span class="n">geopandas</span><span class="o">.</span><span class="n">points_from_xy</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">),</span> <span class="n">crs</span><span class="o">=</span><span class="n">inputCRS</span>  <span class="c1"># &quot;EPSG:4326&quot;</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Converting the input coordinates from EPSG </span><span class="si">{</span><span class="n">inputCRS</span><span class="si">}</span><span class="s2"> to WGS84 (EPSG:4326)&quot;</span><span class="p">)</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">WSG84</span><span class="p">)</span>
+
+        <span class="n">tileULX</span><span class="p">,</span> <span class="n">tileULY</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deg2tile</span><span class="p">(</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">zoomlevel</span><span class="p">)</span>
+        <span class="n">tileLRX</span><span class="p">,</span> <span class="n">tileLRY</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deg2tile</span><span class="p">(</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">zoomlevel</span><span class="p">)</span>
+
+        <span class="n">tileurl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceData</span><span class="p">(</span><span class="n">tileServer</span><span class="p">)</span>
+        <span class="n">tileurl</span> <span class="o">=</span> <span class="n">tileServer</span> <span class="k">if</span> <span class="n">tileurl</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">tileurl</span>
+        <span class="n">img</span><span class="p">,</span><span class="n">extent</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_getImageFromTiles</span><span class="p">([</span><span class="n">tileULX</span><span class="p">,</span> <span class="n">tileULY</span><span class="p">],[</span><span class="n">tileLRX</span><span class="p">,</span> <span class="n">tileLRY</span><span class="p">],</span> <span class="n">zoomlevel</span><span class="p">,</span><span class="n">tileurl</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Converting the output extent </span><span class="si">{</span><span class="n">extent</span><span class="si">}</span><span class="s2"> from WGS84 (EPSG:4326) to EPSG </span><span class="si">{</span><span class="n">outputCRS</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lat</span> <span class="o">=</span> <span class="p">[</span><span class="n">extent</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">extent</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">lon</span> <span class="o">=</span> <span class="p">[</span><span class="n">extent</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">extent</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span>
+            <span class="kc">None</span><span class="p">,</span> <span class="n">geometry</span><span class="o">=</span><span class="n">geopandas</span><span class="o">.</span><span class="n">points_from_xy</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span><span class="n">lon</span><span class="p">),</span> <span class="n">crs</span><span class="o">=</span><span class="n">WSG84</span>
+        <span class="p">)</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">outputCRS</span><span class="p">)</span>
+
+        <span class="n">extent</span> <span class="o">=</span> <span class="p">[</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">gdf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">y</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">img</span><span class="p">,</span><span class="n">extent</span></div>
+
+
+
+
+
+    <span class="k">def</span> <span class="nf">_getImageFromTiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ulTiles</span><span class="p">,</span> <span class="n">lrTiles</span><span class="p">,</span> <span class="n">zoomLevel</span><span class="p">,</span> <span class="n">tileServer</span><span class="p">,</span> <span class="n">square</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Creates an image with range of the tiles and compute their</span>
+<span class="sd">            extent in degrees</span>
+
+<span class="sd">            The pro</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        llTiles : list, tuple</span>
+<span class="sd">                    The lower left corner tile. (latitude (NE),longitude (EW))</span>
+<span class="sd">        urTiles : list, tuple</span>
+<span class="sd">                    The upper right corner tile. (latitude (NE),longitude (EW))</span>
+
+<span class="sd">        zoomLevel : integer</span>
+<span class="sd">                    The zoom to retrieve. usually up to ~19. (highest).</span>
+
+<span class="sd">        square : bool</span>
+<span class="sd">                If true, return a square image by extening the minimal dimension.</span>
+
+<span class="sd">        tileServer: string</span>
+<span class="sd">                The url of the tile server. We assume that the zoom, x and y are give by {z},{x} and {y}.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            Tuple. :</span>
+<span class="sd">                The Image and a the extent of the image in degrees (WGS84): [left,right,bottom,top]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;getImageFromTiles&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;------- Start&quot;</span><span class="p">)</span>
+
+        <span class="n">height</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">lrTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">lrTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The number of tiles in x: </span><span class="si">{</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">lrTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">width</span><span class="si">}</span><span class="s2"> and y: </span><span class="si">{</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">lrTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">square</span><span class="p">:</span>
+            <span class="n">sqrx</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">max</span><span class="p">([</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">])</span>
+            <span class="n">sqry</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">max</span><span class="p">([</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">])</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Squaring the image to be of equal height and width: </span><span class="si">{</span><span class="n">sqrx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Get the image as requested (no squaring)&quot;</span><span class="p">)</span>
+            <span class="n">sqry</span> <span class="o">=</span> <span class="n">height</span>
+            <span class="n">sqrx</span> <span class="o">=</span> <span class="n">width</span>
+
+        <span class="n">lrTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">sqrx</span>
+        <span class="n">lrTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span> <span class="n">sqry</span>
+
+        <span class="n">TILESIZE</span> <span class="o">=</span> <span class="mi">256</span>
+        <span class="n">finalimg</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s1">&#39;RGB&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">TILESIZE</span> <span class="o">*</span> <span class="n">sqrx</span><span class="p">,</span> <span class="n">TILESIZE</span> <span class="o">*</span> <span class="n">sqry</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting the Image  (tiles </span><span class="si">{</span><span class="n">sqrx</span><span class="si">}</span><span class="s2">x</span><span class="si">{</span><span class="n">sqry</span><span class="si">}</span><span class="s2">) from </span><span class="si">{</span><span class="n">tileServer</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">sqrx</span><span class="p">),</span> <span class="nb">range</span><span class="p">(</span><span class="n">sqry</span><span class="p">)):</span>
+            <span class="c1">#response = requests.get(f&quot;http://192.168.14.118/resat_tiles/{zoomlevel}/{tileLLX + i}/{}.png&quot;)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting address </span><span class="si">{</span><span class="n">tileServer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">zoomLevel</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="n">y</span><span class="o">=</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">j</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tileServer</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">zoomLevel</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span><span class="n">y</span><span class="o">=</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">j</span><span class="p">))</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">) --&gt; </span><span class="si">{</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">j</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">finalimg</span><span class="o">.</span><span class="n">paste</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">TILESIZE</span><span class="p">,</span> <span class="n">j</span> <span class="o">*</span> <span class="n">TILESIZE</span><span class="p">))</span>
+
+        <span class="n">boundULY</span><span class="p">,</span> <span class="n">boundULX</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile2deg</span><span class="p">(</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="p">,</span> <span class="n">zoomLevel</span><span class="p">)</span>
+        <span class="n">boundLRY</span><span class="p">,</span> <span class="n">boundLRX</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile2deg</span><span class="p">(</span><span class="n">lrTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">lrTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">zoomLevel</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Got the image extent (upper left -&gt; lower right): (</span><span class="si">{</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">ulTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">)=</span><span class="si">{</span><span class="p">[</span><span class="n">boundULY</span><span class="p">,</span><span class="w"> </span><span class="n">boundULX</span><span class="p">]</span><span class="si">}</span><span class="s2"> and (</span><span class="si">{</span><span class="n">lrTiles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">lrTiles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">)=</span><span class="si">{</span><span class="p">[</span><span class="n">boundLRY</span><span class="p">,</span><span class="w"> </span><span class="n">boundLRX</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">finalimg</span><span class="p">,[</span><span class="n">boundULX</span><span class="p">,</span><span class="n">boundLRX</span><span class="p">,</span><span class="n">boundULY</span><span class="p">,</span><span class="n">boundLRY</span><span class="p">]</span>
+
+
+    <span class="k">def</span> <span class="nf">tile2deg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xtile</span><span class="p">,</span> <span class="n">ytile</span><span class="p">,</span> <span class="n">zoom</span><span class="p">):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="n">zoom</span>
+        <span class="n">lon_deg</span> <span class="o">=</span> <span class="n">xtile</span> <span class="o">/</span> <span class="n">n</span> <span class="o">*</span> <span class="mf">360.0</span> <span class="o">-</span> <span class="mf">180.0</span>
+        <span class="n">lat_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">atan</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sinh</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">ytile</span> <span class="o">/</span> <span class="n">n</span><span class="p">)))</span>
+        <span class="n">lat_deg</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">lat_rad</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">lat_deg</span><span class="p">,</span> <span class="n">lon_deg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">deg2tile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lat_deg</span><span class="p">,</span> <span class="n">lon_deg</span><span class="p">,</span> <span class="n">zoom</span><span class="p">):</span>
+        <span class="n">lat_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">lat_deg</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="n">zoom</span>
+        <span class="n">xtile</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">lon_deg</span> <span class="o">+</span> <span class="mf">180.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">360.0</span> <span class="o">*</span> <span class="n">n</span><span class="p">)</span>
+        <span class="n">ytile</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">asinh</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">tan</span><span class="p">(</span><span class="n">lat_rad</span><span class="p">))</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">n</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">xtile</span><span class="p">,</span> <span class="n">ytile</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">listImages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">**</span><span class="n">filters</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getMeasurementsDocuments</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">doctype</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="presentation">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.tiles.presentation">[docs]</a>
+<span class="k">class</span> <span class="nc">presentation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_datalayer</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">datalayer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dataLayer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span> <span class="o">=</span> <span class="n">dataLayer</span>
+
+<div class="viewcode-block" id="presentation.plot">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.tiles.presentation.plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageNameOrData</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span><span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span><span class="n">extents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="o">**</span><span class="n">filters</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the image.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        imageNameOrData: str or numpy.array</span>
+<span class="sd">            Name of datasource image in DB or image itself in numpy.array.</span>
+
+<span class="sd">        inputCRS : int,default=WSG84</span>
+<span class="sd">            The ESPG of the input coordinates.</span>
+
+<span class="sd">        outputCRS: int.default=WSG84</span>
+<span class="sd">            The ESPG of the output coordinates.</span>
+
+<span class="sd">        extents: list of scalars (left, right, bottom, top), default=None</span>
+<span class="sd">            The bounding box in data coordinates that the image will fill. The image is stretched individually along x and y to fill the box.</span>
+
+<span class="sd">        ax: matplotlib.axes._axes.Axes</span>
+<span class="sd">            Axis to plot.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            matplotlib.image.AxesImage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageNameOrData</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span>
+            <span class="n">doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">getImage</span><span class="p">(</span><span class="n">imageNameOrData</span><span class="p">,</span><span class="o">**</span><span class="n">filters</span><span class="p">)</span>
+            <span class="n">extents</span> <span class="o">=</span> <span class="p">[</span><span class="n">doc</span><span class="o">.</span><span class="n">desc</span><span class="p">[</span><span class="s1">&#39;minX&#39;</span><span class="p">],</span> <span class="n">doc</span><span class="o">.</span><span class="n">desc</span><span class="p">[</span><span class="s1">&#39;maxX&#39;</span><span class="p">],</span> <span class="n">doc</span><span class="o">.</span><span class="n">desc</span><span class="p">[</span><span class="s1">&#39;minY&#39;</span><span class="p">],</span> <span class="n">doc</span><span class="o">.</span><span class="n">desc</span><span class="p">[</span><span class="s1">&#39;maxY&#39;</span><span class="p">]]</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageNameOrData</span><span class="p">,</span><span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">extents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;extents must be None if imageNameOrData is the tuple (image,extents)&quot;</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">imageNameOrData</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">extents</span> <span class="o">=</span> <span class="n">imageNameOrData</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">imageNameOrData</span>
+            <span class="k">if</span> <span class="n">extents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;extents must be supplied if imageNameOrData is image&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extents</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">if</span> <span class="s1">&#39;minX&#39;</span> <span class="ow">in</span> <span class="n">extents</span><span class="p">:</span>
+                    <span class="n">extents</span> <span class="o">=</span> <span class="p">[</span><span class="n">extents</span><span class="p">[</span><span class="s1">&#39;minX&#39;</span><span class="p">],</span> <span class="n">extents</span><span class="p">[</span><span class="s1">&#39;maxX&#39;</span><span class="p">],</span> <span class="n">extents</span><span class="p">[</span><span class="s1">&#39;minY&#39;</span><span class="p">],</span> <span class="n">extents</span><span class="p">[</span><span class="s1">&#39;maxY&#39;</span><span class="p">]]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">extents</span> <span class="o">=</span> <span class="p">[</span><span class="n">extents</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">],</span> <span class="n">extents</span><span class="p">[</span><span class="s1">&#39;right&#39;</span><span class="p">],</span> <span class="n">extents</span><span class="p">[</span><span class="s1">&#39;bottom&#39;</span><span class="p">],</span> <span class="n">extents</span><span class="p">[</span><span class="s1">&#39;top&#39;</span><span class="p">]]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extents</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">extents</span> <span class="o">=</span> <span class="n">extents</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;extents is either a list(minX, maxX, minY, maxY), dict(minX=, maxX=, minY=, maxY=), or dict(left=, right=, bottom=, top=)&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">sca</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+
+
+        <span class="n">lower_point</span> <span class="o">=</span> <span class="p">[</span><span class="n">extents</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">extents</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+        <span class="n">upper_right</span>  <span class="o">=</span> <span class="p">[</span><span class="n">extents</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">extents</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+        <span class="n">lower_left_converted</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[</span><span class="n">lower_point</span><span class="p">],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">upper_right_converted</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[</span><span class="n">upper_right</span><span class="p">],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">extents</span> <span class="o">=</span> <span class="p">[</span><span class="n">lower_left_converted</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">upper_right_converted</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">lower_left_converted</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">upper_right_converted</span><span class="o">.</span><span class="n">y</span><span class="p">]</span>
+
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">extents</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ax</span></div>
+</div>
+
+
+
+
+    <span class="c1">#</span>
+    <span class="c1"># def getImageAndStore(self,regionName, center,zoomlevel):</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#         Gets an image and stores it in the project.</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Parameters</span>
+    <span class="c1">#     ----------</span>
+    <span class="c1">#     regionName : The name of the image.</span>
+    <span class="c1">#     center : a tuple with te center is WSG84 coordinates.</span>
+    <span class="c1">#     zoomlevel : The zoom level to get</span>
+    <span class="c1">#</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Returns</span>
+    <span class="c1">#     -------</span>
+    <span class="c1">#</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,</span>
+    <span class="c1">#            abstractLocation.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}</span>
+    <span class="c1">#     qry.update(filters)</span>
+    <span class="c1">#     docList = self.getCacheDocuments(type=self.doctype, **qry)</span>
+    <span class="c1">#</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Elia Salo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
