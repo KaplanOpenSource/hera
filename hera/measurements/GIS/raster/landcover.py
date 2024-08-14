@@ -420,6 +420,16 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         return dict
 
+    def roughnessWithUrban(self,xarray):
+        """
+        Add Roughness Urban field to landcover Xarray. That is, LambdaP, LambdaF and HC to each landcover point.
+        Assumes the landcover is Urban.
+        """
+        pass
+
+
+
+
 # #!/usr/bin/env python3
 # # -*- coding: utf-8 -*-
 # """

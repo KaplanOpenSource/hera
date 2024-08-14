@@ -22,18 +22,12 @@ from ..... import toolkitHome
 
 class BuildingsToolkit(VectorToolkit):
     """
-        Toolkit to manage the buildings.
-
-        Reading the shapefile with geoDataFrame will result in dataframe
-        with the following columns:
-
-        - geometry: the polygon of the building
-        - Building height column : the column name is in BuildingHeightColumn
-                                    default value: BLDG_HT
-        - Land height  : the columns name is in LandHeightColumn
-                                default value: HT_LAND
+    Toolkit to manage the buildings. Reading the shapefile with geoDataFrame will result in dataframe
+    with the following columns:
+        - Geometry: the polygon of the building.
+        - Building height column : the column name is in BuildingHeightColumn. Default value=BLDG_HT.
+        - Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.
     """
-
     def __init__(self, projectName, filesDirectory=None):
 
         super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory)
@@ -41,19 +35,19 @@ class BuildingsToolkit(VectorToolkit):
 
     def getBuildingHeightFromRasterTopographyToolkit(self, buildingData, topographyDataSource=None):
         """
-            Get the topography height of each building (at its center) in the building data using the topography toolkit.
+        Get the topography height of each building (at its center) in the building data using the topography toolkit. Return data frame wtih 'evaluation' as a column.
 
         Parameters
         ----------
         buildingData : geopandas.geoDataFrame.
-                A building
+            The building.
 
-        topographyDataSource : string  default None
+        topographyDataSource : string,default=None.
             The name of the datasource in the topography toolkit. If None, use the default datasource there.
 
         Returns
         -------
-            geopandas.DataFrame with 'elevation' as a column.
+            geopandas.DataFrame
         """
         topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
         elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WSG84))
@@ -68,19 +62,18 @@ class BuildingsToolkit(VectorToolkit):
                                                 referenceTopography = 0,
                                                 nonFlatTopographyShift=10):
         """
-                Converts a building data (in geopandas format) to STL using the FreeCAD module.
-                Using the raster topography to estimate the height of each building.
-
-                This is a low level procedure. It can be used, but the easier way to use the toolkit is
-                to generate the buildings from an area using the regionToSTL procedure.
-
-                We must save the file to the disk, as it is the current implementation of FreeCAD.
+        Converts a building data (in geopandas format) to STL using the FreeCAD module.
+        Using the raster topography to estimate the height of each building.
+        This is a low level procedure. It can be used, but the easier way to use the toolkit is to generate the buildings from an area using the regionToSTL procedure.
+        We must save the file to the disk, as it is the current implementation of FreeCAD.
 
         Parameters
         ----------
         buildingData : geopandas.DataFrame
+
         buildingHeightColumn : string
             The name of the column that holds the height of the buildings in [m].
+
         buildingElevationColumn: string
             The name of the column that holds the elevation of the building.
 
@@ -89,6 +82,7 @@ class BuildingsToolkit(VectorToolkit):
 
         flatTerrain : bool
             If true, use a flat terrain.
+
         nonFlatTopographyShift : float
             shift the house with respect to its height in the topography.
 
@@ -156,22 +150,31 @@ class BuildingsToolkit(VectorToolkit):
 
     def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WSG84,withElevation=False):
         """
-            Return the buildings geopandas for the region.
+        Return the buildings geopandas for the rectangle region.
 
         Parameters
         ----------
-        minx : float
-        miny
-        maxx
-        may
-        dataSourceName
-        withElevation : bool
+        minx: float
+            Minimum value of x-axis.
+
+        miny: float
+            Minimum value of y-axis.
+
+        maxx: float
+            Maximum value of x-axis.
+
+        may: float
+            Maximum value of y-axis.
+
+        dataSourceName: str,default=None.
+            The datasource name. If none, will use the default datasource.
+
+        withElevation : bool,default=False.
             If True, use the topography (raster) toolkit to get the heghts.
-            for now, uses the default datasource in the raster toolkit.
 
         Returns
         -------
-
+            geopandas.DataFrame
         """
         if dataSourceName is None:
             dataSourceName = self.getConfig()["defaultBuildingDataSource"]
@@ -189,13 +192,10 @@ class BuildingsToolkit(VectorToolkit):
             Converts the document to the stl and saves it to the disk.
             Adds the stl file to the DB.
 
-
             Parameters
             ----------
-
             regionNameOrData: str or geopandas .
                 The name of the datasource or the geopandas file to convert.
-
                 If geopandas has the following columns:
 
             dataSourceName: string
@@ -215,7 +215,6 @@ class BuildingsToolkit(VectorToolkit):
 
             crs : int [optional]
                 Used if the CRS of the shapeData is different than the CRS of the datasource.
-
 
             Returns
             -------

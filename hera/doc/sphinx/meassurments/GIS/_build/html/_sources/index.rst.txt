@@ -39,4 +39,16 @@ TilesToolkit Presentation Class
    :show-inheritance:
 
 
+Vector
+========================================
+BuildingsToolkit Class
+===============================
+.. autoclass:: hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit
+   :members:
+   :show-inheritance:
 
+BuildingsToolkit Analysis Class
+===============================
+.. autoclass:: hera.measurements.GIS.vector.buildings.analysis.analysis
+   :members:
+   :show-inheritance:
