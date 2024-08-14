@@ -126,7 +126,6 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         super().__init__(projectName=projectName, toolkitName = 'LandCoverToolkit', filesDirectory=filesDirectory)
 
 
-
     def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
         Get the landcover type integer value in a specific point.
@@ -246,6 +245,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             )
         xarray.attrs['landcover_description'] = self.getCodingMap(dataSourceName)
         return xarray
+
 
     def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
