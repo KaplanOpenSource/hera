@@ -320,43 +320,41 @@ class parquetDataEngineHera(datalayer.Project):
     def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
                          trialState=DEPLOY, startTime=None, endTime=None,**query):
         """
-            Return the device data from the set. Use the default trial set if it is None.
+        Return the device data from the set. Use the default trial set if it is None.
 
+        Parameters
+        ----------
         deviceType: str
-                The device type KAIJO,PT1000,GC,NDIR
+            The device type.
 
         trialName: str
-                The name of the trial
+            The name of the trial
 
         trialSet: str [optional]
-                The trial set. Use default if None
+            The trial set. Use default if None
 
         deviceName: str [optional]
-                Filter according to one specific Device.
+            Filter according to one specific Device.
 
         startTime: str [optional]
-                Use as start time if exists, otherwise use the trial start Time.
+            Use as start time if exists, otherwise use the trial start Time.
 
         endTime: str [optional]
-                Use as end time if exists, otherwise use the trial end Time.
+            Use as end time if exists, otherwise use the trial end Time.
 
         withMetadata: bool
-                If true adds the following Fields:
-                * TimeFromReleaseStart:
-                        The time elasped from the release start
-                * TimeFromReleaseEnd:
-                        The time elasped from the release end
-                * longitude
-                        The position X of the device.
-                            Use the trial state to determine the location
-                * latitute
-                        The position Y of the device
-                            Use the trial state to determine the location
+            If true adds the following Fields:
+                    - TimeFromReleaseStart: The time elasped from the release start.
+                    - TimeFromReleaseEnd: The time elasped from the release end.
+                    - longitude: The position X of the device. Use the trial state to determine the location
+                    - latitute: The position Y of the device. Use the trial state to determine the location
 
-        trialState : DEPLOY or DESIGN
+        trialState: str
+            'deploy' or 'design'.
 
-        :return: pandas
-                Pandas with the data
+        Returns
+        -------
+            pd.DataFrame
 
         """
         trialSet = self.experimentObj.trialSet if trialSet is None else trialSet
@@ -385,17 +383,28 @@ class parquetDataEngineHera(datalayer.Project):
 
     def getData(self, deviceType, deviceName=None, startTime=None, endTime=None,autoCompute=False,perDevice=False,**query):
         """
-            Returns the data from of the device type. Queries on device if it exists.
+        Returns the data from of the device type. Queries on device if it exists.
 
         Parameters
         ----------
-        deviceType
-        deviceName
-        startTime
-        endTime
-        autoCompute  : bool
-            If true, compute and return the pandas.
-            Else     return dask.
+        deviceType : str
+            The device type.
+
+        deviceName : str, default=None
+            The device specific name.
+
+        startTime : datetime, default=None
+            The requested starting time to bring the data.
+
+        endTime : datetime, default=None
+            The requested ending time to bring the data.
+
+        autoCompute  : bool, default=False
+            If true, compute and return the pandas. Else return dask.
+
+        perDevice: bool, default=False
+            Is the data organized per device. If false, assumes all data from same type is in the same file. If true, device name should also be defined.
+
 
         Returns
         -------

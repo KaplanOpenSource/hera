@@ -8,9 +8,6 @@ from hera.datalayer import datatypes
 class experimentAnalysis:
     """
         A basic class for the analysis of the data.
-
-
-
     """
     TECHNICALDOC_FREQUENCY = "technical_doc_frequency"  # A document type for caching of the frequency
     _datalayer = None
@@ -25,20 +22,25 @@ class experimentAnalysis:
 
     def getDeviceLocations(self,entityTypeName,trialName,trialSetName=None,trialState=DEPLOY):
         """
-            Returns a pandas with the device locations.
+        Returns a pandas with the device locations.
 
-        deviceType: str
-                The device type.
+        Parameters
+        ----------
+        entityTypeName: str
+                The entity type.
 
         trialName: str
                 The trial name.
+
+        trialSetName: str
+                The trial set name.
 
         trialState: str
             DEPLOY or DESIGN.
 
         Returns
         -------
-            pandas
+            pandas.DataFrame
         """
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName
         if trialSetName is None:
@@ -48,16 +50,22 @@ class experimentAnalysis:
 
     def getTurbulenceStatistics(self,sonicData,samplingWindow,height=1):
         """
-            Returns the turbulence analysis of the sonic/kaijo data for the start->end times.
+        Returns the turbulence analysis of the sonic/kaijo data for the start->end times.
 
+        Parameters
+        ----------
         sonicData: pandas/Dask
             the data of the sonic to analyze.
 
         samplingWindow: str
             The window width for analysis
 
+        height: int
+            Height
 
-        :return:
+        Returns
+        -------
+            singlePointTurbulenceStatistics class
         """
 
         highfreqtk = self.datalayer.toolkitExtension.sonicHighFreqToolkit
@@ -89,74 +97,49 @@ class experimentAnalysis:
                                                   wideFormat=True,
                                                   recalculate=True):
         """
-            Returns the frequency of a device in the requested trialSet/trial in a wide format (default) or long format (wideFormat=False)
+        Returns the frequency of a device in the requested trialSet/trial in a wide format (default) or long format (wideFormat=False).
+        The normalized frequency is obtained from the table defined in this class.
+        Normalize to the optimal sampling rate if normalize is true.
+        Can also complete the devices that were planned but did not transmit at all (and therefore, do not appear in the DB)
+        or the time within the trial were no transmission was obtained.
 
-            The normalized frequency is obtained from the table defined in this class.
+        Parameters
+        ----------
+        deviceType : string
+                The type of the device to present.
 
-            That is:
-             Wide format :
-                            Device 1   Device 2  Device 3  .....
-                timestamp                   .
-                                            .
-                                  ......   freq .......
-                                            .
-                                            .
+        trialName : string
+                The name of the trial to show.
 
-              Long format:
-                    pandas
-                        timestamp    deviceName      frequency
-                        --------------------------------------
-                            t1          device 1         f1
-                            t2          device 1         f2
-                            t3          device 1         f3
-                                            .
-                                            .
-                                            .
-                            t1         device 2         fn
+        trialSetName : string
+                The name of the trial set.
 
+        samplingWindow : string
+                A time string (of pandas). i.e. '1min' and ect.
 
+        normalize : bool
+                If true, normalize to the planned message rate
 
-            Normalize to the optimal sampling rate if normalize is true.
+        completeTimeSeries : bool
+                If true, and the release has end and start times, then add all the missing time slots
+                with the requested interval.
+                default: True
 
-            Can also complete the devices that were planned but did not transmit at all (and therefore, do not appear in the DB)
-            or the time within the trial were no transmission was obtained.
+        completeDevices : bool=True
+                If True, add all the missing devices that were related to the trial.
+                default: True
 
-            Parameters
-            ----------
-            deviceType : string
-                    The type of the device to present.
+        wideFormat: bool
+                If true, return in wide format, else return in long format
+                default = wide format
 
-            trialName : string
-                    The name of the trial to show.
+        recalculate: bool
+                Recalculate the cache of the data.
+                default False.
 
-            trialSetName : string
-                    The name of the trial set.
-
-            samplingWindow : string
-                    A time string (of pandas). i.e. '1min' and ect.
-
-            normalize : bool
-                    If true, normalize to the planned message rate
-
-            completeTimeSeries : bool
-                    If true, and the release has end and start times, then add all the missing time slots
-                    with the requested interval.
-                    default: True
-
-            completeDevices : bool=True
-                    If True, add all the missing devices that were related to the trial.
-                    default: True
-
-            wideFormat: bool
-                    If true, return in wide format, else return in long format
-                    default = wide format
-
-            recalculate: bool
-                    Recalculate the cache of the data.
-                    default False.
-
-            Returns:
-                pandas.DataFrame in wide or long formats.
+        Returns
+        ----------
+            pandas.DataFrame in wide or long formats.
         """
 
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName
@@ -232,16 +215,15 @@ class experimentAnalysis:
 
     def getDeviceTypePlannedMessageCount(self,deviceType,samplingWindow="1min"):
         """
-            Returns the number of messages that should be obtained in a sampling window,
-            according to the device type.
+        Returns the number of messages that should be obtained in a sampling window,according to the device type.
 
-            Parameters
-            ----------
-            deviceType : string
-                    The type of the device to present.
+        Parameters
+        ----------
+        deviceType : string
+                The type of the device to present.
 
-            samplingWindow : string
-                    A time string (of pandas). i.e. '1min' and ect.
+        samplingWindow : string
+                A time string (of pandas). i.e. '1min' and ect.
 
         """
 
@@ -261,7 +243,7 @@ class experimentAnalysis:
 
     def addMetadata(self,dataset,trialName,trialState=DEPLOY,trialSetName=None):
         """
-            Adds the trial metadata to the dataset by joining on the device name.
+        Adds the trial metadata to the dataset by joining on the device name.
 
         Parameters
         ----------
@@ -292,21 +274,23 @@ class experimentAnalysis:
 
     def addTrialProperties(self,data,trialName,trialSetName=None):
         """
-            Adds the calculated properties of the trial to the data.
-
-            - FromRelease: seconds from the release.
-            - FromStart  : seconds from the start.
-
-            Assume the time column is timestamp.
+        Adds the calculated properties of the trial to the data.
+        - FromRelease: seconds from the release.
+        - FromStart  : seconds from the start.
+        Assume the time column is timestamp.
 
         Parameters
         ----------
-        trialName
-        trialSetName
+        data: pandas/dask
+            The data.
+        trialName: str
+            The trial name.
+        trialSetName:str
+            The trial set name.
 
         Returns
         -------
-
+            pandas/dask
         """
 
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName

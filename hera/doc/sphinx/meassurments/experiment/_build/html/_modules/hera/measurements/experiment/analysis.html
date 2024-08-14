@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hera.measurements.experiment.analysis &mdash; Experiment Documentation  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Experiment Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Experiment Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hera.measurements.experiment.analysis</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hera.measurements.experiment.analysis</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">argos.manager</span> <span class="kn">import</span> <span class="n">experimentSetup</span><span class="p">,</span> <span class="n">DEPLOY</span><span class="p">,</span> <span class="n">DESIGN</span>
+<span class="kn">import</span> <span class="nn">argos</span>
+<span class="kn">from</span> <span class="nn">hera.datalayer</span> <span class="kn">import</span> <span class="n">datatypes</span>
+
+<div class="viewcode-block" id="experimentAnalysis">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis">[docs]</a>
+<span class="k">class</span> <span class="nc">experimentAnalysis</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A basic class for the analysis of the data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">TECHNICALDOC_FREQUENCY</span> <span class="o">=</span> <span class="s2">&quot;technical_doc_frequency&quot;</span>  <span class="c1"># A document type for caching of the frequency</span>
+    <span class="n">_datalayer</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">datalayer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">datalayer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span> <span class="o">=</span> <span class="n">datalayer</span>
+
+<div class="viewcode-block" id="experimentAnalysis.getDeviceLocations">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceLocations">[docs]</a>
+    <span class="k">def</span> <span class="nf">getDeviceLocations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">entityTypeName</span><span class="p">,</span><span class="n">trialName</span><span class="p">,</span><span class="n">trialSetName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">trialState</span><span class="o">=</span><span class="n">DEPLOY</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a pandas with the device locations.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entityTypeName: str</span>
+<span class="sd">                The entity type.</span>
+
+<span class="sd">        trialName: str</span>
+<span class="sd">                The trial name.</span>
+
+<span class="sd">        trialSetName: str</span>
+<span class="sd">                The trial set name.</span>
+
+<span class="sd">        trialState: str</span>
+<span class="sd">            DEPLOY or DESIGN.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            pandas.DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trialSetName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">defaultTrialSet</span> <span class="k">if</span> <span class="n">trialSetName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">trialSetName</span>
+        <span class="k">if</span> <span class="n">trialSetName</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;trialSetName is None. Either set default with the getExperiment, or set explicitly here&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span><span class="o">.</span><span class="n">entitiesTable</span><span class="p">(</span><span class="n">trialState</span><span class="p">)</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;entityType==@entityTypeName&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="experimentAnalysis.getTurbulenceStatistics">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis.getTurbulenceStatistics">[docs]</a>
+    <span class="k">def</span> <span class="nf">getTurbulenceStatistics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">sonicData</span><span class="p">,</span><span class="n">samplingWindow</span><span class="p">,</span><span class="n">height</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the turbulence analysis of the sonic/kaijo data for the start-&gt;end times.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sonicData: pandas/Dask</span>
+<span class="sd">            the data of the sonic to analyze.</span>
+
+<span class="sd">        samplingWindow: str</span>
+<span class="sd">            The window width for analysis</span>
+
+<span class="sd">        height: int</span>
+<span class="sd">            Height</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            singlePointTurbulenceStatistics class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">highfreqtk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">toolkitExtension</span><span class="o">.</span><span class="n">sonicHighFreqToolkit</span>
+        <span class="n">analysis</span> <span class="o">=</span> <span class="n">highfreqtk</span><span class="o">.</span><span class="n">analysis</span><span class="o">.</span><span class="n">singlePointTurbulenceStatistics</span><span class="p">(</span><span class="n">sonicData</span><span class="o">=</span><span class="n">kaijoData</span><span class="p">,</span>
+                                                                       <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                                       <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                                       <span class="n">height</span><span class="o">=</span><span class="n">kaijoHeight</span><span class="p">,</span>
+                                                                       <span class="n">samplingWindow</span><span class="o">=</span><span class="n">samplingWindow</span><span class="p">,</span>
+                                                                       <span class="n">buildingHeight</span><span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+                                                                       <span class="n">averagedHeight</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                                                       <span class="n">isMissingData</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">analysis</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_splitName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+<div class="viewcode-block" id="experimentAnalysis.getDeviceTypeTransmissionFrequencyOfTrial">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceTypeTransmissionFrequencyOfTrial">[docs]</a>
+    <span class="k">def</span> <span class="nf">getDeviceTypeTransmissionFrequencyOfTrial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                                  <span class="n">deviceType</span><span class="p">,</span>
+                                                  <span class="n">trialName</span><span class="p">,</span>
+                                                  <span class="n">trialSetName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                  <span class="n">samplingWindow</span><span class="o">=</span><span class="s2">&quot;1min&quot;</span><span class="p">,</span>
+                                                  <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">completeTimeSeries</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">completeDevices</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">wideFormat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">recalculate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the frequency of a device in the requested trialSet/trial in a wide format (default) or long format (wideFormat=False).</span>
+<span class="sd">        The normalized frequency is obtained from the table defined in this class.</span>
+<span class="sd">        Normalize to the optimal sampling rate if normalize is true.</span>
+<span class="sd">        Can also complete the devices that were planned but did not transmit at all (and therefore, do not appear in the DB)</span>
+<span class="sd">        or the time within the trial were no transmission was obtained.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        deviceType : string</span>
+<span class="sd">                The type of the device to present.</span>
+
+<span class="sd">        trialName : string</span>
+<span class="sd">                The name of the trial to show.</span>
+
+<span class="sd">        trialSetName : string</span>
+<span class="sd">                The name of the trial set.</span>
+
+<span class="sd">        samplingWindow : string</span>
+<span class="sd">                A time string (of pandas). i.e. &#39;1min&#39; and ect.</span>
+
+<span class="sd">        normalize : bool</span>
+<span class="sd">                If true, normalize to the planned message rate</span>
+
+<span class="sd">        completeTimeSeries : bool</span>
+<span class="sd">                If true, and the release has end and start times, then add all the missing time slots</span>
+<span class="sd">                with the requested interval.</span>
+<span class="sd">                default: True</span>
+
+<span class="sd">        completeDevices : bool=True</span>
+<span class="sd">                If True, add all the missing devices that were related to the trial.</span>
+<span class="sd">                default: True</span>
+
+<span class="sd">        wideFormat: bool</span>
+<span class="sd">                If true, return in wide format, else return in long format</span>
+<span class="sd">                default = wide format</span>
+
+<span class="sd">        recalculate: bool</span>
+<span class="sd">                Recalculate the cache of the data.</span>
+<span class="sd">                default False.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        ----------</span>
+<span class="sd">            pandas.DataFrame in wide or long formats.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">trialSetName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">defaultTrialSet</span> <span class="k">if</span> <span class="n">trialSetName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">trialSetName</span>
+        <span class="n">experimentData</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span>
+
+        <span class="n">qry</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">deviceType</span> <span class="o">=</span> <span class="n">deviceType</span><span class="p">,</span>
+                   <span class="n">samplingWindow</span> <span class="o">=</span> <span class="n">samplingWindow</span><span class="p">,</span>
+                   <span class="n">trialName</span> <span class="o">=</span> <span class="n">trialName</span><span class="p">,</span>
+                   <span class="n">trialSetName</span> <span class="o">=</span> <span class="n">trialSetName</span><span class="p">,</span>
+                   <span class="n">completeTimeSeries</span><span class="o">=</span><span class="n">completeTimeSeries</span><span class="p">,</span>
+                   <span class="n">completeDevices</span><span class="o">=</span><span class="n">completeDevices</span><span class="p">)</span>
+
+        <span class="n">docList</span> <span class="o">=</span> <span class="n">experimentData</span><span class="o">.</span><span class="n">getCacheDocuments</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">TECHNICALDOC_FREQUENCY</span><span class="p">,</span><span class="o">**</span><span class="n">qry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">docList</span><span class="p">)</span> <span class="o">==</span><span class="mi">0</span> <span class="ow">or</span> <span class="n">recalculate</span><span class="p">:</span>
+            <span class="c1"># calculating the cache and updating it / or writing a new one.</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">experimentData</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">deviceType</span><span class="p">)</span>
+            <span class="n">colCount</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">freq</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;deviceName&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1min&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()[</span><span class="n">colCount</span><span class="p">]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+            <span class="n">freq</span> <span class="o">=</span> <span class="n">freq</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">deviceID</span><span class="o">=</span><span class="n">freq</span><span class="o">.</span><span class="n">deviceName</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_splitName</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">&quot;deviceID&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">({</span><span class="n">colCount</span><span class="p">:</span><span class="s2">&quot;Frequency&quot;</span><span class="p">}))</span>
+
+            <span class="n">freq</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;timestamp&#39;</span><span class="p">)</span>
+            <span class="n">pvt</span> <span class="o">=</span> <span class="n">freq</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;timestamp&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Frequency&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">completeDevices</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">deviceName</span> <span class="ow">in</span> <span class="n">experimentData</span><span class="o">.</span><span class="n">entityType</span><span class="p">[</span><span class="n">deviceType</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">deviceName</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">pvt</span><span class="p">:</span>
+                        <span class="n">pvt</span><span class="p">[</span><span class="n">deviceName</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="c1"># Filling in time (only if trial has start and end).</span>
+            <span class="n">tstart</span> <span class="o">=</span> <span class="n">experimentData</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">]</span><span class="o">.</span><span class="n">trials</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;trialName == @trialName &quot;</span><span class="p">)[</span><span class="s1">&#39;TrialStart&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">tend</span> <span class="o">=</span> <span class="n">experimentData</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">]</span><span class="o">.</span><span class="n">trials</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;trialName == @trialName &quot;</span><span class="p">)[</span><span class="s1">&#39;TrialEnd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">tend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">completeTimeSeries</span><span class="p">):</span>
+                <span class="n">actualDates</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">tstart</span><span class="p">,</span> <span class="n">tend</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1min&quot;</span><span class="p">)</span>
+
+                <span class="n">missingTimes</span> <span class="o">=</span> <span class="n">actualDates</span><span class="p">[[</span><span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">pvt</span><span class="o">.</span><span class="n">index</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">actualDates</span><span class="p">]]</span>
+                <span class="k">for</span> <span class="n">tme</span> <span class="ow">in</span> <span class="n">missingTimes</span><span class="p">:</span>
+                    <span class="n">pvt</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">tme</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="n">pvt</span> <span class="o">=</span> <span class="n">pvt</span><span class="o">.</span><span class="n">sort_index</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="c1"># update the DB.</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">docList</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+                <span class="c1"># new record</span>
+                <span class="n">experimentData</span><span class="o">.</span><span class="n">addCacheDocument</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">TECHNICALDOC_FREQUENCY</span><span class="p">,</span>
+                                                  <span class="n">dataFormat</span><span class="o">=</span><span class="n">datatypes</span><span class="o">.</span><span class="n">JSON_PANDAS</span><span class="p">,</span>
+                                                  <span class="n">resource</span><span class="o">=</span><span class="n">pvt</span><span class="o">.</span><span class="n">to_json</span><span class="p">(),</span>
+                                                  <span class="n">desc</span><span class="o">=</span><span class="n">qry</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># update existing one</span>
+                <span class="n">doc</span> <span class="o">=</span> <span class="n">docList</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">doc</span><span class="o">.</span><span class="n">resource</span> <span class="o">=</span> <span class="n">pvt</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
+                <span class="n">doc</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># return the data from the cache.</span>
+            <span class="n">pvt</span> <span class="o">=</span> <span class="n">docList</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+            <span class="n">total_expected_messages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDeviceTypePlannedMessageCount</span><span class="p">(</span><span class="n">deviceType</span><span class="o">=</span><span class="n">deviceType</span><span class="p">,</span>
+                                                                            <span class="n">samplingWindow</span><span class="o">=</span><span class="n">samplingWindow</span><span class="p">)</span>
+            <span class="n">pvt</span> <span class="o">=</span> <span class="n">pvt</span> <span class="o">/</span> <span class="n">total_expected_messages</span>
+
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">wideFormat</span><span class="p">:</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">frame</span><span class="o">=</span><span class="n">pvt</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(),</span><span class="n">id_vars</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">,</span><span class="n">value_vars</span><span class="o">=</span><span class="n">pvt</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span><span class="n">var_name</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span><span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;Frequency&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;timestamp&quot;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">pvt</span>
+
+        <span class="k">return</span> <span class="n">ret</span></div>
+
+
+
+<div class="viewcode-block" id="experimentAnalysis.getDeviceTypePlannedMessageCount">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceTypePlannedMessageCount">[docs]</a>
+    <span class="k">def</span> <span class="nf">getDeviceTypePlannedMessageCount</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">deviceType</span><span class="p">,</span><span class="n">samplingWindow</span><span class="o">=</span><span class="s2">&quot;1min&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the number of messages that should be obtained in a sampling window,according to the device type.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        deviceType : string</span>
+<span class="sd">                The type of the device to present.</span>
+
+<span class="sd">        samplingWindow : string</span>
+<span class="sd">                A time string (of pandas). i.e. &#39;1min&#39; and ect.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+
+
+        <span class="n">samplingWindow_seconds</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">to_timedelta</span><span class="p">(</span><span class="n">samplingWindow</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+        <span class="n">total_expected_messages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getOptimalFrequencyHz</span><span class="p">(</span><span class="n">deviceType</span><span class="p">)</span><span class="o">*</span><span class="n">samplingWindow_seconds</span>
+
+        <span class="k">if</span> <span class="n">total_expected_messages</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sampling window is too short. Use sampling window of at least </span><span class="si">{</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">getOptimalFrequencyHz</span><span class="p">(</span><span class="n">deviceType</span><span class="p">)</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">total_expected_messages</span></div>
+
+
+
+
+
+
+<div class="viewcode-block" id="experimentAnalysis.addMetadata">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis.addMetadata">[docs]</a>
+    <span class="k">def</span> <span class="nf">addMetadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dataset</span><span class="p">,</span><span class="n">trialName</span><span class="p">,</span><span class="n">trialState</span><span class="o">=</span><span class="n">DEPLOY</span><span class="p">,</span><span class="n">trialSetName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds the trial metadata to the dataset by joining on the device name.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dataset :  pandas/dask</span>
+<span class="sd">                The dataset to merge. Assumes there is a field deviceName</span>
+<span class="sd">        trialName : str</span>
+<span class="sd">                The name of the trial to join</span>
+
+<span class="sd">        trialState : str</span>
+<span class="sd">                The state of the trial (Design/Deploy).</span>
+
+<span class="sd">        trialSetName : str [optional, default None]</span>
+<span class="sd">                The name of hte trialset. If None, use the default trialset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            pandas/dask with the metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trialSetName</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">defaultTrialSet</span> <span class="k">if</span>  <span class="n">trialSetName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">trialSetName</span>
+
+        <span class="n">devicemetadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span><span class="o">.</span><span class="n">entitiesTable</span><span class="p">(</span><span class="n">trialState</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s2">&quot;entityName&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ret</span><span class="o">=</span><span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">ret</span></div>
+
+
+<div class="viewcode-block" id="experimentAnalysis.addTrialProperties">
+<a class="viewcode-back" href="../../../../index.html#hera.measurements.experiment.analysis.experimentAnalysis.addTrialProperties">[docs]</a>
+    <span class="k">def</span> <span class="nf">addTrialProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">trialName</span><span class="p">,</span><span class="n">trialSetName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds the calculated properties of the trial to the data.</span>
+<span class="sd">        - FromRelease: seconds from the release.</span>
+<span class="sd">        - FromStart  : seconds from the start.</span>
+<span class="sd">        Assume the time column is timestamp.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data: pandas/dask</span>
+<span class="sd">            The data.</span>
+<span class="sd">        trialName: str</span>
+<span class="sd">            The trial name.</span>
+<span class="sd">        trialSetName:str</span>
+<span class="sd">            The trial set name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            pandas/dask</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">trialSetName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">defaultTrialSet</span> <span class="k">if</span> <span class="n">trialSetName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">trialSetName</span>
+
+        <span class="n">startTime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;TrialStart&#39;</span><span class="p">]</span>
+        <span class="n">releaseTime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ReleaseStart&quot;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;timestamp&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s1">&#39;timestamp&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tmp</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The column &#39;timestamp&#39; is not part of data (or in its index)&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">data</span>
+
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">fromStart</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">timestamp</span><span class="o">-</span><span class="n">startTime</span><span class="p">,</span>
+                         <span class="n">fromRelease</span><span class="o">=</span><span class="n">tmp</span><span class="o">.</span><span class="n">timestamp</span><span class="o">-</span><span class="n">releaseTime</span><span class="p">)</span>
+
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">fromStartSeconds</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">fromStart</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()),</span>
+                         <span class="n">fromReleaseSeconds</span><span class="o">=</span><span class="n">tmp</span><span class="o">.</span><span class="n">fromRelease</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()))</span>
+
+
+        <span class="k">return</span> <span class="n">tmp</span></div>
+</div>
+
+
+
+
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Elia Salo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
