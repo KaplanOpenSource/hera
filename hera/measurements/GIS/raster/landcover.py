@@ -166,6 +166,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         y = math.floor((lon - gt[0]) / gt[1])
         return img[x, y]
 
+
     def getLandCover(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None):
         """
         Get Xarray LandCover map.
