@@ -56,6 +56,7 @@
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessAtPoint()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessFromLandcover()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.handleType1"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.handleType1()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnessWithUrban"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.roughnessWithUrban()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -72,6 +73,26 @@
 <li><a class="reference internal" href="#tilestoolkit-presentation-class">TilesToolkit Presentation Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.presentation"><code class="docutils literal notranslate"><span class="pre">presentation</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.presentation.plot"><code class="docutils literal notranslate"><span class="pre">presentation.plot()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vector">Vector</a></li>
+<li><a class="reference internal" href="#buildingstoolkit-class">BuildingsToolkit Class</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsGeopandasToSTLRasterTopography()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsToSTL"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsToSTL()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.getBuildingsFromRectangle()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.regionToSTL"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.regionToSTL()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#buildingstoolkit-analysis-class">BuildingsToolkit Analysis Class</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons"><code class="docutils literal notranslate"><span class="pre">analysis.ConvexPolygons()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData"><code class="docutils literal notranslate"><span class="pre">analysis.LambdaFromBuildingData()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -259,6 +280,13 @@ Based on the paper:</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnessWithUrban">
+<span class="sig-name descname"><span class="pre">roughnessWithUrban</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xarray</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.roughnessWithUrban"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnessWithUrban" title="Link to this definition"></a></dt>
+<dd><p>Add Roughness Urban field to landcover Xarray. That is, LambdaP, LambdaF and HC to each landcover point.
+Assumes the landcover is Urban.</p>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -341,6 +369,189 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>matplotlib.image.AxesImage</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="vector">
+<h1>Vector<a class="headerlink" href="#vector" title="Link to this heading"></a></h1>
+</section>
+<section id="buildingstoolkit-class">
+<h1>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.toolkit.</span></span><span class="sig-name descname"><span class="pre">BuildingsToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">VectorToolkit</span></code></p>
+<p>Toolkit to manage the buildings. Reading the shapefile with geoDataFrame will result in dataframe
+with the following columns:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Geometry: the polygon of the building.</p></li>
+<li><p>Building height column : the column name is in BuildingHeightColumn. Default value=BLDG_HT.</p></li>
+<li><p>Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.</p></li>
+</ul>
+</div></blockquote>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">
+<span class="sig-name descname"><span class="pre">buildingsGeopandasToSTLRasterTopography</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buildingData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buildingHeightColumn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buildingElevationColumn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputFileName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flatTerrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">referenceTopography</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nonFlatTopographyShift</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.buildingsGeopandasToSTLRasterTopography"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography" title="Link to this definition"></a></dt>
+<dd><p>Converts a building data (in geopandas format) to STL using the FreeCAD module.
+Using the raster topography to estimate the height of each building.
+This is a low level procedure. It can be used, but the easier way to use the toolkit is to generate the buildings from an area using the regionToSTL procedure.
+We must save the file to the disk, as it is the current implementation of FreeCAD.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buildingData</strong> (<em>geopandas.DataFrame</em>) – </p></li>
+<li><p><strong>buildingHeightColumn</strong> (<em>string</em>) – The name of the column that holds the height of the buildings in [m].</p></li>
+<li><p><strong>buildingElevationColumn</strong> (<em>string</em>) – The name of the column that holds the elevation of the building.</p></li>
+<li><p><strong>outputFileName</strong> (<em>string</em>) – The absolute path of the output STL</p></li>
+<li><p><strong>flatTerrain</strong> (<em>bool</em>) – If true, use a flat terrain.</p></li>
+<li><p><strong>nonFlatTopographyShift</strong> (<em>float</em>) – shift the house with respect to its height in the topography.</p></li>
+<li><p><strong>referenceTopography</strong> (<em>float</em><em> [</em><em>default 0</em><em>]</em>) – If flatTerrain, use this as the reference height for the buildings.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsToSTL">
+<span class="sig-name descname"><span class="pre">buildingsToSTL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domainname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputfile</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.buildingsToSTL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsToSTL" title="Link to this definition"></a></dt>
+<dd><blockquote>
+<div><p>write stl file of the buildings in a domain</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>(</strong><strong>ITM</strong><strong>)</strong> (<em>point1 lower left corner</em>) – </p></li>
+<li><p><strong>corner</strong> (<em>point2 upper right</em>) – </p></li>
+<li><p><strong>name</strong> (<em>domainname - domain</em>) – </p></li>
+<li><p><strong>file</strong> (<em>outputfile - where to write the</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>How to use</em></p></li>
+<li><p><em>———-</em></p></li>
+<li><p><em>from hera.measurements.GIS.vector.buildings.toolkit import BuildingsToolkit</em></p></li>
+<li><p><em>BuildingsToolkit.buildingstorToSTL([200000, 740000], [201000, 741000], ‘test’, ‘test2.stl’)</em></p></li>
+<li><p><em>What to fix</em></p></li>
+<li><p><em>———–</em></p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">
+<span class="sig-name descname"><span class="pre">getBuildingHeightFromRasterTopographyToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buildingData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">topographyDataSource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit" title="Link to this definition"></a></dt>
+<dd><p>Get the topography height of each building (at its center) in the building data using the topography toolkit. Return data frame wtih ‘evaluation’ as a column.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buildingData</strong> (<em>geopandas.geoDataFrame.</em>) – The building.</p></li>
+<li><p><strong>topographyDataSource</strong> (<em>string</em><em>,</em><em>default=None.</em>) – The name of the datasource in the topography toolkit. If None, use the default datasource there.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>geopandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle">
+<span class="sig-name descname"><span class="pre">getBuildingsFromRectangle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miny</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">withElevation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.getBuildingsFromRectangle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle" title="Link to this definition"></a></dt>
+<dd><p>Return the buildings geopandas for the rectangle region.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>minx</strong> (<em>float</em>) – Minimum value of x-axis.</p></li>
+<li><p><strong>miny</strong> (<em>float</em>) – Minimum value of y-axis.</p></li>
+<li><p><strong>maxx</strong> (<em>float</em>) – Maximum value of x-axis.</p></li>
+<li><p><strong>may</strong> (<em>float</em>) – Maximum value of y-axis.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>str</em><em>,</em><em>default=None.</em>) – The datasource name. If none, will use the default datasource.</p></li>
+<li><p><strong>withElevation</strong> (<em>bool</em><em>,</em><em>default=False.</em>) – If True, use the topography (raster) toolkit to get the heghts.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>geopandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.regionToSTL">
+<span class="sig-name descname"><span class="pre">regionToSTL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regionNameOrData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputFileName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">saveMode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.regionToSTL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.regionToSTL" title="Link to this definition"></a></dt>
+<dd><p>Converts the document to the stl and saves it to the disk.
+Adds the stl file to the DB.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regionNameOrData</strong> (<em>str</em><em> or </em><em>geopandas .</em>) – The name of the datasource or the geopandas file to convert.
+If geopandas has the following columns:</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em>) – The name of the datasource that contains the database of the buildings</p></li>
+<li><p><strong>flat</strong> (<em>None</em><em> or </em><em>float.</em>) – The base of the building.
+If None, use the buildings height.</p></li>
+<li><p><strong>outputfile</strong> (<em>str</em>) – a path to the output file.</p></li>
+<li><p><strong>saveMode</strong> (<em>str</em>) – <ul>
+<li><p>None, does not add to the DB.</p></li>
+<li><p>TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists</p></li>
+<li><p>TOOLKIT_SAVEMODE_FILEANDDB         throws exception.</p></li>
+</ul>
+</p></li>
+<li><p><strong>crs</strong> (<em>int</em><em> [</em><em>optional</em><em>]</em>) – Used if the CRS of the shapeData is different than the CRS of the datasource.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>The maximal height</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="buildingstoolkit-analysis-class">
+<h1>BuildingsToolkit Analysis Class<a class="headerlink" href="#buildingstoolkit-analysis-class" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.analysis.analysis">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.analysis.</span></span><span class="sig-name descname"><span class="pre">analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/analysis.html#analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.analysis.analysis" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Analysis layer class of GIS Buildings. Acess this class with BuildingsToolkit.analysis.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons">
+<span class="sig-name descname"><span class="pre">ConvexPolygons</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regionNameOrData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/analysis.html#analysis.ConvexPolygons"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons" title="Link to this definition"></a></dt>
+<dd><p>Returns convex polygons of groups of buildings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regionNameOrData</strong> (<em>str</em><em> or </em><em>geopandas DataFrame.</em>) – The data to get the convex of.</p></li>
+<li><p><strong>buffer</strong> (<em>int</em><em>,</em><em>default=100.</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData">
+<span class="sig-name descname"><span class="pre">LambdaFromBuildingData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">windMeteorologicalDirection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buildingsData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">saveCache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/analysis.html#analysis.LambdaFromBuildingData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData" title="Link to this definition"></a></dt>
+<dd><p>Returns lambdaP,lambdaF,hc for each square in given buildingsData.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>windMeteorologicalDirection</strong> (<em>double</em>) – The meteorological angle.</p></li>
+<li><p><strong>resolution</strong> (<em>double</em>) – The size of the squares.</p></li>
+<li><p><strong>buildingsData</strong> (<em>geopandas.DataFrame</em>) – Geopandas of the buildings. The crs of the building data must be set.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>,</em><em>default=False.</em>) – If true, write over data and update the database.</p></li>
+<li><p><strong>saveCache</strong> (<em>bool</em><em>,</em><em>default=True.</em>) – If false, won’t save dataframe to cache. It is recomended to use True since the measurments are long.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>geopandas.DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
