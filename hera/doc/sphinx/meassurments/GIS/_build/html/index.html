@@ -55,8 +55,6 @@
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughness()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessAtPoint()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessFromLandcover()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.handleType1"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.handleType1()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnessWithUrban"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.roughnessWithUrban()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -81,10 +79,8 @@
 <li><a class="reference internal" href="#buildingstoolkit-class">BuildingsToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsGeopandasToSTLRasterTopography()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsToSTL"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsToSTL()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.getBuildingsFromRectangle()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.regionToSTL"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.regionToSTL()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -259,34 +255,6 @@ Smaller values result in finer resolution.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.handleType1">
-<span class="sig-name descname"><span class="pre">handleType1</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.handleType1"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.handleType1" title="Link to this definition"></a></dt>
-<dd><p>Converting land type of Type-1 to roughness.
-Based on the paper:</p>
-<blockquote>
-<div><ul class="simple">
-<li><p><a class="reference external" href="https://wes.copernicus.org/articles/6/1379/2021/">https://wes.copernicus.org/articles/6/1379/2021/</a> table a2</p></li>
-<li><p><a class="reference external" href="https://doi.org/10.5194/wes-6-1379-2021">https://doi.org/10.5194/wes-6-1379-2021</a> Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien</p></li>
-</ul>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>landcover</strong> (<em>int</em>) – Landcover type value.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnessWithUrban">
-<span class="sig-name descname"><span class="pre">roughnessWithUrban</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xarray</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.roughnessWithUrban"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnessWithUrban" title="Link to this definition"></a></dt>
-<dd><p>Add Roughness Urban field to landcover Xarray. That is, LambdaP, LambdaF and HC to each landcover point.
-Assumes the landcover is Urban.</p>
-</dd></dl>
-
 </dd></dl>
 
 </section>
@@ -404,43 +372,14 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>buildingData</strong> (<em>geopandas.DataFrame</em>) – </p></li>
+<li><p><strong>buildingData</strong> (<em>geopandas.DataFrame</em>) – The buildings data.</p></li>
 <li><p><strong>buildingHeightColumn</strong> (<em>string</em>) – The name of the column that holds the height of the buildings in [m].</p></li>
 <li><p><strong>buildingElevationColumn</strong> (<em>string</em>) – The name of the column that holds the elevation of the building.</p></li>
-<li><p><strong>outputFileName</strong> (<em>string</em>) – The absolute path of the output STL</p></li>
+<li><p><strong>outputFileName</strong> (<em>string</em>) – The absolute path of the output STL.</p></li>
 <li><p><strong>flatTerrain</strong> (<em>bool</em>) – If true, use a flat terrain.</p></li>
-<li><p><strong>nonFlatTopographyShift</strong> (<em>float</em>) – shift the house with respect to its height in the topography.</p></li>
+<li><p><strong>nonFlatTopographyShift</strong> (<em>float</em>) – Shift the house with respect to its height in the topography.</p></li>
 <li><p><strong>referenceTopography</strong> (<em>float</em><em> [</em><em>default 0</em><em>]</em>) – If flatTerrain, use this as the reference height for the buildings.</p></li>
 </ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsToSTL">
-<span class="sig-name descname"><span class="pre">buildingsToSTL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domainname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputfile</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.buildingsToSTL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsToSTL" title="Link to this definition"></a></dt>
-<dd><blockquote>
-<div><p>write stl file of the buildings in a domain</p>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>(</strong><strong>ITM</strong><strong>)</strong> (<em>point1 lower left corner</em>) – </p></li>
-<li><p><strong>corner</strong> (<em>point2 upper right</em>) – </p></li>
-<li><p><strong>name</strong> (<em>domainname - domain</em>) – </p></li>
-<li><p><strong>file</strong> (<em>outputfile - where to write the</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><em>How to use</em></p></li>
-<li><p><em>———-</em></p></li>
-<li><p><em>from hera.measurements.GIS.vector.buildings.toolkit import BuildingsToolkit</em></p></li>
-<li><p><em>BuildingsToolkit.buildingstorToSTL([200000, 740000], [201000, 741000], ‘test’, ‘test2.stl’)</em></p></li>
-<li><p><em>What to fix</em></p></li>
-<li><p><em>———–</em></p></li>
-</ul>
-</p>
 </dd>
 </dl>
 </dd></dl>
@@ -479,35 +418,6 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>geopandas.DataFrame</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.regionToSTL">
-<span class="sig-name descname"><span class="pre">regionToSTL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regionNameOrData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputFileName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">saveMode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.regionToSTL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.regionToSTL" title="Link to this definition"></a></dt>
-<dd><p>Converts the document to the stl and saves it to the disk.
-Adds the stl file to the DB.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>regionNameOrData</strong> (<em>str</em><em> or </em><em>geopandas .</em>) – The name of the datasource or the geopandas file to convert.
-If geopandas has the following columns:</p></li>
-<li><p><strong>dataSourceName</strong> (<em>string</em>) – The name of the datasource that contains the database of the buildings</p></li>
-<li><p><strong>flat</strong> (<em>None</em><em> or </em><em>float.</em>) – The base of the building.
-If None, use the buildings height.</p></li>
-<li><p><strong>outputfile</strong> (<em>str</em>) – a path to the output file.</p></li>
-<li><p><strong>saveMode</strong> (<em>str</em>) – <ul>
-<li><p>None, does not add to the DB.</p></li>
-<li><p>TOOLKIT_SAVEMODE_FILEANDDB_REPLACE replace the document if exists</p></li>
-<li><p>TOOLKIT_SAVEMODE_FILEANDDB         throws exception.</p></li>
-</ul>
-</p></li>
-<li><p><strong>crs</strong> (<em>int</em><em> [</em><em>optional</em><em>]</em>) – Used if the CRS of the shapeData is different than the CRS of the datasource.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>The maximal height</p>
 </dd>
 </dl>
 </dd></dl>

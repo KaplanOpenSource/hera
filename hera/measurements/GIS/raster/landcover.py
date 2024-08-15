@@ -273,7 +273,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         landcover = self.getLandCoverAtPoint(lon=lon,lat=lat,inputCRS=inputCRS,dataSourceName=dataSourceName)
 
-        handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
+        handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
         return handlerFunction(landcover)
 
 
@@ -300,9 +300,11 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         if not isBuilding:
-            handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
+            handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
             roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
+        else:
+            landcover = self._getUrbanRoughnessFromLandCover(landcover)
         return landcover
 
     def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False):
@@ -345,7 +347,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName)
         return landcover
 
-    def handleType1(self,landcover):
+    def _handleType1(self,landcover):
         """
         Converting land type of Type-1 to roughness.
         Based on the paper:
@@ -420,7 +422,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         return dict
 
-    def roughnessWithUrban(self,xarray):
+    def _getUrbanRoughnessFromLandCover(self,landcover):
         """
         Add Roughness Urban field to landcover Xarray. That is, LambdaP, LambdaF and HC to each landcover point.
         Assumes the landcover is Urban.
