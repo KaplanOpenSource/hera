@@ -104,6 +104,15 @@ def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
             determineType(value,new_prefix,prefixExclude)
 
     _dictTomongo(dictObj,local_perfix=prefix,prefixExclude=prefixExclude)
+
+    # Now convert all the keys that end with __type to __type__.
+    # This fixes the pymongo queyr where __type is used to determine the type of the format.
+    keyList = [key for key in ret.keys()]
+    for key in keyList:
+        if key.endswith("__type"):
+            ret[f"{key}__"] = ret[key]
+            del ret[key]
+
     return ret
 
 

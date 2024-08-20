@@ -36,11 +36,11 @@ def WorkflowsGroup_list(args):
         logger.info(f"Using project name {projectName}. ")
 
 
-    simulationType = args.type
+    solver = args.solver
     workflowName = args.workflowName
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
-    wftk.listGroups(workflowType=simulationType, workflowName=workflowName)
+    wftk.listGroups(solver=solver, workflowName=workflowName)
 
 
 def workflow_add(args):

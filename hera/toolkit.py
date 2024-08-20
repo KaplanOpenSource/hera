@@ -73,7 +73,7 @@ class ToolkitHome:
 
             experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
-            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.workflowToolkit"),
+            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit"),
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
         )
 
