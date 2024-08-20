@@ -1,3 +1,4 @@
+import json
 import pydoc
 from .. import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
 from .VTKPipelineExecutionContext import VTKpipelineExecutionContext
@@ -312,6 +313,23 @@ class VTKPipeLine:
             retDict.update(filterData.toJSON())
 
         return dict(metadata=dict(files=None),pipelines=retDict)
+
+    def writeJSON(self,fileName):
+        """
+            Writes the pipeline to a JSON file.
+        Parameters
+        ----------
+        fileName
+
+        Returns
+        -------
+
+        """
+        if '.json' not in fileName:
+            fileName = f'{fileName}.json'
+
+        with open(fileName,'w') as outfile:
+            json.dump(self.toJSON(),fileName,indent=4)
 
 
 class VTKFilter:
