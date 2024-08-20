@@ -585,6 +585,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         docList = self.getWorkflowInGroup(groupName=groupName, **currentQuery)
 
+
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
             wrn = f"The requested workflow {workflowName} has similar parameters to the workflow **{doc['desc']['workflowName']}** in simulation group {groupName}."
@@ -773,15 +774,15 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return ret
 
-    def listGroups(self, workflowType=None, workflowName=True):
+    def listGroups(self, solver=None, workflowName=True):
         """
             Lists all the simulation groups of the current project.
 
         Parameters
         ----------
 
-        workflowType : str
-                    The type of workflow to list.
+        solver : str
+                    The name of the solver of this workflow.
                     If None, print all of them.
 
         workflowName : bool
@@ -791,18 +792,21 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
 
         """
+        logger = get_classMethod_logger(self,"listGroups")
         qry = dict(type=self.DOCTYPE_WORKFLOW)
-        if workflowType is not None:
-            qry['workflowType'] = workflowType
+        logger.info("Getting the groups in the project.")
+        if solver is not None:
+            logger.info(f"....Using solver {solver}")
+            qry['solver'] = solver
 
         docLists = self.getSimulationsDocuments(**qry)
         if len(docLists)==0:
-            print(f"There are no workflow-groups in project {self.projectName}")
+            logger.info(f"There are no workflow-groups in project {self.projectName}")
         else:
-            data = pandas.DataFrame([dict(type=doc['desc']['workflowType'],workflowName=doc['desc']['workflowName'],groupName=doc['desc']['groupName']) for doc in docLists])
+            data = pandas.DataFrame([dict(solver=doc['desc']['solver'],workflowName=doc['desc']['workflowName'],groupName=doc['desc']['groupName']) for doc in docLists])
 
-            for (groupType,groupName),grpdata in data.groupby(["type","groupName"]):
-                ttl = f"{groupType}"
+            for (solverType,groupName),grpdata in data.groupby(["solver","groupName"]):
+                ttl = f"{solverType}"
                 print(ttl)
                 print("-"*(len(ttl)))
                 print(f"\t* {groupName}")

@@ -22,13 +22,13 @@ if __name__ == "__main__":
     ##
     #   List
     ##
-    list_parser = subparsers.add_parser('list', help='Handles listing of the items')
+    list_parser = subparsers.add_parser('list', help='Lists items in the DB')
     list_subparser = list_parser.add_subparsers(help='Handles simulation group')
 
     ## --- groups
     parser_prepare = list_subparser.add_parser('groups', help='List the group in the project.')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.add_argument('--type', type=str,dest="type", default=None, help='Specify the simulation type')
+    parser_prepare.add_argument('--solver', type=str,dest="solver", default=None, help='Specify the solver of the workflow')
     parser_prepare.add_argument('--workflowName',dest="workflowName",action="store_true", default=False, help='If exists, show the simulation names')
     parser_prepare.set_defaults(func=CLI.WorkflowsGroup_list)
 
