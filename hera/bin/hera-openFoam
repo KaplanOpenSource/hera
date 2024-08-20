@@ -275,6 +275,18 @@ if __name__ == "__main__":
     addMeshOptions(subparser=buoyantReactingFoam_subparser,solverName="buoyantReactingFoam", incompressible=False)
 
     ## ====================================================
+    ## ================== scalarTransportFoam
+    ## ====================================================
+    scalarTransportFoam_parser = subparsers.add_parser('scalarTransportFoam', help='Handles scalarTransportFoam')
+    scalarTransportFoam_subparser = scalarTransportFoam_parser.add_subparsers(help='Handles scalarTransportFoam')
+
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=scalarTransportFoam_subparser, solverName="scalarTransportFoam", incompressible=True)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=scalarTransportFoam_subparser,solverName="scalarTransportFoam", incompressible=True)
+
+    ## ====================================================
     ## ================== StochasticLagrantianSolver
     ## ====================================================
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
