@@ -544,7 +544,7 @@ class Presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, fieldList=None, xcoord="globalX",ycoord="globalY",zcoord="globalZ", timecoord="time"):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, fieldList=None, xcoord="globalX",ycoord="globalY",zcoord="globalZ", timecoord="time",overwrite=False):
         """
             Writes the data as a VTK vtu file.
 
@@ -580,6 +580,16 @@ class Presentation:
                 x = timeData[xcoord].values
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
+
+                if os.path.exists(finalfile):
+                    logger.debug(f"The file exists, remove it if overwrite is True")
+                    if overwrite:
+                        os.remove(finalfile)
+                    else:
+                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        logger.error(err)
+                        raise FileExistsError(err)
+
                 evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
         else:
             # all the data is loaded:
@@ -591,6 +601,16 @@ class Presentation:
                 x = timeData[xcoord].values
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
+
+                if os.path.exists(finalfile):
+                    logger.debug(f"The file exists, remove it if overwrite is True")
+                    if overwrite:
+                        os.remove(finalfile)
+                    else:
+                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        logger.error(err)
+                        raise FileExistsError(err)
+
                 evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
 
     def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):

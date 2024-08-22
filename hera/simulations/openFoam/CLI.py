@@ -424,10 +424,25 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
     logger.info(f"Using project {projectName} for cloud name {arguments.cloudName}")
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=arguments.case, withVelocity=True, withMass=True,
+    docList = tk.getWorkflowDocumentFromDB(arguments.dispersionName)
+    if len(docList) == 0:
+        logger.info(f"The name {arguments.dispersionName} is not found. Try to use it as a directory")
+        if os.path.isdir(arguments.dispersionName):
+            logger.info(
+                f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
+            outputName = arguments.dispersionName
+            cache = False
+    else:
+        doc = docList[0]
+        outputName = doc.desc['workflowName']
+        cache = True
+
+
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,
                                                   overwrite=arguments.overwrite, cloudName=arguments.cloudName)
-    tk.stochasticLagrangian.presentation.toVTU(data, outDirectory=arguments.outputDirectory,
-                                               outFile=os.path.basename(arguments.case))
+
 
 def stochasticLagrangian_postProcess_toVTK(arguments):
     """
@@ -453,13 +468,13 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
         base_outputdir = os.getcwd()
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    docList = tk.getWorkflowDocumentFromDB(arguments.case)
+    docList = tk.getWorkflowDocumentFromDB(arguments.dispersionName)
     if len(docList) == 0:
-        logger.info(f"The name {arguments.case} is not found. Try to use it as a directory")
-        if os.path.isdir(arguments.case):
+        logger.info(f"The name {arguments.dispersionName} is not found. Try to use it as a directory")
+        if os.path.isdir(arguments.dispersionName):
             logger.info(
-                f"Found {arguments.case} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
-            outputName = arguments.case
+                f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
+            outputName = arguments.dispersionName
             cache = False
     else:
         doc = docList[0]
@@ -469,10 +484,9 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
     outputdir = os.path.join(base_outputdir, "VTK", outputName)
     logger.info(f"Writing values to directory {outputdir}")
     os.makedirs(outputdir, exist_ok=True)
-    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,
-                                                  cache=cache)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,overwrite=arguments.overwrite,cache=cache)
     tk.presentation.toUnstructuredVTK(data=data, outputdirectory=outputdir, filename=arguments.cloudName,
-                                      timeNameOutput=True, xcoord="x", ycoord="y", zcoord="z")
+                                      overwrite=arguments.overwrite, xcoord="x", ycoord="y", zcoord="z")
 
 def objects_createVerticesAndBoundary(arguments):
     logger = logging.getLogger("hera.bin")

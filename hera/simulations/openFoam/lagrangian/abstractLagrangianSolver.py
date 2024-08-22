@@ -1096,12 +1096,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
             logger.info("Checking if the case is single processor or multiprocessor")
             if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
+                logger.info("Process as parallel case")
                 processorList = [os.path.basename(proc) for proc in
                                  glob.glob(os.path.join(finalCasePath, "processor*"))]
-                if len(processorList) == 0:
-                    err = f"There are no processor* directories in the case {finalCasePath}. Is it parallel?"
-                    logger.error(err)
-                    raise ValueError(err)
 
                 if timeList is None:
                     timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
@@ -1118,12 +1115,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 ret = dask_dataframe.from_map(loader, loaderList)
 
             else:
-                logging.debug(f"Loading single processor data with time list {timeList}")
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                        os.path.isdir(x) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                logger.info("Process as singleProcessor case")
+                timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))
+                logger.debug(f"Loading single processor data with time list {timeList}")
 
                 loaderList = [timeName for timeName in timeList]
                 ret = dask_dataframe.from_map(loader, loaderList)

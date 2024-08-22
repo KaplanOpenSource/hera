@@ -358,12 +358,19 @@ if __name__ == "__main__":
     postProcess_parser = stochasticLagrnagian_subparser.add_parser('postProcess', help='post process for the  lagrangian particles')
     postProcess_subparser = postProcess_parser.add_subparsers(help='Converts the openFOAM to other formats')
 
-    postProcess_vtk_subparser = postProcess_subparser.add_parser('toVTK', help='Creates a VTK files of the lagrangian particles')
+    postProcess_parquet_subparser = postProcess_subparser.add_parser('toParquet', help='Creates a parquet files of the lagrangian particles')
+    postProcess_parquet_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow or directory")
+    postProcess_parquet_subparser.add_argument('--outputDirectory', type=str, default="VTK",help="The path to save the VTK files. ")
+    postProcess_parquet_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
+    postProcess_parquet_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
+    postProcess_parquet_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toParquet)
+
+    postProcess_vtk_subparser = postProcess_subparser.add_parser('toVTK', help='Creates a parquet files of the lagrangian particles')
     postProcess_vtk_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow or directory")
     postProcess_vtk_subparser.add_argument('--outputDirectory', type=str, default="VTK",help="The path to save the VTK files. ")
     postProcess_vtk_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
     postProcess_vtk_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
-    postProcess_vtk_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toParquet)
+    postProcess_vtk_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toVTK)
 
 
     ############################################
