@@ -30,7 +30,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         self.toolkit = toolkit
         self.analysis = analysis(self)
 
-    def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionFieldList,
+    def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionFieldList, dispersionDuration,
                                   flowType=FLOWTYPE_INCOMPRESSIBLE, overwrite: bool = False, useDBSupport: bool = True):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
@@ -135,6 +135,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         originalFlow = dict(flowData['originalFlow'])
         originalFlow['source'] = OriginalFlowField
 
+        dispersionDuration = toTimeFormat(dispersionDuration)
+
         # 1. Get the case directory of the original flow.
         logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
         docList = self.toolkit.getWorkflowListDocumentFromDB(originalFlow['source'])
@@ -175,10 +177,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             ptPath = ["processor0", "*"]
             parallelOriginal = True
         else:
-            logger.debug(
-                f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
+            logger.debug(f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
             ptPath = ["*"]
-            parallelOriginal = True
+            parallelOriginal = False
 
         TS = [float(os.path.basename(ts)) for ts in glob.glob(os.path.join(originalFlowCaseDir, *ptPath)) if
               os.path.basename(ts).replace(".", "").isdigit()]
@@ -188,7 +189,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         dynamicType = originalFlow['time']['temporalType']
 
         timeStep = originalFlow.get("timeStep", None)
-        dispersionDuration = flowData["dispersionDuration"]
+
 
         linkMeshSymbolically = originalFlow.get("linkMeshSymbolically", True)
         logger.debug(f"Symbolic link to the mesh? {linkMeshSymbolically}")
@@ -254,7 +255,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 groupName=workflowGroup,
                 flowParameters=dict(
                     flowFields=dispersionFieldList,
-                    dispersionDuration=flowData["dispersionDuration"],
+                    dispersionDuration=dispersionDuration,
                     originalFlow=originalFlow
                 )
             )
@@ -346,6 +347,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             os.makedirs(os.path.join(dispersionFlowFieldDirectory, str(dest_time)), exist_ok=True)
 
             logger.info(f"Mapping {orig_time} --> {dest_time}")
+
             for origDir in origDirsList:
                 logger.info(f"Processing the original directory {origDir}")
                 orig_proc_timestep = os.path.join(origDir, orig_time)

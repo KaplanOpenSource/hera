@@ -296,10 +296,10 @@ if __name__ == "__main__":
     # ## -- DispersionFlow
     dispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('dispersionFlow', help='Creates a dispersion flow from a flow')
     dispersionFlow_parser_subparser = dispersionFlow_parser.add_subparsers(help='Handles the dispersion flows')
-
     create_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('create', help='Creates a dispersion flow from a flow')
     create_dispersionFlow_parser.add_argument('OriginalFlowField', type=str,help="The name/directory/workflow file of the origninal workflow")
     create_dispersionFlow_parser.add_argument('dispersionFlowParams', type=str,help="The parameters of the dispersion flow")
+    create_dispersionFlow_parser.add_argument('--dispersionDuration', required=True, type=str, help="The dispersion duration")
     create_dispersionFlow_parser.add_argument('--dispersionFlowFields',  type=str,nargs="*", help="A list of fields to create")
     create_dispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     create_dispersionFlow_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the case. Deletes the currect directory if needs to')

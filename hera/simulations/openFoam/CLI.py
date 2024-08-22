@@ -157,12 +157,12 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
         if arguments.dispersionFlowFields is not None:
             dispersionFieldList = list(numpy.atleast_1d(arguments.dispersionFlowFields))
 
-
     try:
         tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,
                                                           flowData=flowdata,
                                                           OriginalFlowField=arguments.OriginalFlowField,
                                                           dispersionFieldList=dispersionFieldList,
+                                                          dispersionDuration=arguments.dispersionDuration,
                                                           overwrite=arguments.overwrite)
     except FileExistsError:
         err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
