@@ -256,9 +256,12 @@ class OFField(OFObject):
 
                 logger.debug("Setting boundary field")
                 boundaryDict = DictProxy()
-                for boundaryName, boundaryData in self.data['boundaryField'].items():
-                    logger.debug(f"Setting the boundary {boundaryName} to existing value")
-                    boundaryDict[boundaryName] = boundaryData
+
+                if 'singleProcessor' in self.data:
+                    logger.debug("The field was already initialized. Checking if the boundaries already exist. ")
+                    for boundaryName, boundaryData in self.data['singleProcessor']['boundaryField'].items():
+                        logger.debug(f"Setting the boundary {boundaryName} to existing value")
+                        boundaryDict[boundaryName] = boundaryData
 
                 for boundaryName,boundaryData in bndry.getValueDict().items():
                     boundaryType = boundaryData['type']
