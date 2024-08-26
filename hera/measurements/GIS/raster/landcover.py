@@ -12,6 +12,8 @@ import xarray
 import geopandas
 import xarray as xr
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 class LandCoverToolkit(toolkit.abstractToolkit):
     # """
@@ -124,7 +126,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         """
         super().__init__(projectName=projectName, toolkitName = 'LandCoverToolkit', filesDirectory=filesDirectory)
-
+        self._presentation = presentation(dataLayer=self)
 
 
     def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
@@ -206,15 +208,15 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
             return img[ilat, ilon]
 
-        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=WSG84, outputCRS=ITM)[0]
-        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=WSG84, outputCRS=ITM)[0]
+        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
+        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
         x = numpy.arange(min_pp.x, max_pp.x, dxdy)
         y = numpy.arange(min_pp.y, max_pp.y, dxdy)
         xx = numpy.zeros((len(x), len(y)))
         yy = numpy.zeros((len(x), len(y)))
         for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y)]):
             print((i, j), end="\r")
-            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=inputCRS)[0]
+            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
             xx[i, j] = newpp.x
             yy[i, j] = newpp.y
 
@@ -239,7 +241,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 'j': j,
                 'lat': (['i', 'j'], xx),
                 'lon': (['i', 'j'], yy),
-                'landcover': (['i', 'j'], landcover)
+                'landcover': (['i', 'j'], landcover),
+                'dxdy': dxdy
                 },
             dims=['i', 'j']
             )
@@ -424,111 +427,60 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
     def _getUrbanRoughnessFromLandCover(self,landcover):
         """
-        Add Roughness Urban field to landcover Xarray. That is, LambdaP, LambdaF and HC to each landcover point.
-        Assumes the landcover is Urban.
+        Add Roughness Urban field to landcover Xarray. That is, z0 calculated from LambdaP, LambdaF and HC of each building.
         """
         pass
 
 
 
+class presentation:
+    _datalayer = None
 
-# #!/usr/bin/env python3
-# # -*- coding: utf-8 -*-
-# """
-# Created on Tue May 21 18:01:43 2024
-#
-# @author: nirb
-# """
-#
-#
-# from osgeo import gdal
-# import math
-# import matplotlib.pyplot as plt
-#
-# def getlc(filepath, lat, long):
-#
-#     ds = gdal.Open(filepath)
-#     img = ds.GetRasterBand(1).ReadAsArray()
-#     gt = ds.GetGeoTransform()
-#
-#     width = ds.RasterXSize
-#     height = ds.RasterYSize
-#     minx = gt[0]
-#     maxx = gt[0] + width*gt[1] + height*gt[2]
-#     miny = gt[3] + width*gt[4] + height*gt[5]
-#     maxy = gt[3]
-#     # plt.figure()
-#     # plt.imshow(img)
-#     # plt.show()
-#     x = math.floor((lat - gt[3])/gt[5])
-#     y = math.floor((long - gt[0])/gt[1])
-#     return (img[x,y])
-#
-# def lc2roughnesslength(lc, lctype=1):
-#     # https://wes.copernicus.org/articles/6/1379/2021/ table a2
-#     # https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien
-#
-#     if lctype == 1:
-#         if lc == 0: # Water
-#            rl = 0.0001 # depends on waves that depends on wind
-#         elif lc == 1: # Evergreen needleleaf forest
-#            rl = 1.0
-#         elif lc == 2: # Evergreen broadleaf forest
-#            rl = 1.0
-#         elif lc == 3: # Deciduous needleleaf forest
-#            rl = 1.0
-#         elif lc == 4: # Deciduous broadleaf forest
-#            rl = 1.0
-#         elif lc == 5: # Mixed forests
-#            rl = 1.0
-#         elif lc == 6: # Closed shrubland
-#            rl = 0.05
-#         elif lc == 7: # Open shrublands
-#            rl = 0.06
-#         elif lc == 8: # Woody savannas
-#            rl = 0.05
-#         elif lc == 9: # Savannas
-#            rl = 0.15
-#         elif lc == 10: # Grasslands
-#            rl = 0.12
-#         elif lc == 11: # Permanent wetlands
-#            rl = 0.3
-#         elif lc == 12: # Croplands
-#            rl = 0.15
-#         elif lc == 13: # Urban and built-up
-#            rl = 0.8
-#         elif lc == 14: # Cropland/natural vegetation mosaic
-#            rl = 0.14
-#         elif lc == 15: # Snow and ice
-#            rl = 0.001
-#         elif lc == 16: # Barren or sparsely vegetated
-#            rl = 0.01
-#         else:
-#            rl = 0.05 # Bamba choice
-#
-#     return rl
-#
-# def roughnesslength2sandgrainroughness(rl):
-# #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏
-# # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
-# # eq. 5: Equivalent sand grain roughness (m) is z0*30
-#
-# # we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
-# # Cs value can be set as 0.5
-#
-#     return rl*30.0 # return Ks value
-#
-# if __name__ == "__main__":
-#     filename = r'lc_mcd12q1v061.t1_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif' # 500m resolution
-#     # filename = r'lc_mcd12q1v061.t2_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif'
-#     # filename = r'lc_mcd12q1v061.t5_c_500m_s_20210101_20211231_go_epsg.4326_v20230818.tif'
-#     # filename = r'lc_mcd12q1v061.t1_c_500m_s_20200101_20201231_go_epsg.4326_v20230818.tif'
-#
-#     filepath = r'/data3/GIS_Data/LC/'+filename
-#
-#     lat = 31.88
-#     long = 34.743
-#
-#     mylc = getlc(filepath, lat, long)
-#     print (mylc, lc2roughnesslength(mylc))
-#
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, dataLayer):
+        self._datalayer = dataLayer
+        self.colors = {
+            0:'red',
+            1:'blue'
+        }
+    def plotLandcover(self,plot,landcover,alpha=0.2,figsize=(28,28)):
+        rectangles = self._getRectangles(landcover)
+        self._plotWithRectangles(plot,rectangles,alpha,figsize)
+        plt.show()
+
+    def _plotWithRectangles(self,plot,rectangles,alpha,figsize):
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.imshow(plot.get_array(), extent=plot.get_extent())
+        ax = self._adddRectanglesToPlot(ax, rectangles,alpha)
+
+        ax.set_xlim(plot.get_extent()[0], plot.get_extent()[1])
+        ax.set_ylim(plot.get_extent()[2], plot.get_extent()[3])
+
+        return ax
+
+    def _adddRectanglesToPlot(self,ax,rectangles,alpha):
+        for rect in rectangles:
+            x, y, width, height, color = rect
+            rectangle = patches.Rectangle(
+                (x, y),  # Bottom-left corner
+                width,  # Width
+                height,  # Height
+                linewidth=1,
+                edgecolor=color,
+                facecolor=color,
+                alpha=alpha
+            )
+            ax.add_patch(rectangle)
+
+        return ax
+    def _getRectangles(self,landcover):
+        rectangles = []
+        for arr in landcover:
+            for x in arr:
+                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values), self.colors.get(int(x.values))))
+
+        return list(set(rectangles))

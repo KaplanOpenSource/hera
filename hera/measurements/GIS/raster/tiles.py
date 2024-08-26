@@ -289,8 +289,8 @@ class presentation:
 
         lower_point = [extents[0],extents[2]]
         upper_right  = [extents[1],extents[3]]
-        lower_left_converted = convertCRS(points=[lower_point], inputCRS=WSG84, outputCRS=ITM)[0]
-        upper_right_converted = convertCRS(points=[upper_right], inputCRS=WSG84, outputCRS=ITM)[0]
+        lower_left_converted = convertCRS(points=[lower_point], inputCRS=inputCRS, outputCRS=outputCRS)[0]
+        upper_right_converted = convertCRS(points=[upper_right], inputCRS=inputCRS, outputCRS=outputCRS)[0]
 
         extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
 
