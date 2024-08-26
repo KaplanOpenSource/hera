@@ -449,6 +449,7 @@ class presentation:
 
 
     def plotLandcover(self,plot,landcover,alpha=0.2,figsize=(28,28)):
+        """Plot LandCover"""
         rectangles = self._getRectangles(landcover)
         self._plotWithRectangles(plot,rectangles,alpha,figsize)
         plt.show()
