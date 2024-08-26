@@ -8,13 +8,30 @@ class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSol
         super().__init__(toolkit=toolkit)
 
     def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionDuration,flowType=FLOWTYPE_INCOMPRESSIBLE,
-                                  overwrite: bool = False, useDBSupport: bool = True,dispersionFieldList=[]):
+                                  overwrite: bool = False, useDBSupport: bool = True):
         """
             Building the dispersion field,
         Parameters
         ----------
         flowName
-        flowData
+        flowData : JSON
+        A JSON with the format:
+        {
+                            "originalFlow": {
+                                "time": {
+                                    "temporalType": "steadyState",
+                                    "timestep": 400
+                                },
+                                "linkMeshSymbolically": true
+                            },
+                            "dispersionFields": {
+                                "ustar": 0.25,
+                                "Hmix": 1000
+                            }
+                        }
+
+            The dispersion fields are defines in the dispersionFields key.
+
         OriginalFlowField
         overwrite
         useDBSupport
@@ -23,14 +40,12 @@ class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSol
         -------
 
         """
-        for requiredField in  ['ustar','distanceFromWalls']:
-            if requiredField not in dispersionFieldList:
-                dispersionFieldList.append(requiredField)
+        for requiredField,defaultValue in  [('ustar',0),('distanceFromWalls',0)]:
+            flowData['dispersionFields'].setdefault(requiredField,defaultValue)
 
         super().createDispersionFlowField(flowName=flowName,
                                           flowData=flowData,
                                           OriginalFlowField=OriginalFlowField,
-                                          dispersionFieldList=dispersionFieldList,
                                           dispersionDuration=dispersionDuration,
                                           flowType=flowType,
                                           overwrite=overwrite,

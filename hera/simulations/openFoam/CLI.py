@@ -145,23 +145,23 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     logger.debug(f" arguments: {arguments}")
 
     projectName = arguments.projectName
-    logger.info(f"Adding dispersion flow to project {projectName}")
+    logger.info(f"Adding dispersion flow to project {projectName}. Overwriting? {arguments.overwrite}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=arguments.projectName)
 
-    flowdata = loadJSON(arguments.dispersionFlowParams)
-    flowName = os.path.basename(arguments.dispersionFlowParams).split(".")[0]
-    logger.info(f"Createing dispersion flows {flowName}")
+    params = arguments.dispersionFlowParams.replace("'",'"').replace("True","true").replace("False","false")
+    flowdata = loadJSON(params)
+    flowName = arguments.dispersionFlowName
+    logger.info(f"Createing dispersion flow (DFF) {flowName} for the flow {arguments.OriginalFlowField}")
 
-    dispersionFieldList = []
-    if 'dispersionFlowFields' in arguments:
-        if arguments.dispersionFlowFields is not None:
-            dispersionFieldList = list(numpy.atleast_1d(arguments.dispersionFlowFields))
+    # dispersionFieldList = []
+    # if 'dispersionFlowFields' in arguments:
+    #     if arguments.dispersionFlowFields is not None:
+    #         dispersionFieldList = list(numpy.atleast_1d(arguments.dispersionFlowFields))
 
     try:
         tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,
                                                           flowData=flowdata,
                                                           OriginalFlowField=arguments.OriginalFlowField,
-                                                          dispersionFieldList=dispersionFieldList,
                                                           dispersionDuration=arguments.dispersionDuration,
                                                           overwrite=arguments.overwrite)
     except FileExistsError:
@@ -475,16 +475,15 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
             logger.info(
                 f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
             outputName = arguments.dispersionName
-            cache = False
     else:
         doc = docList[0]
         outputName = doc.desc['workflowName']
-        cache = True
+        logger.info(f"The name {arguments.dispersionName} found. Use the workflow name {outputName}")
 
     outputdir = os.path.join(base_outputdir, "VTK", outputName)
     logger.info(f"Writing values to directory {outputdir}")
     os.makedirs(outputdir, exist_ok=True)
-    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,overwrite=arguments.overwrite,cache=cache)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,overwrite=arguments.overwrite,cache=False)
     tk.presentation.toUnstructuredVTK(data=data, outputdirectory=outputdir, filename=arguments.cloudName,
                                       overwrite=arguments.overwrite, xcoord="x", ycoord="y", zcoord="z")
 

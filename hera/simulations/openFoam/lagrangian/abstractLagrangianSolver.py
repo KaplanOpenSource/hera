@@ -30,7 +30,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         self.toolkit = toolkit
         self.analysis = analysis(self)
 
-    def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionFieldList, dispersionDuration,
+    def createDispersionFlowField(self, flowName, flowData, OriginalFlowField,  dispersionDuration,
                                   flowType=FLOWTYPE_INCOMPRESSIBLE, overwrite: bool = False, useDBSupport: bool = True):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
@@ -254,7 +254,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             querydict = dict(
                 groupName=workflowGroup,
                 flowParameters=dict(
-                    flowFields=dispersionFieldList,
+                    flowFields=flowData.get("dispersionFields", {}),
                     dispersionDuration=dispersionDuration,
                     originalFlow=originalFlow
                 )
@@ -388,10 +388,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
             dispersionFields = flowData.get("dispersionFields", {})
-            for fieldName in dispersionFieldList:
+            for fieldName,value in dispersionFields.items():
                 logger.info(
-                    f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                value = dispersionFields.get(fieldName, None)
+                    f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}. Using value {value}")
                 field = self.toolkit.OFObjectHome.getEmptyFieldFromCase(fieldName=fieldName, flowType=flowType,
                                                                         internalValue=value,
                                                                         caseDirectory=dispersionFlowFieldDirectory)
@@ -1046,20 +1045,21 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             dask.dataFrame.
         """
         logger = get_classMethod_logger(self, "readCloudData")
+        logger.info(f"Getting stochastic results. Use cache? {cache} ; Overwrite {overwrite}")
 
         if cache:
-            logger.debug(f"Checking to see if the data {caseDescriptor} is cached in the DB")
+            logger.info(f"Checking to see if the data {caseDescriptor} is cached in the DB")
             cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName,dockind="Cache")
             if len(cachedDocumentList) == 0:
-                logger.debug("Data is not cached, calculate it")
+                logger.info("Data is not cached, calculate it")
                 calculateData = True
                 cacheDoc = None
             elif overwrite:
-                logger.debug("overwrite is True, calculate it")
+                logger.info("overwrite is True, calculate it")
                 calculateData = True
                 cacheDoc = cachedDocumentList[0]
             else:
-                logger.debug("Returning the cached data")
+                logger.info("Returning the cached data")
                 ret = cachedDocumentList[0].getData(engine='pyarrow')
                 calculateData = False
         else:
@@ -1125,7 +1125,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 loaderList = [timeName for timeName in timeList]
                 ret = dask_dataframe.from_map(loader, loaderList)
 
-            if cache or overwrite:
+            if cache and overwrite:
                 if cacheDoc is not None:
                     logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
                     fullname = cacheDoc.resource
@@ -1142,6 +1142,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                                   type=self.DOCTYPE_LAGRANGIAN_CACHE,
                                                   resource=fullname,
                                                   desc=desc)
+
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
                 ret.set_index("time").repartition(partition_size="100MB").to_parquet(fullname)
 
@@ -1551,7 +1552,7 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
 
     try:
         newData = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalSigmaPositions"),
+            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
             ['x', 'y', 'z'])
         for fld in ['x', 'y', 'z']:
             newData[fld] = newData[fld].astype(numpy.float64)

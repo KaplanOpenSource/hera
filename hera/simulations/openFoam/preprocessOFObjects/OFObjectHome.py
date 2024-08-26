@@ -157,7 +157,7 @@ class OFObjectHome:
                         "m" : 1
                     }
                 }, 
-                "fieldType":"scalar",
+                "fieldType":"vector",
                 "fieldComputation":"eulerian"
             }
         }"""
