@@ -432,7 +432,6 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         pass
 
 
-
 class presentation:
     _datalayer = None
 
@@ -449,7 +448,26 @@ class presentation:
 
 
     def plotLandcover(self,plot,landcover,alpha=0.2,figsize=(28,28)):
-        """Plot LandCover"""
+        """
+        Plot LandCover upon Given Axes.
+
+        Parameters
+        ----------
+        plot: matplotlib.image.AxesImage
+            Satile Image to plot Polygons on.
+
+        landcover: xarray
+            Landcover xarray of plot area.
+
+        alpha: float, default=0.2
+            Opaqueness level.
+
+        figsize: tuple, default=(28,28)
+            Figure size.
+
+        Returns
+        -------
+        """
         rectangles = self._getRectangles(landcover)
         self._plotWithRectangles(plot,rectangles,alpha,figsize)
         plt.show()
