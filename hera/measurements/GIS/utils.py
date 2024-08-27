@@ -15,6 +15,8 @@ from scipy.interpolate import griddata
 WSG84 = 4326
 ITM   = 2039 # Israeli
 ED50_ZONE36N = 23036
+BETA = 0.2
+KARMAN = 0.41
 
 def convertCRS(points,inputCRS,outputCRS,**kwargs):
     """

@@ -1,5 +1,5 @@
 from .... import toolkit
-from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
+from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N,BETA,KARMAN
 from ....utils.logging import get_classMethod_logger
 import numpy
 import math
@@ -14,6 +14,8 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from hera import toolkitHome
+
 
 class LandCoverToolkit(toolkit.abstractToolkit):
     # """
@@ -280,7 +282,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return handlerFunction(landcover)
 
 
-    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None):
+    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None,GIS_BUILDINGS_dataSourceName=None):
         """
         Adds Roughness field (z0) to landcover Xarray.
 
@@ -295,6 +297,9 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         dataSourceName : string , default=None
             The name of the data source to use.
 
+        GIS_BUILDINGS_dataSourceName: string , default=None
+            The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.
+
         Returns
         -------
             xarray.DataArray
@@ -307,10 +312,10 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
         else:
-            landcover = self._getUrbanRoughnessFromLandCover(landcover)
+            landcover = self._getUrbanRoughnessFromLandCover(landcover,GIS_BUILDINGS_dataSourceName)
         return landcover
 
-    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False):
+    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,GIS_BUILDINGS_dataSourceName=None):
         """
         Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.
 
@@ -347,7 +352,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             xarray.DataArray
         """
         landcover = self.getLandCover(minlon,minlat,maxlon,maxlat,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
-        landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName)
+        landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName,GIS_BUILDINGS_dataSourceName=GIS_BUILDINGS_dataSourceName)
         return landcover
 
     def _handleType1(self,landcover):
@@ -425,11 +430,42 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         return dict
 
-    def _getUrbanRoughnessFromLandCover(self,landcover):
+    def _getUrbanRoughnessFromLandCover(self,landcover,GIS_BUILDINGS_dataSourceName):
         """
-        Add Roughness Urban field to landcover Xarray. That is, z0 calculated from LambdaP, LambdaF and HC of each building.
+        Add Roughness for Urban areas to landcover Xarray. z0 and dd fields are calculated from LambdaP, LambdaF and HC of each Urban area.
         """
-        pass
+        gis_building_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=self.projectName)
+
+        min_pp = convertCRS(points=[[float(landcover[0,0].lat.values), float(landcover[0,0].lon.values)]], inputCRS=WSG84, outputCRS=ITM)[0]
+
+        max_i, max_j = int(max(landcover.i).values) , int(max(landcover.j).values)
+        max_pp = convertCRS(points=[[float(landcover[max_i,max_j].lat.values), float(landcover[max_i,max_j].lon.values)]], inputCRS=WSG84, outputCRS=ITM)[0]
+
+        lambdaGrid = gis_building_tk.getBuildingsFromRectangle(minx=min_pp.x,miny=min_pp.y,maxx=max_pp.x,maxy=max_pp.y,dataSourceName=GIS_BUILDINGS_dataSourceName,inputCRS=ITM)
+        lambdaGrid = self._getRoughnessFromBuildingsDataFrame(lambdaGrid)
+
+
+        square_size = float(landcover.dxdy.values)
+        for arr in landcover:
+            for x in arr:
+                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                lambdas = lambdaGrid.loc[shape.intersects(lambdaGrid['geometry'])]
+                x['z0'] = lambdas['zz0']
+                x['dd'] = lambdas['dd']
+
+        return landcover
+
+    def _getRoughnessFromBuildingsDataFrame(self,lambdaGrid):
+        lambdaGrid.loc[(lambdaGrid.hc < 2), "lambdaF"] = 0.25
+        lambdaGrid.loc[(lambdaGrid.hc < 2), "lambdaP"] = 0.25
+        lambdaGrid.loc[(lambdaGrid.hc < 2), "hc"] = 2
+        lambdaGrid.loc[(lambdaGrid.lambdaF > 0.4), "lambdaF"] = 0.4
+        lambdaGrid.loc[(lambdaGrid.lambdaP > 0.6), "lambdaP"] = 0.6
+        lambdaGrid["Lc"] = lambdaGrid["hc"] * (1 - lambdaGrid["lambdaP"]) / lambdaGrid["lambdaF"]
+        lambdaGrid["ll"] = 2 * (BETA ** 3) * lambdaGrid["Lc"]
+        lambdaGrid["zz0"] = lambdaGrid["ll"] / KARMAN * np.exp(-KARMAN / BETA)
+        lambdaGrid["dd"] = lambdaGrid["ll"] / KARMAN
+        return lambdaGrid
 
 
 class presentation:
