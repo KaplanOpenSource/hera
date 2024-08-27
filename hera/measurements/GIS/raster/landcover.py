@@ -345,6 +345,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName)
         return landcover
 
+
     def handleType1(self,landcover):
         """
         Converting land type of Type-1 to roughness.
