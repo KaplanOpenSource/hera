@@ -16,7 +16,11 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+    #249    - Fixed the bug with JSON containing keys end with __type. Key must end with __type__. 
+            - Fixed a bug in the processToJson: now also support dicts inside maps. 
 2.15.4
+    #193    - OpenFOAM: Uniting the write new fields and the write of the regular openfoam case. 
+                        also include procedures to read the field from the case, only the boundaries and ect.
     #187    - Adding the support for VTk pipelines in the openfoam toolkit.   
     #182    - Added the default tile server in the tile toolkit. 
 2.15.3

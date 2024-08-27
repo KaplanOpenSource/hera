@@ -10,19 +10,16 @@ from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_to
 from ...utils.jsonutils import loadJSON
 from ...utils.logging import get_classMethod_logger
 from evtk import hl as evtk_hl
-import dask.dataframe as dd
+import dask.dataframe as dask_dataframe
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
 from . import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
-    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED
+    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
 from .eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
 import pandas
 from dask.delayed import delayed
 import dask
-
-from . import FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
-
 
 class OFToolkit(hermesWorkflowToolkit):
     """
@@ -142,7 +139,7 @@ class OFToolkit(hermesWorkflowToolkit):
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
             logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
-            os.system(f"foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres ")
             logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
             if not os.path.exists(checkPath):
                 logger.error("Error running the writeCellCentres. Check mesh")
@@ -151,7 +148,7 @@ class OFToolkit(hermesWorkflowToolkit):
             logger.debug(f"Cell centers exist in {caseType} case.")
 
         logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
-        cellCenters = self.OFObjectHome.getFieldFromCase(fieldName="cellCenters",
+        cellCenters = self.OFObjectHome.readFieldFromCase(fieldName="cellCenters",
                                                          flowType=FLOWTYPE_INCOMPRESSIBLE,
                                                          caseDirectory=caseDirectory,
                                                          timeStep=time,
@@ -220,11 +217,54 @@ class OFToolkit(hermesWorkflowToolkit):
         # Makes the empty fields
         for fieldName in fieldList:
             logger.info(f"Creating field {fieldName}")
-            field = self.OFObjectHome.getEmptyField(fieldName, flowType=flowType)
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation=0)
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.orig")
-            field.writeEmptyField(caseDirectory=caseDirectory, timeOrLocation="0.parallel", parallel=False,
-                                  parallelBoundary=True)
+            self.writeEmptyField(fieldName=fieldName,flowType=flowType,caseDirectory=caseDirectory,timeOrLocation=0)
+            self.writeEmptyField(fieldName=fieldName,flowType=flowType,caseDirectory=caseDirectory,timeOrLocation="0.orig")
+            self.writeEmptyField(fieldName=fieldName,flowType=flowType,caseDirectory=caseDirectory,timeOrLocation="0.parallel",writeProcBoundary=True)
+
+    def writeEmptyField(self,fieldName,flowType,caseDirectory,timeOrLocation=0,readBoundaryFromCase=False,writeProcBoundary=False):
+        """
+            Writes an empty field in the case.
+
+            If the readBoundaryField is True, then the field is written with the relevant boundaries (that are red from the case).
+
+        Parameters
+        ----------
+        fieldName : str
+            The name of the field
+        flowType : str
+            The flow type (compressible/incompressible)
+        timeOrLocation : float  [default : 0]
+            The time to write the new field in
+        caseDirectory : str
+            The name of te new case directory
+        readParallel : bool
+            If true, then attempt to write as parallel fields.
+        readBoundaryFromCase : bool
+            If True, tries to read the boundary names from the case.
+            Otherwise write the general ".*" boundary field.
+
+        writeProcBoundary : bool
+           If true writes the proc boundaries.
+           If readBoundaryFromCase is True, then write the specific proc for each processor (when it is parallel)
+           Otherwise, write the "proc.*" boundary field.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"writeEmptyField")
+        logger.info(f"Creating the field: {fieldName}. ")
+
+        field = self.OFObjectHome.getEmptyField(fieldName=fieldName, flowType=flowType)
+
+        if readBoundaryFromCase:
+            field.readBoundariesFromCase(caseDirectory,readParallel=True)
+
+        if writeProcBoundary:
+            field.addProcBoundary()
+        field.writeToCase(caseDirectory=caseDirectory, timeOrLocation=timeOrLocation)
+
+    #############################################################
 
     def template_add(self, name, objFile, workflowObj=None):
         """
@@ -360,149 +400,6 @@ class OFToolkit(hermesWorkflowToolkit):
             """
             ret.append(BoxRecord)
         return "\n".join(ret)
-
-    def readFieldAsDataframe(self, caseDirectory, times=None, parallelCase=True):
-        """
-            Reads the field into dask/pandas dataframe.
-            The field must be predefined in the OFHome objects and it will deterpmine
-            if we use the lagrangian or the eulerian function.
-
-            It assumes that the field is a list. If it is a non list, then that data will not be returned.
-
-            If read in parallel, then add the processor to the output columns.
-
-        Parameters
-        -----------
-
-            times: list
-                 a list of time steps to extract.
-                 If None, it extracts all time steps in the casePath.
-            file: str
-                The name for a file, in which the data is saved. Default is "<cloud name>_data.parquet", in the current working directory.
-
-            withVelocity: bool
-                    True: extract the particles' velocities in addition to their positions.
-                    Default is False.
-
-            **kwargs:
-                Any additional parameters to add to the description in the DB.
-        Returns
-        --------
-            document of the data.
-        """
-        finalCasePath = os.path.abspath(caseDirectory)
-
-        if parallelCase:
-            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
-            if len(processorList) == 0:
-                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
-
-            if times is None:
-                timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                        os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-            else:
-                timeList = numpy.atleast_1d(times)
-
-            data = dask_dataframe.from_map(
-                [delayed(extractField)(casePath=os.path.join(finalCasePath, processorName, str(timeName), self.name),
-                                       patchNamesList=self.boundaryPatchList,
-                                       columnNames=self.componentNames,
-                                       time=timeName,
-                                       processor=int(processorName[9:])) for processorName, timeName in product(
-                    processorList, timeList)])
-        else:
-            if times is None:
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                        os.path.isdir(x) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-            else:
-                timeList = numpy.atleast_1d(times)
-
-            data = dask_dataframe.from_map(
-                [delayed(extractField)(casePath=os.path.join(finalCasePath, str(timeName), self.name),
-                                       columnNames=self.componentNames,
-                                       time=timeName)
-                 for timeName in timeList])
-
-        return data
-
-    def readLagrangianFieldsToDataFrame(self,
-                                        casePath,
-                                        times=None,
-                                        parallelCase=True,
-                                        withVelocity=False,
-                                        withReleaseTimes=False,
-                                        withMass=False,
-                                        cloudName="kinematicCloud"):
-        """
-            Extracts results of an LSM run.
-
-            Depracated... Use the Stochastic solver sub toolkit and the getCaseResults.
-
-        Parameters
-        -----------
-
-            times: list
-                 a list of time steps to extract.
-                 If None, it extracts all time steps in the casePath.
-            file: str
-                The name for a file, in which the data is saved. Default is "<cloud name>_data.parquet", in the current working directory.
-
-            withVelocity: bool
-                    True: extract the particles' velocities in addition to their positions.
-                    Default is False.
-
-            **kwargs:
-                Any additional parameters to add to the description in the DB.
-        Returns
-        --------
-            document of the data.
-        """
-        finalCasePath = os.path.abspath(casePath)
-        loader = lambda timeName: readLagrangianRecord(timeName,
-                                                       casePath=finalCasePath,
-                                                       withVelocity=withVelocity,
-                                                       withReleaseTimes=withReleaseTimes,
-                                                       withMass=withMass,
-                                                       cloudName=cloudName)
-
-        if parallelCase:
-
-            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(finalCasePath, "processor*"))]
-            if len(processorList) == 0:
-                raise ValueError(f"There are no processor* directories in the case {finalCasePath}. Is it parallel?")
-
-            if times is None:
-                timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                        os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-            else:
-                timeList = numpy.atleast_1d(times)
-
-            data = dask_dataframe.from_map(
-                [delayed(loader)(os.path.join(processorName, timeName)) for processorName, timeName in
-                 product(processorList, timeList[1:])])
-        else:
-
-            if times is None:
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                        os.path.isdir(x) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-            else:
-                timeList = numpy.atleast_1d(times)
-
-            data = dask_dataframe.from_map([delayed(loader)(timeName) for timeName in timeList])
-
-        return data
 
 
 class Analysis:
@@ -647,8 +544,7 @@ class Presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, timeNameOutput=True, fieldList=None, xcoord="x",
-                          ycoord="y", zcoord="z", timecoord="time"):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, fieldList=None, xcoord="globalX",ycoord="globalY",zcoord="globalZ", timecoord="time"):
         """
             Writes the data as a VTK vtu file.
 
@@ -672,7 +568,7 @@ class Presentation:
         if fieldList is None:
             fieldList = [x for x in data.columns if x not in [xcoord, ycoord, zcoord]]
 
-        if isinstance(data, dd.DataFrame):
+        if isinstance(data, dask_dataframe.DataFrame):
             logger.debug("The input type is dask dataframe. Getting timesteps and then using partition")
             timeList = [z for z in chain(*[x.index.unique().compute() for x in data.partitions])]
             for indx, time in enumerate(timeList):
@@ -687,10 +583,10 @@ class Presentation:
                 evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
         else:
             # all the data is loaded:
-            for indx, (timeName, timeData) in enumerate(data.groupby("time")):
+            for indx, (timeName, timeData) in enumerate(data.groupby(timecoord)):
                 outdata = dict((x, timeData[x].values) for x in fieldList)
                 finalfile = f"{namePath}_{indx}"
-                logger.info(f"Writing time step {time} to {finalfile}")
+                logger.info(f"Writing time step {timeName} to {finalfile}")
 
                 x = timeData[xcoord].values
                 y = timeData[ycoord].values
@@ -804,153 +700,6 @@ class Presentation:
 
         return data
 
-##########################
-####   Utils
-##########################
-def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
-    """
-        Extracts data from a openFOAM list file.
-
-        list files has no boundary and so, we can just skip head and end.
-
-    Parameters
-    ----------
-    path: str
-        The path of the file
-    time: str
-        The files' time step
-    columnNames: list of str
-        The names of the columns
-    skiphead: int
-        Number of lines to skip from the beginning of the file
-    skipend: int
-        Number of lines to skip from the ending of the file
-
-    Returns
-    -------
-        Pandas with the data.
-    """
-
-    cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
-    cnvrtDict = dict([(x, cnvrt) for x in columnNames])
-
-    try:
-        newData = pandas.read_csv(path,
-                                  skiprows=skiphead,
-                                  skipfooter=skipend,
-                                  engine='python',
-                                  header=None,
-                                  delim_whitespace=True,
-                                  converters=cnvrtDict,
-                                  names=columnNames)
-    except ValueError:
-        newData = []
-
-    if len(newData) == 0:
-        with open(path, "r") as thefile:
-            lines = thefile.readlines()
-
-        vals = lines[17]
-        data = []
-
-        if vector:
-            if "{" in vals:
-                inputs = vals.split("{")
-                repeat = int(inputs[0])
-                valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
-                data = dict(
-                    [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
-            else:
-                for rcrdListTuple in vals.split("(")[2:]:
-                    record = dict(
-                        [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
-                    data.append(record)
-        else:
-
-            if "{" in vals:
-                inputs = vals.split("{")
-                repeat = int(inputs[0])
-                value = float(inputs[1].split("}")[0])
-                data = [{columnNames[0]: value} for x in range(repeat)]
-
-            else:
-                valuesList = vals.split("(")[1]
-                for rcrdListItem in valuesList.split(" "):
-                    record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
-                    data.append(record)
-
-        newData = pandas.DataFrame(data)
-
-    return newData.astype(float)
-
-
-def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
-                         cloudName="kinematicCloud"):
-    print(f"Processing {timeName}")
-
-    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
-    if withMass:
-        columnsDict['mass'] = []
-    if withReleaseTimes:
-        columnsDict['age'] = []
-    if withVelocity:
-        columnsDict['U_x'] = []
-        columnsDict['U_y'] = []
-        columnsDict['U_z'] = []
-
-    newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
-
-    try:
-        newData = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalSigmaPositions"),
-            ['x', 'y', 'z'])
-        for fld in ['x', 'y', 'z']:
-            newData[fld] = newData[fld].astype(numpy.float64)
-
-        dataID = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"),
-                             ['id'], vector=False)
-        newData['id'] = dataID['id'].astype(numpy.float64)
-
-        dataprocID = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'],
-            vector=False)
-        newData['procId'] = dataprocID['procId'].astype(numpy.float64)
-
-        newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
-
-        dataGlobal = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
-            ['globalX', 'globalY', 'globalZ'])
-
-        for col in ['globalX', 'globalY', 'globalZ']:
-            newData[col] = dataGlobal[col].astype(numpy.float64)
-
-        if withVelocity:
-            dataU = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
-                                ['U_x', 'U_y', 'U_z'])
-            for col in ['U_x', 'U_y', 'U_z']:
-                newData[col] = dataU[col]
-
-        if withReleaseTimes:
-            dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "age"),
-                                ['age'], vector=False)
-            # newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
-
-        if withMass:
-            dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
-                                ['mass'], vector=False)
-            try:
-                newData["mass"] = dataM["mass"]
-            except:
-                newData = newData.compute()
-                newData["mass"] = dataM["mass"]
-
-    except:
-        pass
-
-    theTime = os.path.split(timeName)[-1]
-    newData['time'] = float(theTime)
-    return newData
 
     # def compareWorkflows_AllGroups(self,workflowsTypes):
     #     """

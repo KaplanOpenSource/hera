@@ -80,6 +80,7 @@ class AbstractCollection(object):
             query['projectName'] = projectName
         for key, value in desc.items():
                 query['desc__%s' % key] = value
+
         return self._metadataCol.objects(**query)
 
     def _getAllValueByKey(self, key, **query):
