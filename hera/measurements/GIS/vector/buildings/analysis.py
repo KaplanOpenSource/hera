@@ -8,6 +8,7 @@ import pandas as pd
 import shapely.wkt
 from shapely.geometry import box, Polygon
 from .....utils.logging import get_classMethod_logger
+import fiona
 
 BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
@@ -83,28 +84,28 @@ class analysis():
 
     def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData, overwrite=False,saveCache=True):
         """
+        Calculate LambdaF, LambdaP and HC for given GIS geopandas file.
 
         Parameters
         ----------
         windMeteorologicalDirection : double
-                The meteorological angle
+            The meteorological angle
 
         resolution: double
-                The size of the squares.
+            The size of the squares.
 
         buildingsData: geopandas.Geopandas
-                Geopandas of the buildings
-                The columns are:
-                    -
-                    -
-                The crs of the building data must be set.
+            Geopandas of the buildings.
 
         overwrite : bool
-            If true, write over data and update the database
+            If true, overwrite the current cache data and update the database.
+
+        saveCache: bool
+            If true, will save Lambdas meassurments to cache file.
 
         Returns
         -------
-
+            geopandas.geodataframe.GeoDataFrame
         """
         logger = get_classMethod_logger(self, "LambdaFromBuildingData")
         logger.info("--- Start ---")
@@ -143,13 +144,13 @@ class analysis():
                 if len(dataDoc) == 0:
                     logger.debug("Adding new record to the DB")
                     doc = self.datalayer.addCacheDocument(resource="",
-                                                          dataFormat=self.datatypes.GEOPANDAS,
+                                                          dataFormat="geopandas",
                                                           type="Lambda_Buildings",
                                                          desc=desc)
-                    fileID = self.getConfig()["analysis_CacheCounter"]
-                    self.setConfig(analysis_CacheCounter=fileID+1)
+                    fileID = self.datalayer.getConfig()["analysis_CacheCounter"]
+                    self.datalayer.setConfig(analysis_CacheCounter=fileID+1)
                     filename = f"LambdaGeoJson_{fileID}.geojson"
-                    outputfileFull = os.path.abspath(os.path.join(self._datalayer.filesDirectory, filename))
+                    outputfileFull = os.path.abspath(os.path.join(self.datalayer.filesDirectory, filename))
                     logger.debug(f"Writing Lambda data to {outputfileFull}")
 
                 elif len(dataDoc)>0:
@@ -157,6 +158,7 @@ class analysis():
                     doc = dataDoc[0]
                     outputfileFull = doc.resource
 
+                logger.info(f"Writing Lambda data to {outputfileFull}")
                 domainLambda.to_file(outputfileFull,driver='GeoJSON')
                 doc.resource = outputfileFull
                 doc.save()

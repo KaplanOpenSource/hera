@@ -216,16 +216,38 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
     pnds = pandas.json_normalize(jsonData).T.reset_index().rename(columns={'index': nameColumn, 0: valueColumn})\
         .explode(valueColumn,ignore_index=True)\
         .reset_index()
+    pnds[nameColumn] = pnds[nameColumn].astype(str)
 
     # Handles nested lists. keep on exploding until all is flat!.
     while True:
         listParameters = pnds.groupby(nameColumn).count().query(f"{valueColumn}>1").index
         for pname in listParameters:
             counter = 0
-            for I, dta in pnds.iterrows():
-                if dta.loc[nameColumn] == pname:
-                    pnds.loc[I, nameColumn] = f"{pname}_{counter}"
+            I = pnds.apply(lambda x: x[nameColumn]==pname,axis=1)
+            for indx, dta in pnds[I].iterrows():
+                    pnds.loc[indx, nameColumn] = f"{pname}_{counter}"
                     counter += 1
+
+        # Handling dicts. (that were inside list, and therefore were not exploded).
+        # So now we need:
+        # 1. find all the dict lines
+        # 2. make a new data frame from each key,
+        # 3. add the path of the father
+        # 4. remove the old value
+        # 5. concat all the new pandas.
+        pandasAfterDictExpansion = []
+        I = pnds.apply(lambda x: isinstance(x[valueColumn],dict),axis=1)
+        for indx,data in pnds[I].iterrows():
+            fatherPath = pnds.loc[indx][nameColumn]
+            mapDataframe = pandas.json_normalize(pnds.loc[indx][valueColumn]).T.reset_index().rename(columns={'index': nameColumn, 0: valueColumn})
+            for newIndx,newData in mapDataframe.iterrows():
+                currentName = newData[nameColumn]
+                mapDataframe.loc[newIndx, nameColumn] = f"{fatherPath}_{currentName}"
+
+            pandasAfterDictExpansion.append(mapDataframe)
+
+        pnds = pnds.drop(pnds[I].index)
+        pnds = pandas.concat([pnds]+pandasAfterDictExpansion,ignore_index=True).drop("index",axis=1).reset_index()
 
         # Handles lists with 1 item.
         for I, dta in pnds.iterrows():
