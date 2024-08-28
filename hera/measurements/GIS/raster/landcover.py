@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from hera import toolkitHome
+import matplotlib.colors as mcolors
 
 
 class LandCoverToolkit(toolkit.abstractToolkit):
@@ -457,14 +458,14 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         lambdaGrid = self._getRoughnessFromBuildingsDataFrame(lambdaGrid)
         square_size = float(landcover.dxdy.values)
 
-        landcover['zz0'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+        landcover['z0'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
         landcover['dd'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
 
         for i, arr in enumerate(landcover):
             for j, x in enumerate(arr):
                 shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
                 lambdas = lambdaGrid.loc[shape.intersects(lambdaGrid['geometry'])]
-                landcover['zz0'].values[i, j] = lambdas['zz0'].values[0]
+                landcover['z0'].values[i, j] = lambdas['zz0'].values[0]
                 landcover['dd'].values[i, j] = lambdas['dd'].values[0]
 
         return landcover
@@ -494,10 +495,36 @@ class presentation:
 
     def __init__(self, dataLayer):
         self._datalayer = dataLayer
-        self.colors = {
+        self.landcover_colors_map = {
             0:'red',
             1:'blue'
         }
+
+    def plotRoughness(self,plot,landcover,alpha=0.5,figsize=(28,28)):
+        """
+        Plot Roughness upon Given Axes.
+
+        Parameters
+        ----------
+        plot: matplotlib.image.AxesImage
+            Satile Image to plot Polygons on.
+
+        landcover: xarray
+            Landcover xarray of plot area.
+
+        alpha: float, default=0.2
+            Opaqueness level.
+
+        figsize: tuple, default=(28,28)
+            Figure size.
+
+        Returns
+        -------
+        """
+        fig, ax = plt.subplots(figsize=figsize)
+        rectangles = self._getRoughnessRectangles(landcover)
+        self._plotWithRectangles(ax, plot, rectangles, alpha)
+        plt.show()
 
 
     def plotLandcover(self,plot,landcover,alpha=0.2,figsize=(28,28)):
@@ -521,12 +548,13 @@ class presentation:
         Returns
         -------
         """
-        rectangles = self._getRectangles(landcover)
-        self._plotWithRectangles(plot,rectangles,alpha,figsize)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        rectangles = self._getLandcoverRectangles(landcover)
+        self._plotWithRectangles(ax,plot,rectangles,alpha)
         plt.show()
 
-    def _plotWithRectangles(self,plot,rectangles,alpha,figsize):
-        fig, ax = plt.subplots(figsize=figsize)
+    def _plotWithRectangles(self,ax,plot,rectangles,alpha):
         ax.imshow(plot.get_array(), extent=plot.get_extent())
         ax = self._adddRectanglesToPlot(ax, rectangles,alpha)
 
@@ -550,11 +578,25 @@ class presentation:
             ax.add_patch(rectangle)
 
         return ax
-    def _getRectangles(self,landcover):
+    def _getLandcoverRectangles(self,landcover):
         rectangles = []
         for arr in landcover:
             for x in arr:
                 shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
-                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values), self.colors.get(int(x.values))))
+                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values), self.landcover_colors_map.get(int(x.values))))
+
+        return list(set(rectangles))
+
+    def _getRoughnessRectangles(self,landcover):
+        rectangles = []
+        colormap = plt.cm.viridis
+        norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
+
+        for arr in landcover:
+            for x in arr:
+                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                color = colormap(norm(x['z0'].values))
+                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values),
+                                   color))
 
         return list(set(rectangles))
