@@ -282,7 +282,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return handlerFunction(landcover)
 
 
-    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None,GIS_BUILDINGS_dataSourceName=None):
+    def getRoughnessFromLandcover(self,landcover,windMeteorologicalDirection=None,resolution=None,isBuilding=False,dataSourceName=None,GIS_BUILDINGS_dataSourceName=None):
         """
         Adds Roughness field (z0) to landcover Xarray.
 
@@ -291,8 +291,14 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         landcover : Xarray
             Landcover Xarray map in which the Roughness field will be added to.
 
+        windMeteorologicalDirection: double,default=None
+            The meteorological angle. Must be specified only if data includes urbanic area.
+
+        resolution: double,default=None
+            The size of the squares. Must be specified only if data includes urbanic area.
+
         isBuilding : bool, default=False
-            Is the landcover containts building area.
+            Is the landcover containts urbanic area.
 
         dataSourceName : string , default=None
             The name of the data source to use.
@@ -312,7 +318,9 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
         else:
-            landcover = self._getUrbanRoughnessFromLandCover(landcover,GIS_BUILDINGS_dataSourceName)
+            if not windMeteorologicalDirection or not resolution:
+                raise ValueError("windMeteorologicalDirection and reolution must be specified for calculating urban area.")
+            landcover = self._getUrbanRoughnessFromLandCover(landcover,windMeteorologicalDirection,resolution,GIS_BUILDINGS_dataSourceName)
         return landcover
 
     def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,GIS_BUILDINGS_dataSourceName=None):
@@ -430,7 +438,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         return dict
 
-    def _getUrbanRoughnessFromLandCover(self,landcover,GIS_BUILDINGS_dataSourceName):
+    def _getUrbanRoughnessFromLandCover(self,landcover,windMeteorologicalDirection,resolution,GIS_BUILDINGS_dataSourceName):
         """
         Add Roughness for Urban areas to landcover Xarray. z0 and dd fields are calculated from LambdaP, LambdaF and HC of each Urban area.
         """
@@ -441,17 +449,23 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         max_i, max_j = int(max(landcover.i).values) , int(max(landcover.j).values)
         max_pp = convertCRS(points=[[float(landcover[max_i,max_j].lat.values), float(landcover[max_i,max_j].lon.values)]], inputCRS=WSG84, outputCRS=ITM)[0]
 
-        lambdaGrid = gis_building_tk.getBuildingsFromRectangle(minx=min_pp.x,miny=min_pp.y,maxx=max_pp.x,maxy=max_pp.y,dataSourceName=GIS_BUILDINGS_dataSourceName,inputCRS=ITM)
+
+        buildings = gis_building_tk.getBuildingsFromRectangle(minx=min_pp.x,miny=min_pp.y,maxx=max_pp.x,maxy=max_pp.y,dataSourceName=GIS_BUILDINGS_dataSourceName,inputCRS=ITM)
+        lambdaGrid = gis_building_tk.analysis.LambdaFromBuildingData(windMeteorologicalDirection, resolution, buildings)
+
+        lambdaGrid.crs = ITM
         lambdaGrid = self._getRoughnessFromBuildingsDataFrame(lambdaGrid)
-
-
         square_size = float(landcover.dxdy.values)
-        for arr in landcover:
-            for x in arr:
+
+        landcover['zz0'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+        landcover['dd'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+
+        for i, arr in enumerate(landcover):
+            for j, x in enumerate(arr):
                 shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
                 lambdas = lambdaGrid.loc[shape.intersects(lambdaGrid['geometry'])]
-                x['z0'] = lambdas['zz0']
-                x['dd'] = lambdas['dd']
+                landcover['zz0'].values[i, j] = lambdas['zz0'].values[0]
+                landcover['dd'].values[i, j] = lambdas['dd'].values[0]
 
         return landcover
 
@@ -469,6 +483,9 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
 class presentation:
+    """
+    Presentation Layer of LandCover toolkit.
+    """
     _datalayer = None
 
     @property
