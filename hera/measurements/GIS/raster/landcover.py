@@ -16,7 +16,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from hera import toolkitHome
 import matplotlib.colors as mcolors
-
+import warnings
+from tqdm import tqdm
+# Suppress specific GDAL warning
+warnings.filterwarnings("ignore", message="Starting with GDAL 3.7, PIXELTYPE=SIGNEDBYTE is no longer used to signal signed 8-bit raster.*")
 
 class LandCoverToolkit(toolkit.abstractToolkit):
     # """
@@ -321,7 +324,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         else:
             if not windMeteorologicalDirection or not resolution:
                 raise ValueError("windMeteorologicalDirection and reolution must be specified for calculating urban area.")
-            landcover = self._getUrbanRoughnessFromLandCover(landcover,windMeteorologicalDirection,resolution,GIS_BUILDINGS_dataSourceName)
+            landcover = self._getUrbanRoughnessFromLandCover(landcover,windMeteorologicalDirection,resolution,dataSourceName,GIS_BUILDINGS_dataSourceName)
         return landcover
 
     def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,GIS_BUILDINGS_dataSourceName=None):
@@ -439,7 +442,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         return dict
 
-    def _getUrbanRoughnessFromLandCover(self,landcover,windMeteorologicalDirection,resolution,GIS_BUILDINGS_dataSourceName):
+    def _getUrbanRoughnessFromLandCover(self,landcover,windMeteorologicalDirection,resolution,dataSourceName,GIS_BUILDINGS_dataSourceName):
         """
         Add Roughness for Urban areas to landcover Xarray. z0 and dd fields are calculated from LambdaP, LambdaF and HC of each Urban area.
         """
@@ -461,12 +464,17 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         landcover['z0'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
         landcover['dd'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
 
-        for i, arr in enumerate(landcover):
+        for i, arr in enumerate(tqdm(landcover)):
             for j, x in enumerate(arr):
                 shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
                 lambdas = lambdaGrid.loc[shape.intersects(lambdaGrid['geometry'])]
-                landcover['z0'].values[i, j] = lambdas['zz0'].values[0]
-                landcover['dd'].values[i, j] = lambdas['dd'].values[0]
+                if len(lambdas)==0:
+                    landcover['z0'].values[i, j] = self.getLandCoverAtPoint(x.lon,x.lat,WSG84,dataSourceName)
+                    landcover['dd'].values[i, j] = 0
+                else:
+                    landcover['z0'].values[i, j] = lambdas['zz0'].values[0]
+                    landcover['dd'].values[i, j] = lambdas['dd'].values[0]
+
 
         return landcover
 
