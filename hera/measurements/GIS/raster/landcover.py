@@ -463,6 +463,10 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         landcover['z0'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
         landcover['dd'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+        landcover['lambdaF'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+        landcover['lambdaP'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+        landcover['hc'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
+        landcover['ll'] = (('i', 'j'), np.full((landcover.sizes['i'], landcover.sizes['j']), np.nan))
 
         for i, arr in enumerate(tqdm(landcover)):
             for j, x in enumerate(arr):
@@ -471,10 +475,17 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 if len(lambdas)==0:
                     landcover['z0'].values[i, j] = self.getLandCoverAtPoint(x.lon,x.lat,WSG84,dataSourceName)
                     landcover['dd'].values[i, j] = 0
+                    landcover['lambdaF'].values[i, j] = 0
+                    landcover['lambdaP'].values[i, j] = 0
+                    landcover['hc'].values[i, j] = 0
+                    landcover['ll'].values[i, j] = 0
                 else:
                     landcover['z0'].values[i, j] = lambdas['zz0'].values[0]
                     landcover['dd'].values[i, j] = lambdas['dd'].values[0]
-
+                    landcover['lambdaF'].values[i, j] = lambdas['lambdaF'].values[0]
+                    landcover['lambdaP'].values[i, j] = lambdas['lambdaP'].values[0]
+                    landcover['hc'].values[i, j] = lambdas['hc'].values[0]
+                    landcover['ll'].values[i, j] = lambdas['ll'].values[0]
 
         return landcover
 
@@ -604,6 +615,49 @@ class presentation:
             for x in arr:
                 shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
                 color = colormap(norm(x['z0'].values))
+                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values),
+                                   color))
+
+        return list(set(rectangles))
+
+    def plotLambdas(self,field,plot,landcover,alpha=0.2,figsize=(28,28)):
+        """
+        Plot Lmabda upon given Axes.
+
+        Parameters
+        ----------
+        field: str
+            Name of desired lambda to be plotted.
+
+        plot: matplotlib.image.AxesImage
+            Satile Image to plot Polygons on.
+
+        landcover: xarray
+            Landcover xarray of plot area.
+
+        alpha: float, default=0.2
+            Opaqueness level.
+
+        figsize: tuple, default=(28,28)
+            Figure size.
+
+        Returns
+        -------
+        """
+        fig, ax = plt.subplots(figsize=figsize)
+        rectangles = self._getLambdasRectangles(field,landcover)
+        self._plotWithRectangles(ax, plot, rectangles, alpha)
+        plt.show()
+
+    def _getLambdasRectangles(self,field,landcover):
+        rectangles = []
+        colormap = plt.cm.viridis
+        norm = mcolors.Normalize(vmin=landcover[field].min().values, vmax=landcover[field].max().values)
+
+        for arr in landcover:
+            for x in arr:
+                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                color = colormap(norm(x[field].values))
                 rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values),
                                    color))
 
