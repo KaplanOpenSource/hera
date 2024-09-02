@@ -2,7 +2,7 @@
 import argparse
 import logging
 from hera.simulations.openFoam import CLI
-from hera.simulations import CLI as simulationsCLI
+
 from hera.utils.logging import initialize_logging,with_logger
 
 
@@ -25,7 +25,7 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     templates_list = templates_subparser.add_parser('list', help='List the existing templates in the project for that solver')
     templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_list.set_defaults(solver=solverName)
-    templates_list.set_defaults(func=CLI.foam_templates_flow_list)
+    templates_list.set_defaults(func=CLI.foam_solver_templates_list)
 
     ## ---------------- create case from template
     templates_create = templates_subparser.add_parser('get', help=f'Create the case for {solverName} with the template')
@@ -33,9 +33,31 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     templates_create.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_create.add_argument('--groupName', type=str, default=None, help="The name of the group")
     templates_create.add_argument('--projectPath', type=str, default=None, help="The directory of the project")
-
     templates_create.set_defaults(solver=solverName)
-    templates_create.set_defaults(func=CLI.foam_templates_flow_create)
+    templates_create.set_defaults(func=CLI.foam_solver_template_create)
+
+    ##
+    #   Adds a workfow to the project and executes it.
+    ## ---------------- execute workflow and add it to db (unless --noDB flag exists).
+    ##
+    parser_prepare = templates_subparser.add_parser('buildExecute', help='Adds the workflow and executes it.')
+    parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
+    parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    parser_prepare.add_argument('--workflowGroup', dest="workflowGroup", default=None, type=str,
+                                help='The simulation group. [Optional]. If None, try to infer from the file name  ')
+    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                help='overwrite the existing workflow with the same name')
+    parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
+                                help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
+    parser_prepare.add_argument('--allowDuplicate', dest="force", action="store_true", default=False,
+                                help='Add the current workflow to the DB even if it exists there under a different name')
+    parser_prepare.add_argument('--noDB', dest="noDB", action="store_false", default=True,
+                                help='Run the workflow without adding to the DB')
+    parser_prepare.set_defaults(execute=True)
+    parser_prepare.set_defaults(func=CLI.foam_solver_template_buildExecute)
+
+
+
 
 #foam_templates_node_list
 
@@ -209,7 +231,8 @@ def addSolverPostProcess(subparser,solverName,incompressible):
 
 if __name__ == "__main__":
     initialize_logging(
-         with_logger("hera.simulations", handlers=['console'], level='INFO', propagate=False),
+        with_logger("hermes", handlers=['console'], level='DEBUG', propagate=False),
+         with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
          with_logger("hera.bin", handlers=['console'], level='INFO', propagate=False),
         with_logger("hera.utils", handlers=['console'], level='INFO', propagate=False),
     )
@@ -288,13 +311,26 @@ if __name__ == "__main__":
     addSolverTemplateOptions(subparser=scalarTransportFoam_subparser,solverName="scalarTransportFoam", incompressible=True)
 
     ## ====================================================
+    ## ================== urbanHomogenousWindProfile
+    ## ====================================================
+    urbanHomogenousWindProfile_parser = subparsers.add_parser('urbanHomogenousWindProfile', help='Handles urbanHomogenousWindProfile')
+    urbanHomogenousWindProfile_subparser = urbanHomogenousWindProfile_parser.add_subparsers(help='Handles urbanHomogenousWindProfile')
+
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=urbanHomogenousWindProfile_subparser, solverName="urbanHomogenousWindProfile", incompressible=True)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=urbanHomogenousWindProfile_subparser,solverName="urbanHomogenousWindProfile", incompressible=True)
+
+
+    ## ====================================================
     ## ================== StochasticLagrantianSolver
     ## ====================================================
     stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
-    stochasticLagrnagian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
+    stochasticLagrangian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
     #
     # ## -- DispersionFlow
-    dispersionFlow_parser = stochasticLagrnagian_subparser.add_parser('dispersionFlow', help='Creates a dispersion flow from a flow')
+    dispersionFlow_parser = stochasticLagrangian_subparser.add_parser('dispersionFlow', help='Creates a dispersion flow from a flow')
     dispersionFlow_parser_subparser = dispersionFlow_parser.add_subparsers(help='Handles the dispersion flows')
     create_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('create', help='Creates a dispersion flow from a flow')
     create_dispersionFlow_parser.add_argument('OriginalFlowField', type=str,help="The name/directory/workflow file of the origninal workflow")
@@ -309,24 +345,8 @@ if __name__ == "__main__":
     create_dispersionFlow_writeTemplate.add_argument('templateFile', type=str, help="The name of the template workflow")
     create_dispersionFlow_writeTemplate.set_defaults(func=CLI.stochasticLagrangian_dispersionFlow_writeEmptyTemplate)
 
-
-    #
-    # ## -- listDispersionFlowFields - build
-    # list_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('list', help='Lists the DispersionFlow in the DB (with the differences between them)')
-    # list_dispersionFlow_parser.add_argument('--format', dest="format", default="pandas", choices=["pandas","latex","csv"],
-    #                                     help='The output format: pandas (print the pandas), json, latex')
-    #
-    # list_dispersionFlow_parser.add_argument('--file', dest="file", default=None,help='write the output to a file')
-    #
-    # list_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_list_dispersionFlow)
-
-    ## -- createExampleConfiguationFile - build
-    #makeEmpty_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('writeEmpty', help='Creates an example configuration file')
-    #makeEmpty_dispersionFlow_parser.add_argument('configurationFileName', type=str, help="The name of the empty configuration file. ")
-    #createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_makeEmpty_dispersionFlow)
-
     ## -- createDispersionFlow
-    dispersion_parser = stochasticLagrnagian_subparser.add_parser('dispersion', help='Creates a dispersion case')
+    dispersion_parser = stochasticLagrangian_subparser.add_parser('dispersion', help='Creates a dispersion case')
     dispersion_parser_subparser = dispersion_parser.add_subparsers(help='Handles the dispersion')
 
     createDispersionFlow_parser = dispersion_parser_subparser.add_parser('create', help='Creates a dispersionflow, runs the dispersion and adds to DB')
@@ -336,7 +356,7 @@ if __name__ == "__main__":
     createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_dispersion_create)
 
     ## -- create source
-    injector_parser = stochasticLagrnagian_subparser.add_parser('injectors', help='Creates an initial configuration for the lagrangian particles')
+    injector_parser = stochasticLagrangian_subparser.add_parser('injectors', help='Creates an initial configuration for the lagrangian particles')
     injector_subparser = injector_parser.add_subparsers(help='Creates injectors')
 
     manualInjection_parser = injector_subparser.add_parser('positionFile', help='Creates an initial configuration for the lagrangian particles')
@@ -355,7 +375,7 @@ if __name__ == "__main__":
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
 
     ## -- post process
-    postProcess_parser = stochasticLagrnagian_subparser.add_parser('postProcess', help='post process for the  lagrangian particles')
+    postProcess_parser = stochasticLagrangian_subparser.add_parser('postProcess', help='post process for the  lagrangian particles')
     postProcess_subparser = postProcess_parser.add_subparsers(help='Converts the openFOAM to other formats')
 
     postProcess_parquet_subparser = postProcess_subparser.add_parser('toParquet', help='Creates a parquet files of the lagrangian particles')
@@ -372,6 +392,11 @@ if __name__ == "__main__":
     postProcess_vtk_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
     postProcess_vtk_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toVTK)
 
+    ## ---------------- Case management
+    addSolverCaseManagement(subparser=stochasticLagrangian_subparser, solverName="stochasticLagrangian", incompressible=True)
+
+    ## ----- template handling
+    addSolverTemplateOptions(subparser=stochasticLagrangian_subparser, solverName="stochasticLagrangian", incompressible=True)
 
     ############################################
     ### ------------------------------ ObjUtils

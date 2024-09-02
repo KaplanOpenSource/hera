@@ -180,6 +180,26 @@ class Project:
         doc = self._getConfigDocument()
         return doc["desc"]
 
+    def initConfig(self,**kwargs):
+        """
+            Sets the value of the config, if the keys does not exist. If they exist, leave the old value.
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+
+        """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+
+        doc = self._getConfigDocument()
+        for key,value in doc['desc'].items():
+            doc['desc'].setdefault(key,value)
+        doc.save()
+
+
     def setConfig(self,keep_old_values=True, **kwargs):
         """
             Create a config document or updates an existing config document.

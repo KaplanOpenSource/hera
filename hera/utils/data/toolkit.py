@@ -69,7 +69,7 @@ class dataToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self, "loadAllDatasourcesInAllRepositoriesToProject")
         for repository in self.getDataSourceList():
             try:
-                logger.info(f"Loading the repository {repository}")
+                logger.info(f"Loading the repository {repository} to project {projectName}")
                 self.loadAllDatasourcesInRepositoryToProject(projectName, repositoryName=repository,
                                                              overwrite=overwrite)
             except ValueError as e:
@@ -115,7 +115,6 @@ class dataToolkit(toolkit.abstractToolkit):
         for toolkitName, toolkitDict in repositoryJSON.items():
             logger.info(f"Loading into toolkit  {toolkitName}")
             try:
-
                 toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
                 for key, docTypeDict in toolkitDict.items():
@@ -177,12 +176,12 @@ class dataToolkit(toolkit.abstractToolkit):
             assert (isRelativePath=='True' or isRelativePath=='False') or isinstance(isRelativePath,bool), "isRelativePath must be defined as 'True' or 'False'. "
             # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
 
-            if isRelativePath=='True':
+            if isRelativePath=='True' or isRelativePath:
                 logger.debug(
                     f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
                 theItem["resource"] = os.path.join(basedir, theItem["resource"])
 
-            logger.debug(f"Checking if the data item {itemName} is already in project {self.projectName}")
+            logger.debug(f"Checking if the data item {itemName} is already in project {toolkit.projectName}")
             datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
 
             if len(datasource) == 0:

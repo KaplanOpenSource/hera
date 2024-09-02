@@ -12,6 +12,7 @@ from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 from .preprocessOFObjects import OFObjectHome
+from ..CLI  import workflow_add
 
 
 def Foam_createEmpty(arguments):
@@ -57,6 +58,7 @@ def Foam_parser_FieldDescription(arguments):
     else:
         field_len = 0
 
+
     jsonExample = dict()
     if field_len > 0:
         for fieldName in arguments.fields:
@@ -67,15 +69,38 @@ def Foam_parser_FieldDescription(arguments):
     with open(arguments.fileName, "w") as outfile:
         json.dump(jsonExample, outfile, indent=4)
 
+def foam_solver_template_buildExecute(arguments):
+    """
+        Adds the workflow to the DB and executes it.
 
-def foam_templates_flow_list(arguments):
+        Can be invoked without executing or without adding to the db.
+
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin")
+    logger.execution(f"----- Start : foam_templates_flow_list-----")
+    logger.debug(f" arguments: {arguments}")
+
+    if arguments.noDB:
+        from hermes.utils.workflowAssembly import handler_buildExecute
+        handler_buildExecute(arguments)
+    else:
+        workflow_add(arguments)
+
+def foam_solver_templates_list(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesFlowTemplates(arguments.solver)
+    templates = tk.listHermesSolverTemplates(arguments.solver)
 
     ttl = f"The templates for project {tk.projectName} with solver {arguments.solver}"
     print()
@@ -85,7 +110,7 @@ def foam_templates_flow_list(arguments):
     print(templates)
 
 
-def foam_templates_flow_create(arguments):
+def foam_solver_template_create(arguments):
     logger = logging.getLogger("hera.bin")
     logger.execution(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -98,7 +123,7 @@ def foam_templates_flow_create(arguments):
         projectName = None
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesFlowTemplates(arguments.solver)
+    templates = tk.listHermesSolverTemplates(arguments.solver)
     if arguments.templateName not in templates.index:
         err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
         logger.error(err)
@@ -108,8 +133,10 @@ def foam_templates_flow_create(arguments):
     groupName = arguments.templateName if arguments.groupName is None else arguments.groupName
     logger.info(f"Saving the simulation with the group name: {groupName}")
 
+    tname = arguments.templateName
+    dataSourceName = templates.query(f"name==@tname").iloc[0].datasourceName
     with open(os.path.join(outputPath, f"{groupName}_1.json"), "w") as outFile:
-        json.dump(tk.getDataSourceData(arguments.templateName), outFile, indent=4)
+        json.dump(tk.getDataSourceData(dataSourceName), outFile, indent=4)
 
 
 def foam_templates_node_list(arguments):

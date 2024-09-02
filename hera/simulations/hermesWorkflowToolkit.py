@@ -69,7 +69,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         #                  WorkflowTypes.OF_FLOWFIELD.value  : "hera.simulations.openFoam.datalayer.hermesWorkflow.Workflow_Flow"
         # }
 
-    def listHermesFlowTemplates(self, solverName):
+    def listHermesSolverTemplates(self, solverName):
         """
             Returns a list of all the templates that were loaded for that specific solver.
 
@@ -83,13 +83,12 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         """
         retList = []
-        for doc in self.getDataSourceDocumentsList(solver=solverName,component="Flow"):
-            data = dict(doc.desc['desc'])
-            data['templateName'] = doc.desc['datasourceName']
+        for doc in self.getDataSourceDocumentsList(solver=solverName):
+            data = dict(doc.desc) #['desc'])
             retList.append(data)
 
         if len(retList) >0:
-            return pandas.DataFrame(retList).set_index("templateName")
+            return pandas.DataFrame(retList).set_index("name")
         else:
             return pandas.DataFrame()
 
@@ -460,13 +459,13 @@ class hermesWorkflowToolkit(abstractToolkit):
 
 
     def addWorkflowToGroup(self,
-                       workflowJSON: str,
-                       groupName: str = None,
-                       overwrite: bool = False,
-                       force: bool = False,
-                       assignName: bool = False,
-                       execute: bool = False,
-                       parameters: dict = dict()):
+                           workflowJSON: str,
+                           groupName: str = None,
+                           overwrite: bool = False,
+                           force: bool = False,
+                           assignName: bool = False,
+                           buildExecute: bool = False,
+                           parameters: dict = dict()):
         """
             1. Adds the workflow to the database in the requested group
             2. Builds the template (.json) and python executer
@@ -512,7 +511,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
             Otherwise, use the filename as the name of the simulation.
 
-        execute : bool
+        buildExecute : bool
             If true, execute the workflow
 
         buildModes enum.
@@ -552,6 +551,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         #   b. loading the workflow.
         logger.debug(f"Loading the workflow JSON {workflowJSON}")
+
         hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
         theSolver = hermesWF.solver
@@ -622,7 +622,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                 logger.info(info)
 
         # 3.  Building and running the workflow.
-        if execute:
+        if buildExecute:
             logger.info(f"Building and executing the workflow {workflowName}")
             build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
 

@@ -198,13 +198,13 @@ def repository_show(arguments):
                     print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
                     print("\n")
 
-def repository_load(argumets):
+def repository_load(arguments):
     logger = logging.getLogger("hera.bin.repository_load")
     dtk = dataToolkit()
 
-    repositoryFile = argumets.repositoryName
-    if 'projectName' in argumets:
-        projectName = argumets.projectName
+    repositoryFile = arguments.repositoryName
+    if 'projectName' in arguments:
+        projectName = arguments.projectName
     else:
         projectName = None
 
@@ -212,14 +212,19 @@ def repository_load(argumets):
     repositoryJSON= loadJSON(repositoryFile)
     dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
                                                     repositoryJSON=repositoryJSON,
-                                                    basedir=os.path.dirname(os.path.abspath(argumets.repositoryName)),
-                                                    overwrite=argumets.overwrite)
+                                                    basedir=os.path.dirname(os.path.abspath(arguments.repositoryName)),
+                                                    overwrite=arguments.overwrite)
 
 def update(arguments):
     logger = logging.getLogger("hera.bin.update")
 
+    if 'projectName' in arguments:
+        projectName = arguments.projectName
+    else:
+        projectName = None
+
     dtk = dataToolkit()
-    dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName, overwrite=arguments.overwrite)
+    dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=projectName, overwrite=arguments.overwrite)
 
 def db_list(arguments):
     """

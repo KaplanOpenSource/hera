@@ -1,4 +1,6 @@
 import logging
+
+import dask.dataframe
 import numpy
 import pandas
 import os
@@ -1145,7 +1147,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
                 ret.set_index("time").repartition(partition_size="100MB").to_parquet(fullname)
-
+                ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
         return ret
 
 
@@ -1157,6 +1159,9 @@ class analysis:
 
     def __init__(self, datalayer):
         self.datalayer = datalayer
+        self.datalayer.toolkit.initConfig(analysisFullMeshCounter=0,
+                                          analysisPointWiseCounter=0)
+
 
     def calcConcentrationPointWise(self, data, dxdydz, xfield="x", yfield="y", zfield="z"):
         """
@@ -1191,8 +1196,8 @@ class analysis:
                            zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
                    'mass'].sum().to_frame("C") / dH
 
-    def calcDocumentConcentrationPointWise(self, dataDocument, dxdydz, xfield="globalX", yfield="globalY",
-                                           zfield="globalZ", overwrite=False, saveAsDask=False, simulationID=None,
+    def calcDocumentConcentrationPointWise(self, dataDocument, dxdydz, xfield="x", yfield="y",
+                                           zfield="z", overwrite=False, saveAsDask=False, simulationID=None,
                                            **metadata):
         """
            Calculates the concentration from the cells where particles exists.
@@ -1261,8 +1266,8 @@ class analysis:
             C.to_parquet(finalFileName, compression="GZIP")
             ret = doc
 
-    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",
-                                          zfield="globalZ"):
+    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="x", yfield="y",
+                                          zfield="z"):
         """
             Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
 
@@ -1318,8 +1323,8 @@ class analysis:
 
         return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
 
-    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="globalX", yfield="globalY",
-                                       zfield="globalZ", overwrite=False, simulationID=None, **metadata):
+    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="x", yfield="y",
+                                       zfield="z", overwrite=False, simulationID=None, **metadata):
         """
             Calculates the eulerian concentration field for each timestep in the data.
             The data is stored as a nc file on the disk.
@@ -1538,7 +1543,7 @@ def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
 
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
                          cloudName="kinematicCloud"):
-    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
+    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[])
     if withMass:
         columnsDict['mass'] = []
     if withReleaseTimes:
@@ -1568,12 +1573,12 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
 
         newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
 
-        dataGlobal = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
-            ['globalX', 'globalY', 'globalZ'])
-
-        for col in ['globalX', 'globalY', 'globalZ']:
-            newData[col] = dataGlobal[col].astype(numpy.float64)
+        # dataGlobal = extractFile(
+        #     os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
+        #     ['globalX', 'globalY', 'globalZ'])
+        #
+        # for col in ['globalX', 'globalY', 'globalZ']:
+        #     newData[col] = dataGlobal[col].astype(numpy.float64)
 
         if withVelocity:
             dataU = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
