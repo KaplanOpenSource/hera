@@ -86,7 +86,7 @@ class analysis():
 
     def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData, overwrite=False,saveCache=True):
         """
-        Returns lambdaP,lambdaF,hc for each square in given buildingsData.
+        Returns lambdaP, lambdaF, hc for each square in given buildingsData.
 
         Parameters
         ----------
