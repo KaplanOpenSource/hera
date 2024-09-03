@@ -292,8 +292,16 @@ if __name__ == "__main__":
 
 
 
-    uu = np.asarray([ 2.50,  2.69,  2.80,  2.16,  1.74,  1.81]) #wrf 202306121800 probe
+    uu = np.asarray([ 2.50,  2.69,  2.80,  2.16,  1.74,  1.81]) #wrf 202306121800 probe *************
     vv = np.asarray([-0.88, -0.98, -1.03, -0.9 , -0.83, -0.80])
+    uu = np.asarray([ 2.61,  4.99,  4.95,  2.76,  2.30,  3.07]) #wrf 202306121800 a2az0 500k
+    vv = np.asarray([ 0.16, -0.03,  0.07,  0.84, -2.24, -0.86])
+    uu = np.asarray([ 1.28,  1.52,  2.36,  0.66,  0.61,  1.61]) #wrf 202306121800 a2aimpleb1 500k
+    vv = np.asarray([-0.27, -0.54,  0.18, -0.54, -0.43, -0.90])
+    uu = np.asarray([ 1.31,  4.64,  3.88,  4.87,  4.19,  4.75]) #wrf 202306121800 b2az1 500k
+    vv = np.asarray([ 0.79, -0.11, -0.69,  0.69, -0.45, -0.50])
+
+
     uu = np.asarray([ 2.61 ,  5.19, 5.21, 2.96, 2.54, 3.33]) #wrf 202306121800 a2 43k fin
     vv = np.asarray([ 0.18 ,  0.04, 0.04, 1.33, -2.58, -0.95])
     uu = np.asarray([ 0.43 ,  4.45, 4.67, 4.62, 2.05, 2.57]) #wrf 202306121800 b2 533k
@@ -310,6 +318,16 @@ if __name__ == "__main__":
     uu = np.asarray([ 2.26,  4.42,  3.49,  3.17,  2.60,  2.65]) #wrf 202306122200b 878k
     vv = np.asarray([-0.51,  0.60,  1.13,  0.91, -2.52, -1.61])
   
+    uu = np.asarray([ 3.43,  4.93,  4.31,  4.45,  2.90,  3.51]) #wrf 202306131200 probe *************
+    vv = np.asarray([ 0.95,  1.96,  1.58,  1.94,  0.75, -2.70])
+    uu = np.asarray([ 1.29,  3.46,  3.67, -0.37,  0.88,  0.91]) #wrf 202306131200 b2az0simple 1000K
+    vv = np.asarray([ 0.95,  0.14,  0.19, -0.12, -0.80, -1.51])
+    uu = np.asarray([ 4.17, 10.04,  5.37,  8.10,  5.89,  6.74]) #wrf 202306131200 b2az0 900K
+    vv = np.asarray([ 6.17,  8.12,  3.72,  9.90,  5.26,  3.77])
+
+    
+    
+    
     # uu = np.asarray([]) #p5wrf probe10
     # vv = np.asarray([])
     
@@ -319,14 +337,27 @@ if __name__ == "__main__":
     import sklearn.metrics
     import math
     import numpy as np    
+    
+    # https://envihaifa.net/
+
+    ws0=np.asarray([2.,3.9,3.2,3.8,5.5,4.4]) # 13/06/2023 12GMT
+    wd0=np.asarray([243,226,256,232,240,313])
+    uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 0.66  1.92  1.78  1.74  2.99  2.38]
+    vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-1.35 -0.55  0.25 -0.77 -2.34 -1.66]
+
+
 
     ws0=np.asarray([1.5,2.,1.8,1.9,3.8,2.9]) # 13/06/2023 18GMT
     wd0=np.asarray([334,286,262,294,308,305])
     uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 0.66  1.92  1.78  1.74  2.99  2.38]
     vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-1.35 -0.55  0.25 -0.77 -2.34 -1.66]
 
+
+
     ws0=np.asarray([1.8,2.1,2.6,2.2,3.9,3.6]) # 12/06/2023 18GMT
     wd0=np.asarray([286,267,270,296,294,292])
+    ws0=np.asarray([1.8,1.1,1.8,2.6,0.2,2.9]) # 12/06/2023 18GMT new reading
+    wd0=np.asarray([308,297,299,335,298,288])
     uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 1.73, 2.1 , 2.6 , 1.98, 3.56, 3.34]
     vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-0.5 , 0.11, 0.  ,-0.96,-1.59,-1.35]
     
@@ -343,16 +374,20 @@ if __name__ == "__main__":
     print('i,U,   V,    WS,   WD   << measurements')
     for i in range(6):
         print(i,round(uu0[i],2),round(vv0[i],2),ws0[i],wd0[i])
+        print(i,round(uu[i],2),round(vv[i],2),ws[i],wd[i])
     
     print('i,U,   V,    WS,   WD  << SIMULATION')
 
     ws=np.zeros_like(uu)
     wd=np.zeros_like(uu)
     for i in range(len(uu)):
-        wd[i]=round(math.atan(uu[i]/vv[i])*180/math.pi,2)
         ws[i]=round((uu[i]**2.+vv[i]**2.)**.5,2)
-        if wd[i]<90:
-            wd[i]+=360
+        wd[i]=round(math.atan2(uu[i], vv[i])* 180/math.pi+180,2)
+        # wd[i]=round(math.atan(uu[i]/vv[i])*180/math.pi,2)
+        # wd[i]=round(math.atan2(uu[i], vv[i]))
+        # print(i,round(math.atan2(uu0[i], vv0[i])* 180/math.pi+180,2))
+        # if wd[i]<90:
+            # wd[i]+=360
         # wd[i] =math.atan2(vv[i], uu[i])*180/math.pi
         # wd[i] =math.atan(vv[i]/uu[i])*180/math.pi
         # if wd[i]<90:
@@ -410,7 +445,7 @@ if __name__ == "__main__":
             if i!=j:
                 loo.append(stations[j])
         forecastedw[i] = interp(stations[i,0], stations[i,1], loo, elev = stations[i,3])
-        # forecastidw= interp(stations[i,0], stations[i,1], loo)
+        ## forecastidw= interp(stations[i,0], stations[i,1], loo)
     # print('d-',stat(wd0, forecastedw, kind='r2'),stat(wd0, forecastedw, kind='r'), stat(wd0, forecastedw, kind='mae'), stat(wd0, forecastedw, kind='rmse'),'/',round(np.mean(forecastedw),4),'+-',round(np.std(forecastedw),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
     print('s-',stat(ws0, forecastedw, kind='r2'),stat(ws0, forecastedw, kind='r'), stat(ws0, forecastedw, kind='mae'), stat(ws0, forecastedw, kind='rmse'),'/',round(np.mean(forecastedw),4),'+-',round(np.std(forecastedw),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
    
@@ -443,3 +478,4 @@ if __name__ == "__main__":
                         for k in range(len(data2['data'][0]['channels'])):
                             print(data2['data'][0]['channels'][k]['name'],data2['data'][0]['channels'][k]['value'])
                         
+# date 03/09/2024 
