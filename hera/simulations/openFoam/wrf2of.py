@@ -163,6 +163,34 @@ import numpy as np
 from pyproj import CRS
 from pyproj import Transformer
 import datetime
+from scipy.interpolate import RegularGridInterpolator
+
+
+def regrid2(data, factor):
+    out_x = int(data.shape[0]*factor)
+    out_y = int(data.shape[1]*factor)
+    m = max(data.shape[0], data.shape[1])
+    y = np.linspace(0, 1.0/m, data.shape[0])
+    x = np.linspace(0, 1.0/m, data.shape[1])
+    interpolating_function = RegularGridInterpolator((y, x), data)
+
+    yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y), np.linspace(0, 1.0/m, out_x))
+
+    return interpolating_function((xv, yv))
+
+def regrid3(data, factor):
+    # make the data grid more focus (factor more than 1) or blur (factor less than 1)
+    out_x = int(data.shape[0]*factor)
+    out_y = int(data.shape[1]*factor)
+    out_z = int(data.shape[2]*factor)
+    m = max(data.shape[0], data.shape[1], data.shape[2])
+    x = np.linspace(0, 1.0/m, data.shape[0])
+    y = np.linspace(0, 1.0/m, data.shape[1])
+    z = np.linspace(0, 1.0/m, data.shape[2])
+    interpolating_function = RegularGridInterpolator((x, y, z), data)
+
+    zv, yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y), np.linspace(0, 1.0/m, out_x), np.linspace(0, 1.0/m, out_z))
+    return interpolating_function((yv, zv, xv))
 
 miny=195100
 maxy=209800
@@ -209,6 +237,11 @@ datav = data['Ve'][si,:,:,:]
 dataw = data['W'][si,:,:,:]
 datat = data['Temp'][si,:,:,:]
 
+factor = 2
+rdatau = regrid3(datau, factor)
+rdatav = regrid3(datav, factor)
+rdataw = regrid3(dataw, factor)
+rdatat = regrid3(datat, factor)
 
 crs = CRS.from_epsg(4326) #6991
 crs.to_epsg()
@@ -225,8 +258,14 @@ for i in range(xlatlon.shape[0]):
         x2=transformer.transform(data['xlat'][i,j], data['xlong'][i,j])
         xlatlon[i,j]=x2[1]
         ylatlon[i,j]=x2[0]
+
+rdatax = regrid2(xlatlon, factor)
+rdatay = regrid2(ylatlon, factor)
+
+rheights = regrid3(heights, factor)
+
     
-outputdir = r'/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2az0'
+outputdir = r'/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0'
 
 lines = []
 lines.append('// built with wrf2of.py for '+outputdir)
@@ -254,50 +293,50 @@ lines.append(');')
 lines.append('')
 lines.append('regions')
 lines.append('(')
-shp1=data['Ue'].shape[1]
-shp2=data['Ue'].shape[2]
-shp3=data['Ue'].shape[3]
+shp1=rdatau.shape[0]
+shp2=rdatau.shape[1]
+shp3=rdatau.shape[2]
 for i in range(shp2): # x
     print('i:',i,shp2)
     for j in range(shp3): # y
-        celly=ylatlon[i,j]
-        cellx=xlatlon[i,j]
+        celly=rdatay[i,j]
+        cellx=rdatax[i,j]
         for k in range(shp1): # z
-            cellz=heights[k,i,j]
+            cellz=rheights[k,i,j]
             if celly<=maxy and celly>=miny and cellx>=minx and cellx<=maxx and cellz>=minz and cellz<=maxz:
-                T = datat[k,i,j]
-                Ux = datau[k,i,j]
-                Uy = datav[k,i,j]
-                Uz = dataw[k,i,j]
+                T = rdatat[k,i,j]
+                Ux = rdatau[k,i,j]
+                Uy = rdatav[k,i,j]
+                Uz = rdataw[k,i,j]
                 if i==0:
-                    dxp = xlatlon[i+1,j]-xlatlon[i,j]
-                    dxm = xlatlon[i,j]-minx
+                    dxp = rdatax[i+1,j]-rdatax[i,j]
+                    dxm = rdatax[i,j]-minx
                 elif i==shp2:
-                    dxm = xlatlon[i,j]-xlatlon[i-1,j]
-                    dxp = maxx-xlatlon[i,j]
+                    dxm = rdatax[i,j]-rdatax[i-1,j]
+                    dxp = maxx-rdatax[i,j]
                 else:
-                    dxm = xlatlon[i,j]-xlatlon[i-1,j]
-                    dxp = xlatlon[i+1,j]-xlatlon[i,j]
+                    dxm = rdatax[i,j]-rdatax[i-1,j]
+                    dxp = rdatax[i+1,j]-rdatax[i,j]
     
                 if j==0:
-                    dyp = ylatlon[i,j+1]-ylatlon[i,j]
-                    dym = ylatlon[i,j] - miny
-               elif j==shp3:
-                    dym = ylatlon[i,j]-ylatlon[i,j-1]
-                    dyp = maxy-ylatlon[i,j]
+                    dyp = rdatay[i,j+1]-rdatay[i,j]
+                    dym = rdatay[i,j] - miny
+                elif j==shp3:
+                    dym = rdatay[i,j]-rdatay[i,j-1]
+                    dyp = maxy-rdatay[i,j]
                 else:
-                    dym = ylatlon[i,j]-ylatlon[i,j-1]
-                    dyp = ylatlon[i,j+1]-ylatlon[i,j]
+                    dym = rdatay[i,j]-rdatay[i,j-1]
+                    dyp = rdatay[i,j+1]-rdatay[i,j]
                                 
                 if k==0:
-                    dzp = heights[k+1,i,j]-heights[k,i,j]
-                    dzm = heights[k,i,j] - minz
+                    dzp = rheights[k+1,i,j]-rheights[k,i,j]
+                    dzm = rheights[k,i,j] - minz
                 elif k==shp1:
-                    dzm = heights[k,i,j]-heights[k-1,i,j]
-                    dzp = maxz - heights[k,i,j] 
+                    dzm = rheights[k,i,j]-rheights[k-1,i,j]
+                    dzp = maxz - rheights[k,i,j] 
                 else:
-                    dzm = heights[k,i,j]-heights[k-1,i,j]
-                    dzp = heights[k+1,i,j]-heights[k,i,j]
+                    dzm = rheights[k,i,j]-rheights[k-1,i,j]
+                    dzp = rheights[k+1,i,j]-rheights[k,i,j]
     
                 lines.append('boxToCell {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
                 lines.append('boxToFace {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
@@ -306,10 +345,3 @@ lines.append(');')
 
 with open(outputdir+'/system/setFieldsDict', 'w') as f:
     f.write('\n'.join(lines))
-
-
-print(datetime.datetime.now())
-print(a.shape[1])
-print(datetime.datetime.now())
-print(i)
-print(datetime.datetime.now())
