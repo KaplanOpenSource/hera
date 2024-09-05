@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hera.measurements.GIS.raster.landcover &mdash; Hera Documentation  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Hera Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Hera Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hera.measurements.GIS.raster.landcover</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hera.measurements.GIS.raster.landcover</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">....</span> <span class="kn">import</span> <span class="n">toolkit</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">stlFactory</span><span class="p">,</span><span class="n">convertCRS</span><span class="p">,</span><span class="n">ITM</span><span class="p">,</span><span class="n">WSG84</span><span class="p">,</span><span class="n">ED50_ZONE36N</span><span class="p">,</span><span class="n">BETA</span><span class="p">,</span><span class="n">KARMAN</span>
+<span class="kn">from</span> <span class="nn">....utils.logging</span> <span class="kn">import</span> <span class="n">get_classMethod_logger</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">osgeo</span> <span class="kn">import</span> <span class="n">gdal</span>
+<span class="kn">from</span> <span class="nn">pyproj</span> <span class="kn">import</span> <span class="n">Transformer</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">xarray</span>
+<span class="kn">import</span> <span class="nn">geopandas</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">patches</span>
+<span class="kn">from</span> <span class="nn">hera</span> <span class="kn">import</span> <span class="n">toolkitHome</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">mcolors</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="c1"># Suppress specific GDAL warning</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Starting with GDAL 3.7, PIXELTYPE=SIGNEDBYTE is no longer used to signal signed 8-bit raster.*&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LandCoverToolkit">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit">[docs]</a>
+<span class="k">class</span> <span class="nc">LandCoverToolkit</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
+    <span class="c1"># &quot;&quot;&quot;</span>
+    <span class="c1"># We should use different roughness to buildings and to topo</span>
+    <span class="c1">#</span>
+    <span class="c1">#  MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid</span>
+    <span class="c1">#</span>
+    <span class="c1">#   data is from https://zenodo.org/records/8367523</span>
+    <span class="c1">#   type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1</span>
+    <span class="c1">#</span>
+    <span class="c1">#   Land Cover Type 1: IGBP global vegetation classification scheme</span>
+    <span class="c1">#   Land Cover Type 2: University of Maryland (UMD) scheme</span>
+    <span class="c1">#</span>
+    <span class="c1">#   DataField    Name                    Data      Dimensions</span>
+    <span class="c1">#                                        Type</span>
+    <span class="c1">#</span>
+    <span class="c1">#   DataField_1  Land_Cover_Type_1       UINT8     Dimension_1</span>
+    <span class="c1">#                                                  Dimension_2</span>
+    <span class="c1">#</span>
+    <span class="c1">#           Description:    land cover types (IGBP)</span>
+    <span class="c1">#</span>
+    <span class="c1">#           DataField_1 HDF Attributes:</span>
+    <span class="c1">#</span>
+    <span class="c1">#              long_name      STRING  1   PGE    &quot;Land_Cover_Type_1&quot;</span>
+    <span class="c1">#              units          STRING  1   PGE     &quot;class number&quot;</span>
+    <span class="c1">#              valid_range    uint8    2   PGE     0 16</span>
+    <span class="c1">#              _FillValue     uint8    1   PGE     255</span>
+    <span class="c1">#              Water          uint8    1   PGE     0</span>
+    <span class="c1">#              Evergreen needleleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     1</span>
+    <span class="c1">#              Evergreen broadleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     2</span>
+    <span class="c1">#              Deciduous needleleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     3</span>
+    <span class="c1">#              Deciduous broadleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     4</span>
+    <span class="c1">#              Mixed forests  unit8    1   PGE     5</span>
+    <span class="c1">#              Closed shrubland</span>
+    <span class="c1">#                             unit8    1   PGE     6</span>
+    <span class="c1">#              Open shrublands</span>
+    <span class="c1">#                             unit8    1   PGE     7</span>
+    <span class="c1">#              Woody savannas unit8    1   PGE     8</span>
+    <span class="c1">#              Savannas       unit8    1   PGE     9</span>
+    <span class="c1">#              Grasslands     unit8    1   PGE    10</span>
+    <span class="c1">#              Permanent wetlands</span>
+    <span class="c1">#                             unit8    1   PGE    11</span>
+    <span class="c1">#              Croplands      unit8    1   PGE    12</span>
+    <span class="c1">#              Urban and built-up</span>
+    <span class="c1">#                             unit8    1   PGE    13</span>
+    <span class="c1">#              Cropland/natural vegetation mosaic</span>
+    <span class="c1">#                             unit8    1   PGE    14</span>
+    <span class="c1">#              Snow and ice   unit8    1   PGE    15</span>
+    <span class="c1">#              Barren or sparsely vegetated</span>
+    <span class="c1">#                             unit8    1   PGE    16</span>
+    <span class="c1">#</span>
+    <span class="c1">#   DataField_2  Land_Cover_Type_2       UINT8     Dimension_1</span>
+    <span class="c1">#                                                  Dimension_2</span>
+    <span class="c1">#</span>
+    <span class="c1">#           Description:    land cover types (UMD)</span>
+    <span class="c1">#</span>
+    <span class="c1">#           DataField_2 HDF Attributes:</span>
+    <span class="c1">#              long_name      STRING   1   PGE    &quot;Land_Cover_Type_2&quot;</span>
+    <span class="c1">#              units          STRING   1   PGE     &quot;class number&quot;</span>
+    <span class="c1">#              valid_range    uint8    2   PGE     0 16</span>
+    <span class="c1">#              _FillValue     uint8    1   PGE     255</span>
+    <span class="c1">#              Water          uint8    1   PGE     0</span>
+    <span class="c1">#              Evergreen needleleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     1</span>
+    <span class="c1">#              Evergreen broadleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     2</span>
+    <span class="c1">#              Deciduous needleleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     3</span>
+    <span class="c1">#              Decidous broadleaf forest</span>
+    <span class="c1">#                             uint8    1   PGE     4</span>
+    <span class="c1">#              Mixed forests  uint8    1   PGE     5</span>
+    <span class="c1">#              Closed shrublands</span>
+    <span class="c1">#                              unit8   1   PGE     6</span>
+    <span class="c1">#              Open shrubland  unit8   1   PGE     7</span>
+    <span class="c1">#              Woody savannas  unit8   1   PGE     8</span>
+    <span class="c1">#              Savannas       unit8    1   PGE     9</span>
+    <span class="c1">#              Grasslands     uint8    1   PGE    10</span>
+    <span class="c1">#              Croplands      unit8    1   PGE    12</span>
+    <span class="c1">#              Urban and built-up</span>
+    <span class="c1">#                             unit8    1   PGE    13</span>
+    <span class="c1">#              Barren or sparsely vegetated</span>
+    <span class="c1">#                             unit8    1   PGE    16</span>
+    <span class="c1">#</span>
+    <span class="c1">#   Land cover may change between winter and summer</span>
+    <span class="c1">#   urban area may change over the years</span>
+    <span class="c1"># &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Initializes land cover data toolkit.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        projectName: str</span>
+<span class="sd">            The project Name that the toolkit is initialized on</span>
+<span class="sd">        toolkitName: str</span>
+<span class="sd">            the specific toolkit, getting from the child.</span>
+
+<span class="sd">        FilesDirectory: str or None</span>
+<span class="sd">                The path to save a regions files when they are created.</span>
+
+<span class="sd">                if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.</span>
+
+<span class="sd">                if None, then tries to get the default path of the project from the config. if it does not</span>
+<span class="sd">                exist, then use the current directory.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span> <span class="n">toolkitName</span> <span class="o">=</span> <span class="s1">&#39;LandCoverToolkit&#39;</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">presentation</span><span class="p">(</span><span class="n">dataLayer</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="LandCoverToolkit.getLandCoverAtPoint">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCoverAtPoint">[docs]</a>
+    <span class="k">def</span> <span class="nf">getLandCoverAtPoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">lon</span><span class="p">,</span><span class="n">lat</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the landcover type integer value in a specific point.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        lon : float</span>
+<span class="sd">            The longitude coodinates.</span>
+
+<span class="sd">        lat : float</span>
+<span class="sd">            The latitute coordinates.</span>
+
+<span class="sd">        inputCRS : int , default=WSG84</span>
+<span class="sd">            The ESPRG of the coordinates.</span>
+
+<span class="sd">        dataSourceName : string , default=None</span>
+<span class="sd">            The name of the data source to use.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            int</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultLandCover&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataSourceName</span>
+        <span class="n">datasourceDocument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceDocument</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceData</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">ReadAsArray</span><span class="p">()</span>
+        <span class="n">gt</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetGeoTransform</span><span class="p">()</span>
+
+        <span class="n">width</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">RasterXSize</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">RasterYSize</span>
+        <span class="n">minx</span> <span class="o">=</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">maxx</span> <span class="o">=</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span> <span class="o">*</span> <span class="n">gt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">height</span> <span class="o">*</span> <span class="n">gt</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">miny</span> <span class="o">=</span> <span class="n">gt</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span> <span class="o">*</span> <span class="n">gt</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="n">height</span> <span class="o">*</span> <span class="n">gt</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+        <span class="n">maxy</span> <span class="o">=</span> <span class="n">gt</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">lat</span> <span class="o">-</span> <span class="n">gt</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">/</span> <span class="n">gt</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">lon</span> <span class="o">-</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">gt</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">img</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="LandCoverToolkit.getLandCover">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover">[docs]</a>
+    <span class="k">def</span> <span class="nf">getLandCover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">minlon</span><span class="p">,</span><span class="n">minlat</span><span class="p">,</span><span class="n">maxlon</span><span class="p">,</span><span class="n">maxlat</span><span class="p">,</span><span class="n">dxdy</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get Xarray LandCover map.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        minlon : float</span>
+<span class="sd">            Minimum value of longitude coodinates.</span>
+
+<span class="sd">        minlat : float</span>
+<span class="sd">            Minimum value of latitute coodinates.</span>
+
+<span class="sd">        maxlon: float</span>
+<span class="sd">            Maximum value of longitude coodinates.</span>
+
+<span class="sd">        maxlat: float</span>
+<span class="sd">            Maximum value of latitute coodinates.</span>
+
+<span class="sd">        dxdy: int, default=30</span>
+<span class="sd">            Spatial resolution of the output land cover map. Defines the step size for the grid points</span>
+<span class="sd">            in both the x (longitude) and y (latitude) directions within the specified bounding box.</span>
+<span class="sd">            Smaller values result in finer resolution.</span>
+
+<span class="sd">        inputCRS : int , default=WSG84</span>
+<span class="sd">            The ESPRG of the coordinates.</span>
+
+<span class="sd">        dataSourceName : string , default=None</span>
+<span class="sd">            The name of the data source to use.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            xarray.DataArray</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">vectorizeLandCoverCalc</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">lonUpperLeft</span><span class="p">,</span> <span class="n">lonResolution</span><span class="p">,</span> <span class="n">latUpperLeft</span><span class="p">,</span> <span class="n">latResolution</span><span class="p">):</span>
+            <span class="n">ilat</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">lat</span> <span class="o">-</span> <span class="n">latUpperLeft</span><span class="p">)</span> <span class="o">/</span> <span class="n">latResolution</span><span class="p">)</span>
+            <span class="n">ilon</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">lon</span> <span class="o">-</span> <span class="n">lonUpperLeft</span><span class="p">)</span> <span class="o">/</span> <span class="n">lonResolution</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">img</span><span class="p">[</span><span class="n">ilat</span><span class="p">,</span> <span class="n">ilon</span><span class="p">]</span>
+
+        <span class="n">min_pp</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[[</span><span class="n">minlon</span><span class="p">,</span> <span class="n">minlat</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">inputCRS</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">max_pp</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[[</span><span class="n">maxlon</span><span class="p">,</span> <span class="n">maxlat</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">inputCRS</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_pp</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">max_pp</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">dxdy</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_pp</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">max_pp</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">dxdy</span><span class="p">)</span>
+        <span class="n">xx</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)))</span>
+        <span class="n">yy</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">vx</span><span class="p">),</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">vy</span><span class="p">))</span> <span class="ow">in</span> <span class="n">product</span><span class="p">([(</span><span class="n">i</span><span class="p">,</span> <span class="n">vx</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">vx</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">x</span><span class="p">)],</span> <span class="p">[(</span><span class="n">j</span><span class="p">,</span> <span class="n">vy</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">vy</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">y</span><span class="p">)]):</span>
+            <span class="nb">print</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">),</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">newpp</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[[</span><span class="n">vx</span><span class="p">,</span> <span class="n">vy</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">xx</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">newpp</span><span class="o">.</span><span class="n">x</span>
+            <span class="n">yy</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">newpp</span><span class="o">.</span><span class="n">y</span>
+
+        <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceData</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">ReadAsArray</span><span class="p">()</span>
+        <span class="n">lonUpperLeft</span><span class="p">,</span> <span class="n">lonResolution</span><span class="p">,</span> <span class="n">lonRotation</span><span class="p">,</span> <span class="n">latUpperLeft</span><span class="p">,</span> <span class="n">latRotation</span><span class="p">,</span> <span class="n">latResolution</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetGeoTransform</span><span class="p">()</span>
+        <span class="n">vectorizedLandCover</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="k">lambda</span> <span class="n">tlat</span><span class="p">,</span> <span class="n">tlon</span><span class="p">:</span> <span class="n">vectorizeLandCoverCalc</span><span class="p">(</span><span class="n">lat</span><span class="o">=</span><span class="n">tlat</span><span class="p">,</span>
+                                                                                        <span class="n">lon</span><span class="o">=</span><span class="n">tlon</span><span class="p">,</span>
+                                                                                        <span class="n">img</span><span class="o">=</span><span class="n">img</span><span class="p">,</span>
+                                                                                        <span class="n">lonUpperLeft</span><span class="o">=</span><span class="n">lonUpperLeft</span><span class="p">,</span>
+                                                                                        <span class="n">lonResolution</span><span class="o">=</span><span class="n">lonResolution</span><span class="p">,</span>
+                                                                                        <span class="n">latUpperLeft</span><span class="o">=</span><span class="n">latUpperLeft</span><span class="p">,</span>
+                                                                                        <span class="n">latResolution</span><span class="o">=</span><span class="n">latResolution</span><span class="p">))</span>
+        <span class="n">landcover</span> <span class="o">=</span> <span class="n">vectorizedLandCover</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">)</span>
+        <span class="c1">### Transform to XArray</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">xarray</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span>
+            <span class="n">landcover</span><span class="p">,</span>
+            <span class="n">coords</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+                <span class="s1">&#39;j&#39;</span><span class="p">:</span> <span class="n">j</span><span class="p">,</span>
+                <span class="s1">&#39;lat&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">],</span> <span class="n">xx</span><span class="p">),</span>
+                <span class="s1">&#39;lon&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">],</span> <span class="n">yy</span><span class="p">),</span>
+                <span class="s1">&#39;landcover&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="p">),</span>
+                <span class="s1">&#39;dxdy&#39;</span><span class="p">:</span> <span class="n">dxdy</span>
+                <span class="p">},</span>
+            <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="n">xarray</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;landcover_description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getCodingMap</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">xarray</span></div>
+
+
+<div class="viewcode-block" id="LandCoverToolkit.getRoughnessAtPoint">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint">[docs]</a>
+    <span class="k">def</span> <span class="nf">getRoughnessAtPoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">lon</span><span class="p">,</span><span class="n">lat</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the roughness value of a specific point in the map.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        lon : float</span>
+<span class="sd">            The longitude coodinates.</span>
+
+<span class="sd">        lat : float</span>
+<span class="sd">            The latitute coordinates.</span>
+
+<span class="sd">        inputCRS : int , default=WSG84</span>
+<span class="sd">            The ESPRG of the coordinates.</span>
+
+<span class="sd">        dataSourceName : string , default=None</span>
+<span class="sd">            The name of the data source to use.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            float</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultLandCover&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataSourceName</span>
+        <span class="n">datasourceDocument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceDocument</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="n">landcover</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getLandCoverAtPoint</span><span class="p">(</span><span class="n">lon</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">inputCRS</span><span class="p">,</span><span class="n">dataSourceName</span><span class="o">=</span><span class="n">dataSourceName</span><span class="p">)</span>
+
+        <span class="n">handlerFunction</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;_handleType</span><span class="si">{</span><span class="n">datasourceDocument</span><span class="p">[</span><span class="s1">&#39;desc&#39;</span><span class="p">][</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">handlerFunction</span><span class="p">(</span><span class="n">landcover</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="LandCoverToolkit.getRoughnessFromLandcover">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover">[docs]</a>
+    <span class="k">def</span> <span class="nf">getRoughnessFromLandcover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">windMeteorologicalDirection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">isBuilding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds Roughness field (z0) to landcover Xarray.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        landcover : Xarray</span>
+<span class="sd">            Landcover Xarray map in which the Roughness field will be added to.</span>
+
+<span class="sd">        windMeteorologicalDirection: double,default=None</span>
+<span class="sd">            The meteorological angle. Must be specified only if data includes urbanic area.</span>
+
+<span class="sd">        resolution: double,default=None</span>
+<span class="sd">            The size of the squares. Must be specified only if data includes urbanic area.</span>
+
+<span class="sd">        isBuilding : bool, default=False</span>
+<span class="sd">            Is the landcover containts urbanic area.</span>
+
+<span class="sd">        dataSourceName : string , default=None</span>
+<span class="sd">            The name of the data source to use.</span>
+
+<span class="sd">        GIS_BUILDINGS_dataSourceName: string , default=None</span>
+<span class="sd">            The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            xarray.DataArray</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultLandCover&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataSourceName</span>
+        <span class="n">datasourceDocument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceDocument</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isBuilding</span><span class="p">:</span>
+            <span class="n">handlerFunction</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;_handleType</span><span class="si">{</span><span class="n">datasourceDocument</span><span class="p">[</span><span class="s1">&#39;desc&#39;</span><span class="p">][</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">roughness_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">handlerFunction</span><span class="p">)(</span><span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;landcover&#39;</span><span class="p">])</span>
+            <span class="n">landcover</span> <span class="o">=</span> <span class="n">landcover</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">(</span><span class="n">z0</span><span class="o">=</span><span class="p">([</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">],</span> <span class="n">roughness_values</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">windMeteorologicalDirection</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">resolution</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;windMeteorologicalDirection and reolution must be specified for calculating urban area.&quot;</span><span class="p">)</span>
+            <span class="n">landcover</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getUrbanRoughnessFromLandCover</span><span class="p">(</span><span class="n">landcover</span><span class="p">,</span><span class="n">windMeteorologicalDirection</span><span class="p">,</span><span class="n">resolution</span><span class="p">,</span><span class="n">dataSourceName</span><span class="p">,</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">landcover</span></div>
+
+
+<div class="viewcode-block" id="LandCoverToolkit.getRoughness">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness">[docs]</a>
+    <span class="k">def</span> <span class="nf">getRoughness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">minlon</span><span class="p">,</span><span class="n">minlat</span><span class="p">,</span><span class="n">maxlon</span><span class="p">,</span><span class="n">maxlat</span><span class="p">,</span><span class="n">dxdy</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">isBuilding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        minlon : float</span>
+<span class="sd">            Minimum value of longitude coodinates.</span>
+
+<span class="sd">        minlat : float</span>
+<span class="sd">            Minimum value of latitute coodinates.</span>
+
+<span class="sd">        maxlon: float</span>
+<span class="sd">            Maximum value of longitude coodinates.</span>
+
+<span class="sd">        maxlat: float</span>
+<span class="sd">            Maximum value of latitute coodinates.</span>
+
+<span class="sd">        dxdy: int, default=30</span>
+<span class="sd">            Spatial resolution of the output land cover map. Defines the step size for the grid points</span>
+<span class="sd">            in both the x (longitude) and y (latitude) directions within the specified bounding box.</span>
+<span class="sd">            Smaller values result in finer resolution.</span>
+
+<span class="sd">        inputCRS : int , default=WSG84</span>
+<span class="sd">            The ESPRG of the coordinates.</span>
+
+<span class="sd">        dataSourceName : string , default=None</span>
+<span class="sd">            The name of the data source to use.</span>
+
+<span class="sd">        isBuilding : bool, default=False</span>
+<span class="sd">            Is the landcover containts building area.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            xarray.DataArray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">landcover</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getLandCover</span><span class="p">(</span><span class="n">minlon</span><span class="p">,</span><span class="n">minlat</span><span class="p">,</span><span class="n">maxlon</span><span class="p">,</span><span class="n">maxlat</span><span class="p">,</span><span class="n">dxdy</span> <span class="o">=</span> <span class="n">dxdy</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">inputCRS</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="n">landcover</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getRoughnessFromLandcover</span><span class="p">(</span><span class="n">landcover</span><span class="p">,</span><span class="n">isBuilding</span><span class="o">=</span><span class="n">isBuilding</span><span class="p">,</span><span class="n">dataSourceName</span><span class="o">=</span><span class="n">dataSourceName</span><span class="p">,</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="o">=</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">landcover</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_handleType1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">landcover</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converting land type of Type-1 to roughness.</span>
+<span class="sd">        Based on the paper:</span>
+<span class="sd">            * https://wes.copernicus.org/articles/6/1379/2021/ table a2</span>
+<span class="sd">            * https://doi.org/10.5194/wes-6-1379-2021 Satellite-based estimation of roughness lengths and displacement heights for wind resource modelling, Rogier Floors, Merete Badger, Ib Troen, Kenneth Grogan, and Finn-Hendrik Permien</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        landcover : int</span>
+<span class="sd">            Landcover type value.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">roughnessDict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="mi">0</span> <span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="c1"># Water,  depends on waves that depends on wind</span>
+            <span class="mi">1</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span>       <span class="c1"># Evergreen needleleaf forest</span>
+            <span class="mi">2</span><span class="p">:</span>  <span class="mi">1</span><span class="p">,</span>         <span class="c1"># Evergreen broadleaf forest</span>
+            <span class="mi">3</span><span class="p">:</span>  <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Deciduous needleleaf forest</span>
+            <span class="mi">4</span><span class="p">:</span>  <span class="mi">1</span><span class="p">,</span> <span class="c1"># Deciduous broadleaf forest</span>
+            <span class="mi">5</span><span class="p">:</span>  <span class="mi">1</span><span class="p">,</span> <span class="c1"># Mixed forests</span>
+            <span class="mi">6</span><span class="p">:</span>  <span class="mf">0.05</span><span class="p">,</span> <span class="c1"># Closed shrubland</span>
+            <span class="mi">7</span><span class="p">:</span>  <span class="mf">0.06</span><span class="p">,</span> <span class="c1"># Open shrublands</span>
+            <span class="mi">8</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span> <span class="c1"># Woody savannas</span>
+            <span class="mi">9</span><span class="p">:</span> <span class="mf">0.15</span><span class="p">,</span>  <span class="c1"># Savannas</span>
+            <span class="mi">10</span><span class="p">:</span> <span class="mf">0.12</span><span class="p">,</span>  <span class="c1"># Grasslands</span>
+            <span class="mi">11</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span> <span class="c1"># Permanent wetlands</span>
+            <span class="mi">12</span><span class="p">:</span> <span class="mf">0.15</span><span class="p">,</span> <span class="c1"># Croplands</span>
+            <span class="mi">13</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span> <span class="c1"># Urban and built-up</span>
+            <span class="mi">14</span><span class="p">:</span> <span class="mf">0.14</span><span class="p">,</span> <span class="c1"># Cropland/natural vegetation mosaic</span>
+            <span class="mi">15</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span> <span class="c1"># Snow and ice</span>
+            <span class="mi">16</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="c1"># Barren or sparsely vegetated</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">roughnessDict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">landcover</span><span class="p">,</span><span class="mf">0.05</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="LandCoverToolkit.getCodingMap">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap">[docs]</a>
+    <span class="k">def</span> <span class="nf">getCodingMap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">datasourceName</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns dictionary that maps landcover int value to string of landcover.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        datasourceName: str</span>
+<span class="sd">            Datasource type (Type-1, Type-2 etc.)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">datasourceName</span><span class="o">==</span><span class="s1">&#39;Type-1&#39;</span><span class="p">:</span>
+            <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;Water&quot;</span><span class="p">,</span>
+                    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;Evergreen needleleaf forest&quot;</span><span class="p">,</span>
+                    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Evergreen broadleaf forest&quot;</span><span class="p">,</span>
+                    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;Deciduous needleleaf forest&quot;</span><span class="p">,</span>
+                    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;Deciduous broadleaf forest&quot;</span><span class="p">,</span>
+                    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;Mixed forests&quot;</span><span class="p">,</span>
+                    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;Closed shrubland&quot;</span><span class="p">,</span>
+                    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;Open shrublands&quot;</span><span class="p">,</span>
+                    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;Woody savannas&quot;</span><span class="p">,</span>
+                    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;Savannas&quot;</span><span class="p">,</span>
+                    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;Grasslands&quot;</span><span class="p">,</span>
+                    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;Permanent wetlands&quot;</span><span class="p">,</span>
+                    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;Croplands&quot;</span><span class="p">,</span>
+                    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;Urban and built-up&quot;</span><span class="p">,</span>
+                    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;Cropland/natural vegetation mosaic&quot;</span><span class="p">,</span>
+                    <span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;Snow and ice&quot;</span><span class="p">,</span>
+                    <span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;Barren or sparsely vegetated&quot;</span>
+                <span class="p">}</span>
+
+        <span class="k">return</span> <span class="nb">dict</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_getUrbanRoughnessFromLandCover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">windMeteorologicalDirection</span><span class="p">,</span><span class="n">resolution</span><span class="p">,</span><span class="n">dataSourceName</span><span class="p">,</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add Roughness for Urban areas to landcover Xarray. z0 and dd fields are calculated from LambdaP, LambdaF and HC of each Urban area.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">gis_building_tk</span> <span class="o">=</span> <span class="n">toolkitHome</span><span class="o">.</span><span class="n">getToolkit</span><span class="p">(</span><span class="n">toolkitName</span><span class="o">=</span><span class="n">toolkitHome</span><span class="o">.</span><span class="n">GIS_BUILDINGS</span><span class="p">,</span> <span class="n">projectName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="p">)</span>
+
+        <span class="n">min_pp</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lon</span><span class="o">.</span><span class="n">values</span><span class="p">)]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">max_i</span><span class="p">,</span> <span class="n">max_j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">)</span> <span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">j</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">max_pp</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="p">[</span><span class="n">max_i</span><span class="p">,</span><span class="n">max_j</span><span class="p">]</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="p">[</span><span class="n">max_i</span><span class="p">,</span><span class="n">max_j</span><span class="p">]</span><span class="o">.</span><span class="n">lon</span><span class="o">.</span><span class="n">values</span><span class="p">)]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+        <span class="n">buildings</span> <span class="o">=</span> <span class="n">gis_building_tk</span><span class="o">.</span><span class="n">getBuildingsFromRectangle</span><span class="p">(</span><span class="n">minx</span><span class="o">=</span><span class="n">min_pp</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">miny</span><span class="o">=</span><span class="n">min_pp</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">maxx</span><span class="o">=</span><span class="n">max_pp</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">maxy</span><span class="o">=</span><span class="n">max_pp</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">dataSourceName</span><span class="o">=</span><span class="n">GIS_BUILDINGS_dataSourceName</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)</span>
+        <span class="n">lambdaGrid</span> <span class="o">=</span> <span class="n">gis_building_tk</span><span class="o">.</span><span class="n">analysis</span><span class="o">.</span><span class="n">LambdaFromBuildingData</span><span class="p">(</span><span class="n">windMeteorologicalDirection</span><span class="p">,</span> <span class="n">resolution</span><span class="p">,</span> <span class="n">buildings</span><span class="p">)</span>
+
+        <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">crs</span> <span class="o">=</span> <span class="n">ITM</span>
+        <span class="n">lambdaGrid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getRoughnessFromBuildingsDataFrame</span><span class="p">(</span><span class="n">lambdaGrid</span><span class="p">)</span>
+        <span class="n">square_size</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+
+        <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;z0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;dd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;ll&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="n">landcover</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">landcover</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>
+                <span class="n">shape</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([[</span><span class="n">x</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">lon</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">lambdas</span> <span class="o">=</span> <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">shape</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">lambdaGrid</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">])]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lambdas</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;z0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getLandCoverAtPoint</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">lon</span><span class="p">,</span><span class="n">x</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span><span class="n">WSG84</span><span class="p">,</span><span class="n">dataSourceName</span><span class="p">)</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;dd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;ll&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;z0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdas</span><span class="p">[</span><span class="s1">&#39;zz0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;dd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdas</span><span class="p">[</span><span class="s1">&#39;dd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdas</span><span class="p">[</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdas</span><span class="p">[</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdas</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">landcover</span><span class="p">[</span><span class="s1">&#39;ll&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdas</span><span class="p">[</span><span class="s1">&#39;ll&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">landcover</span>
+
+    <span class="k">def</span> <span class="nf">_getRoughnessFromBuildingsDataFrame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">lambdaGrid</span><span class="p">):</span>
+        <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">lambdaGrid</span><span class="o">.</span><span class="n">hc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;lambdaF&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.25</span>
+        <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">lambdaGrid</span><span class="o">.</span><span class="n">hc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;lambdaP&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.25</span>
+        <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">lambdaGrid</span><span class="o">.</span><span class="n">hc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;hc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">lambdaGrid</span><span class="o">.</span><span class="n">lambdaF</span> <span class="o">&gt;</span> <span class="mf">0.4</span><span class="p">),</span> <span class="s2">&quot;lambdaF&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.4</span>
+        <span class="n">lambdaGrid</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">lambdaGrid</span><span class="o">.</span><span class="n">lambdaP</span> <span class="o">&gt;</span> <span class="mf">0.6</span><span class="p">),</span> <span class="s2">&quot;lambdaP&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.6</span>
+        <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;Lc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;hc&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;lambdaP&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;lambdaF&quot;</span><span class="p">]</span>
+        <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;ll&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">BETA</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;Lc&quot;</span><span class="p">]</span>
+        <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;zz0&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;ll&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">KARMAN</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">KARMAN</span> <span class="o">/</span> <span class="n">BETA</span><span class="p">)</span>
+        <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;dd&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambdaGrid</span><span class="p">[</span><span class="s2">&quot;ll&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">KARMAN</span>
+        <span class="k">return</span> <span class="n">lambdaGrid</span></div>
+
+
+
+<span class="k">class</span> <span class="nc">presentation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Presentation Layer of LandCover toolkit.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_datalayer</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">datalayer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataLayer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span> <span class="o">=</span> <span class="n">dataLayer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">landcover_colors_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="mi">0</span><span class="p">:</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+            <span class="mi">1</span><span class="p">:</span><span class="s1">&#39;blue&#39;</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">plotRoughness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span><span class="mi">28</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot Roughness upon Given Axes.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        plot: matplotlib.image.AxesImage</span>
+<span class="sd">            Satile Image to plot Polygons on.</span>
+
+<span class="sd">        landcover: xarray</span>
+<span class="sd">            Landcover xarray of plot area.</span>
+
+<span class="sd">        alpha: float, default=0.2</span>
+<span class="sd">            Opaqueness level.</span>
+
+<span class="sd">        figsize: tuple, default=(28,28)</span>
+<span class="sd">            Figure size.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="n">rectangles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getRoughnessRectangles</span><span class="p">(</span><span class="n">landcover</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plotWithRectangles</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">plot</span><span class="p">,</span> <span class="n">rectangles</span><span class="p">,</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+
+    <span class="k">def</span> <span class="nf">plotLandcover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span><span class="mi">28</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot LandCover upon Given Axes.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        plot: matplotlib.image.AxesImage</span>
+<span class="sd">            Satile Image to plot Polygons on.</span>
+
+<span class="sd">        landcover: xarray</span>
+<span class="sd">            Landcover xarray of plot area.</span>
+
+<span class="sd">        alpha: float, default=0.2</span>
+<span class="sd">            Opaqueness level.</span>
+
+<span class="sd">        figsize: tuple, default=(28,28)</span>
+<span class="sd">            Figure size.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="n">rectangles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getLandcoverRectangles</span><span class="p">(</span><span class="n">landcover</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plotWithRectangles</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">rectangles</span><span class="p">,</span><span class="n">alpha</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_plotWithRectangles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ax</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">rectangles</span><span class="p">,</span><span class="n">alpha</span><span class="p">):</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">plot</span><span class="o">.</span><span class="n">get_array</span><span class="p">(),</span> <span class="n">extent</span><span class="o">=</span><span class="n">plot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">())</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adddRectanglesToPlot</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">rectangles</span><span class="p">,</span><span class="n">alpha</span><span class="p">)</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">plot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">plot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">plot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()[</span><span class="mi">2</span><span class="p">],</span> <span class="n">plot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()[</span><span class="mi">3</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">ax</span>
+
+    <span class="k">def</span> <span class="nf">_adddRectanglesToPlot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ax</span><span class="p">,</span><span class="n">rectangles</span><span class="p">,</span><span class="n">alpha</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">rect</span> <span class="ow">in</span> <span class="n">rectangles</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="n">rect</span>
+            <span class="n">rectangle</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>  <span class="c1"># Bottom-left corner</span>
+                <span class="n">width</span><span class="p">,</span>  <span class="c1"># Width</span>
+                <span class="n">height</span><span class="p">,</span>  <span class="c1"># Height</span>
+                <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                <span class="n">edgecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">facecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span>
+            <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">rectangle</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ax</span>
+    <span class="k">def</span> <span class="nf">_getLandcoverRectangles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">landcover</span><span class="p">):</span>
+        <span class="n">rectangles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">landcover</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">:</span>
+                <span class="n">shape</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([[</span><span class="n">x</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">lon</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">rectangles</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">shape</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">landcover_colors_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">values</span><span class="p">))))</span>
+
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">rectangles</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_getRoughnessRectangles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">landcover</span><span class="p">):</span>
+        <span class="n">rectangles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">colormap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">mcolors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">landcover</span><span class="o">.</span><span class="n">z0</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">landcover</span><span class="o">.</span><span class="n">z0</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">landcover</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">:</span>
+                <span class="n">shape</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([[</span><span class="n">x</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">lon</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">colormap</span><span class="p">(</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;z0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">))</span>
+                <span class="n">rectangles</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">shape</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">),</span>
+                                   <span class="n">color</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">rectangles</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">plotLambdas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">field</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span><span class="mi">28</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot Lmabda upon given Axes.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        field: str</span>
+<span class="sd">            Name of desired lambda to be plotted.</span>
+
+<span class="sd">        plot: matplotlib.image.AxesImage</span>
+<span class="sd">            Satile Image to plot Polygons on.</span>
+
+<span class="sd">        landcover: xarray</span>
+<span class="sd">            Landcover xarray of plot area.</span>
+
+<span class="sd">        alpha: float, default=0.2</span>
+<span class="sd">            Opaqueness level.</span>
+
+<span class="sd">        figsize: tuple, default=(28,28)</span>
+<span class="sd">            Figure size.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="n">rectangles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getLambdasRectangles</span><span class="p">(</span><span class="n">field</span><span class="p">,</span><span class="n">landcover</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plotWithRectangles</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">plot</span><span class="p">,</span> <span class="n">rectangles</span><span class="p">,</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_getLambdasRectangles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">field</span><span class="p">,</span><span class="n">landcover</span><span class="p">):</span>
+        <span class="n">rectangles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">colormap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">mcolors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">landcover</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">landcover</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">landcover</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">:</span>
+                <span class="n">shape</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([[</span><span class="n">x</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">lon</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">colormap</span><span class="p">(</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">))</span>
+                <span class="n">rectangles</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">shape</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">landcover</span><span class="o">.</span><span class="n">dxdy</span><span class="o">.</span><span class="n">values</span><span class="p">),</span>
+                                   <span class="n">color</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">rectangles</span><span class="p">))</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Elia Salo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
