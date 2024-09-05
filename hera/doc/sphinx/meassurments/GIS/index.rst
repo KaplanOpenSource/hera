@@ -4,7 +4,6 @@
    contain the root `toctree` directive.
 
 GIS Documentation
-====================================================
 
 .. toctree::
    :maxdepth: 2
@@ -12,43 +11,46 @@ GIS Documentation
    
    
 Raster
-========================================
+====================================================
+
+
 
 LandCover Toolkit
-=================================
+^^^^^^^^^^^^^^^^^^^^^^
 LandCoverToolkit Class
-===============================
-
+~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.raster.landcover.LandCoverToolkit
    :members:
    :show-inheritance:
    
 Tiles Toolkit 
-=================================
+^^^^^^^^^^^^^^^^^^^^^^
 TilesToolkit Class
-===============================
-
+~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.raster.tiles.TilesToolkit
    :members:
    :show-inheritance:
 
 TilesToolkit Presentation Class
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.raster.tiles.presentation
    :members:
    :show-inheritance:
 
 
 Vector
-========================================
+====================================================
+
+BuildingsToolkit
+^^^^^^^^^^^^^^^^^^^^^^^
 BuildingsToolkit Class
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit
    :members:
    :show-inheritance:
 
 BuildingsToolkit Analysis Class
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.vector.buildings.analysis.analysis
    :members:
    :show-inheritance:
