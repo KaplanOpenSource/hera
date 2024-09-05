@@ -22,6 +22,12 @@ LandCoverToolkit Class
 .. autoclass:: hera.measurements.GIS.raster.landcover.LandCoverToolkit
    :members:
    :show-inheritance:
+
+LandCover Presentation Layer
+===============================
+.. autoclass:: hera.measurements.GIS.raster.landcover.presentation
+   :members:
+   :show-inheritance:
    
 Tiles Toolkit 
 =================================

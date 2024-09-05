@@ -59,6 +59,15 @@
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#landcover-presentation-layer">LandCover Presentation Layer</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation"><code class="docutils literal notranslate"><span class="pre">presentation</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas"><code class="docutils literal notranslate"><span class="pre">presentation.plotLambdas()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover"><code class="docutils literal notranslate"><span class="pre">presentation.plotLandcover()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness"><code class="docutils literal notranslate"><span class="pre">presentation.plotRoughness()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a></li>
 <li><a class="reference internal" href="#tilestoolkit-class">TilesToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit"><code class="docutils literal notranslate"><span class="pre">TilesToolkit</span></code></a><ul>
@@ -195,7 +204,7 @@ Smaller values result in finer resolution.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness">
-<span class="sig-name descname"><span class="pre">getRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBuilding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">getRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBuilding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">GIS_BUILDINGS_dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness" title="Link to this definition"></a></dt>
 <dd><p>Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -239,18 +248,80 @@ Smaller values result in finer resolution.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover">
-<span class="sig-name descname"><span class="pre">getRoughnessFromLandcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBuilding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getRoughnessFromLandcover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">getRoughnessFromLandcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">windMeteorologicalDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBuilding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">GIS_BUILDINGS_dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getRoughnessFromLandcover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover" title="Link to this definition"></a></dt>
 <dd><p>Adds Roughness field (z0) to landcover Xarray.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>landcover</strong> (<em>Xarray</em>) – Landcover Xarray map in which the Roughness field will be added to.</p></li>
-<li><p><strong>isBuilding</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the landcover containts building area.</p></li>
+<li><p><strong>windMeteorologicalDirection</strong> (<em>double</em><em>,</em><em>default=None</em>) – The meteorological angle. Must be specified only if data includes urbanic area.</p></li>
+<li><p><strong>resolution</strong> (<em>double</em><em>,</em><em>default=None</em>) – The size of the squares. Must be specified only if data includes urbanic area.</p></li>
+<li><p><strong>isBuilding</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the landcover containts urbanic area.</p></li>
 <li><p><strong>dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the data source to use.</p></li>
+<li><p><strong>GIS_BUILDINGS_dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>xarray.DataArray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="landcover-presentation-layer">
+<h1>LandCover Presentation Layer<a class="headerlink" href="#landcover-presentation-layer" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Presentation Layer of LandCover toolkit.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLambdas">
+<span class="sig-name descname"><span class="pre">plotLambdas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLambdas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas" title="Link to this definition"></a></dt>
+<dd><p>Plot Lmabda upon given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>field</strong> (<em>str</em>) – Name of desired lambda to be plotted.</p></li>
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLandcover">
+<span class="sig-name descname"><span class="pre">plotLandcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLandcover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover" title="Link to this definition"></a></dt>
+<dd><p>Plot LandCover upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotRoughness">
+<span class="sig-name descname"><span class="pre">plotRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness" title="Link to this definition"></a></dt>
+<dd><p>Plot Roughness upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>

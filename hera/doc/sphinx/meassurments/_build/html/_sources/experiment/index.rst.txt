@@ -21,10 +21,23 @@ experimentSetupWithData Class
 .. autoclass:: hera.measurements.experiment.experiment.experimentSetupWithData
    :members:
    :show-inheritance:
+   
+Analysis Layer
+=================================
 
-Indices and tables
-==================
+experimentAnalysis Class
+=================================
+.. autoclass:: hera.measurements.experiment.analysis.experimentAnalysis
+   :members:
+   :show-inheritance:
+   
+   
+Data Layer
+=================================
+   
+parquetDataEngineHera Class
+=================================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. autoclass:: hera.measurements.experiment.dataEngine.parquetDataEngineHera
+   :members:
+   :show-inheritance:
