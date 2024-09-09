@@ -4,7 +4,7 @@ from hera import datalayer
 import pymongo
 import pandas
 #import dask_mongo
-from argos.manager import experimentSetup, DEPLOY, DESIGN
+from argos.manager import  DEPLOY, DESIGN
 from ...utils.logging import helpers as hera_logging
 
 PARQUETHERA = 'parquetDataEngingHera'
