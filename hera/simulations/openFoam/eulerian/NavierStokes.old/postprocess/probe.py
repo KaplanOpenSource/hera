@@ -9,8 +9,10 @@ This function plots how variable x changes in time using probe data
 
 """
 import matplotlib.pyplot as plt
+import datetime
+import math
 
-def plotProbe(file, times, vectors, el,pos, maxpos):
+def plotProbe(file, times, vectors, el,pos, maxpos, offset=0):
     # plot the openFOAM probes data
     
     # file - for the title
@@ -21,9 +23,17 @@ def plotProbe(file, times, vectors, el,pos, maxpos):
     dirr = file.replace("/"," ")
     simulation = dirr.split(" ")[len(dirr.split(" "))-5]
 
-    ele=[]
+#    print('1))',el)
+    elbkup=el.copy()
     for i in range(len(el)):
-        ele.append([float(elem[el[i]]) for elem in vectors])
+        while(math.fabs(float(vectors[-1][elbkup[i]]))> 10000):
+            elbkup[i]+=3
+        elbkup[i]+=3*offset   
+#    print('el2))',elbkup)
+    
+    ele=[]
+    for i in range(len(elbkup)):
+        ele.append([float(elem[elbkup[i]]) for elem in vectors])
     
     jplen=len(times)
     if jplen>100000:
@@ -33,13 +43,13 @@ def plotProbe(file, times, vectors, el,pos, maxpos):
     #plt.figure() #(figsize=(10,5))
     col=int(maxpos**.5)
     row=col
-    if row*row<maxpos:
+    if row*col<maxpos:
        col +=1
-    if row*row<maxpos:
+    if row*col<maxpos:
        row +=1
     plt.subplot(row, col, pos)
     
-    for i in range(len(el)):
+    for i in range(len(elbkup)):
         plt.plot(times[::jp],ele[i][::jp], label=str(i))
     plt.legend()
     plt.title(simulation)
@@ -86,33 +96,96 @@ if __name__ == "__main__":
     #dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simple/postProcessing/probes/0/")
     #dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simple1/postProcessing/probes/0/")
     
-    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2simple/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2simple/postProcessing/probes/0/")
 
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simple/postProcessing/probes/0/")
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simplea1/postProcessing/probes/0/")
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb/postProcessing/probes/0/")
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb1/postProcessing/probes/0/")
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb2/postProcessing/probes/0/")
-    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2lmnr/postProcessing/probes/0/")
-    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2lmnr2/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2lmnr/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2lmnr2/postProcessing/probes/0/")
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2lmnr1/postProcessing/probes/0/")
 
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2/postProcessing/probes/0/")
 ##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2/postProcessing/probes/0/")
 #    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2/postProcessing/probes/0/")
-    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800d2/postProcessing/probes/0/")
-    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2/postProcessing/probes/0/")
-    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a21/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800d2/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a21/postProcessing/probes/0/")
+
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a22/postProcessing/probes/0/")
+
+
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a23/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a24/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a25/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b25/postProcessing/probes/0/")
+
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2a/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2a/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2a/postProcessing/probes/0/")
+##    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2a2/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800d2a/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800d2az2/postProcessing/probes/0/")
+#####    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2az0/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2z0simple/postProcessing/probes/0/")
+#     dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2az1/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2az2/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2a1/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2a2/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2aLES/postProcessing/probes/0/")
+    
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/syn1/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/syn2/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/syn3/postProcessing/probes/0/")
+#    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/syn4/postProcessing/probes/0/")
+
+    dirs=[]
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2az0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2az0test/postProcessing/probes/0/")
+    
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2az0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0simple/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb1/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb2/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2simple/postProcessing/probes/0/") # 150k???
+
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az1test/postProcessing/probes/0/") # 150k???
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2a2/postProcessing/probes/0/") # 150k???
+    
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a1z0/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a1z0t/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a1z0u/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a4z0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200cube/postProcessing/probes/0/")
+
 
     el = [0,18,33, 45, 69, 75]  #a2
+    el = [0,18,33, 45, 60, 75]  #a2
     el = [0,18,33, 48 , 69, 81]  # b2
-    el = [3,21,36, 48 , 72, 81]  # c2
+#    el = [3,21,36, 48 , 72, 81]  # c2
+#    el=[0, 18,33,45,72,84] # syn
+#    el=[6, 24, 39,51,75,84] # syn
+    el = [0,15,30, 45, 60, 75]  #dynamic
+#    el = [6, 24, 39, 54, 66, 87]
 
-
+    print('start @ ',datetime.datetime.now())
     for i in range(len(dirs)):
-        print('probing ',i,' out of ',len(dirs))
         times, vectors = getProbe(dirs[i])
-        plotProbe(dirs[i], times, vectors, el,i+1,len(dirs))
-        
+        plotProbe(dirs[i], times[1:], vectors[1:], el,i+1,len(dirs), offset=1)
+        # plotProbe(dirs[i], times[1:], vectors[1:], el,i+1,len(dirs), offset=1)
+
+#        plotProbe(dirs[i], times, vectors, el,4*i+1,len(dirs)*4, offset=0)
+#        plotProbe(dirs[i], times, vectors, el,1+4*i+1,len(dirs)*4, offset=1)
+#        plotProbe(dirs[i], times, vectors, el,2+4*i+1,len(dirs)*4, offset=2)
+#        plotProbe(dirs[i], times, vectors, el,3+4*i+1,len(dirs)*4, offset=3)
+        print('probed ',i,' out of ',len(dirs), '(',len(times),')')        
     plt.show()
     
