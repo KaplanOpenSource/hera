@@ -424,7 +424,7 @@ class parquetDataEngineHera(datalayer.Project):
         if len(collection) == 0:
                 return pandas.DataFrame()
 
-        data = collection[0].getData(engine="fastparquet")
+        data = collection[0].getData()
 
         if deviceName is not None and not perDevice:
             data = data.query(f"deviceName == '{deviceName}'")
