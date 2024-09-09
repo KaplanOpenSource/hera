@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Raster &mdash; GIS  documentation</title>
+  <title>GIS Documentation &mdash; GIS  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
 
@@ -44,8 +44,9 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Raster</a><ul>
-<li><a class="reference internal" href="#landcover-toolkit">LandCover Toolkit</a><ul>
+<li><a class="reference internal" href="#">GIS Documentation</a></li>
+<li><a class="reference internal" href="#raster">Raster</a></li>
+<li><a class="reference internal" href="#landcover-toolkit">LandCover Toolkit</a></li>
 <li><a class="reference internal" href="#landcovertoolkit-class">LandCoverToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getCodingMap()</span></code></a></li>
@@ -58,9 +59,16 @@
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#landcover-presentation-layer">LandCover Presentation Layer</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation"><code class="docutils literal notranslate"><span class="pre">presentation</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas"><code class="docutils literal notranslate"><span class="pre">presentation.plotLambdas()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover"><code class="docutils literal notranslate"><span class="pre">presentation.plotLandcover()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness"><code class="docutils literal notranslate"><span class="pre">presentation.plotRoughness()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a><ul>
+</ul>
+</li>
+<li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a></li>
 <li><a class="reference internal" href="#tilestoolkit-class">TilesToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit"><code class="docutils literal notranslate"><span class="pre">TilesToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners"><code class="docutils literal notranslate"><span class="pre">TilesToolkit.getImageFromCorners()</span></code></a></li>
@@ -76,12 +84,7 @@
 </li>
 </ul>
 </li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#vector">Vector</a><ul>
-<li><a class="reference internal" href="#buildingstoolkit">BuildingsToolkit</a><ul>
+<li><a class="reference internal" href="#vector">Vector</a></li>
 <li><a class="reference internal" href="#buildingstoolkit-class">BuildingsToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsGeopandasToSTLRasterTopography()</span></code></a></li>
@@ -95,10 +98,6 @@
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons"><code class="docutils literal notranslate"><span class="pre">analysis.ConvexPolygons()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData"><code class="docutils literal notranslate"><span class="pre">analysis.LambdaFromBuildingData()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
 </ul>
 </li>
 </ul>
@@ -119,7 +118,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Raster</li>
+      <li class="breadcrumb-item active">GIS Documentation</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -129,15 +128,19 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <p>GIS Documentation</p>
+  <section id="gis-documentation">
+<h1>GIS Documentation<a class="headerlink" href="#gis-documentation" title="Link to this heading"></a></h1>
 <div class="toctree-wrapper compound">
 </div>
+</section>
 <section id="raster">
 <h1>Raster<a class="headerlink" href="#raster" title="Link to this heading"></a></h1>
+</section>
 <section id="landcover-toolkit">
-<h2>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h2>
+<h1>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h1>
+</section>
 <section id="landcovertoolkit-class">
-<h3>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h3>
+<h1>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">LandCoverToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit" title="Link to this definition"></a></dt>
@@ -267,11 +270,70 @@ Smaller values result in finer resolution.</p></li>
 </dd></dl>
 
 </section>
+<section id="landcover-presentation-layer">
+<h1>LandCover Presentation Layer<a class="headerlink" href="#landcover-presentation-layer" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Presentation Layer of LandCover toolkit.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLambdas">
+<span class="sig-name descname"><span class="pre">plotLambdas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLambdas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas" title="Link to this definition"></a></dt>
+<dd><p>Plot Lmabda upon given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>field</strong> (<em>str</em>) – Name of desired lambda to be plotted.</p></li>
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLandcover">
+<span class="sig-name descname"><span class="pre">plotLandcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLandcover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover" title="Link to this definition"></a></dt>
+<dd><p>Plot LandCover upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotRoughness">
+<span class="sig-name descname"><span class="pre">plotRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness" title="Link to this definition"></a></dt>
+<dd><p>Plot Roughness upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 <section id="tiles-toolkit">
-<h2>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h2>
+<h1>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h1>
+</section>
 <section id="tilestoolkit-class">
-<h3>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h3>
+<h1>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.TilesToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">TilesToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#TilesToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.TilesToolkit" title="Link to this definition"></a></dt>
@@ -324,7 +386,7 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 
 </section>
 <section id="tilestoolkit-presentation-class">
-<h3>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h3>
+<h1>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.presentation">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation" title="Link to this definition"></a></dt>
@@ -353,14 +415,11 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 </dd></dl>
 
 </section>
-</section>
-</section>
 <section id="vector">
 <h1>Vector<a class="headerlink" href="#vector" title="Link to this heading"></a></h1>
-<section id="buildingstoolkit">
-<h2>BuildingsToolkit<a class="headerlink" href="#buildingstoolkit" title="Link to this heading"></a></h2>
+</section>
 <section id="buildingstoolkit-class">
-<h3>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h3>
+<h1>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.toolkit.</span></span><span class="sig-name descname"><span class="pre">BuildingsToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit" title="Link to this definition"></a></dt>
@@ -438,7 +497,7 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 
 </section>
 <section id="buildingstoolkit-analysis-class">
-<h3>BuildingsToolkit Analysis Class<a class="headerlink" href="#buildingstoolkit-analysis-class" title="Link to this heading"></a></h3>
+<h1>BuildingsToolkit Analysis Class<a class="headerlink" href="#buildingstoolkit-analysis-class" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.analysis.analysis">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.analysis.</span></span><span class="sig-name descname"><span class="pre">analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/analysis.html#analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.analysis.analysis" title="Link to this definition"></a></dt>
@@ -480,8 +539,6 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 
 </dd></dl>
 
-</section>
-</section>
 </section>
 
 
