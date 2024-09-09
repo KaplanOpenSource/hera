@@ -13,8 +13,6 @@ GIS Documentation
 Raster
 ====================================================
 
-
-
 LandCover Toolkit
 ^^^^^^^^^^^^^^^^^^^^^^
 LandCoverToolkit Class
@@ -24,7 +22,7 @@ LandCoverToolkit Class
    :show-inheritance:
 
 LandCover Presentation Layer
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.raster.landcover.presentation
    :members:
    :show-inheritance:
@@ -44,6 +42,22 @@ TilesToolkit Presentation Class
    :show-inheritance:
 
 
+
+Topography Toolkit
+^^^^^^^^^^^^^^^^^^^^^^
+TopographyToolkit Class
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: hera.measurements.GIS.raster.topography.TopographyToolkit
+   :members:
+   :show-inheritance:
+
+TopographyToolkit Analysis Layer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: hera.measurements.GIS.raster.topography.topographyAnalysis
+   :members:
+   :show-inheritance:
+
+
 Vector
 ====================================================
 
@@ -55,8 +69,8 @@ BuildingsToolkit Class
    :members:
    :show-inheritance:
 
-BuildingsToolkit Analysis Class
-~~~~~~~~~~~~~~~~~~~~~~~~~
+BuildingsToolkit Analysis Layer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.vector.buildings.analysis.analysis
    :members:
    :show-inheritance:

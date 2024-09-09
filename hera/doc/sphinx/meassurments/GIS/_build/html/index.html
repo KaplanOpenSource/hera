@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GIS Documentation &mdash; GIS  documentation</title>
+  <title>Raster &mdash; GIS  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
 
@@ -44,9 +44,8 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">GIS Documentation</a></li>
-<li><a class="reference internal" href="#raster">Raster</a></li>
-<li><a class="reference internal" href="#landcover-toolkit">LandCover Toolkit</a></li>
+<li><a class="reference internal" href="#">Raster</a><ul>
+<li><a class="reference internal" href="#landcover-toolkit">LandCover Toolkit</a><ul>
 <li><a class="reference internal" href="#landcovertoolkit-class">LandCoverToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getCodingMap()</span></code></a></li>
@@ -68,7 +67,9 @@
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a><ul>
 <li><a class="reference internal" href="#tilestoolkit-class">TilesToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit"><code class="docutils literal notranslate"><span class="pre">TilesToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners"><code class="docutils literal notranslate"><span class="pre">TilesToolkit.getImageFromCorners()</span></code></a></li>
@@ -84,7 +85,32 @@
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#vector">Vector</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#topography-toolkit">Topography Toolkit</a><ul>
+<li><a class="reference internal" href="#topographytoolkit-class">TopographyToolkit Class</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.TopographyToolkit"><code class="docutils literal notranslate"><span class="pre">TopographyToolkit</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation"><code class="docutils literal notranslate"><span class="pre">TopographyToolkit.getDomainElevation()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation_STL"><code class="docutils literal notranslate"><span class="pre">TopographyToolkit.getDomainElevation_STL()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getPointElevation"><code class="docutils literal notranslate"><span class="pre">TopographyToolkit.getPointElevation()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getPointListElevation"><code class="docutils literal notranslate"><span class="pre">TopographyToolkit.getPointListElevation()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#topographytoolkit-analysis-layer">TopographyToolkit Analysis Layer</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.topographyAnalysis"><code class="docutils literal notranslate"><span class="pre">topographyAnalysis</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.topography.topographyAnalysis.calculateStastics"><code class="docutils literal notranslate"><span class="pre">topographyAnalysis.calculateStastics()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vector">Vector</a><ul>
+<li><a class="reference internal" href="#buildingstoolkit">BuildingsToolkit</a><ul>
 <li><a class="reference internal" href="#buildingstoolkit-class">BuildingsToolkit Class</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsGeopandasToSTLRasterTopography()</span></code></a></li>
@@ -94,10 +120,14 @@
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#buildingstoolkit-analysis-class">BuildingsToolkit Analysis Class</a><ul>
+<li><a class="reference internal" href="#buildingstoolkit-analysis-layer">BuildingsToolkit Analysis Layer</a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a><ul>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons"><code class="docutils literal notranslate"><span class="pre">analysis.ConvexPolygons()</span></code></a></li>
 <li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData"><code class="docutils literal notranslate"><span class="pre">analysis.LambdaFromBuildingData()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -118,7 +148,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">GIS Documentation</li>
+      <li class="breadcrumb-item active">Raster</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -128,19 +158,15 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="gis-documentation">
-<h1>GIS Documentation<a class="headerlink" href="#gis-documentation" title="Link to this heading"></a></h1>
+  <p>GIS Documentation</p>
 <div class="toctree-wrapper compound">
 </div>
-</section>
 <section id="raster">
 <h1>Raster<a class="headerlink" href="#raster" title="Link to this heading"></a></h1>
-</section>
 <section id="landcover-toolkit">
-<h1>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h1>
-</section>
+<h2>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h2>
 <section id="landcovertoolkit-class">
-<h1>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h1>
+<h3>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">LandCoverToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit" title="Link to this definition"></a></dt>
@@ -271,7 +297,7 @@ Smaller values result in finer resolution.</p></li>
 
 </section>
 <section id="landcover-presentation-layer">
-<h1>LandCover Presentation Layer<a class="headerlink" href="#landcover-presentation-layer" title="Link to this heading"></a></h1>
+<h3>LandCover Presentation Layer<a class="headerlink" href="#landcover-presentation-layer" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation" title="Link to this definition"></a></dt>
@@ -329,11 +355,11 @@ Smaller values result in finer resolution.</p></li>
 </dd></dl>
 
 </section>
-<section id="tiles-toolkit">
-<h1>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h1>
 </section>
+<section id="tiles-toolkit">
+<h2>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h2>
 <section id="tilestoolkit-class">
-<h1>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h1>
+<h3>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.TilesToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">TilesToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#TilesToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.TilesToolkit" title="Link to this definition"></a></dt>
@@ -386,7 +412,7 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 
 </section>
 <section id="tilestoolkit-presentation-class">
-<h1>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h1>
+<h3>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.presentation">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/tiles.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation" title="Link to this definition"></a></dt>
@@ -415,11 +441,136 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 </dd></dl>
 
 </section>
+</section>
+<section id="topography-toolkit">
+<h2>Topography Toolkit<a class="headerlink" href="#topography-toolkit" title="Link to this heading"></a></h2>
+<section id="topographytoolkit-class">
+<h3>TopographyToolkit Class<a class="headerlink" href="#topographytoolkit-class" title="Link to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.TopographyToolkit">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.topography.</span></span><span class="sig-name descname"><span class="pre">TopographyToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#TopographyToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.TopographyToolkit" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation">
+<span class="sig-name descname"><span class="pre">getDomainElevation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xmin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ymin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ymax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2039</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#TopographyToolkit.getDomainElevation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation" title="Link to this definition"></a></dt>
+<dd><blockquote>
+<div><p>Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.</p>
+<p>Assumes the coordinates are given in the input CRS, and outputted in the output CRS.</p>
+<p>Note, that in order to get 30m resultion, we convert the coordinates to ITM and then convert them back to
+WSG84. This will work well in IL.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lowerleft_point</strong> (<em>float</em>) – The lower left corner</p></li>
+<li><p><strong>upperright_point</strong> (<em>float</em>) – The upper right corner</p></li>
+<li><p><strong>dxdy</strong> (<em>float</em>) – The resolution in m (default m).</p></li>
+<li><p><strong>inputCRS</strong> (<em>The ESPG code</em><em> of </em><em>the input projection.</em>) – </p></li>
+<li><p><strong>outputCRS</strong> (<em>The ESPG code</em><em> of </em><em>the output projection.</em>) – [Default ITM]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>xarrat with the fields</em></p></li>
+<li><p><strong>- X</strong> (<em>X[i,j] - the x coordinate</em>)</p></li>
+<li><p><strong>- Y</strong> (<em>Y[i,j] - the y coordinate</em>)</p></li>
+<li><p><strong>- Height</strong> (<em>Height[i,j] - the height of the surface at point  (X[i,j],Y[i,j])</em>)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation_STL">
+<span class="sig-name descname"><span class="pre">getDomainElevation_STL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miny</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2039</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solidName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Topography'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shiftx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shifty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#TopographyToolkit.getDomainElevation_STL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation_STL" title="Link to this definition"></a></dt>
+<dd><p>Return the STL string from xarray dataset with the following fields.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lowerleft_point</strong> (<em>float</em>) – The lower left corner.</p></li>
+<li><p><strong>upperright_point</strong> (<em>float</em>) – The upper right corner.</p></li>
+<li><p><strong>dxdy</strong> (<em>float</em><em>,</em><em>default=30</em>) – The resolution in m (default m).</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>,</em><em>default=4326</em>) – The ESPG code of the input projection. Default is WSG84.</p></li>
+<li><p><strong>outputCRS</strong> (<em>int</em><em>, </em><em>default=2039</em>) – The ESPG code of the output projection. Default is ITM.</p></li>
+<li><p><strong>shiftx</strong> (<em>float</em><em>,</em><em>default=0</em>) – Used when one wants to set another point as origin center</p></li>
+<li><p><strong>shifty</strong> (<em>float</em><em>,</em><em>default=0</em>) – Used when one wants to set another point as origin center</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.TopographyToolkit.getPointElevation">
+<span class="sig-name descname"><span class="pre">getPointElevation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#TopographyToolkit.getPointElevation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getPointElevation" title="Link to this definition"></a></dt>
+<dd><p>Get the elevation above sea level in meters from DEM for a point SRTM30 means 30 meters resolution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lat</strong> (<em>float</em>) – Latitiute in the WSG projection.</p></li>
+<li><p><strong>long</strong> (<em>float</em>) – Longitude in the WSG projection.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em><em>,</em><em>default=None</em>) – The name of the datasources loaded. If none, use the default datasource.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.TopographyToolkit.getPointListElevation">
+<span class="sig-name descname"><span class="pre">getPointListElevation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointList</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#TopographyToolkit.getPointListElevation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.TopographyToolkit.getPointListElevation" title="Link to this definition"></a></dt>
+<dd><p>Return the elevation of the point list.
+For now we assume that pointList is in WSG84 coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pointList</strong> – </p></li>
+<li><p><strong>dataSourceName</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="topographytoolkit-analysis-layer">
+<h3>TopographyToolkit Analysis Layer<a class="headerlink" href="#topographytoolkit-analysis-layer" title="Link to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.topographyAnalysis">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.topography.</span></span><span class="sig-name descname"><span class="pre">topographyAnalysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datalayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#topographyAnalysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.topographyAnalysis" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.topography.topographyAnalysis.calculateStastics">
+<span class="sig-name descname"><span class="pre">calculateStastics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elevation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/topography.html#topographyAnalysis.calculateStastics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.topography.topographyAnalysis.calculateStastics" title="Link to this definition"></a></dt>
+<dd><p>Calculate the domain elevation statistics. Returns domain size (in meters for ITM, assuming small domain (rectangle),
+max elevation + location, min elevation + location, mean elevation and std of elevation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>elevation</strong> (<em>pd.DataFrame</em>) – elevation data including coordinates</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+</section>
 <section id="vector">
 <h1>Vector<a class="headerlink" href="#vector" title="Link to this heading"></a></h1>
-</section>
+<section id="buildingstoolkit">
+<h2>BuildingsToolkit<a class="headerlink" href="#buildingstoolkit" title="Link to this heading"></a></h2>
 <section id="buildingstoolkit-class">
-<h1>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h1>
+<h3>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.toolkit.</span></span><span class="sig-name descname"><span class="pre">BuildingsToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit" title="Link to this definition"></a></dt>
@@ -496,8 +647,8 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 </dd></dl>
 
 </section>
-<section id="buildingstoolkit-analysis-class">
-<h1>BuildingsToolkit Analysis Class<a class="headerlink" href="#buildingstoolkit-analysis-class" title="Link to this heading"></a></h1>
+<section id="buildingstoolkit-analysis-layer">
+<h3>BuildingsToolkit Analysis Layer<a class="headerlink" href="#buildingstoolkit-analysis-layer" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.analysis.analysis">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.analysis.</span></span><span class="sig-name descname"><span class="pre">analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/vector/buildings/analysis.html#analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.analysis.analysis" title="Link to this definition"></a></dt>
@@ -539,6 +690,8 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 
 </dd></dl>
 
+</section>
+</section>
 </section>
 
 

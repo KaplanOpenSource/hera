@@ -21,7 +21,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
     def __init__(self, projectName, filesDirectory=None):
         """
-            Initializes vector data toolkit.
+        Initializes vector data toolkit.
 
         Parameters
         ----------
@@ -44,31 +44,31 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
     def getPointElevation(self,lat, long,dataSourceName=None):
         """
-            get the elevation above sea level in meters from DEM for a point
-            SRTM30 means 30 meters resolution
+        Get the elevation above sea level in meters from DEM for a point SRTM30 means 30 meters resolution.
 
         Parameters
         ----------
         lat : float
-            Latitiute in the WSG projection
-        long : float
-            Longitude in the WSG projection
+            Latitiute in the WSG projection.
 
-        dataSourceName: string
-            The name of the datasources loaded. Use getDataSourceList to see which datasource were loaded.
+        long : float
+            Longitude in the WSG projection.
+
+        dataSourceName: string,default=None
+            The name of the datasources loaded. If none, use the default datasource.
 
         Returns
         -------
-        eleveation above sea level
-
-        How to use
-        ----------
-        from hera import toolkitHome
-        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER)
-        tk.getPointElevation(lat = 33.459,long = 35.755)
-
-        This should return ~  ~820 according to amud anan.
+            float
         """
+        # How to use
+        # ----------
+        # from hera import toolkitHome
+        # tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER)
+        # tk.getPointElevation(lat = 33.459,long = 35.755)
+        #
+        # This should return ~  ~820 according to amud anan.
+
         logger = get_classMethod_logger(self,"getPointElevation")
 
         filename = 'N'+str(int(lat))+'E'+str(int(long)).zfill(3)+'.hgt'
@@ -106,14 +106,13 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
     def getPointListElevation(self, pointList, dataSourceName=None,inputCRS=WSG84):
         """
-            Return the elevation of the point list.
-
-            For now we assume that pointList is in WSG84 coordinates.
+        Return the elevation of the point list.
+        For now we assume that pointList is in WSG84 coordinates.
 
         Parameters
         ----------
-        latList
-        longList
+        pointList
+
         dataSourceName
 
         Returns
@@ -253,28 +252,34 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
     def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None, solidName="Topography", shiftx=0, shifty=0):
         """
-            Return the STL string from xarray dataset with the following fields:
+        Return the STL string from xarray dataset with the following fields.
+
         Parameters
         ----------
         lowerleft_point : float
-                The lower left corner
+                The lower left corner.
+
         upperright_point: float
-                The upper right corner
+                The upper right corner.
 
-        dxdy : float
+        dxdy : float,default=30
                 The resolution in m (default m).
-        inputCRS : The ESPG code of the input projection.
 
-        outputCRS : The ESPG code of the output projection.
-                    [Default ITM]
+        inputCRS : int,default=4326
+            The ESPG code of the input projection. Default is WSG84.
+
+        outputCRS : int, default=2039
+                The ESPG code of the output projection. Default is ITM.
                     
-        shiftx : Used when one wants to set another point as origin center
+        shiftx : float,default=0
+            Used when one wants to set another point as origin center
                     
-        shifty : Used when one wants to set another point as origin center
+        shifty : float,default=0
+            Used when one wants to set another point as origin center
 
         Returns
         -------
-
+            str
         """
         elevation = self.getDomainElevation(xmin=minx, xmax=maxx, ymax=maxy, ymin=miny, dxdy=dxdy, inputCRS=inputCRS, outputCRS=outputCRS, dataSourceName=dataSourceName)
         stlstr = stlFactory().rasterToSTL(elevation['X'].values - shiftx, elevation['Y'].values - shifty , elevation['Elevation'].values,solidName=solidName)
@@ -542,27 +547,26 @@ class topographyAnalysis:
 
     def calculateStastics(self,elevation):
         """
-            calculate the domain elevation statistics
+        Calculate the domain elevation statistics. Returns domain size (in meters for ITM, assuming small domain (rectangle),
+        max elevation + location, min elevation + location, mean elevation and std of elevation.
+
         Parameters
         ----------
-        elevation - elevation data including coordinates
+        elevation: pd.DataFrame
+            elevation data including coordinates
 
         Returns
         -------
-        domain size (in meters for ITM, assuming small domain  (rectangle)
-        max elevation + location
-        min elevation + location
-        mean elevation
-        std of elevation
-
-        example
-        -------
-        after creating a project (hera-project project create project-name)
-        from hera import toolkitHome
-        tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName="topotest")
-        elevation = tk.getDomainElevation(xmin=34.529,xmax=34.531,ymin=31.160,ymax=31.162)
-        print(tk.analysis.calculateStastics(elevation))
+            dict
         """
+        # example
+        # -------
+        # after creating a project (hera-project project create project-name)
+        # from hera import toolkitHome
+        # tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName="topotest")
+        # elevation = tk.getDomainElevation(xmin=34.529,xmax=34.531,ymin=31.160,ymax=31.162)
+        # print(tk.analysis.calculateStastics(elevation))
+
         xmin = elevation['X'].values.min()
         xmax = elevation['X'].values.max()
         ymin = elevation['Y'].values.min()

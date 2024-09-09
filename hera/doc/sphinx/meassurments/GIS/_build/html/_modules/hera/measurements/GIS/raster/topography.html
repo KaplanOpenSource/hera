@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hera.measurements.GIS.raster.topography &mdash; GIS  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            GIS
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">GIS</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hera.measurements.GIS.raster.topography</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hera.measurements.GIS.raster.topography</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Just pieces of code from the vector.topography.</span>
+
+<span class="sd">    Should be organized when needed.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">....</span> <span class="kn">import</span> <span class="n">toolkit</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">stlFactory</span><span class="p">,</span><span class="n">convertCRS</span><span class="p">,</span><span class="n">ITM</span><span class="p">,</span><span class="n">WSG84</span><span class="p">,</span><span class="n">ED50_ZONE36N</span>
+<span class="kn">from</span> <span class="nn">....utils.logging</span> <span class="kn">import</span> <span class="n">get_classMethod_logger</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">osgeo</span> <span class="kn">import</span> <span class="n">gdal</span>
+<span class="kn">from</span> <span class="nn">pyproj</span> <span class="kn">import</span> <span class="n">Transformer</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">xarray</span>
+<span class="kn">import</span> <span class="nn">geopandas</span>
+
+<div class="viewcode-block" id="TopographyToolkit">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.TopographyToolkit">[docs]</a>
+<span class="k">class</span> <span class="nc">TopographyToolkit</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes vector data toolkit.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        projectName: str</span>
+<span class="sd">            The project Name that the toolkit is initialized on</span>
+<span class="sd">        toolkitName: str</span>
+<span class="sd">            the specific toolkit, getting from the child.</span>
+
+<span class="sd">        FilesDirectory: str or None</span>
+<span class="sd">                The path to save a regions files when they are created.</span>
+
+<span class="sd">                if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.</span>
+
+<span class="sd">                if None, then tries to get the default path of the project from the config. if it does not</span>
+<span class="sd">                exist, then use the current directory.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span> <span class="n">toolkitName</span> <span class="o">=</span> <span class="s1">&#39;TopographyToolkit&#39;</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span> <span class="o">=</span> <span class="n">topographyAnalysis</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TopographyToolkit.getPointElevation">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.TopographyToolkit.getPointElevation">[docs]</a>
+    <span class="k">def</span> <span class="nf">getPointElevation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">lat</span><span class="p">,</span> <span class="n">long</span><span class="p">,</span><span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the elevation above sea level in meters from DEM for a point SRTM30 means 30 meters resolution.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        lat : float</span>
+<span class="sd">            Latitiute in the WSG projection.</span>
+
+<span class="sd">        long : float</span>
+<span class="sd">            Longitude in the WSG projection.</span>
+
+<span class="sd">        dataSourceName: string,default=None</span>
+<span class="sd">            The name of the datasources loaded. If none, use the default datasource.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># How to use</span>
+        <span class="c1"># ----------</span>
+        <span class="c1"># from hera import toolkitHome</span>
+        <span class="c1"># tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER)</span>
+        <span class="c1"># tk.getPointElevation(lat = 33.459,long = 35.755)</span>
+        <span class="c1">#</span>
+        <span class="c1"># This should return ~  ~820 according to amud anan.</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">&quot;getPointElevation&quot;</span><span class="p">)</span>
+
+        <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;N&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">lat</span><span class="p">))</span><span class="o">+</span><span class="s1">&#39;E&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">long</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;.hgt&#39;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting elevation from file </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultSRTM&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The datasource is not found!&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting the data source </span><span class="si">{</span><span class="n">dataSourceName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">fheight</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceData</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">),</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="n">ds</span> <span class="o">=</span>  <span class="n">gdal</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">fheight</span><span class="p">)</span>
+        <span class="n">myarray</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">ReadAsArray</span><span class="p">())</span>
+        <span class="n">myarray</span><span class="p">[</span><span class="n">myarray</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1000</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># deal with problematic points</span>
+        <span class="n">gt</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetGeoTransform</span><span class="p">()</span>
+        <span class="n">rastery</span> <span class="o">=</span> <span class="p">(</span><span class="n">long</span> <span class="o">-</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">gt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">rasterx</span> <span class="o">=</span> <span class="p">(</span><span class="n">lat</span> <span class="o">-</span> <span class="n">gt</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">/</span> <span class="n">gt</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+        <span class="n">height11</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="o">&gt;=</span><span class="n">myarray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="o">&gt;=</span><span class="n">myarray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">height12</span> <span class="o">=</span> <span class="n">height11</span>
+            <span class="n">height21</span> <span class="o">=</span> <span class="n">height11</span>
+            <span class="n">height22</span> <span class="o">=</span> <span class="n">height11</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">height12</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)]</span>
+            <span class="n">height21</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">height22</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">height1</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)))</span> <span class="o">*</span> <span class="n">height11</span> <span class="o">+</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">))</span> <span class="o">*</span> <span class="n">height12</span>
+        <span class="n">height2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)))</span> <span class="o">*</span> <span class="n">height21</span> <span class="o">+</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">))</span> <span class="o">*</span> <span class="n">height22</span>
+        <span class="n">elevation</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="p">(</span><span class="n">rastery</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)))</span> <span class="o">*</span> <span class="n">height1</span> <span class="o">+</span> <span class="p">(</span><span class="n">rastery</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">))</span> <span class="o">*</span> <span class="n">height2</span>
+
+        <span class="k">return</span> <span class="n">elevation</span></div>
+
+
+<div class="viewcode-block" id="TopographyToolkit.getPointListElevation">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.TopographyToolkit.getPointListElevation">[docs]</a>
+    <span class="k">def</span> <span class="nf">getPointListElevation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pointList</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the elevation of the point list.</span>
+<span class="sd">        For now we assume that pointList is in WSG84 coordinates.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        pointList</span>
+
+<span class="sd">        dataSourceName</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">totalNumberOfPoints</span> <span class="o">=</span> <span class="n">pointList</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;getPointListElevation&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing the elevation for a list of </span><span class="si">{</span><span class="n">totalNumberOfPoints</span><span class="si">}</span><span class="s2"> points&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Computing the file name for each point&quot;</span><span class="p">)</span>
+
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointList</span><span class="p">,</span><span class="n">geopandas</span><span class="o">.</span><span class="n">geoseries</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">):</span>
+            <span class="n">pointList</span> <span class="o">=</span> <span class="n">pointList</span><span class="o">.</span><span class="n">to_frame</span><span class="p">(</span><span class="s2">&quot;point&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="s1">&#39;N&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">y</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;E&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">x</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.hgt&#39;</span> <span class="p">),</span>
+                                                           <span class="n">lon</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+                                                           <span class="n">lat</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+                                                           <span class="n">elevation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointList</span><span class="p">,</span><span class="n">geopandas</span><span class="o">.</span><span class="n">geodataframe</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;point&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">pointList</span><span class="p">:</span>
+                <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;GeoDataFrame must contain a field &#39;point&#39; that contain the points of interest&quot;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="n">pointList</span> <span class="o">=</span> <span class="n">pointList</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="s1">&#39;N&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">point</span><span class="o">.</span><span class="n">y</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;E&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">point</span><span class="o">.</span><span class="n">x</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.hgt&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                                         <span class="n">lon</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">point</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+                                         <span class="n">lat</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">point</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+                                         <span class="n">elevation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pointList</span> <span class="o">=</span> <span class="n">pointList</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">pointList</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s1">&#39;N&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">lat</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;E&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">lon</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.hgt&#39;</span> <span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span><span class="n">elevation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+        <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultSRTM&#39;</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting the elevation for the points. Using datasource </span><span class="si">{</span><span class="n">dataSourceName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="s2">&quot;The datasource is not found!&quot;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+        <span class="n">processed</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">grpid</span><span class="p">,</span><span class="n">grp</span> <span class="ow">in</span> <span class="n">pointList</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;filename&quot;</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">Processing the group </span><span class="si">{</span><span class="n">grpid</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="n">grp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">. Processed so far </span><span class="si">{</span><span class="n">processed</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">totalNumberOfPoints</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">fheight</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceData</span><span class="p">(</span><span class="n">dataSourceName</span><span class="p">),</span> <span class="n">grpid</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting data from the file </span><span class="si">{</span><span class="n">fheight</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">ds</span> <span class="o">=</span> <span class="n">gdal</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">fheight</span><span class="p">)</span>
+            <span class="n">myarray</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">ReadAsArray</span><span class="p">())</span>
+            <span class="n">myarray</span><span class="p">[</span><span class="n">myarray</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1000</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># deal with problematic points</span>
+            <span class="n">gt</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetGeoTransform</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">itemindx</span><span class="p">,</span><span class="n">item</span> <span class="ow">in</span> <span class="n">grp</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+                <span class="n">rastery</span> <span class="o">=</span> <span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">lon</span> <span class="o">-</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">gt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">rasterx</span> <span class="o">=</span> <span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">lat</span> <span class="o">-</span> <span class="n">gt</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">/</span> <span class="n">gt</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+                <span class="n">height11</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="o">&gt;=</span><span class="n">myarray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="o">&gt;=</span><span class="n">myarray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                    <span class="n">height12</span> <span class="o">=</span> <span class="n">height11</span>
+                    <span class="n">height21</span> <span class="o">=</span> <span class="n">height11</span>
+                    <span class="n">height22</span> <span class="o">=</span> <span class="n">height11</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">height12</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)]</span>
+                    <span class="n">height21</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                    <span class="n">height22</span> <span class="o">=</span> <span class="n">myarray</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">height1</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)))</span> <span class="o">*</span> <span class="n">height11</span> <span class="o">+</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">))</span> <span class="o">*</span> <span class="n">height12</span>
+                <span class="n">height2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">)))</span> <span class="o">*</span> <span class="n">height21</span> <span class="o">+</span> <span class="p">(</span><span class="n">rasterx</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rasterx</span><span class="p">))</span> <span class="o">*</span> <span class="n">height22</span>
+                <span class="n">elevation</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="p">(</span><span class="n">rastery</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">)))</span> <span class="o">*</span> <span class="n">height1</span> <span class="o">+</span> <span class="p">(</span><span class="n">rastery</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">rastery</span><span class="p">))</span> <span class="o">*</span> <span class="n">height2</span>
+                <span class="n">pointList</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">itemindx</span><span class="p">,</span><span class="s1">&#39;elevation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">elevation</span>
+                <span class="n">processed</span> <span class="o">+=</span> <span class="n">grp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pointList</span></div>
+
+
+<div class="viewcode-block" id="TopographyToolkit.getDomainElevation">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation">[docs]</a>
+    <span class="k">def</span> <span class="nf">getDomainElevation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymax</span><span class="p">,</span> <span class="n">dxdy</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.</span>
+
+<span class="sd">            Assumes the coordinates are given in the input CRS, and outputted in the output CRS.</span>
+
+<span class="sd">            Note, that in order to get 30m resultion, we convert the coordinates to ITM and then convert them back to</span>
+<span class="sd">            WSG84. This will work well in IL.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        lowerleft_point : float</span>
+<span class="sd">                The lower left corner</span>
+<span class="sd">        upperright_point: float</span>
+<span class="sd">                The upper right corner</span>
+
+<span class="sd">        dxdy : float</span>
+<span class="sd">                The resolution in m (default m).</span>
+<span class="sd">        inputCRS : The ESPG code of the input projection.</span>
+
+<span class="sd">        outputCRS : The ESPG code of the output projection.</span>
+<span class="sd">                    [Default ITM]</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            xarrat with the fields</span>
+<span class="sd">            - X : X[i,j] - the x coordinate</span>
+<span class="sd">            - Y:  Y[i,j] - the y coordinate</span>
+<span class="sd">            - Height: Height[i,j] - the height of the surface at point  (X[i,j],Y[i,j])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">&quot;getDomainElevation&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Converting input coordinates to ITM (to have meters)&quot;</span><span class="p">)</span>
+        <span class="n">itm_points</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([[</span><span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">],</span> <span class="p">[</span><span class="n">xmax</span><span class="p">,</span> <span class="n">ymax</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">inputCRS</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;... Got </span><span class="si">{</span><span class="n">itm_points</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the coordinates&quot;</span><span class="p">)</span>
+        <span class="n">itm_lowerleft</span><span class="p">,</span> <span class="n">itm_upperright</span> <span class="o">=</span> <span class="n">itm_points</span>
+
+        <span class="n">itm_gridx</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">itm_lowerleft</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">itm_upperright</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">dxdy</span><span class="p">)</span>
+        <span class="n">itm_gridy</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">itm_lowerleft</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">itm_upperright</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">dxdy</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Converting the coordinates to WSG84 for SRTM data&quot;</span><span class="p">)</span>
+        <span class="n">wsg_coords</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">,</span><span class="n">itm_gridy</span><span class="p">)],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting output coords&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">outputCRS</span> <span class="o">!=</span> <span class="n">ITM</span><span class="p">:</span>
+            <span class="n">output_coords</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">,</span><span class="n">itm_gridy</span><span class="p">)],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">outputCRS</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">XX</span><span class="p">,</span><span class="n">YY</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">,</span><span class="n">itm_gridy</span><span class="p">)])</span>
+            <span class="n">output_coords</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">points_from_xy</span><span class="p">(</span><span class="n">XX</span><span class="p">,</span><span class="n">YY</span><span class="p">)</span>
+
+        <span class="n">grid_x</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">itm_gridy</span><span class="p">)])</span>
+        <span class="n">grid_y</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">grid_x</span><span class="p">)</span>
+        <span class="n">grid_z</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">grid_x</span><span class="p">)</span>
+
+        <span class="n">pointList</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([</span><span class="nb">dict</span><span class="p">(</span><span class="n">lon</span><span class="o">=</span><span class="n">pnt</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="n">pnt</span><span class="o">.</span><span class="n">y</span><span class="p">,</span><span class="n">lon_output</span><span class="o">=</span><span class="n">pnt_output</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="n">lat_output</span><span class="o">=</span><span class="n">pnt_output</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">pnt</span><span class="p">,</span><span class="n">pnt_output</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">wsg_coords</span><span class="p">,</span><span class="n">output_coords</span><span class="p">)])</span>
+        <span class="n">pointHeights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getPointListElevation</span><span class="p">(</span><span class="n">pointList</span><span class="p">)</span> <span class="c1">#.set_index([&quot;lon&quot;,&quot;lat&quot;])</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Converting the output to the desired coordinates.&quot;</span><span class="p">)</span>
+        <span class="n">grid_y</span> <span class="o">=</span> <span class="n">pointHeights</span><span class="p">[</span><span class="s1">&#39;lat_output&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">itm_gridy</span><span class="p">))</span>
+        <span class="n">grid_x</span> <span class="o">=</span> <span class="n">pointHeights</span><span class="p">[</span><span class="s1">&#39;lon_output&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">itm_gridy</span><span class="p">))</span>
+        <span class="n">grid_z</span> <span class="o">=</span> <span class="n">pointHeights</span><span class="p">[</span><span class="s1">&#39;elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">itm_gridx</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">itm_gridy</span><span class="p">))</span>
+
+        <span class="n">retArray</span> <span class="o">=</span>  <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">data_vars</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="p">([</span><span class="s2">&quot;i&quot;</span><span class="p">,</span><span class="s2">&quot;j&quot;</span><span class="p">],</span><span class="n">grid_x</span><span class="p">),</span>
+                                                  <span class="n">Y</span><span class="o">=</span><span class="p">([</span><span class="s2">&quot;i&quot;</span><span class="p">,</span><span class="s2">&quot;j&quot;</span><span class="p">],</span><span class="n">grid_y</span><span class="p">),</span>
+                                                  <span class="n">Elevation</span><span class="o">=</span><span class="p">([</span><span class="s2">&quot;i&quot;</span><span class="p">,</span> <span class="s2">&quot;j&quot;</span><span class="p">],</span> <span class="n">grid_z</span><span class="p">)),</span><span class="n">coords</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;i&quot;</span><span class="p">,</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">grid_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span><span class="n">j</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;j&quot;</span><span class="p">,</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">grid_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="p">)))</span>
+
+        <span class="k">return</span> <span class="n">retArray</span></div>
+
+
+<div class="viewcode-block" id="TopographyToolkit.getDomainElevation_STL">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.TopographyToolkit.getDomainElevation_STL">[docs]</a>
+    <span class="k">def</span> <span class="nf">getDomainElevation_STL</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">dxdy</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">solidName</span><span class="o">=</span><span class="s2">&quot;Topography&quot;</span><span class="p">,</span> <span class="n">shiftx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">shifty</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the STL string from xarray dataset with the following fields.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        lowerleft_point : float</span>
+<span class="sd">                The lower left corner.</span>
+
+<span class="sd">        upperright_point: float</span>
+<span class="sd">                The upper right corner.</span>
+
+<span class="sd">        dxdy : float,default=30</span>
+<span class="sd">                The resolution in m (default m).</span>
+
+<span class="sd">        inputCRS : int,default=4326</span>
+<span class="sd">            The ESPG code of the input projection. Default is WSG84.</span>
+
+<span class="sd">        outputCRS : int, default=2039</span>
+<span class="sd">                The ESPG code of the output projection. Default is ITM.</span>
+<span class="sd">                    </span>
+<span class="sd">        shiftx : float,default=0</span>
+<span class="sd">            Used when one wants to set another point as origin center</span>
+<span class="sd">                    </span>
+<span class="sd">        shifty : float,default=0</span>
+<span class="sd">            Used when one wants to set another point as origin center</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">elevation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDomainElevation</span><span class="p">(</span><span class="n">xmin</span><span class="o">=</span><span class="n">minx</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="n">maxx</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">maxy</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="n">miny</span><span class="p">,</span> <span class="n">dxdy</span><span class="o">=</span><span class="n">dxdy</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">inputCRS</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">outputCRS</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="n">dataSourceName</span><span class="p">)</span>
+        <span class="n">stlstr</span> <span class="o">=</span> <span class="n">stlFactory</span><span class="p">()</span><span class="o">.</span><span class="n">rasterToSTL</span><span class="p">(</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">-</span> <span class="n">shiftx</span><span class="p">,</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">-</span> <span class="n">shifty</span> <span class="p">,</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span><span class="n">solidName</span><span class="o">=</span><span class="n">solidName</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">stlstr</span></div>
+</div>
+
+
+    <span class="c1"># def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = &quot;default&quot;):</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#         create STL from equation</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Parameters</span>
+    <span class="c1">#     ----------</span>
+    <span class="c1">#     point1 (lat, long)</span>
+    <span class="c1">#     point2 (lat, long)</span>
+    <span class="c1">#     outputfile - where to write the stl</span>
+    <span class="c1">#     amplitude - of the wave [m]</span>
+    <span class="c1">#     cosx - x axis frequency, optional</span>
+    <span class="c1">#     cosy - y axis frequency, optional</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Returns</span>
+    <span class="c1">#     -------</span>
+    <span class="c1">#</span>
+    <span class="c1">#     How to use</span>
+    <span class="c1">#     ----------</span>
+    <span class="c1">#     from hera.measurements.GIS.raster.topography import TopographyToolkit</span>
+    <span class="c1">#     TopographyToolkit.setDomainElevation([200000, 740000], [201000, 741000], &#39;test1.stl&#39;, amplitude=10, cosx=.5, cosy=.2)</span>
+    <span class="c1">#</span>
+    <span class="c1">#</span>
+    <span class="c1">#     What to fix</span>
+    <span class="c1">#     -----------</span>
+    <span class="c1">#</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     miny = point1[1]  # y</span>
+    <span class="c1">#     maxy = point2[1]</span>
+    <span class="c1">#     minx = point1[0]  # x</span>
+    <span class="c1">#     maxx = point2[0]</span>
+    <span class="c1">#     dxdy = 30</span>
+    <span class="c1">#</span>
+    <span class="c1">#     NX = 1 + math.ceil((maxx - minx) / dxdy)</span>
+    <span class="c1">#     NY = 1 + math.ceil((maxy - miny) / dxdy)</span>
+    <span class="c1">#     grid_x = numpy.zeros([NX, NY])</span>
+    <span class="c1">#     grid_y = numpy.zeros_like(grid_x)</span>
+    <span class="c1">#     grid_z = numpy.zeros_like(grid_x)</span>
+    <span class="c1">#     i = minx</span>
+    <span class="c1">#     j = miny</span>
+    <span class="c1">#     for i in range(NX):</span>
+    <span class="c1">#         for j in range(NY):</span>
+    <span class="c1">#             x = minx + i * dxdy</span>
+    <span class="c1">#             y = miny + j * dxdy</span>
+    <span class="c1">#             z = amplitude*(2.+math.cos(math.pi+i*cosx))*(2.+math.cos(math.pi+j*cosy))</span>
+    <span class="c1">#             grid_x[i, j] = x</span>
+    <span class="c1">#             grid_y[i, j] = y</span>
+    <span class="c1">#             grid_z[i, j] = z</span>
+    <span class="c1">#</span>
+    <span class="c1">#     a = stlFactory()</span>
+    <span class="c1">#     stlstr = a.rasterToSTL(grid_x, grid_y, grid_z, &#39;solidName&#39;)</span>
+    <span class="c1">#</span>
+    <span class="c1">#     with open(outputfile, &quot;w&quot;) as stlfile:</span>
+    <span class="c1">#         stlfile.write(stlstr)</span>
+    <span class="c1">#</span>
+    <span class="c1">#     return</span>
+    <span class="c1">#</span>
+    <span class="c1">#</span>
+    <span class="c1"># def latlongtoITM(point1):</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#         change the coordinate system, from lat long to x y</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Parameters</span>
+    <span class="c1">#     ----------</span>
+    <span class="c1">#     lat</span>
+    <span class="c1">#     long</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Returns</span>
+    <span class="c1">#     -------</span>
+    <span class="c1">#     x, y in ITM</span>
+    <span class="c1">#</span>
+    <span class="c1">#     How to use</span>
+    <span class="c1">#     ----------</span>
+    <span class="c1">#     from hera.measurements.GIS.raster.topography import TopographyToolkit</span>
+    <span class="c1">#     TopographyToolkit.latlongtoITM([35.159,32.755])</span>
+    <span class="c1">#</span>
+    <span class="c1">#     What to fix</span>
+    <span class="c1">#     -----------</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     ITM = &quot;epsg:2039&quot;</span>
+    <span class="c1">#     WGS84 = &quot;epsg:4327&quot;</span>
+    <span class="c1">#     lat = point1[0]</span>
+    <span class="c1">#     long = point1[1]</span>
+    <span class="c1">#     coordTransformer = Transformer.from_crs(WGS84, ITM, always_xy=True)</span>
+    <span class="c1">#     x, y = coordTransformer.transform(lat, long)</span>
+    <span class="c1">#     return x,y</span>
+
+
+
+
+<span class="c1"># srtmDocs = self.getMeasurementsDocumentsAsDict(name=&quot;SRTM&quot;)</span>
+<span class="c1"># self._srtmBounds = []</span>
+<span class="c1"># if type(srtmDocs) == dict:</span>
+<span class="c1">#     for doc in srtmDocs[&quot;documents&quot;]:</span>
+<span class="c1">#         self._srtmBounds.append(doc[&quot;desc&quot;][&quot;Bounds&quot;])</span>
+
+<span class="c1">#</span>
+<span class="c1"># def get_altitdue_ip(lat, lon):</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     returning the altitude of the point, uses free mapquest data that is limited in the amount of calls per month, it uses Nir BAMBA Benmoshe key</span>
+<span class="c1">#</span>
+<span class="c1">#     param lat - the path where we save the stl</span>
+<span class="c1">#     param lon - the width of the domain in the x direction</span>
+<span class="c1">#</span>
+<span class="c1">#     return:</span>
+<span class="c1">#     altitude - meters above sea level</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#</span>
+<span class="c1">#     resp = requests.get(</span>
+<span class="c1">#         &#39;http://open.mapquestapi.com/elevation/v1/profile?key=D5z9RSebQJLbUs4bohANIB4TzJdbvyvm&amp;shapeFormat=raw&amp;latLngCollection=&#39; + str(</span>
+<span class="c1">#             lat) + &#39;,&#39; + str(lon))</span>
+<span class="c1">#</span>
+<span class="c1">#     height = resp.json()[&#39;elevationProfile&#39;][0][&#39;height&#39;]</span>
+<span class="c1">#</span>
+<span class="c1">#     return height</span>
+<span class="c1"># def get_altitdue_gdal(lat, lon):</span>
+<span class="c1">#     #        if lat&lt;=30:</span>
+<span class="c1">#     # USGS EROS Archive - Digital Elevation - Global Multi-resolution Terrain Elevation Data 2010 (GMTED2010)</span>
+<span class="c1">#     # fheight = r&#39;/data3/nirb/10N030E_20101117_gmted_med075.tif&#39;</span>
+<span class="c1">#     # fheight = r&#39;/data3/nirb/30N030E_20101117_gmted_med075.tif&#39;</span>
+<span class="c1">#     # https://dds.cr.usgs.gov/srtm/version2_1/SRTM3/Africa/   # 90m resolution</span>
+<span class="c1">#     if lat &gt; 29 and lat &lt; 30 and lon &gt; 34 and lon &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N29E034.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 29 and lat &lt; 30 and lon &gt; 35 and lon &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N29E035.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 30 and lat &lt; 31 and lon &gt; 34 and lon &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N30E034.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 30 and lat &lt; 31 and lon &gt; 35 and lon &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N30E035.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 31 and lat &lt; 32 and lon &gt; 34 and lon &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N31E034.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 31 and lat &lt; 32 and lon &gt; 35 and lon &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N31E035.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 32 and lat &lt; 33 and lon &gt; 34 and lon &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N32E034.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 32 and lat &lt; 33 and lon &gt; 35 and lon &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N32E035.hgt&#39;</span>
+<span class="c1">#     elif lat &gt; 33 and lat &lt; 33 and lon &gt; 35 and lon &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;/data3/nirb/N33E035.hgt&#39;</span>
+<span class="c1">#     else:</span>
+<span class="c1">#         print(&#39;!!!!NOT in Israel !!!!!!!!&#39;)</span>
+<span class="c1">#         # taken from https://earthexplorer.usgs.gov/</span>
+<span class="c1">#         fheight = r&#39;/ibdata2/nirb/gt30e020n40.tif&#39;</span>
+<span class="c1">#</span>
+<span class="c1">#     ds = gdal.Open(fheight)</span>
+<span class="c1">#     myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())</span>
+<span class="c1">#     myarray[myarray &lt; -1000] = 0</span>
+<span class="c1">#     gt = ds.GetGeoTransform()</span>
+<span class="c1">#     rastery = (lon - gt[0]) / gt[1]</span>
+<span class="c1">#     rasterx = (lat - gt[3]) / gt[5]</span>
+<span class="c1">#     height11 = myarray[int(rasterx), int(rastery)]</span>
+<span class="c1">#     height12 = myarray[int(rasterx) + 1, int(rastery)]</span>
+<span class="c1">#     height21 = myarray[int(rasterx), int(rastery) + 1]</span>
+<span class="c1">#     height22 = myarray[int(rasterx) + 1, int(rastery) + 1]</span>
+<span class="c1">#     height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12</span>
+<span class="c1">#     height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22</span>
+<span class="c1">#     height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2</span>
+<span class="c1">#</span>
+<span class="c1">#     return height</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+
+
+<span class="c1"># def makeRegion_tif(self, points, outputFileName, **kwargs):</span>
+<span class="c1">#     availableBounds = {}</span>
+<span class="c1">#     for bounds in self.srtmBounds:</span>
+<span class="c1">#         if points[0] &gt;= bounds[0] and points[0] &lt;= bounds[2] and points[2] &gt;= bounds[0] and points[2] &lt;= bounds[2] and \</span>
+<span class="c1">#                 points[1] &gt;= bounds[1] and points[1] &lt;= bounds[3] and points[3] &gt;= bounds[1] and points[3] &lt;= bounds[3]:</span>
+<span class="c1">#             availableBounds[&quot;Bounds&quot;] = bounds</span>
+<span class="c1">#             break</span>
+<span class="c1">#     if len(availableBounds) &gt; 0:</span>
+<span class="c1">#         FileName = f&quot;{outputFileName}.parquet&quot;</span>
+<span class="c1">#         allData = self.getMeasurementsDocuments(name=&quot;SRTM&quot;, type=toolkit.TOOLKIT_DATASOURCE_TYPE, **availableBounds)[</span>
+<span class="c1">#             0].getData()</span>
+<span class="c1">#         dataArray = allData.read(1)</span>
+<span class="c1">#         xs = numpy.linspace(allData.bounds.left, allData.bounds.right, dataArray.shape[1])</span>
+<span class="c1">#         ys = numpy.linspace(allData.bounds.top, allData.bounds.bottom, dataArray.shape[0])</span>
+<span class="c1">#         xmin = numpy.where(xs &gt; points[0])[0].min()</span>
+<span class="c1">#         ymin = numpy.where(ys &lt; points[1])[0].min()</span>
+<span class="c1">#         xmax = numpy.where(xs &lt; points[2])[0].max()</span>
+<span class="c1">#         ymax = numpy.where(ys &gt; points[3])[0].max()</span>
+<span class="c1">#         xColumn = self.getConfig()[&quot;xColumn&quot;] if &quot;xColumn&quot; in self.getConfig().keys() else &quot;x&quot;</span>
+<span class="c1">#         yColumn = self.getConfig()[&quot;yColumn&quot;] if &quot;yColumn&quot; in self.getConfig().keys() else &quot;y&quot;</span>
+<span class="c1">#         heightColumn = self.getConfig()[&quot;heightColumn&quot;] if &quot;heightColumn&quot; in self.getConfig().keys() else &quot;height&quot;</span>
+<span class="c1">#         data = xarray.DataArray(data=dataArray[ymax:ymin, xmin:xmax], dims=[&quot;yWGS84&quot;, &quot;xWGS84&quot;],</span>
+<span class="c1">#                                 coords=[ys[ymax:ymin], xs[xmin:xmax]]).to_dataframe(heightColumn).reset_index()</span>
+<span class="c1">#         gdf = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data[&quot;xWGS84&quot;], data[&quot;yWGS84&quot;]))</span>
+<span class="c1">#         gdf.crs = {&quot;init&quot;: &quot;epsg:4326&quot;}</span>
+<span class="c1">#         gdf = gdf.to_crs({&quot;init&quot;: &quot;epsg:2039&quot;})</span>
+<span class="c1">#         gdf[xColumn] = gdf.geometry.x</span>
+<span class="c1">#         gdf[yColumn] = gdf.geometry.y</span>
+<span class="c1">#         data = dask.dataframe.from_pandas(gdf.drop(columns=&quot;geometry&quot;), npartitions=1)</span>
+<span class="c1">#         data.to_parquet(FileName, compression=&quot;GZIP&quot;)</span>
+<span class="c1">#     else:</span>
+<span class="c1">#         raise KeyError(&quot;Couldn&#39;t find SRTM files which include the requested points!&quot;)</span>
+<span class="c1">#     return</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># def getHeight(self, latitude, longitude, source):</span>
+<span class="c1">#     return getattr(self, f&quot;getHeight_{source}&quot;)(longitude=longitude, latitude=latitude)</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># def getHeight_mapquest(self, latitude, longitude):</span>
+<span class="c1">#     resp = requests.get(</span>
+<span class="c1">#         &#39;http://open.mapquestapi.com/elevation/v1/profile?key=D5z9RSebQJLbUs4bohANIB4TzJdbvyvm&amp;shapeFormat=raw&amp;latLngCollection=&#39; + str(</span>
+<span class="c1">#             latitude) + &#39;,&#39; + str(longitude))</span>
+<span class="c1">#</span>
+<span class="c1">#     height = resp.json()[&#39;elevationProfile&#39;][0][&#39;height&#39;]</span>
+<span class="c1">#</span>
+<span class="c1">#     return height</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># def getHeight_USGS(self, latitude, longitude):</span>
+<span class="c1">#     path = self.getMeasurementsDocuments(name=&quot;USGS&quot;)[0].getData()</span>
+<span class="c1">#</span>
+<span class="c1">#     if latitude &gt; 29 and latitude &lt; 30 and longitude &gt; 34 and longitude &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;%s/N29E034.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 29 and latitude &lt; 30 and longitude &gt; 35 and longitude &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;%s/N29E035.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 30 and latitude &lt; 31 and longitude &gt; 34 and longitude &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;%s/N30E034.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 30 and latitude &lt; 31 and longitude &gt; 35 and longitude &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;%s/N30E035.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 31 and latitude &lt; 32 and longitude &gt; 34 and longitude &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;%s/N31E034.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 31 and latitude &lt; 32 and longitude &gt; 35 and longitude &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;%s/N31E035.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 32 and latitude &lt; 33 and longitude &gt; 34 and longitude &lt; 35:</span>
+<span class="c1">#         fheight = r&#39;%s/N32E034.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 32 and latitude &lt; 33 and longitude &gt; 35 and longitude &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;%s/N32E035.hgt&#39; % path</span>
+<span class="c1">#     elif latitude &gt; 33 and latitude &lt; 33 and longitude &gt; 35 and longitude &lt; 36:</span>
+<span class="c1">#         fheight = r&#39;%s/N33E035.hgt&#39; % path</span>
+<span class="c1">#     else:</span>
+<span class="c1">#         raise KeyError(&quot;The point is outside Isreal.&quot;)</span>
+<span class="c1">#</span>
+<span class="c1">#     ds = gdal.Open(fheight)</span>
+<span class="c1">#     myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())</span>
+<span class="c1">#     myarray[myarray &lt; -1000] = 0</span>
+<span class="c1">#     gt = ds.GetGeoTransform()</span>
+<span class="c1">#     rastery = (longitude - gt[0]) / gt[1]</span>
+<span class="c1">#     rasterx = (latitude - gt[3]) / gt[5]</span>
+<span class="c1">#     height11 = myarray[int(rasterx), int(rastery)]</span>
+<span class="c1">#     height12 = myarray[int(rasterx) + 1, int(rastery)]</span>
+<span class="c1">#     height21 = myarray[int(rasterx), int(rastery) + 1]</span>
+<span class="c1">#     height22 = myarray[int(rasterx) + 1, int(rastery) + 1]</span>
+<span class="c1">#     height1 = (1. - (rasterx - int(rasterx))) * height11 + (rasterx - int(rasterx)) * height12</span>
+<span class="c1">#     height2 = (1. - (rasterx - int(rasterx))) * height21 + (rasterx - int(rasterx)) * height22</span>
+<span class="c1">#     height = (1. - (rastery - int(rastery))) * height1 + (rastery - int(rastery)) * height2</span>
+<span class="c1">#</span>
+<span class="c1">#     return height</span>
+
+
+
+<div class="viewcode-block" id="topographyAnalysis">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.topographyAnalysis">[docs]</a>
+<span class="k">class</span> <span class="nc">topographyAnalysis</span><span class="p">:</span>
+
+    <span class="n">datalayer</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">datalayer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span> <span class="o">=</span> <span class="n">datalayer</span>
+
+<div class="viewcode-block" id="topographyAnalysis.calculateStastics">
+<a class="viewcode-back" href="../../../../../index.html#hera.measurements.GIS.raster.topography.topographyAnalysis.calculateStastics">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculateStastics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">elevation</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the domain elevation statistics. Returns domain size (in meters for ITM, assuming small domain (rectangle),</span>
+<span class="sd">        max elevation + location, min elevation + location, mean elevation and std of elevation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        elevation: pd.DataFrame</span>
+<span class="sd">            elevation data including coordinates</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># example</span>
+        <span class="c1"># -------</span>
+        <span class="c1"># after creating a project (hera-project project create project-name)</span>
+        <span class="c1"># from hera import toolkitHome</span>
+        <span class="c1"># tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY,projectName=&quot;topotest&quot;)</span>
+        <span class="c1"># elevation = tk.getDomainElevation(xmin=34.529,xmax=34.531,ymin=31.160,ymax=31.162)</span>
+        <span class="c1"># print(tk.analysis.calculateStastics(elevation))</span>
+
+        <span class="n">xmin</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">xmax</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">ymin</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">ymax</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">domainsize</span> <span class="o">=</span> <span class="p">(</span><span class="n">xmax</span> <span class="o">-</span> <span class="n">xmin</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">ymax</span> <span class="o">-</span> <span class="n">ymin</span><span class="p">)</span>
+        <span class="n">domainmean</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">domainstd</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+        <span class="n">domainmax</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">maxpos</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+        <span class="n">domainmaxlocation</span> <span class="o">=</span> <span class="p">(</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="n">maxpos</span><span class="p">],</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="n">maxpos</span><span class="p">])</span>
+        <span class="n">domainmin</span> <span class="o">=</span> <span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">minpos</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+        <span class="n">domainminlocation</span> <span class="o">=</span> <span class="p">(</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="n">minpos</span><span class="p">],</span><span class="n">elevation</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="n">minpos</span><span class="p">])</span>
+        <span class="n">elevation_statistics</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;xmin&quot;</span><span class="p">:</span> <span class="n">xmin</span><span class="p">,</span>
+                <span class="s2">&quot;xmax&quot;</span><span class="p">:</span> <span class="n">xmax</span><span class="p">,</span>
+                <span class="s2">&quot;ymin&quot;</span><span class="p">:</span> <span class="n">ymin</span><span class="p">,</span>
+                <span class="s2">&quot;ymax&quot;</span><span class="p">:</span> <span class="n">ymax</span><span class="p">,</span>
+                <span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="n">domainsize</span><span class="p">,</span>
+                <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="n">domainmean</span><span class="p">,</span>
+                <span class="s2">&quot;std&quot;</span><span class="p">:</span> <span class="n">domainstd</span><span class="p">,</span>
+                <span class="s2">&quot;domainmax&quot;</span><span class="p">:</span> <span class="n">domainmax</span><span class="p">,</span>
+                <span class="s2">&quot;domainmaxlocation&quot;</span><span class="p">:</span> <span class="n">domainmaxlocation</span><span class="p">,</span>
+                <span class="s2">&quot;domainmin&quot;</span><span class="p">:</span> <span class="n">domainmin</span><span class="p">,</span>
+                <span class="s2">&quot;domainminlocation&quot;</span><span class="p">:</span> <span class="n">domainminlocation</span><span class="p">,</span>
+                <span class="p">}</span>
+        <span class="k">return</span> <span class="n">elevation_statistics</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Elia Salo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
