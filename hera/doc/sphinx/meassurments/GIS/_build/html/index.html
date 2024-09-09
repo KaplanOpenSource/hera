@@ -58,6 +58,15 @@
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#landcover-presentation-layer">Landcover Presentation Layer</a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation"><code class="docutils literal notranslate"><span class="pre">presentation</span></code></a><ul>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas"><code class="docutils literal notranslate"><span class="pre">presentation.plotLambdas()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover"><code class="docutils literal notranslate"><span class="pre">presentation.plotLandcover()</span></code></a></li>
+<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness"><code class="docutils literal notranslate"><span class="pre">presentation.plotRoughness()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a><ul>
@@ -260,6 +269,65 @@ Smaller values result in finer resolution.</p></li>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>xarray.DataArray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="landcover-presentation-layer">
+<h3>Landcover Presentation Layer<a class="headerlink" href="#landcover-presentation-layer" title="Link to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Presentation Layer of LandCover toolkit.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLambdas">
+<span class="sig-name descname"><span class="pre">plotLambdas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLambdas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas" title="Link to this definition"></a></dt>
+<dd><p>Plot Lmabda upon given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>field</strong> (<em>str</em>) – Name of desired lambda to be plotted.</p></li>
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLandcover">
+<span class="sig-name descname"><span class="pre">plotLandcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLandcover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover" title="Link to this definition"></a></dt>
+<dd><p>Plot LandCover upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotRoughness">
+<span class="sig-name descname"><span class="pre">plotRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness" title="Link to this definition"></a></dt>
+<dd><p>Plot Roughness upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
