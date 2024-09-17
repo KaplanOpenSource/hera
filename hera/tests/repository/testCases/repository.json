@@ -1,0 +1,18 @@
+{
+  "test_addRepository":
+      [
+        {
+          "repositoryName": "REPOSITORY_TEST_01",
+          "repositoryPath": "REPOSITORY_TEST_01.json"
+        }
+      ],
+
+  "test_loadAllDatasourcesInRepositoryToProject":
+      [
+        {
+          "projectName":"REPOSITORY_PROJECT_TESTING_01",
+          "repositoryName": "REPOSITORY_TEST_01"
+        }
+
+      ]
+}
