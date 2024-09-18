@@ -14,5 +14,9 @@
           "repositoryName": "REPOSITORY_TEST_01"
         }
 
-      ]
+      ],
+  "projects_to_delete":
+          [
+            "REPOSITORY_PROJECT_TESTING_01"
+          ]
 }
