@@ -217,6 +217,22 @@ def repository_load(argumets):
 
 def update(arguments):
     logger = logging.getLogger("hera.bin.update")
+    if not arguments.projectName:
+        confFile = os.path.join(os.getcwd(), "caseConfiguration.json")
+        if not os.path.exists(confFile):
+            raise ValueError(f"If projectName is not provided, caseConfiguration json file must be in folder.")
+        else:
+            configuration = loadJSON(confFile)
+            if 'projectName' not in configuration:
+                err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
+                err += """conifguration should be :
+                        {
+                            'projectName' : [project name]
+                        }                                        
+                       """
+                raise ValueError(err)
+            else:
+                arguments.projectName = configuration['projectName']
 
     dtk = dataToolkit()
     dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName, overwrite=arguments.overwrite)
