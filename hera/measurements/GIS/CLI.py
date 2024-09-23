@@ -1,7 +1,7 @@
+import pandas as pd
 from hera import toolkitHome
 from hera.utils import WSG84, ITM
 import logging
-
 
 def topography_vector_list(arguments):
     """
@@ -152,3 +152,57 @@ def buildings_raster_toSTL(arguments):
 
     tk.buildingsGeopandasToSTLRasterTopography(buildings, "BLDG_HT", "elevation", fileName)
     logger.info(f"Writing STL to the file:  {fileName}")
+
+
+def get_landocver(arguments):
+    logger = logging.getLogger("hera.measuerments.GIS.CLI.get_landocver")
+    logger.info(f"Arguments: {arguments}")
+
+    if "projectName" not in arguments:
+        arguments.projectName = None
+
+    if "dataSourceName" not in arguments:
+        arguments.dataSourceName = None
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_LANDCOVER, projectName=arguments.projectName)
+
+    dxdy = int(arguments.dxdy) if "dxdy" in arguments else 30
+    inputCRS = WSG84 if arguments.inputCRS is None else int(arguments.inputCRS)
+    # outputCRS = ITM if arguments.outputCRS is None else int(arguments.outputCRS)
+    dataSourceName = None if arguments.dataSourceName is None else arguments.dataSourceName
+
+    if arguments.roughness:
+        xarray = tk.getRoughness(arguments.minx,
+                        arguments.miny,
+                        arguments.maxx,
+                        arguments.maxy,
+                        dxdy=dxdy,
+                        inputCRS=inputCRS,
+                        dataSourceName=dataSourceName)
+
+    else:
+        xarray = tk.getLandCover(arguments.minx,
+                        arguments.miny,
+                        arguments.maxx,
+                        arguments.maxy,
+                        dxdy=dxdy,
+                        inputCRS=inputCRS,
+                        dataSourceName=dataSourceName)
+
+    if 'z0' in xarray.coords:
+        df = pd.DataFrame({
+            'lat': xarray['lat'].values.ravel(),
+            'lon': xarray['lon'].values.ravel(),
+            'landcover': xarray['landcover'].values.ravel(),
+            'z0': xarray['z0'].values.ravel()
+        })
+    else:
+        df = pd.DataFrame({
+            'lat': xarray['lat'].values.ravel(),
+            'lon': xarray['lon'].values.ravel(),
+            'landcover': xarray['landcover'].values.ravel()
+        })
+
+    df.to_csv(arguments.filePath,index=False)
+
+
