@@ -327,7 +327,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             landcover = self._getUrbanRoughnessFromLandCover(landcover,windMeteorologicalDirection,resolution,dataSourceName,GIS_BUILDINGS_dataSourceName)
         return landcover
 
-    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,GIS_BUILDINGS_dataSourceName=None):
+    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,windMeteorologicalDirection=None,resolution=None,GIS_BUILDINGS_dataSourceName=None):
         """
         Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.
 
@@ -359,12 +359,18 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         isBuilding : bool, default=False
             Is the landcover containts building area.
 
+        windMeteorologicalDirection: double,default=None
+            The meteorological angle. Must be specified only if data includes urbanic area.
+
+        resolution: double,default=None
+            The size of the squares. Must be specified only if data includes urbanic area.
+
         Returns
         -------
             xarray.DataArray
         """
         landcover = self.getLandCover(minlon,minlat,maxlon,maxlat,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
-        landcover = self.getRoughnessFromLandcover(landcover,isBuilding=isBuilding,dataSourceName=dataSourceName,GIS_BUILDINGS_dataSourceName=GIS_BUILDINGS_dataSourceName)
+        landcover = self.getRoughnessFromLandcover(landcover,windMeteorologicalDirection=windMeteorologicalDirection,resolution=resolution,isBuilding=isBuilding,dataSourceName=dataSourceName,GIS_BUILDINGS_dataSourceName=GIS_BUILDINGS_dataSourceName)
         return landcover
 
     def _handleType1(self,landcover):
