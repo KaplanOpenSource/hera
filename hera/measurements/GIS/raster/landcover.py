@@ -461,6 +461,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
         buildings = gis_building_tk.getBuildingsFromRectangle(minx=min_pp.x,miny=min_pp.y,maxx=max_pp.x,maxy=max_pp.y,dataSourceName=GIS_BUILDINGS_dataSourceName,inputCRS=ITM)
+        if len(buildings)==0:
+            raise ValueError("Buildings DataFrame for specified coordinates is empty.")
         lambdaGrid = gis_building_tk.analysis.LambdaFromBuildingData(windMeteorologicalDirection, resolution, buildings)
 
         lambdaGrid.crs = ITM

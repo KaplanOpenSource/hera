@@ -170,7 +170,7 @@ def get_landocver(arguments):
     inputCRS = WSG84 if arguments.inputCRS is None else int(arguments.inputCRS)
     # outputCRS = ITM if arguments.outputCRS is None else int(arguments.outputCRS)
     dataSourceName = None if arguments.dataSourceName is None else arguments.dataSourceName
-    windDirection = None if arguments.windDirectionis is None else float(arguments.windDirectionis)
+    windDirection = None if arguments.windDirection is None else float(arguments.windDirectionis)
     resolution = None if arguments.resolution is None else float(arguments.resolution)
 
 
