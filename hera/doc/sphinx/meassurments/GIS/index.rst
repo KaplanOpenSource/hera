@@ -23,6 +23,12 @@ LandCoverToolkit Class
    :members:
    :show-inheritance:
    
+Landcover Presentation Layer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: hera.measurements.GIS.raster.landcover.presentation
+   :members:
+   :show-inheritance:
+   
 Tiles Toolkit 
 ^^^^^^^^^^^^^^^^^^^^^^
 TilesToolkit Class
@@ -50,7 +56,7 @@ BuildingsToolkit Class
    :show-inheritance:
 
 BuildingsToolkit Analysis Class
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.vector.buildings.analysis.analysis
    :members:
    :show-inheritance:
