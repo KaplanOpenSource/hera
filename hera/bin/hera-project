@@ -76,7 +76,7 @@ if __name__=="__main__":
 
     ### update
     repository_update = project_subparsers.add_parser('updateRepositories', help='Update all repositories in workspace to a project')
-    repository_update.add_argument('projectName', help='The project to load the repository')
+    repository_update.add_argument('--projectName',default=None ,help='The project to load the repository')
     repository_update.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                  help='overwrite the existing projcet with the repository')
     repository_update.set_defaults(func=CLI.update)
