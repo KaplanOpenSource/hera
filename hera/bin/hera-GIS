@@ -77,6 +77,29 @@ if __name__ == "__main__":
     buildings_raster_parser_toSTL.add_argument('--fileName', type=str, required=True, help='The name of the file STL')
     buildings_raster_parser_toSTL.set_defaults(func=CLI.buildings_raster_toSTL)
 
+    ### ---------------------- Landcover (raster)
+    landcover_raster_parser = subparsers.add_parser('landcover', help='Handles the Landcover')
+
+    ##Get Landcover
+    getLandcover_sub_parser = landcover_raster_parser.add_subparsers(help='Get Landcover Parser')
+    getLandcover_parser = getLandcover_sub_parser.add_parser('getLandcover',help="Get Landcover given coordinates.")
+    getLandcover_parser.add_argument('--minx', type=str, required=True, help='Minimum X coordinate.')
+    getLandcover_parser.add_argument('--miny', type=str, required=True, help='Minimum Y coordinate.')
+    getLandcover_parser.add_argument('--maxx', type=str, required=True, help='Maximum X coordinate.')
+    getLandcover_parser.add_argument('--maxy', type=str, required=True, help='Maximum Y coordinate.')
+    getLandcover_parser.add_argument('--dxdy', type=str, required=True, help='The resolution of the mesh, Default is 30m.')
+    getLandcover_parser.add_argument('--isBuilding', type=bool, default=False, help='If the requested area includes urban areas. Default is False.')
+    getLandcover_parser.add_argument('--windDirection', type=str, default=None , help='Wind Meteorological direction. If isBuilding=True, must be specified.')
+    getLandcover_parser.add_argument('--resolution', type=str, default=None , help='The size of the squares. If isBuilding=True, must be specified.')
+    getLandcover_parser.add_argument('--roughness', type=bool,default=True,help='If to include roughness(z0) field. Default is True.')
+    getLandcover_parser.add_argument('--inputCRS', type=str,help='The CRS of the input coordinates, The default is WSG84')
+    getLandcover_parser.add_argument('--outputCRS', type=str, help='The CRS of the output STL (default ITM)')
+    getLandcover_parser.add_argument('--projectName', type=str, default=None, help='The Project Name. If not provided, uses default project.')
+    getLandcover_parser.add_argument('--dataSourceName', default=None, type=str, help='The name of the datasource, if not supplied, use the default of the toolkit. ')
+    getLandcover_parser.add_argument('--filePath', type=str, required=True, help='File path to save CSV.')
+    getLandcover_parser.set_defaults(func=CLI.get_landocver)
+
+
     #-------------------------------------------------
 
     parsed = parser.parse_args()
