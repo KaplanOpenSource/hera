@@ -1,0 +1,43 @@
+.. Experiment Documentation documentation master file, created by
+   sphinx-quickstart on Tue Jul 30 14:17:49 2024.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Experiment ToolKit Documentation
+====================================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+experimentHome Class
+==========================
+.. autoclass:: hera.measurements.experiment.experiment.experimentHome
+   :members:
+   :show-inheritance:
+
+experimentSetupWithData Class
+=================================
+.. autoclass:: hera.measurements.experiment.experiment.experimentSetupWithData
+   :members:
+   :show-inheritance:
+   
+Analysis Layer
+=================================
+
+experimentAnalysis Class
+=================================
+.. autoclass:: hera.measurements.experiment.analysis.experimentAnalysis
+   :members:
+   :show-inheritance:
+   
+   
+Data Layer
+=================================
+   
+parquetDataEngineHera Class
+=================================
+
+.. autoclass:: hera.measurements.experiment.dataEngine.parquetDataEngineHera
+   :members:
+   :show-inheritance:

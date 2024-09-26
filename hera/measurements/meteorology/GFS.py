@@ -393,7 +393,9 @@ if __name__ == "__main__":
         # if wd[i]<90:
         #     wd[i]+=180
         print(i,round(uu[i],2),round(vv[i],2),round(ws[i],2), round(wd[i],2))
-        
+
+    ws=np.round((uu**2.+vv**2.)**.5,2)
+    wd=np.round(np.arctan2(uu, vv)* 180/math.pi+180,2)	
     print('u:',stat(uu0, uu, kind='r2'),stat(uu0, uu, kind='r'), stat(uu0, uu, kind='rmse'),'/',round(np.mean(uu),4),'+-',round(np.std(uu),4),'>>',round(np.mean(uu0),4),'+-',round(np.std(uu0),4))
     print('v:',stat(vv0, vv, kind='r2'),stat(vv0, vv, kind='r'), stat(vv0, vv, kind='rmse'),'/',round(np.mean(vv),4),'+-',round(np.std(vv),4),'>>',round(np.mean(vv0),4),'+-',round(np.std(vv0),4))
     print('s:',stat(ws0, ws, kind='r2'),stat(ws0, ws, kind='r'), stat(ws0, ws, kind='mae'), stat(ws0, ws, kind='rmse'),'/',round(np.mean(ws),4),'+-',round(np.std(ws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))

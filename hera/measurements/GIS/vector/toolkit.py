@@ -123,10 +123,10 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         if regionWithCRS.crs is None:
             logger.execution("The region was defined without crs. Using the crs of the datasource.")
-            regionWithCRS.crs = datasourceDocument.desc['crs']
-        elif regionWithCRS.crs.to_epsg() != datasourceDocument.desc['crs']:
+            regionWithCRS.crs = datasourceDocument.desc['desc']['crs']
+        elif regionWithCRS.crs.to_epsg() != datasourceDocument.desc['desc']['crs']:
             logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
-            regionWithCRS = regionWithCRS.to_crs(datasourceDocument.desc['crs'])
+            regionWithCRS = regionWithCRS.to_crs(datasourceDocument.desc['desc']['crs'])
         else:
             logger.execution("shape and region crs match.")
 

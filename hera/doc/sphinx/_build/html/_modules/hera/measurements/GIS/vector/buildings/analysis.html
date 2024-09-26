@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hera.measurements.GIS.vector.buildings.analysis &mdash; Hera Documentation  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../../index.html" class="icon icon-home">
+            Hera Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../../index.html">Hera Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hera.measurements.GIS.vector.buildings.analysis</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hera.measurements.GIS.vector.buildings.analysis</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">geopandas</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">shapely.wkt</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">box</span><span class="p">,</span> <span class="n">Polygon</span>
+<span class="kn">from</span> <span class="nn">.....utils.logging</span> <span class="kn">import</span> <span class="n">get_classMethod_logger</span>
+<span class="kn">import</span> <span class="nn">fiona</span>
+
+<span class="n">BUILDINGS_LAMBDA_WIND_DIRECTION</span> <span class="o">=</span> <span class="s1">&#39;wind&#39;</span>
+<span class="n">BUILDINGS_LAMBDA_RESOLUTION</span> <span class="o">=</span> <span class="s1">&#39;resolution&#39;</span>
+
+<div class="viewcode-block" id="analysis">
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.analysis.analysis">[docs]</a>
+<span class="k">class</span> <span class="nc">analysis</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Analysis layer class of GIS Buildings. Acess this class with BuildingsToolkit.analysis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataLayer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span> <span class="o">=</span> <span class="n">dataLayer</span>
+        <span class="n">cnfg</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">getConfig</span><span class="p">())</span>
+        <span class="n">cnfg</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;analysis_CacheCounter&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">setConfig</span><span class="p">(</span><span class="o">**</span><span class="n">cnfg</span><span class="p">)</span>
+
+<div class="viewcode-block" id="analysis.ConvexPolygons">
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons">[docs]</a>
+    <span class="k">def</span> <span class="nf">ConvexPolygons</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">regionNameOrData</span><span class="p">,</span> <span class="n">buffer</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns convex polygons of groups of buildings.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        regionNameOrData: str or geopandas DataFrame.</span>
+<span class="sd">            The data to get the convex of.</span>
+
+<span class="sd">        buffer: int,default=100.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">regionNameOrData</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getRegions</span><span class="p">(</span><span class="n">regionNameOrData</span><span class="p">)</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">regionNameOrData</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">buffer</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span>
+        <span class="n">indicelist</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indicelist</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">indicelist</span><span class="p">[</span><span class="n">g</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">n</span><span class="p">])</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">indicelist</span><span class="p">[</span><span class="n">g</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                        <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">break</span>
+                <span class="k">if</span> <span class="n">found</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="k">if</span> <span class="n">g</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">indicelist</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">indicelist</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i</span><span class="p">])</span>
+
+        <span class="n">geo</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">indicelist</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">unary_union</span><span class="o">.</span><span class="n">convex_hull</span>
+        <span class="n">gpd</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">([{</span><span class="s2">&quot;geometry&quot;</span><span class="p">:</span> <span class="n">geo</span><span class="p">,</span> <span class="s2">&quot;area&quot;</span><span class="p">:</span> <span class="n">geo</span><span class="o">.</span><span class="n">area</span><span class="p">}])</span>
+        <span class="k">for</span> <span class="n">indice</span> <span class="ow">in</span> <span class="n">indicelist</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">geo</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">indice</span><span class="p">]</span><span class="o">.</span><span class="n">unary_union</span><span class="o">.</span><span class="n">convex_hull</span>
+            <span class="n">gpd</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">gpd</span><span class="p">,</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">([{</span><span class="s2">&quot;geometry&quot;</span><span class="p">:</span> <span class="n">geo</span><span class="p">,</span> <span class="s2">&quot;area&quot;</span><span class="p">:</span> <span class="n">geo</span><span class="o">.</span><span class="n">area</span><span class="p">}])])</span>
+
+        <span class="n">gpd</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;area&quot;</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gpd</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">gpd</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">gpd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">gpd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">geometry</span><span class="p">)</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">found</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="n">found</span><span class="p">:</span>
+            <span class="n">gpd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ConvexPolygons</span><span class="p">(</span><span class="n">gpd</span><span class="p">,</span> <span class="n">buffer</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">gpd</span></div>
+
+
+
+
+<div class="viewcode-block" id="analysis.LambdaFromBuildingData">
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData">[docs]</a>
+    <span class="k">def</span> <span class="nf">LambdaFromBuildingData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windMeteorologicalDirection</span><span class="p">,</span> <span class="n">resolution</span><span class="p">,</span> <span class="n">buildingsData</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">saveCache</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns lambdaP,lambdaF,hc for each square in given buildingsData.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        windMeteorologicalDirection : double</span>
+<span class="sd">            The meteorological angle.</span>
+
+<span class="sd">        resolution: double</span>
+<span class="sd">            The size of the squares.</span>
+
+<span class="sd">        buildingsData: geopandas.DataFrame</span>
+<span class="sd">            Geopandas of the buildings. The crs of the building data must be set.</span>
+
+<span class="sd">        overwrite : bool,default=False.</span>
+<span class="sd">            If true, write over data and update the database.</span>
+
+<span class="sd">        saveCache: bool,default=True.</span>
+<span class="sd">            If false, won&#39;t save dataframe to cache. It is recomended to use True since the measurments are long.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            geopandas.DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;LambdaFromBuildingData&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;--- Start ---&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">buildingsData</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Reading the bounds from StringIO&quot;</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">buildingsData</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">buildingsData</span><span class="p">,</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Using the user input&quot;</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">buildingsData</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;buildingsData must be str or geopandas.GeoDataFrame. Got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">buildingsData</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">crs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="s2">&quot;The buildingData crs must be set&quot;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+        <span class="n">desc</span> <span class="o">=</span> <span class="p">{</span>
+                 <span class="s2">&quot;bounds&quot;</span> <span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">total_bounds</span><span class="p">,</span>
+                 <span class="n">BUILDINGS_LAMBDA_WIND_DIRECTION</span><span class="p">:</span> <span class="n">windMeteorologicalDirection</span><span class="p">,</span>
+                 <span class="n">BUILDINGS_LAMBDA_RESOLUTION</span> <span class="p">:</span> <span class="n">resolution</span><span class="p">,</span>
+                 <span class="s2">&quot;crs&quot;</span><span class="p">:</span><span class="n">data</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">()</span>
+               <span class="p">}</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Check if cached data exists for data </span><span class="si">{</span><span class="n">desc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">dataDoc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">getCacheDocuments</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Lambda_Buildings&quot;</span><span class="p">,</span><span class="o">**</span><span class="n">desc</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataDoc</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span> <span class="ow">or</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calculatings lambda data with bounds </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">total_bounds</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">domainLambda</span> <span class="o">=</span> <span class="n">Blocks</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">resolution</span><span class="p">)</span><span class="o">.</span><span class="n">iterBlocks</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">resolution</span><span class="p">)</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">windDirection</span><span class="o">=</span><span class="n">windMeteorologicalDirection</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">saveCache</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataDoc</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Adding new record to the DB&quot;</span><span class="p">)</span>
+                    <span class="n">doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">addCacheDocument</span><span class="p">(</span><span class="n">resource</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                                                          <span class="n">dataFormat</span><span class="o">=</span><span class="s1">&#39;geopandas&#39;</span><span class="p">,</span>
+                                                          <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Lambda_Buildings&quot;</span><span class="p">,</span>
+                                                         <span class="n">desc</span><span class="o">=</span><span class="n">desc</span><span class="p">)</span>
+                    <span class="n">fileID</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s2">&quot;analysis_CacheCounter&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">setConfig</span><span class="p">(</span><span class="n">analysis_CacheCounter</span><span class="o">=</span><span class="n">fileID</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;LambdaGeoJson_</span><span class="si">{</span><span class="n">fileID</span><span class="si">}</span><span class="s2">.geojson&quot;</span>
+                    <span class="n">outputfileFull</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datalayer</span><span class="o">.</span><span class="n">filesDirectory</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing Lambda data to </span><span class="si">{</span><span class="n">outputfileFull</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataDoc</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updating old record.&quot;</span><span class="p">)</span>
+                    <span class="n">doc</span> <span class="o">=</span> <span class="n">dataDoc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">outputfileFull</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">resource</span>
+
+                <span class="n">domainLambda</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">outputfileFull</span><span class="p">,</span><span class="n">driver</span><span class="o">=</span><span class="s1">&#39;GeoJSON&#39;</span><span class="p">)</span>
+                <span class="n">doc</span><span class="o">.</span><span class="n">resource</span> <span class="o">=</span> <span class="n">outputfileFull</span>
+                <span class="n">doc</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Return found data in DB&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">domainLambda</span> <span class="o">=</span> <span class="n">dataDoc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">fiona</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">DriverError</span><span class="p">:</span>
+                <span class="n">errmsg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;The cached data in location </span><span class="si">{</span><span class="n">dataDoc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">resource</span><span class="si">}</span><span class="s2"> is not found on the disk. Maybe it was removed?. Use overwrite=True to recalculate and update the cache.&quot;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">errmsg</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">errmsg</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;---- End ----&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">domainLambda</span></div>
+</div>
+
+
+
+
+<span class="k">class</span> <span class="nc">Blocks</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Splite the domaine into blocks.</span>
+<span class="sd">        Use BNTL to calculate urban parameters for each Block.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_Level</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_ExteriorBlock</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_Division</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># will be a map axis-&gt;{type: , parameters}</span>
+    <span class="n">_DivisionType</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># a map of axis type</span>
+    <span class="n">_Df</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_Buildings</span> <span class="o">=</span> <span class="kc">None</span> <span class="c1"># The BNTL map of the Block</span>
+    <span class="n">_listOfDicts</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_hc</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># Average buildings height of the Block</span>
+    <span class="n">_LambdaF</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># Lambda F of the Block</span>
+    <span class="n">_LambdaP</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># Lambda P of the Block</span>
+    <span class="n">_blockArea</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># Total erea of the Block</span>
+
+    <span class="k">def</span> <span class="nf">_SplitFunction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="p">,</span> <span class="n">axis</span><span class="p">):</span>
+        <span class="n">funcDict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">numpy</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])}</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">funcDict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span><span class="p">[</span><span class="n">axis</span><span class="p">]](</span><span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="n">axis</span><span class="p">])</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="p">(</span><span class="nb">max</span> <span class="o">-</span> <span class="nb">min</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">dx</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">exteriorBlock</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Initializes a block object that calculates the properties for a certain domain in the map.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        level: int</span>
+<span class="sd">                The level of the block (for nested blocks calulations). The first block is level 0.</span>
+<span class="sd">        df:  geopandas</span>
+<span class="sd">                The data to use</span>
+<span class="sd">        exteriorBlock: Block</span>
+<span class="sd">                Reference to the parent block. The exteriorBlock of the root (lowest level) is None.</span>
+<span class="sd">        kwargs:</span>
+<span class="sd">                parmeters that determine how to divide a block.</span>
+
+<span class="sd">                - size: The size in meter of the block in the x,y direction.</span>
+<span class="sd">                        Using this feature disallows using npxy.</span>
+<span class="sd">                - npxy: The number of blocks in x,y directions.</span>
+<span class="sd">                - width: the width of each block in meter</span>
+<span class="sd">                        Using this feature disallows using npy.</span>
+<span class="sd">                - height: the height of each block in meter</span>
+<span class="sd">                -</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Level</span> <span class="o">=</span> <span class="n">level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ExteriorBlock</span> <span class="o">=</span> <span class="n">exteriorBlock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Df</span> <span class="o">=</span> <span class="n">df</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_listOfDicts</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="s2">&quot;size&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;npxy&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Got size with npxy&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;size&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;size&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="s2">&quot;size&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="s2">&quot;size&quot;</span><span class="p">}</span>
+
+        <span class="k">elif</span> <span class="s2">&quot;npxy&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;npxy&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;npxy&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="s2">&quot;count&quot;</span><span class="p">}</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;width&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;size&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="s2">&quot;npx&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Got width with npx&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="s2">&quot;npx&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;count&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;npx&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="s2">&quot;height&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;size&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="s2">&quot;npy&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Got height with npy&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="s2">&quot;npy&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;count&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Division</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;npy&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_DivisionType</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">]]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Either x or y axis is not set.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_GetBlocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listOfDicts</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">x</span>
+
+    <span class="c1"># Creates a dictionary of</span>
+    <span class="k">def</span> <span class="nf">_BuildIndexList</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_listOfDicts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">enum</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">L</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">L</span><span class="p">)]</span>
+        <span class="n">currentLevel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Level</span>
+        <span class="n">totalBounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Df</span><span class="o">.</span><span class="n">total_bounds</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ExteriorBlock</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">X</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_SplitFunction</span><span class="p">(</span><span class="n">totalBounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">totalBounds</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span>
+            <span class="n">Y</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_SplitFunction</span><span class="p">(</span><span class="n">totalBounds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">totalBounds</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s2">&quot;y&quot;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">xMin</span><span class="p">),</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">yMin</span><span class="p">))</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">enum</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">enum</span><span class="p">(</span><span class="n">Y</span><span class="p">)):</span>
+                <span class="n">xMax</span><span class="p">,</span> <span class="n">yMax</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">xMin</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span> <span class="n">totalBounds</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="nb">min</span><span class="p">(</span><span class="n">yMin</span> <span class="o">+</span> <span class="n">height</span><span class="p">,</span> <span class="n">totalBounds</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+                <span class="n">currenDict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;i0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s1">&#39;j0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="s1">&#39;xMin0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">xMin</span><span class="p">],</span> <span class="s1">&#39;yMin0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">yMin</span><span class="p">],</span> <span class="s1">&#39;xMax0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">xMax</span><span class="p">],</span> <span class="s1">&#39;yMax0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">yMax</span><span class="p">]}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listOfDicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">currenDict</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exteriorBlockListOfDicts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ExteriorBlock</span><span class="o">.</span><span class="n">_BuildIndexList</span><span class="p">()</span><span class="o">.</span><span class="n">_listOfDicts</span>
+            <span class="k">for</span> <span class="n">extDict</span> <span class="ow">in</span> <span class="n">exteriorBlockListOfDicts</span><span class="p">:</span>
+
+                <span class="n">exteriorXMax</span><span class="p">,</span> <span class="n">exteriorYMax</span> <span class="o">=</span> <span class="n">extDict</span><span class="p">[</span><span class="s1">&#39;xMax</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">currentLevel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="mi">0</span><span class="p">],</span> \
+                                             <span class="n">extDict</span><span class="p">[</span><span class="s1">&#39;yMax</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">currentLevel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">exteriorXMin</span><span class="p">,</span> <span class="n">exteriorYMin</span> <span class="o">=</span> <span class="n">extDict</span><span class="p">[</span><span class="s1">&#39;xMin</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">currentLevel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="mi">0</span><span class="p">],</span> \
+                                             <span class="n">extDict</span><span class="p">[</span><span class="s1">&#39;yMin</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">currentLevel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="n">X</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_SplitFunction</span><span class="p">(</span><span class="n">exteriorXMin</span><span class="p">,</span> <span class="n">exteriorXMax</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span>
+                <span class="n">Y</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_SplitFunction</span><span class="p">(</span><span class="n">exteriorYMin</span><span class="p">,</span> <span class="n">exteriorYMax</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">xMin</span><span class="p">),</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">yMin</span><span class="p">))</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">enum</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">enum</span><span class="p">(</span><span class="n">Y</span><span class="p">)):</span>
+                    <span class="n">currentInnerDict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">extDict</span><span class="p">)</span>
+                    <span class="n">xMax</span><span class="p">,</span> <span class="n">yMax</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">xMin</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span> <span class="n">exteriorXMax</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">yMin</span> <span class="o">+</span> <span class="n">height</span><span class="p">,</span> <span class="n">exteriorYMax</span><span class="p">)</span>
+
+                    <span class="n">currentInnerDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;i</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">currentLevel</span><span class="p">:</span> <span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s1">&#39;j</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">currentLevel</span><span class="p">:</span> <span class="p">[</span><span class="n">j</span><span class="p">],</span>
+                                             <span class="s1">&#39;xMin</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">currentLevel</span><span class="p">:</span> <span class="p">[</span><span class="n">xMin</span><span class="p">],</span> <span class="s1">&#39;yMin</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">currentLevel</span><span class="p">:</span> <span class="p">[</span><span class="n">yMin</span><span class="p">],</span>
+                                             <span class="s1">&#39;xMax</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">currentLevel</span><span class="p">:</span> <span class="p">[</span><span class="n">xMax</span><span class="p">],</span> <span class="s1">&#39;yMax</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">currentLevel</span><span class="p">:</span> <span class="p">[</span><span class="n">yMax</span><span class="p">]})</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_listOfDicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">currentInnerDict</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">iterBlocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Blocks</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">exteriorBlock</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_Df</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">_BuildIndexList</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">initBuildingsBlock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blockDict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Initializes the ... .</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        blockDict : dict</span>
+<span class="sd">                The dictionary that ....</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">extent</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span><span class="n">blockDict</span><span class="p">[</span><span class="s1">&#39;xMin</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Level</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">blockDict</span><span class="p">[</span><span class="s1">&#39;yMin</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Level</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                           <span class="n">blockDict</span><span class="p">[</span><span class="s1">&#39;xMax</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Level</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">blockDict</span><span class="p">[</span><span class="s1">&#39;yMax</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Level</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">boxToIntersect</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">([</span><span class="n">extent</span><span class="p">],</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">crs</span> <span class="o">=</span> <span class="n">boxToIntersect</span><span class="o">.</span><span class="n">crs</span>
+        <span class="n">buildings</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">overlay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">,</span> <span class="n">boxToIntersect</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;intersection&#39;</span><span class="p">,</span><span class="n">keep_geom_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">OnebuildingsBlock</span> <span class="o">=</span> <span class="n">Blocks</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">boxToIntersect</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>  <span class="c1"># buildings,box</span>
+        <span class="n">OnebuildingsBlock</span><span class="o">.</span><span class="n">_Buildings</span> <span class="o">=</span> <span class="n">buildings</span>
+        <span class="n">OnebuildingsBlock</span><span class="o">.</span><span class="n">_ExteriorBlock</span> <span class="o">=</span> <span class="n">extent</span>
+        <span class="n">OnebuildingsBlock</span><span class="o">.</span><span class="n">_blockArea</span> <span class="o">=</span> <span class="n">extent</span><span class="o">.</span><span class="n">area</span>
+
+        <span class="k">return</span> <span class="n">OnebuildingsBlock</span>
+
+    <span class="k">def</span> <span class="nf">_LambdaP</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="n">Map_A_p</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">area_mltp_h</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">sum_area_mltp_h</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">indexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
+<span class="c1">#        numberOfBld = len(indexes)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indexes</span><span class="p">:</span>
+            <span class="n">area</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="c1"># if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building</span>
+            <span class="k">if</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="mf">0.0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">&gt;</span><span class="mf">0.0</span><span class="p">)):</span>
+                <span class="n">farest</span> <span class="o">=</span> <span class="mi">99999999999</span>
+                <span class="n">farheight</span><span class="o">=</span><span class="mi">0</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">indexes</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">walls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">!=</span><span class="mf">0.0</span><span class="p">):</span>
+                        <span class="n">far</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span>
+                               <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="n">farest</span><span class="o">**</span><span class="mf">2.</span><span class="o">&gt;</span><span class="n">far</span><span class="p">):</span>
+                            <span class="n">farest</span> <span class="o">=</span> <span class="n">far</span>
+                            <span class="n">farheight</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">building_height</span> <span class="o">=</span> <span class="nb">max</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">farheight</span><span class="p">),</span><span class="mf">0.0</span><span class="p">)</span> <span class="c1"># don&#39;t calculate underground building</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">building_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+
+
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;FTYPE&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">16</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;FTYPE&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">14</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">building_height</span><span class="o">==</span><span class="mi">0</span><span class="p">):</span>
+                <span class="n">Map_A_p</span> <span class="o">=</span> <span class="n">Map_A_p</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">geom_type</span> <span class="o">==</span> <span class="s1">&#39;MultiPolygon&#39;</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">geoms</span><span class="p">:</span>
+                        <span class="n">Map_A_p</span> <span class="o">=</span> <span class="n">Map_A_p</span> <span class="o">+</span> <span class="n">poly</span><span class="o">.</span><span class="n">area</span>
+                        <span class="n">area</span> <span class="o">=</span> <span class="n">area</span> <span class="o">+</span> <span class="n">poly</span><span class="o">.</span><span class="n">area</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">Map_A_p</span> <span class="o">=</span> <span class="n">Map_A_p</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">area</span>
+                    <span class="n">area</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">area</span>
+
+
+
+            <span class="n">area_mltp_h</span> <span class="o">=</span> <span class="n">area</span> <span class="o">*</span> <span class="n">building_height</span>
+            <span class="n">sum_area_mltp_h</span> <span class="o">=</span> <span class="n">sum_area_mltp_h</span> <span class="o">+</span> <span class="n">area_mltp_h</span>
+
+        <span class="n">lambdaP</span> <span class="o">=</span> <span class="n">Map_A_p</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_blockArea</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">Map_A_p</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hc</span> <span class="o">=</span> <span class="n">sum_area_mltp_h</span> <span class="o">/</span> <span class="n">Map_A_p</span>
+
+        <span class="k">return</span> <span class="n">lambdaP</span>
+
+    <span class="k">def</span> <span class="nf">_A_f</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buildingGeometry</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">windDirection</span><span class="p">):</span>
+        <span class="n">A_f</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">([</span><span class="n">buildingGeometry</span><span class="p">])</span>
+
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">g</span><span class="p">)</span>
+        <span class="n">gdf</span><span class="p">[</span><span class="s1">&#39;angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">windDirection</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">rotated</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">(</span><span class="n">shapely</span><span class="o">.</span><span class="n">affinity</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">],</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;angle&#39;</span><span class="p">]))</span>
+            <span class="n">gdf</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">index</span><span class="p">,</span> <span class="s1">&#39;geometry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rotated</span>
+            <span class="n">bounds</span> <span class="o">=</span> <span class="n">rotated</span><span class="o">.</span><span class="n">bounds</span>
+            <span class="n">xMin</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">xMax</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">A_f</span> <span class="o">=</span> <span class="p">(</span><span class="n">xMax</span> <span class="o">-</span> <span class="n">xMin</span><span class="p">)</span> <span class="o">*</span> <span class="n">height</span>
+        <span class="k">return</span> <span class="n">A_f</span>
+
+    <span class="k">def</span> <span class="nf">_LambdaF</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windDirection</span><span class="o">=</span><span class="mi">270</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        # Calculate average lambda F of a block</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># bldHeightToReduce = 0</span>
+<span class="c1">#        errorBuildings = 0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">Map_A_f</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">indexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
+<span class="c1">#        numberOfBld = len(indexes)</span>
+
+        <span class="c1"># topography.analysis.addHeight(self,&#39;data&#39;, &#39;groundData&#39;)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indexes</span><span class="p">:</span>
+
+            <span class="c1"># if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building</span>
+            <span class="k">if</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="mf">0.0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">&gt;</span><span class="mf">0.0</span><span class="p">)):</span>
+                <span class="n">farest</span> <span class="o">=</span> <span class="mi">99999999999</span>
+                <span class="n">farheight</span><span class="o">=</span><span class="mi">0</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">indexes</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">walls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">!=</span><span class="mf">0.0</span><span class="p">):</span>
+                        <span class="n">far</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span>
+                               <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="n">farest</span><span class="o">**</span><span class="mf">2.</span><span class="o">&gt;</span><span class="n">far</span><span class="p">):</span>
+                            <span class="n">farest</span> <span class="o">=</span> <span class="n">far</span>
+                            <span class="n">farheight</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">building_height</span> <span class="o">=</span> <span class="nb">max</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">farheight</span><span class="p">),</span><span class="mf">0.0</span><span class="p">)</span> <span class="c1"># don&#39;t calculate underground building</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">building_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+
+
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;FTYPE&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">16</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;FTYPE&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">14</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">building_height</span><span class="o">==</span><span class="mi">0</span><span class="p">):</span>
+ <span class="c1">#               bldHeightToReduce = bldHeightToReduce + self._Buildings[&#39;BLDG_HT&#39;][i]</span>
+ <span class="c1">#               numberOfBld = numberOfBld - 1</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">bldHeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;BLDG_HT&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">bldHeight</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">bldHeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HI_PNT_Z&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="p">[</span><span class="s1">&#39;HT_LAND&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">bldHeight</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;BLDG_HT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="c1">#                        errorBuildings = errorBuildings + 1</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;BLDG_HT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bldHeight</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">geom_type</span> <span class="o">==</span> <span class="s1">&#39;MultiPolygon&#39;</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">geoms</span><span class="p">:</span>
+                        <span class="n">Map_A_f</span> <span class="o">=</span> <span class="n">Map_A_f</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_A_f</span><span class="p">(</span><span class="n">Polygon</span><span class="p">(</span><span class="n">poly</span><span class="p">),</span> <span class="n">bldHeight</span><span class="p">,</span> <span class="n">windDirection</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+
+                    <span class="n">Map_A_f</span> <span class="o">=</span> <span class="n">Map_A_f</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_A_f</span><span class="p">(</span><span class="n">Polygon</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span> <span class="n">bldHeight</span><span class="p">,</span> <span class="n">windDirection</span><span class="p">)</span>
+
+        <span class="n">lambda_f</span> <span class="o">=</span> <span class="n">Map_A_f</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_blockArea</span>
+        <span class="c1"># totalBldHeight = self._blockBuildings[&#39;BLDG_HT&#39;].sum() - bldHeightToReduce</span>
+        <span class="k">return</span> <span class="n">lambda_f</span>
+
+    <span class="k">def</span> <span class="nf">getHc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LambdaP</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hc</span>
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">Lambda</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buildings</span><span class="p">,</span> <span class="n">windDirection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method calculates average Lambda P and F of each block in the domain.</span>
+
+<span class="sd">        :return: geopandas with the calculated average lambda.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">listOfBuildingsBlock</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Buildings</span> <span class="o">=</span> <span class="n">buildings</span>
+        <span class="n">currentDict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;lambdaF&#39;</span><span class="p">:[],</span> <span class="s1">&#39;hc&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;geometry&#39;</span><span class="p">:</span> <span class="p">[],</span><span class="s1">&#39;i0&#39;</span><span class="p">:[],</span><span class="s1">&#39;j0&#39;</span><span class="p">:[]}</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">blockDict</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">_GetBlocks</span><span class="p">()):</span>
+            <span class="c1"># currentPandas = pandas.DataFrame.from_dict(blockDict)</span>
+            <span class="n">BuildingsBlock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initBuildingsBlock</span><span class="p">(</span><span class="n">blockDict</span><span class="p">)</span>
+            <span class="n">currentDict</span><span class="p">[</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BuildingsBlock</span><span class="o">.</span><span class="n">_LambdaF</span><span class="p">(</span><span class="n">windDirection</span><span class="o">=</span><span class="n">windDirection</span><span class="p">))</span>
+            <span class="n">currentDict</span><span class="p">[</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BuildingsBlock</span><span class="o">.</span><span class="n">_LambdaP</span><span class="p">())</span>
+            <span class="n">currentDict</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BuildingsBlock</span><span class="o">.</span><span class="n">getHc</span><span class="p">())</span> <span class="c1"># The calculation of HC is done at LambdaP function</span>
+            <span class="n">currentDict</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BuildingsBlock</span><span class="o">.</span><span class="n">_ExteriorBlock</span><span class="p">)</span>
+            <span class="n">currentDict</span><span class="p">[</span><span class="s1">&#39;i0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">blockDict</span><span class="p">[</span><span class="s1">&#39;i0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">currentDict</span><span class="p">[</span><span class="s1">&#39;j0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">blockDict</span><span class="p">[</span><span class="s1">&#39;j0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">currentDict</span><span class="p">,</span> <span class="n">orient</span><span class="o">=</span><span class="s1">&#39;columns&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">geopandas</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">geometry</span><span class="o">=</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">])</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">hera</span> <span class="kn">import</span> <span class="n">toolkitHome</span>
+    <span class="n">bt</span> <span class="o">=</span> <span class="n">toolkitHome</span><span class="o">.</span><span class="n">getToolkit</span><span class="p">(</span><span class="n">toolkitName</span><span class="o">=</span><span class="n">toolkitHome</span><span class="o">.</span><span class="n">GIS_BUILDINGS</span><span class="p">,</span><span class="n">projectName</span><span class="o">=</span><span class="s2">&quot;testbamba&quot;</span><span class="p">)</span> <span class="c1"># tlvbig</span>
+    <span class="n">tlvbounding</span> <span class="o">=</span> <span class="p">[</span><span class="mi">175000</span><span class="p">,</span> <span class="mi">658000</span><span class="p">,</span> <span class="mi">185000</span><span class="p">,</span> <span class="mi">668000</span><span class="p">]</span>  <span class="c1">#</span>
+    <span class="n">tlvbounding</span> <span class="o">=</span> <span class="p">[</span><span class="mi">175500</span><span class="p">,</span> <span class="mi">658000</span><span class="p">,</span> <span class="mi">185000</span><span class="p">,</span> <span class="mi">668000</span><span class="p">]</span>
+    <span class="n">bsbounding</span> <span class="o">=</span> <span class="p">[</span><span class="mi">175000</span><span class="p">,</span> <span class="mi">569000</span><span class="p">,</span> <span class="mi">189000</span><span class="p">,</span> <span class="mi">579000</span><span class="p">]</span>
+    <span class="n">bsboundingsmall</span> <span class="o">=</span> <span class="p">[</span><span class="mi">181000</span><span class="p">,</span> <span class="mi">577000</span><span class="p">,</span> <span class="mi">182000</span><span class="p">,</span> <span class="mi">578000</span><span class="p">]</span>
+    <span class="n">ashkelonbounding</span> <span class="o">=</span> <span class="p">[</span><span class="mi">156000</span><span class="p">,</span> <span class="mi">616000</span><span class="p">,</span> <span class="mi">164000</span><span class="p">,</span> <span class="mi">625000</span><span class="p">]</span>
+    <span class="n">natanyabounding</span> <span class="o">=</span> <span class="p">[</span><span class="mi">184000</span><span class="p">,</span> <span class="mi">689000</span><span class="p">,</span> <span class="mi">192000</span><span class="p">,</span> <span class="mi">697000</span><span class="p">]</span>
+
+    <span class="n">bounding</span> <span class="o">=</span> <span class="n">tlvbounding</span>
+    <span class="n">cityname</span> <span class="o">=</span> <span class="s1">&#39;tlv1&#39;</span>
+
+    <span class="n">bounding</span> <span class="o">=</span> <span class="n">bsboundingsmall</span>
+    <span class="n">cityname</span> <span class="o">=</span> <span class="s1">&#39;bssm&#39;</span>
+
+    <span class="n">bt</span><span class="o">.</span><span class="n">addRegion</span><span class="p">(</span><span class="n">bounding</span><span class="p">,</span> <span class="n">cityname</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">2039</span><span class="p">)</span>
+    <span class="k">if</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">reg</span> <span class="o">=</span> <span class="n">bt</span><span class="o">.</span><span class="n">cutRegionFromSource</span><span class="p">(</span><span class="n">cityname</span><span class="p">,</span> <span class="n">datasourceName</span><span class="o">=</span><span class="s1">&#39;BNTL&#39;</span><span class="p">,</span> <span class="n">isBounds</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">2039</span><span class="p">)</span>
+        <span class="c1">#	    bt.regionToSTL(cityname,cityname+&#39;-buildings.stl&#39;,&#39;BNTL&#39;)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;dddeeebbb&#39;</span><span class="p">)</span>
+        <span class="n">lm</span> <span class="o">=</span> <span class="n">bt</span><span class="o">.</span><span class="n">analysis</span><span class="o">.</span><span class="n">LambdaFromDatasource</span><span class="p">(</span><span class="mi">270</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="s1">&#39;BNTL&#39;</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">2039</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">lm</span><span class="p">)</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">cityname</span> <span class="o">+</span> <span class="s1">&#39;-lambda1.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="s1">&#39;[&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lm</span><span class="p">)):</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;[&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">]),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">]),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;hc&#39;</span><span class="p">]),</span> <span class="s1">&#39;],</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">]</span>
+            <span class="n">file</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="s1">&#39;]&#39;</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+        <span class="n">lm</span> <span class="o">=</span> <span class="n">bt</span><span class="o">.</span><span class="n">_analysis</span><span class="o">.</span><span class="n">LambdaFromDatasource</span><span class="p">(</span><span class="mi">270</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="s1">&#39;BNTL&#39;</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">2039</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">lm</span><span class="p">)</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">cityname</span> <span class="o">+</span> <span class="s1">&#39;-lambda.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="s1">&#39;[&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lm</span><span class="p">)):</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;[&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;lambdaF&#39;</span><span class="p">],</span> <span class="mi">3</span><span class="p">)),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;lambdaP&#39;</span><span class="p">],</span> <span class="mi">3</span><span class="p">)),</span> <span class="s1">&#39;, &#39;</span><span class="p">,</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;hc&#39;</span><span class="p">],</span> <span class="mi">3</span><span class="p">)),</span> <span class="s1">&#39;],</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">]</span>
+            <span class="n">file</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="s1">&#39;]&#39;</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+        <span class="n">bt2</span> <span class="o">=</span> <span class="n">toolkitHome</span><span class="o">.</span><span class="n">getToolkit</span><span class="p">(</span><span class="n">toolkitName</span><span class="o">=</span><span class="n">toolkitHome</span><span class="o">.</span><span class="n">GIS_TOPOGRAPHY</span><span class="p">,</span> <span class="n">projectName</span><span class="o">=</span><span class="s2">&quot;testbamba&quot;</span><span class="p">)</span>
+        <span class="n">bt2</span><span class="o">.</span><span class="n">addRegion</span><span class="p">(</span><span class="n">bounding</span><span class="p">,</span> <span class="n">cityname</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">2039</span><span class="p">)</span>
+        <span class="c1"># reg = bt2.cutRegionFromSource(&#39;bs&#39;,datasourceName=&#39;BNTL&#39;,isBounds = True, crs = 2039)</span>
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">bt2</span><span class="o">.</span><span class="n">regionToSTL</span><span class="p">(</span><span class="n">bounding</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="s1">&#39;BNTL&#39;</span><span class="p">)</span>
+        <span class="n">file1</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">cityname</span> <span class="o">+</span> <span class="s1">&#39;-topo.stl&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">file1</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">topo</span><span class="p">)</span>
+        <span class="n">file1</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Elia Salo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
