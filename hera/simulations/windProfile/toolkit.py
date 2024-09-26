@@ -42,36 +42,34 @@ class WindProfileToolkit(toolkit.abstractToolkit):
             z0 = float(xarray[i,j].z0.values)
 
             for z in np.arange(0, height + dz, dz):
-                if 'dd' not in fields:
-                    U = self.compute_log_wind_profile(z0, z, wind_speed)
-                elif float(xarray[i,j].dd.values)==0:
-                    U = self.compute_log_wind_profile(z0, z, wind_speed)
-                else:
-                    dd = float(xarray[i,j].dd.values)
+                U_star = (wind_speed * KARMAN) / np.log(z / z0)
+                if 'hc' in fields:
                     hc = float(xarray[i,j].hc.values)
-                    U = self.compute_exp_log_wind_profile(z,z0,hc,dd,wind_speed)
+                    if hc > 2.0:          #Urban Area
+                        if z > hc:
+                            U_z = (U_star / KARMAN) * np.log(z / z0)
+                        else:
+                            U_hc = (U_star/KARMAN) * np.log(hc/z0)
+                            U_z = U_hc * np.exp(BETA * (z - hc) / xarray[i,j].ll.values)
+                    else:
+                        continue
+                else:                       #Non-Urban Area
+                    U_z = (U_star / KARMAN) * np.log(z / z0)
 
-                u = U * np.cos(np.radians(toMathematicalAngle(wind_direction)))
-                v = U * np.sin(np.radians(toMathematicalAngle(wind_direction)))
-
-                speed = np.sqrt(u ** 2 + v ** 2)
-
+                u = U_z * np.cos(np.radians(toMathematicalAngle(wind_direction)))
+                v = U_z * np.sin(np.radians(toMathematicalAngle(wind_direction)))
+                # speed = np.sqrt(u ** 2 + v ** 2)
                 results.append({
                     'lat': lat,
                     'lon': lon,
                     'height': z,
                     'u': u,
                     'v': v,
-                    'speed': speed,
+                    'U_z': U_z,
                     'direction': wind_direction
                 })
 
         return pd.DataFrame(results)
-    def compute_exp_log_wind_profile(self,z,z0,hc,dd,wind_speed):
-        return (wind_speed * KARMAN) / (BETA * np.log((z - hc + dd) / z0))
-
-    def compute_log_wind_profile(self, z0, z, wind_speed):
-        return (wind_speed * BETA / KARMAN) * np.log((z) / z0)
 
     def _find_lat_lon_index_in_xarray(self,lat,lon,xarray):
         latitudes = xarray['lat'].values
