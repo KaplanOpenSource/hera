@@ -523,11 +523,26 @@ class presentation:
     def __init__(self, dataLayer):
         self._datalayer = dataLayer
         self.landcover_colors_map = {
-            0:'red',
-            1:'blue'
-        }
+                0: 'blue',                  # Water
+                1: 'darkgreen',             # Evergreen needleleaf forest
+                2: 'forestgreen',           # Evergreen broadleaf forest
+                3: 'green',                 # Deciduous needleleaf forest
+                4: 'lightgreen',            # Deciduous broadleaf forest
+                5: 'olive',                 # Mixed forests
+                6: 'brown',                 # Closed shrubland
+                7: 'orange',                # Open shrublands
+                8: 'yellowgreen',           # Woody savannas
+                9: 'yellow',                # Savannas
+                10: 'lightyellow',          # Grasslands
+                11: 'cyan',                 # Permanent wetlands
+                12: 'gold',                 # Croplands
+                13: 'gray',                 # Urban and built-up
+                14: 'lightgoldenrodyellow', # Cropland/natural vegetation mosaic
+                15: 'white',                # Snow and ice
+                16: 'saddlebrown'           # Barren or sparsely vegetated
+            }
 
-    def plotRoughness(self,plot,landcover,alpha=0.5,figsize=(28,28)):
+    def plotRoughness(self,plot,landcover,min_roughness=None,max_roughness=None,alpha=0.5,figsize=(28,28)):
         """
         Plot Roughness upon Given Axes.
 
@@ -548,10 +563,12 @@ class presentation:
         Returns
         -------
         """
+        # plt.ioff()
+
         fig, ax = plt.subplots(figsize=figsize)
-        rectangles = self._getRoughnessRectangles(landcover)
-        self._plotWithRectangles(ax, plot, rectangles, alpha)
-        plt.show()
+        rectangles = self._getRoughnessRectangles(landcover,min_roughness,max_roughness)
+        ax = self._plotWithRectangles(ax, plot, rectangles, alpha)
+        return fig, ax
 
 
     def plotLandcover(self,plot,landcover,alpha=0.2,figsize=(28,28)):
@@ -614,10 +631,13 @@ class presentation:
 
         return list(set(rectangles))
 
-    def _getRoughnessRectangles(self,landcover):
+    def _getRoughnessRectangles(self,landcover,min_roughness,max_roughness):
         rectangles = []
         colormap = plt.cm.viridis
-        norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
+        if (not min_roughness) and (not max_roughness):
+            norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
+        else:
+            norm = mcolors.Normalize(vmin=min_roughness, vmax=max_roughness)
 
         for arr in landcover:
             for x in arr:
