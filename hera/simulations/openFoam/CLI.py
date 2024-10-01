@@ -87,6 +87,7 @@ def foam_solver_template_buildExecute(arguments):
     logger.execution(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
 
+    arguments.force = True
     if arguments.noDB:
         from hermes.utils.workflowAssembly import handler_buildExecute
         handler_buildExecute(arguments)

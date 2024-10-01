@@ -46,6 +46,10 @@ class hermesWorkflowToolkit(abstractToolkit):
 
     DOCTYPE_WORKFLOW = "hermesWorkflow"
 
+    DOCKIND_CACHE = "Cache"
+    DOCKIND_SIMULATIONS = "Simulations"
+
+
     def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
         """
             Initializes the workflow toolkit.
@@ -159,7 +163,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             hermes workflow object (or one of its derivatives).
         """
 
-        docList = numpy.atleast_1d(documentList)
+        docList = documentList if isinstance(documentList,list) else [documentList]
 
         if returnFirst:
             doc = docList[0]
@@ -228,7 +232,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             list (returnFirst is False)
             hermes workflow.
         """
-
+        logger = get_classMethod_logger(self,"getHermesWorkflowFromDB")
         docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, **query)
 
         if len(docList) == 0:
@@ -268,23 +272,23 @@ class hermesWorkflowToolkit(abstractToolkit):
         retrieve_func = getattr(self,f"get{dockind}Documents")
 
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
-            logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name of kind {dockind}")
+            logger.info(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name of kind {dockind}")
             docList = retrieve_func(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
             if len(docList) == 0:
-                logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource of kind {dockind}.")
+                logger.info(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a resource of kind {dockind}.")
                 docList = retrieve_func(resource=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
                 if len(docList) == 0:
-                    logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group of kind {dockind}.")
+                    logger.info(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group of kind {dockind}.")
                     docList = retrieve_func(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
                     if len(docList) == 0:
-                        logger.debug(f"... not found. Try to query as a json. ")
+                        logger.info(f"... not found. Try to query as a json. ")
                         try:
                             jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
                             wf = self.getHermesWorkflowFromJSON(jsn)
                             currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
                             currentQuery.update(mongo_crit)
                             docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
-                        except ValueError:
+                        except ValueError as e:
 
                             # logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a file.")
                             # if os.path.isfile(nameOrWorkflowFileOrJSONOrResource):
@@ -309,7 +313,8 @@ class hermesWorkflowToolkit(abstractToolkit):
                             #                              )
                             #     docList = [res]
                             # else:
-                            logger.debug(f"not found")
+                            err = f"Error {e} when trying to load as JSON."
+                            logger.error(err)
                             docList = []
                         except IsADirectoryError:
                             logger.debug(f"not found")
@@ -584,7 +589,6 @@ class hermesWorkflowToolkit(abstractToolkit):
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
         docList = self.getWorkflowInGroup(groupName=groupName, **currentQuery)
-
 
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]

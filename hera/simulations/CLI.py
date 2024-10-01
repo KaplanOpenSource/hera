@@ -2,9 +2,9 @@ import json
 import logging
 import os
 
-from hera import toolkitHome
-from hera.simulations.hermesWorkflowToolkit import actionModes
-from hera.utils import loadJSON
+from .. import toolkitHome
+from .hermesWorkflowToolkit import actionModes
+from ..utils import loadJSON,compareJSONS
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
@@ -97,7 +97,6 @@ def workflow_add(args):
     logger.info(f"Adding workflow in {workflowFile}  to DB")
 
     execute = args.execute
-
     try:
         wftk.addWorkflowToGroup(workflowJSON=workflowFile,
                                 groupName= args.workflowGroup,
@@ -232,7 +231,7 @@ def workflow_compareToDisk(arguments):
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local")
             smName = sim.name
             sim.name = "DB"
-            res = wftk.compareWorkflowsObj([sim,localWorkflow])
+            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
             ttl = f"Simulation {smName}"
             print(ttl)
             print("-"*len(ttl))

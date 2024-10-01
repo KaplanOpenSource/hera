@@ -12,6 +12,7 @@ from itertools import product
 from dask.delayed import delayed
 import dask.dataframe as dask_dataframe
 from ....datalayer import datatypes
+from ....datalayer.document.metadataDocument import MetadataFrame
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
 from .. import FLOWTYPE_INCOMPRESSIBLE
@@ -1014,6 +1015,57 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     #     except ValueError:
     #         return False
 
+    def _findCacheForCase(self,caseDescriptor,cachetype,**kwargs):
+        """
+            Finds whether there is a cached document for the case with the paramters in the DB
+        Parameters
+        ----------
+        caseDescriptor :         caseDescriptor : str, MetadataFrame
+            The descriptor of the case.
+            Can be the name, the resource, the parameter files and ect.
+
+            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
+
+        cachetype : str
+            The type of the document. The cache type.
+
+        kwargs : additional query arguments.
+
+        Returns
+        -------
+            cacheDoc : DB document
+            Returns None if data is not cached.
+
+        """
+        logger = get_classMethod_logger(self, "_findCacheForCase")
+        logger.debug(f"Checking if cache exists.  ")
+
+        caseDescriptorName = None
+
+        if isinstance(caseDescriptor,str):
+            logger.info(f"Checking to see if the data {caseDescriptor} is cached in the DB")
+            caseDescriptorName = caseDescriptor
+        elif isinstance(caseDescriptor,MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
+
+        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=cachetype,dockind=self.toolkit.DOCKIND_CACHE,**kwargs)
+        if len(cachedDocumentList) == 0:
+            logger.info(f"Data for {caseDescriptorName} is not cached")
+            ret = None
+        elif len(cachedDocumentList) > 1:
+            err = f"There is more than one data item for  for {caseDescriptorName} with the query {kwargs} cached!. Refine the query"
+            logger.error(err)
+            raise ValueError(err)
+        else:
+            ret = cacheDoc[0]
+
+        return ret
+
     def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
                        cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
         """
@@ -1023,9 +1075,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         Parameters
         ----------
-        caseDescriptor : str
+        caseDescriptor : str, MetadataFrame
             The descriptor of the case.
             Can be the name, the resource, the parameter files and ect.
+
+            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
 
         times : list
             If none, read all time.
@@ -1049,9 +1103,39 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         logger = get_classMethod_logger(self, "readCloudData")
         logger.info(f"Getting stochastic results. Use cache? {cache} ; Overwrite {overwrite}")
 
+        cacheDoc = self._findCacheForCase(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName)
+        if cacheDoc is None:
+            pass
+        if overwrite:
+            logger.info("overwrite is True, calculate it")
+            cacheDoc = cachedDocumentList[0]
+
+        else:
+            logger.info("Returning the cached data")
+            try:
+                ret = cachedDocumentList[0].getData(engine='pyarrow')
+            except FileNotFoundError:
+                logger.error(
+                    "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
+                for doc in cachedDocumentList:
+                    logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
+                    doc.delete()
+                ret = None
+
+        caseDescriptorName = None
         if cache:
-            logger.info(f"Checking to see if the data {caseDescriptor} is cached in the DB")
-            cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName,dockind="Cache")
+            if isinstance(caseDescriptor,str):
+                logger.info(f"Checking to see if the data {caseDescriptor} is cached in the DB")
+                caseDescriptorName = caseDescriptor
+            elif isinstance(caseDescriptor,MetadataFrame):
+                caseDescriptorName = caseDescriptor.desc['workflowName']
+                logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+            else:
+                err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+                logger.error(err)
+                raise ValueError(err)
+
+            cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName,dockind=self.toolkit.DOCKIND_CACHE)
             if len(cachedDocumentList) == 0:
                 logger.info("Data is not cached, calculate it")
                 calculateData = True
@@ -1062,18 +1146,25 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 cacheDoc = cachedDocumentList[0]
             else:
                 logger.info("Returning the cached data")
-                ret = cachedDocumentList[0].getData(engine='pyarrow')
+                try:
+                    ret = cachedDocumentList[0].getData(engine='pyarrow')
+                except FileNotFoundError:
+                    logger.error("The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
+                    for doc in cachedDocumentList:
+                        logger.error(f"Removing {json.dumps(doc.desc,indent=4)}")
+                        doc.delete()
+                    ret = None
                 calculateData = False
         else:
             logger.debug(f"Calculating data because cache is False")
             calculateData = True
             cacheDoc = None
 
-        logger.info(f"The {caseDescriptor} is (re)-calculated" if calculateData else f"The {caseDescriptor} was found, returining that data")
+        logger.info(f"The {caseDescriptor} is (re)-calculated" if calculateData else f"The {caseDescriptorName} was found, returning its data")
 
         if calculateData:
-            logger.info(f"Calculating the data. Trying to find the case described by: {caseDescriptor}")
-            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW,kind="Cache")
+            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
             if len(docList) == 0:
                 logger.info("not found, trying as a directory")
                 finalCasePath = os.path.abspath(caseDescriptor)
@@ -1084,7 +1175,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     logger.error(err)
                     raise FileNotFoundError(err)
                 else:
-                    logger.debug(f"Found as a directory")
+                    logger.info(f"Found as a directory")
             else:
                 logger.info(f"Found, Loading data from {docList[0].resource}")
                 finalCasePath = docList[0].resource
@@ -1127,7 +1218,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 loaderList = [timeName for timeName in timeList]
                 ret = dask_dataframe.from_map(loader, loaderList)
 
-            if cache and overwrite:
+            if cache:
                 if cacheDoc is not None:
                     logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
                     fullname = cacheDoc.resource
@@ -1148,6 +1239,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
                 ret.set_index("time").repartition(partition_size="100MB").to_parquet(fullname)
                 ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
+            else:
+                logger.info(f"No caching, return the data as is. ")
         return ret
 
 
@@ -1324,7 +1417,7 @@ class analysis:
         return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
 
     def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="x", yfield="y",
-                                       zfield="z", overwrite=False, simulationID=None, **metadata):
+                                       zfield="z", overwrite=False, simulationID=None,cache=True, **metadata):
         """
             Calculates the eulerian concentration field for each timestep in the data.
             The data is stored as a nc file on the disk.
@@ -1363,6 +1456,8 @@ class analysis:
             If not None, use this str instead of the docmentID. used in cases where the
             cache was transferred from another DB.
 
+        cache : bool
+            If true, try to load from the DB, and if does not exist
         **metadata: the parameters to add to the document.
 
         :return:
@@ -1370,6 +1465,8 @@ class analysis:
         """
 
         dataID = str(dataDocument.id) if simulationID is None else simulationID
+        docList =[]
+
 
         docList = self.datalayer.getCacheDocuments(dataID=dataID, extents=extents, dxdydz=dxdydz,
                                                    type=self.DOCTYPE_CONCENTRATION, **metadata)
@@ -1543,15 +1640,17 @@ def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
 
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
                          cloudName="kinematicCloud"):
-    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[])
-    if withMass:
-        columnsDict['mass'] = []
-    if withReleaseTimes:
-        columnsDict['age'] = []
+
+    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],time=[])
     if withVelocity:
         columnsDict['U_x'] = []
         columnsDict['U_y'] = []
         columnsDict['U_z'] = []
+    if withReleaseTimes:
+        columnsDict["releaseTime"] = []
+        columnsDict['age'] = []
+    if withMass:
+        columnsDict['mass'] = []
 
     newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
 
@@ -1580,6 +1679,10 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         # for col in ['globalX', 'globalY', 'globalZ']:
         #     newData[col] = dataGlobal[col].astype(numpy.float64)
 
+        theTime = os.path.split(timeName)[-1]
+        newData['time'] = float(theTime)
+
+
         if withVelocity:
             dataU = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
                                 ['U_x', 'U_y', 'U_z'])
@@ -1589,7 +1692,8 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         if withReleaseTimes:
             dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "age"),
                                 ['age'], vector=False)
-            newData["releaseTime"] = dataM["time"] - dataM["age"]
+            newData["releaseTime"] = newData["time"] - dataM["age"]
+            newData["age"] = dataM["age"]
         if withMass:
             dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
                                 ['mass'], vector=False)
@@ -1603,6 +1707,4 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
     except Exception as e:
         pass
 
-    theTime = os.path.split(timeName)[-1]
-    newData['time'] = float(theTime)
     return newData

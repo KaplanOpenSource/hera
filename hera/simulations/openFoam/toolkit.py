@@ -475,9 +475,9 @@ class Analysis:
 
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **qry)
 
-    def executeAndLoad(self,vtkPipeline,sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False,append=False,overwriteMetadata=False):
+    def executeVTKFiltersAndLoad(self, vtkPipeline, sourceOrName=None, timeList=None, tsBlockNum=50, overwrite=False, append=False, overwriteMetadata=False):
         """
-
+            Executing VTK pipe line and loading to the DB.
         Parameters
         ----------
         vtkPipeline : VTKPipeLine
