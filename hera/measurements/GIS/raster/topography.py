@@ -251,7 +251,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return retArray
 
-    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None, solidName="Topography"):
+    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None, solidName="Topography", shiftx=0, shifty=0):
         """
             Return the STL string from xarray dataset with the following fields:
         Parameters
@@ -267,12 +267,17 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         outputCRS : The ESPG code of the output projection.
                     [Default ITM]
+                    
+        shiftx : Used when one wants to set another point as origin center
+                    
+        shifty : Used when one wants to set another point as origin center
+
         Returns
         -------
 
         """
         elevation = self.getDomainElevation(xmin=minx, xmax=maxx, ymax=maxy, ymin=miny, dxdy=dxdy, inputCRS=inputCRS, outputCRS=outputCRS, dataSourceName=dataSourceName)
-        stlstr = stlFactory().rasterToSTL(elevation['X'].values, elevation['Y'].values, elevation['Elevation'].values,solidName=solidName)
+        stlstr = stlFactory().rasterToSTL(elevation['X'].values - shiftx, elevation['Y'].values - shifty , elevation['Elevation'].values,solidName=solidName)
         return stlstr
 
     # def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = "default"):

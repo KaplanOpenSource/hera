@@ -201,6 +201,8 @@ class TilesToolkit(toolkit.abstractToolkit):
         return finalimg,[boundULX,boundLRX,boundULY,boundLRY]
 
 
+
+
     def tile2deg(self, xtile, ytile, zoom):
         n = 2.0 ** zoom
         lon_deg = xtile / n * 360.0 - 180.0
@@ -289,8 +291,8 @@ class presentation:
 
         lower_point = [extents[0],extents[2]]
         upper_right  = [extents[1],extents[3]]
-        lower_left_converted = convertCRS(points=[lower_point], inputCRS=WSG84, outputCRS=ITM)[0]
-        upper_right_converted = convertCRS(points=[upper_right], inputCRS=WSG84, outputCRS=ITM)[0]
+        lower_left_converted = convertCRS(points=[lower_point], inputCRS=inputCRS, outputCRS=outputCRS)[0]
+        upper_right_converted = convertCRS(points=[upper_right], inputCRS=inputCRS, outputCRS=outputCRS)[0]
 
         extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
 

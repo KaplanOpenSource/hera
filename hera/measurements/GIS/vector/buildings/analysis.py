@@ -14,7 +14,9 @@ BUILDINGS_LAMBDA_WIND_DIRECTION = 'wind'
 BUILDINGS_LAMBDA_RESOLUTION = 'resolution'
 
 class analysis():
-
+    """
+    Analysis layer class of GIS Buildings. Acess this class with BuildingsToolkit.analysis.
+    """
     def __init__(self, dataLayer):
         self.datalayer = dataLayer
         cnfg = dict(self.datalayer.getConfig())
@@ -23,14 +25,14 @@ class analysis():
 
     def ConvexPolygons(self, regionNameOrData, buffer=100):
         """
-            Returns convex polygons of groups of buildings.
+        Returns convex polygons of groups of buildings.
 
         Parameters
         ----------
-        :param data: str or geopandas DataFrame.
-                The data to get the convex of.
+        regionNameOrData: str or geopandas DataFrame.
+            The data to get the convex of.
 
-        :param buffer:
+        buffer: int,default=100.
 
         Returns
         -------
@@ -84,28 +86,28 @@ class analysis():
 
     def LambdaFromBuildingData(self, windMeteorologicalDirection, resolution, buildingsData, overwrite=False,saveCache=True):
         """
-        Calculate LambdaF, LambdaP and HC for given GIS geopandas file.
+        Returns lambdaP,lambdaF,hc for each square in given buildingsData.
 
         Parameters
         ----------
         windMeteorologicalDirection : double
-            The meteorological angle
+            The meteorological angle.
 
         resolution: double
             The size of the squares.
 
-        buildingsData: geopandas.Geopandas
-            Geopandas of the buildings.
+        buildingsData: geopandas.DataFrame
+            Geopandas of the buildings. The crs of the building data must be set.
 
-        overwrite : bool
-            If true, overwrite the current cache data and update the database.
+        overwrite : bool,default=False.
+            If true, write over data and update the database.
 
-        saveCache: bool
-            If true, will save Lambdas meassurments to cache file.
+        saveCache: bool,default=True.
+            If false, won't save dataframe to cache. It is recomended to use True since the measurments are long.
 
         Returns
         -------
-            geopandas.geodataframe.GeoDataFrame
+            geopandas.DataFrame
         """
         logger = get_classMethod_logger(self, "LambdaFromBuildingData")
         logger.info("--- Start ---")
@@ -144,7 +146,7 @@ class analysis():
                 if len(dataDoc) == 0:
                     logger.debug("Adding new record to the DB")
                     doc = self.datalayer.addCacheDocument(resource="",
-                                                          dataFormat="geopandas",
+                                                          dataFormat='geopandas',
                                                           type="Lambda_Buildings",
                                                          desc=desc)
                     fileID = self.datalayer.getConfig()["analysis_CacheCounter"]
@@ -158,7 +160,6 @@ class analysis():
                     doc = dataDoc[0]
                     outputfileFull = doc.resource
 
-                logger.info(f"Writing Lambda data to {outputfileFull}")
                 domainLambda.to_file(outputfileFull,driver='GeoJSON')
                 doc.resource = outputfileFull
                 doc.save()
