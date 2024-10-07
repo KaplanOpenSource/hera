@@ -510,6 +510,18 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return lambdaGrid
 
 
+    
+    def roughnesslength2sandgrainroughness(rl):
+    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
+    # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
+    # eq. 5: Equivalent sand grain roughness (m) is z0*30
+    
+    # we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
+    # Cs value can be set as 0.5
+    
+        return rl*30.0 # return Ks value 
+
+
 class presentation:
     """
     Presentation Layer of LandCover toolkit.
