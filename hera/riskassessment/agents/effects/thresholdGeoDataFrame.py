@@ -84,7 +84,32 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		return ret 
 
 	def _project(self,demographic,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon",population="total_pop"):
+		"""
+			Projects the polygons of the thresholds on the demography.
+			Shifts and rotates the polygons according to loc and the angle of the wind.
 
+		Parameters
+		----------
+		demographic : geopandnaas
+				Holds the deomgraphy
+		loc : tuple
+			The location of the thresholds.
+		meteorological_angle : float
+			The angle of the wind in meteorological angles.
+			Only meteorological_angle or mathematical_angle should be supplied.
+
+		mathematical_angle
+			Only meteorological_angle or mathematical_angle should be supplied.
+		geometry : string
+			The name of the column to use for the thresholds.
+
+		population : string
+			The name of the column to use for the population.
+
+		Returns
+		-------
+
+		"""
 		localcrs = {"init":"epsg:2039"} # itm
 
 		demog_data = demographic
