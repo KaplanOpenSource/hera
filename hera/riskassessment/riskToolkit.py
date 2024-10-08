@@ -152,7 +152,6 @@ class RiskToolkit(abstractToolkit):
 
         elif saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
             raise ValueError(f"Agent {name} version {agentDoc.desc.get('version',None)} in the database.")
-
         else:
             agentDoc.resource = json.dumps(agentDescription)
             agentDoc.desc['version']  = version

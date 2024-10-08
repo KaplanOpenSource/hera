@@ -1062,7 +1062,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             logger.error(err)
             raise ValueError(err)
         else:
-            ret = cacheDoc[0]
+            ret = cachedDocumentList[0]
 
         return ret
 
@@ -1093,6 +1093,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         cloudName : str
             The cloud name
 
+        cache: bool [default True]
+            If true, update the cache, else just compute and do not
+            store in the DB.
+
+        overwrite: bool [default False]
+            If false, check if cache exists and return it if it does, else compute.
+            If true,  compute and update the cache (if exists) or write a new cache.
+
         forceSingleProcessor : bool
             Force reading single processor
 
@@ -1102,85 +1110,47 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         """
         logger = get_classMethod_logger(self, "readCloudData")
         logger.info(f"Getting stochastic results. Use cache? {cache} ; Overwrite {overwrite}")
-
-        cacheDoc = self._findCacheForCase(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName)
-        if cacheDoc is None:
-            pass
-        if overwrite:
-            logger.info("overwrite is True, calculate it")
-            cacheDoc = cachedDocumentList[0]
-
-        else:
-            logger.info("Returning the cached data")
-            try:
-                ret = cachedDocumentList[0].getData(engine='pyarrow')
-            except FileNotFoundError:
-                logger.error(
-                    "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
-                for doc in cachedDocumentList:
-                    logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
-                    doc.delete()
-                ret = None
-
-        caseDescriptorName = None
-        if cache:
-            if isinstance(caseDescriptor,str):
-                logger.info(f"Checking to see if the data {caseDescriptor} is cached in the DB")
-                caseDescriptorName = caseDescriptor
-            elif isinstance(caseDescriptor,MetadataFrame):
-                caseDescriptorName = caseDescriptor.desc['workflowName']
-                logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
-            else:
-                err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
-                logger.error(err)
-                raise ValueError(err)
-
-            cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName,dockind=self.toolkit.DOCKIND_CACHE)
-            if len(cachedDocumentList) == 0:
-                logger.info("Data is not cached, calculate it")
-                calculateData = True
-                cacheDoc = None
-            elif overwrite:
-                logger.info("overwrite is True, calculate it")
-                calculateData = True
-                cacheDoc = cachedDocumentList[0]
+        cacheDoc = self._findCacheForCase(caseDescriptor, cachetype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName)
+        reCalculate = True
+        if cacheDoc is not None:
+            logger.info(f"Found {caseDescriptor} in the database. ")
+            if overwrite:
+                logger.info("overwrite is True, recalculate it")
             else:
                 logger.info("Returning the cached data")
                 try:
-                    ret = cachedDocumentList[0].getData(engine='pyarrow')
+                    ret = cacheDoc.getData()
+                    reCalculate = False
                 except FileNotFoundError:
-                    logger.error("The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
+                    logger.error(
+                        "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
                     for doc in cachedDocumentList:
-                        logger.error(f"Removing {json.dumps(doc.desc,indent=4)}")
+                        logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
                         doc.delete()
                     ret = None
-                calculateData = False
-        else:
-            logger.debug(f"Calculating data because cache is False")
-            calculateData = True
-            cacheDoc = None
 
-        logger.info(f"The {caseDescriptor} is (re)-calculated" if calculateData else f"The {caseDescriptorName} was found, returning its data")
-
-        if calculateData:
-            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
-            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
-            if len(docList) == 0:
-                logger.info("not found, trying as a directory")
-                finalCasePath = os.path.abspath(caseDescriptor)
-                stochasticSimulationDocument = None
-                workflowName = caseDescriptor
-                if not os.path.isdir(os.path.abspath(caseDescriptor)):
-                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
-                    logger.error(err)
-                    raise FileNotFoundError(err)
+        if reCalculate:
+            if cacheDoc is None:
+                logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+                docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
+                if len(docList) == 0:
+                    logger.info("not found, trying as a directory")
+                    finalCasePath = os.path.abspath(caseDescriptor)
+                    workflowName = caseDescriptor
+                    if not os.path.isdir(os.path.abspath(caseDescriptor)):
+                        err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
+                        logger.error(err)
+                        raise FileNotFoundError(err)
+                    else:
+                        logger.info(f"Found as a directory")
                 else:
-                    logger.info(f"Found as a directory")
+                    logger.info(f"Found, Loading data from {docList[0].resource}")
+                    finalCasePath = docList[0].resource
+                    workflowName  = docList[0].desc['workflowName']
             else:
-                logger.info(f"Found, Loading data from {docList[0].resource}")
+                logger.info(f"Using the cached document metadata. Reading  {docList[0].resource} ")
                 finalCasePath = docList[0].resource
-                workflowName  = docList[0].desc['workflowName']
-                stochasticSimulationDocument = docList[0]
+                workflowName = docList[0].desc['workflowName']
 
             loader = lambda timeName: readLagrangianRecord(timeName,
                                                            casePath=finalCasePath,
@@ -1219,6 +1189,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 ret = dask_dataframe.from_map(loader, loaderList)
 
             if cache:
+                logger.info(f"Updating the results in the cache. ")
                 if cacheDoc is not None:
                     logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
                     fullname = cacheDoc.resource
@@ -1227,7 +1198,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     logger.debug(f"Writing data to {targetDir}")
                     os.makedirs(targetDir, exist_ok=True)
                     fullname = os.path.join(targetDir, f"{cloudName}.parquet")
-                    desc = dict(docList[0].desc) if stochasticSimulationDocument is not None else dict(workflowName=caseDescriptor)
+                    desc = dict(workflowName=caseDescriptor)
                     desc['cloudName'] = cloudName
 
                     logger.debug(f"...saving data in file {fullname}")
