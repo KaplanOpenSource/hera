@@ -1,4 +1,4 @@
-import dask.dataframe.core
+import dask
 import pandas
 from copy import deepcopy
 from .....  import datalayer
@@ -16,9 +16,9 @@ class AbstractCalculator(object):
     _saveProperties = {'dataFormat': None}
 
     def __init__(self, rawData, metadata):
-        if type(rawData) == pandas.DataFrame:
+        if isinstance(rawData,pandas.DataFrame):
             self._DataType = 'pandas'
-        elif type(rawData) == dask.dataframe.core.DataFrame:
+        elif isinstance(rawData,dask.dataframe.DataFrame):
             self._DataType = 'dask'
         else:
             raise ValueError("'rawData' type must be 'pandas.DataFrame' or 'dask.dataframe.core.DataFrame'.\nGot '%s'." % type(rawData))
