@@ -127,7 +127,7 @@ class VTKPipeLine:
         logger = get_classMethod_logger(self, "loadToProject")
         logger.info(f"Loading pipeline to project {datalayer.projectName}")
         for filterName, filterData in self.VTKpipelineJSON["pipelines"].items():
-            logger.execution(f"Handling filter {filterName}")
+            logger.debug(f"Handling filter {filterName}")
             self._recurseNode(filterName=filterName, filterData=filterData, path="",overwrite=overwrite,datalayer=datalayer)
 
     def _recurseNode(self, filterName, filterData, path,datalayer,overwrite=False):
@@ -197,7 +197,7 @@ class VTKPipeLine:
             else:
                 logger.warning("Filter %s for simulation %s in group %s already in the database" % (filterName,filterDesc['simulationName'],filterDesc['groupName']))
 
-        logger.execution("Processing the downstream filters. ")
+        logger.debug("Processing the downstream filters. ")
         ds = filterData.get("downstream", {})
         for filterName, filterData in ds.items():
             path += "." + filterName

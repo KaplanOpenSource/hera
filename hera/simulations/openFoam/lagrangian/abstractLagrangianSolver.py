@@ -16,7 +16,7 @@ from ....datalayer.document.metadataDocument import MetadataFrame
 from ....utils.query import dictToMongoQuery
 from ....utils.logging import get_classMethod_logger
 from .. import FLOWTYPE_INCOMPRESSIBLE
-
+from ..OFWorkflow import workflow_StochasticLagrangianSolver
 
 class absractStochasticLagrangianSolver_toolkitExtension:
     """
@@ -264,7 +264,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             )
             logger.debug(
                 f"Trying to find the dispersion workflow  in the database. The run is: \n {json.dumps(querydict, indent=4)}")
-            docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.OF_FLOWDISPERSION,
+            docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION,
                                                            **dictToMongoQuery(querydict),
                                                            workflowName=dispersionFlowFieldName)
             logger.debug(f"Found {len(docList)} in the database")
@@ -277,7 +277,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             if len(docList) == 0:
                 logger.debug(
                     f"Did not find dispersion field {dispersionFlowFieldName} with the requested paraeters. Checking to see if that name exists with other parameters. ")
-                docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.OF_FLOWDISPERSION,
+                docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION,
                                                                workflowName=dispersionFlowFieldName)
                 logger.debug(f"Found {len(docList)} in the database")
 
@@ -409,7 +409,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.debug("Adding record to the database")
                 self.toolkit.addSimulationsDocument(resource=dispersionFlowFieldDirectory,
-                                                    type=self.toolkit.OF_FLOWDISPERSION, dataFormat=datatypes.STRING,
+                                                    type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION, dataFormat=datatypes.STRING,
                                                     desc=querydict)
 
                 ret = dispersionFlowFieldDirectory
@@ -473,7 +473,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             logger.error(err)
             raise ValueError(err)
 
-        logger.execution(f"----- Start -----")
+        logger.debug(f"----- Start -----")
 
         if hermes_dispersionWorkflow.name is None:
             logger.error("Must set the name property in the  dispersionWorkflow object")
@@ -483,27 +483,27 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             os.path.join(self.toolkit.filesDirectory, hermes_dispersionWorkflow.name))
 
         logger.info(
-            f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowField}.")
+            f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowFieldName}.")
 
         logger.debug(f"Trying to find the dispersionFlowField in the DB to determine the directory")
         dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-            hermes_dispersionWorkflow.dispersionFlowField)
+            hermes_dispersionWorkflow.dispersionFlowFieldName)
         if len(dispersionFlowFieldDocumentList) == 0:
-            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowField} in DB.")
+            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowFieldName} in DB.")
             logger.debug(f"Trying again to look for the directory of the dispersion flow in the DB")
             dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-                os.path.abspath(hermes_dispersionWorkflow.dispersionFlowField))
+                os.path.abspath(hermes_dispersionWorkflow.dispersionFlowFieldName))
             if len(dispersionFlowFieldDocumentList) == 0:
-                err = f"The {hermes_dispersionWorkflow.dispersionFlowField} is not in the DB. Add it before you can continue"
+                err = f"The {hermes_dispersionWorkflow.dispersionFlowFieldName} is not in the DB. Add it before you can continue"
                 logger.critical(err)
                 raise ValueError(err)
 
-        logger.execution(
+        logger.debug(
             f"Found dispersion flow field in DB under the name {dispersionFlowFieldDocumentList[0].desc['workflowName']}.")
-        if hermes_dispersionWorkflow.dispersionFlowField != dispersionFlowFieldDocumentList[0].desc['workflowName']:
+        if hermes_dispersionWorkflow.dispersionFlowFieldName != dispersionFlowFieldDocumentList[0].desc['workflowName']:
             logger.debug(
-                f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowField} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
-            hermes_dispersionWorkflow.dispersionFlowField = dispersionFlowFieldDocumentList[0].desc['workflowName']
+                f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowFieldName} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
+            hermes_dispersionWorkflow.dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
 
         dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
         dispersionFlowFieldDirectory = dispersionFlowFieldDocumentList[0].resource
@@ -515,10 +515,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         needDBAdd = False
 
         # 1. Check if the dispersion workflow name is in the DB under a different name.
-        logger.execution("Querying DB to see if the a workflow exists with a similar name")
+        logger.debug("Querying DB to see if the a workflow exists with a similar name")
         doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(hermes_dispersionWorkflow.name)
         if len(doc_nameQueryList) > 0:
-            logger.execution("Found a workflow with the same name. Check for inconsistency between DB and input")
+            logger.debug("Found a workflow with the same name. Check for inconsistency between DB and input")
 
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
             res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, hermes_dispersionWorkflow])
@@ -526,11 +526,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.info(f"The workflow in the DB is identical to the disk.")
                 hermes_dispersionWorkflow = hermes_dispersionWorkflow
             else:
-                logger.execution(f"The workflow in the DB is different than the disk: \n\n {res}")
+                logger.debug(f"The workflow in the DB is different than the disk: \n\n {res}")
                 if exportFromDB:
                     hermes_dispersionWorkflow = doc_similarWorkflow
                 elif updateDB:
-                    logger.execution("Updating the DB with the workflow from disk")
+                    logger.debug("Updating the DB with the workflow from disk")
                     hermes_dispersionWorkflow = hermes_dispersionWorkflow
                     updateWorkflow = True
                     foundInconsistency = res
@@ -539,7 +539,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     logger.error(err)
                     raise ValueError(err)
         else:
-            logger.execution("Record not found. Querying DB to see if that workflow exists under a different name")
+            logger.debug("Record not found. Querying DB to see if that workflow exists under a different name")
 
             otherWorkflows = self.toolkit.getHermesWorkflowFromDB(hermes_dispersionWorkflow)
             logger.debug(f"Found {len(otherWorkflows)} records that match workflow.")
@@ -553,15 +553,15 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     logger.error(err)
                     raise FileExistsError(err)
                 else:
-                    logger.execution("--allowDuplicate was supplied, so allowing duplication addition to DB")
+                    logger.debug("--allowDuplicate was supplied, so allowing duplication addition to DB")
                     needDBAdd = True
 
-        logger.execution(
+        logger.debug(
             f"Check if dispersion {dispersionDirectoryName} already exists. If it is remove for fresh start only if it needs rewrite and the  --rewrite was supplied")
         if os.path.isdir(dispersionDirectoryName):
             logger.debug("Directory already exists")
             if foundInconsistency is not None:
-                logger.execution(
+                logger.debug(
                     f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
                 if rewrite:
                     logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
@@ -578,7 +578,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                                                                dispersionFlowDirectory=dispersionFlowFieldDirectory)
 
         # 5. Add/update to the DB.
-        logger.execution(
+        logger.debug(
             "add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
         if needDBAdd:
             groupName = hermes_dispersionWorkflow.name.split("_")[0]
@@ -632,7 +632,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), systemDir)
 
         for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
-            logger.execution(f"Working on processor {proc}")
+            logger.debug(f"Working on processor {proc}")
             fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
             destination = os.path.join(dispersionDirectory, os.path.basename(proc), "constant", "polyMesh")
             os.makedirs(os.path.dirname(destination), exist_ok=True)
@@ -836,236 +836,6 @@ class absractStochasticLagrangianSolver_toolkitExtension:
              "parcels": parcels,
              "mass": mass})
 
-    # def _extractFile(self, filePath, columnNames, vector=True):
-    #     """
-    #         Extracts data from a csv file.
-    #
-    #     Parameters
-    #     ----------
-    #     filePath: str
-    #         The path of the file
-    #     time: str
-    #         The files' time step
-    #     columnNames: list of str
-    #         The names of the columns
-    #     skiphead: int
-    #         Number of lines to skip from the beginning of the file
-    #     skipend: int
-    #         Number of lines to skip from the ending of the file
-    #
-    #     Returns
-    #     -------
-    #         Pandas with the data.
-    #     """
-    #
-    #     filePath = os.path.abspath(filePath)
-    #     skiphead = 0
-    #     with open(filePath, 'r') as infile:
-    #         for i in range(40):
-    #             lne = infile.readline()
-    #             if lne.startswith('('):
-    #                 skiphead += 1
-    #                 break
-    #             else:
-    #                 skiphead += 1
-    #
-    #     skipend = 4
-    #     cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
-    #     cnvrtDict = dict([(x, cnvrt) for x in columnNames])
-    #     try:
-    #         newData = pandas.read_csv(filePath,
-    #                                   skiprows=skiphead,
-    #                                   skipfooter=skipend,
-    #                                   engine='python',
-    #                                   header=None,
-    #                                   delim_whitespace=True,
-    #                                   converters=cnvrtDict,
-    #                                   names=columnNames)
-    #     except ValueError:
-    #         # logger.execute(f"{filePath} is not a cvs, going to a specialized parser")
-    #         newData = []
-    #
-    #     if len(newData) == 0:
-    #         with open(filePath, "r") as inflile:
-    #             lines = inflile.readlines()
-    #         vals = "\n".join(lines[15:-1])
-    #         data = []
-    #
-    #         if vector:
-    #             if "{" in vals:
-    #                 inputs = vals.split("{")
-    #                 repeat = int(inputs[0])
-    #                 valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
-    #                 data = dict(
-    #                     [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
-    #             else:
-    #                 for rcrdListTuple in vals.split("(")[2:]:
-    #                     record = dict(
-    #                         [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
-    #                     data.append(record)
-    #         else:
-    #             if "{" in vals:
-    #                 inputs = vals.split("{")
-    #                 repeat = int(inputs[0])
-    #                 value = float(inputs[1].split("}")[0])
-    #                 data = [{columnNames[0]: value} for x in range(repeat)]
-    #
-    #             else:
-    #                 valuesList = vals.split("(")[1]
-    #                 for rcrdListItem in valuesList.split(" "):
-    #                     record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
-    #                     data.append(record)
-    #
-    #         newData = pandas.DataFrame(data)
-    #
-    #     return newData.astype(float)
-
-    # def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
-    #                 cloudName="kinematicCloud"):
-    #     """
-    #         Reads a single lagrangian time step from frhe casePath.
-    #     Parameters
-    #     ----------
-    #     timeName : str
-    #     casePath  : str
-    #     withVelocity : bool
-    #         if True, load the velocity
-    #
-    #     withReleaseTimes : bool
-    #         If true, read the age of the lagrangian
-    #
-    #     withMass : bool
-    #         If true, read the mass of the particle.
-    #
-    #     Returns
-    #     -------
-    #         pandas.Dataframe of the simulation.
-    #     """
-    #     logger = get_classMethod_logger(self, "_readRecord")
-    #     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[])  # ,wallDistance=[],tmpX=[], tmpY=[])
-    #     if withMass:
-    #         columnsDict['mass'] = []
-    #     if withReleaseTimes:
-    #         columnsDict['age'] = []
-    #     if withVelocity:
-    #         columnsDict['U_x'] = []
-    #         columnsDict['U_y'] = []
-    #         columnsDict['U_z'] = []
-    #
-    #     newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
-    #     #        try:
-    #     if os.path.exists(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalSigmaPositions")):
-    #         # newData = self._extractFile(os.path.join(casePath,timeName,"lagrangian",cloudName,"globalSigmaPositions"),['tmpX', 'tmpY', 'wallDistance'])
-    #         # #newData = newData.drop(columns=['tmpX', 'tmpY'])
-    #         # newData['wallDistance'] = newData['wallDistance'].astype(numpy.float64)
-    #         # newData['tmpX'] = newData['tmpX'].astype(numpy.float64)
-    #         # newData['tmpY'] = newData['tmpY'].astype(numpy.float64)
-    #
-    #         dataID = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"), ['id'],
-    #                                    vector=False)
-    #         newData['id'] = dataID['id'].astype(numpy.float64)
-    #
-    #         dataprocID = self._extractFile(
-    #             os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'], vector=False)
-    #         newData['procId'] = dataprocID['procId'].astype(numpy.float64)
-    #
-    #         newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
-    #
-    #         dataGlobal = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
-    #                                        ['x', 'y', 'z'])
-    #         for col in ['x', 'y', 'z']:
-    #             newData[col] = dataGlobal[col].astype(numpy.float64)
-    #
-    #         if withVelocity:
-    #             dataU = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
-    #                                       ['U_x', 'U_y', 'U_z'])
-    #
-    #             logger.debug(f"Read mass file {timeName}: {dataU}")
-    #             for col in ['U_x', 'U_y', 'U_z']:
-    #                 newData[col] = dataU[col]
-    #
-    #         if withReleaseTimes:
-    #             dataM = self._extractFile(os.path.join(self._casePath, timeName, "lagrangian", cloudName, "age"),
-    #                                       ['age'], vector=False)
-    #             # newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
-    #             logger.debug(f"Read mass file {timeName}: {dataM}")
-    #             newData["age"] = dataM["age"].astype(numpy.float64)
-    #
-    #         if withMass:
-    #             dataM = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
-    #                                       ['mass'], vector=False)
-    #             logger.debug(f"Read mass file {timeName}: {dataM}")
-    #             newData["mass"] = dataM["mass"].astype(numpy.float64)
-    #             # except:
-    #             #     newData = newData.compute()
-    #             #     newData["mass"] = dataM["mass"].astype(numpy.float64)
-    #
-    #     else:
-    #         logger.debug(f"No data at time {timeName}")
-    #
-    #     theTime = os.path.split(timeName)[-1]
-    #     newData['time'] = float(theTime)
-    #     logger.debug(f"The output is\n{newData.dtypes}")
-    #     return newData
-    #
-    # def _isTimestep(self, value):
-    #     try:
-    #         float(value)
-    #         return True
-    #     except ValueError:
-    #         return False
-
-    def _findCacheForCase(self,caseDescriptor,cachetype,**kwargs):
-        """
-            Finds whether there is a cached document for the case with the paramters in the DB
-        Parameters
-        ----------
-        caseDescriptor :         caseDescriptor : str, MetadataFrame
-            The descriptor of the case.
-            Can be the name, the resource, the parameter files and ect.
-
-            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
-
-        cachetype : str
-            The type of the document. The cache type.
-
-        kwargs : additional query arguments.
-
-        Returns
-        -------
-            cacheDoc : DB document
-            Returns None if data is not cached.
-
-        """
-        logger = get_classMethod_logger(self, "_findCacheForCase")
-        logger.debug(f"Checking if cache exists.  ")
-
-        caseDescriptorName = None
-
-        if isinstance(caseDescriptor,str):
-            logger.info(f"Checking to see if the data {caseDescriptor} is cached in the DB")
-            caseDescriptorName = caseDescriptor
-        elif isinstance(caseDescriptor,MetadataFrame):
-            caseDescriptorName = caseDescriptor.desc['workflowName']
-            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
-        else:
-            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
-            logger.error(err)
-            raise ValueError(err)
-
-        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=cachetype,dockind=self.toolkit.DOCKIND_CACHE,**kwargs)
-        if len(cachedDocumentList) == 0:
-            logger.info(f"Data for {caseDescriptorName} is not cached")
-            ret = None
-        elif len(cachedDocumentList) > 1:
-            err = f"There is more than one data item for  for {caseDescriptorName} with the query {kwargs} cached!. Refine the query"
-            logger.error(err)
-            raise ValueError(err)
-        else:
-            ret = cachedDocumentList[0]
-
-        return ret
-
     def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
                        cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
         """
@@ -1108,9 +878,32 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         -------
             dask.dataFrame.
         """
-        logger = get_classMethod_logger(self, "readCloudData")
+        logger = get_classMethod_logger(self, "getCaseResults")
         logger.info(f"Getting stochastic results. Use cache? {cache} ; Overwrite {overwrite}")
-        cacheDoc = self._findCacheForCase(caseDescriptor, cachetype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName)
+
+        if isinstance(caseDescriptor, str):
+            caseDescriptorName = caseDescriptor
+
+        elif isinstance(caseDescriptor, MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
+
+        logger.info(f"Checking to see if the data {caseDescriptorName} is cached in the DB")
+        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind=self.toolkit.DOCKIND_CACHE)
+        if len(cachedDocumentList) == 0:
+            logger.info(f"Data for {caseDescriptor} is not cached")
+            cacheDoc = None
+        elif len(cachedDocumentList) > 1:
+            err = f"There is more than one data item for  for {caseDescriptor} cached!. The name of the workflow is not unique. Please remove one."
+            logger.error(err)
+            raise ValueError(err)
+        else:
+            cacheDoc = cachedDocumentList[0]
+
         reCalculate = True
         if cacheDoc is not None:
             logger.info(f"Found {caseDescriptor} in the database. ")
@@ -1132,7 +925,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         if reCalculate:
             if cacheDoc is None:
                 logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
-                docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
+                docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
                 if len(docList) == 0:
                     logger.info("not found, trying as a directory")
                     finalCasePath = os.path.abspath(caseDescriptor)
@@ -1212,7 +1005,84 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
             else:
                 logger.info(f"No caching, return the data as is. ")
+
         return ret
+
+
+    def getDispersionFlowDocument(self,nameOrDispersionWorkflow):
+        """
+            Returns the DB document of the dispersion workflow.
+            We assume that it is a name or a nameOrDispersionWorkflow.
+
+        Parameters
+        ----------
+        nameOrWorkflow : str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+        Returns
+        -------
+            DB document.
+        """
+        logger = get_classMethod_logger(self,"getDispersionFlowDocument")
+        if isinstance(nameOrDispersionWorkflow,str):
+            wf = self.toolkit.getHermesWorkflowFromDB(nameOrDispersionWorkflow)
+            dffname = wf.originalFlowFieldName
+        elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
+            dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
+        else:
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+
+        ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
+        return ret[0] if len(ret) > 0 else None
+
+    def getOriginalFlowDocument(self,nameOrDispersionWorkflow):
+        """
+            Returns the flow document of the original workflow.
+
+        Parameters
+        ----------
+        nameOrWorkflow : str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+        Returns
+        -------
+            DB document.
+        """
+        logger = get_classMethod_logger(self,"getDispersionFlowDocument")
+        if isinstance(nameOrDispersionWorkflow,str):
+            wf = self.toolkit.getHermesWorkflowFromDB(nameOrDispersionWorkflow)
+            dffname = wf.originalFlowFieldName
+
+        elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
+            dffname = nameOrDispersionWorkflow.originalFlowFieldName
+        else:
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+
+        ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_WORKFLOW)
+        return ret[0] if len(ret) > 0 else None
+
+    def getOriginalFlowFieldExtent(self,nameOrDispersionWorkflow):
+        """
+            Returns the extends of the mesh of the original flow field.
+
+        Parameters
+        ----------
+        nameOrDispersionWorkflow : str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"getOriginalFlowFieldExtent")
+        logger.info(f"Getting the mesh for {nameOrDispersionWorkflow}")
+        logger.debug(f"Getting the original flow field")
+        originalFlowField = self.getOriginalFlowDocument(nameOrDispersionWorkflow)
+        logger.debug(f"Getting the mesh from the original flow field")
+        mesh = self.toolkit.getMesh(originalFlowField.getData())
+        logger.debug(f"Computing the extents. ")
+        return mesh.getDataFrame()[['Cx','Cy','Cz']].agg(["min","max"])
 
 
 class analysis:
@@ -1679,3 +1549,184 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         pass
 
     return newData
+
+
+
+    # def _extractFile(self, filePath, columnNames, vector=True):
+    #     """
+    #         Extracts data from a csv file.
+    #
+    #     Parameters
+    #     ----------
+    #     filePath: str
+    #         The path of the file
+    #     time: str
+    #         The files' time step
+    #     columnNames: list of str
+    #         The names of the columns
+    #     skiphead: int
+    #         Number of lines to skip from the beginning of the file
+    #     skipend: int
+    #         Number of lines to skip from the ending of the file
+    #
+    #     Returns
+    #     -------
+    #         Pandas with the data.
+    #     """
+    #
+    #     filePath = os.path.abspath(filePath)
+    #     skiphead = 0
+    #     with open(filePath, 'r') as infile:
+    #         for i in range(40):
+    #             lne = infile.readline()
+    #             if lne.startswith('('):
+    #                 skiphead += 1
+    #                 break
+    #             else:
+    #                 skiphead += 1
+    #
+    #     skipend = 4
+    #     cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
+    #     cnvrtDict = dict([(x, cnvrt) for x in columnNames])
+    #     try:
+    #         newData = pandas.read_csv(filePath,
+    #                                   skiprows=skiphead,
+    #                                   skipfooter=skipend,
+    #                                   engine='python',
+    #                                   header=None,
+    #                                   delim_whitespace=True,
+    #                                   converters=cnvrtDict,
+    #                                   names=columnNames)
+    #     except ValueError:
+    #         # logger.execute(f"{filePath} is not a cvs, going to a specialized parser")
+    #         newData = []
+    #
+    #     if len(newData) == 0:
+    #         with open(filePath, "r") as inflile:
+    #             lines = inflile.readlines()
+    #         vals = "\n".join(lines[15:-1])
+    #         data = []
+    #
+    #         if vector:
+    #             if "{" in vals:
+    #                 inputs = vals.split("{")
+    #                 repeat = int(inputs[0])
+    #                 valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
+    #                 data = dict(
+    #                     [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
+    #             else:
+    #                 for rcrdListTuple in vals.split("(")[2:]:
+    #                     record = dict(
+    #                         [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
+    #                     data.append(record)
+    #         else:
+    #             if "{" in vals:
+    #                 inputs = vals.split("{")
+    #                 repeat = int(inputs[0])
+    #                 value = float(inputs[1].split("}")[0])
+    #                 data = [{columnNames[0]: value} for x in range(repeat)]
+    #
+    #             else:
+    #                 valuesList = vals.split("(")[1]
+    #                 for rcrdListItem in valuesList.split(" "):
+    #                     record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
+    #                     data.append(record)
+    #
+    #         newData = pandas.DataFrame(data)
+    #
+    #     return newData.astype(float)
+
+    # def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False,
+    #                 cloudName="kinematicCloud"):
+    #     """
+    #         Reads a single lagrangian time step from frhe casePath.
+    #     Parameters
+    #     ----------
+    #     timeName : str
+    #     casePath  : str
+    #     withVelocity : bool
+    #         if True, load the velocity
+    #
+    #     withReleaseTimes : bool
+    #         If true, read the age of the lagrangian
+    #
+    #     withMass : bool
+    #         If true, read the mass of the particle.
+    #
+    #     Returns
+    #     -------
+    #         pandas.Dataframe of the simulation.
+    #     """
+    #     logger = get_classMethod_logger(self, "_readRecord")
+    #     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[])  # ,wallDistance=[],tmpX=[], tmpY=[])
+    #     if withMass:
+    #         columnsDict['mass'] = []
+    #     if withReleaseTimes:
+    #         columnsDict['age'] = []
+    #     if withVelocity:
+    #         columnsDict['U_x'] = []
+    #         columnsDict['U_y'] = []
+    #         columnsDict['U_z'] = []
+    #
+    #     newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
+    #     #        try:
+    #     if os.path.exists(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalSigmaPositions")):
+    #         # newData = self._extractFile(os.path.join(casePath,timeName,"lagrangian",cloudName,"globalSigmaPositions"),['tmpX', 'tmpY', 'wallDistance'])
+    #         # #newData = newData.drop(columns=['tmpX', 'tmpY'])
+    #         # newData['wallDistance'] = newData['wallDistance'].astype(numpy.float64)
+    #         # newData['tmpX'] = newData['tmpX'].astype(numpy.float64)
+    #         # newData['tmpY'] = newData['tmpY'].astype(numpy.float64)
+    #
+    #         dataID = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"), ['id'],
+    #                                    vector=False)
+    #         newData['id'] = dataID['id'].astype(numpy.float64)
+    #
+    #         dataprocID = self._extractFile(
+    #             os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'], vector=False)
+    #         newData['procId'] = dataprocID['procId'].astype(numpy.float64)
+    #
+    #         newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
+    #
+    #         dataGlobal = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
+    #                                        ['x', 'y', 'z'])
+    #         for col in ['x', 'y', 'z']:
+    #             newData[col] = dataGlobal[col].astype(numpy.float64)
+    #
+    #         if withVelocity:
+    #             dataU = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
+    #                                       ['U_x', 'U_y', 'U_z'])
+    #
+    #             logger.debug(f"Read mass file {timeName}: {dataU}")
+    #             for col in ['U_x', 'U_y', 'U_z']:
+    #                 newData[col] = dataU[col]
+    #
+    #         if withReleaseTimes:
+    #             dataM = self._extractFile(os.path.join(self._casePath, timeName, "lagrangian", cloudName, "age"),
+    #                                       ['age'], vector=False)
+    #             # newData["releaseTime"] = dataM["time"] - dataM["age"] + releaseTime
+    #             logger.debug(f"Read mass file {timeName}: {dataM}")
+    #             newData["age"] = dataM["age"].astype(numpy.float64)
+    #
+    #         if withMass:
+    #             dataM = self._extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
+    #                                       ['mass'], vector=False)
+    #             logger.debug(f"Read mass file {timeName}: {dataM}")
+    #             newData["mass"] = dataM["mass"].astype(numpy.float64)
+    #             # except:
+    #             #     newData = newData.compute()
+    #             #     newData["mass"] = dataM["mass"].astype(numpy.float64)
+    #
+    #     else:
+    #         logger.debug(f"No data at time {timeName}")
+    #
+    #     theTime = os.path.split(timeName)[-1]
+    #     newData['time'] = float(theTime)
+    #     logger.debug(f"The output is\n{newData.dtypes}")
+    #     return newData
+    #
+    # def _isTimestep(self, value):
+    #     try:
+    #         float(value)
+    #         return True
+    #     except ValueError:
+    #         return False

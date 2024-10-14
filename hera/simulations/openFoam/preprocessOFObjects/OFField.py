@@ -224,7 +224,7 @@ class OFField(OFObject):
 
         """
         logger = get_classMethod_logger(self, "readBoundariesFromCase")
-        logger.execution(f"---- Start {logger.name}")
+        logger.debug(f"---- Start {logger.name}")
 
         readSingle = False
         if readParallel:
@@ -328,7 +328,7 @@ class OFField(OFObject):
 
         """
         logger = get_classMethod_logger(self, "readFromCase")
-        logger.execution(f"---- Start {logger.name}")
+        logger.debug(f"---- Start {logger.name}")
 
         readSingle = False
         if readParallel:

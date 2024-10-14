@@ -5,13 +5,10 @@ from ..toolkit import VectorToolkit
 from .analysis import analysis
 
 try:
-#    logger.execution("Trying to Load the FreeCAD module")
     import FreeCAD
     import Part
     import Mesh
 except ImportError as e:
-#    logger.error(f"Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL: {e}")
-#     raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
     print("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
 import matplotlib.pyplot as plt
@@ -112,7 +109,7 @@ class BuildingsToolkit(VectorToolkit):
                 continue
 
             if indx % 100 == 0:
-                logger.execution(f"{indx}/{len(buildingData)} shape file is executed")
+                logger.debug(f"{indx}/{len(buildingData)} shape file is executed")
 
             wallsheight = building[buildingHeightColumn]
             altitude = referenceTopography if flatTerrain else building[buildingElevationColumn] - nonFlatTopographyShift
@@ -145,7 +142,7 @@ class BuildingsToolkit(VectorToolkit):
             newPad.Symmetric = False
             FreeCADDOC.recompute()
 
-        logger.execution(f"Writing the STL {outputFileName}")
+        logger.info(f"Writing the STL {outputFileName}")
         Mesh.export(FreeCADDOC.Objects, outputFileName)
 
 

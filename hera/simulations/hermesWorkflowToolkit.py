@@ -12,6 +12,7 @@ import numpy
 import pydoc
 import warnings
 from ..utils.logging import with_logger,get_classMethod_logger
+from collections.abc import Iterable
 
 try:
     from hermes import workflow
@@ -163,7 +164,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             hermes workflow object (or one of its derivatives).
         """
 
-        docList = documentList if isinstance(documentList,list) else [documentList]
+        docList = documentList if isinstance(documentList,Iterable) else [documentList]
 
         if returnFirst:
             doc = docList[0]
@@ -191,6 +192,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
             hermesWorkflow object.
         """
+        logger = get_classMethod_logger(self,"getHermesWorkflowFromJSON")
         workFlowJSON = loadJSON(workflow)
         ky = workFlowJSON['workflow'].get('solver',None)
 

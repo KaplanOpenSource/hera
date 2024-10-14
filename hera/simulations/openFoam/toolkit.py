@@ -44,7 +44,7 @@ class OFToolkit(hermesWorkflowToolkit):
     CASETYPE_DECOMPOSED = CASETYPE_DECOMPOSED
     CASETYPE_RECONSTRUCTED = CASETYPE_RECONSTRUCTED
 
-    OF_FLOWDISPERSION = "flowDispersion"
+    DOCTYPE_OF_FLOWDISPERSION = "flowDispersion"
 
     stochasticLagrangian = None
 

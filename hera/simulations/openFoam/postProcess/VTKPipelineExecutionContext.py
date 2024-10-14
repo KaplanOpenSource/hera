@@ -322,7 +322,7 @@ class VTKpipelineExecutionContext:
             paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
             filtertype = structureJson[filterGuiName]['type']
             filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
-            logger.execution(f"Adding filter {filterGuiName} of type {filtertype} to {father}")
+            logger.debug(f"Adding filter {filterGuiName} of type {filtertype} to {father}")
             for param, pvalue in paramPairList:
                 logger.debug(f"...Adding parameters {param} with value {pvalue}")
                 #pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.

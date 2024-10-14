@@ -410,7 +410,7 @@ class parquetDataEngineHera(datalayer.Project):
         -------
             dask.DataFrame, dask.Pandas. 
         """
-        self.logger.execution("------- Start --------")
+        self.logger.debug("------- Start --------")
         self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
         if perDevice:
