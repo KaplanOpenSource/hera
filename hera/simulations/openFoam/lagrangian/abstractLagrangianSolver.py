@@ -1006,6 +1006,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             else:
                 logger.info(f"No caching, return the data as is. ")
 
+        logger.info(f"Done! {fullname} was written")
         return ret
 
 
@@ -1257,8 +1258,8 @@ class analysis:
 
         return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
 
-    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="x", yfield="y",
-                                       zfield="z", overwrite=False, simulationID=None,cache=True, **metadata):
+    def calcConcentrationFieldFullMesh(self, caseDescriptor, extents, dxdydz, xfield="x", yfield="y",
+                                       zfield="z", cache=True,overwrite=False, **metadata):
         """
             Calculates the eulerian concentration field for each timestep in the data.
             The data is stored as a nc file on the disk.
@@ -1270,17 +1271,17 @@ class analysis:
 
         Parameters
         ----------
-        dataDocument: hera document.
-                The data to parse into timesteps and save as xarray.
+         caseDescriptor : str, MetadataFrame
+            The descriptor of the case.
+            Can be the name, the resource, the parameter files and ect.
+
+            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
 
         dxdydz: float
                     The mesh steps.
 
         dxdydz: float
                     The size of a mesh unit (that will be created for the concentration).
-
-
-
         xfield: str
                 The column name of the x coordinates.
 
@@ -1292,11 +1293,6 @@ class analysis:
 
         overwrite: bool
             If True, recalcluats the data.
-
-        simulationID: str
-            If not None, use this str instead of the docmentID. used in cases where the
-            cache was transferred from another DB.
-
         cache : bool
             If true, try to load from the DB, and if does not exist
         **metadata: the parameters to add to the document.
@@ -1304,18 +1300,23 @@ class analysis:
         :return:
             The document of the xarray concentration s
         """
+        if isinstance(caseDescriptor, str):
+            caseDescriptorName = caseDescriptor
 
-        dataID = str(dataDocument.id) if simulationID is None else simulationID
-        docList =[]
-
+        elif isinstance(caseDescriptor, MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(
+                f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
 
         docList = self.datalayer.getCacheDocuments(dataID=dataID, extents=extents, dxdydz=dxdydz,
                                                    type=self.DOCTYPE_CONCENTRATION, **metadata)
 
         if len(docList) == 0 or overwrite:
-
             if len(docList) == 0:
-
                 mdata = dict(extents=extents, dxdydz=dxdydz, dataID=dataID)
                 mdata.update(**metadata)
                 xryDoc = self.datalayer.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
@@ -1323,7 +1324,7 @@ class analysis:
                                                          type=self.DOCTYPE_CONCENTRATION,
                                                          desc=mdata)
 
-                xryDoc.resource = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id), "Concentrations*.nc")
+                xryDoc.resource = os.path.join(self.datalayer.filesDirectory, caseDescriptorName, "Concentrations*.nc")
                 xryDoc.save()
             else:
                 xryDoc = docList[0]
@@ -1351,7 +1352,7 @@ class analysis:
 
                 outFile_Final = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id),
                                              f"Concentrations{partitionID}.nc")
-                pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
+                pxry.transpose("y", "x", "z", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
 
         else:
             xryDoc = docList[0]
