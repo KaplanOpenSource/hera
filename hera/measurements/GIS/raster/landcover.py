@@ -1,5 +1,5 @@
 from .... import toolkit
-from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N,BETA,KARMAN
+from ..utils import stlFactory,convertCRS,ITM,WGS84,ED50_ZONE36N
 from ....utils.logging import get_classMethod_logger
 import numpy
 import math
@@ -135,7 +135,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         self._presentation = presentation(dataLayer=self)
 
 
-    def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
+    def getLandCoverAtPoint(self, lon, lat, inputCRS=WGS84, dataSourceName=None):
         """
         Get the landcover type integer value in a specific point.
 
@@ -174,7 +174,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         y = math.floor((lon - gt[0]) / gt[1])
         return img[x, y]
 
-    def getLandCover(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None):
+    def getLandCover(self, minlon, minlat, maxlon, maxlat, dxdy = 30, inputCRS=WGS84, dataSourceName=None):
         """
         Get Xarray LandCover map.
 
@@ -214,15 +214,15 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
             return img[ilat, ilon]
 
-        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
-        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=inputCRS, outputCRS=ITM)[0]
+        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=WGS84, outputCRS=ITM)[0]
+        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=WGS84, outputCRS=ITM)[0]
         x = numpy.arange(min_pp.x, max_pp.x, dxdy)
         y = numpy.arange(min_pp.y, max_pp.y, dxdy)
         xx = numpy.zeros((len(x), len(y)))
         yy = numpy.zeros((len(x), len(y)))
         for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y)]):
             print((i, j), end="\r")
-            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
+            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=inputCRS)[0]
             xx[i, j] = newpp.x
             yy[i, j] = newpp.y
 
@@ -255,7 +255,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         xarray.attrs['landcover_description'] = self.getCodingMap(dataSourceName)
         return xarray
 
-    def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
+    def getRoughnessAtPoint(self, lon, lat, inputCRS=WGS84, dataSourceName=None):
         """
         Get the roughness value of a specific point in the map.
 
@@ -282,11 +282,11 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         landcover = self.getLandCoverAtPoint(lon=lon,lat=lat,inputCRS=inputCRS,dataSourceName=dataSourceName)
 
-        handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+        handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
         return handlerFunction(landcover)
 
 
-    def getRoughnessFromLandcover(self,landcover,windMeteorologicalDirection=None,resolution=None,isBuilding=False,dataSourceName=None,GIS_BUILDINGS_dataSourceName=None):
+    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None):
         """
         Adds Roughness field (z0) to landcover Xarray.
 
@@ -510,16 +510,16 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return lambdaGrid
 
 
-    
+
     def roughnesslength2sandgrainroughness(rl):
-    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
+    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏
     # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
     # eq. 5: Equivalent sand grain roughness (m) is z0*30
-    
+
     # we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
     # Cs value can be set as 0.5
-    
-        return rl*30.0 # return Ks value 
+
+        return rl*30.0 # return Ks value
 
 
 class presentation:

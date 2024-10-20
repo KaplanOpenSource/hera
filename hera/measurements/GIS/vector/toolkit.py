@@ -2,7 +2,7 @@ import io
 from hera import toolkit
 import geopandas 
 from shapely.geometry import Polygon, box
-from ..utils import ITM,ED50_ZONE36N,WSG84
+from ..utils import ITM,ED50_ZONE36N,WGS84
 from ....utils.logging import get_classMethod_logger
 
 
@@ -86,7 +86,7 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         return data
 
-    def cutRegionFromSource(self, datasourceDocument, shape, isBounds = False, inputCRS = WSG84):
+    def cutRegionFromSource(self, datasourceDocument, shape, isBounds = False, inputCRS = WGS84):
         """
             Cuts a the shape from the requested datasource
 

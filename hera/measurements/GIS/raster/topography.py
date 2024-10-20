@@ -104,7 +104,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return elevation
 
-    def getPointListElevation(self, pointList, dataSourceName=None,inputCRS=WSG84):
+    def getPointListElevation(self, pointList, dataSourceName=None, inputCRS=WGS84):
         """
             Return the elevation of the point list.
 
@@ -183,7 +183,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 processed += grp.shape[0]
         return pointList
 
-    def getDomainElevation(self, xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None):
+    def getDomainElevation(self, xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WGS84, outputCRS=ITM, dataSourceName=None):
         """
             Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.
 
@@ -224,7 +224,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
         itm_gridy = numpy.arange(itm_lowerleft.y,itm_upperright.y,dxdy)
 
         logger.info("Converting the coordinates to WSG84 for SRTM data")
-        wsg_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=WSG84)
+        wsg_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=WGS84)
 
         logger.info("Getting output coords")
         if outputCRS != ITM:
@@ -251,7 +251,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return retArray
 
-    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None, solidName="Topography", shiftx=0, shifty=0):
+    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WGS84, outputCRS=ITM, dataSourceName=None, solidName="Topography"):
         """
             Return the STL string from xarray dataset with the following fields:
         Parameters
@@ -267,9 +267,9 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         outputCRS : The ESPG code of the output projection.
                     [Default ITM]
-                    
+
         shiftx : Used when one wants to set another point as origin center
-                    
+
         shifty : Used when one wants to set another point as origin center
 
         Returns
