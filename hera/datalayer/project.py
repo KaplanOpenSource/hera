@@ -214,12 +214,9 @@ class Project:
 
         """
         cnfg =self.getConfig()
-        ret.
+        ret = cnfg[counterName]
         cnfg[counterName] += 1
         self.setConfig(cnfg)
-
-        ret = self.getConfig()[counterName]
-        self.getConfig()[counterName] += 1
         return ret
 
     def getConfig(self):

@@ -334,7 +334,7 @@ def stochasticLagrangian_dispersion_create(arguments):
     dispersionDirectoryName = arguments.dispersionName
     logger.info(f"Creating dispersion case {dispersionDirectoryName}")
 
-    dispersionFlowFieldName = arguments.dispersionFlowFieldName
+    dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
     doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.DOCTYPE_OF_FLOWDISPERSION)
     if len(doc) == 0:
