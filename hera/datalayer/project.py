@@ -165,7 +165,7 @@ class Project:
 
         return ret
 
-    def resetCounter(self,counterName,defaultValue=0):
+    def setCounter(self,counterName,defaultValue=0):
         """
             Defines a counter in the config of the project.
             The counter is specific to this project.
@@ -201,13 +201,16 @@ class Project:
         cnfg.setdefault(counterName,defaultValue)
         self.setConfig(cnfg)
 
-    def getCounterValue(self,counterName):
+    def getCounter(self,counterName):
         """
-            Return the value of the counter and add 1.
+            Return the value of the counter and add [addition].
         Parameters
         ----------
         counterName :  str
             The name of the counter.
+
+        addition : int
+            The amount to add to the counter. The default is 1
 
         Returns
         -------
@@ -215,9 +218,29 @@ class Project:
         """
         cnfg =self.getConfig()
         ret = cnfg[counterName]
-        cnfg[counterName] += 1
-        self.setConfig(cnfg)
         return ret
+
+    def addCounter(self,counterName,addition=1):
+            """
+                Return the value of the counter and add [addition].
+            Parameters
+            ----------
+            counterName :  str
+                The name of the counter.
+
+            addition : int
+                The amount to add to the counter. The default is 1
+
+            Returns
+            -------
+
+            """
+            cnfg =self.getConfig()
+            ret = cnfg[counterName]
+            cnfg[counterName] += addition
+            self.setConfig(cnfg)
+            return ret
+
 
     def getConfig(self):
         """
@@ -232,7 +255,7 @@ class Project:
         if self._projectName == self.DEFAULTPROJECT:
             raise ValueError("Default project cannot use configuration")
         doc = self._getConfigDocument()
-        return doc["desc"]
+        return dict(doc["desc"])
 
     def initConfig(self,**kwargs):
         """
