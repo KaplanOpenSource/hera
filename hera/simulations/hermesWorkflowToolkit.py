@@ -379,6 +379,24 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return docList
 
+
+    def getWorkflowListOfSolvers(self,solverName:str,**query):
+        """
+            Returns all the documents of the requested solver.
+
+        Parameters
+        ----------
+        solverName : str
+            The name of the solver
+        query : param-list
+            Additional query
+
+        Returns
+        -------
+            list of documnts.
+        """
+        return self.getSimulationsDocuments(solver=solverName, type=self.DOCTYPE_WORKFLOW, **query)
+
     def getWorkflowInGroup(self, groupName: str, **kwargs):
         """
             Return a list of all the simulations.old with the name as a prefic, and of the requested simuationType.

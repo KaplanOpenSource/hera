@@ -300,7 +300,7 @@ class workflowToolkit(abstractToolkit):
             for simulationItem in nameOrWorkflowFileOrJSONOrResource:
                 docList += self.getWorkflowDocumentFromDB(simulationItem)
         else:
-            docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource,**query)
 
         return docList
 

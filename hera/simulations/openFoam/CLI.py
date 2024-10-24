@@ -156,6 +156,50 @@ def foam_templates_node_list(arguments):
     print("-" * len(ttl))
     print(templates)
 
+def foam_solver_simulations_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.debug(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+
+    simDocument = wftk.getWorkflowListOfSolvers(arguments.solver)
+
+    if len(simDocument) == 0:
+        print(f"{arguments.solver} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+
+    for groupName in set([x.desc['groupName'] for x in simDocument]):
+        ttl = " "*10 + f"Group name: {groupName}" + " "*10
+        print(ttl)
+        print(f"-"*len(ttl))
+
+        res = wftk.compareWorkflow([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
+
+        if arguments.format == "pandas":
+            output = res
+            ext = "txt"
+        elif arguments.format == "latex":
+            output = res.to_latex()
+            ext = "tex"
+        elif arguments.format == "csv":
+            output = res.to_csv()
+            ext = "csv"
+        else:
+            output = json.dumps(loadJSON(res.to_json()), indent=4)
+            ext = "json"
+
+        if len(res) == 0:
+            print(f"Could not found any workflows to compare in project {projectName}")
+        else:
+            print(output)
+
+            if arguments.file is not None:
+                flName = arguments.file if "." in arguments.file else f"{arguments.file}.{ext}"
+
+                with open(flName, "w") as outputFile:
+                    outputFile.write(output)
+
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
     """

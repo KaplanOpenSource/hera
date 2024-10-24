@@ -77,9 +77,6 @@ if __name__ == "__main__":
     parser_prepare.set_defaults(execute=True)
     parser_prepare.set_defaults(func=CLI.workflow_add)
 
-    ### ------------------------
-    export = subparsers.add_parser('export', help='Saves the workflow to the disk.')
-    # --build - also builds the python executer
 
     ### ------------------------
     compare_parser = subparsers.add_parser('compare', help='Compare two or more workflows')

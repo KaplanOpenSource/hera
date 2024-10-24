@@ -2,11 +2,13 @@
 import argparse
 import logging
 from hera.simulations.openFoam import CLI
+from hera.simulations import CLI as workflowCLI
 
-from hera.utils.logging import initialize_logging,with_logger
+
+from hera.utils.logging import initialize_logging, with_logger
 
 
-def addSolverTemplateOptions(subparser,solverName,incompressible):
+def addSolverTemplateOptions(subparser, solverName, incompressible):
     """
         Adds the template options.
     Parameters
@@ -18,11 +20,12 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
 
     """
     ## ---------------- templates.
-    parser_templates  = subparser.add_parser('templates', help=f'Manages the templates of  {solverName}')
+    parser_templates = subparser.add_parser('templates', help=f'Manages the templates of  {solverName}')
     templates_subparser = parser_templates.add_subparsers()
 
     ## ---------------- list flow templates
-    templates_list = templates_subparser.add_parser('list', help='List the existing templates in the project for that solver')
+    templates_list = templates_subparser.add_parser('list',
+                                                    help='List the existing templates in the project for that solver')
     templates_list.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     templates_list.set_defaults(solver=solverName)
     templates_list.set_defaults(func=CLI.foam_solver_templates_list)
@@ -56,13 +59,37 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     parser_prepare.set_defaults(execute=True)
     parser_prepare.set_defaults(func=CLI.foam_solver_template_buildExecute)
 
-    parser_list = subparser.add_parser('list', help='Lists the ')
+    parser_list = subparser.add_parser('list', help=f'Lists the groups and simulations of solver {solverName}')
+    parser_list.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
+    parser_list.add_argument('--longTable', dest="longFormat", action="store_true", default=False,
+                             help='If exsists, list the parameters as a long table. If does not exist data is pivoted')
+    parser_list.add_argument('--transpose', dest="transpose", action="store_true", default=False,
+                             help='If exsists, list the simulations as rows and the variables as columns')
+
+    parser_list.add_argument('--format', dest="format", default="pandas", choices=["pandas", "json", "latex", "csv"],
+                             help='The output format: pandas (print the pandas), json, latex')
+
+    parser_list.add_argument('--file', dest="file", default=None,
+                             help='write the output to a file')
+
+    parser_list.set_defaults(solver=solverName)
+    parser_list.set_defaults(func=CLI.foam_solver_simulations_list)
+
+    ### ------------------------
+    delete_parser = subparser.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
+    delete_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to remove')
+    delete_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    delete_parser.add_argument('--export',dest="Export", default=False, action="store_true", help='Export the deleted file from the DB to the disk')
+    delete_parser.add_argument('--overwrite', dest="forceOverwrite", default=False, action="store_true",
+                               help='Overwrite the export if the file exists')
+
+    delete_parser.set_defaults(func=workflowCLI.workflow_delete)
 
 
 
-#foam_templates_node_list
+# foam_templates_node_list
 
-def addMeshOptions(subparser,solverName,incompressible):
+def addMeshOptions(subparser, solverName, incompressible):
     """
         Adds mesh handling of the subparsers.
 
@@ -80,7 +107,7 @@ def addMeshOptions(subparser,solverName,incompressible):
     projectNameHelpDesc = "projectName [optional]"
 
     ## ---------------- blockMesh.
-    blockmesh_parser  = subparser.add_parser('blockMesh', help=f'Manages blockMesh in {solverName}')
+    blockmesh_parser = subparser.add_parser('blockMesh', help=f'Manages blockMesh in {solverName}')
     blockmesh_subparser = blockmesh_parser.add_subparsers()
 
     #### ----------------  set boundaries from file.
@@ -143,10 +170,12 @@ def addMeshOptions(subparser,solverName,incompressible):
     IC_subparser = IC_parser.add_subparsers()
 
     #### ----------------  set boundaries from file.
-    IC_setHydrostaticPressure = IC_subparser.add_parser('hydrostaticPressure', help='Sets the pressure to be in hydrostatic pressure ')
+    IC_setHydrostaticPressure = IC_subparser.add_parser('hydrostaticPressure',
+                                                        help='Sets the pressure to be in hydrostatic pressure ')
     IC_setHydrostaticPressure.add_argument('caseDirectory', type=str, help="The name of the case to set")
-    IC_setHydrostaticPressure.add_argument('--startTime', type=str,default=0, help="The initial time")
-    IC_setHydrostaticPressure.set_defaults(solver=solverName, func=CLI.IC_hydrostaticPressure,incompressible=incompressible)
+    IC_setHydrostaticPressure.add_argument('--startTime', type=str, default=0, help="The initial time")
+    IC_setHydrostaticPressure.set_defaults(solver=solverName, func=CLI.IC_hydrostaticPressure,
+                                           incompressible=incompressible)
 
     # IC_parser.add_argument('fieldName', type=str, nargs="*", required=True, help="The name of the field(s) to set")
     # IC_parser.add_argument('fileName', type=str, default=None,
@@ -164,7 +193,8 @@ def addMeshOptions(subparser,solverName,incompressible):
     #                        help="If netcdf, should supply the parser")
     # IC_parser.set_defaults(solver=solverName, func=CLI.foam_BC)
 
-def addSolverCaseManagement(subparser,solverName,incompressible):
+
+def addSolverCaseManagement(subparser, solverName, incompressible):
     """
         Adds the handling of the case.
     Parameters
@@ -176,27 +206,28 @@ def addSolverCaseManagement(subparser,solverName,incompressible):
     -------
 
     """
-    parser_templates  = subparser.add_parser('case', help=f'Manages the case of  {solverName}')
+    parser_templates = subparser.add_parser('case', help=f'Manages the case of  {solverName}')
     case_subparser = parser_templates.add_subparsers()
 
     parser_createEmpty = case_subparser.add_parser('createEmpty', help='Creates a case')
     parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
-    parser_createEmpty.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    parser_createEmpty.add_argument('--fieldsDescription', default=None,type=str,help="A JSON file with addition fields definitions (in file)",required=False)
+    parser_createEmpty.add_argument('--fields', nargs='*', type=str, help='[list of field]')
+    parser_createEmpty.add_argument('--fieldsDescription', default=None, type=str,
+                                    help="A JSON file with addition fields definitions (in file)", required=False)
     parser_createEmpty.set_defaults(incompressible=incompressible)
     parser_createEmpty.set_defaults(solver=solverName)
     parser_createEmpty.set_defaults(func=CLI.Foam_createEmpty)
 
-
-    parser_FieldDescription = case_subparser.add_parser('writeFieldDescription', help='Creates a template of field description')
+    parser_FieldDescription = case_subparser.add_parser('writeFieldDescription',
+                                                        help='Creates a template of field description')
     parser_FieldDescription.add_argument('fileName', type=str, help='The directory to create')
-    parser_FieldDescription.add_argument('--fields',nargs='*',type=str,help='[list of field]')
+    parser_FieldDescription.add_argument('--fields', nargs='*', type=str, help='[list of field]')
     parser_FieldDescription.set_defaults(incompressible=incompressible)
     parser_FieldDescription.set_defaults(solver=solverName)
     parser_FieldDescription.set_defaults(func=CLI.Foam_parser_FieldDescription)
 
 
-def addSolverPostProcess(subparser,solverName,incompressible):
+def addSolverPostProcess(subparser, solverName, incompressible):
     """
         Handles the postprocess of the different solvers.
     Parameters
@@ -209,22 +240,28 @@ def addSolverPostProcess(subparser,solverName,incompressible):
     -------
 
     """
-    parser_templates  = subparser.add_parser('postProcess', help=f'PostProcess of  {solverName}')
+    parser_templates = subparser.add_parser('postProcess', help=f'PostProcess of  {solverName}')
     case_subparser = parser_templates.add_subparsers()
 
-    parser_executeVTK = case_subparser.add_parser('executeVTK', help='Executes a VTK JSON File, and loads to project (if --noLoad does not exist)')
+    parser_executeVTK = case_subparser.add_parser('executeVTK',
+                                                  help='Executes a VTK JSON File, and loads to project (if --noLoad does not exist)')
     parser_executeVTK.add_argument('caseDirectory', type=str, help='The directory to create')
-    parser_executeVTK.add_argument('--fieldList',nargs='*',type=str,help='[list of field]')
-    parser_executeVTK.add_argument('--timeList',nargs='*',default=None,type=str,help="The list of time steps to process. If does not exist process all. Use: First and Last for the first and last timesteps only. ",required=False)
-    parser_executeVTK.add_argument('--noLoad', default=False,action="store_true",help="If flag exists, do not load the pipeline to the project",required=False)
+    parser_executeVTK.add_argument('--fieldList', nargs='*', type=str, help='[list of field]')
+    parser_executeVTK.add_argument('--timeList', nargs='*', default=None, type=str,
+                                   help="The list of time steps to process. If does not exist process all. Use: First and Last for the first and last timesteps only. ",
+                                   required=False)
+    parser_executeVTK.add_argument('--noLoad', default=False, action="store_true",
+                                   help="If flag exists, do not load the pipeline to the project", required=False)
     parser_executeVTK.set_defaults(incompressible=incompressible)
     parser_executeVTK.set_defaults(solver=solverName)
     parser_executeVTK.set_defaults(func=CLI.Foam_postProcess_VTKPipeline_execute)
 
     parser_loadVTK = case_subparser.add_parser('loadVTK', help='Loads a VTK JSON File results to the DB')
     parser_loadVTK.add_argument('caseDirectory', type=str, help='The directory to create')
-    parser_loadVTK.add_argument('--fields',nargs='*',type=str,help='[list of field]')
-    parser_loadVTK.add_argument('--timeList', default=None,type=str,help="The list of time steps to process. If does not exist process all. Use: First and Last for the first and last timesteps only. ",required=False)
+    parser_loadVTK.add_argument('--fields', nargs='*', type=str, help='[list of field]')
+    parser_loadVTK.add_argument('--timeList', default=None, type=str,
+                                help="The list of time steps to process. If does not exist process all. Use: First and Last for the first and last timesteps only. ",
+                                required=False)
     parser_loadVTK.set_defaults(incompressible=incompressible)
     parser_loadVTK.set_defaults(solver=solverName)
     parser_loadVTK.set_defaults(func=CLI.Foam_postProcess_VTKPipeline_load)
@@ -232,10 +269,10 @@ def addSolverPostProcess(subparser,solverName,incompressible):
 
 if __name__ == "__main__":
     initialize_logging(
-        with_logger("hermes", handlers=['console'], level='INFO', propagate=False),
-         with_logger("hera.simulations", handlers=['console'], level='INFO', propagate=False),
-         with_logger("hera.bin", handlers=['console'], level='INFO', propagate=False),
-        with_logger("hera.utils", handlers=['console'], level='INFO', propagate=False),
+        with_logger("hermes", handlers=['console'], level='CRITICAL', propagate=False),
+        with_logger("hera.simulations", handlers=['console'], level='CRITICAL', propagate=False),
+        with_logger("hera", handlers=['console'], level='CRITICAL', propagate=False) #,
+        # with_logger("hera.utils", handlers=['console'], level='INFO', propagate=False),
     )
     logger = logging.getLogger("hera.bin.hera-openfoam")
 
@@ -258,7 +295,7 @@ if __name__ == "__main__":
     addSolverCaseManagement(subparser=simpleFoam_subparser, solverName="simpleFoam", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=simpleFoam_subparser,solverName="simpleFoam", incompressible=True)
+    addSolverTemplateOptions(subparser=simpleFoam_subparser, solverName="simpleFoam", incompressible=True)
 
     ## ====================================================
     ## ================== pimpleFoam
@@ -270,19 +307,23 @@ if __name__ == "__main__":
     addSolverCaseManagement(subparser=pimpleFoam_subparser, solverName="pimpleFoam", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=pimpleFoam_subparser,solverName="pimpleFoam", incompressible=True)
+    addSolverTemplateOptions(subparser=pimpleFoam_subparser, solverName="pimpleFoam", incompressible=True)
 
     ## ====================================================
     ## ================== oguraPhillipShallowConvectionFOAM
     ## ====================================================
-    oguraPhillipShallowConvectionFOAM_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM', help='Handles indoorFOAMBoussinesq solver')
-    oguraPhillipShallowConvectionFOAM_subparser = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(help='Handles oguraPhillipShallowConvectionFOAM solver')
+    oguraPhillipShallowConvectionFOAM_parser = subparsers.add_parser('oguraPhillipShallowConvectionFOAM',
+                                                                     help='Handles indoorFOAMBoussinesq solver')
+    oguraPhillipShallowConvectionFOAM_subparser = oguraPhillipShallowConvectionFOAM_parser.add_subparsers(
+        help='Handles oguraPhillipShallowConvectionFOAM solver')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser, solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
+    addSolverCaseManagement(subparser=oguraPhillipShallowConvectionFOAM_subparser,
+                            solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=oguraPhillipShallowConvectionFOAM_subparser,solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
+    addSolverTemplateOptions(subparser=oguraPhillipShallowConvectionFOAM_subparser,
+                             solverName="oguraPhillipShallowConvectionFOAM", incompressible=True)
 
     ## ====================================================
     ## ================== buoyantReactingFoam
@@ -291,13 +332,15 @@ if __name__ == "__main__":
     buoyantReactingFoam_subparser = buoyantReactingFoam_parser.add_subparsers(help='Handles rhoReactingBuoyantFoam')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=buoyantReactingFoam_subparser, solverName="buoyantReactingFoam", incompressible=False)
+    addSolverCaseManagement(subparser=buoyantReactingFoam_subparser, solverName="buoyantReactingFoam",
+                            incompressible=False)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=buoyantReactingFoam_subparser,solverName="buoyantReactingFoam", incompressible=False)
+    addSolverTemplateOptions(subparser=buoyantReactingFoam_subparser, solverName="buoyantReactingFoam",
+                             incompressible=False)
 
     ## ----- mesh handling
-    addMeshOptions(subparser=buoyantReactingFoam_subparser,solverName="buoyantReactingFoam", incompressible=False)
+    addMeshOptions(subparser=buoyantReactingFoam_subparser, solverName="buoyantReactingFoam", incompressible=False)
 
     ## ====================================================
     ## ================== scalarTransportFoam
@@ -306,43 +349,58 @@ if __name__ == "__main__":
     scalarTransportFoam_subparser = scalarTransportFoam_parser.add_subparsers(help='Handles scalarTransportFoam')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=scalarTransportFoam_subparser, solverName="scalarTransportFoam", incompressible=True)
+    addSolverCaseManagement(subparser=scalarTransportFoam_subparser, solverName="scalarTransportFoam",
+                            incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=scalarTransportFoam_subparser,solverName="scalarTransportFoam", incompressible=True)
+    addSolverTemplateOptions(subparser=scalarTransportFoam_subparser, solverName="scalarTransportFoam",
+                             incompressible=True)
 
     ## ====================================================
     ## ================== urbanHomogenousWindProfile
     ## ====================================================
-    urbanHomogenousWindProfile_parser = subparsers.add_parser('urbanHomogenousWindProfile', help='Handles urbanHomogenousWindProfile')
-    urbanHomogenousWindProfile_subparser = urbanHomogenousWindProfile_parser.add_subparsers(help='Handles urbanHomogenousWindProfile')
+    urbanHomogenousWindProfile_parser = subparsers.add_parser('urbanHomogenousWindProfile',
+                                                              help='Handles urbanHomogenousWindProfile')
+    urbanHomogenousWindProfile_subparser = urbanHomogenousWindProfile_parser.add_subparsers(
+        help='Handles urbanHomogenousWindProfile')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=urbanHomogenousWindProfile_subparser, solverName="urbanHomogenousWindProfile", incompressible=True)
+    addSolverCaseManagement(subparser=urbanHomogenousWindProfile_subparser, solverName="urbanHomogenousWindProfile",
+                            incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=urbanHomogenousWindProfile_subparser,solverName="urbanHomogenousWindProfile", incompressible=True)
-
+    addSolverTemplateOptions(subparser=urbanHomogenousWindProfile_subparser, solverName="urbanHomogenousWindProfile",
+                             incompressible=True)
 
     ## ====================================================
     ## ================== StochasticLagrantianSolver
     ## ====================================================
-    stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian', help='Handles stochasticLagrnagian solver applications')
-    stochasticLagrangian_subparser = stochasticLagrnagian_parser.add_subparsers(help='Handles stochasticLagrnagian solver applications')
+    stochasticLagrnagian_parser = subparsers.add_parser('stochasticLagrangian',
+                                                        help='Handles stochasticLagrnagian solver applications')
+    stochasticLagrangian_subparser = stochasticLagrnagian_parser.add_subparsers(
+        help='Handles stochasticLagrnagian solver applications')
     #
     # ## -- DispersionFlow
-    dispersionFlow_parser = stochasticLagrangian_subparser.add_parser('dispersionFlow', help='Creates a dispersion flow from a flow')
+    dispersionFlow_parser = stochasticLagrangian_subparser.add_parser('dispersionFlow',
+                                                                      help='Creates a dispersion flow from a flow')
     dispersionFlow_parser_subparser = dispersionFlow_parser.add_subparsers(help='Handles the dispersion flows')
-    create_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('create', help='Creates a dispersion flow from a flow')
-    create_dispersionFlow_parser.add_argument('OriginalFlowField', type=str,help="The name/directory/workflow file of the origninal workflow")
-    create_dispersionFlow_parser.add_argument('dispersionFlowName', type=str,help="The parameters of the dispersion flow")
-    create_dispersionFlow_parser.add_argument('--parameters', dest='dispersionFlowParams', type=str,help="The parameters of the dispersion flow")
-    create_dispersionFlow_parser.add_argument('--dispersionDuration', required=True, type=str, help="The dispersion duration")
+    create_dispersionFlow_parser = dispersionFlow_parser_subparser.add_parser('create',
+                                                                              help='Creates a dispersion flow from a flow')
+    create_dispersionFlow_parser.add_argument('OriginalFlowField', type=str,
+                                              help="The name/directory/workflow file of the origninal workflow")
+    create_dispersionFlow_parser.add_argument('dispersionFlowName', type=str,
+                                              help="The parameters of the dispersion flow")
+    create_dispersionFlow_parser.add_argument('--parameters', dest='dispersionFlowParams', type=str,
+                                              help="The parameters of the dispersion flow")
+    create_dispersionFlow_parser.add_argument('--dispersionDuration', required=True, type=str,
+                                              help="The dispersion duration")
     create_dispersionFlow_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    create_dispersionFlow_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,help='overwrite the case. Deletes the currect directory if needs to')
+    create_dispersionFlow_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                              help='overwrite the case. Deletes the currect directory if needs to')
     create_dispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_dispersionFlow_create)
 
-    create_dispersionFlow_writeTemplate = dispersionFlow_parser_subparser.add_parser('writeTemplate', help='Writes an empty tempate for the dispersion flow')
+    create_dispersionFlow_writeTemplate = dispersionFlow_parser_subparser.add_parser('writeTemplate',
+                                                                                     help='Writes an empty tempate for the dispersion flow')
     create_dispersionFlow_writeTemplate.add_argument('templateFile', type=str, help="The name of the template workflow")
     create_dispersionFlow_writeTemplate.set_defaults(func=CLI.stochasticLagrangian_dispersionFlow_writeEmptyTemplate)
 
@@ -350,54 +408,73 @@ if __name__ == "__main__":
     dispersion_parser = stochasticLagrangian_subparser.add_parser('dispersion', help='Creates a dispersion case')
     dispersion_parser_subparser = dispersion_parser.add_subparsers(help='Handles the dispersion')
 
-    createDispersionFlow_parser = dispersion_parser_subparser.add_parser('create', help='Creates a dispersionflow, runs the dispersion and adds to DB')
+    createDispersionFlow_parser = dispersion_parser_subparser.add_parser('create',
+                                                                         help='Creates a dispersionflow, runs the dispersion and adds to DB')
     createDispersionFlow_parser.add_argument('dispersionName', type=str, help="The dispersion workflow.")
-    createDispersionFlow_parser.add_argument('dispersionFlowField', type=str,help="The name dispersion flow (a directory or a stored one in the DB)")
-    createDispersionFlow_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
+    createDispersionFlow_parser.add_argument('dispersionFlowField', type=str,
+                                             help="The name dispersion flow (a directory or a stored one in the DB)")
+    createDispersionFlow_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                             help='overwrite the case. Deletes the currect directory if needs to')
     createDispersionFlow_parser.set_defaults(func=CLI.stochasticLagrangian_dispersion_create)
 
     ## -- create source
-    injector_parser = stochasticLagrangian_subparser.add_parser('injectors', help='Creates an initial configuration for the lagrangian particles')
+    injector_parser = stochasticLagrangian_subparser.add_parser('injectors',
+                                                                help='Creates an initial configuration for the lagrangian particles')
     injector_subparser = injector_parser.add_subparsers(help='Creates injectors')
 
-    manualInjection_parser = injector_subparser.add_parser('positionFile', help='Creates an initial configuration for the lagrangian particles')
-    manualInjection_subparser = manualInjection_parser.add_subparsers(help='Creates an initial configuration for the lagrangian particles')
+    manualInjection_parser = injector_subparser.add_parser('positionFile',
+                                                           help='Creates an initial configuration for the lagrangian particles')
+    manualInjection_subparser = manualInjection_parser.add_subparsers(
+        help='Creates an initial configuration for the lagrangian particles')
 
-    source_cylinder_subparser = manualInjection_subparser.add_parser('cylinder', help='Creates a cylinder initial source shapre')
+    source_cylinder_subparser = manualInjection_subparser.add_parser('cylinder',
+                                                                     help='Creates a cylinder initial source shapre')
     source_cylinder_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow.")
-    source_cylinder_subparser.add_argument('--center',nargs="*", type=str, help="The center of the cylinder.")
+    source_cylinder_subparser.add_argument('--center', nargs="*", type=str, help="The center of the cylinder.")
     source_cylinder_subparser.add_argument('--height', type=str, help="The height.")
     source_cylinder_subparser.add_argument('--radius', type=str, help="The radius of the cylinder.")
     source_cylinder_subparser.add_argument('--particles', type=str, help="The radius of the cylinder.")
     source_cylinder_subparser.set_defaults(func=CLI.stochasticLagrangian_source_cylinder)
 
     ## -- create source files.
-    source_createReleaseRateFile_subparser = manualInjection_subparser.add_parser('createReleaseRateFile', help='Creates a mass release at from the parquet file')
+    source_createReleaseRateFile_subparser = manualInjection_subparser.add_parser('createReleaseRateFile',
+                                                                                  help='Creates a mass release at from the parquet file')
     source_createReleaseRateFile_subparser.set_defaults(func=CLI.stochasticLagrangian_source_makeEscapedMassFile)
 
     ## -- post process
-    postProcess_parser = stochasticLagrangian_subparser.add_parser('postProcess', help='post process for the  lagrangian particles')
+    postProcess_parser = stochasticLagrangian_subparser.add_parser('postProcess',
+                                                                   help='post process for the  lagrangian particles')
     postProcess_subparser = postProcess_parser.add_subparsers(help='Converts the openFOAM to other formats')
 
-    postProcess_parquet_subparser = postProcess_subparser.add_parser('toParquet', help='Creates a parquet files of the lagrangian particles')
+    postProcess_parquet_subparser = postProcess_subparser.add_parser('toParquet',
+                                                                     help='Creates a parquet files of the lagrangian particles')
     postProcess_parquet_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow or directory")
-    postProcess_parquet_subparser.add_argument('--outputDirectory', type=str, default="VTK",help="The path to save the VTK files. ")
-    postProcess_parquet_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
-    postProcess_parquet_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
+    postProcess_parquet_subparser.add_argument('--outputDirectory', type=str, default="VTK",
+                                               help="The path to save the VTK files. ")
+    postProcess_parquet_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                               help='overwrite the case. Deletes the currect directory if needs to')
+    postProcess_parquet_subparser.add_argument('--cloudName', type=str, default="kinematicCloud",
+                                               help="The name of the cloud. default: kinematicCloud")
     postProcess_parquet_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toParquet)
 
-    postProcess_vtk_subparser = postProcess_subparser.add_parser('toVTK', help='Creates a parquet files of the lagrangian particles')
+    postProcess_vtk_subparser = postProcess_subparser.add_parser('toVTK',
+                                                                 help='Creates a parquet files of the lagrangian particles')
     postProcess_vtk_subparser.add_argument('dispersionName', type=str, help="The dispersion workflow or directory")
-    postProcess_vtk_subparser.add_argument('--outputDirectory', type=str, default="VTK",help="The path to save the VTK files. ")
-    postProcess_vtk_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
-    postProcess_vtk_subparser.add_argument('--cloudName', type=str, default="kinematicCloud", help="The name of the cloud. default: kinematicCloud")
+    postProcess_vtk_subparser.add_argument('--outputDirectory', type=str, default="VTK",
+                                           help="The path to save the VTK files. ")
+    postProcess_vtk_subparser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+                                           help='overwrite the case. Deletes the currect directory if needs to')
+    postProcess_vtk_subparser.add_argument('--cloudName', type=str, default="kinematicCloud",
+                                           help="The name of the cloud. default: kinematicCloud")
     postProcess_vtk_subparser.set_defaults(func=CLI.stochasticLagrangian_postProcess_toVTK)
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=stochasticLagrangian_subparser, solverName="stochasticLagrangian", incompressible=True)
+    addSolverCaseManagement(subparser=stochasticLagrangian_subparser, solverName="StochasticLagrangianSolver",
+                            incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=stochasticLagrangian_subparser, solverName="stochasticLagrangian", incompressible=True)
+    addSolverTemplateOptions(subparser=stochasticLagrangian_subparser, solverName="StochasticLagrangianSolver",
+                             incompressible=True)
 
     ############################################
     ### ------------------------------ ObjUtils
@@ -405,12 +482,12 @@ if __name__ == "__main__":
 
     objects_parser = subparsers.add_parser('objects', help='Handles obj/stl files')
     objects_subparser = objects_parser.add_subparsers(help='Handles simpleFOAM solver')
-    objects_parser_createVerticesAndBoundary = objects_subparser.add_parser('createVerticesAndBoundary', help='Creates the vertices and the bounradies for the blockmesh and the changedictionary nodes. ')
+    objects_parser_createVerticesAndBoundary = objects_subparser.add_parser('createVerticesAndBoundary',
+                                                                            help='Creates the vertices and the bounradies for the blockmesh and the changedictionary nodes. ')
     objects_parser_createVerticesAndBoundary.add_argument('objectFile', type=str, help='The filename')
     objects_parser_createVerticesAndBoundary.add_argument('--fields', nargs='*', type=str, help='[list of field]')
 
     objects_parser_createVerticesAndBoundary.set_defaults(func=CLI.objects_createVerticesAndBoundary)
-
 
     ## ====================================================
     ## ================== Workflows
@@ -418,9 +495,11 @@ if __name__ == "__main__":
     workflow_parser = subparsers.add_parser('workflow', help='Handles hermes workflows')
     workflow_subparser = workflow_parser.add_subparsers(help='Handles hermes workflow ')
 
-    execute_parser = workflow_subparser.add_parser('buildExecute',help='Creates a dispersionflow, runs the dispersion and adds to DB')
+    execute_parser = workflow_subparser.add_parser('buildExecute',
+                                                   help='Creates a dispersionflow, runs the dispersion and adds to DB')
     execute_parser.add_argument('workflow', type=str, help="The dispersion workflow or directory")
-    execute_parser.add_argument('--force', dest="force", action="store_true", default=False, help='overwrite the case. Deletes the currect directory if needs to')
+    execute_parser.add_argument('--force', dest="force", action="store_true", default=False,
+                                help='overwrite the case. Deletes the currect directory if needs to')
     execute_parser.set_defaults(func=CLI.hermes_buildExecute)
 
     parsed = parser.parse_args()
@@ -430,5 +509,3 @@ if __name__ == "__main__":
     else:
         logger.debug("Activating the function")
         parsed.func(parsed)
-
-
