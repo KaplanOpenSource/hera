@@ -180,9 +180,8 @@ class Project:
         """
         cnfg =self.getConfig()
         cnfg[counterName] =defaultValue
-        self.setConfig(cnfg)
-
-        self.getConfig()[counterName] = defaultValue
+        self.setConfig(**cnfg)
+        return cnfg
 
     def defineCounter(self,counterName,defaultValue=0):
         """
@@ -199,7 +198,8 @@ class Project:
         """
         cnfg =self.getConfig()
         cnfg.setdefault(counterName,defaultValue)
-        self.setConfig(cnfg)
+        self.setConfig(**cnfg)
+        return cnfg
 
     def getCounter(self,counterName):
         """
@@ -238,7 +238,7 @@ class Project:
             cnfg =self.getConfig()
             ret = cnfg[counterName]
             cnfg[counterName] += addition
-            self.setConfig(cnfg)
+            self.setConfig(**cnfg)
             return ret
 
 

@@ -40,7 +40,7 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     #   Adds a workfow to the project and executes it.
     ## ---------------- execute workflow and add it to db (unless --noDB flag exists).
     ##
-    parser_prepare = subparser.add_parser('executeWorkflow', help='Adds the workflow and executes it.')
+    parser_prepare = subparser.add_parser('executeWorkflow', help='Adds the workflow to the DB and executes it.')
     parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_prepare.add_argument('--workflowGroup', dest="workflowGroup", default=None, type=str,
@@ -56,6 +56,7 @@ def addSolverTemplateOptions(subparser,solverName,incompressible):
     parser_prepare.set_defaults(execute=True)
     parser_prepare.set_defaults(func=CLI.foam_solver_template_buildExecute)
 
+    parser_list = subparser.add_parser('list', help='Lists the ')
 
 
 
