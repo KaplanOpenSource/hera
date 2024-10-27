@@ -199,7 +199,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 375
     },
     {
         "name": "BET ZAYDA",
@@ -391,7 +392,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -200
     },
     {
         "name": "ZEMAH",
@@ -593,7 +595,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -200
     },
     {
         "name": "MEROM GOLAN PICMAN",
@@ -795,7 +798,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 945
     },
     {
         "name": "YAVNEEL",
@@ -997,7 +1001,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 0
     },
     {
         "name": "TAVOR KADOORIE",
@@ -1199,7 +1204,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 145
     },
     {
         "name": "AFULA NIR HAEMEQ",
@@ -1361,7 +1367,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 60
     },
     {
         "name": "QARNE SHOMERON",
@@ -1533,7 +1540,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 330
     },
     {
         "name": "ARIEL",
@@ -1715,7 +1723,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 685
     },
     {
         "name": "JERUSALEM GIVAT RAM",
@@ -1927,7 +1936,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 770
     },
     {
         "name": "JERUSALEM CENTRE",
@@ -2119,7 +2129,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 810
     },
     {
         "name": "HAR HARASHA",
@@ -2291,7 +2302,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 770
     },
     {
         "name": "NETIV HALAMED HE",
@@ -2483,7 +2495,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 275
     },
     {
         "name": "HAIFA PORT",
@@ -2695,7 +2708,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 10
     },
     {
         "name": "SHANI",
@@ -2897,7 +2911,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 700
     },
     {
         "name": "ARAD",
@@ -3109,7 +3124,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 564
     },
     {
         "name": "GILGAL",
@@ -3311,7 +3327,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -255
     },
     {
         "name": "HAZEVA",
@@ -3503,169 +3520,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "PARAN 20060124",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 35
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 30.3696,
-                    "longitude": 35.15
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 10
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "TG",
-                        "alias": null,
-                        "active": false,
-                        "typeId": 33,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "TW",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 31,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": -135
     },
     {
         "name": "YOTVATA",
@@ -3887,7 +3743,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 70
     },
     {
         "name": "HAIFA UNIVERSITY",
@@ -4079,219 +3936,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "HAIFA TECHNION",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 43
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.774,
-                    "longitude": 35.0225
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 11
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "Grad",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 52,
-                        "pollutantId": null,
-                        "units": "w/m2",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "NIP",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 79,
-                        "pollutantId": null,
-                        "units": "w/m2",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "DiffR",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 77,
-                        "pollutantId": null,
-                        "units": "w/m2",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 15,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 16,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 20,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 23,
-                        "name": "TW",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 31,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 475
     },
     {
         "name": "EN KARMEL",
@@ -4483,7 +4129,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 25
     },
     {
         "name": "ZIKHRON YAAQOV",
@@ -4665,7 +4312,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 175
     },
     {
         "name": "HADERA PORT",
@@ -4847,7 +4495,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 5
     },
     {
         "name": "BET DAGAN",
@@ -5049,7 +4698,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 31
     },
     {
         "name": "BESOR FARM",
@@ -5271,7 +4921,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 110
     },
     {
         "name": "BEER SHEVA",
@@ -5473,7 +5124,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 279
     },
     {
         "name": "ZEFAT HAR KENAAN",
@@ -5665,7 +5317,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 936
     },
     {
         "name": "ELAT",
@@ -5887,7 +5540,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 22
     },
     {
         "name": "SEDOM",
@@ -6109,7 +5763,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -388
     },
     {
         "name": "EN HASHOFET",
@@ -6301,7 +5956,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 265
     },
     {
         "name": "ELON",
@@ -6493,7 +6149,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 300
     },
     {
         "name": "ROSH ZURIM",
@@ -6675,7 +6332,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 950
     },
     {
         "name": "AFEQ",
@@ -6867,7 +6525,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 10
     },
     {
         "name": "DOROT",
@@ -7059,7 +6718,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 115
     },
     {
         "name": "NEGBA",
@@ -7251,7 +6911,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 95
     },
     {
         "name": "ITAMAR",
@@ -7423,7 +7084,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 820
     },
     {
         "name": "SEDE BOQER",
@@ -7595,179 +7257,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "DEIR HANNA",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 99
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.8627,
-                    "longitude": 35.3739
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 8
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 475
     },
     {
         "name": "ROSH HANIQRA",
@@ -7939,7 +7430,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 10
     },
     {
         "name": "ZOMET HANEGEV",
@@ -8111,179 +7603,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "LEV KINERET",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 115
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.8214,
-                    "longitude": 35.6053
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 9
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 14,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 360
     },
     {
         "name": "HAFEZ HAYYIM",
@@ -8475,179 +7796,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "AMMIAD",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 123
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.915,
-                    "longitude": 35.5135
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 8
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 80
     },
     {
         "name": "ASHDOD PORT",
@@ -8829,7 +7979,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 5
     },
     {
         "name": "TEL AVIV COAST",
@@ -9001,7 +8152,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 10
     },
     {
         "name": "NEWE YAAR",
@@ -9183,7 +8335,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 115
     },
     {
         "name": "ZOVA",
@@ -9365,7 +8518,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 710
     },
     {
         "name": "KEFAR BLUM",
@@ -9547,179 +8701,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "ESHHAR",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 205
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.8847,
-                    "longitude": 35.3012
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 8
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 75
     },
     {
         "name": "EDEN FARM",
@@ -9921,7 +8904,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -120
     },
     {
         "name": "PARAN",
@@ -10103,7 +9087,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 100
     },
     {
         "name": "ASHQELON PORT",
@@ -10275,7 +9260,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 5
     },
     {
         "name": "METZOKE DRAGOT",
@@ -10447,7 +9433,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 20
     },
     {
         "name": "EN GEDI",
@@ -10619,7 +9606,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -415
     },
     {
         "name": "MAALE ADUMMIM",
@@ -10791,7 +9779,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 490
     },
     {
         "name": "MAALE GILBOA",
@@ -10963,7 +9952,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 495
     },
     {
         "name": "GAMLA",
@@ -11145,7 +10135,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 405
     },
     {
         "name": "BET HAARAVA",
@@ -11317,7 +10308,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -330
     },
     {
         "name": "NEOT SMADAR",
@@ -11489,179 +10481,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "KEFAR NAHUM",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 233
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.8835,
-                    "longitude": 35.5792
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 9
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 400
     },
     {
         "name": "KEFAR GILADI",
@@ -11833,199 +10654,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "TEL YOSEF 20141223",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 257
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 32.545,
-                    "longitude": 35.394
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 9
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 16,
-                        "name": "Grad",
-                        "alias": null,
-                        "active": false,
-                        "typeId": 52,
-                        "pollutantId": null,
-                        "units": "w/m2",
-                        "description": null
-                    },
-                    {
-                        "channelId": 18,
-                        "name": "TW",
-                        "alias": null,
-                        "active": false,
-                        "typeId": 31,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 365
     },
     {
         "name": "NAHSHON",
@@ -12207,179 +10837,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "MIZPE RAMON 20120927",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 265
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 30.614,
-                    "longitude": 34.797
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 12
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 180
     },
     {
         "name": "HARASHIM",
@@ -12551,7 +11010,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 830
     },
     {
         "name": "SHAARE TIQWA 20161205",
@@ -12723,7 +11183,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 195
     },
     {
         "name": "AVDAT",
@@ -12895,7 +11356,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 555
     },
     {
         "name": "NIZZAN",
@@ -13067,179 +11529,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "EZUZ",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 338
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 30.7911,
-                    "longitude": 34.4715
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 12
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 30
     },
     {
         "name": "SHAVE ZIYYON",
@@ -13411,189 +11702,8 @@
                     }
                 ]
             }
-        ]
-    },
-    {
-        "name": "DAFNA 20191106",
-        "description": "",
-        "attributes": [
-            {
-                "name": "stationId",
-                "value": 348
-            },
-            {
-                "name": "stationsTag",
-                "value": "(null)"
-            },
-            {
-                "name": "location",
-                "value": {
-                    "latitude": 33.23,
-                    "longitude": 35.6
-                }
-            },
-            {
-                "name": "timebase",
-                "value": 10
-            },
-            {
-                "name": "active",
-                "value": true
-            },
-            {
-                "name": "owner",
-                "value": "ims"
-            },
-            {
-                "name": "regionId",
-                "value": 9
-            },
-            {
-                "name": "monitors",
-                "value": [
-                    {
-                        "channelId": 1,
-                        "name": "Rain",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 1,
-                        "pollutantId": null,
-                        "units": "mm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 2,
-                        "name": "WSmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 5,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 3,
-                        "name": "WDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 23,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 4,
-                        "name": "WS",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 4,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 5,
-                        "name": "WD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 22,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 6,
-                        "name": "STDwd",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 3,
-                        "pollutantId": null,
-                        "units": "deg",
-                        "description": null
-                    },
-                    {
-                        "channelId": 7,
-                        "name": "TD",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 32,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 8,
-                        "name": "RH",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 27,
-                        "pollutantId": null,
-                        "units": "%",
-                        "description": null
-                    },
-                    {
-                        "channelId": 9,
-                        "name": "TDmax",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 41,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 10,
-                        "name": "TDmin",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 42,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    },
-                    {
-                        "channelId": 11,
-                        "name": "WS1mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 6,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 12,
-                        "name": "Ws10mm",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 144,
-                        "pollutantId": null,
-                        "units": "m/sec",
-                        "description": null
-                    },
-                    {
-                        "channelId": 13,
-                        "name": "Time",
-                        "alias": null,
-                        "active": true,
-                        "typeId": 102,
-                        "pollutantId": null,
-                        "units": "hhmm",
-                        "description": null
-                    },
-                    {
-                        "channelId": 16,
-                        "name": "TG",
-                        "alias": null,
-                        "active": false,
-                        "typeId": 33,
-                        "pollutantId": null,
-                        "units": "degC",
-                        "description": null
-                    }
-                ]
-            }
-        ]
+        ],
+        "height_above_sea": 10
     },
     {
         "name": "NEVATIM",
@@ -13765,7 +11875,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 350
     },
     {
         "name": "MIZPE RAMON",
@@ -13947,7 +12058,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 845
     },
     {
         "name": "TEL YOSEF",
@@ -14139,7 +12251,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": -65
     },
     {
         "name": "ASHALIM",
@@ -14361,7 +12474,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 305
     },
     {
         "name": "BEER SHEVA BGU",
@@ -14553,7 +12667,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 300
     },
     {
         "name": "DAFNA",
@@ -14735,6 +12850,2712 @@
                     }
                 ]
             }
-        ]
+        ],
+        "height_above_sea": 127
+    },
+    {
+        "name": "PARAN 20060124",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 35
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 30.3696,
+                    "longitude": 35.15
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 10
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "TG",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 33,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "TW",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 31,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 100
+    },
+    {
+        "name": "PARAN",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 207
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 30.3655,
+                    "longitude": 35.1479
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 10
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 15,
+                        "name": "TG",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 33,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 100
+    },
+    {
+        "name": "HAIFA TECHNION",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 43
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.774,
+                    "longitude": 35.0225
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 11
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "Grad",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 52,
+                        "pollutantId": null,
+                        "units": "w/m2",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "NIP",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 79,
+                        "pollutantId": null,
+                        "units": "w/m2",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "DiffR",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 77,
+                        "pollutantId": null,
+                        "units": "w/m2",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 15,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 16,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 20,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 23,
+                        "name": "TW",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 31,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 245
+    },
+    {
+        "name": "DEIR HANNA",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 99
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.8627,
+                    "longitude": 35.3739
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 8
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 285
+    },
+    {
+        "name": "AMMIAD",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 123
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.915,
+                    "longitude": 35.5135
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 8
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 215
+    },
+    {
+        "name": "ESHHAR",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 205
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.8847,
+                    "longitude": 35.3012
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 8
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 373
+    },
+    {
+        "name": "KEFAR NAHUM",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 233
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.8835,
+                    "longitude": 35.5792
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 9
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": -200
+    },
+    {
+        "name": "TEL YOSEF 20141223",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 257
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.545,
+                    "longitude": 35.394
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 9
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 16,
+                        "name": "Grad",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 52,
+                        "pollutantId": null,
+                        "units": "w/m2",
+                        "description": null
+                    },
+                    {
+                        "channelId": 18,
+                        "name": "TW",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 31,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": -65
+    },
+    {
+        "name": "TEL YOSEF",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 380
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.5462,
+                    "longitude": 35.3945
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 9
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 15,
+                        "name": "Id",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 224,
+                        "pollutantId": null,
+                        "units": "_",
+                        "description": null
+                    },
+                    {
+                        "channelId": 16,
+                        "name": "Grad",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 52,
+                        "pollutantId": null,
+                        "units": "w/m2",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": -65
+    },
+    {
+        "name": "MIZPE RAMON 20120927",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 265
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 30.614,
+                    "longitude": 34.797
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 12
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 845
+    },
+    {
+        "name": "MIZPE RAMON",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 379
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 30.6125,
+                    "longitude": 34.7967
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 12
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 15,
+                        "name": "Id",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 224,
+                        "pollutantId": null,
+                        "units": "_",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 845
+    },
+    {
+        "name": "EZUZ",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 338
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 30.7911,
+                    "longitude": 34.4715
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 12
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 335
+    },
+    {
+        "name": "DAFNA 20191106",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 348
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 33.23,
+                    "longitude": 35.6
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 9
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 16,
+                        "name": "TG",
+                        "alias": null,
+                        "active": false,
+                        "typeId": 33,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 127
+    },
+    {
+        "name": "DAFNA",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 499
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 33.2254,
+                    "longitude": 35.6337
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 9
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WS_Max",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 13,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 11,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 16,
+                        "name": "TG",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 33,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": 127
+    },
+    {
+        "name": "LEV KINERET",
+        "description": "",
+        "attributes": [
+            {
+                "name": "stationId",
+                "value": 115
+            },
+            {
+                "name": "stationsTag",
+                "value": "(null)"
+            },
+            {
+                "name": "location",
+                "value": {
+                    "latitude": 32.8214,
+                    "longitude": 35.6053
+                }
+            },
+            {
+                "name": "timebase",
+                "value": 10
+            },
+            {
+                "name": "active",
+                "value": true
+            },
+            {
+                "name": "owner",
+                "value": "ims"
+            },
+            {
+                "name": "regionId",
+                "value": 9
+            },
+            {
+                "name": "monitors",
+                "value": [
+                    {
+                        "channelId": 1,
+                        "name": "Rain",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 1,
+                        "pollutantId": null,
+                        "units": "mm",
+                        "description": null
+                    },
+                    {
+                        "channelId": 2,
+                        "name": "WSmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 5,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 3,
+                        "name": "WDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 23,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 4,
+                        "name": "WS",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 4,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 5,
+                        "name": "WD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 22,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 6,
+                        "name": "STDwd",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 3,
+                        "pollutantId": null,
+                        "units": "deg",
+                        "description": null
+                    },
+                    {
+                        "channelId": 7,
+                        "name": "TD",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 32,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 8,
+                        "name": "RH",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 27,
+                        "pollutantId": null,
+                        "units": "%",
+                        "description": null
+                    },
+                    {
+                        "channelId": 9,
+                        "name": "TDmax",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 41,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 10,
+                        "name": "TDmin",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 42,
+                        "pollutantId": null,
+                        "units": "degC",
+                        "description": null
+                    },
+                    {
+                        "channelId": 12,
+                        "name": "WS1mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 6,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 13,
+                        "name": "Ws10mm",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 144,
+                        "pollutantId": null,
+                        "units": "m/sec",
+                        "description": null
+                    },
+                    {
+                        "channelId": 14,
+                        "name": "Time",
+                        "alias": null,
+                        "active": true,
+                        "typeId": 102,
+                        "pollutantId": null,
+                        "units": "hhmm",
+                        "description": null
+                    }
+                ]
+            }
+        ],
+        "height_above_sea": -170
     }
 ]

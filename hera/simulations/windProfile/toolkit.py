@@ -10,7 +10,7 @@ import json
 from tqdm import tqdm
 import requests
 from hera.simulations.utils.interpolations import spatialInterpolate
-
+import os
 
 class WindProfileToolkit(toolkit.abstractToolkit):
     def __init__(self, projectName, filesDirectory=None):
@@ -102,7 +102,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         # stations = self._getStationsInRegion(minlon,minlat,maxlon,maxlat,inputCRS=inputCRS)
         # if len(stations)==0:
         #     raise ValueError(f"No Stations in Specified Region.")
-        with open('wind_stations.json', 'r') as json_file:
+        with open(f'{os.path.dirname(os.path.abspath(__file__))}/wind_stations.json', 'r') as json_file:
             wind_stations = json.load(json_file)
         stations = [station for station in wind_stations]
         stations_with_data = self._getWindSpeedDirection(stations,IMS_TOKEN)
