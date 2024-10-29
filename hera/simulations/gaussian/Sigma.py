@@ -60,8 +60,8 @@ class BriggsRural:
         # Compute Ix,Iy,Iz
         if sigma0 is None:
             Ix = Iy = Iz = 0
-        # else:
-        #     Ix,Iy,Iz = self.getVirtualDistance(sigma0,stability)
+        else:
+            Ix,Iy,Iz = self.getVirtualDistance(sigma0,stability)
 
 
         Ix = tonumber(Ix,m)
@@ -83,11 +83,15 @@ class AbstractSigma(BriggsRural):
 
     def getVirtualDistance(self,sigma0,stability):
         """
+        Calculates the virtual distances for a given sigma0.
 
         Parameters
         ----------
-        sigma0
-        stability
+        sigma0 : 3-tuple of float/unum (default m)
+            The initial cloud size in the x,y and z dimensions.
+
+        stability : str
+            Must be A-F (capital letters)
 
         Returns
         -------
@@ -101,7 +105,12 @@ class AbstractSigma(BriggsRural):
         stability=stability
         x = symbols("x")
         sigmas = self.getSigma(x, stability)
+        # sigma0 = numpy.array([tonumber(y, m) for y in numpy.atleast_1d(x)])
         sx,sy,sz = sigma0
+        sx = tonumber(sx, m)
+        sy = tonumber(sy, m)
+        sz = tonumber(sz, m)
+
         Ix = float(solve(sigmas['sigmaX'][0][0] - sx)[0])
         Iy = float(solve(sigmas['sigmaY'][0][0] - sy)[0])
         Iz = float(solve(sigmas['sigmaZ'][0][0] - sz)[0])
