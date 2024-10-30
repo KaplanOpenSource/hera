@@ -341,6 +341,11 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
             raise ValueError(err)
 
     @property
+    def dispersionName(self):
+        return self.name
+
+
+    @property
     def originalFlowFieldName(self):
         return self.parameters.parameters['originalFlowField']
 

@@ -1009,6 +1009,20 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         return ret
 
+    def getDispersionDocument(self,nameOrDispersionWorkflow):
+        """
+            Return the DB document of the dispersiion
+        Parameters
+        ----------
+        nameOrDispersionWorkflow: str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+        Returns
+        -------
+
+        """
+
+        getWorkflowDocumentFromDB
 
     def getDispersionFlowDocument(self,nameOrDispersionWorkflow):
         """
@@ -1033,6 +1047,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         else:
             err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
 
+        logger.info(f"Trying to retireve the document for {dffname}")
         ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
         return ret[0] if len(ret) > 0 else None
 
@@ -1281,7 +1296,7 @@ class analysis:
 
         # assign the timestep into the large mesh
         fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
-        fulldata.attrs['units'] = "1*kg/m**3"
+        fulldata.attrs['field'] = "1*kg/m**3"
 
         return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
 
@@ -1405,10 +1420,11 @@ class analysis:
         else:
             xryDoc = docList[0]
 
-
-
-
-        return xryDoc
+        ret = xryDoc.getData()
+        ret.attrs['field'] = dict(C=1*kg/m**3)
+        ret.attrs['dt'] = f"{(ret.time[-1]-ret.time[-2]).item()}s"
+        ret = ret.rename_dims(dict(time="datetime"))
+        return ret
 
     def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
         """

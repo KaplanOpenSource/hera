@@ -223,7 +223,7 @@ class CalculatorMaxConcentration(AbstractCalculator):
 		if inUnits is None:
 			if hasattr(concentrationField, "attrs"):
 				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = concentrationField.attrs[field] if attrs_units is not None  else mg / m ** 3
+			inUnits = attrs_units[field] if attrs_units is not None  else mg / m ** 3
 		CunitConversion = inUnits.asNumber(mg / m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):

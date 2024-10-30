@@ -212,9 +212,9 @@ class PhysicalPropeties(object):
 
 		if "physicalProperties" in configJSON:
 			self._params 		 = configJSON["physicalProperties"]
-			self.molecularWeight = self._params["molecularWeight"]
-			self.sorptionCoefficient = self._params["sorptionCoefficient"] if "sorptionCoefficient" in self._params.keys() else "1"
-			self.spreadFactor    = self._params["spreadFactor"] if "spreadFactor" in self._params.keys() else "1"
+			self.molecularWeight = self._params.get("molecularWeight","1")
+			self.sorptionCoefficient = self._params.get("sorptionCoefficient","1")
+			self.spreadFactor    = self._params.get("spreadFactor",1)
 	
 
 	def toJSON(self):
