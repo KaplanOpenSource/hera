@@ -18,6 +18,8 @@ from hera import toolkitHome
 import matplotlib.colors as mcolors
 import warnings
 from tqdm import tqdm
+
+
 # Suppress specific GDAL warning
 warnings.filterwarnings("ignore", message="Starting with GDAL 3.7, PIXELTYPE=SIGNEDBYTE is no longer used to signal signed 8-bit raster.*")
 
@@ -220,11 +222,13 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         y = numpy.arange(min_pp.y, max_pp.y, dxdy)
         xx = numpy.zeros((len(x), len(y)))
         yy = numpy.zeros((len(x), len(y)))
-        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y)]):
+        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y[::-1])]):
             print((i, j), end="\r")
             newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
-            xx[i, j] = newpp.x
-            yy[i, j] = newpp.y
+            lat = newpp.y
+            lon = newpp.x
+            xx[i, j] = lat
+            yy[i, j] = lon
 
         ds = self.getDataSourceData(dataSourceName)
         img = ds.GetRasterBand(1).ReadAsArray()
