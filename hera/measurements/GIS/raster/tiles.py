@@ -97,8 +97,9 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info(f"------- Start : {logger.name}")
 
-        lon = [maxy, miny]
-        lat = [minx, maxx]
+        # Usually x represents lat and y lon, but here we should do the opposite because of geopandas.
+        lat = [maxy, miny]
+        lon = [minx, maxx]
 
         if tileServer is None:
             tileServer = self.getConfig().get("defaultTileServer",None)
