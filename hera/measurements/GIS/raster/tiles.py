@@ -220,6 +220,10 @@ class TilesToolkit(toolkit.abstractToolkit):
     def listImages(self,**filters):
         return self.getMeasurementsDocuments(type=self.doctype, **filters)
 
+    def setDefaultTileServer(self,server):
+        self.setConfig(**{"defaultTileServer": server})
+
+
 class presentation:
     """
     Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.

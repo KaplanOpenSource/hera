@@ -1,0 +1,35 @@
+{
+  "__init__":
+    [
+      {
+       "projectName": "Unit_Test_Project_01"
+      }
+    ],
+
+  "test_addMeasurementsDocument":
+    [
+      {
+        "projectName": "Unit_Test_Project_01",
+        "resource": "PATH1/PATH2",
+        "dataFormat": "string",
+        "type": "",
+        "desc": {}
+      }
+    ],
+  "test_getMeasurementsDocuments":
+    [
+      {
+        "projectName": "Unit_Test_Project_01",
+        "resource": "PATH1/PATH2",
+        "dataFormat": "string",
+        "type": "",
+        "desc": {}
+     }
+    ],
+  "test_deleteMeasurementsDocuments":
+    [
+      {
+        "projectName": "Unit_Test_Project_01"
+      }
+    ]
+}
