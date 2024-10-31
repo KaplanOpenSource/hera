@@ -11,6 +11,8 @@ import xarray
 from itertools import product
 from dask.delayed import delayed
 import dask.dataframe as dask_dataframe
+from pandas.core.array_algos.transforms import shift
+
 from ....utils.unum import *
 
 from ....datalayer import datatypes
@@ -909,7 +911,16 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         if cacheDoc is not None:
             logger.info(f"Found {caseDescriptor} in the database. ")
             if overwrite:
-                logger.info("overwrite is True, recalculate it")
+                logger.info("overwrite is True, recalculate it, delting the files first. ")
+                if os.path.isdir(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as directoy")
+                    import shutil
+                    shutil.rmtree(cacheDoc.resource)
+                elif os.path.isfile(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as a file")
+                    os.remove(cacheDoc.resource)
+                else:
+                    logger.info("File does not exist, continue")
             else:
                 logger.info("Returning the cached data")
                 try:
@@ -924,27 +935,22 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     ret = None
 
         if reCalculate:
-            if cacheDoc is None:
-                logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
-                docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
-                if len(docList) == 0:
-                    logger.info("not found, trying as a directory")
-                    finalCasePath = os.path.abspath(caseDescriptor)
-                    workflowName = caseDescriptor
-                    if not os.path.isdir(os.path.abspath(caseDescriptor)):
-                        err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
-                        logger.error(err)
-                        raise FileNotFoundError(err)
-                    else:
-                        logger.info(f"Found as a directory")
+            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
+            if len(docList) == 0:
+                logger.info("not found, trying as a directory")
+                finalCasePath = os.path.abspath(caseDescriptor)
+                workflowName = caseDescriptor
+                if not os.path.isdir(os.path.abspath(caseDescriptor)):
+                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
+                    logger.error(err)
+                    raise FileNotFoundError(err)
                 else:
-                    logger.info(f"Found, Loading data from {docList[0].resource}")
-                    finalCasePath = docList[0].resource
-                    workflowName  = docList[0].desc['workflowName']
+                    logger.info(f"Found as a directory")
             else:
-                logger.info(f"Using the cached document metadata. Reading  {docList[0].resource} ")
+                logger.info(f"Found, Loading data from {docList[0].resource}")
                 finalCasePath = docList[0].resource
-                workflowName = docList[0].desc['workflowName']
+                workflowName  = docList[0].desc['workflowName']
 
             loader = lambda timeName: readLagrangianRecord(timeName,
                                                            casePath=finalCasePath,
@@ -1301,7 +1307,7 @@ class analysis:
         return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
 
     def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz,extents=None, xfield="x", yfield="y",
-                                       zfield="z",overwrite=False, **metadata):
+                                       zfield="z",overwrite=False,reReadResults=None, **metadata):
         """
             Calculates the eulerian concentration field for each timestep in the data.
             The data is stored as a nc file on the disk.
@@ -1337,7 +1343,12 @@ class analysis:
             The column name of the z coordinates.
 
         overwrite: bool
-            If True, recalcluats the data.
+            If True, recalcluats the data mesh data.
+
+        reReadResults : bool, None
+            If True - overwrites the results of the simulation.
+            If None - take value from overwrite.
+            If False - Just recompute the full mesh concentrations.
 
         **metadata: the parameters to add to the document.
 
@@ -1382,7 +1393,7 @@ class analysis:
                 docList[0].delete()
 
             newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
-            resourcePath = os.path.join(self.datalayer.toolkit.filesDirectory,"cachedLagrangianData", f"{caseDescriptorName}_{newID}", "Concentrations*.nc")
+            resourcePath = os.path.join(self.datalayer.toolkit.filesDirectory,"cachedLagrangianData", f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc")
             logger.info(f"Adding to resource {resourcePath}")
             xryDoc = self.datalayer.toolkit.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
                                                      resource=resourcePath,
@@ -1398,8 +1409,9 @@ class analysis:
                 extents = self.datalayer.getOriginalFlowFieldExtentAsDict(caseDescriptorName)
                 logger.info(f"The extents are: {json.dumps(ConfigurationToJSON(extents),indent=4)}")
 
-            logger.info(f"Getting the lagrangian data for {caseDescriptorName}")
-            data = self.datalayer.getCaseResults(caseDescriptorName)
+            reReadResults = overwrite if reReadResults is None else reReadResults
+            logger.info(f"Getting the lagrangian data for {caseDescriptorName}. Re-read the results? {reReadResults} (If false, use cache)")
+            data = self.datalayer.getCaseResults(caseDescriptorName,overwrite=reReadResults,withVelocity=True, withReleaseTimes=True, withMass=True)
             for partitionID, partition in enumerate(data.partitions):
                 logger.info(f"Processing partition {partitionID}")
                 L = []
