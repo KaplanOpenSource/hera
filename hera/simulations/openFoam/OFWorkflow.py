@@ -357,6 +357,9 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
     def dispersionFlowFieldName(self, value):
         self.parameters.parameters['dispersionFlowField'] = str(value)
 
+    @property
+    def dispersionDuration(self):
+        return self.parameters.parameters['dispersionDuration']
 
 ##########################################################
 ##                          Workflow_simpleFoam

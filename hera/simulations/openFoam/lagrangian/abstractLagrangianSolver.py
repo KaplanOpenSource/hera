@@ -1295,16 +1295,20 @@ class analysis:
 
         fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
         #fulldata.filterType = "C"
+        if not isinstance(timeData,int):
+            C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
+                                zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                    'mass'].sum().to_xarray().squeeze().fillna(0) / dH
 
-        C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
-                            zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
-                'mass'].sum().to_xarray().squeeze().fillna(0) / dH
+            # assign the timestep into the large mesh
+            fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
+            fulldata.attrs['field'] = "1*kg/m**3"
 
-        # assign the timestep into the large mesh
-        fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
-        fulldata.attrs['field'] = "1*kg/m**3"
+            timeList = [timeData.time.unique()[0]]
+        else:
+            timeList = [timeData]
 
-        return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
+        return fulldata.expand_dims(dict(time=timeList), axis=-1)
 
     def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz,extents=None, xfield="x", yfield="y",
                                        zfield="z",overwrite=False,reReadResults=None, **metadata):
@@ -1314,8 +1318,9 @@ class analysis:
 
             The concentrations are embeded in a global mesh (defined in the extents field).
 
-            The metadata files are added to the d
-
+            To be consistent with the computations of the 10min average of the risk assessment,
+            we add padd with 0 all the timesteps up to the running time. This procedure currently
+            assumes that dt is 1.
 
         Parameters
         ----------
@@ -1391,6 +1396,8 @@ class analysis:
 
                 logger.info("Removing the old DB record")
                 docList[0].delete()
+                import shutil
+                shutil.rmtree(os.path.dirname(xryDoc.resource))
 
             newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
             resourcePath = os.path.join(self.datalayer.toolkit.filesDirectory,"cachedLagrangianData", f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc")
@@ -1411,10 +1418,14 @@ class analysis:
 
             reReadResults = overwrite if reReadResults is None else reReadResults
             logger.info(f"Getting the lagrangian data for {caseDescriptorName}. Re-read the results? {reReadResults} (If false, use cache)")
+            workflow = self.datalayer.toolkit.getHermesWorkflowFromDB(caseDescriptorName)
             data = self.datalayer.getCaseResults(caseDescriptorName,overwrite=reReadResults,withVelocity=True, withReleaseTimes=True, withMass=True)
+            timeName = 0
+            partitionID = 0
             for partitionID, partition in enumerate(data.partitions):
                 logger.info(f"Processing partition {partitionID}")
                 L = []
+
                 for timeName, timeData in partition.compute().reset_index().groupby("time"):
                     logger.debug(f"Processing Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz,
@@ -1424,11 +1435,26 @@ class analysis:
 
                 logger.info("Creating the xarray")
                 pxry = xarray.concat(L, dim="time")
-
                 outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
                 logger.info(f"Writing the partition to file {outFile_Final}")
                 pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "time").to_dataset(name="C").to_netcdf(outFile_Final)
 
+            logger.info("Filling in all the empty timesteps to make sure that there are enough timesteps for moving window")
+            partitionID += 1
+            L = []
+            logger.debug(f"Writitng the empty field as partition {partitionID}")
+            for timeName in range(int(timeName),workflow.dispersionDuration):
+                    logger.debug(f"Processing Epty Time: {timeName}")
+                    xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
+                                                                 xfield=xfield,
+                                                                 yfield=yfield, zfield=zfield)
+                    L.append(xry)
+
+            logger.info("Creating the xarray")
+            pxry = xarray.concat(L, dim="time")
+            outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
+            logger.info(f"Writing the partition to file {outFile_Final}")
+            pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "time").to_dataset(name="C").to_netcdf(outFile_Final)
         else:
             xryDoc = docList[0]
 
