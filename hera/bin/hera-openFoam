@@ -357,19 +357,19 @@ if __name__ == "__main__":
                              incompressible=True)
 
     ## ====================================================
-    ## ================== urbanHomogenousWindProfile
+    ## ================== homogenousWindLogProfile
     ## ====================================================
-    urbanHomogenousWindProfile_parser = subparsers.add_parser('urbanHomogenousWindProfile',
-                                                              help='Handles urbanHomogenousWindProfile')
-    urbanHomogenousWindProfile_subparser = urbanHomogenousWindProfile_parser.add_subparsers(
-        help='Handles urbanHomogenousWindProfile')
+    homogenousWindLogProfile_parser = subparsers.add_parser('homogenousWindLogProfile',
+                                                              help='Handles homogenousWindLogProfile')
+    homogenousWindLogProfile_subparser = homogenousWindLogProfile_parser.add_subparsers(
+        help='Handles homogenousWindLogProfile')
 
     ## ---------------- Case management
-    addSolverCaseManagement(subparser=urbanHomogenousWindProfile_subparser, solverName="urbanHomogenousWindProfile",
+    addSolverCaseManagement(subparser=homogenousWindLogProfile_subparser, solverName="homogenousWindLogProfile",
                             incompressible=True)
 
     ## ----- template handling
-    addSolverTemplateOptions(subparser=urbanHomogenousWindProfile_subparser, solverName="urbanHomogenousWindProfile",
+    addSolverTemplateOptions(subparser=homogenousWindLogProfile_subparser, solverName="homogenousWindLogProfile",
                              incompressible=True)
 
     ## ====================================================
