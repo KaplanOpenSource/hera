@@ -151,13 +151,13 @@ class OFObjectHome:
                 "fieldType":"scalar",
                 "fieldComputation":"eulerian"
             },            
-            "CellHeights" : { 
+            "distanceFromWalls" : { 
                 "dimensions" : {
                     "default" : {
                         "m" : 1
                     }
                 }, 
-                "fieldType":"scalar",
+                "fieldType":"vector",
                 "fieldComputation":"eulerian"
             }
         }"""

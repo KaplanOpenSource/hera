@@ -165,6 +165,83 @@ class Project:
 
         return ret
 
+    def setCounter(self,counterName,defaultValue=0):
+        """
+            Defines a counter in the config of the project.
+            The counter is specific to this project.
+        Parameters
+        ----------
+        counterName :  str
+            The counter name.
+
+        Returns
+        -------
+
+        """
+        cnfg =self.getConfig()
+        cnfg[counterName] =defaultValue
+        self.setConfig(**cnfg)
+        return cnfg
+
+    def defineCounter(self,counterName,defaultValue=0):
+        """
+            Defines a counter in the config of the project, if it does not exist
+            The counter is specific to this project.
+        Parameters
+        ----------
+        counterName :  str
+            The counter name.
+
+        Returns
+        -------
+
+        """
+        cnfg =self.getConfig()
+        cnfg.setdefault(counterName,defaultValue)
+        self.setConfig(**cnfg)
+        return cnfg
+
+    def getCounter(self,counterName):
+        """
+            Return the value of the counter and add [addition].
+        Parameters
+        ----------
+        counterName :  str
+            The name of the counter.
+
+        addition : int
+            The amount to add to the counter. The default is 1
+
+        Returns
+        -------
+
+        """
+        cnfg =self.getConfig()
+        ret = cnfg[counterName]
+        return ret
+
+    def addCounter(self,counterName,addition=1):
+            """
+                Return the value of the counter and add [addition].
+            Parameters
+            ----------
+            counterName :  str
+                The name of the counter.
+
+            addition : int
+                The amount to add to the counter. The default is 1
+
+            Returns
+            -------
+
+            """
+            cnfg =self.getConfig()
+            ret = cnfg[counterName]
+            cnfg[counterName] += addition
+            self.setConfig(**cnfg)
+            return ret
+
+
     def getConfig(self):
         """
         Returns the config document's description.
@@ -178,7 +255,27 @@ class Project:
         if self._projectName == self.DEFAULTPROJECT:
             raise ValueError("Default project cannot use configuration")
         doc = self._getConfigDocument()
-        return doc["desc"]
+        return dict(doc["desc"])
+
+    def initConfig(self,**kwargs):
+        """
+            Sets the value of the config, if the keys does not exist. If they exist, leave the old value.
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+
+        """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+
+        doc = self._getConfigDocument()
+        for key,value in doc['desc'].items():
+            doc['desc'].setdefault(key,value)
+        doc.save()
+
 
     def setConfig(self,keep_old_values=True, **kwargs):
         """

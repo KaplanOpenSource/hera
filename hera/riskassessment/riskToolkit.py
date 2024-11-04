@@ -76,7 +76,7 @@ class RiskToolkit(abstractToolkit):
         return Agent(descriptor)
 
 
-    def listAgents(self):
+    def listAgentsNames(self):
         """
             Lists the agents that are currently loaded in the DB (both local and public).
 
@@ -84,7 +84,7 @@ class RiskToolkit(abstractToolkit):
             A list of agent names.
 
         """
-        return self.getDataSourceDocumentsList()
+        return [x.desc["datasourceName"] for x in self.getDataSourceDocumentsList()]
 
     def loadAgent(self, name, agentDescription, version,saveMode=TOOLKIT_SAVEMODE_FILEANDDB):
         """
@@ -152,7 +152,6 @@ class RiskToolkit(abstractToolkit):
 
         elif saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
             raise ValueError(f"Agent {name} version {agentDoc.desc.get('version',None)} in the database.")
-
         else:
             agentDoc.resource = json.dumps(agentDescription)
             agentDoc.desc['version']  = version

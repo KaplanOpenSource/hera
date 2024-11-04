@@ -15,7 +15,7 @@ from hera import toolkitHome
 
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     if 'projectName' not in arguments:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
@@ -31,7 +31,7 @@ def experiments_list(arguments):
 
 def experiments_table(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_table")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     if 'projectName' not in arguments:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
@@ -47,7 +47,7 @@ def experiments_table(arguments):
 
 def get_experiment_data(arguments):
     logger = logging.getLogger("hera.bin.experiment_get_experiment_data")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     if 'projectName' not in arguments:
         configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
@@ -66,7 +66,7 @@ def get_experiment_data(arguments):
 
 def create_experiment(arguments):
     logger = logging.getLogger("hera.bin.experiment_create_experiment")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     if arguments.path:
         experiment_path = arguments.path
@@ -172,7 +172,7 @@ def _make_runtimeExperimentData(zip,experiment_path,experimentName):
 
 def load_experiment_to_project(arguments):
     logger = logging.getLogger("hera.bin.experiment_load_experiment_to_project")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     if arguments.experiment:
         experiment_path = arguments.experiment

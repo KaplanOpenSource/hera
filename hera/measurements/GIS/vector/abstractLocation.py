@@ -57,11 +57,11 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory)
         logger = get_classMethod_logger(self, "init")
         if filesDirectory is None:
-            self.logger.execution("Directory is not given, tries to load from default or using the current directory")
+            self.logger.debug("Directory is not given, tries to load from default or using the current directory")
             self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            self.logger.execution(f"Using {self._FilesDirectory}")
+            self.logger.debug(f"Using {self._FilesDirectory}")
         else:
-            self.logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            self.logger.debug(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
 
@@ -89,7 +89,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
         if not os.path.exists(fllpath):
             if create:
-                self.logger.execution(f"Directory {fllpath} does not exist. create")
+                self.logger.debug(f"Directory {fllpath} does not exist. create")
                 os.system(f"mkdir -p {fllpath}")
             else:
                 raise NotADirectoryError(f"{fllpath} is not a directory, and create is False.")
@@ -144,10 +144,10 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         doc = None
         #self.logger.info(f"Project {self.projectName}, Toolkit {self.toolkitName}: Start")
         if dataSourceOrFile is not None and os.path.exists(dataSourceOrFile):
-            self.logger.execution(f"Using existing file {dataSourceOrFile}")
+            self.logger.debug(f"Using existing file {dataSourceOrFile}")
             inputData = dataSourceOrFile
         else:
-            self.logger.execution(f"Using DB datasource {dataSourceOrFile}")
+            self.logger.debug(f"Using DB datasource {dataSourceOrFile}")
             resourceDoc = self.getDatasourceDocument(dataSourceOrFile,version=dataSourceVersion)
             inputData    = resourceDoc.resource
 
@@ -169,7 +169,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if doc is None:
                 # Adding to the DB.
-                self.logger.execution(f"Adding {regionName} to the DB in a new record")
+                self.logger.debug(f"Adding {regionName} to the DB in a new record")
                 additional_data[toolkit.TOOLKIT_DATASOURCE_NAME] = regionName
                 additional_data[TOOLKIT_LOCATION_REGIONNAME] = regionName
                 additional_data[TOOLKIT_LOCATION_POINTS] = points
@@ -183,7 +183,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
             else:
                 # Updating DB. the case of existing record and no update was resolved above.
-                self.logger.execution(f"Updating the record of {regionName} in the DB")
+                self.logger.debug(f"Updating the record of {regionName} in the DB")
                 docParams = {TOOLKIT_LOCATION_POINTS : points}
                 docParams.update(additional_data)
 
@@ -205,7 +205,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
             points = dict(minX=bounds[0], minY=bounds[1], maxX=bounds[2], maxY=bounds[3])
         try:
             cmd = f"ogr2ogr -clipsrc {points['minX']} {points['minY']} {points['maxX']} {points['maxY']} {outputFileName} {inputData}"
-            self.logger.execution(f"Clipping the file: {cmd}")
+            self.logger.debug(f"Clipping the file: {cmd}")
             os.system(cmd)
         except Exception as e:
             self.logger.error(f"General error cutting the file {e}.")

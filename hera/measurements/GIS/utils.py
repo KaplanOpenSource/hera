@@ -12,7 +12,8 @@ from scipy.interpolate import griddata
 
 
 # ESPG codes
-WSG84 = 4326
+WGS84 = 4326
+WSG84 = 4326 # A mistake, keep it for previuos versions that use the code.
 ITM   = 2039 # Israeli
 ED50_ZONE36N = 23036
 BETA = 0.2

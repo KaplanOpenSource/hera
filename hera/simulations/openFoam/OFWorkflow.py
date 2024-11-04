@@ -43,7 +43,7 @@ class abstractWorkflow(hermes.workflow):
         super().__init__(workflowJSON=workflowJSON,name=name)
         self.workflowHeraDocument = workflowHeraDocument
 
-        self._requiredNodeList = ['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter', 'defineNewBoundaryConditions','Parameters']
+        self._requiredNodeList = ['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter','Parameters']
 
     @property
     def workflowGroup(self):
@@ -80,11 +80,12 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def controlDict(self):
-        return self['controlDict']
+        return self['ControlDict']
 
     @property
     def fvSolution(self):
         return self['fvSolution']
+
 
     @property
     def fvScheme(self):
@@ -96,7 +97,7 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def parameters(self):
-        return self['parameters']
+        return self['Parameters']
 
     @property
     def buildAllRun(self):
@@ -183,12 +184,13 @@ class workflow_Eulerian(abstractWorkflow):
             Will be removed if the workflow is executed as a unified case.
         """
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
-        self._requiredNodeList.append("blockMesh")
+        #self._requiredNodeList.append("blockMesh")
 
         # examine here that all the nodes exist, if not - it is not a flow
         for node in self._requiredNodeList:
             if node not in self.workflowJSON['nodes']:
                 raise ValueError(f"The node {node} does not exist in the flow. Not a flow workflow.")
+
 
     @property
     def blockMesh(self):
@@ -339,17 +341,25 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
             raise ValueError(err)
 
     @property
-    def dispersionFlowField(self):
-        return
+    def dispersionName(self):
+        return self.name
+
 
     @property
-    def dispersionFlowField(self):
-        return self.parameters.parameters['dispersionFlowField']
+    def originalFlowFieldName(self):
+        return self.parameters.parameters['originalFlowField']
 
-    @dispersionFlowField.setter
-    def dispersionFlowField(self, value):
+    @property
+    def dispersionFlowFieldName(self):
+        return f"{self.parameters.parameters['originalFlowField']}_DFF_{self.parameters.parameters['dispersionFlowField']}"
+
+    @dispersionFlowFieldName.setter
+    def dispersionFlowFieldName(self, value):
         self.parameters.parameters['dispersionFlowField'] = str(value)
 
+    @property
+    def dispersionDuration(self):
+        return self.parameters.parameters['dispersionDuration']
 
 ##########################################################
 ##                          Workflow_simpleFoam
@@ -363,6 +373,14 @@ class workflow_simpleFoam(workflow_Eulerian):
 ##                          Workflow_indoorFOAMBoussinesq
 ##########################################################
 class workflow_indoorFOAMBoussinesq(workflow_Eulerian):
+
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+
+##########################################################
+##                          Workflow_indoorFOAMBoussinesq
+##########################################################
+class workflow_homogenousWindLogProfile(workflow_Eulerian):
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
@@ -445,7 +463,7 @@ class workflow_indoorFOAMBoussinesq(workflow_Eulerian):
 #     blockMeshNode = configuration['mesh'].get('blockMesh',None)
 #
 #     if blockMeshNode is not None:
-#         self.logger.execution("Found blockMesh Node")
+#         self.logger.debug("Found blockMesh Node")
 #
 #         ## 1. Block mesh handler.
 #         blockMesh_handlers = [x.split("_")[1] for x in dir(self) if x.startswith("blockMeshHandler")]
@@ -461,7 +479,7 @@ class workflow_indoorFOAMBoussinesq(workflow_Eulerian):
 #         locationNode =  configuration['mesh'].get('locationInMesh',None)
 #
 #         if locationNode is not None:
-#             self.logger.execution("Found location Node")
+#             self.logger.debug("Found location Node")
 #             ## 2. Location in mesh handler.
 #             locationInMesh_handlers = [x.split("_")[1] for x in dir(self) if x.startswith("locationInMeshHandler")]
 #             if locationNode['type'] not in locationInMesh_handlers:
@@ -470,10 +488,10 @@ class workflow_indoorFOAMBoussinesq(workflow_Eulerian):
 #                 raise ValueError(err)
 #
 #             handler = getattr(self, f"locationInMeshHandler_{locationNode['type']}")
-#             self.logger.execution(f"Calling the locationInMeshHandler_{locationNode['type']} handler")
+#             self.logger.debug(f"Calling the locationInMeshHandler_{locationNode['type']} handler")
 #             handler(configuration)
 #     else:
-#         self.logger.execution("blockMesh node was not Found. ")
+#         self.logger.debug("blockMesh node was not Found. ")
 #
 #     self.logger.info("-- End -- ")
 #

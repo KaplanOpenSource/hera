@@ -1,11 +1,10 @@
-from hera import toolkit
 import json
-from hera import datalayer
 import pymongo
 import pandas
-#import dask_mongo
-from argos.manager import  DEPLOY, DESIGN
-from ...utils.logging import helpers as hera_logging
+from argos.manager import DEPLOY, DESIGN
+from ... import datalayer
+from ...utils.logging import get_classMethod_logger
+
 
 PARQUETHERA = 'parquetDataEngingHera'
 PANDASDB = 'pandasDataEngineDB'
@@ -16,12 +15,12 @@ class dataEngineFactory:
     def __init__(self):
         pass
 
-    def getDataEngine(self,projectName, datasourceConfiguration, dataType = PARQUETHERA):
+    def getDataEngine(self,projectName, datasourceConfiguration,experimentObj, dataType = PARQUETHERA):
 
         if dataType == PANDASDB:
             return pandasDataEngineDB(projectName,datasourceConfiguration)
         elif dataType == PARQUETHERA:
-            return parquetDataEngineHera(projectName,datasourceConfiguration)
+            return parquetDataEngineHera(projectName,datasourceConfiguration,experimentObj)
         elif dataType == DASKDB:
             return daskDataEngineDB(projectName,datasourceConfiguration)
         else:
@@ -309,13 +308,16 @@ class daskDataEngineDB:
 
 class parquetDataEngineHera(datalayer.Project):
     experimentName = None
+    experimentObj = None
 
-    def __init__(self, projectName, datasourceConfiguration):
-        self.logger = hera_logging.get_logger(self)
+
+    def __init__(self, projectName, datasourceConfiguration,experimentObj):
+        logger = get_classMethod_logger(self,"parquetDataEngineHera")
 
         super().__init__(projectName=projectName)
 
         self.experimentName = datasourceConfiguration['experimentName']
+        self.experimentObj = experimentObj
 
     def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
                          trialState=DEPLOY, startTime=None, endTime=None,**query):
@@ -357,9 +359,10 @@ class parquetDataEngineHera(datalayer.Project):
             pd.DataFrame
 
         """
+        #3logger = get_classMethod_logger(self, "parquetDataEngineHera")
         trialSet = self.experimentObj.trialSet if trialSet is None else trialSet
 
-        trial = self._experimentObj.experimentSetup.trialSet[trialSet][trialName]
+        trial = self.experimentObj.experimentSetup.trialSet[trialSet][trialName]
         startTime = trial.properties['TrialStart'] if startTime is None else startTime
         endTime = trial.properties['TrialEnd'] if endTime is None else endTime
 
@@ -410,8 +413,9 @@ class parquetDataEngineHera(datalayer.Project):
         -------
             dask.DataFrame, dask.Pandas. 
         """
-        self.logger.execution("------- Start --------")
-        self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
+        logger = get_classMethod_logger(self, "getData")
+        logger.execution("------- Start --------")
+        logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
         if perDevice:
             assert deviceName, "If perDeivce=True then deviceName should be defined!"

@@ -222,15 +222,15 @@ class abstractToolkit(Project):
         self._toolkitname = toolkitName
 
         if filesDirectory is None:
-            logger.execution("Directory is not given, tries to load from default or using the current directory")
+            logger.debug("Directory is not given, tries to load from default or using the current directory")
             try:
                 self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
             except ValueError:
                 self._FilesDirectory = os.getcwd()
 
-            logger.execution(f"Using {self._FilesDirectory}")
+            logger.debug(f"Using {self._FilesDirectory}")
         else:
-            logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            logger.debug(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
 

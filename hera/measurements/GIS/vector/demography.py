@@ -85,7 +85,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
         logger = get_classMethod_logger(self, "setDefaultDirectory")
         if not os.path.exists(fllpath):
             if create:
-                logger.execution(f"Directory {fllpath} does not exist. create")
+                logger.debug(f"Directory {fllpath} does not exist. create")
                 os.system(f"mkdir -p {fllpath}")
             else:
                 raise NotADirectoryError(f"{fllpath} is not a directory, and create is False.")
