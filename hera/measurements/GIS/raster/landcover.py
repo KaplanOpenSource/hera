@@ -535,8 +535,23 @@ class presentation:
     def __init__(self, dataLayer):
         self._datalayer = dataLayer
         self.landcover_colors_map = {
-            0:'red',
-            1:'blue'
+            0: 'blue',  # Water
+            1: 'darkgreen',  # Evergreen needleleaf forest
+            2: 'forestgreen',  # Evergreen broadleaf forest
+            3: 'darkolivegreen',  # Deciduous needleleaf forest
+            4: 'olivedrab',  # Deciduous broadleaf forest
+            5: 'green',  # Mixed forests
+            6: 'saddlebrown',  # Closed shrubland
+            7: 'peru',  # Open shrublands
+            8: 'darkkhaki',  # Woody savannas
+            9: 'khaki',  # Savannas
+            10: 'yellowgreen',  # Grasslands
+            11: 'aqua',  # Permanent wetlands
+            12: 'gold',  # Croplands
+            13: '#2f2f2f',  # Urban and built-up
+            14: 'lightgreen',  # Cropland/natural vegetation mosaic
+            15: 'white',  # Snow and ice
+            16: 'lightgrey'  # Barren or sparsely vegetated
         }
 
     def plotRoughness(self,plot,landcover,alpha=0.5,figsize=(28,28)):
@@ -594,11 +609,21 @@ class presentation:
         plt.show()
 
     def _plotWithRectangles(self,ax,plot,rectangles,alpha):
-        ax.imshow(plot.get_array(), extent=plot.get_extent())
+        # if inputCRS==WSG84:
+        #     extent = plot.get_extent()
+        #     lower_left_converted = convertCRS(points=[[extent[2], extent[0]]], inputCRS=WSG84, outputCRS=ITM)[0]
+        #     upper_right_converted = convertCRS(points=[[extent[3], extent[1]]], inputCRS=WSG84, outputCRS=ITM)[0]
+        #     extent = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
+        #     ax.imshow(plot.get_array(),extent=extent)
+        # else:
+        #     extent = plot.get_extent()
+        #     ax.imshow(plot.get_array(), extent=extent)
+        extent = plot.get_extent()
+        ax.imshow(plot.get_array(), extent=extent)
         ax = self._adddRectanglesToPlot(ax, rectangles,alpha)
 
-        ax.set_xlim(plot.get_extent()[0], plot.get_extent()[1])
-        ax.set_ylim(plot.get_extent()[2], plot.get_extent()[3])
+        ax.set_xlim(extent[0], extent[1])
+        ax.set_ylim(extent[2], extent[3])
 
         return ax
 

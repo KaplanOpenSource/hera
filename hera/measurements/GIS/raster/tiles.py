@@ -97,9 +97,9 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info(f"------- Start : {logger.name}")
 
-        # Usually x represents lat and y lon, but here we should do the opposite because of geopandas.
-        lat = [maxy, miny]
-        lon = [minx, maxx]
+
+        lon = [maxy, miny]
+        lat = [minx, maxx]
 
         if tileServer is None:
             tileServer = self.getConfig().get("defaultTileServer",None)
@@ -294,12 +294,13 @@ class presentation:
             plt.sca(ax)
 
 
-        lower_point = [extents[0],extents[2]]
-        upper_right  = [extents[1],extents[3]]
-        lower_left_converted = convertCRS(points=[lower_point], inputCRS=inputCRS, outputCRS=outputCRS)[0]
-        upper_right_converted = convertCRS(points=[upper_right], inputCRS=inputCRS, outputCRS=outputCRS)[0]
+        lower_left_converted = convertCRS(points=[[extents[0],extents[2]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
+        upper_right_converted = convertCRS(points=[[extents[1],extents[3]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
 
-        extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
+        if outputCRS==ITM:
+            extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
+        else:
+            extents = [lower_left_converted.y,upper_right_converted.y,lower_left_converted.x,upper_right_converted.x]
 
         ax = plt.imshow(image, extent=extents)
         return ax
