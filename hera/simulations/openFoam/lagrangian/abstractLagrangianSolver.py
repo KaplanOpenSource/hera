@@ -277,19 +277,24 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.error(err)
                 raise ValueError(err)
 
-            if len(docList) == 0:
-                logger.debug(
-                    f"Did not find dispersion field {dispersionFlowFieldName} with the requested paraeters. Checking to see if that name exists with other parameters. ")
-                docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION,
-                                                               workflowName=dispersionFlowFieldName)
-                logger.debug(f"Found {len(docList)} in the database")
-
-                if len(docList) == 0:
-                    logger.debug("Not found. Creating a new workflow")
+            if len(docList) == 0 or overwrite:
+                if len(docList) == 1:
+                    logger.info(f"Found document, but overwriting. Removing the old document from the DB")
+                    docList[0].delete()
                     doc = None
                 else:
-                    logger.debug("Found the name but with different paramters. overwrite if overwrite=True")
-                    doc = docList[0]
+                    logger.debug(
+                        f"Did not find dispersion field {dispersionFlowFieldName} with the requested paraeters. Checking to see if that name exists with other parameters. ")
+                    docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION,
+                                                                   workflowName=dispersionFlowFieldName)
+                    logger.debug(f"Found {len(docList)} in the database")
+
+                    if len(docList) == 0:
+                        logger.debug("Not found. Creating a new workflow")
+                        doc = None
+                    else:
+                        logger.debug("Found the name but with different paramters. overwrite if overwrite=True")
+                        doc = docList[0]
             else:
                 logger.debug("Found the name with the same paramters. overwrite if overwrite=True")
                 doc = docList[0]
@@ -1287,9 +1292,9 @@ class analysis:
             Xarray.dataframe
         """
         dxdydz = tonumber(dxdydz,m)
-        x_full = numpy.arange(tonumber(extents['xmin'],m), tonumber(extents['xmax'],m), dxdydz)
-        y_full = numpy.arange(tonumber(extents['ymin'],m), tonumber(extents['ymax'],m), dxdydz)
-        z_full = numpy.arange(tonumber(extents['zmin'],m), tonumber(extents['zmax'],m), dxdydz)
+        x_full = numpy.arange(tonumber(extents['xmin'],m), tonumber(extents['xmax'],m)+1, dxdydz)
+        y_full = numpy.arange(tonumber(extents['ymin'],m), tonumber(extents['ymax'],m)+1, dxdydz)
+        z_full = numpy.arange(tonumber(extents['zmin'],m), tonumber(extents['zmax'],m)+1, dxdydz)
 
         dH = dxdydz ** 3
 
@@ -1301,7 +1306,11 @@ class analysis:
                     'mass'].sum().to_xarray().squeeze().fillna(0) / dH
 
             # assign the timestep into the large mesh
-            fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
+            try:
+                fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
+            except KeyError:
+                import pdb
+                pdb.set_trace()
             fulldata.attrs['field'] = "1*kg/m**3"
 
             timeList = [timeData.time.unique()[0]]
@@ -1394,10 +1403,11 @@ class analysis:
                         err = f"Error removing the file {f}: {e.strerror}"
                         logger.error(err)
 
-                logger.info("Removing the old DB record")
+                logger.info(f"Removing the old DB record, and files in {xryDoc.resource}")
                 docList[0].delete()
-                import shutil
-                shutil.rmtree(os.path.dirname(xryDoc.resource))
+                if os.path.exists(os.path.dirname(xryDoc.resource)):
+                    import shutil
+                    shutil.rmtree(os.path.dirname(xryDoc.resource))
 
             newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
             resourcePath = os.path.join(self.datalayer.toolkit.filesDirectory,"cachedLagrangianData", f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc")

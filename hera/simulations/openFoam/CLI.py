@@ -381,7 +381,7 @@ def stochasticLagrangian_dispersion_create(arguments):
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
     doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.DOCTYPE_OF_FLOWDISPERSION)
-    if len(doc) == 0:
+    if len(doc) == 0 or arguments.overwrite:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
         if not os.path.exists(dispersionFlowFieldName):
             err = f"{dispersionFlowFieldName} not found!. "
