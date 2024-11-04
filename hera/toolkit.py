@@ -51,6 +51,8 @@ class ToolkitHome:
 
     EXPERIMENT = "experiment"
 
+    WINDPROFILE = "WindProfile"
+
     _toolkits = None
 
     def __init__(self):
@@ -74,7 +76,10 @@ class ToolkitHome:
             experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
             hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit"),
-            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
+            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
+
+            WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit")
+
         )
 
 

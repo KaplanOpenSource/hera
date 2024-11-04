@@ -1,15 +1,9 @@
 from .... import toolkit
-from ..utils import stlFactory,convertCRS,ITM,WGS84,ED50_ZONE36N
-from ....utils.logging import get_classMethod_logger
+from ..utils import ITM,WSG84,BETA,KARMAN,convertCRS
 import numpy
 import math
-from osgeo import gdal
-from pyproj import Transformer
 from itertools import product
-import pandas
-import os
 import xarray
-import geopandas
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,6 +12,8 @@ from hera import toolkitHome
 import matplotlib.colors as mcolors
 import warnings
 from tqdm import tqdm
+
+
 # Suppress specific GDAL warning
 warnings.filterwarnings("ignore", message="Starting with GDAL 3.7, PIXELTYPE=SIGNEDBYTE is no longer used to signal signed 8-bit raster.*")
 
@@ -135,7 +131,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         self._presentation = presentation(dataLayer=self)
 
 
-    def getLandCoverAtPoint(self, lon, lat, inputCRS=WGS84, dataSourceName=None):
+    def getLandCoverAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
         Get the landcover type integer value in a specific point.
 
@@ -174,23 +170,23 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         y = math.floor((lon - gt[0]) / gt[1])
         return img[x, y]
 
-    def getLandCover(self, minlon, minlat, maxlon, maxlat, dxdy = 30, inputCRS=WGS84, dataSourceName=None):
+    def getLandCover(self,minx,miny,maxx,maxy,dxdy = 30, inputCRS=WSG84, dataSourceName=None):
         """
         Get Xarray LandCover map.
 
         Parameters
         ----------
-        minlon : float
-            Minimum value of longitude coodinates.
+        minx : float
+            Minimum value of X axis. If using WSG84 - the minimum Latitude coodinates.
 
-        minlat : float
-            Minimum value of latitute coodinates.
+        miny : float
+            Minimum value of Y axis. If using WSG84 - the minimum Longitude coodinates.
 
-        maxlon: float
-            Maximum value of longitude coodinates.
+        maxx: float
+            Maximum value of X axis. If using WSG84 - the minimum Latitude coodinates.
 
-        maxlat: float
-            Maximum value of latitute coodinates.
+        maxy: float
+            Maximum value of Y axis. If using WSG84 - the minimum Longitude coodinates.
 
         dxdy: int, default=30
             Spatial resolution of the output land cover map. Defines the step size for the grid points
@@ -198,7 +194,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             Smaller values result in finer resolution.
 
         inputCRS : int , default=WSG84
-            The ESPRG of the coordinates.
+            The ESPG of the coordinates.
 
         dataSourceName : string , default=None
             The name of the data source to use.
@@ -214,17 +210,25 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
             return img[ilat, ilon]
 
-        min_pp = convertCRS(points=[[minlon, minlat]], inputCRS=WGS84, outputCRS=ITM)[0]
-        max_pp = convertCRS(points=[[maxlon, maxlat]], inputCRS=WGS84, outputCRS=ITM)[0]
+
+        if inputCRS==WSG84:
+            min_pp = convertCRS(points=[[miny, minx]], inputCRS=WSG84, outputCRS=ITM)[0]
+            max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=WSG84, outputCRS=ITM)[0]
+        else:
+            min_pp = convertCRS(points=[[minx, miny]], inputCRS=ITM, outputCRS=ITM)[0]
+            max_pp = convertCRS(points=[[maxx,maxy]], inputCRS=ITM, outputCRS=ITM)[0]
+
         x = numpy.arange(min_pp.x, max_pp.x, dxdy)
         y = numpy.arange(min_pp.y, max_pp.y, dxdy)
         xx = numpy.zeros((len(x), len(y)))
         yy = numpy.zeros((len(x), len(y)))
-        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y)]):
+        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y[::-1])]):
             print((i, j), end="\r")
-            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=inputCRS)[0]
-            xx[i, j] = newpp.x
-            yy[i, j] = newpp.y
+            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
+            lat = newpp.y           #converCRS returns the opposite for lat lon
+            lon = newpp.x           #converCRS returns the opposite for lat lon
+            xx[i, j] = lat
+            yy[i, j] = lon
 
         ds = self.getDataSourceData(dataSourceName)
         img = ds.GetRasterBand(1).ReadAsArray()
@@ -255,7 +259,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         xarray.attrs['landcover_description'] = self.getCodingMap(dataSourceName)
         return xarray
 
-    def getRoughnessAtPoint(self, lon, lat, inputCRS=WGS84, dataSourceName=None):
+    def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
         Get the roughness value of a specific point in the map.
 
@@ -282,11 +286,11 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         landcover = self.getLandCoverAtPoint(lon=lon,lat=lat,inputCRS=inputCRS,dataSourceName=dataSourceName)
 
-        handlerFunction = getattr(self, f"handleType{datasourceDocument['desc']['type']}")
+        handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
         return handlerFunction(landcover)
 
 
-    def getRoughnessFromLandcover(self,landcover,isBuilding=False,dataSourceName=None):
+    def getRoughnessFromLandcover(self,landcover,windMeteorologicalDirection=None,resolution=None,isBuilding=False,dataSourceName=None,GIS_BUILDINGS_dataSourceName=None):
         """
         Adds Roughness field (z0) to landcover Xarray.
 
@@ -327,23 +331,23 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             landcover = self._getUrbanRoughnessFromLandCover(landcover,windMeteorologicalDirection,resolution,dataSourceName,GIS_BUILDINGS_dataSourceName)
         return landcover
 
-    def getRoughness(self,minlon,minlat,maxlon,maxlat,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,windMeteorologicalDirection=None,resolution=None,GIS_BUILDINGS_dataSourceName=None):
+    def getRoughness(self,minx,miny,maxx,maxy,dxdy = 30, inputCRS=WSG84, dataSourceName=None,isBuilding=False,windMeteorologicalDirection=None,resolution=None,GIS_BUILDINGS_dataSourceName=None):
         """
         Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.
 
         Parameters
         ----------
-        minlon : float
-            Minimum value of longitude coodinates.
+        minx : float
+            Minimum value of X axis. If using WSG84 - the minimum Latitude coodinates.
 
-        minlat : float
-            Minimum value of latitute coodinates.
+        miny : float
+            Minimum value of Y axis. If using WSG84 - the minimum Longitude coodinates.
 
-        maxlon: float
-            Maximum value of longitude coodinates.
+        maxx: float
+            Maximum value of X axis. If using WSG84 - the minimum Latitude coodinates.
 
-        maxlat: float
-            Maximum value of latitute coodinates.
+        maxy: float
+            Maximum value of Y axis. If using WSG84 - the minimum Longitude coodinates.
 
         dxdy: int, default=30
             Spatial resolution of the output land cover map. Defines the step size for the grid points
@@ -369,7 +373,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         -------
             xarray.DataArray
         """
-        landcover = self.getLandCover(minlon,minlat,maxlon,maxlat,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
+        landcover = self.getLandCover(minx,miny,maxx,maxy,dxdy = dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
         landcover = self.getRoughnessFromLandcover(landcover,windMeteorologicalDirection=windMeteorologicalDirection,resolution=resolution,isBuilding=isBuilding,dataSourceName=dataSourceName,GIS_BUILDINGS_dataSourceName=GIS_BUILDINGS_dataSourceName)
         return landcover
 
@@ -454,17 +458,13 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         """
         gis_building_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS, projectName=self.projectName)
 
-        min_pp = convertCRS(points=[[float(landcover[0,0].lat.values), float(landcover[0,0].lon.values)]], inputCRS=WSG84, outputCRS=ITM)[0]
-
-        max_i, max_j = int(max(landcover.i).values) , int(max(landcover.j).values)
-        max_pp = convertCRS(points=[[float(landcover[max_i,max_j].lat.values), float(landcover[max_i,max_j].lon.values)]], inputCRS=WSG84, outputCRS=ITM)[0]
-
+        min_pp = convertCRS(points=[[float(min(landcover.lon.values.flatten())),float(min(landcover.lat.values.flatten()))]], inputCRS=WSG84, outputCRS=ITM)[0]
+        max_pp = convertCRS(points=[[float(max(landcover.lon.values.flatten())), float(max(landcover.lon.values.flatten()))]], inputCRS=WSG84, outputCRS=ITM)[0]
 
         buildings = gis_building_tk.getBuildingsFromRectangle(minx=min_pp.x,miny=min_pp.y,maxx=max_pp.x,maxy=max_pp.y,dataSourceName=GIS_BUILDINGS_dataSourceName,inputCRS=ITM)
         if len(buildings)==0:
             raise ValueError("Buildings DataFrame for specified coordinates is empty.")
         lambdaGrid = gis_building_tk.analysis.LambdaFromBuildingData(windMeteorologicalDirection, resolution, buildings)
-
         lambdaGrid.crs = ITM
         lambdaGrid = self._getRoughnessFromBuildingsDataFrame(lambdaGrid)
         square_size = float(landcover.dxdy.values)
@@ -478,7 +478,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         for i, arr in enumerate(tqdm(landcover)):
             for j, x in enumerate(arr):
-                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                shape = convertCRS([[x.lon,x.lat]], inputCRS=WSG84, outputCRS=ITM)[0]
                 lambdas = lambdaGrid.loc[shape.intersects(lambdaGrid['geometry'])]
                 if len(lambdas)==0:
                     landcover['z0'].values[i, j] = self.getLandCoverAtPoint(x.lon,x.lat,WSG84,dataSourceName)
@@ -510,16 +510,16 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         return lambdaGrid
 
 
-
+    
     def roughnesslength2sandgrainroughness(rl):
-    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏
+    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
     # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
     # eq. 5: Equivalent sand grain roughness (m) is z0*30
-
+    
     # we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
     # Cs value can be set as 0.5
-
-        return rl*30.0 # return Ks value
+    
+        return rl*30.0 # return Ks value 
 
 
 class presentation:
@@ -535,8 +535,23 @@ class presentation:
     def __init__(self, dataLayer):
         self._datalayer = dataLayer
         self.landcover_colors_map = {
-            0:'red',
-            1:'blue'
+            0: 'blue',  # Water
+            1: 'darkgreen',  # Evergreen needleleaf forest
+            2: 'forestgreen',  # Evergreen broadleaf forest
+            3: 'darkolivegreen',  # Deciduous needleleaf forest
+            4: 'olivedrab',  # Deciduous broadleaf forest
+            5: 'green',  # Mixed forests
+            6: 'saddlebrown',  # Closed shrubland
+            7: 'peru',  # Open shrublands
+            8: 'darkkhaki',  # Woody savannas
+            9: 'khaki',  # Savannas
+            10: 'yellowgreen',  # Grasslands
+            11: 'aqua',  # Permanent wetlands
+            12: 'gold',  # Croplands
+            13: '#2f2f2f',  # Urban and built-up
+            14: 'lightgreen',  # Cropland/natural vegetation mosaic
+            15: 'white',  # Snow and ice
+            16: 'lightgrey'  # Barren or sparsely vegetated
         }
 
     def plotRoughness(self,plot,landcover,alpha=0.5,figsize=(28,28)):
@@ -594,11 +609,21 @@ class presentation:
         plt.show()
 
     def _plotWithRectangles(self,ax,plot,rectangles,alpha):
-        ax.imshow(plot.get_array(), extent=plot.get_extent())
+        # if inputCRS==WSG84:
+        #     extent = plot.get_extent()
+        #     lower_left_converted = convertCRS(points=[[extent[2], extent[0]]], inputCRS=WSG84, outputCRS=ITM)[0]
+        #     upper_right_converted = convertCRS(points=[[extent[3], extent[1]]], inputCRS=WSG84, outputCRS=ITM)[0]
+        #     extent = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
+        #     ax.imshow(plot.get_array(),extent=extent)
+        # else:
+        #     extent = plot.get_extent()
+        #     ax.imshow(plot.get_array(), extent=extent)
+        extent = plot.get_extent()
+        ax.imshow(plot.get_array(), extent=extent)
         ax = self._adddRectanglesToPlot(ax, rectangles,alpha)
 
-        ax.set_xlim(plot.get_extent()[0], plot.get_extent()[1])
-        ax.set_ylim(plot.get_extent()[2], plot.get_extent()[3])
+        ax.set_xlim(extent[0], extent[1])
+        ax.set_ylim(extent[2], extent[3])
 
         return ax
 
@@ -621,7 +646,7 @@ class presentation:
         rectangles = []
         for arr in landcover:
             for x in arr:
-                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                shape = convertCRS([[x.lon,x.lat]], inputCRS=WSG84, outputCRS=ITM)[0]
                 rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values), self.landcover_colors_map.get(int(x.values))))
 
         return list(set(rectangles))
@@ -633,7 +658,7 @@ class presentation:
 
         for arr in landcover:
             for x in arr:
-                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                shape = convertCRS([[x.lon,x.lat]], inputCRS=WSG84, outputCRS=ITM)[0]
                 color = colormap(norm(x['z0'].values))
                 rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values),
                                    color))
@@ -676,7 +701,7 @@ class presentation:
 
         for arr in landcover:
             for x in arr:
-                shape = convertCRS([[x.lat, x.lon]], inputCRS=WSG84, outputCRS=ITM)[0]
+                shape = convertCRS([[x.lon,x.lat]], inputCRS=WSG84, outputCRS=ITM)[0]
                 color = colormap(norm(x[field].values))
                 rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values),
                                    color))
