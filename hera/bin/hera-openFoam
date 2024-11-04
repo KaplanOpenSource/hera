@@ -269,9 +269,9 @@ def addSolverPostProcess(subparser, solverName, incompressible):
 
 if __name__ == "__main__":
     initialize_logging(
-        with_logger("hermes", handlers=['console'], level='CRITICAL', propagate=False),
-        with_logger("hera.simulations", handlers=['console'], level='CRITICAL', propagate=False),
-        with_logger("hera", handlers=['console'], level='CRITICAL', propagate=False) #,
+        with_logger("hermes", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.simulations", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False) #,
         # with_logger("hera.utils", handlers=['console'], level='INFO', propagate=False),
     )
     logger = logging.getLogger("hera.bin.hera-openfoam")
@@ -492,15 +492,22 @@ if __name__ == "__main__":
     ## ====================================================
     ## ================== Workflows
     ## ====================================================
-    workflow_parser = subparsers.add_parser('workflow', help='Handles hermes workflows')
-    workflow_subparser = workflow_parser.add_subparsers(help='Handles hermes workflow ')
-
-    execute_parser = workflow_subparser.add_parser('buildExecute',
+    execute_parser = subparsers.add_parser('buildExecute',
                                                    help='Creates a dispersionflow, runs the dispersion and adds to DB')
     execute_parser.add_argument('workflow', type=str, help="The dispersion workflow or directory")
-    execute_parser.add_argument('--force', dest="force", action="store_true", default=False,
+    execute_parser.add_argument('--projectName', type=str, default=None, help="The project name. Do no specify fordefault project")
+    execute_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                 help='overwrite the case. Deletes the currect directory if needs to')
-    execute_parser.set_defaults(func=CLI.hermes_buildExecute)
+    execute_parser.add_argument('--noDB', dest="noDB", action="store_true", default=False,
+                                help='Ignore the database, just run the workflow. ')
+    execute_parser.add_argument('--assignName', dest="assignName", action="store_true", default=False,
+                                help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
+
+    execute_parser.add_argument('--workflowGroup', dest="workflowGroup", default=None, type=str,
+                                help='The simulation group. [Optional]. If None, try to infer from the file name  ')
+
+    execute_parser.set_defaults(execute=True)
+    execute_parser.set_defaults(func=CLI.foam_solver_template_buildExecute)
 
     parsed = parser.parse_args()
     logger.debug(f"Got {parsed} in the command line")

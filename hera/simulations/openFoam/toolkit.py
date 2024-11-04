@@ -88,6 +88,27 @@ class OFToolkit(hermesWorkflowToolkit):
         """
         return workflow_Eulerian(workflowfile)
 
+    def getMeshFromName(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
+        """
+            Returns the name from the workflow
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource : string or dict
+        The name/dict that defines the item
+
+        readParallel: bool
+                If parallel case exists, read it .
+
+        time : float
+            The time to read the mesh from. (relevant for mesh moving cases).
+
+        Returns
+        -------
+
+        """
+        doc = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        return self.getMesh(doc.getData())
+
     def getMesh(self, caseDirectory, readParallel=True, time=0):
         """
             Reads the mesh from the mesh directory.
@@ -105,6 +126,10 @@ class OFToolkit(hermesWorkflowToolkit):
 
             readParallel: bool
                     If parallel case exists, read it .
+
+            time : float
+                The time to read the mesh from. (relevant for mesh moving cases).
+
         Returns
         -------
             pandas dataframe with the points in the columns             x,y,z

@@ -396,7 +396,7 @@ def stochasticLagrangian_dispersion_create(arguments):
         logger.info(f"Dispersion {dispersionDirectoryName} exists.")
         if arguments.overwrite:
             logger.info("Got the overwrite flag: removing old directory")
-            shutil.rmtree(dispersionDirectoryName, )
+            shutil.rmtree(dispersionDirectoryName)
         else:
             err = "Dispersion flow exists. Use --overwrite to force recreation"
             raise ValueError(err)

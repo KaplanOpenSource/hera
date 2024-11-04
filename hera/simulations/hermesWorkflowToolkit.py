@@ -717,11 +717,15 @@ class hermesWorkflowToolkit(abstractToolkit):
         logger.info("--- Start ---")
 
         workflowList = []
-        for workflowName in list(Workflow):
-            if os.path.exists(workflowName):
-                workflowList.append(self.getHermesWorkflowFromJSON(workflowName,name=workflowName))
+        for workflowName in numpy.atleast_1d(Workflow):
+            simulationList = self.getWorkflowListDocumentFromDB(workflowName)
+            if len(simulationList) ==0:
+                if os.path.isfile(workflowName):
+                    workflowList.append(self.getHermesWorkflowFromJSON(workflowName,name=workflowName))
+                else:
+                    err = f"Cannog find simulations for {workflowName}"
+                    logger.error(err)
             else:
-                simulationList = self.getWorkflowListDocumentFromDB(workflowName)
                 groupworkflowList = [workflow(simulationDoc['desc']['workflow'],WD_path=self.FilesDirectory,name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
                 workflowList+=groupworkflowList
 

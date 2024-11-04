@@ -844,6 +844,34 @@ class absractStochasticLagrangianSolver_toolkitExtension:
              "parcels": parcels,
              "mass": mass})
 
+
+    def getOriginalFlowFieldMesh(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
+        """
+            Returns the mesh of the original flow field. name from the workflow
+
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource : string or dict
+        The name/dict that defines the item
+
+        readParallel: bool
+                If parallel case exists, read it .
+
+        time : float
+            The time to read the mesh from. (relevant for mesh moving cases).
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"getMeshFromLagrangianName")
+        logger.info(f"Getting the mesh for {nameOrDispersionWorkflow}")
+        logger.debug(f"Getting the original flow field")
+        originalFlowField = self.getOriginalFlowDocument(nameOrDispersionWorkflow)
+        logger.debug(f"Getting the mesh from the original flow field")
+        return self.toolkit.getMesh(originalFlowField.getData())
+
+
     def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
                        cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
         """
@@ -1052,7 +1080,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         logger = get_classMethod_logger(self,"getDispersionFlowDocument")
         if isinstance(nameOrDispersionWorkflow,str):
             wf = self.toolkit.getHermesWorkflowFromDB(nameOrDispersionWorkflow)
-            dffname = wf.originalFlowFieldName
+            dffname = wf.dispersionFlowFieldName
         elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
             dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
         else:
