@@ -11,12 +11,14 @@ from tqdm import tqdm
 import requests
 from hera.simulations.utils.interpolations import spatialInterpolate
 import os
+import matplotlib.pyplot as plt
 
 class WindProfileToolkit(toolkit.abstractToolkit):
     def __init__(self, projectName, filesDirectory=None):
         super().__init__(projectName=projectName, toolkitName='WindProfileToolkit', filesDirectory=filesDirectory)
+        self._presentation = presentation(dataLayer=self)
 
-    def getWindProfile(self, df:pd.DataFrame, xarray:xarray.DataArray, height:float, dz:float):
+    def getWindProfile(self,xarray:xarray.DataArray, height:float, dz:float):
         """
         Returns dataframe with u and v velocities in different specified heights.
 
@@ -38,6 +40,13 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         -------
             pd.DataFrame
         """
+
+        df = pd.DataFrame()
+        df['lon'] = xarray['lon'].values.flatten()
+        df['lat'] = xarray['lat'].values.flatten()
+        df['ws'] = xarray['ws'].values.flatten()
+        df['wd'] = xarray['wd'].values.flatten()
+
         results = []
         fields = xarray.coords
         for _, row in df.iterrows():
@@ -66,7 +75,6 @@ class WindProfileToolkit(toolkit.abstractToolkit):
 
                 u = U_z * np.cos(np.radians(toMathematicalAngle(wind_direction)))
                 v = U_z * np.sin(np.radians(toMathematicalAngle(wind_direction)))
-                # speed = np.sqrt(u ** 2 + v ** 2)
                 results.append({
                     'lat': lat,
                     'lon': lon,
@@ -83,25 +91,19 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         latitudes = xarray['lat'].values
         longitudes = xarray['lon'].values
 
-        # Find the index where lat=32 and lon=34
         lat_diff = np.abs(latitudes - lat)
         lon_diff = np.abs(longitudes - lon)
 
-        # Find the combined minimum distance
         total_diff = lat_diff + lon_diff
         min_index = np.unravel_index(np.argmin(total_diff), latitudes.shape)
 
-        # Extract i, j from the index
         i, j = min_index
         return i,j
 
-    def getSpatialWind(self,minlon,minlat,maxlon,maxlat,IMS_TOKEN,dxdy=30,inputCRS=WSG84,landcover_DataSource=None):
+    def getSpatialWind(self,minlat,minlon,maxlat,maxlon,IMS_TOKEN,dxdy=30,inputCRS=WSG84,landcover_DataSource=None):
         landcover_tk = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER,projectName=self.projectName)
-        xarray = landcover_tk.getLandCover(minlon, minlat, maxlon, maxlat, dxdy,inputCRS=inputCRS,dataSourceName=landcover_DataSource)
+        xarray = landcover_tk.getLandCover(minlat,minlon,maxlat,maxlon, dxdy,inputCRS=inputCRS,dataSourceName=landcover_DataSource)
         xarray = landcover_tk.getRoughnessFromLandcover(xarray,dxdy)       #For now is simple - only with dictionary
-        # stations = self._getStationsInRegion(minlon,minlat,maxlon,maxlat,inputCRS=inputCRS)
-        # if len(stations)==0:
-        #     raise ValueError(f"No Stations in Specified Region.")
         with open(f'{os.path.dirname(os.path.abspath(__file__))}/wind_stations.json', 'r') as json_file:
             wind_stations = json.load(json_file)
         stations = [station for station in wind_stations]
@@ -167,6 +169,42 @@ class WindProfileToolkit(toolkit.abstractToolkit):
 
 
     def _interpolate_wd_ws(self,lon,lat,stations_with_data):
-        result = spatialInterpolate().interp([lon, lat, 10.0], stations_with_data)
+        result = spatialInterpolate().interp([lat, lon, 10.0], stations_with_data)
         ws, wd = result[0], result[1]
         return float(ws), float(wd)
+
+class presentation:
+    """
+    Presentation Layer of WindProfile1D toolkit.
+    """
+    _datalayer = None
+
+    @property
+    def datalayer(self):
+        return self._datalayer
+
+    def __init__(self, dataLayer):
+        self._datalayer = dataLayer
+
+    def plotWindDirections(self,plot,landcover,figsize=(28,28),color='black',arrow_length=10,width=10,head_width=50,head_length=70,show_photo=True):
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.imshow(np.array(plot.get_array()), extent=plot.get_extent(), origin='upper')
+        for lat, lon, wd in zip(landcover.lat.values.flatten(),
+                                landcover.lon.values.flatten(),
+                                landcover.wd.values.flatten()):
+            itm_pp = convertCRS([[lon, lat]], inputCRS=WSG84, outputCRS=ITM)[0]
+            arrow_x_index, arrow_y_index = itm_pp.x, itm_pp.y
+            arrow_direction = (wd + 180) % 360
+            arrow_dx = np.cos(np.radians(arrow_direction)) * arrow_length
+            arrow_dy = np.sin(np.radians(arrow_direction)) * arrow_length
+            ax.arrow(arrow_x_index, arrow_y_index, arrow_dx * arrow_length, arrow_dy * arrow_length,
+                     width=width, head_width=head_width, head_length=head_length, fc=color, ec=color)
+
+        ax.set_xlim(plot.get_extent()[0], plot.get_extent()[1])
+        ax.set_ylim(plot.get_extent()[2], plot.get_extent()[3])
+
+        if show_photo:
+            plt.show()
+        else:
+            plt.close(fig)
+            return fig
