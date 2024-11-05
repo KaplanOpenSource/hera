@@ -12,7 +12,7 @@ from hera import toolkitHome
 import matplotlib.colors as mcolors
 import warnings
 from tqdm import tqdm
-
+import matplotlib.cm as cm
 
 # Suppress specific GDAL warning
 warnings.filterwarnings("ignore", message="Starting with GDAL 3.7, PIXELTYPE=SIGNEDBYTE is no longer used to signal signed 8-bit raster.*")
@@ -578,6 +578,14 @@ class presentation:
         fig, ax = plt.subplots(figsize=figsize)
         rectangles = self._getRoughnessRectangles(landcover)
         self._plotWithRectangles(ax, plot, rectangles, alpha)
+
+        colormap = plt.cm.viridis
+        norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
+
+        # Add color bar to the right of the plot
+        cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=colormap), ax=ax, orientation='vertical')
+        cbar.set_label("Roughness Value (z0)", fontsize=12)  # Label for color bar
+
         plt.show()
 
 
@@ -606,6 +614,9 @@ class presentation:
         fig, ax = plt.subplots(figsize=figsize)
         rectangles = self._getLandcoverRectangles(landcover)
         self._plotWithRectangles(ax,plot,rectangles,alpha)
+
+
+
         plt.show()
 
     def _plotWithRectangles(self,ax,plot,rectangles,alpha):
@@ -692,6 +703,14 @@ class presentation:
         fig, ax = plt.subplots(figsize=figsize)
         rectangles = self._getLambdasRectangles(field,landcover)
         self._plotWithRectangles(ax, plot, rectangles, alpha)
+
+        colormap = plt.cm.viridis
+        norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
+
+        # Add color bar to the right of the plot
+        cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=colormap), ax=ax, orientation='vertical')
+        cbar.set_label(f"{field} Value", fontsize=12)  # Label for color bar
+
         plt.show()
 
     def _getLambdasRectangles(self,field,landcover):
