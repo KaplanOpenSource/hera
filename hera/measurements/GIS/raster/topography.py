@@ -16,6 +16,10 @@ import pandas
 import os
 import xarray
 import geopandas
+import numpy as np
+from hera import toolkitHome
+
+
 
 class TopographyToolkit(toolkit.abstractToolkit):
 
@@ -104,7 +108,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return elevation
 
-    def getPointListElevation(self, pointList, dataSourceName=None, inputCRS=WGS84):
+    def getPointListElevation(self, pointList, dataSourceName=None, inputCRS=WSG84):
         """
             Return the elevation of the point list.
 
@@ -182,76 +186,87 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 pointList.loc[itemindx,'elevation'] = elevation
                 processed += grp.shape[0]
         return pointList
+    #
+    # def getDomainElevation(self, xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WSG84, outputCRS=ITM, dataSourceName=None):
+    #     """
+    #         Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.
+    #
+    #         Assumes the coordinates are given in the input CRS, and outputted in the output CRS.
+    #
+    #         Note, that in order to get 30m resultion, we convert the coordinates to ITM and then convert them back to
+    #         WSG84. This will work well in IL.
+    #
+    #     Parameters
+    #     ----------
+    #     lowerleft_point : float
+    #             The lower left corner
+    #     upperright_point: float
+    #             The upper right corner
+    #
+    #     dxdy : float
+    #             The resolution in m (default m).
+    #     inputCRS : The ESPG code of the input projection.
+    #
+    #     outputCRS : The ESPG code of the output projection.
+    #                 [Default ITM]
+    #     Returns
+    #     -------
+    #         xarrat with the fields
+    #         - X : X[i,j] - the x coordinate
+    #         - Y:  Y[i,j] - the y coordinate
+    #         - Height: Height[i,j] - the height of the surface at point  (X[i,j],Y[i,j])
+    #     """
+    #     logger = get_classMethod_logger(self,"getDomainElevation")
+    #
+    #     logger.info("Converting input coordinates to ITM (to have meters)")
+    #     itm_points = convertCRS([[xmin, ymin], [xmax, ymax]], inputCRS=inputCRS, outputCRS=ITM)
+    #     logger.debug(f"... Got {itm_points}")
+    #     logger.info("Getting the coordinates")
+    #     itm_lowerleft, itm_upperright = itm_points
+    #
+    #     itm_gridx = numpy.arange(itm_lowerleft.x,itm_upperright.x,dxdy)
+    #     itm_gridy = numpy.arange(itm_lowerleft.y,itm_upperright.y,dxdy)
+    #
+    #     logger.info("Converting the coordinates to WSG84 for SRTM data")
+    #     wsg_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=WSG84)
+    #
+    #     logger.info("Getting output coords")
+    #     if outputCRS != ITM:
+    #         output_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=outputCRS)
+    #     else:
+    #         XX,YY = zip(*[x for x in product(itm_gridx,itm_gridy)])
+    #         output_coords = geopandas.points_from_xy(XX,YY)
+    #
+    #     grid_x = numpy.zeros([len(itm_gridx), len(itm_gridy)])
+    #     grid_y = numpy.zeros_like(grid_x)
+    #     grid_z = numpy.zeros_like(grid_x)
+    #
+    #     pointList = pandas.DataFrame([dict(lon=pnt.x,lat=pnt.y,lon_output=pnt_output.x,lat_output=pnt_output.y) for pnt,pnt_output in zip(wsg_coords,output_coords)])
+    #     pointHeights = self.getPointListElevation(pointList) #.set_index(["lon","lat"])
+    #
+    #     logger.info("Converting the output to the desired coordinates.")
+    #     grid_y = pointHeights['lat_output'].values.reshape(len(itm_gridx), len(itm_gridy))
+    #     grid_x = pointHeights['lon_output'].values.reshape(len(itm_gridx), len(itm_gridy))
+    #     grid_z = pointHeights['elevation'].values.reshape(len(itm_gridx), len(itm_gridy))
+    #
+    #     retArray =  xarray.Dataset(data_vars=dict(X=(["i","j"],grid_x),
+    #                                               Y=(["i","j"],grid_y),
+    #                                               Elevation=(["i", "j"], grid_z)),coords=dict(i=("i",numpy.arange(grid_y.shape[0])),j=("j",numpy.arange(grid_y.shape[1]) )))
+    #
+    #     return retArray
 
-    def getDomainElevation(self, xmin, ymin, xmax, ymax, dxdy = 30, inputCRS=WGS84, outputCRS=ITM, dataSourceName=None):
-        """
-            Returns the eleveation between the lowerleft point and the upper right points, at the requested resolution.
+    def getElevation(self,minx,miny,maxx,maxy,dxdy = 30, inputCRS=WSG84, dataSourceName=None, LandcoverDataSource=None):
+        landcover_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_LANDCOVER, projectName=self.projectName)
+        xarray = landcover_tk.getLandCover(minx,miny,maxx,maxy,dxdy,inputCRS,LandcoverDataSource)
+        xarray = self.getElevationFromLandcover(xarray,dataSourceName)
+        return xarray
 
-            Assumes the coordinates are given in the input CRS, and outputted in the output CRS.
+    def getElevationFromLandcover(self,xarray,dataSourceName=None):
+        elevation_values = np.vectorize(self.getPointElevation)(xarray['lat'], xarray['lon'],dataSourceName)
+        xarray = xarray.assign_coords(elevation=(['i', 'j'], elevation_values))
+        return xarray
 
-            Note, that in order to get 30m resultion, we convert the coordinates to ITM and then convert them back to
-            WSG84. This will work well in IL.
-
-        Parameters
-        ----------
-        lowerleft_point : float
-                The lower left corner
-        upperright_point: float
-                The upper right corner
-
-        dxdy : float
-                The resolution in m (default m).
-        inputCRS : The ESPG code of the input projection.
-
-        outputCRS : The ESPG code of the output projection.
-                    [Default ITM]
-        Returns
-        -------
-            xarrat with the fields
-            - X : X[i,j] - the x coordinate
-            - Y:  Y[i,j] - the y coordinate
-            - Height: Height[i,j] - the height of the surface at point  (X[i,j],Y[i,j])
-        """
-        logger = get_classMethod_logger(self,"getDomainElevation")
-
-        logger.info("Converting input coordinates to ITM (to have meters)")
-        itm_points = convertCRS([[xmin, ymin], [xmax, ymax]], inputCRS=inputCRS, outputCRS=ITM)
-        logger.debug(f"... Got {itm_points}")
-        logger.info("Getting the coordinates")
-        itm_lowerleft, itm_upperright = itm_points
-
-        itm_gridx = numpy.arange(itm_lowerleft.x,itm_upperright.x,dxdy)
-        itm_gridy = numpy.arange(itm_lowerleft.y,itm_upperright.y,dxdy)
-
-        logger.info("Converting the coordinates to WSG84 for SRTM data")
-        wsg_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=WGS84)
-
-        logger.info("Getting output coords")
-        if outputCRS != ITM:
-            output_coords = convertCRS([x for x in product(itm_gridx,itm_gridy)], inputCRS=ITM, outputCRS=outputCRS)
-        else:
-            XX,YY = zip(*[x for x in product(itm_gridx,itm_gridy)])
-            output_coords = geopandas.points_from_xy(XX,YY)
-
-        grid_x = numpy.zeros([len(itm_gridx), len(itm_gridy)])
-        grid_y = numpy.zeros_like(grid_x)
-        grid_z = numpy.zeros_like(grid_x)
-
-        pointList = pandas.DataFrame([dict(lon=pnt.x,lat=pnt.y,lon_output=pnt_output.x,lat_output=pnt_output.y) for pnt,pnt_output in zip(wsg_coords,output_coords)])
-        pointHeights = self.getPointListElevation(pointList) #.set_index(["lon","lat"])
-
-        logger.info("Converting the output to the desired coordinates.")
-        grid_y = pointHeights['lat_output'].values.reshape(len(itm_gridx), len(itm_gridy))
-        grid_x = pointHeights['lon_output'].values.reshape(len(itm_gridx), len(itm_gridy))
-        grid_z = pointHeights['elevation'].values.reshape(len(itm_gridx), len(itm_gridy))
-
-        retArray =  xarray.Dataset(data_vars=dict(X=(["i","j"],grid_x),
-                                                  Y=(["i","j"],grid_y),
-                                                  Elevation=(["i", "j"], grid_z)),coords=dict(i=("i",numpy.arange(grid_y.shape[0])),j=("j",numpy.arange(grid_y.shape[1]) )))
-
-        return retArray
-
-    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30, inputCRS=WGS84, outputCRS=ITM, dataSourceName=None, solidName="Topography"):
+    def getDomainElevation_STL(self, minx, miny, maxx, maxy, dxdy = 30,shiftx=0,shifty=0,inputCRS=WSG84, outputCRS=ITM, dataSourceName=None, solidName="Topography"):
         """
             Return the STL string from xarray dataset with the following fields:
         Parameters
@@ -276,8 +291,11 @@ class TopographyToolkit(toolkit.abstractToolkit):
         -------
 
         """
-        elevation = self.getDomainElevation(xmin=minx, xmax=maxx, ymax=maxy, ymin=miny, dxdy=dxdy, inputCRS=inputCRS, outputCRS=outputCRS, dataSourceName=dataSourceName)
-        stlstr = stlFactory().rasterToSTL(elevation['X'].values - shiftx, elevation['Y'].values - shifty , elevation['Elevation'].values,solidName=solidName)
+        # elevation = self.getDomainElevation(xmin=minx, xmax=maxx, ymax=maxy, ymin=miny, dxdy=dxdy, inputCRS=inputCRS, outputCRS=outputCRS, dataSourceName=dataSourceName)
+        # stlstr = stlFactory().rasterToSTL(elevation['X'].values - shiftx, elevation['Y'].values - shifty , elevation['Elevation'].values,solidName=solidName)
+
+        elevation = self.getElevation(minx=minx,miny=miny, maxx=maxx, maxy=maxy, dxdy=dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
+        stlstr = stlFactory().rasterToSTL(elevation['lat'].values - shiftx, elevation['lon'].values - shifty , elevation['elevation'].values,solidName=solidName)
         return stlstr
 
     # def setDomainElevation(point1, point2, outputfile, amplitude=100., cosx=0., cosy=0., projectName = "default"):
