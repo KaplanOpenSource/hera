@@ -81,17 +81,17 @@ def topography_raster_toSTL(arguments):
 
     dxdy = arguments.dxdy if "dxdy" in arguments else 30
     inputCRS = WSG84 if arguments.inputCRS is None else arguments.inputCRS
-    outputCRS = ITM if arguments.outputCRS is None else arguments.outputCRS
+    # outputCRS = ITM if arguments.outputCRS is None else arguments.outputCRS
     dataSourceName = None if arguments.dataSourceName is None else arguments.dataSourceName
-
-    stlString = tk.getDomainElevation_STL(minx=arguments.minx,
-                                          miny=arguments.miny,
-                                          maxx=arguments.maxx,
-                                          maxy=arguments.maxy,
-                                          dxdy=dxdy,
-                                          inputCRS=inputCRS,
-                                          outputCRS=outputCRS,
-                                          dataSourceName=dataSourceName)
+    solidName = "Topography" if arguments.solidName is None else arguments.solidName
+    stlString = tk.createElevationSTL(minx=arguments.minx,
+                                      miny=arguments.miny,
+                                      maxx=arguments.maxx,
+                                      maxy=arguments.maxy,
+                                      dxdy=dxdy,
+                                      inputCRS=inputCRS,
+                                      dataSourceName=dataSourceName,
+                                      solidName=solidName)
     fileName = arguments.fileName
     if '.stl' not in fileName:
         fileName = f"{fileName}.stl"
