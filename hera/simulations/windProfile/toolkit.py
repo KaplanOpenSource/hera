@@ -158,7 +158,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def add_interpolated_ws_wd(self,xarray,stations):
         ws_wd = xr.apply_ufunc(
             self._interpolate_wd_ws,
-            xarray['lon'], xarray['lat'],
+            xarray['lon'], xarray['lat'],xarray['elevation'],
             vectorize=True,
             kwargs={'stations_with_data': stations},
             output_core_dims=[[], []],
@@ -168,8 +168,8 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         return xarray
 
 
-    def _interpolate_wd_ws(self,lon,lat,stations_with_data):
-        result = spatialInterpolate().interp([lat, lon, 10.0], stations_with_data)
+    def _interpolate_wd_ws(self,lon,lat,elevation,stations_with_data):
+        result = spatialInterpolate().interp([lat, lon, elevation + 10.0], stations_with_data)
         ws, wd = result[0], result[1]
         return float(ws), float(wd)
 
