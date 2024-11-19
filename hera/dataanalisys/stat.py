@@ -5,7 +5,7 @@ def stat(a,b, kind='rmse', nantozero=True, verbose=None):
     # calculating the score of comparing two 1D vectors
     # kind can be: rmse, mae, bias, r2, r, nmse, fb
     # nantozero, if True, convert nan values to 0, 
-                 if False, comparing the lists without the nans, if the length is not the same, use only the first ones.
+    #            if False, comparing the lists without the nans, if the length is not the same, use only the first ones.
 
     # return np.sqrt(np.mean((predictions-targets)**2))
     # np.corrcoef(db[i][sel], db[-1][sel])[1, 0]
