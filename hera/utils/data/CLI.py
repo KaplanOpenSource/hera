@@ -219,20 +219,46 @@ def repository_load(arguments):
 def display_datasource_versions(arguments):
     proj = Project(projectName=arguments.projectName)
     datasources = []
-    for document in proj.getMeasurementsDocumentsAsDict()['documents']:
-        try:
-            d = {}
-            d['toolkit'] = document['desc']['toolkit']
-            d['datasourceName'] = document['desc']['datasourceName']
-            d['version'] = document['desc']['version']
-            if d not in datasources:
+
+    if not arguments.default:
+        for document in proj.getMeasurementsDocumentsAsDict()['documents']:
+            try:
+                d = {}
+                d['toolkit'] = document['desc']['toolkit']
+                d['datasourceName'] = document['desc']['datasourceName']
+                d['version'] = document['desc']['version']
+
                 if arguments.datasource:
                     if arguments.datasource==d['datasourceName']:
                         datasources.append(d)
                 else:
                     datasources.append(d)
-        except:
-            pass
+            except:
+                pass
+    else:
+        config = proj.getConfig()
+        for document in proj.getMeasurementsDocumentsAsDict()['documents']:
+            try:
+                d = {}
+                d['toolkit'] = document['desc']['toolkit']
+                d['datasourceName'] = document['desc']['datasourceName']
+
+                if arguments.datasource:
+                    if arguments.datasource==d['datasourceName']:
+                        default_version = config.get(f"{arguments.datasource}_defaultVersion")
+                    else:
+                        default_version = None
+                else:
+                    default_version = config.get(f"{d['datasourceName']}_defaultVersion")
+
+                if default_version:
+                    d['DEFAULT_VERSION'] = default_version
+                    datasources.append(d)
+
+
+
+            except:
+                pass
 
     if len(datasources)!=0:
         headers = datasources[0].keys()

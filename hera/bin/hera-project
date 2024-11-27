@@ -89,6 +89,7 @@ if __name__=="__main__":
     parser_display = version_subparsers.add_parser('display', help='Display version information')
     parser_display.add_argument('projectName', type=str, help='Project Name.')
     parser_display.add_argument('--datasource', type=str, help='The name of the datasource. If not provided, will show all datasources')
+    parser_display.add_argument('--default', dest="default", default=False , help='If to show Default Versions only.')
     parser_display.set_defaults(func=CLI.display_datasource_versions)
 
     # Update
