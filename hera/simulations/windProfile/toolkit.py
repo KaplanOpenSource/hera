@@ -3,7 +3,7 @@ import xarray as xr
 import pandas as pd
 import xarray
 import numpy as np
-from hera.utils.angle import toMathematicalAngle
+from hera.utils.angle import toMathematicalAngle,toMeteorologicalAngle
 from hera.utils import BETA,KARMAN,convertCRS,ITM,WSG84
 from hera import toolkitHome
 import json
@@ -143,7 +143,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     break
                 except:
                     trials += 1
-                    print(f"Trial {trials} for Station {station_id}")
+                    print(f"Trial {trials} for Station {station_id}",end="\r")
             if data:
                 for channel in data['data'][0]['channels']:
                     if channel['name'] == 'WS':
@@ -194,9 +194,9 @@ class presentation:
                                 landcover.wd.values.flatten()):
             itm_pp = convertCRS([[lon, lat]], inputCRS=WSG84, outputCRS=ITM)[0]
             arrow_x_index, arrow_y_index = itm_pp.x, itm_pp.y
-            arrow_direction = (wd + 180) % 360
-            arrow_dx = np.cos(np.radians(arrow_direction)) * arrow_length
-            arrow_dy = np.sin(np.radians(arrow_direction)) * arrow_length
+            arrow_direction = toMeteorologicalAngle(wd)
+            arrow_dx = np.cos(arrow_direction) * arrow_length
+            arrow_dy = np.sin(arrow_direction) * arrow_length
             ax.arrow(arrow_x_index, arrow_y_index, arrow_dx * arrow_length, arrow_dy * arrow_length,
                      width=width, head_width=head_width, head_length=head_length, fc=color, ec=color)
 

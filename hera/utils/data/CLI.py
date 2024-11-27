@@ -8,6 +8,7 @@ from ...datalayer import All as datalayer_All
 from .. import loadJSON
 from .toolkit import dataToolkit
 import pandas
+from tabulate import tabulate
 
 def project_list(arguments):
     """
@@ -214,6 +215,40 @@ def repository_load(arguments):
                                                     repositoryJSON=repositoryJSON,
                                                     basedir=os.path.dirname(os.path.abspath(arguments.repositoryName)),
                                                     overwrite=arguments.overwrite)
+
+def display_datasource_versions(arguments):
+    proj = Project(projectName=arguments.projectName)
+    datasources = []
+    for document in proj.getMeasurementsDocumentsAsDict()['documents']:
+        try:
+            d = {}
+            d['toolkit'] = document['desc']['toolkit']
+            d['datasourceName'] = document['desc']['datasourceName']
+            d['version'] = document['desc']['version']
+            if d not in datasources:
+                if arguments.datasource:
+                    if arguments.datasource==d['datasourceName']:
+                        datasources.append(d)
+                else:
+                    datasources.append(d)
+        except:
+            pass
+
+    if len(datasources)!=0:
+        headers = datasources[0].keys()
+        rows = [d.values() for d in datasources]
+        print(tabulate(rows, headers=headers, tablefmt="grid"))
+    else:
+        if not arguments.datasource:
+            print(f"No data to display. Are you sure project {arguments.projectName} exists?")
+        else:
+            print(f"No data to display. Are you sure datasource {arguments.datasource} and project {arguments.projectName} exists?")
+
+def update_datasource_default_version(arguments):
+    logger = logging.getLogger("hera.bin.update_datasource_version")
+    arguments.version = tuple(int(item.strip()) for item in arguments.version.split(','))
+    proj = Project(projectName=arguments.projectName)
+    proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource,version=arguments.version)
 
 def update(arguments):
     logger = logging.getLogger("hera.bin.update")

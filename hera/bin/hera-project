@@ -81,6 +81,23 @@ if __name__=="__main__":
                                  help='overwrite the existing projcet with the repository')
     repository_update.set_defaults(func=CLI.update)
 
+    # ----------------- Versions
+    parser_version = project_subparsers.add_parser('version', help='Manage project datasources versions')
+    version_subparsers = parser_version.add_subparsers(help='Version management')
+
+    # Display
+    parser_display = version_subparsers.add_parser('display', help='Display version information')
+    parser_display.add_argument('projectName', type=str, help='Project Name.')
+    parser_display.add_argument('--datasource', type=str, help='The name of the datasource. If not provided, will show all datasources')
+    parser_display.set_defaults(func=CLI.display_datasource_versions)
+
+    # Update
+    version_update = version_subparsers.add_parser('update', help='Update datasource version.')
+    version_update.add_argument('projectName',type=str,help='Project Name.')
+    version_update.add_argument('datasource',type=str,help='Datasource Name.')
+    version_update.add_argument('version',type=str,help='Version in Fromat "d,d,d". For example "0,0,1".')
+    version_update.set_defaults(func=CLI.update_datasource_default_version)
+
     # ----------------- Repository
     repository_parser = subparsers.add_parser('repository', help='handling repositories')
     repository_subparsers = repository_parser.add_subparsers(help='sub-command help')
