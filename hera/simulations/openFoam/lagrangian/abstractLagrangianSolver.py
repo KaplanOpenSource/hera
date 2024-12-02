@@ -1480,19 +1480,20 @@ class analysis:
             logger.info("Filling in all the empty timesteps to make sure that there are enough timesteps for moving window")
             partitionID += 1
             L = []
-            logger.debug(f"Writitng the empty field as partition {partitionID}")
+            logger.debug(f"Writing the empty field as partition {partitionID}")
             for timeName in range(int(timeName),workflow.dispersionDuration):
-                    logger.debug(f"Processing Epty Time: {timeName}")
+                    logger.debug(f"Processing Empty Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
                                                                  xfield=xfield,
                                                                  yfield=yfield, zfield=zfield)
                     L.append(xry)
 
-            logger.info("Creating the xarray")
-            pxry = xarray.concat(L, dim="time")
-            outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
-            logger.info(f"Writing the partition to file {outFile_Final}")
-            pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "time").to_dataset(name="C").to_netcdf(outFile_Final)
+            logger.info(f"Find {len(L)} empty time steps. Creating their xarray")
+            if len(L) > 0:
+                pxry = xarray.concat(L, dim="time")
+                outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
+                logger.info(f"Writing the partition to file {outFile_Final}")
+                pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "time").to_dataset(name="C").to_netcdf(outFile_Final)
         else:
             xryDoc = docList[0]
 
