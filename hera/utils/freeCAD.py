@@ -29,12 +29,12 @@ def getObjFileBoundaries(fileName):
     objFile = FreeCAD.getDocument("Unnamed")
 
     bboxes = [x.Mesh.BoundBox for x in objFile.findObjects()]
-    nameMapping = dict(XMax = 'maxx',
-                       YMax = 'maxy',
-                       ZMax = 'maxz',
-                       XMin='minx',
-                       YMin='miny',
-                       ZMin='minz')
+    nameMapping = dict(XMax = 'XMax',
+                       YMax = 'YMax',
+                       ZMax = 'ZMax',
+                       XMin='XMin',
+                       YMin='YMin',
+                       ZMin='ZMin')
 
     maxPropList = ['XMax', 'YMax', 'ZMax']
     corners = dict()
