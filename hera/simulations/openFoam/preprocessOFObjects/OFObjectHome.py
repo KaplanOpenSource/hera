@@ -84,6 +84,17 @@ class OFObjectHome:
                 "fieldType":"scalar",
                 "fieldComputation":"eulerian"
             },
+            "alphat" : { 
+                "dimensions" : {
+                    "default" : {
+                        "kg" : 1,
+                        "m" :-1, 
+                        "s" :-1
+                    }
+                }, 
+                "fieldType":"scalar",
+                "fieldComputation":"eulerian"
+            },
             "nut" : { 
                 "dimensions" : {
                     "default" : {
