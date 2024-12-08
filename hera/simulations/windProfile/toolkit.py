@@ -137,13 +137,14 @@ class WindProfileToolkit(toolkit.abstractToolkit):
             data = None
             while (trials < 20):
                 try:
-                    url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/daily'
+                    url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/latest'
                     response = requests.request('GET', url, headers=headers)
                     data = json.loads(response.text.encode('utf8'))
+                    print(data['data'][0]['datetime'])
                     break
                 except:
                     trials += 1
-                    print(f"Trial {trials} for Station {station_id}")
+                    # print(f"Trial {trials} for Station {station_id}")
             if data:
                 for channel in data['data'][0]['channels']:
                     if channel['name'] == 'WS':
@@ -151,7 +152,8 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     if channel['name'] == 'WD':
                         wd = channel['value']
 
-                stations_with_data.append([lat, lon, height, [ws, wd]])
+                if abs(ws) < 20 and abs(wd) <= 360:
+                    stations_with_data.append([lat, lon, height, [ws, wd]])
 
         return stations_with_data
 
