@@ -12,6 +12,7 @@ import requests
 from hera.simulations.utils.interpolations import spatialInterpolate
 import os
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 
 class WindProfileToolkit(toolkit.abstractToolkit):
     def __init__(self, projectName, filesDirectory=None):
@@ -128,6 +129,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def _getWindSpeedDirection(self,stations,IMS_TOKEN):
         stations_with_data = []
         headers = {'Authorization': IMS_TOKEN['Authorization']}
+        stations_datetimes = []
         for station_dict in tqdm(stations):
             lat = station_dict['attributes'][2]['value']['latitude']
             lon = station_dict['attributes'][2]['value']['longitude']
@@ -135,12 +137,14 @@ class WindProfileToolkit(toolkit.abstractToolkit):
             height = station_dict['height_above_sea']
             trials = 0
             data = None
+            datetime_str = None
             while (trials < 20):
                 try:
                     url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/latest'
                     response = requests.request('GET', url, headers=headers)
                     data = json.loads(response.text.encode('utf8'))
-                    print(data['data'][0]['datetime'])
+                    datetime_str = data['data'][0]['datetime']
+                    print(f"{data['data'][0]['datetime']}, station: {station_dict['name']}")
                     break
                 except:
                     trials += 1
@@ -154,8 +158,16 @@ class WindProfileToolkit(toolkit.abstractToolkit):
 
                 if abs(ws) < 20 and abs(wd) <= 360:
                     stations_with_data.append([lat, lon, height, [ws, wd]])
+                    stations_datetimes.append(datetime_str)
 
-        return stations_with_data
+        datetime_objects = [datetime.fromisoformat(dt) for dt in stations_datetimes]
+        max_datetime = max(datetime_objects)
+        threshold = timedelta(minutes=15)
+        filtered_stations = [
+            stations_with_data[i] for i, dt in enumerate(datetime_objects) if (max_datetime - dt) < threshold
+        ]
+
+        return filtered_stations
 
     def add_interpolated_ws_wd(self,xarray,stations):
         ws_wd = xr.apply_ufunc(
@@ -196,7 +208,7 @@ class presentation:
                                 landcover.wd.values.flatten()):
             itm_pp = convertCRS([[lon, lat]], inputCRS=WSG84, outputCRS=ITM)[0]
             arrow_x_index, arrow_y_index = itm_pp.x, itm_pp.y
-            arrow_direction = (wd + 180) % 360
+            arrow_direction = wd
             arrow_dx = np.cos(np.radians(arrow_direction)) * arrow_length
             arrow_dy = np.sin(np.radians(arrow_direction)) * arrow_length
             ax.arrow(arrow_x_index, arrow_y_index, arrow_dx * arrow_length, arrow_dy * arrow_length,
