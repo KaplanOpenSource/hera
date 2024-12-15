@@ -30,10 +30,14 @@ class ASCIIParser:
            Dictionary where Key is Device ID and value is dataframe for the corresponding device.
         """
 
-        cols,number_of_devices = self.get_columns(path)                                                                 ## Read metadata for detecting Raw Sonic or TCT and Number of Devices
+        cols,number_of_devices,include_metadata = self.get_columns(path)                                                                 ## Read metadata for detecting Raw Sonic or TCT and Number of Devices
         dfs = {}
-        allDevices = pd.read_csv(path)                                                                                  ## Read all csv
-        allDevices = allDevices.rename(columns=allDevices.iloc[0])[3:].reset_index(drop=True)                           ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
+        allDevices = pd.read_csv(path)
+
+        if include_metadata:
+            allDevices = allDevices.rename(columns=allDevices.iloc[0])[3:].reset_index(drop=True)                           ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
+        else:
+            allDevices.columns = ['TIMESTAMP','RECORD'] + [f"{x}_{i+1}" for i in range(number_of_devices) for x in cols]
 
         if fromTime or toTime:                                                                                          ##Handle from time and to time
             allDevices = self.fromTime_toTime_handler(allDevices,fromTime,toTime)
@@ -69,17 +73,29 @@ class ASCIIParser:
            - ['TC_T', 'TRH', 'RH'] for TCT
 
         """
-
+        include_metadata = True
         with open(path) as meta_data:
             meta_data_reader = csv.reader(meta_data)
-            device_type = next(meta_data_reader)[-1]
-            if device_type=="Raw_Sonic":
+            device_type = next(meta_data_reader)
+            if device_type[-1]=="Raw_Sonic":
                 cols = ['U','V','W','T']
-            else:
+                number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
+            elif device_type[-1]=="Tct_Trh":
                 cols = ['TC_T', 'TRH', 'RH']
-            number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
+                number_of_devices = len([word for word in next(meta_data_reader) if word.startswith(cols[0])])
+            else:                                       ##No metadata in file
+                include_metadata = False
+                if 'Raw_Sonic' in path:
+                    cols = ['U', 'V', 'W', 'T']
+                elif 'Tct_Trh' in path:
+                    cols = ['TC_T', 'TRH', 'RH']
+                else:
+                    raise ValueError("No Device could be detected by given file. File should include metadata or device name in file name.")
 
-            return cols,number_of_devices
+                number_of_devices = int(len(device_type[2:])/4)
+
+
+            return cols,number_of_devices,include_metadata
 
     def getPandasFromDir(self,path, fromTime, toTime):
         """

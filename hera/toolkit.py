@@ -341,6 +341,13 @@ class abstractToolkit(Project):
             filters[TOOLKIT_DATASOURCE_NAME] = datasourceName
         if version is not None:
             filters[TOOLKIT_DATASOURCE_VERSION] = version
+        else:
+            try:
+                defaultVersion = self.getConfig()[f"{datasourceName}_defaultVersion"]
+                filters[TOOLKIT_DATASOURCE_VERSION] = defaultVersion
+            except:
+                pass
+
 
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
 

@@ -4,7 +4,7 @@ import pandas
 from .datahandler import datatypes
 from ..utils.logging import get_classMethod_logger
 from ..utils import loadJSON
-
+from .. import toolkit
 from .collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
@@ -677,3 +677,12 @@ class Project:
             list.
         """
         return list(set(AbstractCollection(connectionName=user).getProjectList()))
+
+
+    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
+        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
+                                                                            "version": version}))==0:
+            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
+
+        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
+        print(f"{version} for dataSource {datasourceName} is now set to default.")

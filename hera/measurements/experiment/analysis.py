@@ -1,5 +1,4 @@
 import pandas
-from argos.manager import  DEPLOY, DESIGN
 from hera.datalayer import datatypes
 
 class experimentAnalysis:
@@ -17,7 +16,7 @@ class experimentAnalysis:
     def __init__(self,datalayer):
         self._datalayer = datalayer
 
-    def getDeviceLocations(self,entityTypeName,trialName,trialSetName=None,trialState=DEPLOY):
+    def getDeviceLocations(self,entityTypeName,trialName,trialSetName=None):
         """
         Returns a pandas with the device locations.
 
@@ -32,8 +31,6 @@ class experimentAnalysis:
         trialSetName: str
                 The trial set name.
 
-        trialState: str
-            DEPLOY or DESIGN.
 
         Returns
         -------
@@ -42,7 +39,7 @@ class experimentAnalysis:
         trialSetName = self.datalayer.defaultTrialSet if trialSetName is None else trialSetName
         if trialSetName is None:
             raise ValueError("trialSetName is None. Either set default with the getExperiment, or set explicitly here")
-        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable(trialState).query("entityType==@entityTypeName")
+        return self.datalayer.trialSet[trialSetName][trialName].entitiesTable().query("entityType==@entityTypeName")
 
 
     def getTurbulenceStatistics(self,sonicData,samplingWindow,height=1):
@@ -238,7 +235,7 @@ class experimentAnalysis:
 
 
 
-    def addMetadata(self,dataset,trialName,trialState=DEPLOY,trialSetName=None):
+    def addMetadata(self,dataset,trialName,trialSetName=None):
         """
         Adds the trial metadata to the dataset by joining on the device name.
 
@@ -249,9 +246,6 @@ class experimentAnalysis:
         trialName : str
                 The name of the trial to join
 
-        trialState : str
-                The state of the trial (Design/Deploy).
-
         trialSetName : str [optional, default None]
                 The name of hte trialset. If None, use the default trialset.
 
@@ -261,7 +255,7 @@ class experimentAnalysis:
         """
         trialSetName =  self.datalayer.defaultTrialSet if  trialSetName is None else trialSetName
 
-        devicemetadata = self.datalayer.trialSet[trialSetName][trialName].entitiesTable(trialState)
+        devicemetadata = self.datalayer.trialSet[trialSetName][trialName].entitiesTable()
         if len(devicemetadata) > 0:
             ret = dataset.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
         else:
