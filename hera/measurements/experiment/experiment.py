@@ -7,7 +7,6 @@ from .presentation import experimentPresentation
 from .analysis import experimentAnalysis
 try:
     from argos.experimentSetup import dataObjects as argosDataObjects
-    from argos import DESIGN,DEPLOY
 except ImportError:
     print("Must have argos installed and in the path. ")
 
@@ -247,7 +246,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
         self._analysis = analysisCLS(self)
         self._presentation = presentationCLS(self,self._analysis)
 
-    def getDataFromTrial(self,deviceType,deviceName = None,trialState = DEPLOY,startTime = None, endTime = None,withMetadata = True):
+    def getDataFromTrial(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = True):
 
         startTime = self.properties['TrialStart'] if startTime is None else startTime
         endTime = self.properties['TrialEnd'] if endTime is None else endTime
@@ -258,7 +257,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.entitiesTable(trialState)
+            devicemetadata = self.entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
                     "timestamp")
@@ -298,7 +297,7 @@ class TrialSetWithData(argosDataObjects.TrialSet):
 
 class TrialWithdata(argosDataObjects.Trial):
 
-    def getData(self,deviceType,deviceName = None,trialState = DEPLOY,startTime = None, endTime = None,withMetadata = False):
+    def getData(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = False):
 
         startTime = self.properties['TrialStart'] if startTime is None else startTime
         endTime = self.properties['TrialEnd'] if endTime is None else endTime
@@ -309,7 +308,7 @@ class TrialWithdata(argosDataObjects.Trial):
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.entitiesTable(trialState)
+            devicemetadata = self.entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
 
