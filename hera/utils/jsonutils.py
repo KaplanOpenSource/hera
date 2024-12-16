@@ -140,7 +140,7 @@ def loadJSON(jsonData):
                 loadedjson = json.load(jsonFile)
         else:
             try:
-                loadedjson = json.loads(jsonData)
+                loadedjson = json.loads(jsonData.replace("'",'"').replace("True","true").replace("False","false").replace("None","null"))
             except JSONDecodeError as e:
                 raise ValueError(f" {str(e)}: Got {jsonData}, either bad format of file does not exist")
 
