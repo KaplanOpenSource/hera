@@ -220,7 +220,7 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     logger.info(f"Adding dispersion flow to project {projectName}. Overwriting? {arguments.overwrite}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=arguments.projectName)
 
-    params = arguments.dispersionFlowParams.replace("'",'"').replace("True","true").replace("False","false")
+    params = arguments.dispersionFlowParams.replace("'",'"').replace("True","true").replace("False","false").replace("None","null")
     flowdata = loadJSON(params)
     flowName = arguments.dispersionFlowName
     logger.info(f"Createing dispersion flow (DFF) {flowName} for the flow {arguments.OriginalFlowField}")
