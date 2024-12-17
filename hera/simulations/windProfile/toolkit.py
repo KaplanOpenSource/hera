@@ -166,8 +166,6 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         filtered_stations = [
             stations_with_data[i] for i, dt in enumerate(datetime_objects) if (max_datetime - dt) < threshold
         ]
-
-
         return filtered_stations
 
     def add_interpolated_ws_wd(self,xarray,stations):
