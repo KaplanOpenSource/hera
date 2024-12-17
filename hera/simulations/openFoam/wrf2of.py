@@ -6,6 +6,7 @@ Issue 159
 @author: nirb
 """
 from hera import toolkitHome
+import math
 import numpy as np
 import datetime
 import pyproj
@@ -178,18 +179,18 @@ def regrid2(data, factor):
 
     return interpolating_function((xv, yv))
 
-def regrid3(data, factor):
+def regrid3(data, factorxy, factorz):
     # make the data grid more focus (factor more than 1) or blur (factor less than 1)
-    out_x = int(data.shape[0]*factor)
-    out_y = int(data.shape[1]*factor)
-    out_z = int(data.shape[2]*factor)
-    m = max(data.shape[0], data.shape[1], data.shape[2])
-    x = np.linspace(0, 1.0/m, data.shape[0])
+    out_x = int(data.shape[0]*factorz)
+    out_y = int(data.shape[1]*factorxy)
+    out_z = int(data.shape[2]*factorxy)
+    m = max(data.shape[1], data.shape[2])
+    x = np.linspace(0, 1.0/data.shape[0], data.shape[0])
     y = np.linspace(0, 1.0/m, data.shape[1])
     z = np.linspace(0, 1.0/m, data.shape[2])
     interpolating_function = RegularGridInterpolator((x, y, z), data)
 
-    zv, yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y), np.linspace(0, 1.0/m, out_x), np.linspace(0, 1.0/m, out_z))
+    zv, yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y), np.linspace(0, 1.0/data.shape[0], out_x), np.linspace(0, 1.0/m, out_z))
     return interpolating_function((yv, zv, xv))
 
 miny=195100
@@ -226,7 +227,7 @@ for i in range(len(data['Times'])):
     for j in range(len(data['Times'][i][:])):
         s+=str(data['Times'][i][j])[2]
     print(i,s)
-si = 36 # chosen time
+si = 12 # 36 # chosen time
 
 heights = data['gpt_hgt_M'][si,:,:,:] # altitude
 # for i in range(heights.shape[0]):
@@ -237,11 +238,17 @@ datav = data['Ve'][si,:,:,:]
 dataw = data['W'][si,:,:,:]
 datat = data['Temp'][si,:,:,:]
 
-factor = 2
-rdatau = regrid3(datau, factor)
-rdatav = regrid3(datav, factor)
-rdataw = regrid3(dataw, factor)
-rdatat = regrid3(datat, factor)
+factor = 0.02 # ideal
+factorz=1
+
+factor = 2 # regular
+factorz=2
+
+
+rdatau = regrid3(datau, factor,factorz)
+rdatav = regrid3(datav, factor,factorz)
+rdataw = regrid3(dataw, factor,factorz)
+rdatat = regrid3(datat, factor,factorz)
 
 crs = CRS.from_epsg(4326) #6991
 crs.to_epsg()
@@ -262,10 +269,13 @@ for i in range(xlatlon.shape[0]):
 rdatax = regrid2(xlatlon, factor)
 rdatay = regrid2(ylatlon, factor)
 
-rheights = regrid3(heights, factor)
+
+rheights = regrid3(heights, factor,factorz)
 
     
-outputdir = r'/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0'
+outputdir = r'/data5/NOBACKUP/nirb/Simulations/Haifa/idealrhosimple2'
+outputdir = r'/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple'
+ideal=False #True
 
 lines = []
 lines.append('// built with wrf2of.py for '+outputdir)
@@ -296,51 +306,86 @@ lines.append('(')
 shp1=rdatau.shape[0]
 shp2=rdatau.shape[1]
 shp3=rdatau.shape[2]
-for i in range(shp2): # x
-    print('i:',i,shp2)
-    for j in range(shp3): # y
-        celly=rdatay[i,j]
-        cellx=rdatax[i,j]
-        for k in range(shp1): # z
-            cellz=rheights[k,i,j]
-            if celly<=maxy and celly>=miny and cellx>=minx and cellx<=maxx and cellz>=minz and cellz<=maxz:
-                T = rdatat[k,i,j]
-                Ux = rdatau[k,i,j]
-                Uy = rdatav[k,i,j]
-                Uz = rdataw[k,i,j]
-                if i==0:
-                    dxp = rdatax[i+1,j]-rdatax[i,j]
-                    dxm = rdatax[i,j]-minx
-                elif i==shp2:
-                    dxm = rdatax[i,j]-rdatax[i-1,j]
-                    dxp = maxx-rdatax[i,j]
-                else:
-                    dxm = rdatax[i,j]-rdatax[i-1,j]
-                    dxp = rdatax[i+1,j]-rdatax[i,j]
+
+if not(ideal):
+    for i in range(shp2): # x
+        print('i:',i,shp2)
+        for j in range(shp3): # y
+            celly=rdatay[i,j]
+            cellx=rdatax[i,j]
+            for k in range(shp1): # z
+                cellz=rheights[k,i,j]
+                if celly<=maxy and celly>=miny and cellx>=minx and cellx<=maxx and cellz>=minz and cellz<=maxz:
+                    if not(ideal):
+                        T = rdatat[k,i,j]
+                        Ux = rdatau[k,i,j]
+                        Uy = rdatav[k,i,j]
+                        Uz = rdataw[k,i,j]
+                        
+                        if i==0:
+                            dxp = rdatax[i+1,j]-rdatax[i,j]
+                            dxm = rdatax[i,j]-minx
+                        elif i==shp2-1:
+                            dxm = rdatax[i,j]-rdatax[i-1,j]
+                            dxp = maxx-rdatax[i,j]
+                        else:
+                            dxm = rdatax[i,j]-rdatax[i-1,j]
+                            dxp = rdatax[i+1,j]-rdatax[i,j]
+            
+                        if j==0:
+                            dyp = rdatay[i,j+1]-rdatay[i,j]
+                            dym = rdatay[i,j] - miny
+                        elif j==shp3-1:
+                            dym = rdatay[i,j]-rdatay[i,j-1]
+                            dyp = maxy-rdatay[i,j]
+                        else:
+                            dym = rdatay[i,j]-rdatay[i,j-1]
+                            dyp = rdatay[i,j+1]-rdatay[i,j]
+                                        
+                        if k==0:
+                            dzp = rheights[k+1,i,j]-rheights[k,i,j]
+                            dzm = rheights[k,i,j] - minz
+                        elif k==shp1-1:
+                            dzm = rheights[k,i,j]-rheights[k-1,i,j]
+                            dzp = maxz - rheights[k,i,j] 
+                        else:
+                            dzm = rheights[k,i,j]-rheights[k-1,i,j]
+                            dzp = rheights[k+1,i,j]-rheights[k,i,j]
+                            
+        
+                    lines.append('boxToCell {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
+                    lines.append('boxToFace {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
+else:
+    print ('ideal')
+    for k in range(shp1): # z
+        cellz=rheights[k,0,0]       
+        celly=(miny+maxy)/2.
+        cellx=(minx+maxx)/2.
+        dxp = (maxx-minx)*2.
+        dxm = dxp
+        dyp = (maxy-miny)*2.
+        dym = dyp
     
-                if j==0:
-                    dyp = rdatay[i,j+1]-rdatay[i,j]
-                    dym = rdatay[i,j] - miny
-                elif j==shp3:
-                    dym = rdatay[i,j]-rdatay[i,j-1]
-                    dyp = maxy-rdatay[i,j]
-                else:
-                    dym = rdatay[i,j]-rdatay[i,j-1]
-                    dyp = rdatay[i,j+1]-rdatay[i,j]
-                                
-                if k==0:
-                    dzp = rheights[k+1,i,j]-rheights[k,i,j]
-                    dzm = rheights[k,i,j] - minz
-                elif k==shp1:
-                    dzm = rheights[k,i,j]-rheights[k-1,i,j]
-                    dzp = maxz - rheights[k,i,j] 
-                else:
-                    dzm = rheights[k,i,j]-rheights[k-1,i,j]
-                    dzp = rheights[k+1,i,j]-rheights[k,i,j]
-    
-                lines.append('boxToCell {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
-                lines.append('boxToFace {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
-    
+        T = 298-cellz/1000.*9.8 # neutral
+        T = 298-cellz/1000.*4.8 # stable
+        # T = 298-cellz/1000.*14.8 # unstable
+        Ux = 0.5*math.log(cellz/0.3)
+        Uy = 0.5*math.log(cellz/0.3)
+        Uz = 0.
+        
+        if cellz<=maxz:
+            if k==0:
+                dzp = rheights[k+1,i,j]-rheights[k,i,j] # 1
+                dzm = rheights[k,i,j] - minz
+            elif k==shp1-1:
+                dzm = rheights[k,i,j]-rheights[k-1,i,j]
+                dzp = maxz - rheights[k,i,j] 
+            else:
+                dzm = rheights[k,i,j]-rheights[k-1,i,j]
+                dzp = rheights[k+1,i,j]-rheights[k,i,j]
+            lines.append('boxToCell {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
+            lines.append('boxToFace {box ('+str(celly-dym/2)+' '+str(cellx-dxm/2)+' '+str(cellz-dzm/2)+') ('+str(celly+dyp/2)+' '+str(cellx+dxp/2)+' '+str(cellz+dzp/2)+'); fieldValues (volScalarFieldValue T '+str(T)+' volVectorFieldValue U ('+str(Ux)+' '+str(Uy)+' '+str(Uz)+'));}')
+        
 lines.append(');')
 
 with open(outputdir+'/system/setFieldsDict', 'w') as f:

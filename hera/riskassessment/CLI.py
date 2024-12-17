@@ -26,7 +26,7 @@ def createRepository(arguments):
                                                                             }
                                                                 }
 
-    with open(os.path.join(arguments.path,f"{arguments.repository_name}.json"), "w") as f:
+    with open(os.path.join(arguments.path,f"{arguments.repository_name}"), "w") as f:
         json.dump(repo, f, indent=4)
 
     logger.debug(f" Finished creating Repository")

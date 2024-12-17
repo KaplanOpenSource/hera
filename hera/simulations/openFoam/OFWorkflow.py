@@ -370,6 +370,15 @@ class workflow_simpleFoam(workflow_Eulerian):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
 ##########################################################
+##                          workflow_buoyantReactingFoam
+##########################################################
+class workflow_buoyantReactingFoam(workflow_Eulerian):
+
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+
+
+##########################################################
 ##                          Workflow_indoorFOAMBoussinesq
 ##########################################################
 class workflow_indoorFOAMBoussinesq(workflow_Eulerian):

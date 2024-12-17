@@ -80,7 +80,9 @@ def getProbe(file, jumps = 1):
                 vector = vector.replace("(", "")
                 vector = vector.replace(")", "")
                 #split by space
-                vectors.append(vector.split(" "))
+                vectorsplit = vector.split(" ")
+                vectorsplit = np.asarray([x for x in vectorsplit if x!=''])  # remove '' in the list
+                vectors.append(vectorsplit)
     return times, vectors
 
 if __name__ == "__main__":
@@ -163,9 +165,56 @@ if __name__ == "__main__":
     # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a1z0t/postProcessing/probes/0/")
     # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a1z0u/postProcessing/probes/0/")
     dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0s/postProcessing/probes/0/")
     dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a4z0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2z0/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2z0s/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2z0s1/postProcessing/probes/0/")
+
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800b2az0s/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1s/postProcessing/probes/0/")
     dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200cube/postProcessing/probes/0/")
 
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0s/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2z0s2/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2z0s1/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2z0s2/postProcessing/probes/0/")
+    # dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2z1s1/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1s/postProcessing/probes/0/")
+
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb2/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0s2/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/")
+
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2simple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2rhosimple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simple/postProcessing/probes/0/")
+
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/idealrhosimple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2simple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2simple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/idealrhosimple2/postProcessing/probes/0/")
+
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/idealbuoyancy/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/idealbuoyancy2/postProcessing/probes/0/")
+
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/idealrhosimple/postProcessing/probes/0/")
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/idealrhosimple2/postProcessing/probes/0/")
+    
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2rhosimple/postProcessing/probes/0/") # 150k???
+    dirs.append(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/")
+
+    dirs=["/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/"]
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/")
+    dirs.append("/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/")
+    
+    dirs=["/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/"]
+
+    dirs=["/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/",
+          "/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimplenut/postProcessing/probes/0/"]
 
     el = [0,18,33, 45, 69, 75]  #a2
     el = [0,18,33, 45, 60, 75]  #a2
@@ -174,18 +223,24 @@ if __name__ == "__main__":
 #    el=[0, 18,33,45,72,84] # syn
 #    el=[6, 24, 39,51,75,84] # syn
     el = [0,15,30, 45, 60, 75]  #dynamic
+    el = [0,15,30, 45, 60, 75,90,105,120]  #dynamic
+    el = [x+4 for x in el]
+    
 #    el = [6, 24, 39, 54, 66, 87]
 
     print('start @ ',datetime.datetime.now())
-    for i in range(len(dirs)):
+    plt.figure()
+    for i in range(len(dirs)): 
         times, vectors = getProbe(dirs[i])
         plotProbe(dirs[i], times[1:], vectors[1:], el,i+1,len(dirs), offset=1)
-        # plotProbe(dirs[i], times[1:], vectors[1:], el,i+1,len(dirs), offset=1)
+        print('probed ',i,' out of ',len(dirs), '(',len(times),')')        
+    plt.show()
+
+#        plotProbe(dirs[i], times[1:], vectors[1:], el,i+1,len(dirs), offset=1)
 
 #        plotProbe(dirs[i], times, vectors, el,4*i+1,len(dirs)*4, offset=0)
 #        plotProbe(dirs[i], times, vectors, el,1+4*i+1,len(dirs)*4, offset=1)
 #        plotProbe(dirs[i], times, vectors, el,2+4*i+1,len(dirs)*4, offset=2)
 #        plotProbe(dirs[i], times, vectors, el,3+4*i+1,len(dirs)*4, offset=3)
-        print('probed ',i,' out of ',len(dirs), '(',len(times),')')        
-    plt.show()
+
     
