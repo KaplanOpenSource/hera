@@ -3,7 +3,7 @@ import xarray as xr
 import pandas as pd
 import xarray
 import numpy as np
-from hera.utils.angle import toMathematicalAngle,toMeteorologicalAngle
+from hera.utils.angle import toMathematicalAngle
 from hera.utils import BETA,KARMAN,convertCRS,ITM,WSG84
 from hera import toolkitHome
 import json
@@ -12,6 +12,7 @@ import requests
 from hera.simulations.utils.interpolations import spatialInterpolate
 import os
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 
 class WindProfileToolkit(toolkit.abstractToolkit):
     def __init__(self, projectName, filesDirectory=None):
@@ -128,6 +129,7 @@ class WindProfileToolkit(toolkit.abstractToolkit):
     def _getWindSpeedDirection(self,stations,IMS_TOKEN):
         stations_with_data = []
         headers = {'Authorization': IMS_TOKEN['Authorization']}
+        stations_datetimes = []
         for station_dict in tqdm(stations):
             lat = station_dict['attributes'][2]['value']['latitude']
             lon = station_dict['attributes'][2]['value']['longitude']
@@ -135,15 +137,18 @@ class WindProfileToolkit(toolkit.abstractToolkit):
             height = station_dict['height_above_sea']
             trials = 0
             data = None
+            datetime_str = None
             while (trials < 20):
                 try:
-                    url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/daily'
+                    url = f'https://api.ims.gov.il/v1/envista/stations/{station_id}/data/latest'
                     response = requests.request('GET', url, headers=headers)
                     data = json.loads(response.text.encode('utf8'))
+                    datetime_str = data['data'][0]['datetime']
+                    print(f"{data['data'][0]['datetime']}, station: {station_dict['name']}")
                     break
                 except:
                     trials += 1
-                    print(f"Trial {trials} for Station {station_id}",end="\r")
+                    # print(f"Trial {trials} for Station {station_id}")
             if data:
                 for channel in data['data'][0]['channels']:
                     if channel['name'] == 'WS':
@@ -151,14 +156,22 @@ class WindProfileToolkit(toolkit.abstractToolkit):
                     if channel['name'] == 'WD':
                         wd = channel['value']
 
-                stations_with_data.append([lat, lon, height, [ws, wd]])
+                if abs(ws) < 20 and abs(wd) <= 360:
+                    stations_with_data.append([lat, lon, height, [ws, wd]])
+                    stations_datetimes.append(datetime_str)
 
-        return stations_with_data
+        datetime_objects = [datetime.fromisoformat(dt) for dt in stations_datetimes]
+        max_datetime = max(datetime_objects)
+        threshold = timedelta(minutes=15)
+        filtered_stations = [
+            stations_with_data[i] for i, dt in enumerate(datetime_objects) if (max_datetime - dt) < threshold
+        ]
+        return filtered_stations
 
     def add_interpolated_ws_wd(self,xarray,stations):
         ws_wd = xr.apply_ufunc(
             self._interpolate_wd_ws,
-            xarray['lon'], xarray['lat'],
+            xarray['lon'], xarray['lat'],xarray['elevation'],
             vectorize=True,
             kwargs={'stations_with_data': stations},
             output_core_dims=[[], []],
@@ -168,8 +181,8 @@ class WindProfileToolkit(toolkit.abstractToolkit):
         return xarray
 
 
-    def _interpolate_wd_ws(self,lon,lat,stations_with_data):
-        result = spatialInterpolate().interp([lat, lon, 10.0], stations_with_data)
+    def _interpolate_wd_ws(self,lon,lat,elevation,stations_with_data):
+        result = spatialInterpolate().interp([lat, lon, elevation + 10.0], stations_with_data)
         ws, wd = result[0], result[1]
         return float(ws), float(wd)
 
@@ -194,9 +207,9 @@ class presentation:
                                 landcover.wd.values.flatten()):
             itm_pp = convertCRS([[lon, lat]], inputCRS=WSG84, outputCRS=ITM)[0]
             arrow_x_index, arrow_y_index = itm_pp.x, itm_pp.y
-            arrow_direction = toMeteorologicalAngle(wd)
-            arrow_dx = np.cos(arrow_direction) * arrow_length
-            arrow_dy = np.sin(arrow_direction) * arrow_length
+            arrow_direction = wd
+            arrow_dx = np.cos(np.radians(arrow_direction)) * arrow_length
+            arrow_dy = np.sin(np.radians(arrow_direction)) * arrow_length
             ax.arrow(arrow_x_index, arrow_y_index, arrow_dx * arrow_length, arrow_dy * arrow_length,
                      width=width, head_width=head_width, head_length=head_length, fc=color, ec=color)
 
