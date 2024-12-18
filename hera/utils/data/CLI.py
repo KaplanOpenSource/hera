@@ -122,12 +122,12 @@ def project_dump(arguments):
 
 def project_load(arguments):
 
-    docsDict = loadJSON(arguments.fileName)
+    docsDict = loadJSON(arguments.file)
     proj     = Project(projectName=arguments.projectName)
 
     for indx,doc in enumerate(docsDict):
         print(f"Loading document {indx}/{len(docsDict)}")
-        proj.addDocumentFromDict(doc)
+        proj.addDocumentFromDict(docsDict.get(doc))
 
 
 def repository_list(argumets):
