@@ -71,7 +71,7 @@ if __name__=="__main__":
     ### Load
     parser_load = project_subparsers.add_parser('load', help='load records from a file')
     parser_load.add_argument('projectName', type=str, default=None, help='The project name to create')
-    parser_load.add_argument('projectName', type=str, help='The workflow file to load')
+    parser_load.add_argument('file', type=str, help='The workflow file to load')
     parser_load.set_defaults(func=CLI.project_load)
 
     ### update
