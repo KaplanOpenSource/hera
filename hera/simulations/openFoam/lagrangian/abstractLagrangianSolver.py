@@ -1482,11 +1482,12 @@ class analysis:
             L = []
             logger.debug(f"Writitng the empty field as partition {partitionID}")
             for timeName in range(int(timeName),workflow.dispersionDuration):
-                    logger.debug(f"Processing Epty Time: {timeName}")
+                    logger.debug(f"Processing Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
                                                                  xfield=xfield,
                                                                  yfield=yfield, zfield=zfield)
                     L.append(xry)
+
 
             logger.info("Creating the xarray")
             pxry = xarray.concat(L, dim="time")
