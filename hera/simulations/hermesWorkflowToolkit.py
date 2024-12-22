@@ -639,6 +639,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                 doc = docList[0]
                 doc['desc']['workflow'] = hermesWF.json
                 doc['desc']['parameters'] = hermesWF.parametersJSON
+                doc['resource'] = os.path.join(self.FilesDirectory, workflowName)
                 doc.save()
             else:
                 info = f"The simulation {workflowName} with type {theSolver} is already in the database in group {groupName}. use the overwrite=True to update the record."
