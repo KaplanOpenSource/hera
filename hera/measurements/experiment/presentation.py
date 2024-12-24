@@ -523,9 +523,22 @@ class experimentPresentation:
 
 
 
-    ########################
-    ###
-    ###  Data plots
-    ###
-    #########################
+    def devicesProperties(self):
+        devices = []
+        for trialSet in self.datalayer.setup['trialSets']:
+            trialSetName = trialSet['name']
+            for trial in trialSet['trials']:
+                trialName = trial['name']
+                date = trial['createdDate']
+                for device in trial['devicesOnTrial']:
+                    d = {}
+                    d['type'] = device['deviceTypeName']
+                    d['name'] = device['deviceItemName']
+                    d['latitutde'] = device['location']['coordinates'][0]
+                    d['longitute'] = device['location']['coordinates'][1]
+                    d['trialSetName'] = trialSetName
+                    d['trialName'] = trialName
+                    d['trialCreatedDate'] = date
+                    devices.append(d)
 
+        return devices
