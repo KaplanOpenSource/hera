@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import seaborn
 import matplotlib.colors as mcolors
 import numpy
-
+from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
+import pandas as pd
+import numpy as np
 
 class experimentPresentation:
     """
@@ -542,3 +544,38 @@ class experimentPresentation:
                     devices.append(d)
 
         return devices
+
+    def plot_devices(self,plot,trialSetName,trialName,device,figsize=(28,28)):
+        def process_row(row):
+            pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
+            return pd.Series([pp.x[0], pp.y[0]])
+
+        fig, ax = plt.subplots(figsize=figsize)
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
+        devices_df = devices_df[devices_df['deviceTypeName']==device]
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(process_row, axis=1)
+
+        extent = plot.get_extent()
+        x_min, x_max, y_min, y_max = extent
+        ax.imshow(np.array(plot.get_array()), extent=extent, origin='lower', cmap='gray')
+        d = {}
+        for row in devices_df.itertuples():
+            x = row.ITM_Latitude
+            y = row.ITM_Longitude
+            try:
+                d[row.stationName] += 1
+            except:
+                d[row.stationName] = 1
+
+            num_of_devices_in_station = d[row.stationName]
+            delta = num_of_devices_in_station * 0.02
+
+            ax.scatter(x, y, color='red', marker='o', s=50)  # 's' controls size
+            ax.text(x, y + (y_max - y_min) * delta, f"{row.deviceItemName}", color='red', fontsize=20, ha='center',
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+        ax.set_title(f"Devices in Trial {trialName}")
+        ax.set_xlabel("X Coordinate")
+        ax.set_ylabel("Y Coordinate")
+
+        plt.show()
