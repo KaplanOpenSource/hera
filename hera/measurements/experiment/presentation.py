@@ -545,15 +545,29 @@ class experimentPresentation:
 
         return devices
 
-    def plot_devices(self,plot,trialSetName,trialName,device,figsize=(28,28)):
-        def process_row(row):
-            pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
-            return pd.Series([pp.x[0], pp.y[0]])
+    def _process_row(self,row):
+        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
+        return pd.Series([pp.x[0], pp.y[0]])
 
+    def get_devices_image_coordinates(self,trialSetName,trialName,device,outputCRS=ITM):
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
+        devices_df = devices_df[devices_df['deviceTypeName'] == device]
+        if outputCRS==ITM:
+            devices_df[['IMS_Latitude', 'IMS_Longitude']] = devices_df.apply(self._process_row, axis=1)
+            latitudes = devices_df['IMS_Latitude']
+            longitudes = devices_df['IMS_Longitude']
+        else:
+            latitudes = devices_df['Latitude']
+            longitudes = devices_df['Longitude']
+        min_latitude, max_latitude = min(latitudes), max(latitudes)
+        min_longitude, max_longitude = min(longitudes), max(longitudes)
+        return min_latitude,min_longitude,max_latitude,max_longitude
+
+    def plot_devices(self,plot,trialSetName,trialName,device,figsize=(28,28)):
         fig, ax = plt.subplots(figsize=figsize)
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
         devices_df = devices_df[devices_df['deviceTypeName']==device]
-        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(process_row, axis=1)
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
 
         extent = plot.get_extent()
         x_min, x_max, y_min, y_max = extent
