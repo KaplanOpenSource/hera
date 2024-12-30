@@ -439,7 +439,8 @@ class parquetDataEngineHera(datalayer.Project):
         #     endTime = endTime.strftime("%Y-%m-%d %H:%M:%S")
         # ## ------------------------------------------------------
 
-        data = data.loc[slice(startTime,endTime)]
+        if startTime is not None or endTime is not None:
+            data = data.loc[slice(startTime,endTime)]
 
         if autoCompute:
             data =data.compute()
