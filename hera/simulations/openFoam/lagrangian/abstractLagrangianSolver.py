@@ -9,9 +9,11 @@ import shutil
 import json
 import xarray
 from itertools import product
+
 from dask.delayed import delayed
 import dask.dataframe as dask_dataframe
 from pandas.core.array_algos.transforms import shift
+from dask.distributed import Client
 
 from ....utils.unum import *
 
@@ -31,6 +33,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     presentation = None  # link to the presentation of the stochasticLagrangian
 
     DOCTYPE_LAGRANGIAN_CACHE = "lagrangianCacheDocType"
+    DOCTYPE_CONCENTRATIONEULERIAN_CACHE = "EulerianConcentrationCacheDocType"
 
     def __init__(self, toolkit):
         self.toolkit = toolkit
@@ -915,7 +918,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             dask.dataFrame.
         """
         logger = get_classMethod_logger(self, "getCaseResults")
-        logger.info(f"Getting stochastic results. Use cache? {cache} ; Overwrite {overwrite}")
+        logger.info(f"Getting stochastic results. Overwrite {overwrite}")
 
         if isinstance(caseDescriptor, str):
             caseDescriptorName = caseDescriptor
@@ -969,6 +972,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         if reCalculate:
             logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+            logger.debug(f"Initializing dask client")
+            daskClient = Client()
+
             docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
             if len(docList) == 0:
                 logger.info("not found, trying as a directory")
@@ -1010,7 +1016,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
                               product(processorList, timeList)]
 
-                ret = dask_dataframe.from_map(loader, loaderList)
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
 
             else:
                 logger.info("Process as singleProcessor case")
@@ -1019,7 +1026,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.debug(f"Loading single processor data with time list {timeList}")
 
                 loaderList = [timeName for timeName in timeList]
-                ret = dask_dataframe.from_map(loader, loaderList)
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
             if cache:
                 logger.info(f"Updating the results in the cache. ")
@@ -1161,6 +1168,173 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             zmin = lims.Cz.loc['min']*m,
             zmax = lims.Cy.loc['max']*m
         )
+
+
+
+    def getCaseConcentrationsEulerian(self,
+                                      caseDescriptor,
+                                      timeList=None,
+                                      overwrite=False,
+                                      cloudName="kinematicCloud",
+                                      cache=True,
+                                      forceSingleProcessor=False):
+        """
+            Reads the output of the cloud function concentrationField.
+            The output is the CSV file :
+
+            x,y,z,C
+
+            where dx,dy and dz are given in the concentration file.
+
+        Parameters
+        ----------
+        caseDescriptor : string
+            The name of the case/ the directory.
+
+        timeList : list
+            The time slices to read. If None read all.
+
+        overwrite: bool
+            If True, reread and overwrite the cache.
+
+        Returns
+        -------
+            xarray with the concentrations.
+        """
+        logger = get_classMethod_logger(self, "getCaseConcentrationsEulerian")
+        logger.info(f"Getting stochastic results. Overwrite {overwrite}")
+
+        if isinstance(caseDescriptor, str):
+            caseDescriptorName = caseDescriptor
+
+        elif isinstance(caseDescriptor, MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
+
+        logger.info(f"Checking to see if the data {caseDescriptorName} is cached in the DB")
+        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE,dockind=self.toolkit.DOCKIND_CACHE)
+        if len(cachedDocumentList) == 0:
+            logger.info(f"Data for {caseDescriptor} is not cached")
+            cacheDoc = None
+        elif len(cachedDocumentList) > 1:
+            err = f"There is more than one data item for  for {caseDescriptor} cached!. The name of the workflow is not unique. Please remove one."
+            logger.error(err)
+            raise ValueError(err)
+        else:
+            cacheDoc = cachedDocumentList[0]
+
+        reCalculate = True
+        if cacheDoc is not None:
+            logger.info(f"Found {caseDescriptor} in the database. ")
+            if overwrite:
+                logger.info("overwrite is True, recalculate it, delting the files first. ")
+                if os.path.isdir(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as directoy")
+                    import shutil
+                    shutil.rmtree(cacheDoc.resource)
+                elif os.path.isfile(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as a file")
+                    os.remove(cacheDoc.resource)
+                else:
+                    logger.info("File does not exist, continue")
+            else:
+                logger.info("Returning the cached data")
+                try:
+                    ret = cacheDoc.getData()
+                    reCalculate = False
+                except FileNotFoundError:
+                    logger.error(
+                        "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
+                    for doc in cachedDocumentList:
+                        logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
+                        doc.delete()
+                    ret = None
+
+        if reCalculate:
+            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
+            if len(docList) == 0:
+                logger.info("not found, trying as a directory")
+                finalCasePath = os.path.abspath(caseDescriptor)
+                workflowName = caseDescriptor
+                if not os.path.isdir(os.path.abspath(caseDescriptor)):
+                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
+                    logger.error(err)
+                    raise FileNotFoundError(err)
+                else:
+                    logger.info(f"Found as a directory")
+            else:
+                logger.info(f"Found, Loading data from {docList[0].resource}")
+                finalCasePath = docList[0].resource
+                workflowName  = docList[0].desc['workflowName']
+
+            loader = lambda timeName: readEulerianConcentration(timeName,
+                                                                casePath=finalCasePath,
+                                                                cloudName=cloudName)
+
+            logger.info("Checking if the case is single processor or multiprocessor")
+            daskClient = Client()
+            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
+                logger.info("Process as parallel case")
+                processorList = [os.path.basename(proc) for proc in
+                                 glob.glob(os.path.join(finalCasePath, "processor*"))]
+
+                if timeList is None:
+                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                            x.isdigit() and
+                            (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                      key=lambda x: int(x))
+
+                logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
+
+                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
+                              product(processorList, timeList)]
+
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+            else:
+                logger.info("Process as singleProcessor case")
+                timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+                logger.debug(f"Loading single processor data with time list {timeList}")
+
+                loaderList = [timeName for timeName in timeList]
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+            if cache:
+                logger.info(f"Updating the results in the cache. ")
+                if cacheDoc is not None:
+                    logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
+                    fullname = cacheDoc.resource
+                else:
+                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
+                    logger.debug(f"Writing data to {targetDir}")
+                    os.makedirs(targetDir, exist_ok=True)
+                    fullname = os.path.join(targetDir, f"{cloudName}ConcentrationEulerian.nc")
+                    desc = dict(workflowName=caseDescriptor)
+                    desc['cloudName'] = cloudName
+
+                    logger.debug(f"...saving data in file {fullname}")
+                    self.toolkit.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
+                                                  type=self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE,
+                                                  resource=fullname,
+                                                  desc=desc)
+
+                logger.info(f"Writing data to parquet {fullname}... This may take a while")
+
+                ret = ret.groupby(["time","x","y","z"]).sum().compute().to_xarray().fillna(0)
+                ret.to_netcdf(fullname)
+                #ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
+            else:
+                logger.info(f"No caching, return the data as is. ")
+
+        daskClient.close()
+        return ret
 
 
 
@@ -1695,6 +1869,31 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
 
     return newData
 
+def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
+    """
+        Reads the concentration file that was outputed by the cloud function ConcentrationField
+    Parameters
+    ----------
+    timeName : string
+        The time to read
+    casePath  :  string
+        The case path.
+
+    cloudName : string
+        The name of the cloud.
+
+    Returns
+    -------
+
+    """
+    fileName = os.path.join(casePath, timeName, f"{cloudName}EulerConcentrations")
+    if os.path.exists(fileName):
+        try:
+            return pandas.read_csv(fileName).assign(time=float(timeName.split("/")[-1]))
+        except pandas.errors.EmptyDataError:
+            return pandas.DataFrame(dict(x=[], y=[], z=[],  C=[],time=[]))
+    else:
+        return pandas.DataFrame(dict(x=[],y=[],z=[],C=[],time=[]))
 
 
     # def _extractFile(self, filePath, columnNames, vector=True):
