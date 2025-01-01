@@ -141,13 +141,19 @@ class OFObject:
 
         """
         if 'singleProcessor' in self.data:
-            outputdir = os.path.join(caseDirectory,str(timeOrLocation),self.fileName)
+            directory = os.path.join(caseDirectory,str(timeOrLocation))
+            outputdir = os.path.join(directory,self.fileName)
+
+            os.makedirs(directory,exist_ok=True)
+
             with open(outputdir,'w') as outputdir:
                 outputStr = str(self.data['singleProcessor'])
                 outputdir.writelines(outputStr.replace("proc.*",'"proc.*"'))
         else:
             for procName,procData in self.data.items():
-                outputdir = os.path.join(caseDirectory,procName,str(timeOrLocation),self.fileName)
+                directory = os.path.join(caseDirectory,procName,str(timeOrLocation))
+                outputdir = os.path.join(directory,self.fileName)
+                os.makedirs(directory, exist_ok=True)
                 with open(outputdir,'w') as outputdir:
                     outputdir.writelines(str(procData).replace("proc.*",'"proc.*"'))
 
