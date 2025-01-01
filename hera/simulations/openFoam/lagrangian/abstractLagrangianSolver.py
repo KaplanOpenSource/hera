@@ -1026,6 +1026,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.debug(f"Loading single processor data with time list {timeList}")
 
                 loaderList = [timeName for timeName in timeList]
+
                 ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
             if cache:
@@ -1048,10 +1049,13 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                                   desc=desc)
 
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
-                ret.set_index("time").repartition(partition_size="100MB").to_parquet(fullname)
+                ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
                 ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
             else:
                 logger.info(f"No caching, return the data as is. ")
+
+            daskClient.close()
+
 
         return ret
 
@@ -1297,6 +1301,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
+
             else:
                 logger.info("Process as singleProcessor case")
                 timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
@@ -1304,6 +1309,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.debug(f"Loading single processor data with time list {timeList}")
 
                 loaderList = [timeName for timeName in timeList]
+
                 ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
             if cache:
@@ -1327,13 +1333,13 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
 
-                ret = ret.groupby(["time","x","y","z"]).sum().compute().to_xarray().fillna(0)
+                ret = ret.groupby(["datetime","x","y","z"]).sum().compute().to_xarray().fillna(0)
                 ret.to_netcdf(fullname)
                 #ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
             else:
                 logger.info(f"No caching, return the data as is. ")
+            daskClient.close()
 
-        daskClient.close()
         return ret
 
 
@@ -1504,22 +1510,18 @@ class analysis:
         #fulldata.filterType = "C"
         if not isinstance(timeData,int):
             C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
-                                zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                                zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "datetime"])[
                     'mass'].sum().to_xarray().squeeze().fillna(0) / dH
 
             # assign the timestep into the large mesh
-            try:
-                fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
-            except KeyError:
-                import pdb
-                pdb.set_trace()
+            fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
             fulldata.attrs['field'] = "1*kg/m**3"
 
-            timeList = [timeData.time.unique()[0]]
+            timeList = [timeData.datetime.unique()[0]]
         else:
             timeList = [timeData]
 
-        return fulldata.expand_dims(dict(time=timeList), axis=-1)
+        return fulldata.expand_dims(dict(datetime=timeList), axis=-1)
 
     def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz,extents=None, xfield="x", yfield="y",
                                        zfield="z",overwrite=False,reReadResults=None, **metadata):
@@ -1638,43 +1640,48 @@ class analysis:
                 logger.info(f"Processing partition {partitionID}")
                 L = []
 
-                for timeName, timeData in partition.compute().reset_index().groupby("time"):
+                for timeName, timeData in partition.compute().reset_index().groupby("datetime"):
                     logger.debug(f"Processing Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz,
                                                                  xfield=xfield,
                                                                  yfield=yfield, zfield=zfield)
                     L.append(xry)
 
-                logger.info("Creating the xarray")
-                pxry = xarray.concat(L, dim="time")
-                outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
-                logger.info(f"Writing the partition to file {outFile_Final}")
-                pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "time").to_dataset(name="C").to_netcdf(outFile_Final)
+                if len(L) > 0:
+                    logger.info("Creating the xarray")
+                    pxry = xarray.concat(L, dim="datetime")
+                    outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
+                    logger.info(f"Writing the partition to file {outFile_Final}")
+                    pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "datetime").to_dataset(name="C").to_netcdf(outFile_Final)
+                else:
+                    logger.debug(f"List for partition {partitionID} is empty. ")
 
             logger.info("Filling in all the empty timesteps to make sure that there are enough timesteps for moving window")
             partitionID += 1
             L = []
             logger.debug(f"Writitng the empty field as partition {partitionID}")
-            for timeName in range(int(timeName),workflow.dispersionDuration):
+            for timeName in range(int(timeName+1),workflow.dispersionDuration):
                     logger.debug(f"Processing Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
                                                                  xfield=xfield,
                                                                  yfield=yfield, zfield=zfield)
                     L.append(xry)
 
+            if len(L) > 0:
+                logger.info("Creating the xarray")
+                pxry = xarray.concat(L, dim="datetime")
+                outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
+                logger.info(f"Writing the partition to file {outFile_Final}")
+                pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "datetime").to_dataset(name="C").to_netcdf(outFile_Final)
+            else:
+                logger.debug(f"List for Residual timesteps is empty. ")
 
-            logger.info("Creating the xarray")
-            pxry = xarray.concat(L, dim="time")
-            outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
-            logger.info(f"Writing the partition to file {outFile_Final}")
-            pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "time").to_dataset(name="C").to_netcdf(outFile_Final)
         else:
             xryDoc = docList[0]
 
         ret = xryDoc.getData()
         ret.attrs['field'] = dict(C=1*kg/m**3)
-        ret.attrs['dt'] = f"{(ret.time[-1]-ret.time[-2]).item()}s"
-        ret = ret.rename_dims(dict(time="datetime"))
+        ret.attrs['dt'] = f"{(ret.datetime[-1]-ret.datetime[-2]).item()}s"
         return ret
 
     def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
@@ -1801,7 +1808,7 @@ def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
                          cloudName="kinematicCloud"):
 
-    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],time=[])
+    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],datetime=[])
     if withVelocity:
         columnsDict['U_x'] = []
         columnsDict['U_y'] = []
@@ -1840,7 +1847,7 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         #     newData[col] = dataGlobal[col].astype(numpy.float64)
 
         theTime = os.path.split(timeName)[-1]
-        newData['time'] = float(theTime)
+        newData['datetime'] = float(theTime)
 
 
         if withVelocity:
@@ -1852,7 +1859,7 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
         if withReleaseTimes:
             dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "age"),
                                 ['age'], vector=False)
-            newData["releaseTime"] = newData["time"] - dataM["age"]
+            newData["releaseTime"] = newData["datetime"] - dataM["age"]
             newData["age"] = dataM["age"]
         if withMass:
             dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
@@ -1889,11 +1896,11 @@ def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
     fileName = os.path.join(casePath, timeName, f"{cloudName}EulerConcentrations")
     if os.path.exists(fileName):
         try:
-            return pandas.read_csv(fileName).assign(time=float(timeName.split("/")[-1]))
+            return pandas.read_csv(fileName).assign(datetime=float(timeName.split("/")[-1]))
         except pandas.errors.EmptyDataError:
-            return pandas.DataFrame(dict(x=[], y=[], z=[],  C=[],time=[]))
+            return pandas.DataFrame(dict(x=[], y=[], z=[],  C=[],datetime=[]))
     else:
-        return pandas.DataFrame(dict(x=[],y=[],z=[],C=[],time=[]))
+        return pandas.DataFrame(dict(x=[],y=[],z=[],C=[],datetime=[]))
 
 
     # def _extractFile(self, filePath, columnNames, vector=True):
