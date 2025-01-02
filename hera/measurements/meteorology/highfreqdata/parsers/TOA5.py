@@ -32,10 +32,11 @@ class ASCIIParser:
 
         cols,number_of_devices,include_metadata = self.get_columns(path)                                                                 ## Read metadata for detecting Raw Sonic or TCT and Number of Devices
         dfs = {}
-        allDevices = pd.read_csv(path)
+        allDevices = pd.read_csv(path,low_memory=False)
 
         if include_metadata:
-            allDevices = allDevices.rename(columns=allDevices.iloc[0])[3:].reset_index(drop=True)                           ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
+            allDevices = allDevices.reset_index()
+            allDevices = allDevices.rename(columns=allDevices.iloc[0]).loc[3:].reset_index(drop=True)                           ## Rename false metadata columns to real ones and remove metadata (first 3 rows)
         else:
             allDevices.columns = ['TIMESTAMP','RECORD'] + [f"{x}_{i+1}" for i in range(number_of_devices) for x in cols]
 
@@ -49,8 +50,8 @@ class ASCIIParser:
                 columnNameMapping = dict([(f"{x}_{device_ID}", f"{x}") for x in cols])
                 device = "Raw_Sonic"
             else:
-                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}{device_ID}" for x in cols]                               ## For TCT there is no _
-                columnNameMapping = dict([(f"{x}{device_ID}", f"{x}") for x in cols])
+                columnsName = ['TIMESTAMP', 'RECORD'] + [f"{x}_{device_ID}" for x in cols]                               ## For TCT there is no _
+                columnNameMapping = dict([(f"{x}_{device_ID}", f"{x}") for x in cols])
                 device = "TCT_TRH"
 
             columnNameMapping['TIMESTAMP'] = 'TIMESTAMP'
@@ -87,12 +88,12 @@ class ASCIIParser:
                 include_metadata = False
                 if 'Raw_Sonic' in path:
                     cols = ['U', 'V', 'W', 'T']
-                elif 'Tct_Trh' in path:
+                elif 'TcT' in path:
                     cols = ['TC_T', 'TRH', 'RH']
                 else:
                     raise ValueError("No Device could be detected by given file. File should include metadata or device name in file name.")
 
-                number_of_devices = int(len(device_type[2:])/4)
+                number_of_devices = int(len(device_type[2:])/len(cols))
 
 
             return cols,number_of_devices,include_metadata
