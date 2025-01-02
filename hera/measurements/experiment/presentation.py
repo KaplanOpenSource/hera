@@ -5,6 +5,7 @@ import numpy
 from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
 import pandas as pd
 import numpy as np
+from hera import toolkitHome
 
 class experimentPresentation:
     """
@@ -549,7 +550,7 @@ class experimentPresentation:
         pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
         return pd.Series([pp.x[0], pp.y[0]])
 
-    def get_devices_image_coordinates(self,trialSetName,trialName,device,outputCRS=ITM):
+    def _get_devices_image_coordinates(self,trialSetName,trialName,device,outputCRS=ITM):
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
         devices_df = devices_df[devices_df['deviceTypeName'] == device]
         if outputCRS==ITM:
@@ -563,15 +564,27 @@ class experimentPresentation:
         min_longitude, max_longitude = min(longitudes), max(longitudes)
         return min_latitude,min_longitude,max_latitude,max_longitude
 
-    def plot_devices(self,plot,trialSetName,trialName,device,figsize=(28,28)):
-        fig, ax = plt.subplots(figsize=figsize)
+    def plot_devices(self,trialSetName,trialName,device,figsize=(28,28),toolkitDataSource=None,display=True):
+        tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES,projectName=self.datalayer.projectName)
+
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
         devices_df = devices_df[devices_df['deviceTypeName']==device]
         devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
 
+        min_latitude,min_longitude,max_latitude,max_longitude = self._get_devices_image_coordinates(trialSetName,trialName,device)
+        minx = min_latitude
+        maxx = max_latitude
+        maxy = max_longitude
+        miny = min_longitude
+
+        region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
+        img = tiles_tk.getImageFromCorners(**region)
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
+
         extent = plot.get_extent()
         x_min, x_max, y_min, y_max = extent
-        ax.imshow(np.array(plot.get_array()), extent=extent, origin='lower', cmap='gray')
+        ax.imshow(plot.get_array(), extent=extent, origin='lower', cmap='gray')
         d = {}
         for row in devices_df.itertuples():
             x = row.ITM_Latitude
@@ -592,4 +605,9 @@ class experimentPresentation:
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
 
-        plt.show()
+        if display:
+            plt.show()
+        else:
+            plt.close(fig)
+
+        return fig, ax

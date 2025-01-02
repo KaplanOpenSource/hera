@@ -238,7 +238,7 @@ class presentation:
     def __init__(self,dataLayer):
         self._datalayer = dataLayer
 
-    def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,**filters):
+    def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,display=True,**filters):
         """
         Plot the image.
 
@@ -288,11 +288,11 @@ class presentation:
             else:
                 raise ValueError("extents is either a list(minX, maxX, minY, maxY), dict(minX=, maxX=, minY=, maxY=), or dict(left=, right=, bottom=, top=)")
 
-        if ax is None:
-            fig, ax = plt.subplots()
-        else:
-            plt.sca(ax)
-
+        if display:
+            if ax is None:
+                fig, ax = plt.subplots()
+            else:
+                plt.sca(ax)
 
         lower_left_converted = convertCRS(points=[[extents[0],extents[2]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
         upper_right_converted = convertCRS(points=[[extents[1],extents[3]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
@@ -302,7 +302,13 @@ class presentation:
         else:
             extents = [lower_left_converted.y,upper_right_converted.y,lower_left_converted.x,upper_right_converted.x]
 
-        ax = plt.imshow(image, extent=extents)
+        if display:
+            ax = plt.imshow(image, extent=extents)
+        else:
+            # Create AxesImage without displaying it
+            ax = plt.imshow(image, extent=extents)
+            plt.close()  # Close the figure to prevent display
+
         return ax
 
 
