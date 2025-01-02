@@ -553,9 +553,9 @@ class experimentPresentation:
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
         devices_df = devices_df[devices_df['deviceTypeName'] == device]
         if outputCRS==ITM:
-            devices_df[['IMS_Latitude', 'IMS_Longitude']] = devices_df.apply(self._process_row, axis=1)
-            latitudes = devices_df['IMS_Latitude']
-            longitudes = devices_df['IMS_Longitude']
+            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
+            latitudes = devices_df['ITM_Latitude']
+            longitudes = devices_df['ITM_Longitude']
         else:
             latitudes = devices_df['Latitude']
             longitudes = devices_df['Longitude']
