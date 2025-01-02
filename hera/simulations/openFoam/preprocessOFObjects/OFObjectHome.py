@@ -408,6 +408,8 @@ class OFObjectHome:
 
     def readFieldAsDataFrame(self, fieldName, caseDirectory, times=0, readParallel=True,filterInternalPatches=False):
         """
+            DEPRACATED. read the field and use getDataFrame.
+
             Extracts a field to the disk from the requested times.
             If None, then reads from all the time steps.
             Reads only the internal field (and not the boundaries).
