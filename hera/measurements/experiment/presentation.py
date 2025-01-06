@@ -6,6 +6,8 @@ from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
 import pandas as pd
 import numpy as np
 from hera import toolkitHome
+import jinja2
+import os
 
 class experimentPresentation:
     """
@@ -611,3 +613,44 @@ class experimentPresentation:
             plt.close(fig)
 
         return fig, ax
+
+    def generate_latex_folder(self,latex_template,folder_path):
+        data = {}
+        data['trialSets'] = []
+        os.makedirs(folder_path, exist_ok=True)
+        for trialSet in self.datalayer.setup['trialSets']:
+            trialSet_dict = {}
+            trialSet_dict['trialSet_name'] = trialSet['name']
+            trialSet_dict['trials'] = []
+            for trial in trialSet['trials']:
+                trial_dict = {}
+                trial_dict['trial_name'] = trial['name']
+                devices_df = self.datalayer.trialSet['Measurements']['Measurements'].entitiesTable
+                trial_dict['devices'] = []
+                for device_name in devices_df['deviceTypeName'].unique():
+                    device_dict = {}
+                    fig , _ = self.plot_devices(trialSetName=trialSet['name'],trialName=trial['name'],device=device_name,display=False)
+                    image_path = os.path.join(folder_path,f"{device_name}.png")
+                    fig.savefig(image_path)
+                    device_dict['device_name'] = device_name
+                    device_dict['map_image_path'] = image_path
+                    device_dict['locations_table'] = []
+                    device_df = devices_df[devices_df['deviceTypeName'] == device_name]
+                    for row in device_df.itertuples():
+                        location = {}
+                        location["latitude"] = row.Latitude
+                        location['longitude'] = row.Longitude
+                        location['device_name'] = str(row.deviceItemName).replace("_", " ")
+                        location['station'] = str(row.stationName).replace("_", " ")
+                        device_dict['locations_table'].append(location)
+                    trial_dict['devices'].append(device_dict)
+                trialSet_dict['trials'].append(trial_dict)
+            data['trialSets'].append(trialSet_dict)
+
+
+        template = jinja2.Template(latex_template)
+        latex_content = template.render(trialSets=data["trialSets"])
+        tex_path = os.path.join(folder_path,f"latex_document.tex")
+        with open(tex_path, "w", encoding="utf-8") as file:
+            file.write(latex_content)
+        print(f"LaTeX document generated at: {tex_path}")
