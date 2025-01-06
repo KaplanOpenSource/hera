@@ -633,7 +633,7 @@ class experimentPresentation:
                     image_path = os.path.join(folder_path,f"{device_name}.png")
                     fig.savefig(image_path)
                     device_dict['device_name'] = device_name
-                    device_dict['map_image_path'] = image_path
+                    device_dict['map_image_path'] = f"{device_name}.png"
                     device_dict['locations_table'] = []
                     device_df = devices_df[devices_df['deviceTypeName'] == device_name]
                     for row in device_df.itertuples():
