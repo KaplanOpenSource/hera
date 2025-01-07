@@ -548,24 +548,6 @@ class experimentPresentation:
 
         return devices
 
-    def _process_row(self,row):
-        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
-        return pd.Series([pp.x[0], pp.y[0]])
-
-    def _get_devices_image_coordinates(self,trialSetName,trialName,device,outputCRS=ITM):
-        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
-        devices_df = devices_df[devices_df['deviceTypeName'] == device]
-        if outputCRS==ITM:
-            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
-            latitudes = devices_df['ITM_Latitude']
-            longitudes = devices_df['ITM_Longitude']
-        else:
-            latitudes = devices_df['Latitude']
-            longitudes = devices_df['Longitude']
-        min_latitude, max_latitude = min(latitudes), max(latitudes)
-        min_longitude, max_longitude = min(longitudes), max(longitudes)
-        return min_latitude,min_longitude,max_latitude,max_longitude
-
     def plot_devices(self,trialSetName,trialName,deviceType,ax=None,plot_kwargs=None,toolkitDataSource=None,display=True):
         """
         Plot map of devices type places in a specific trial set and trial.
@@ -590,13 +572,9 @@ class experimentPresentation:
 
         devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
         devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
-        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
 
-        min_latitude,min_longitude,max_latitude,max_longitude = self._get_devices_image_coordinates(trialSetName,trialName,device)
-        minx = min_latitude
-        maxx = max_latitude
-        maxy = max_longitude
-        miny = min_longitude
+        minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
 
         region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
         img = tiles_tk.getImageFromCorners(**region)
@@ -635,6 +613,19 @@ class experimentPresentation:
         return fig, ax
 
     def generate_latex_folder(self,latex_template,folder_path):
+        """
+        Save folder for overleaf website upload to transform to PDF.
+
+        Parameters
+        ----------
+        latex_template: str
+            Latex Template.
+        folder_path: str
+            Path to save folder
+
+        Returns
+        -------
+        """
         data = {}
         data['trialSets'] = []
         os.makedirs(folder_path, exist_ok=True)
