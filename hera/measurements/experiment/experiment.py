@@ -5,6 +5,9 @@ import sys
 from ... import toolkit,toolkitHome,datalayer
 from .presentation import experimentPresentation
 from .analysis import experimentAnalysis
+from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
+import pandas as pd
+
 try:
     from argos.experimentSetup import dataObjects as argosDataObjects
 except ImportError:
@@ -263,26 +266,29 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
                     "timestamp")
 
         return data
-    #
-    # def updateDataWithVersion(self,olddata,newdata):
-    #     """
-    #     This procedure gets an old data with version <xx> in field 'version'
-    #     and creates a copy with version+1, then updates all the  data from the new data into it (including
-    #     data that did not exist).
-    #
-    #     For example, lets assume that the old data is
-    #
-    #     deviceName,
-    #
-    #     Parameters
-    #     ----------
-    #     olddata
-    #     newdata
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
+
+    def _process_row(self,row):
+        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
+        return pd.Series([pp.x[0], pp.y[0]])
+
+    def get_devices_image_coordinates(self,trialSetName,trialName,deviceType,outputCRS=ITM):
+        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
+        if 'deviceTypeName' in devices_df.columns:
+            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
+        else:
+            devices_df = devices_df[devices_df['entityType']==deviceType]
+            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
+
+        if outputCRS==ITM:
+            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
+            latitudes = devices_df['ITM_Latitude']
+            longitudes = devices_df['ITM_Longitude']
+        else:
+            latitudes = devices_df['Latitude']
+            longitudes = devices_df['Longitude']
+        min_latitude, max_latitude = min(latitudes), max(latitudes)
+        min_longitude, max_longitude = min(longitudes), max(longitudes)
+        return min_latitude,min_longitude,max_latitude,max_longitude
 
 class TrialSetWithData(argosDataObjects.TrialSet):
 

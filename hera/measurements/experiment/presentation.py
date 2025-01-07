@@ -548,42 +548,52 @@ class experimentPresentation:
 
         return devices
 
-    def _process_row(self,row):
-        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
-        return pd.Series([pp.x[0], pp.y[0]])
+    def plot_devices(self,trialSetName,trialName,deviceType,ax=None,plot_kwargs=None,toolkitDataSource=None,display=True):
+        """
+        Plot map of devices type places in a specific trial set and trial.
 
-    def _get_devices_image_coordinates(self,trialSetName,trialName,device,outputCRS=ITM):
-        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
-        devices_df = devices_df[devices_df['deviceTypeName'] == device]
-        if outputCRS==ITM:
-            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
-            latitudes = devices_df['ITM_Latitude']
-            longitudes = devices_df['ITM_Longitude']
-        else:
-            latitudes = devices_df['Latitude']
-            longitudes = devices_df['Longitude']
-        min_latitude, max_latitude = min(latitudes), max(latitudes)
-        min_longitude, max_longitude = min(longitudes), max(longitudes)
-        return min_latitude,min_longitude,max_latitude,max_longitude
+        Parameters
+        ----------
+        trialSetName : str
+            Trial Set Name.
+        trialName: str
+            Trial Name.
+        deviceType: str
+            Device type name.
+        plotkwargs: dict
+            Parameters for matplotlib.pyplot subplot.
+        toolkitDataSource: str
+            The Data Source name for Tile raster toolkit.
+        display: bool
+            Whether to display map picture or not.
 
-    def plot_devices(self,trialSetName,trialName,device,figsize=(28,28),toolkitDataSource=None,display=True):
+        Returns
+        -------
+            fig
+            ax
+        """
         tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES,projectName=self.datalayer.projectName)
 
-        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
-        devices_df = devices_df[devices_df['deviceTypeName']==device]
-        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
+        if 'deviceTypeName' in devices_df.columns:
+            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
 
-        min_latitude,min_longitude,max_latitude,max_longitude = self._get_devices_image_coordinates(trialSetName,trialName,device)
-        minx = min_latitude
-        maxx = max_latitude
-        maxy = max_longitude
-        miny = min_longitude
+        else:
+            devices_df = devices_df[devices_df['entityType']==deviceType]
+            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
 
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
+        minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
         region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
         img = tiles_tk.getImageFromCorners(**region)
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
-        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
 
+        if ax is None:
+            plot_kwargs = plot_kwargs or {}
+            fig, ax = plt.subplots(1, 1, **plot_kwargs)
+        else:
+            fig = ax.figure
+
+        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
         extent = plot.get_extent()
         x_min, x_max, y_min, y_max = extent
         ax.imshow(plot.get_array(), extent=extent, origin='lower', cmap='gray')
@@ -603,10 +613,6 @@ class experimentPresentation:
             ax.text(x, y + (y_max - y_min) * delta, f"{row.deviceItemName}", color='red', fontsize=20, ha='center',
                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
 
-        ax.set_title(f"Devices in Trial {trialName}")
-        ax.set_xlabel("X Coordinate")
-        ax.set_ylabel("Y Coordinate")
-
         if display:
             plt.show()
         else:
@@ -615,6 +621,19 @@ class experimentPresentation:
         return fig, ax
 
     def generate_latex_folder(self,latex_template,folder_path):
+        """
+        Save folder for overleaf website upload to transform to PDF.
+
+        Parameters
+        ----------
+        latex_template: str
+            Latex Template.
+        folder_path: str
+            Path to save folder
+
+        Returns
+        -------
+        """
         data = {}
         data['trialSets'] = []
         os.makedirs(folder_path, exist_ok=True)
