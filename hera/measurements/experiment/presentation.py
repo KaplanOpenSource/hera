@@ -562,6 +562,10 @@ class experimentPresentation:
             Device type name.
         plotkwargs: dict
             Parameters for matplotlib.pyplot subplot.
+        toolkitDataSource: str
+            The Data Source name for Tile raster toolkit.
+        display: bool
+            Whether to display map picture or not.
 
         Returns
         -------
@@ -570,12 +574,16 @@ class experimentPresentation:
         """
         tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES,projectName=self.datalayer.projectName)
 
-        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.copy()
-        devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
+        if 'deviceTypeName' in devices_df.columns:
+            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
+
+        else:
+            devices_df = devices_df[devices_df['entityType']==deviceType]
+            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
+
         devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
-
         minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
-
         region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
         img = tiles_tk.getImageFromCorners(**region)
 
