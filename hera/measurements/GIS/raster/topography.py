@@ -18,7 +18,8 @@ import xarray
 import geopandas
 import numpy as np
 from hera import toolkitHome
-
+import pandas as pd
+import xarray as xr
 
 
 class TopographyToolkit(toolkit.abstractToolkit):
@@ -187,16 +188,49 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 processed += grp.shape[0]
         return pointList
 
-    def getElevation(self,minx,miny,maxx,maxy,dxdy=30,inputCRS=WSG84, dataSourceName=None, LandcoverDataSource=None):
-        landcover_tk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_LANDCOVER, projectName=self.projectName)
-        xarray = landcover_tk.getLandCover(minx,miny,maxx,maxy,dxdy,inputCRS,LandcoverDataSource)
-        xarray = self.getElevationFromLandcover(xarray,dataSourceName)
-        return xarray
+    def getElevation(self,minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84, dataSourceName=None):
+        if inputCRS == WSG84:
+            min_pp = convertCRS(points=[[miny, minx]], inputCRS=WSG84, outputCRS=ITM)[0]
+            max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=WSG84, outputCRS=ITM)[0]
+        else:
+            min_pp = convertCRS(points=[[minx, miny]], inputCRS=ITM, outputCRS=ITM)[0]
+            max_pp = convertCRS(points=[[maxx, maxy]], inputCRS=ITM, outputCRS=ITM)[0]
 
-    def getElevationFromLandcover(self,xarray,dataSourceName=None):
-        elevation_values = np.vectorize(self.getPointElevation)(xarray['lat'], xarray['lon'],dataSourceName)
-        xarray = xarray.assign_coords(elevation=(['i', 'j'], elevation_values))
-        return xarray
+        x = numpy.arange(min_pp.x, max_pp.x, dxdy)
+        y = numpy.arange(min_pp.y, max_pp.y, dxdy)
+        xx = numpy.zeros((len(x), len(y)))
+        yy = numpy.zeros((len(x), len(y)))
+        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)],
+                                          [(j, vy) for (j, vy) in enumerate(y[::-1])]):
+            print((i, j), end="\r")
+            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
+            lat = newpp.y
+            lon = newpp.x
+            xx[i, j] = lat
+            yy[i, j] = lon
+
+        pointList = pd.DataFrame({'lat': xx.flatten(), 'lon': yy.flatten()})
+        elevation_df = self.getPointListElevation(pointList,dataSourceName)
+        i = np.arange(xx.shape[0])
+        j = np.arange(xx.shape[1])
+
+        return xr.DataArray(
+            coords={
+                'i': i,
+                'j': j,
+                'lat': (['i', 'j'], xx),
+                'lon': (['i', 'j'], yy),
+                'elevation': (['i', 'j'], elevation_df['elevation'].values.reshape(xx.shape[0], xx.shape[1])),
+                'dxdy': dxdy
+            },
+            dims=['i', 'j']
+        )
+
+    def getElevationOfXarray(self,xarray_dataset,dataSourceName=None):
+        pointList = pd.DataFrame({'lat': xarray_dataset['lat'].values.flatten(), 'lon': xarray_dataset['lon'].values.flatten()})
+        elevation_df = self.getPointListElevation(pointList, dataSourceName)
+        xarray_dataset = xarray_dataset.assign_coords(elevation=(['i', 'j'], elevation_df['elevation'].values.reshape(xarray_dataset.shape[0], xarray_dataset.shape[1])))
+        return xarray_dataset
 
     def createElevationSTL(self, minx, miny, maxx, maxy, dxdy = 30,shiftx=0,shifty=0,inputCRS=WSG84, dataSourceName=None, solidName="Topography"):
         """
