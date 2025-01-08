@@ -261,6 +261,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return self.getElevationSTL(elevation,shiftx,shifty,solidName)
 
+
     def getElevationSTL(self,elevation,shiftx=0,shifty=0,solidName="Topography"):
         # Convert to ITM coordinates for STL file
         xx = numpy.zeros((elevation.shape[0],elevation.shape[1]))
