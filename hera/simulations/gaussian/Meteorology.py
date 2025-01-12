@@ -6,7 +6,7 @@ from ...utils import tounit, tonumber
 from ..gaussian import Meteorology as metmodule
 
 
-class StandardMeteorolgyConstant_powerLaw(object):
+class StandardMeteorolgyConstant_powerLaw:
     """
         Implements a standard meteorology.
 
@@ -20,6 +20,11 @@ class StandardMeteorolgyConstant_powerLaw(object):
 
     _refHeight = None
     _u_refHeight = None
+
+    # inversion = None
+    # @property
+    # def inversion(self):
+    #     return self.inversion
 
     @property
     def ustar(self):
@@ -109,7 +114,7 @@ class StandardMeteorolgyConstant_powerLaw(object):
         "E": [0, 0.34, 0.32, 0.38, 0.47],
         "F": [0, 0.53, 0.54, 0.61, 0.69]}, index=[0, 0.01, 0.1, 1, 3])  # roughness, in [m]
 
-    def __init__(self, temperature=20, stability="D", z0=0.1, ustar=0.3, skinSurfaceTemperature=35, **kwargs):
+    def __init__(self, inversion, temperature=20, stability="D", z0=0.1, ustar=0.3, skinSurfaceTemperature=35, **kwargs):
         """
             Define the base parameters of the meteorology
 
@@ -139,6 +144,7 @@ class StandardMeteorolgyConstant_powerLaw(object):
         self.temperature = temperature
         self.stability = stability
         self.z0 = z0
+        self.inversion = inversion
 
         if "u" in kwargs:
             if "refHeight" not in kwargs:
@@ -244,7 +250,7 @@ class StandardMeteorolgyConstant_powerLaw(object):
         pstab = self._pvalues[self.stability]
         self._wind_p = numpy.interp(self.z0.asNumber(m), pstab.index, pstab)
 
-    def getWindVeclocity(self, height):
+    def getWindVelocity(self, height):
         """
             Return the wind velocity defined as:
             \begin{equation}
@@ -265,9 +271,9 @@ class StandardMeteorolgyConstant_powerLaw(object):
         return self.u_refHeight * (height / refHeight) ** self.wind_p
 
 
-class StandardMeteorolgyConstant_logNormal(StandardMeteorolgyConstant_powerLaw):
+class StandardMeteorolgyConstant_log(StandardMeteorolgyConstant_powerLaw):
 
-    def getWindVeclocity(self, height):
+    def getWindVelocity(self, height):
         """
             Return the wind velocity defined as:
             \begin{equation}
@@ -298,7 +304,7 @@ class StandardMeteorolgyConstant_logNormal(StandardMeteorolgyConstant_powerLaw):
 
 class StandardMeteorolgyConstant_uniformWind(StandardMeteorolgyConstant_powerLaw):
 
-    def getWindVeclocity(self, height):
+    def getWindVelocity(self, height):
         """
             Constant wind
         :param height:
@@ -321,14 +327,14 @@ class MeteorologyProfile(StandardMeteorolgyConstant_powerLaw):
 #                                Factory                                                        #
 #################################################################################################
 
-class MeteorolgyFactory(object):
+class MeteorologyFactory:
 
     def __init__(self):
         self.meteorology = dict(powerLaw=StandardMeteorolgyConstant_powerLaw,
-                                logNormal=StandardMeteorolgyConstant_logNormal,
+                                log=StandardMeteorolgyConstant_log,
                                 uniformWind=StandardMeteorolgyConstant_uniformWind)
 
-    def getMeteorology(self, name, **kwargs):
+    def getMeteorologyFromU10(self, u10, inversion, verticalProfileType="log", temperature=20*celsius, stability="D", z0=0.1*m, ustar=0.3*m/s, skinSurfaceTemperature=35*celsius):
         """
            Creating a meteorology object.
 
@@ -340,7 +346,25 @@ class MeteorolgyFactory(object):
         :return:
             The meteorology object.
         """
-        return self.meteorology[name](**kwargs)
+        return self.meteorology[verticalProfileType](u10=u10, inversion=inversion, temperature=temperature, stability=stability,
+                                                     z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
+
+    def getMeteorologyFromURefHeight(self, u, inversion, refHeight, verticalProfileType="log", temperature=20*celsius, stability="D",
+                                     z0=0.1*m, ustar=0.3*m/s, skinSurfaceTemperature=35*celsius):
+        """
+           Creating a meteorology object.
+
+        :param kwargs:
+                name: The meteorology object name.
+
+                Other kwparams are passed to the meteorology object.
+
+        :return:
+            The meteorology object.
+        """
+        return self.meteorology[verticalProfileType](u=u, inversion=inversion, refHeight=refHeight, temperature=temperature,
+                                                     stability=stability, z0=z0, ustar=ustar, skinSurfaceTemperature=skinSurfaceTemperature)
 
 
-meteorologyFactory = MeteorolgyFactory()
+
+

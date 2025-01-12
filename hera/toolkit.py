@@ -45,11 +45,13 @@ class ToolkitHome:
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
+    GAUSSIANDISPERSION = "Gaussian"
 
     METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
     METEOROLOGY_LOWFREQ = "MeteoLowFreq"
 
     EXPERIMENT = "experiment"
+
 
     _toolkits = None
 
@@ -74,7 +76,9 @@ class ToolkitHome:
             experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
 
             hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit"),
-            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit")
+            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
+            Gaussian = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit")
+
         )
 
 
