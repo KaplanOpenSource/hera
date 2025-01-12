@@ -84,6 +84,17 @@ class OFObjectHome:
                 "fieldType":"scalar",
                 "fieldComputation":"eulerian"
             },
+            "alphat" : { 
+                "dimensions" : {
+                    "default" : {
+                        "kg" : 1,
+                        "m" :-1, 
+                        "s" :-1
+                    }
+                }, 
+                "fieldType":"scalar",
+                "fieldComputation":"eulerian"
+            },
             "nut" : { 
                 "dimensions" : {
                     "default" : {
@@ -151,13 +162,13 @@ class OFObjectHome:
                 "fieldType":"scalar",
                 "fieldComputation":"eulerian"
             },            
-            "CellHeights" : { 
+            "distanceFromWalls" : { 
                 "dimensions" : {
                     "default" : {
                         "m" : 1
                     }
                 }, 
-                "fieldType":"scalar",
+                "fieldType":"vector",
                 "fieldComputation":"eulerian"
             }
         }"""
@@ -397,6 +408,8 @@ class OFObjectHome:
 
     def readFieldAsDataFrame(self, fieldName, caseDirectory, times=0, readParallel=True,filterInternalPatches=False):
         """
+            DEPRACATED. read the field and use getDataFrame.
+
             Extracts a field to the disk from the requested times.
             If None, then reads from all the time steps.
             Reads only the internal field (and not the boundaries).

@@ -12,11 +12,12 @@ from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
 from ...utils.logging import get_logger
 from .preprocessOFObjects import OFObjectHome
+from ..CLI  import workflow_add
 
 
 def Foam_createEmpty(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
     if 'projectName' not in arguments:
@@ -44,18 +45,19 @@ def Foam_createEmpty(arguments):
                        flowType=simulationType,
                        additionalFieldsDescription=arguments.fieldsDescription)
 
-    logger.execution(f"----- End -----")
+    logger.debug(f"----- End -----")
 
 
 def Foam_parser_FieldDescription(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start : Foam_parser_FieldDescription -----")
+    logger.debug(f"----- Start : Foam_parser_FieldDescription -----")
     logger.debug(f" arguments: {arguments}")
 
     if arguments.fields is not None:
         field_len = len(arguments.fields)
     else:
         field_len = 0
+
 
     jsonExample = dict()
     if field_len > 0:
@@ -67,15 +69,39 @@ def Foam_parser_FieldDescription(arguments):
     with open(arguments.fileName, "w") as outfile:
         json.dump(jsonExample, outfile, indent=4)
 
+def foam_solver_template_buildExecute(arguments):
+    """
+        Adds the workflow to the DB and executes it.
 
-def foam_templates_flow_list(arguments):
+        Can be invoked without executing or without adding to the db.
+
+    Parameters
+    ----------
+    arguments
+
+    Returns
+    -------
+
+    """
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start : foam_templates_flow_list-----")
+    logger.debug(f"----- Start : foam_templates_flow_list-----")
+    logger.debug(f" arguments: {arguments}")
+
+    arguments.force = True
+    if arguments.noDB:
+        from hermes.utils.workflowAssembly import handler_buildExecute
+        handler_buildExecute(arguments)
+    else:
+        workflow_add(arguments)
+
+def foam_solver_templates_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.debug(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesFlowTemplates(arguments.solver)
+    templates = tk.listHermesSolverTemplates(arguments.solver)
 
     ttl = f"The templates for project {tk.projectName} with solver {arguments.solver}"
     print()
@@ -85,9 +111,9 @@ def foam_templates_flow_list(arguments):
     print(templates)
 
 
-def foam_templates_flow_create(arguments):
+def foam_solver_template_create(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
     if 'projectName' in arguments:
@@ -98,7 +124,7 @@ def foam_templates_flow_create(arguments):
         projectName = None
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    templates = tk.listHermesFlowTemplates(arguments.solver)
+    templates = tk.listHermesSolverTemplates(arguments.solver)
     if arguments.templateName not in templates.index:
         err = f"{arguments.templateName} is not known. Use one of the \n " + str(templates)
         logger.error(err)
@@ -108,13 +134,15 @@ def foam_templates_flow_create(arguments):
     groupName = arguments.templateName if arguments.groupName is None else arguments.groupName
     logger.info(f"Saving the simulation with the group name: {groupName}")
 
+    tname = arguments.templateName
+    dataSourceName = templates.query(f"name==@tname").iloc[0].datasourceName
     with open(os.path.join(outputPath, f"{groupName}_1.json"), "w") as outFile:
-        json.dump(tk.getDataSourceData(arguments.templateName), outFile, indent=4)
+        json.dump(tk.getDataSourceData(dataSourceName), outFile, indent=4)
 
 
 def foam_templates_node_list(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
@@ -127,6 +155,50 @@ def foam_templates_node_list(arguments):
     print(ttl)
     print("-" * len(ttl))
     print(templates)
+
+def foam_solver_simulations_list(arguments):
+    logger = logging.getLogger("hera.bin")
+    logger.debug(f"----- Start -----")
+    logger.debug(f" arguments: {arguments}")
+
+    projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+
+    simDocument = wftk.getWorkflowListOfSolvers(arguments.solver)
+
+    if len(simDocument) == 0:
+        print(f"{arguments.solver} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+
+    for groupName in set([x.desc['groupName'] for x in simDocument]):
+        ttl = " "*10 + f"Group name: {groupName}" + " "*10
+        print(ttl)
+        print(f"-"*len(ttl))
+
+        res = wftk.compareWorkflow([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
+
+        if arguments.format == "pandas":
+            output = res
+            ext = "txt"
+        elif arguments.format == "latex":
+            output = res.to_latex()
+            ext = "tex"
+        elif arguments.format == "csv":
+            output = res.to_csv()
+            ext = "csv"
+        else:
+            output = json.dumps(loadJSON(res.to_json()), indent=4)
+            ext = "json"
+
+        if len(res) == 0:
+            print(f"Could not found any workflows to compare in project {projectName}")
+        else:
+            print(output)
+
+            if arguments.file is not None:
+                flName = arguments.file if "." in arguments.file else f"{arguments.file}.{ext}"
+
+                with open(flName, "w") as outputFile:
+                    outputFile.write(output)
 
 
 def stochasticLagrangian_dispersionFlow_create(arguments):
@@ -141,34 +213,34 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
 
     """
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
     projectName = arguments.projectName
-    logger.info(f"Adding dispersion flow to project {projectName}")
+    logger.info(f"Adding dispersion flow to project {projectName}. Overwriting? {arguments.overwrite}")
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=arguments.projectName)
 
-    flowdata = loadJSON(arguments.dispersionFlowParams)
-    flowName = os.path.basename(arguments.dispersionFlowParams).split(".")[0]
-    logger.info(f"Createing dispersion flows {flowName}")
+    params = arguments.dispersionFlowParams.replace("'",'"').replace("True","true").replace("False","false").replace("None","null")
+    flowdata = loadJSON(params)
+    flowName = arguments.dispersionFlowName
+    logger.info(f"Createing dispersion flow (DFF) {flowName} for the flow {arguments.OriginalFlowField}")
 
-    dispersionFieldList = []
-    if 'dispersionFlowFields' in arguments:
-        if arguments.dispersionFlowFields is not None:
-            dispersionFieldList = list(numpy.atleast_1d(arguments.dispersionFlowFields))
-
+    # dispersionFieldList = []
+    # if 'dispersionFlowFields' in arguments:
+    #     if arguments.dispersionFlowFields is not None:
+    #         dispersionFieldList = list(numpy.atleast_1d(arguments.dispersionFlowFields))
 
     try:
         tk.stochasticLagrangian.createDispersionFlowField(flowName=flowName,
                                                           flowData=flowdata,
                                                           OriginalFlowField=arguments.OriginalFlowField,
-                                                          dispersionFieldList=dispersionFieldList,
+                                                          dispersionDuration=arguments.dispersionDuration,
                                                           overwrite=arguments.overwrite)
     except FileExistsError:
         err = f"Flow field {flowName} Already exists. Use --overwrite to recreate"
         logger.error(err)
 
-    logger.execution(f"----- End -----")
+    logger.debug(f"----- End -----")
 
 def foam_mesh_blockMesh(arguments):
     raise NotImplementedError("Not implemented yet, blockMesh")
@@ -223,7 +295,7 @@ def stochasticLagrangian_dispersionFlow_list(arguments):
 
     """
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" makeDispersionFlow with arguments: {arguments}")
 
     if 'projectName' not in arguments:
@@ -289,7 +361,7 @@ def stochasticLagrangian_dispersion_create(arguments):
     :return:
     """
     logger = logging.getLogger("hera.bin.stochasticLagrangian.dispersion_create")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
 
     if ('projectName' in arguments) and (arguments.projectName is not None):
@@ -308,8 +380,8 @@ def stochasticLagrangian_dispersion_create(arguments):
 
     dispersionFlowFieldName = arguments.dispersionFlowField
     logger.info(f"Getting the dispersion flowField {dispersionFlowFieldName} ")
-    doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.OF_FLOWDISPERSION)
-    if len(doc) == 0:
+    doc = tk.getWorkflowDocumentFromDB(dispersionFlowFieldName, tk.DOCTYPE_OF_FLOWDISPERSION)
+    if len(doc) == 0 or arguments.overwrite:
         logger.info(f"Dispersion flow {dispersionFlowFieldName} not found in DB. Trying to use as a directory")
         if not os.path.exists(dispersionFlowFieldName):
             err = f"{dispersionFlowFieldName} not found!. "
@@ -324,7 +396,7 @@ def stochasticLagrangian_dispersion_create(arguments):
         logger.info(f"Dispersion {dispersionDirectoryName} exists.")
         if arguments.overwrite:
             logger.info("Got the overwrite flag: removing old directory")
-            shutil.rmtree(dispersionDirectoryName, )
+            shutil.rmtree(dispersionDirectoryName)
         else:
             err = "Dispersion flow exists. Use --overwrite to force recreation"
             raise ValueError(err)
@@ -336,7 +408,7 @@ def stochasticLagrangian_dispersion_create(arguments):
 
 def stochasticLagrangian_source_cylinder(arguments):
     logger = logging.getLogger("hera.bin.stochasticLagrangian_source_cylinder")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
 
     center = arguments.center
@@ -411,7 +483,7 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
         Creates a parquet file from the case results
     """
     logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
 
     if ('projectName' in arguments) and (arguments.projectName is not None):
@@ -424,10 +496,25 @@ def stochasticLagrangian_postProcess_toParquet(arguments):
     logger.info(f"Using project {projectName} for cloud name {arguments.cloudName}")
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=arguments.case, withVelocity=True, withMass=True,
+    docList = tk.getWorkflowDocumentFromDB(arguments.dispersionName)
+    if len(docList) == 0:
+        logger.info(f"The name {arguments.dispersionName} is not found. Try to use it as a directory")
+        if os.path.isdir(arguments.dispersionName):
+            logger.info(
+                f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
+            outputName = arguments.dispersionName
+            cache = False
+    else:
+        doc = docList[0]
+        outputName = doc.desc['workflowName']
+        cache = True
+
+
+
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,
                                                   overwrite=arguments.overwrite, cloudName=arguments.cloudName)
-    tk.stochasticLagrangian.presentation.toVTU(data, outDirectory=arguments.outputDirectory,
-                                               outFile=os.path.basename(arguments.case))
+
 
 def stochasticLagrangian_postProcess_toVTK(arguments):
     """
@@ -435,7 +522,7 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
         Creates the parquet file if does not exist.
     """
     logger = logging.getLogger("hera.bin.stochasticLagrangian_postProcess_toParquet")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
 
     if ('projectName' in arguments) and (arguments.projectName is not None):
@@ -453,30 +540,28 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
         base_outputdir = os.getcwd()
 
     tk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    docList = tk.getWorkflowDocumentFromDB(arguments.case)
+    docList = tk.getWorkflowDocumentFromDB(arguments.dispersionName)
     if len(docList) == 0:
-        logger.info(f"The name {arguments.case} is not found. Try to use it as a directory")
-        if os.path.isdir(arguments.case):
+        logger.info(f"The name {arguments.dispersionName} is not found. Try to use it as a directory")
+        if os.path.isdir(arguments.dispersionName):
             logger.info(
-                f"Found {arguments.case} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
-            outputName = arguments.case
-            cache = False
+                f"Found {arguments.dispersionName} as directory. Trying to use it as lagrangian simulation and save it in VTK format")
+            outputName = arguments.dispersionName
     else:
         doc = docList[0]
         outputName = doc.desc['workflowName']
-        cache = True
+        logger.info(f"The name {arguments.dispersionName} found. Use the workflow name {outputName}")
 
     outputdir = os.path.join(base_outputdir, "VTK", outputName)
     logger.info(f"Writing values to directory {outputdir}")
     os.makedirs(outputdir, exist_ok=True)
-    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,
-                                                  cache=cache)
+    data = tk.stochasticLagrangian.getCaseResults(caseDescriptor=outputName, withVelocity=True, withMass=True,overwrite=arguments.overwrite,cache=False)
     tk.presentation.toUnstructuredVTK(data=data, outputdirectory=outputdir, filename=arguments.cloudName,
-                                      timeNameOutput=True, xcoord="x", ycoord="y", zcoord="z")
+                                      overwrite=arguments.overwrite, xcoord="x", ycoord="y", zcoord="z")
 
 def objects_createVerticesAndBoundary(arguments):
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
     try:
         import FreeCAD
@@ -598,7 +683,7 @@ def IC_hydrostaticPressure(arguments):
 
     """
     logger = logging.getLogger("hera.bin")
-    logger.execution(f"----- Start -----")
+    logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
 
     if 'projectName' not in arguments:
@@ -674,7 +759,7 @@ def hermes_buildExecute(arguments):
 #     :return:
 #     """
 #     logger = logging.getLogger("hera.bin.stochasticLagrangian.createDispersionFlow")
-#     logger.execution(f"----- Start -----")
+#     logger.debug(f"----- Start -----")
 #     logger.debug(f"  Got arguments: {arguments}")
 #
 #     if (arguments.updateDB and arguments.exportFromDB):
@@ -730,7 +815,7 @@ def hermes_buildExecute(arguments):
 #     # 2. Check if the dispersion workflow name is in the DB.
 #     DBDispersionWorkflowDocument = tk.getWorkflowDocumentFromDB(currentDispersionName) #, dispersionFlowFieldName=dispersionFlowFieldName)
 #     if len(DBDispersionWorkflowDocument) > 0:
-#         logger.execution(f" the workflow {currentDispersionName} in the DB. First see if the dispersion flow field is similar")
+#         logger.debug(f" the workflow {currentDispersionName} in the DB. First see if the dispersion flow field is similar")
 #
 #         # 2.1 Check if the dispersion flow fields are similar
 #         if (DBDispersionWorkflowDocument[0]['desc']['dispersionFlowFieldName'] != dispersionFlowFieldName):
@@ -747,7 +832,7 @@ def hermes_buildExecute(arguments):
 #             logger.debug("dispersion not found in DB, add it")
 #             needDBAdd = True
 #
-#         logger.execution(f"Check if the disk workflow is identical to the DB workflow")
+#         logger.debug(f"Check if the disk workflow is identical to the DB workflow")
 #         diskDispersionWorkflow = tk.getHermesWorkflowFromJSON(dispersionWorkFlow)
 #         DBDispersionWorkflow   = tk.getHermesWorkflowFromJSON(DBDispersionWorkflowDocument[0]['desc']['workflow'])
 #
@@ -759,13 +844,13 @@ def hermes_buildExecute(arguments):
 #         else:
 #             logger.info(f"The workflow in the DB is different than the disk. Must specify whether to use the disk version  (--updateDB), or the DB version (--exportFromDB). ")
 #             if arguments.exportFromDB:
-#                 logger.execution(f"Exporting the workflow to file {arguments.dispersionWorkflow}")
+#                 logger.debug(f"Exporting the workflow to file {arguments.dispersionWorkflow}")
 #                 with open(arguments.dispersionWorkflow, 'w') as JSONOut:
 #                     json.dump(DBDispersionWorkflowDocument[0]['desc']['workflow'],JSONOut,indent=4)
 #
 #                 DispersionWorkflow = DBDispersionWorkflow
 #             elif arguments.updateDB:
-#                 logger.execution("Updating the DB with the workflow from disk")
+#                 logger.debug("Updating the DB with the workflow from disk")
 #                 DispersionWorkflow = diskDispersionWorkflow
 #                 updateWorkflow = True
 #                 needRewrite = True
@@ -775,7 +860,7 @@ def hermes_buildExecute(arguments):
 #                 raise ValueError(err)
 #
 #     # 3. Check if workflow already in DB under a different name
-#     logger.execution("Check if workflow already in DB under a different name")
+#     logger.debug("Check if workflow already in DB under a different name")
 #     #    Stop unless allowDuplicate flag exist
 #     DBDispersionWorkflow = tk.getHermesWorkflowFromDB(dispersionWorkFlow, dispersionFlowFieldName=dispersionFlowFieldName)
 #
@@ -792,10 +877,10 @@ def hermes_buildExecute(arguments):
 #
 #     # 4.  check if the dispersion directory exists.
 #     #    if it exist, remove if the --rewrite flag exists.
-#     logger.execution("Check if dispersion already exists on the disk. If it is remove for fresh start only in rewrite flag exists")
+#     logger.debug("Check if dispersion already exists on the disk. If it is remove for fresh start only in rewrite flag exists")
 #     if os.path.isdir(dispersionDirectoryName):
 #         if needRewrite:
-#             logger.execution(f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
+#             logger.debug(f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
 #         if arguments.rewrite:
 #             logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
 #             shutil.rmtree(dispersionDirectoryName)
@@ -816,7 +901,7 @@ def hermes_buildExecute(arguments):
 #     handler_buildExecute(arguments)
 #
 #     # 5. Add/update to the DB.
-#     logger.execution("add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
+#     logger.debug("add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
 #     if needDBAdd:
 #         groupName = dispersionName.split("_")[0]
 #         groupID   = dispersionName.split("_")[1]

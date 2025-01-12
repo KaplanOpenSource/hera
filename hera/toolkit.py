@@ -45,13 +45,13 @@ class ToolkitHome:
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
-    GAUSSIANDISPERSION = "Gaussian"
 
     METEOROLOGY_HIGHFREQ = "MeteoHighFreq"
     METEOROLOGY_LOWFREQ = "MeteoLowFreq"
 
     EXPERIMENT = "experiment"
 
+    WINDPROFILE = "WindProfile"
 
     _toolkits = None
 
@@ -77,7 +77,8 @@ class ToolkitHome:
 
             hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit"),
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
-            Gaussian = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit")
+
+            WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit")
 
         )
 
@@ -221,15 +222,15 @@ class abstractToolkit(Project):
         self._toolkitname = toolkitName
 
         if filesDirectory is None:
-            logger.execution("Directory is not given, tries to load from default or using the current directory")
+            logger.debug("Directory is not given, tries to load from default or using the current directory")
             try:
                 self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
             except ValueError:
                 self._FilesDirectory = os.getcwd()
 
-            logger.execution(f"Using {self._FilesDirectory}")
+            logger.debug(f"Using {self._FilesDirectory}")
         else:
-            logger.execution(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
+            logger.debug(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
             os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
             self._FilesDirectory = filesDirectory
 
@@ -340,6 +341,13 @@ class abstractToolkit(Project):
             filters[TOOLKIT_DATASOURCE_NAME] = datasourceName
         if version is not None:
             filters[TOOLKIT_DATASOURCE_VERSION] = version
+        else:
+            try:
+                defaultVersion = self.getConfig()[f"{datasourceName}_defaultVersion"]
+                filters[TOOLKIT_DATASOURCE_VERSION] = defaultVersion
+            except:
+                pass
+
 
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
 

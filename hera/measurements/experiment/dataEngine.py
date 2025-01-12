@@ -1,11 +1,9 @@
-from hera import toolkit
 import json
-from hera import datalayer
 import pymongo
 import pandas
-#import dask_mongo
-from argos.manager import  DEPLOY, DESIGN
-from ...utils.logging import helpers as hera_logging
+from ... import datalayer
+from ...utils.logging import get_classMethod_logger
+
 
 PARQUETHERA = 'parquetDataEngingHera'
 PANDASDB = 'pandasDataEngineDB'
@@ -16,12 +14,12 @@ class dataEngineFactory:
     def __init__(self):
         pass
 
-    def getDataEngine(self,projectName, datasourceConfiguration, dataType = PARQUETHERA):
+    def getDataEngine(self,projectName, datasourceConfiguration,experimentObj, dataType = PARQUETHERA):
 
         if dataType == PANDASDB:
             return pandasDataEngineDB(projectName,datasourceConfiguration)
         elif dataType == PARQUETHERA:
-            return parquetDataEngineHera(projectName,datasourceConfiguration)
+            return parquetDataEngineHera(projectName,datasourceConfiguration,experimentObj)
         elif dataType == DASKDB:
             return daskDataEngineDB(projectName,datasourceConfiguration)
         else:
@@ -56,8 +54,7 @@ class pandasDataEngineDB:
         self._dbConfiguration = datasourceConfiguration['DB']
         self.dbConnect()
 
-    def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
-                         trialState=DEPLOY, startTime=None, endTime=None):
+    def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True, startTime=None, endTime=None):
         """
             Return the device data from the set. Use the default trial set if it is None.
 
@@ -92,8 +89,6 @@ class pandasDataEngineDB:
                         The position Y of the device
                             Use the trial state to determine the location
 
-        trialState : DEPLOY or DESIGN
-
         :return: pandas
                 Pandas with the data
 
@@ -113,7 +108,7 @@ class pandasDataEngineDB:
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable(trialState)
+            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
                     "timestamp")
@@ -191,8 +186,7 @@ class daskDataEngineDB:
 
         self._dbConfiguration = datasourceConfiguration['DB']
 
-    def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
-                         trialState=DEPLOY, startTime=None, endTime=None):
+    def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True, startTime=None, endTime=None):
         """
             Return the device data from the set. Use the default trial set if it is None.
 
@@ -227,7 +221,7 @@ class daskDataEngineDB:
                         The position Y of the device
                             Use the trial state to determine the location
 
-        trialState : DEPLOY or DESIGN
+
 
         :return: pandas
                 Pandas with the data
@@ -248,7 +242,7 @@ class daskDataEngineDB:
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable(trialState)
+            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
                     "timestamp")
@@ -309,16 +303,18 @@ class daskDataEngineDB:
 
 class parquetDataEngineHera(datalayer.Project):
     experimentName = None
+    experimentObj = None
 
-    def __init__(self, projectName, datasourceConfiguration):
-        self.logger = hera_logging.get_logger(self)
+
+    def __init__(self, projectName, datasourceConfiguration,experimentObj):
+        logger = get_classMethod_logger(self,"parquetDataEngineHera")
 
         super().__init__(projectName=projectName)
 
         self.experimentName = datasourceConfiguration['experimentName']
+        self.experimentObj = experimentObj
 
-    def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True,
-                         trialState=DEPLOY, startTime=None, endTime=None,**query):
+    def getDataFromTrial(self, deviceType, trialName, trialSet=None, deviceName=None, withMetadata=True, startTime=None, endTime=None,**query):
         """
         Return the device data from the set. Use the default trial set if it is None.
 
@@ -349,17 +345,16 @@ class parquetDataEngineHera(datalayer.Project):
                     - longitude: The position X of the device. Use the trial state to determine the location
                     - latitute: The position Y of the device. Use the trial state to determine the location
 
-        trialState: str
-            'deploy' or 'design'.
 
         Returns
         -------
             pd.DataFrame
 
         """
+        #3logger = get_classMethod_logger(self, "parquetDataEngineHera")
         trialSet = self.experimentObj.trialSet if trialSet is None else trialSet
 
-        trial = self._experimentObj.experimentSetup.trialSet[trialSet][trialName]
+        trial = self.experimentObj.experimentSetup.trialSet[trialSet][trialName]
         startTime = trial.properties['TrialStart'] if startTime is None else startTime
         endTime = trial.properties['TrialEnd'] if endTime is None else endTime
 
@@ -372,8 +367,7 @@ class parquetDataEngineHera(datalayer.Project):
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable(
-                trialState)
+            devicemetadata = self.experimentObj.experimentSetup.trialSet[trialSet][trialName].entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName",
                                                 right_on="entityName").set_index(
@@ -410,8 +404,9 @@ class parquetDataEngineHera(datalayer.Project):
         -------
             dask.DataFrame, dask.Pandas. 
         """
-        self.logger.execution("------- Start --------")
-        self.logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
+        logger = get_classMethod_logger(self, "getData")
+        logger.execution("------- Start --------")
+        logger.debug(f"Getting {deviceType} with device name {deviceName} from {startTime} to {endTime}. Autocompute? {autoCompute}")
 
         if perDevice:
             assert deviceName, "If perDeivce=True then deviceName should be defined!"
@@ -444,7 +439,8 @@ class parquetDataEngineHera(datalayer.Project):
         #     endTime = endTime.strftime("%Y-%m-%d %H:%M:%S")
         # ## ------------------------------------------------------
 
-        data = data.loc[slice(startTime,endTime)]
+        if startTime is not None or endTime is not None:
+            data = data.loc[slice(startTime,endTime)]
 
         if autoCompute:
             data =data.compute()

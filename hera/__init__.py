@@ -1,4 +1,4 @@
-__version__ = '2.15.4'
+__version__ = '2.15.5'
 
 import sys
 python_version = sys.version_info
@@ -16,6 +16,9 @@ from .datalayer import Project
 toolkitHome = ToolkitHome()
 
 """
+2.15.5
+    #272    - Fixed the way we check the dataframe type in the analysis of the high freq toolkit. 
+    
     #249    - Fixed the bug with JSON containing keys end with __type. Key must end with __type__. 
             - Fixed a bug in the processToJson: now also support dicts inside maps. 
 2.15.4

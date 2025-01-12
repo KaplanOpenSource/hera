@@ -2,7 +2,12 @@ import matplotlib.pyplot as plt
 import seaborn
 import matplotlib.colors as mcolors
 import numpy
-
+from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
+import pandas as pd
+import numpy as np
+from hera import toolkitHome
+import jinja2
+import os
 
 class experimentPresentation:
     """
@@ -523,9 +528,148 @@ class experimentPresentation:
 
 
 
-    ########################
-    ###
-    ###  Data plots
-    ###
-    #########################
+    def devicesProperties(self):
+        devices = []
+        for trialSet in self.datalayer.setup['trialSets']:
+            trialSetName = trialSet['name']
+            for trial in trialSet['trials']:
+                trialName = trial['name']
+                date = trial['createdDate']
+                for device in trial['devicesOnTrial']:
+                    d = {}
+                    d['type'] = device['deviceTypeName']
+                    d['name'] = device['deviceItemName']
+                    d['latitutde'] = device['location']['coordinates'][0]
+                    d['longitute'] = device['location']['coordinates'][1]
+                    d['trialSetName'] = trialSetName
+                    d['trialName'] = trialName
+                    d['trialCreatedDate'] = date
+                    devices.append(d)
 
+        return devices
+
+    def plot_devices(self,trialSetName,trialName,deviceType,ax=None,plot_kwargs=None,toolkitDataSource=None,display=True):
+        """
+        Plot map of devices type places in a specific trial set and trial.
+
+        Parameters
+        ----------
+        trialSetName : str
+            Trial Set Name.
+        trialName: str
+            Trial Name.
+        deviceType: str
+            Device type name.
+        plotkwargs: dict
+            Parameters for matplotlib.pyplot subplot.
+        toolkitDataSource: str
+            The Data Source name for Tile raster toolkit.
+        display: bool
+            Whether to display map picture or not.
+
+        Returns
+        -------
+            fig
+            ax
+        """
+        tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES,projectName=self.datalayer.projectName)
+
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
+        if 'deviceTypeName' in devices_df.columns:
+            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
+
+        else:
+            devices_df = devices_df[devices_df['entityType']==deviceType]
+            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
+
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
+        minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
+        region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
+        img = tiles_tk.getImageFromCorners(**region)
+
+        if ax is None:
+            plot_kwargs = plot_kwargs or {}
+            fig, ax = plt.subplots(1, 1, **plot_kwargs)
+        else:
+            fig = ax.figure
+
+        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
+        extent = plot.get_extent()
+        x_min, x_max, y_min, y_max = extent
+        ax.imshow(plot.get_array(), extent=extent, origin='lower', cmap='gray')
+        d = {}
+        for row in devices_df.itertuples():
+            x = row.ITM_Latitude
+            y = row.ITM_Longitude
+            try:
+                d[row.stationName] += 1
+            except:
+                d[row.stationName] = 1
+
+            num_of_devices_in_station = d[row.stationName]
+            delta = num_of_devices_in_station * 0.02
+
+            ax.scatter(x, y, color='red', marker='o', s=50)  # 's' controls size
+            ax.text(x, y + (y_max - y_min) * delta, f"{row.deviceItemName}", color='red', fontsize=20, ha='center',
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+        if display:
+            plt.show()
+        else:
+            plt.close(fig)
+
+        return fig, ax
+
+    def generate_latex_folder(self,latex_template,folder_path):
+        """
+        Save folder for overleaf website upload to transform to PDF.
+
+        Parameters
+        ----------
+        latex_template: str
+            Latex Template.
+        folder_path: str
+            Path to save folder
+
+        Returns
+        -------
+        """
+        data = {}
+        data['trialSets'] = []
+        os.makedirs(folder_path, exist_ok=True)
+        for trialSet in self.datalayer.setup['trialSets']:
+            trialSet_dict = {}
+            trialSet_dict['trialSet_name'] = trialSet['name']
+            trialSet_dict['trials'] = []
+            for trial in trialSet['trials']:
+                trial_dict = {}
+                trial_dict['trial_name'] = trial['name']
+                devices_df = self.datalayer.trialSet['Measurements']['Measurements'].entitiesTable
+                trial_dict['devices'] = []
+                for device_name in devices_df['deviceTypeName'].unique():
+                    device_dict = {}
+                    fig , _ = self.plot_devices(trialSetName=trialSet['name'],trialName=trial['name'],device=device_name,display=False)
+                    image_path = os.path.join(folder_path,f"{device_name}.png")
+                    fig.savefig(image_path)
+                    device_dict['device_name'] = device_name
+                    device_dict['map_image_path'] = f"{device_name}.png"
+                    device_dict['locations_table'] = []
+                    device_df = devices_df[devices_df['deviceTypeName'] == device_name]
+                    for row in device_df.itertuples():
+                        location = {}
+                        location["latitude"] = row.Latitude
+                        location['longitude'] = row.Longitude
+                        location['device_name'] = str(row.deviceItemName).replace("_", " ")
+                        location['station'] = str(row.stationName).replace("_", " ")
+                        device_dict['locations_table'].append(location)
+                    trial_dict['devices'].append(device_dict)
+                trialSet_dict['trials'].append(trial_dict)
+            data['trialSets'].append(trialSet_dict)
+
+
+        template = jinja2.Template(latex_template)
+        latex_content = template.render(trialSets=data["trialSets"])
+        tex_path = os.path.join(folder_path,f"latex_document.tex")
+        with open(tex_path, "w", encoding="utf-8") as file:
+            file.write(latex_content)
+        print(f"LaTeX document generated at: {tex_path}")

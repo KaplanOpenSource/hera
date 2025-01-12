@@ -2,7 +2,7 @@ import io
 from hera import toolkit
 import geopandas 
 from shapely.geometry import Polygon, box
-from ..utils import ITM,ED50_ZONE36N,WSG84
+from ..utils import ITM,ED50_ZONE36N,WGS84
 from ....utils.logging import get_classMethod_logger
 
 
@@ -86,7 +86,7 @@ class VectorToolkit(toolkit.abstractToolkit):
 
         return data
 
-    def cutRegionFromSource(self, datasourceDocument, shape, isBounds = False, inputCRS = WSG84):
+    def cutRegionFromSource(self, datasourceDocument, shape, isBounds = False, inputCRS = WGS84):
         """
             Cuts a the shape from the requested datasource
 
@@ -122,13 +122,13 @@ class VectorToolkit(toolkit.abstractToolkit):
         dct = dict(bbox=regionWithCRS) if isBounds else dict(mask=regionWithCRS)
 
         if regionWithCRS.crs is None:
-            logger.execution("The region was defined without crs. Using the crs of the datasource.")
+            logger.debug("The region was defined without crs. Using the crs of the datasource.")
             regionWithCRS.crs = datasourceDocument.desc['desc']['crs']
         elif regionWithCRS.crs.to_epsg() != datasourceDocument.desc['desc']['crs']:
-            logger.execution("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
+            logger.debug("shape and region crs mismatch. Converting the shape to the crs of the datasource.")
             regionWithCRS = regionWithCRS.to_crs(datasourceDocument.desc['desc']['crs'])
         else:
-            logger.execution("shape and region crs match.")
+            logger.debug("shape and region crs match.")
 
         return datasourceDocument.getData(**dct)
 

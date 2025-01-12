@@ -223,16 +223,16 @@ class CalculatorMaxConcentration(AbstractCalculator):
 		if inUnits is None:
 			if hasattr(concentrationField, "attrs"):
 				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = concentrationField.attrs[field] if attrs_units is not None  else mg / m ** 3
+			inUnits = attrs_units[field] if attrs_units is not None  else mg / m ** 3
 		CunitConversion = inUnits.asNumber(mg / m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):
 			itemstep = pandas.to_timedelta(self._sampling) / pandas.to_timedelta(
 				str(concentrationField.attrs["dt"]).replace("[", "").replace("]", ""))
 			samplingparam = {time : int(itemstep)}
-			return concentrationField[field].chunk(chunks={time: int(3*itemstep)}).rolling(**samplingparam).mean().max(dim=time)*breathingRatio*CunitConversion
+			return concentrationField[field].chunk(chunks={time: int(3*itemstep)}).rolling(**samplingparam).mean().fillna(0).max(dim=time)*breathingRatio*CunitConversion
 		elif isinstance(concentrationField,pandas.DataFrame):
-			return concentrationField.rolling(window=self._sampling).mean().max()*breathingRatio*CunitConversion
+			return concentrationField.rolling(window=self._sampling).mean().fillna(0).max()*breathingRatio*CunitConversion
 		else:
 			raise ValueError("concentrationField is not a pandas.DataFrame or xarray.Dataset")
 

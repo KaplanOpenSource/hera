@@ -6,8 +6,6 @@ import pathlib
 from importlib.resources import read_text
 from typing import List
 
-# Special Hera logging level
-EXECUTION = 15
 
 HERA_DEFAULT_LOG_DIR = pathlib.Path.home() / ".pyhera" / "log"
 
@@ -43,14 +41,6 @@ def get_default_logging_config(*, disable_existing_loggers: bool = False) -> dic
     return config
 
 
-def _define_logger_execution():
-    def execution(self, message, *args, **kws):
-        self.log(EXECUTION, message, *args, **kws)
-
-    logging.Logger.execution = execution
-    logging.addLevelName(EXECUTION, 'EXECUTION')
-    logging.EXECUTION = EXECUTION
-
 
 def initialize_logging(*logger_overrides: (str, dict), disable_existing_loggers: bool = True) -> None:
     """
@@ -78,7 +68,6 @@ def initialize_logging(*logger_overrides: (str, dict), disable_existing_loggers:
     """
     if not os.path.isdir(HERA_DEFAULT_LOG_DIR):
         os.makedirs(HERA_DEFAULT_LOG_DIR,exist_ok=False)
-    _define_logger_execution()
     config = get_default_logging_config(disable_existing_loggers=disable_existing_loggers)
     for logger_name, logger_dict, logger_type in logger_overrides:
         # This says: Use whatever was configured, if any, and update with what was provided

@@ -2,9 +2,9 @@ import json
 import logging
 import os
 
-from hera import toolkitHome
-from hera.simulations.hermesWorkflowToolkit import actionModes
-from hera.utils import loadJSON
+from .. import toolkitHome
+from .hermesWorkflowToolkit import actionModes
+from ..utils import loadJSON,compareJSONS
 from hermes import workflow
 from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
 
@@ -97,14 +97,13 @@ def workflow_add(args):
     logger.info(f"Adding workflow in {workflowFile}  to DB")
 
     execute = args.execute
-
     try:
         wftk.addWorkflowToGroup(workflowJSON=workflowFile,
-                            groupName= args.workflowGroup,
-                            assignName=args.assignName,
-                            overwrite=args.overwrite,
-                            execute=execute,
-                            force=args.force)
+                                groupName= args.workflowGroup,
+                                assignName=args.assignName,
+                                overwrite=args.overwrite,
+                                buildExecute=execute,
+                                force=args.force)
 
     except FileExistsError as e:
         err = f"{str(e)}, use --force if you want to have duplicate records"
@@ -129,7 +128,7 @@ def workflow_delete(arguments):
     logger.info(f" -- Starting: Deleting workflows --")
 
     if arguments.projectName is None:
-        logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         projectName = caseConfiguration['projectName']
 
@@ -143,13 +142,13 @@ def workflow_delete(arguments):
         outfileName = f"{sim['desc']['workflowName']}.json"
 
         if arguments.Export:
-            logger.execution(f"Exporting the deleted document as {outfileName}")
+            logger.debug(f"Exporting the deleted document as {outfileName}")
             if not os.path.isfile(outfileName) or arguments.forceOverwrite:
                 with open(outfileName,"w") as outfile:
                     outjson = dict(workflow=sim['desc']['workflow'])
                     json.dump(outjson,outfile,indent=4)
             else:
-                logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
+                logger.debug(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory. Skipping Remove. To enforce removing either use the no-export or the forceOverwrite flags")
                 shouldRemove = False
 
         if shouldRemove:
@@ -181,7 +180,7 @@ def workflow_export(arguments):
 
 
     if arguments.projectName is None:
-        logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         projectName = caseConfiguration['projectName']
 
@@ -191,12 +190,12 @@ def workflow_export(arguments):
     for sim in simulationList:
         outfileName = f"{sim['desc']['workflowName']}.json"
 
-        logger.execution(f"Exporting document as {outfileName}")
+        logger.debug(f"Exporting document as {outfileName}")
         if not os.path.isfile(outfileName) or arguments.forceOverwrite:
             with open(outfileName,"w") as outfile:
                 json.dump(sim['desc']['workflow'],outfile,indent=4)
         else:
-            logger.execution(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory, not export. Removing file or use the forceOverwrite flags")
+            logger.debug(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory, not export. Removing file or use the forceOverwrite flags")
             print(f"...workflow {sim['desc']['workflowName']} (file {outfileName}) exists in current directory, not export. Removing file or use the forceOverwrite flags")
 
 def workflow_compareToDisk(arguments):
@@ -216,7 +215,7 @@ def workflow_compareToDisk(arguments):
     logger.info(f" -- Starting: Deleting workflows --")
 
     if arguments.projectName is None:
-        logger.execution(
+        logger.debug(
             f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         projectName = caseConfiguration['projectName']
@@ -232,7 +231,7 @@ def workflow_compareToDisk(arguments):
             localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local")
             smName = sim.name
             sim.name = "DB"
-            res = wftk.compareWorkflowsObj([sim,localWorkflow])
+            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
             ttl = f"Simulation {smName}"
             print(ttl)
             print("-"*len(ttl))
@@ -300,7 +299,7 @@ def workflow_list(arguments):
     logger.info(f" -- Starting: Listing simulations --")
 
     if arguments.projectName is None:
-        logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         projectName = caseConfiguration['projectName']
 
@@ -470,7 +469,7 @@ def workflow_compare(arguments):
     logger.info(f" -- Starting: Listing workflow nodes --")
 
     if arguments.projectName is None:
-        logger.execution(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
         caseConfiguration = loadJSON("caseConfiguration.json")
         projectName = caseConfiguration['projectName']
 

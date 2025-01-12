@@ -86,7 +86,7 @@ class spongeLayer:
             self.params=dict(params)
         self.caseDirectory=caseDirectory
 
-        self.logger.execution(f"got parameters from {params}")
+        self.logger.debug(f"got parameters from {params}")
         self.logger.info("Reading cell centers")
 
 
@@ -110,7 +110,7 @@ class spongeLayer:
 
         for spongeName, spongeData in self.params["SpongeLayers"].items():
 
-            self.logger.execution(f"Creating sponge interpolation {spongeName}")
+            self.logger.debug(f"Creating sponge interpolation {spongeName}")
 
             coord = spongeData['direction']
             coord_val= self._dirMap.get(spongeData['direction'])
@@ -148,18 +148,18 @@ class spongeLayer:
         f = interp1d(limits[coord], limits['alpha'], kind=type)
         numOfCells=len(self._centerFile['internalField'])
 
-        self.logger.execution(f"Processing sponge {spongeName}")
+        self.logger.debug(f"Processing sponge {spongeName}")
         for index,point in enumerate(self._centerFile['internalField']):
             if index / numOfCells * 100 % 10 == 0:
 
-                self.logger.execution(f"processing node {index} of {len(self._centerFile['internalField'])}")
+                self.logger.debug(f"processing node {index} of {len(self._centerFile['internalField'])}")
 
             val = point[coord_val]
             try:
                 tmpField[index] = f(val)
             except:
                 self.logger.debug(f"point {point} not in sponge {spongeName}")
-        self.logger.execution(f"Processing sponge {spongeName} finished")
+        self.logger.debug(f"Processing sponge {spongeName} finished")
 
         return tmpField
 

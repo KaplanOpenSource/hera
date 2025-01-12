@@ -1,4 +1,6 @@
 import logging
+
+import dask.dataframe
 import numpy
 import pandas
 import os
@@ -7,13 +9,19 @@ import shutil
 import json
 import xarray
 from itertools import product
+
 from dask.delayed import delayed
 import dask.dataframe as dask_dataframe
-from ....datalayer import datatypes
-from ....utils.query import dictToMongoQuery
-from ....utils.logging import get_classMethod_logger
-from .. import FLOWTYPE_INCOMPRESSIBLE
+from pandas.core.array_algos.transforms import shift
+from dask.distributed import Client
 
+from ....utils.unum import *
+
+from ....datalayer import datatypes
+from ....datalayer.document.metadataDocument import MetadataFrame
+from ....utils import dictToMongoQuery,JSONToConfiguration,get_classMethod_logger,ConfigurationToJSON,tonumber
+from .. import FLOWTYPE_INCOMPRESSIBLE
+from ..OFWorkflow import workflow_StochasticLagrangianSolver
 
 class absractStochasticLagrangianSolver_toolkitExtension:
     """
@@ -25,12 +33,13 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     presentation = None  # link to the presentation of the stochasticLagrangian
 
     DOCTYPE_LAGRANGIAN_CACHE = "lagrangianCacheDocType"
+    DOCTYPE_CONCENTRATIONEULERIAN_CACHE = "EulerianConcentrationCacheDocType"
 
     def __init__(self, toolkit):
         self.toolkit = toolkit
         self.analysis = analysis(self)
 
-    def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionFieldList,
+    def createDispersionFlowField(self, flowName, flowData, OriginalFlowField,  dispersionDuration,
                                   flowType=FLOWTYPE_INCOMPRESSIBLE, overwrite: bool = False, useDBSupport: bool = True):
         """
             Prepares the case directory of the flow for the dispersion, and assigns a local name to it.
@@ -135,6 +144,8 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         originalFlow = dict(flowData['originalFlow'])
         originalFlow['source'] = OriginalFlowField
 
+        dispersionDuration = toTimeFormat(dispersionDuration)
+
         # 1. Get the case directory of the original flow.
         logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
         docList = self.toolkit.getWorkflowListDocumentFromDB(originalFlow['source'])
@@ -175,10 +186,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             ptPath = ["processor0", "*"]
             parallelOriginal = True
         else:
-            logger.debug(
-                f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
+            logger.debug(f"Directory {os.path.join(originalFlowCaseDir, 'processor0')} not found!.  assuming single processor")
             ptPath = ["*"]
-            parallelOriginal = True
+            parallelOriginal = False
 
         TS = [float(os.path.basename(ts)) for ts in glob.glob(os.path.join(originalFlowCaseDir, *ptPath)) if
               os.path.basename(ts).replace(".", "").isdigit()]
@@ -188,7 +198,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         dynamicType = originalFlow['time']['temporalType']
 
         timeStep = originalFlow.get("timeStep", None)
-        dispersionDuration = flowData["dispersionDuration"]
+
 
         linkMeshSymbolically = originalFlow.get("linkMeshSymbolically", True)
         logger.debug(f"Symbolic link to the mesh? {linkMeshSymbolically}")
@@ -253,14 +263,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             querydict = dict(
                 groupName=workflowGroup,
                 flowParameters=dict(
-                    flowFields=dispersionFieldList,
-                    dispersionDuration=flowData["dispersionDuration"],
+                    flowFields=flowData.get("dispersionFields", {}),
+                    dispersionDuration=dispersionDuration,
                     originalFlow=originalFlow
                 )
             )
             logger.debug(
                 f"Trying to find the dispersion workflow  in the database. The run is: \n {json.dumps(querydict, indent=4)}")
-            docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.OF_FLOWDISPERSION,
+            docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION,
                                                            **dictToMongoQuery(querydict),
                                                            workflowName=dispersionFlowFieldName)
             logger.debug(f"Found {len(docList)} in the database")
@@ -270,19 +280,24 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.error(err)
                 raise ValueError(err)
 
-            if len(docList) == 0:
-                logger.debug(
-                    f"Did not find dispersion field {dispersionFlowFieldName} with the requested paraeters. Checking to see if that name exists with other parameters. ")
-                docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.OF_FLOWDISPERSION,
-                                                               workflowName=dispersionFlowFieldName)
-                logger.debug(f"Found {len(docList)} in the database")
-
-                if len(docList) == 0:
-                    logger.debug("Not found. Creating a new workflow")
+            if len(docList) == 0 or overwrite:
+                if len(docList) == 1:
+                    logger.info(f"Found document, but overwriting. Removing the old document from the DB")
+                    docList[0].delete()
                     doc = None
                 else:
-                    logger.debug("Found the name but with different paramters. overwrite if overwrite=True")
-                    doc = docList[0]
+                    logger.debug(
+                        f"Did not find dispersion field {dispersionFlowFieldName} with the requested paraeters. Checking to see if that name exists with other parameters. ")
+                    docList = self.toolkit.getSimulationsDocuments(type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION,
+                                                                   workflowName=dispersionFlowFieldName)
+                    logger.debug(f"Found {len(docList)} in the database")
+
+                    if len(docList) == 0:
+                        logger.debug("Not found. Creating a new workflow")
+                        doc = None
+                    else:
+                        logger.debug("Found the name but with different paramters. overwrite if overwrite=True")
+                        doc = docList[0]
             else:
                 logger.debug("Found the name with the same paramters. overwrite if overwrite=True")
                 doc = docList[0]
@@ -346,6 +361,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             os.makedirs(os.path.join(dispersionFlowFieldDirectory, str(dest_time)), exist_ok=True)
 
             logger.info(f"Mapping {orig_time} --> {dest_time}")
+
             for origDir in origDirsList:
                 logger.info(f"Processing the original directory {origDir}")
                 orig_proc_timestep = os.path.join(origDir, orig_time)
@@ -386,10 +402,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         os.system(f"ln -s {orig_constant_polymesh} {destination_constant_polymesh}")
 
             dispersionFields = flowData.get("dispersionFields", {})
-            for fieldName in dispersionFieldList:
+            for fieldName,value in dispersionFields.items():
                 logger.info(
-                    f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}")
-                value = dispersionFields.get(fieldName, None)
+                    f"Writing field {fieldName} to {dispersionFlowFieldDirectory} in time step {str(dest_time)}. Using value {value}")
                 field = self.toolkit.OFObjectHome.getEmptyFieldFromCase(fieldName=fieldName, flowType=flowType,
                                                                         internalValue=value,
                                                                         caseDirectory=dispersionFlowFieldDirectory)
@@ -405,7 +420,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.debug("Adding record to the database")
                 self.toolkit.addSimulationsDocument(resource=dispersionFlowFieldDirectory,
-                                                    type=self.toolkit.OF_FLOWDISPERSION, dataFormat=datatypes.STRING,
+                                                    type=self.toolkit.DOCTYPE_OF_FLOWDISPERSION, dataFormat=datatypes.STRING,
                                                     desc=querydict)
 
                 ret = dispersionFlowFieldDirectory
@@ -469,7 +484,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             logger.error(err)
             raise ValueError(err)
 
-        logger.execution(f"----- Start -----")
+        logger.debug(f"----- Start -----")
 
         if hermes_dispersionWorkflow.name is None:
             logger.error("Must set the name property in the  dispersionWorkflow object")
@@ -479,27 +494,27 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             os.path.join(self.toolkit.filesDirectory, hermes_dispersionWorkflow.name))
 
         logger.info(
-            f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowField}.")
+            f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowFieldName}.")
 
         logger.debug(f"Trying to find the dispersionFlowField in the DB to determine the directory")
         dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-            hermes_dispersionWorkflow.dispersionFlowField)
+            hermes_dispersionWorkflow.dispersionFlowFieldName)
         if len(dispersionFlowFieldDocumentList) == 0:
-            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowField} in DB.")
+            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowFieldName} in DB.")
             logger.debug(f"Trying again to look for the directory of the dispersion flow in the DB")
             dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-                os.path.abspath(hermes_dispersionWorkflow.dispersionFlowField))
+                os.path.abspath(hermes_dispersionWorkflow.dispersionFlowFieldName))
             if len(dispersionFlowFieldDocumentList) == 0:
-                err = f"The {hermes_dispersionWorkflow.dispersionFlowField} is not in the DB. Add it before you can continue"
+                err = f"The {hermes_dispersionWorkflow.dispersionFlowFieldName} is not in the DB. Add it before you can continue"
                 logger.critical(err)
                 raise ValueError(err)
 
-        logger.execution(
+        logger.debug(
             f"Found dispersion flow field in DB under the name {dispersionFlowFieldDocumentList[0].desc['workflowName']}.")
-        if hermes_dispersionWorkflow.dispersionFlowField != dispersionFlowFieldDocumentList[0].desc['workflowName']:
+        if hermes_dispersionWorkflow.dispersionFlowFieldName != dispersionFlowFieldDocumentList[0].desc['workflowName']:
             logger.debug(
-                f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowField} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
-            hermes_dispersionWorkflow.dispersionFlowField = dispersionFlowFieldDocumentList[0].desc['workflowName']
+                f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowFieldName} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
+            hermes_dispersionWorkflow.dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
 
         dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
         dispersionFlowFieldDirectory = dispersionFlowFieldDocumentList[0].resource
@@ -511,10 +526,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         needDBAdd = False
 
         # 1. Check if the dispersion workflow name is in the DB under a different name.
-        logger.execution("Querying DB to see if the a workflow exists with a similar name")
+        logger.debug("Querying DB to see if the a workflow exists with a similar name")
         doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(hermes_dispersionWorkflow.name)
         if len(doc_nameQueryList) > 0:
-            logger.execution("Found a workflow with the same name. Check for inconsistency between DB and input")
+            logger.debug("Found a workflow with the same name. Check for inconsistency between DB and input")
 
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
             res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, hermes_dispersionWorkflow])
@@ -522,11 +537,11 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.info(f"The workflow in the DB is identical to the disk.")
                 hermes_dispersionWorkflow = hermes_dispersionWorkflow
             else:
-                logger.execution(f"The workflow in the DB is different than the disk: \n\n {res}")
+                logger.debug(f"The workflow in the DB is different than the disk: \n\n {res}")
                 if exportFromDB:
                     hermes_dispersionWorkflow = doc_similarWorkflow
                 elif updateDB:
-                    logger.execution("Updating the DB with the workflow from disk")
+                    logger.debug("Updating the DB with the workflow from disk")
                     hermes_dispersionWorkflow = hermes_dispersionWorkflow
                     updateWorkflow = True
                     foundInconsistency = res
@@ -535,7 +550,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     logger.error(err)
                     raise ValueError(err)
         else:
-            logger.execution("Record not found. Querying DB to see if that workflow exists under a different name")
+            logger.debug("Record not found. Querying DB to see if that workflow exists under a different name")
 
             otherWorkflows = self.toolkit.getHermesWorkflowFromDB(hermes_dispersionWorkflow)
             logger.debug(f"Found {len(otherWorkflows)} records that match workflow.")
@@ -549,15 +564,15 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                     logger.error(err)
                     raise FileExistsError(err)
                 else:
-                    logger.execution("--allowDuplicate was supplied, so allowing duplication addition to DB")
+                    logger.debug("--allowDuplicate was supplied, so allowing duplication addition to DB")
                     needDBAdd = True
 
-        logger.execution(
+        logger.debug(
             f"Check if dispersion {dispersionDirectoryName} already exists. If it is remove for fresh start only if it needs rewrite and the  --rewrite was supplied")
         if os.path.isdir(dispersionDirectoryName):
             logger.debug("Directory already exists")
             if foundInconsistency is not None:
-                logger.execution(
+                logger.debug(
                     f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
                 if rewrite:
                     logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
@@ -574,7 +589,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                                                                dispersionFlowDirectory=dispersionFlowFieldDirectory)
 
         # 5. Add/update to the DB.
-        logger.execution(
+        logger.debug(
             "add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
         if needDBAdd:
             groupName = hermes_dispersionWorkflow.name.split("_")[0]
@@ -628,7 +643,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         shutil.copytree(os.path.join(dispersionFlowDirectory, "system"), systemDir)
 
         for proc in glob.glob(os.path.join(dispersionFlowDirectory, "processor*")):
-            logger.execution(f"Working on processor {proc}")
+            logger.debug(f"Working on processor {proc}")
             fullpath = os.path.abspath(os.path.join(proc, "constant", "polyMesh"))
             destination = os.path.join(dispersionDirectory, os.path.basename(proc), "constant", "polyMesh")
             os.makedirs(os.path.dirname(destination), exist_ok=True)
@@ -832,6 +847,1062 @@ class absractStochasticLagrangianSolver_toolkitExtension:
              "parcels": parcels,
              "mass": mass})
 
+
+    def getOriginalFlowFieldMesh(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
+        """
+            Returns the mesh of the original flow field. name from the workflow
+
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource : string or dict
+        The name/dict that defines the item
+
+        readParallel: bool
+                If parallel case exists, read it .
+
+        time : float
+            The time to read the mesh from. (relevant for mesh moving cases).
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"getMeshFromLagrangianName")
+        logger.info(f"Getting the mesh for {nameOrDispersionWorkflow}")
+        logger.debug(f"Getting the original flow field")
+        originalFlowField = self.getOriginalFlowDocument(nameOrDispersionWorkflow)
+        logger.debug(f"Getting the mesh from the original flow field")
+        return self.toolkit.getMesh(originalFlowField.getData())
+
+
+    def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
+                       cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
+        """
+            Reads cloud data from the disk.
+
+            Checks if parallel data exists and reads it (unless forceSingleProcessor is True).
+
+        Parameters
+        ----------
+        caseDescriptor : str, MetadataFrame
+            The descriptor of the case.
+            Can be the name, the resource, the parameter files and ect.
+
+            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
+
+        times : list
+            If none, read all time.
+        withVelocity : bool
+            read the velocity
+        withReleaseTimes : bool
+            reads the age of the particles.
+
+        withMass  :true
+            Reads the mass of the particles.
+        cloudName : str
+            The cloud name
+
+        cache: bool [default True]
+            If true, update the cache, else just compute and do not
+            store in the DB.
+
+        overwrite: bool [default False]
+            If false, check if cache exists and return it if it does, else compute.
+            If true,  compute and update the cache (if exists) or write a new cache.
+
+        forceSingleProcessor : bool
+            Force reading single processor
+
+        Returns
+        -------
+            dask.dataFrame.
+        """
+        logger = get_classMethod_logger(self, "getCaseResults")
+        logger.info(f"Getting stochastic results. Overwrite {overwrite}")
+
+        if isinstance(caseDescriptor, str):
+            caseDescriptorName = caseDescriptor
+
+        elif isinstance(caseDescriptor, MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
+
+        logger.info(f"Checking to see if the data {caseDescriptorName} is cached in the DB")
+        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind=self.toolkit.DOCKIND_CACHE)
+        if len(cachedDocumentList) == 0:
+            logger.info(f"Data for {caseDescriptor} is not cached")
+            cacheDoc = None
+        elif len(cachedDocumentList) > 1:
+            err = f"There is more than one data item for  for {caseDescriptor} cached!. The name of the workflow is not unique. Please remove one."
+            logger.error(err)
+            raise ValueError(err)
+        else:
+            cacheDoc = cachedDocumentList[0]
+
+        reCalculate = True
+        if cacheDoc is not None:
+            logger.info(f"Found {caseDescriptor} in the database. ")
+            if overwrite:
+                logger.info("overwrite is True, recalculate it, delting the files first. ")
+                if os.path.isdir(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as directoy")
+                    import shutil
+                    shutil.rmtree(cacheDoc.resource)
+                elif os.path.isfile(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as a file")
+                    os.remove(cacheDoc.resource)
+                else:
+                    logger.info("File does not exist, continue")
+            else:
+                logger.info("Returning the cached data")
+                try:
+                    ret = cacheDoc.getData()
+                    reCalculate = False
+                except FileNotFoundError:
+                    logger.error(
+                        "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
+                    for doc in cachedDocumentList:
+                        logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
+                        doc.delete()
+                    ret = None
+
+        if reCalculate:
+            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+            logger.debug(f"Initializing dask client")
+            daskClient = Client()
+
+            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
+            if len(docList) == 0:
+                logger.info("not found, trying as a directory")
+                finalCasePath = os.path.abspath(caseDescriptor)
+                workflowName = caseDescriptor
+                if not os.path.isdir(os.path.abspath(caseDescriptor)):
+                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
+                    logger.error(err)
+                    raise FileNotFoundError(err)
+                else:
+                    logger.info(f"Found as a directory")
+            else:
+                logger.info(f"Found, Loading data from {docList[0].resource}")
+                finalCasePath = docList[0].resource
+                workflowName  = docList[0].desc['workflowName']
+
+            loader = lambda timeName: readLagrangianRecord(timeName,
+                                                           casePath=finalCasePath,
+                                                           withVelocity=withVelocity,
+                                                           withReleaseTimes=withReleaseTimes,
+                                                           cloudName=cloudName,
+                                                           withMass=withMass)
+
+            logger.info("Checking if the case is single processor or multiprocessor")
+            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
+                logger.info("Process as parallel case")
+                processorList = [os.path.basename(proc) for proc in
+                                 glob.glob(os.path.join(finalCasePath, "processor*"))]
+
+                if timeList is None:
+                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                            x.isdigit() and
+                            (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                      key=lambda x: int(x))
+
+                logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
+
+                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
+                              product(processorList, timeList)]
+
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+
+            else:
+                logger.info("Process as singleProcessor case")
+                timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+                logger.debug(f"Loading single processor data with time list {timeList}")
+
+                loaderList = [timeName for timeName in timeList]
+
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+            if cache:
+                logger.info(f"Updating the results in the cache. ")
+                if cacheDoc is not None:
+                    logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
+                    fullname = cacheDoc.resource
+                else:
+                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
+                    logger.debug(f"Writing data to {targetDir}")
+                    os.makedirs(targetDir, exist_ok=True)
+                    fullname = os.path.join(targetDir, f"{cloudName}.parquet")
+                    desc = dict(workflowName=caseDescriptor)
+                    desc['cloudName'] = cloudName
+
+                    logger.debug(f"...saving data in file {fullname}")
+                    self.toolkit.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                                  type=self.DOCTYPE_LAGRANGIAN_CACHE,
+                                                  resource=fullname,
+                                                  desc=desc)
+
+                logger.info(f"Writing data to parquet {fullname}... This may take a while")
+                ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
+                ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
+            else:
+                logger.info(f"No caching, return the data as is. ")
+
+            daskClient.close()
+
+
+        return ret
+
+    def getDispersionDocument(self,nameOrDispersionWorkflow):
+        """
+            Return the DB document of the dispersiion
+        Parameters
+        ----------
+        nameOrDispersionWorkflow: str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+        Returns
+        -------
+
+        """
+
+        getWorkflowDocumentFromDB
+
+    def getDispersionFlowDocument(self,nameOrDispersionWorkflow):
+        """
+            Returns the DB document of the dispersion workflow.
+            We assume that it is a name or a nameOrDispersionWorkflow.
+
+        Parameters
+        ----------
+        nameOrWorkflow : str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+        Returns
+        -------
+            DB document.
+        """
+        logger = get_classMethod_logger(self,"getDispersionFlowDocument")
+        if isinstance(nameOrDispersionWorkflow,str):
+            wf = self.toolkit.getHermesWorkflowFromDB(nameOrDispersionWorkflow)
+            dffname = wf.dispersionFlowFieldName
+        elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
+            dffname = nameOrDispersionWorkflow.dispersionFlowFieldName
+        else:
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+
+        logger.info(f"Trying to retireve the document for {dffname}")
+        ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_OF_FLOWDISPERSION)
+        return ret[0] if len(ret) > 0 else None
+
+    def getOriginalFlowDocument(self,nameOrDispersionWorkflow):
+        """
+            Returns the flow document of the original workflow.
+
+        Parameters
+        ----------
+        nameOrWorkflow : str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+        Returns
+        -------
+            DB document.
+        """
+        logger = get_classMethod_logger(self,"getDispersionFlowDocument")
+        if isinstance(nameOrDispersionWorkflow,str):
+            wf = self.toolkit.getHermesWorkflowFromDB(nameOrDispersionWorkflow)
+            dffname = wf.originalFlowFieldName
+
+        elif isinstance(nameOrDispersionWorkflow,workflow_StochasticLagrangianSolver):
+            dffname = nameOrDispersionWorkflow.originalFlowFieldName
+        else:
+            err = f"{nameOrDispersionWorkflow} must be of type str or workflow_StochasticLagrangianSolver, got {type(nameOrDispersionWorkflow)}"
+
+        ret = self.toolkit.getWorkflowDocumentFromDB(dffname, doctype=self.toolkit.DOCTYPE_WORKFLOW)
+        return ret[0] if len(ret) > 0 else None
+
+    def getOriginalFlowFieldExtent(self,nameOrDispersionWorkflow):
+        """
+            Returns the extends of the mesh of the original flow field.
+
+        Parameters
+        ----------
+        nameOrDispersionWorkflow : str, workflow_StochasticLagrangianSolver
+                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"getOriginalFlowFieldExtent")
+        logger.info(f"Getting the mesh for {nameOrDispersionWorkflow}")
+        logger.debug(f"Getting the original flow field")
+        originalFlowField = self.getOriginalFlowDocument(nameOrDispersionWorkflow)
+        logger.debug(f"Getting the mesh from the original flow field")
+        mesh = self.toolkit.getMesh(originalFlowField.getData())
+        logger.debug(f"Computing the extents. ")
+        return mesh.getDataFrame()[['Cx','Cy','Cz']].agg(["min","max"])
+
+    def getOriginalFlowFieldExtentAsDict(self,nameOrDispersionWorkflow):
+        """
+            Returns the extents as dict with the keys xmin,xmax,ymin,ymax,zmin,zmax
+
+        Parameters
+        ----------
+        nameOrDispersionWorkflow : str
+            The name of the nameOrDispersionWorkflow
+
+        Returns
+        -------
+
+        """
+        lims = self.getOriginalFlowFieldExtent(nameOrDispersionWorkflow=nameOrDispersionWorkflow)
+        return dict(
+            xmin = lims.Cx.loc['min']*m,
+            xmax = lims.Cx.loc['max']*m,
+            ymin = lims.Cy.loc['min']*m,
+            ymax = lims.Cy.loc['max']*m,
+            zmin = lims.Cz.loc['min']*m,
+            zmax = lims.Cy.loc['max']*m
+        )
+
+
+
+    def getCaseConcentrationsEulerian(self,
+                                      caseDescriptor,
+                                      timeList=None,
+                                      overwrite=False,
+                                      cloudName="kinematicCloud",
+                                      cache=True,
+                                      forceSingleProcessor=False):
+        """
+            Reads the output of the cloud function concentrationField.
+            The output is the CSV file :
+
+            x,y,z,C
+
+            where dx,dy and dz are given in the concentration file.
+
+        Parameters
+        ----------
+        caseDescriptor : string
+            The name of the case/ the directory.
+
+        timeList : list
+            The time slices to read. If None read all.
+
+        overwrite: bool
+            If True, reread and overwrite the cache.
+
+        Returns
+        -------
+            xarray with the concentrations.
+        """
+        logger = get_classMethod_logger(self, "getCaseConcentrationsEulerian")
+        logger.info(f"Getting stochastic results. Overwrite {overwrite}")
+
+        if isinstance(caseDescriptor, str):
+            caseDescriptorName = caseDescriptor
+
+        elif isinstance(caseDescriptor, MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
+
+        logger.info(f"Checking to see if the data {caseDescriptorName} is cached in the DB")
+        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE,dockind=self.toolkit.DOCKIND_CACHE)
+        if len(cachedDocumentList) == 0:
+            logger.info(f"Data for {caseDescriptor} is not cached")
+            cacheDoc = None
+        elif len(cachedDocumentList) > 1:
+            err = f"There is more than one data item for  for {caseDescriptor} cached!. The name of the workflow is not unique. Please remove one."
+            logger.error(err)
+            raise ValueError(err)
+        else:
+            cacheDoc = cachedDocumentList[0]
+
+        reCalculate = True
+        if cacheDoc is not None:
+            logger.info(f"Found {caseDescriptor} in the database. ")
+            if overwrite:
+                logger.info("overwrite is True, recalculate it, delting the files first. ")
+                if os.path.isdir(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as directoy")
+                    import shutil
+                    shutil.rmtree(cacheDoc.resource)
+                elif os.path.isfile(cacheDoc.resource):
+                    logger.info(f"Removing the file {cacheDoc.resource} as a file")
+                    os.remove(cacheDoc.resource)
+                else:
+                    logger.info("File does not exist, continue")
+            else:
+                logger.info("Returning the cached data")
+                try:
+                    ret = cacheDoc.getData()
+                    reCalculate = False
+                except FileNotFoundError:
+                    logger.error(
+                        "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
+                    for doc in cachedDocumentList:
+                        logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
+                        doc.delete()
+                    ret = None
+
+        if reCalculate:
+            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
+            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
+            if len(docList) == 0:
+                logger.info("not found, trying as a directory")
+                finalCasePath = os.path.abspath(caseDescriptor)
+                workflowName = caseDescriptor
+                if not os.path.isdir(os.path.abspath(caseDescriptor)):
+                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
+                    logger.error(err)
+                    raise FileNotFoundError(err)
+                else:
+                    logger.info(f"Found as a directory")
+            else:
+                logger.info(f"Found, Loading data from {docList[0].resource}")
+                finalCasePath = docList[0].resource
+                workflowName  = docList[0].desc['workflowName']
+
+            loader = lambda timeName: readEulerianConcentration(timeName,
+                                                                casePath=finalCasePath,
+                                                                cloudName=cloudName)
+
+            logger.info("Checking if the case is single processor or multiprocessor")
+            daskClient = Client()
+            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
+                logger.info("Process as parallel case")
+                processorList = [os.path.basename(proc) for proc in
+                                 glob.glob(os.path.join(finalCasePath, "processor*"))]
+
+                if timeList is None:
+                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
+                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
+                            x.isdigit() and
+                            (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                      key=lambda x: int(x))
+
+                logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
+
+                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
+                              product(processorList, timeList)]
+
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+
+            else:
+                logger.info("Process as singleProcessor case")
+                timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+                logger.debug(f"Loading single processor data with time list {timeList}")
+
+                loaderList = [timeName for timeName in timeList]
+
+                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+            if cache:
+                logger.info(f"Updating the results in the cache. ")
+                if cacheDoc is not None:
+                    logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
+                    fullname = cacheDoc.resource
+                else:
+                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
+                    logger.debug(f"Writing data to {targetDir}")
+                    os.makedirs(targetDir, exist_ok=True)
+                    fullname = os.path.join(targetDir, f"{cloudName}ConcentrationEulerian.nc")
+                    desc = dict(workflowName=caseDescriptor)
+                    desc['cloudName'] = cloudName
+
+                    logger.debug(f"...saving data in file {fullname}")
+                    self.toolkit.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
+                                                  type=self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE,
+                                                  resource=fullname,
+                                                  desc=desc)
+
+                logger.info(f"Writing data to parquet {fullname}... This may take a while")
+
+                ret = ret.groupby(["datetime","x","y","z"]).sum().compute().to_xarray().fillna(0)
+                ret.to_netcdf(fullname)
+                #ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
+            else:
+                logger.info(f"No caching, return the data as is. ")
+            daskClient.close()
+
+        return ret
+
+
+
+class analysis:
+    DOCTYPE_CONCENTRATION = "xarray_concentration"
+    DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
+
+    datalayer = None
+
+    def __init__(self, datalayer):
+        self.datalayer = datalayer
+        self.datalayer.toolkit.initConfig(analysisFullMeshCounter=0,
+                                          analysisPointWiseCounter=0)
+
+        self.datalayer.toolkit.defineCounter("cartesianMeshCounter")
+
+
+    def calcConcentrationPointWise(self, data, dxdydz, xfield="x", yfield="y", zfield="z"):
+        """
+            Calculates the concentration in cells from point data.
+
+            The mass of each particle is given in the mass fields.
+
+            Note that it is a multi index dask that cannot be saved as is to parquet.
+
+        :param data: parquet/dask
+            The particle location data in time.
+
+        :param dxdydz: float
+                The size of the cell
+
+        :param xfield: str
+                The name of the X coordinate
+
+        :param yfield: str
+                The name of the Y coordinate
+
+        :param zfield: str
+                The name of the Z coordinate
+        :return: dask.
+
+
+        """
+
+        dH = dxdydz ** 3
+        return data.assign(xI=dxdydz * (data[xfield] // dxdydz),
+                           yI=dxdydz * (data[yfield] // dxdydz),
+                           zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
+                   'mass'].sum().to_frame("C") / dH
+
+    def calcDocumentConcentrationPointWise(self, dataDocument, dxdydz, xfield="x", yfield="y",
+                                           zfield="z", overwrite=False, saveAsDask=False, simulationID=None,
+                                           **metadata):
+        """
+           Calculates the concentration from the cells where particles exists.
+
+        :param dataDocument: hera.MetadataDocument
+                The document with the particles.
+
+        :param dxdydz: float
+                The size of the cell
+
+        :param xfield: str
+                The name of the X coordinate
+
+        :param yfield: str
+                The name of the Y coordinate
+
+        :param zfield: str
+                The name of the Z coordinate
+
+        :param overwrite: bool
+                If true, recalculates.
+
+        :param saveAsDask: bool
+                If true, reset the index because dask cannot read multi index (the result ofthe concentration is multi index with time and x,y,z)
+
+        :param simulationID: str
+                If not None, use this str instead of the docmentID. used in cases where the
+                cache was transferred from another DB.
+
+        :param metadata:
+                Any additional parameters to add to the cache.
+        :return:
+                Document
+        """
+        simID = str(dataDocument.id) if simulationID is None else simulationID
+
+        docList = self.datalayer.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
+        if len(docList) == 0 or overwrite:
+
+            data = dataDocument.getData()
+            C = self.calcConcentrationPointWise(data, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
+
+            if saveAsDask:
+                C = C.compute().reset_index(level=['xI', 'yI', 'zI'])
+
+            if len(docList) == 0:
+                desc = dict(simID=simID, dxdydz=dxdydz)
+                desc.update(metadata)
+
+                doc = self.datalayer.addCacheDocument(dataFormat=datatypes.PARQUET,
+                                                      type=self.DOCTYPE_CONCENTRATION_POINTWISE,
+                                                      resource="",
+                                                      desc=desc)
+
+                outputDirectory = os.path.join(self.datalayer.toolkit.filesDirectory, str(doc.id))
+                os.makedirs(outputDirectory, exist_ok=True)
+
+                finalFileName = os.path.join(outputDirectory, "concentration.parquet")
+                doc.resource = finalFileName
+                doc.save()
+
+            else:
+                doc = docList[0]
+                finalFileName = doc.resource
+
+            C.to_parquet(finalFileName, compression="GZIP")
+            ret = doc
+
+    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="x", yfield="y",
+                                          zfield="z"):
+        """
+            Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
+
+            Embed in a larget timestep.
+
+        Parameters
+        -----------
+
+        datimeDatata: pandas dataframe.
+            The data to convert. Takes only one time step at a time (for multiple time steps use iterConcentationField)
+
+        extents: dict
+            The domain in which the concentation will be calculated.
+            has keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+
+        dxdydz: float
+                    The mesh steps.
+
+        dxdydz: float
+                    The size of a mesh unit (that will be created for the concentration).
+
+        xfield: str
+                The column name of the x coordinates.
+
+        yfield: str
+            The column name of the y coordinates.
+
+        zfield: str
+            The column name of the z coordinates.
+
+
+        Returns
+        --------
+
+            Xarray.dataframe
+        """
+        dxdydz = tonumber(dxdydz,m)
+        x_full = numpy.arange(tonumber(extents['xmin'],m), tonumber(extents['xmax'],m)+1, dxdydz)
+        y_full = numpy.arange(tonumber(extents['ymin'],m), tonumber(extents['ymax'],m)+1, dxdydz)
+        z_full = numpy.arange(tonumber(extents['zmin'],m), tonumber(extents['zmax'],m)+1, dxdydz)
+
+        dH = dxdydz ** 3
+
+        fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
+        #fulldata.filterType = "C"
+        if not isinstance(timeData,int):
+            C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
+                                zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "datetime"])[
+                    'mass'].sum().to_xarray().squeeze().fillna(0) / dH
+
+            # assign the timestep into the large mesh
+            fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
+            fulldata.attrs['field'] = "1*kg/m**3"
+
+            timeList = [timeData.datetime.unique()[0]]
+        else:
+            timeList = [timeData]
+
+        return fulldata.expand_dims(dict(datetime=timeList), axis=-1)
+
+    def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz,extents=None, xfield="x", yfield="y",
+                                       zfield="z",overwrite=False,reReadResults=None, **metadata):
+        """
+            Calculates the eulerian concentration field for each timestep in the data.
+            The data is stored as a nc file on the disk.
+
+            The concentrations are embeded in a global mesh (defined in the extents field).
+
+            To be consistent with the computations of the 10min average of the risk assessment,
+            we add padd with 0 all the timesteps up to the running time. This procedure currently
+            assumes that dt is 1.
+
+        Parameters
+        ----------
+         caseDescriptor : str, MetadataFrame
+            The descriptor of the case.
+            Can be the name, the resource, the parameter files and ect.
+
+            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
+
+        extents: dict , None
+            The domain in which the concentation will be calculated.
+            has keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
+
+            If None (default) get the case lims using the method [getOriginalFlowFieldExtentAsDict]
+
+        dxdydz: float
+                    The size of a mesh unit (that will be created for the concentration).
+        xfield: str
+                The column name of the x coordinates.
+
+        yfield: str
+            The column name of the y coordinates.
+
+        zfield: str
+            The column name of the z coordinates.
+
+        overwrite: bool
+            If True, recalcluats the data mesh data.
+
+        reReadResults : bool, None
+            If True - overwrites the results of the simulation.
+            If None - take value from overwrite.
+            If False - Just recompute the full mesh concentrations.
+
+        **metadata: the parameters to add to the document.
+
+        :return:
+            The document of the xarray concentration s
+        """
+        logger = get_classMethod_logger(self, "calcConcentrationFieldFullMesh")
+        logger.info(f"Getting Concentration in a cartesian coordiantes")
+
+        if isinstance(caseDescriptor, str):
+            caseDescriptorName = caseDescriptor
+        elif isinstance(caseDescriptor, MetadataFrame):
+            caseDescriptorName = caseDescriptor.desc['workflowName']
+            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
+        else:
+            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
+            logger.error(err)
+            raise ValueError(err)
+
+
+        mdata = dict(extents=extents, dxdydz=dxdydz, caseDescriptorName=caseDescriptorName)
+        mdata.update(**metadata)
+        mdata = ConfigurationToJSON(mdata)
+        docList = self.datalayer.toolkit.getCacheDocuments(type=self.DOCTYPE_CONCENTRATION, **mdata)
+
+        if len(docList) == 0 or overwrite:
+            if len(docList) > 0:
+                logger.info("Overwiting the existing data removing the cache from the DB and the disk")
+                xryDoc = docList[0]
+
+                logger.info(f"Cache exist, but rewriting. Removing the old data in {xryDoc.resource} (if exists)")
+                files = glob.glob(xryDoc.resource)
+                for f in files:
+                    try:
+                        logger.debug(f"Removing the file: {f}")
+                        os.remove(f)
+                    except OSError as e:
+                        err = f"Error removing the file {f}: {e.strerror}"
+                        logger.error(err)
+
+                logger.info(f"Removing the old DB record, and files in {xryDoc.resource}")
+                docList[0].delete()
+                if os.path.exists(os.path.dirname(xryDoc.resource)):
+                    import shutil
+                    shutil.rmtree(os.path.dirname(xryDoc.resource))
+
+            newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
+            resourcePath = os.path.join(self.datalayer.toolkit.filesDirectory,"cachedLagrangianData", f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc")
+            logger.info(f"Adding to resource {resourcePath}")
+            xryDoc = self.datalayer.toolkit.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
+                                                     resource=resourcePath,
+                                                     type=self.DOCTYPE_CONCENTRATION,
+                                                     desc=mdata)
+
+            path_to_data = os.path.dirname(xryDoc.resource)
+            logger.info(f"Writing the cache of the results in {path_to_data}. Making sure directory exists")
+            os.makedirs(path_to_data, exist_ok=True)
+
+            if extents is None:
+                logger.info("The extents are not supplied, getting it from the original flow field")
+                extents = self.datalayer.getOriginalFlowFieldExtentAsDict(caseDescriptorName)
+                logger.info(f"The extents are: {json.dumps(ConfigurationToJSON(extents),indent=4)}")
+
+            reReadResults = overwrite if reReadResults is None else reReadResults
+            logger.info(f"Getting the lagrangian data for {caseDescriptorName}. Re-read the results? {reReadResults} (If false, use cache)")
+            workflow = self.datalayer.toolkit.getHermesWorkflowFromDB(caseDescriptorName)
+            data = self.datalayer.getCaseResults(caseDescriptorName,overwrite=reReadResults,withVelocity=True, withReleaseTimes=True, withMass=True)
+            timeName = 0
+            partitionID = 0
+            for partitionID, partition in enumerate(data.partitions):
+                logger.info(f"Processing partition {partitionID}")
+                L = []
+
+                for timeName, timeData in partition.compute().reset_index().groupby("datetime"):
+                    logger.debug(f"Processing Time: {timeName}")
+                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz,
+                                                                 xfield=xfield,
+                                                                 yfield=yfield, zfield=zfield)
+                    L.append(xry)
+
+                if len(L) > 0:
+                    logger.info("Creating the xarray")
+                    pxry = xarray.concat(L, dim="datetime")
+                    outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
+                    logger.info(f"Writing the partition to file {outFile_Final}")
+                    pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "datetime").to_dataset(name="C").to_netcdf(outFile_Final)
+                else:
+                    logger.debug(f"List for partition {partitionID} is empty. ")
+
+            logger.info("Filling in all the empty timesteps to make sure that there are enough timesteps for moving window")
+            partitionID += 1
+            L = []
+            logger.debug(f"Writitng the empty field as partition {partitionID}")
+            for timeName in range(int(timeName+1),workflow.dispersionDuration):
+                    logger.debug(f"Processing Time: {timeName}")
+                    xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
+                                                                 xfield=xfield,
+                                                                 yfield=yfield, zfield=zfield)
+                    L.append(xry)
+
+            if len(L) > 0:
+                logger.info("Creating the xarray")
+                pxry = xarray.concat(L, dim="datetime")
+                outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
+                logger.info(f"Writing the partition to file {outFile_Final}")
+                pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "datetime").to_dataset(name="C").to_netcdf(outFile_Final)
+            else:
+                logger.debug(f"List for Residual timesteps is empty. ")
+
+        else:
+            xryDoc = docList[0]
+
+        ret = xryDoc.getData()
+        ret.attrs['field'] = dict(C=1*kg/m**3)
+        ret.attrs['dt'] = f"{(ret.datetime[-1]-ret.datetime[-2]).item()}s"
+        return ret
+
+    def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
+        """
+            Returns the concentration field that is related to this simulation (with the metadata that is provided).
+
+            Return None if simulation is not found.
+
+        Parameters
+        ----------
+        dataDocument: datalayer.metadatadocument
+
+        returnFirst: bool
+            If true, returns only the first simulation and None if none was found.
+            If false returns a list (might be empty).
+
+        metadata: any metadata that is needed
+
+        Returns
+        -------
+            The document of the concentrations (or none).
+
+        """
+        dataID = str(dataDocument.id)
+        docList = self.datalayer.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
+
+        if returnFirst:
+            if len(docList) > 0:
+                data = docList[0]
+            else:
+                data = None
+
+        else:
+            data = docList
+
+        return data
+
+
+##########################
+####   Utils
+##########################
+def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
+    """
+        Extracts data from a openFOAM list file.
+
+        list files has no boundary and so, we can just skip head and end.
+
+    Parameters
+    ----------
+    path: str
+        The path of the file
+    time: str
+        The files' time step
+    columnNames: list of str
+        The names of the columns
+    skiphead: int
+        Number of lines to skip from the beginning of the file
+    skipend: int
+        Number of lines to skip from the ending of the file
+
+    Returns
+    -------
+        Pandas with the data.
+    """
+
+    cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
+    cnvrtDict = dict([(x, cnvrt) for x in columnNames])
+
+    try:
+        newData = pandas.read_csv(path,
+                                  skiprows=skiphead,
+                                  skipfooter=skipend,
+                                  engine='python',
+                                  header=None,
+                                  sep='\s+',
+                                  converters=cnvrtDict,
+                                  names=columnNames)
+    except ValueError:
+        newData = []
+
+    if len(newData) == 0:
+        with open(path, "r") as thefile:
+            lines = thefile.readlines()
+        istart = 15
+        while len(lines[istart].strip()) == 0:
+            istart += 1
+            if len(lines) < istart:
+                raise ValueError("Empty File")
+
+        vals = lines[istart].strip()
+        data = []
+
+        if vector:
+            if "{" in vals:
+                inputs = vals.split("{")
+                repeat = int(inputs[0])
+                valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
+                data = dict(
+                    [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
+            else:
+                for rcrdListTuple in vals.split("(")[2:]:
+                    record = dict(
+                        [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
+                    data.append(record)
+        else:
+
+            if "{" in vals:
+                inputs = vals.split("{")
+                repeat = int(inputs[0])
+                value = float(inputs[1].split("}")[0])
+                data = [{columnNames[0]: value} for x in range(repeat)]
+
+            else:
+                valuesList = vals.split("(")[1]
+                for rcrdListItem in valuesList.split(" "):
+                    record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
+                    data.append(record)
+
+        newData = pandas.DataFrame(data)
+
+    return newData.astype(float)
+
+
+def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
+                         cloudName="kinematicCloud"):
+
+    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],datetime=[])
+    if withVelocity:
+        columnsDict['U_x'] = []
+        columnsDict['U_y'] = []
+        columnsDict['U_z'] = []
+    if withReleaseTimes:
+        columnsDict["releaseTime"] = []
+        columnsDict['age'] = []
+    if withMass:
+        columnsDict['mass'] = []
+
+    newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
+
+    try:
+        newData = extractFile(
+            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
+            ['x', 'y', 'z'])
+        for fld in ['x', 'y', 'z']:
+            newData[fld] = newData[fld].astype(numpy.float64)
+
+        dataID = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"),
+                             ['id'], vector=False)
+        newData['id'] = dataID['id'].astype(numpy.float64)
+
+        dataprocID = extractFile(
+            os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'],
+            vector=False)
+        newData['procId'] = dataprocID['procId'].astype(numpy.float64)
+
+        newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
+
+        # dataGlobal = extractFile(
+        #     os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
+        #     ['globalX', 'globalY', 'globalZ'])
+        #
+        # for col in ['globalX', 'globalY', 'globalZ']:
+        #     newData[col] = dataGlobal[col].astype(numpy.float64)
+
+        theTime = os.path.split(timeName)[-1]
+        newData['datetime'] = float(theTime)
+
+
+        if withVelocity:
+            dataU = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
+                                ['U_x', 'U_y', 'U_z'])
+            for col in ['U_x', 'U_y', 'U_z']:
+                newData[col] = dataU[col]
+
+        if withReleaseTimes:
+            dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "age"),
+                                ['age'], vector=False)
+            newData["releaseTime"] = newData["datetime"] - dataM["age"]
+            newData["age"] = dataM["age"]
+        if withMass:
+            dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
+                                ['mass'], vector=False)
+            try:
+                newData["mass"] = dataM["mass"]
+            except:
+                newData = newData.compute()
+                newData["mass"] = dataM["mass"]
+
+
+    except Exception as e:
+        pass
+
+    return newData
+
+def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
+    """
+        Reads the concentration file that was outputed by the cloud function ConcentrationField
+    Parameters
+    ----------
+    timeName : string
+        The time to read
+    casePath  :  string
+        The case path.
+
+    cloudName : string
+        The name of the cloud.
+
+    Returns
+    -------
+
+    """
+    fileName = os.path.join(casePath, timeName, f"{cloudName}EulerConcentrations")
+    if os.path.exists(fileName):
+        try:
+            return pandas.read_csv(fileName).assign(datetime=float(timeName.split("/")[-1]))
+        except pandas.errors.EmptyDataError:
+            return pandas.DataFrame(dict(x=[], y=[], z=[],  C=[],datetime=[]))
+    else:
+        return pandas.DataFrame(dict(x=[],y=[],z=[],C=[],datetime=[]))
+
+
     # def _extractFile(self, filePath, columnNames, vector=True):
     #     """
     #         Extracts data from a csv file.
@@ -1010,596 +2081,3 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     #         return True
     #     except ValueError:
     #         return False
-
-    def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
-                       cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
-        """
-            Reads cloud data from the disk.
-
-            Checks if parallel data exists and reads it (unless forceSingleProcessor is True).
-
-        Parameters
-        ----------
-        caseDescriptor : str
-            The descriptor of the case.
-            Can be the name, the resource, the parameter files and ect.
-
-        times : list
-            If none, read all time.
-        withVelocity : bool
-            read the velocity
-        withReleaseTimes : bool
-            reads the age of the particles.
-
-        withMass  :true
-            Reads the mass of the particles.
-        cloudName : str
-            The cloud name
-
-        forceSingleProcessor : bool
-            Force reading single processor
-
-        Returns
-        -------
-            dask.dataFrame.
-        """
-        logger = get_classMethod_logger(self, "readCloudData")
-
-        if cache:
-            logger.debug(f"Checking to see if the data {caseDescriptor} is cached in the DB")
-            cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,cloudName=cloudName,dockind="Cache")
-            if len(cachedDocumentList) == 0:
-                logger.debug("Data is not cached, calculate it")
-                calculateData = True
-                cacheDoc = None
-            elif overwrite:
-                logger.debug("overwrite is True, calculate it")
-                calculateData = True
-                cacheDoc = cachedDocumentList[0]
-            else:
-                logger.debug("Returning the cached data")
-                ret = cachedDocumentList[0].getData(engine='pyarrow')
-                calculateData = False
-        else:
-            logger.debug(f"Calculating data because cache is False")
-            calculateData = True
-            cacheDoc = None
-
-        logger.info(f"The {caseDescriptor} is (re)-calculated" if calculateData else f"The {caseDescriptor} was found, returining that data")
-
-        if calculateData:
-            logger.info(f"Calculating the data. Trying to find the case described by: {caseDescriptor}")
-            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptor, doctype=self.toolkit.DOCTYPE_WORKFLOW,kind="Cache")
-            if len(docList) == 0:
-                logger.info("not found, trying as a directory")
-                finalCasePath = os.path.abspath(caseDescriptor)
-                stochasticSimulationDocument = None
-                workflowName = caseDescriptor
-                if not os.path.isdir(os.path.abspath(caseDescriptor)):
-                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
-                    logger.error(err)
-                    raise FileNotFoundError(err)
-                else:
-                    logger.debug(f"Found as a directory")
-            else:
-                logger.info(f"Found, Loading data from {docList[0].resource}")
-                finalCasePath = docList[0].resource
-                workflowName  = docList[0].desc['workflowName']
-                stochasticSimulationDocument = docList[0]
-
-            loader = lambda timeName: readLagrangianRecord(timeName,
-                                                           casePath=finalCasePath,
-                                                           withVelocity=withVelocity,
-                                                           withReleaseTimes=withReleaseTimes,
-                                                           cloudName=cloudName,
-                                                           withMass=withMass)
-
-            logger.info("Checking if the case is single processor or multiprocessor")
-            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
-                processorList = [os.path.basename(proc) for proc in
-                                 glob.glob(os.path.join(finalCasePath, "processor*"))]
-                if len(processorList) == 0:
-                    err = f"There are no processor* directories in the case {finalCasePath}. Is it parallel?"
-                    logger.error(err)
-                    raise ValueError(err)
-
-                if timeList is None:
-                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                            x.isdigit() and
-                            (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                      key=lambda x: int(x))
-
-                logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
-
-                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
-                              product(processorList, timeList)]
-
-                ret = dask_dataframe.from_map(loader, loaderList)
-
-            else:
-                logging.debug(f"Loading single processor data with time list {timeList}")
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (
-                        os.path.isdir(x) and
-                        x.isdigit() and
-                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-
-                loaderList = [timeName for timeName in timeList]
-                ret = dask_dataframe.from_map(loader, loaderList)
-
-            if cache or overwrite:
-                if cacheDoc is not None:
-                    logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
-                    fullname = cacheDoc.resource
-                else:
-                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
-                    logger.debug(f"Writing data to {targetDir}")
-                    os.makedirs(targetDir, exist_ok=True)
-                    fullname = os.path.join(targetDir, f"{cloudName}.parquet")
-                    desc = dict(docList[0].desc) if stochasticSimulationDocument is not None else dict(workflowName=caseDescriptor)
-                    desc['cloudName'] = cloudName
-
-                    logger.debug(f"...saving data in file {fullname}")
-                    self.toolkit.addCacheDocument(dataFormat=datatypes.PARQUET,
-                                                  type=self.DOCTYPE_LAGRANGIAN_CACHE,
-                                                  resource=fullname,
-                                                  desc=desc)
-                logger.info(f"Writing data to parquet {fullname}... This may take a while")
-                ret.set_index("time").repartition(partition_size="100MB").to_parquet(fullname)
-
-        return ret
-
-
-class analysis:
-    DOCTYPE_CONCENTRATION = "xarray_concentration"
-    DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
-
-    datalayer = None
-
-    def __init__(self, datalayer):
-        self.datalayer = datalayer
-
-    def calcConcentrationPointWise(self, data, dxdydz, xfield="x", yfield="y", zfield="z"):
-        """
-            Calculates the concentration in cells from point data.
-
-            The mass of each particle is given in the mass fields.
-
-            Note that it is a multi index dask that cannot be saved as is to parquet.
-
-        :param data: parquet/dask
-            The particle location data in time.
-
-        :param dxdydz: float
-                The size of the cell
-
-        :param xfield: str
-                The name of the X coordinate
-
-        :param yfield: str
-                The name of the Y coordinate
-
-        :param zfield: str
-                The name of the Z coordinate
-        :return: dask.
-
-
-        """
-
-        dH = dxdydz ** 3
-        return data.assign(xI=dxdydz * (data[xfield] // dxdydz),
-                           yI=dxdydz * (data[yfield] // dxdydz),
-                           zI=dxdydz * (data[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
-                   'mass'].sum().to_frame("C") / dH
-
-    def calcDocumentConcentrationPointWise(self, dataDocument, dxdydz, xfield="globalX", yfield="globalY",
-                                           zfield="globalZ", overwrite=False, saveAsDask=False, simulationID=None,
-                                           **metadata):
-        """
-           Calculates the concentration from the cells where particles exists.
-
-        :param dataDocument: hera.MetadataDocument
-                The document with the particles.
-
-        :param dxdydz: float
-                The size of the cell
-
-        :param xfield: str
-                The name of the X coordinate
-
-        :param yfield: str
-                The name of the Y coordinate
-
-        :param zfield: str
-                The name of the Z coordinate
-
-        :param overwrite: bool
-                If true, recalculates.
-
-        :param saveAsDask: bool
-                If true, reset the index because dask cannot read multi index (the result ofthe concentration is multi index with time and x,y,z)
-
-        :param simulationID: str
-                If not None, use this str instead of the docmentID. used in cases where the
-                cache was transferred from another DB.
-
-        :param metadata:
-                Any additional parameters to add to the cache.
-        :return:
-                Document
-        """
-        simID = str(dataDocument.id) if simulationID is None else simulationID
-
-        docList = self.datalayer.getCacheDocuments(simID=simID, dxdydz=dxdydz, **metadata)
-        if len(docList) == 0 or overwrite:
-
-            data = dataDocument.getData()
-            C = self.calcConcentrationPointWise(data, dxdydz=dxdydz, xfield=xfield, yfield=yfield, zfield=zfield)
-
-            if saveAsDask:
-                C = C.compute().reset_index(level=['xI', 'yI', 'zI'])
-
-            if len(docList) == 0:
-                desc = dict(simID=simID, dxdydz=dxdydz)
-                desc.update(metadata)
-
-                doc = self.datalayer.addCacheDocument(dataFormat=datatypes.PARQUET,
-                                                      type=self.DOCTYPE_CONCENTRATION_POINTWISE,
-                                                      resource="",
-                                                      desc=desc)
-
-                outputDirectory = os.path.join(self.datalayer.filesDirectory, str(doc.id))
-                os.makedirs(outputDirectory, exist_ok=True)
-
-                finalFileName = os.path.join(outputDirectory, "concentration.parquet")
-                doc.resource = finalFileName
-                doc.save()
-
-            else:
-                doc = docList[0]
-                finalFileName = doc.resource
-
-            C.to_parquet(finalFileName, compression="GZIP")
-            ret = doc
-
-    def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="globalX", yfield="globalY",
-                                          zfield="globalZ"):
-        """
-            Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
-
-            Embed in a larget timestep.
-
-        Parameters
-        -----------
-
-        datimeDatata: pandas dataframe.
-            The data to convert. Takes only one time step at a time (for multiple time steps use iterConcentationField)
-
-        extents: dict
-            The domain in which the concentation will be calculated.
-            has keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
-
-        dxdydz: float
-                    The mesh steps.
-
-        dxdydz: float
-                    The size of a mesh unit (that will be created for the concentration).
-
-        xfield: str
-                The column name of the x coordinates.
-
-        yfield: str
-            The column name of the y coordinates.
-
-        zfield: str
-            The column name of the z coordinates.
-
-
-        Returns
-        --------
-
-            Xarray.dataframe
-        """
-        x_full = numpy.arange(extents['xmin'], extents['xmax'], dxdydz)
-        y_full = numpy.arange(extents['ymin'], extents['ymax'], dxdydz)
-        z_full = numpy.arange(extents['zmin'], extents['zmax'], dxdydz)
-
-        dH = dxdydz ** 3
-
-        fulldata = xarray.DataArray(coords=dict(xI=x_full, yI=y_full, zI=z_full), dims=['xI', 'yI', 'zI']).fillna(0)
-        fulldata.filterType = "C"
-
-        C = timeData.assign(xI=dxdydz * (timeData[xfield] // dxdydz), yI=dxdydz * (timeData[yfield] // dxdydz),
-                            zI=dxdydz * (timeData[zfield] // dxdydz)).groupby(["xI", "yI", "zI", "time"])[
-                'mass'].sum().to_xarray().squeeze().fillna(0) / dH
-
-        # assign the timestep into the large mesh
-        fulldata.loc[dict(xI=C.xI, yI=C.yI, zI=C.zI)] = C
-        fulldata.attrs['units'] = "1*kg/m**3"
-
-        return fulldata.expand_dims(dict(time=[timeData.time.unique()[0]]), axis=-1)
-
-    def calcConcentrationFieldFullMesh(self, dataDocument, extents, dxdydz, xfield="globalX", yfield="globalY",
-                                       zfield="globalZ", overwrite=False, simulationID=None, **metadata):
-        """
-            Calculates the eulerian concentration field for each timestep in the data.
-            The data is stored as a nc file on the disk.
-
-            The concentrations are embeded in a global mesh (defined in the extents field).
-
-            The metadata files are added to the d
-
-
-        Parameters
-        ----------
-        dataDocument: hera document.
-                The data to parse into timesteps and save as xarray.
-
-        dxdydz: float
-                    The mesh steps.
-
-        dxdydz: float
-                    The size of a mesh unit (that will be created for the concentration).
-
-
-
-        xfield: str
-                The column name of the x coordinates.
-
-        yfield: str
-            The column name of the y coordinates.
-
-        zfield: str
-            The column name of the z coordinates.
-
-        overwrite: bool
-            If True, recalcluats the data.
-
-        simulationID: str
-            If not None, use this str instead of the docmentID. used in cases where the
-            cache was transferred from another DB.
-
-        **metadata: the parameters to add to the document.
-
-        :return:
-            The document of the xarray concentration s
-        """
-
-        dataID = str(dataDocument.id) if simulationID is None else simulationID
-
-        docList = self.datalayer.getCacheDocuments(dataID=dataID, extents=extents, dxdydz=dxdydz,
-                                                   type=self.DOCTYPE_CONCENTRATION, **metadata)
-
-        if len(docList) == 0 or overwrite:
-
-            if len(docList) == 0:
-
-                mdata = dict(extents=extents, dxdydz=dxdydz, dataID=dataID)
-                mdata.update(**metadata)
-                xryDoc = self.datalayer.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
-                                                         resource="",
-                                                         type=self.DOCTYPE_CONCENTRATION,
-                                                         desc=mdata)
-
-                xryDoc.resource = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id), "Concentrations*.nc")
-                xryDoc.save()
-            else:
-                xryDoc = docList[0]
-
-                files = glob.glob(xryDoc.resource)
-                for f in files:
-                    try:
-                        os.remove(f)
-                    except OSError as e:
-                        print("Error: %s : %s" % (f, e.strerror))
-
-            data = dataDocument.getData()  # dask.
-
-            os.makedirs(os.path.join(self.datalayer.filesDirectory, str(xryDoc.id)), exist_ok=True)
-
-            for partitionID, partition in enumerate(data.partitions):
-                L = []
-                for timeName, timeData in partition.compute().reset_index().groupby("time"):
-                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz,
-                                                                 xfield=xfield,
-                                                                 yfield=yfield, zfield=zfield)
-                    L.append(xry)
-
-                pxry = xarray.concat(L, dim="time")
-
-                outFile_Final = os.path.join(self.datalayer.filesDirectory, str(xryDoc.id),
-                                             f"Concentrations{partitionID}.nc")
-                pxry.transpose("yI", "xI", "zI", "time ").to_dataset(name="C").to_netcdf(outFile_Final)
-
-        else:
-            xryDoc = docList[0]
-
-        return xryDoc
-
-    def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
-        """
-            Returns a list of concentration fields that is related to this simulation (with the metadata that is provided).
-
-            Return None if simulation is not found.
-
-        Parameters
-        ----------
-        dataDocument: datalayer.metadatadocument
-
-        returnFirst: bool
-            If true, returns only the first simulation and None if none was found.
-            If false returns a list (might be empty).
-
-        metadata: any metadata that is needed
-
-        Returns
-        -------
-            The document of the concentrations (or none).
-
-        """
-        dataID = str(dataDocument.id)
-        docList = self.datalayer.getCacheDocuments(dataID=dataID, type=self.DOCTYPE_CONCENTRATION, **metadata)
-
-        if returnFirst:
-            if len(docList) > 0:
-                data = docList[0]
-            else:
-                data = None
-
-        else:
-            data = docList
-
-        return data
-
-
-##########################
-####   Utils
-##########################
-def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
-    """
-        Extracts data from a openFOAM list file.
-
-        list files has no boundary and so, we can just skip head and end.
-
-    Parameters
-    ----------
-    path: str
-        The path of the file
-    time: str
-        The files' time step
-    columnNames: list of str
-        The names of the columns
-    skiphead: int
-        Number of lines to skip from the beginning of the file
-    skipend: int
-        Number of lines to skip from the ending of the file
-
-    Returns
-    -------
-        Pandas with the data.
-    """
-
-    cnvrt = lambda x: float(x.replace("(", "").replace(")", ""))
-    cnvrtDict = dict([(x, cnvrt) for x in columnNames])
-
-    try:
-        newData = pandas.read_csv(path,
-                                  skiprows=skiphead,
-                                  skipfooter=skipend,
-                                  engine='python',
-                                  header=None,
-                                  sep='\s+',
-                                  converters=cnvrtDict,
-                                  names=columnNames)
-    except ValueError:
-        newData = []
-
-    if len(newData) == 0:
-        with open(path, "r") as thefile:
-            lines = thefile.readlines()
-        istart = 15
-        while len(lines[istart].strip()) == 0:
-            istart += 1
-            if len(lines) < istart:
-                raise ValueError("Empty File")
-
-        vals = lines[istart].strip()
-        data = []
-
-        if vector:
-            if "{" in vals:
-                inputs = vals.split("{")
-                repeat = int(inputs[0])
-                valuesList = inputs[1][inputs[1].find("(") + 1:inputs[1].find(")")]
-                data = dict(
-                    [(colname, [float(x)] * repeat) for colname, x in zip(columnNames, valuesList.split(" "))])
-            else:
-                for rcrdListTuple in vals.split("(")[2:]:
-                    record = dict(
-                        [(name, float(y)) for name, y in zip(columnNames, rcrdListTuple.split(")")[0].split(" "))])
-                    data.append(record)
-        else:
-
-            if "{" in vals:
-                inputs = vals.split("{")
-                repeat = int(inputs[0])
-                value = float(inputs[1].split("}")[0])
-                data = [{columnNames[0]: value} for x in range(repeat)]
-
-            else:
-                valuesList = vals.split("(")[1]
-                for rcrdListItem in valuesList.split(" "):
-                    record = {columnNames[0]: float(rcrdListItem.split(")")[0])}
-                    data.append(record)
-
-        newData = pandas.DataFrame(data)
-
-    return newData.astype(float)
-
-
-def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
-                         cloudName="kinematicCloud"):
-    columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
-    if withMass:
-        columnsDict['mass'] = []
-    if withReleaseTimes:
-        columnsDict['age'] = []
-    if withVelocity:
-        columnsDict['U_x'] = []
-        columnsDict['U_y'] = []
-        columnsDict['U_z'] = []
-
-    newData = pandas.DataFrame(columnsDict, dtype=numpy.float64)
-
-    try:
-        newData = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalSigmaPositions"),
-            ['x', 'y', 'z'])
-        for fld in ['x', 'y', 'z']:
-            newData[fld] = newData[fld].astype(numpy.float64)
-
-        dataID = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "origId"),
-                             ['id'], vector=False)
-        newData['id'] = dataID['id'].astype(numpy.float64)
-
-        dataprocID = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "origProcId"), ['procId'],
-            vector=False)
-        newData['procId'] = dataprocID['procId'].astype(numpy.float64)
-
-        newData = newData.ffill().assign(globalID=1000000000 * newData.procId + newData.id)
-
-        dataGlobal = extractFile(
-            os.path.join(casePath, timeName, "lagrangian", cloudName, "globalPositions"),
-            ['globalX', 'globalY', 'globalZ'])
-
-        for col in ['globalX', 'globalY', 'globalZ']:
-            newData[col] = dataGlobal[col].astype(numpy.float64)
-
-        if withVelocity:
-            dataU = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "U"),
-                                ['U_x', 'U_y', 'U_z'])
-            for col in ['U_x', 'U_y', 'U_z']:
-                newData[col] = dataU[col]
-
-        if withReleaseTimes:
-            dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "age"),
-                                ['age'], vector=False)
-            newData["releaseTime"] = dataM["time"] - dataM["age"]
-        if withMass:
-            dataM = extractFile(os.path.join(casePath, timeName, "lagrangian", cloudName, "mass"),
-                                ['mass'], vector=False)
-            try:
-                newData["mass"] = dataM["mass"]
-            except:
-                newData = newData.compute()
-                newData["mass"] = dataM["mass"]
-
-
-    except Exception as e:
-        pass
-
-    theTime = os.path.split(timeName)[-1]
-    newData['time'] = float(theTime)
-    return newData

@@ -1,5 +1,9 @@
+import datetime
+import sklearn.metrics
 import math
+import numpy as np    
 from osgeo import gdal
+
 
 #        The download function is not ready yet, manually download is needed nowdays
 #        Get the GFS field list from a file
@@ -75,6 +79,33 @@ class GFS:
         ds = xr.load_dataset(filename2, engine="cfgrib",backend_kwargs={'filter_by_keys': {'typeOfLevel': 'surface'}})
 
         d = xr.open_dataset     (filename2,backend_kwargs={'filter_by_keys':{'typeOfLevel': 'heightAboveGroundLayer'}})
+
+
+def getProbe(file, jumps = 1):
+    # get openfoam probe data and convert it to python data
+    f = open(file+"U","r")
+    lines = f.readlines()
+    times = []
+    vectors = []
+    probes=0
+    while (lines[probes][:5]=="# Pro"):
+        probes+=1
+    # if len(lines)>100000:
+    #     jumps = len(lines)//100000
+    for i in range(len(lines)):
+        if i % jumps ==0:
+            if(i>probes):
+                #first 20 chars of line are times
+                times.append(float(lines[i][0:14]))
+                #remaining chars are vector
+                vector = lines[i][14:]
+                #remove ( and )
+                vector = vector.replace("\n", "")
+                vector = vector.replace("(", "")
+                vector = vector.replace(")", "")
+                #split by space
+                vectors.append(vector.split(" "))
+    return times, vectors
 
 
 if __name__ == "__main__":
@@ -294,6 +325,12 @@ if __name__ == "__main__":
 
     uu = np.asarray([ 2.50,  2.69,  2.80,  2.16,  1.74,  1.81]) #wrf 202306121800 probe *************
     vv = np.asarray([-0.88, -0.98, -1.03, -0.9 , -0.83, -0.80])
+    uu = np.asarray([ 2.47,  2.65,  2.76,  2.21,  1.74,  1.81]) #wrf 202306121800 probe b2 *************
+    vv = np.asarray([-0.87, -0.97, -1.02, -0.91, -0.83, -0.80])
+    uu = np.asarray([ 1.01,  1.66,  1.61,  2.14,  0.95,  0.24]) #wrf 202306121800 c2s 227k
+    vv = np.asarray([-0.11,  0.45, -0.06,  1.19, -1.11, -0.04])
+    uu = np.asarray([ 1.37,  2.04,  1.89,  3.08,  1.29,  1.28]) #wrf 202306121800 c2s 227k + height
+    vv = np.asarray([-0.27,  0.69, -0.67,  1.23, -1.42, -0.16])
     uu = np.asarray([ 2.61,  4.99,  4.95,  2.76,  2.30,  3.07]) #wrf 202306121800 a2az0 500k
     vv = np.asarray([ 0.16, -0.03,  0.07,  0.84, -2.24, -0.86])
     uu = np.asarray([ 1.28,  1.52,  2.36,  0.66,  0.61,  1.61]) #wrf 202306121800 a2aimpleb1 500k
@@ -310,6 +347,9 @@ if __name__ == "__main__":
     vv = np.asarray([-0.15 ,  0.25,-0.62, 1.78, -1.29, -1.10])
     uu = np.asarray([ 1.82 ,  2.62, 2.59, 2.71, 1.70, 1.86]) #wrf 202306121800 c2 82k
     vv = np.asarray([-0.43 ,  0.07,-0.12,-0.19, -0.80, -0.51])
+    uu = np.asarray([ 0.79 ,  1.97, 1.93, 3.61, 1.04, 1.00]) #wrf 202306121800 b2az0s 291k
+    vv = np.asarray([ 0.12 ,  0.21,-0.65, 1.25, -1.50, -0.28])
+    
     
     uu = np.asarray([ 1.64,  2.03,  1.36,  1.80,  1.83,  1.62]) #wrf 202306122200 probe
     vv = np.asarray([-0.66, -1.24, -0.70, -0.67, -0.99, -0.59])
@@ -318,12 +358,25 @@ if __name__ == "__main__":
     uu = np.asarray([ 2.26,  4.42,  3.49,  3.17,  2.60,  2.65]) #wrf 202306122200b 878k
     vv = np.asarray([-0.51,  0.60,  1.13,  0.91, -2.52, -1.61])
   
-    uu = np.asarray([ 3.43,  4.93,  4.31,  4.45,  2.90,  3.51]) #wrf 202306131200 probe *************
+    uu = np.asarray([ 3.43,  4.93,  4.31,  4.45,  2.90,  3.51]) #wrf 202306131200 probe a1z0*************
     vv = np.asarray([ 0.95,  1.96,  1.58,  1.94,  0.75, -2.70])
+    uu = np.asarray([ 3.40,  4.83,  4.31,  4.42,  3.28,  3.95]) #wrf 202306131200 probe from b2z0s
+    vv = np.asarray([ 0.91,  1.94,  1.76,  1.86,  0.42, -2.97])
     uu = np.asarray([ 1.29,  3.46,  3.67, -0.37,  0.88,  0.91]) #wrf 202306131200 b2az0simple 1000K
     vv = np.asarray([ 0.95,  0.14,  0.19, -0.12, -0.80, -1.51])
     uu = np.asarray([ 4.17, 10.04,  5.37,  8.10,  5.89,  6.74]) #wrf 202306131200 b2az0 900K
     vv = np.asarray([ 6.17,  8.12,  3.72,  9.90,  5.26,  3.77])
+    uu = np.asarray([ 3.31,  6.97,  6.49,  3.64,  1.31,  4.80]) #wrf 202306131200 a4z0 800K
+    vv = np.asarray([ 5.27,  5.41,  5.40,  4.67, -1.20, 3.65])
+    uu = np.asarray([ 2.43,  4.41,  3.54,  0.61,  0.45, 4.64]) #wrf 202306131200 a2z0s 590K
+    vv = np.asarray([ 1.30,  1.70,  0.96,  0.53, -0.37,-0.93])
+    uu = np.asarray([ 0.73,  3.29,  2.52,  2.16,  2.08, 5.41]) #wrf 202306131200 b2z0s 174K
+    vv = np.asarray([ 0.56,  1.26,  0.50,  1.68, -0.62,-0.03])
+    uu = np.asarray([ 1.21,  3.61,  2.15,  1.43,  2.51, 4.65]) #wrf 202306131200 c2z0s 36K
+    vv = np.asarray([ 0.62,  1.91,  0.47,  1.28, -0.51,-0.29])
+    uu = np.asarray([ 1.77,  4.29,  2.80,  2.20,  2.87, 5.22]) #wrf 202306131200 c2z0s 36K + height
+    vv = np.asarray([ 0.79,  2.56,  0.24,  1.60, -0.63,-0.22])
+
 
     
     
@@ -342,8 +395,8 @@ if __name__ == "__main__":
 
     ws0=np.asarray([2.,3.9,3.2,3.8,5.5,4.4]) # 13/06/2023 12GMT
     wd0=np.asarray([243,226,256,232,240,313])
-    uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 0.66  1.92  1.78  1.74  2.99  2.38]
-    vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-1.35 -0.55  0.25 -0.77 -2.34 -1.66]
+    uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 1.78, 2.81, 3.10, 2.99, 4.76, 3.22]
+    vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[ 0.91, 2.71, 0.77, 2.34, 2.75,-3.00  ]
 
 
 
@@ -366,6 +419,54 @@ if __name__ == "__main__":
     uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[ 0.61,  1.47,  1.21,  1.16,  2.56,  2.16]
     vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-0.34, -0.31, -0.49, -0.78, -1.93, -1.05]
     
+    ws0=np.asarray([1.7,4.4,1.8,3.4,1.3,2.0]) # test
+    wd0=np.asarray([271,252,305,238,279,325])
+    uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) #[1.7 , 4.18, 1.47, 2.88, 1.28, 1.15]
+    vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2) #[-0.03,  1.36, -1.03,  1.8 , -0.2 , -1.64]
+    
+    # universiry 202240/740730 (475m) 12: 1.7/271 13: 4.4/252 ==> 
+    # technion   202390/742120 (245m) 12: 1.8/305 13: 3.4/238 ==> 
+    # Byalik     207632/746631 (6m) 12: 1.3/279 13: 2.0/325 ==> 
+
+    ws01218=np.asarray([1.7,1.8,1.3,1.8,1.1,1.8,2.6,0.2,2.9]) # 12/06/2023 18GMT new reading
+    wd01218=np.asarray([271,305,279,308,297,299,335,298,288])
+    uu01218=np.round(-ws01218*np.sin(wd01218/180*math.pi),2) #[ 1.73, 2.1 , 2.6 , 1.98, 3.56, 3.34]
+    vv01218=np.round(-ws01218*np.cos(wd01218/180*math.pi),2) #[-0.5 , 0.11, 0.  ,-0.96,-1.59,-1.35]
+
+    uu =    np.asarray([ 3.60, 2.44, 1.73 , 2.50, 2.61, 2.76, 2.21, 1.74, 1.81]) #wrf 202306121800 c2z0s2 probe
+    vv =    np.asarray([-1.28,-1.00,-0.85 ,-0.88,-0.96,-1.02,-0.91,-0.83,-0.80])
+
+    uu =    np.asarray([ 2.54, 1.29, 0.12, 0.86,  1.80,  1.40,  2.14,  1.59, 0.53]) #wrf 202306121800 c2z0s2 4k
+    vv =    np.asarray([ 0.73,-0.17, 0.02,-0.11,  0.50, -0.06,  1.31, -1.67, 0.07])
+    uu = uu+np.asarray([ 3.11, 1.57, 0.54, 1.31,  2.14,  1.75,  3.11,  1.88, 1.64]) #wrf 202306121800 c2z0s2 4k + height
+    vv = vv+np.asarray([ 0.46,-0.18,-0.26,-0.24,  0.76, -0.59,  1.36, -1.85,-0.20])    
+    uu=uu/2
+    vv=vv/2
+
+    
+    ws01312=np.asarray([4.4,3.4,2.0,2.0,3.9,3.2,3.8,5.5,4.4]) # 13/06/2023 12GMT
+    wd01312=np.asarray([252,238,325,243,226,256,232,240,313])
+    uu01312=np.round(-ws01312*np.sin(wd01312/180*math.pi),2) #[ 1.78, 2.81, 3.10, 2.99, 4.76, 3.22]
+    vv01312=np.round(-ws01312*np.cos(wd01312/180*math.pi),2) #[ 0.91, 2.71, 0.77, 2.34, 2.75,-3.00  ]
+
+    ws01316=np.asarray([1.7,1.0,1.4,2.0,3.9,3.2,3.8,5.5,4.4]) # 13/06/2023 16GMT
+    wd01316=np.asarray([242,276,297,243,226,256,232,240,313])
+    uu01316=np.round(-ws01312*np.sin(wd01312/180*math.pi),2) #[ 1.78, 2.81, 3.10, 2.99, 4.76, 3.22]
+    vv01316=np.round(-ws01312*np.cos(wd01312/180*math.pi),2) #[ 0.91, 2.71, 0.77, 2.34, 2.75,-3.00  ]
+
+    uu =    np.asarray([5.71,4.83, 3.03 ,3.40,  4.80,  4.31,  4.36,  3.08, 3.95]) #wrf 202306131200 c2z0s2 probe
+    vv =    np.asarray([2.77,2.42,-2.89 ,0.90,  1.85,  1.76,  1.78,  0.38,-2.97])
+    uu = uu+np.asarray([5.65,4.94, 3.31 ,3.49,  4.83,  4.35,  4.42,  3.36, 4.19]) #wrf 202306131200 c2z0s2 probe + height
+    vv = vv+np.asarray([2.91,2.51,-3.12 ,0.95,  1.94,  1.80,  1.86,  0.44,-3.15])
+    uu=uu/2
+    vv=vv/2
+    
+    uu =    np.asarray([ 4.41,2.63, 1.22,1.21,  3.64,  2.18,  1.44,  2.29, 5.64]) #wrf 202306131200 c2z0s2 68k
+    vv =    np.asarray([ 1.79,1.09, 0.90,0.66,  1.92,  0.43,  1.32, -0.42,-0.38])
+    uu = uu+np.asarray([ 4.95,3.22, 4.24,1.84,  4.30,  2.89,  2.23,  2.66, 6.13]) #wrf 202306131200 c2z0s2 68k + height
+    vv = vv+np.asarray([ 2.63,1.26,-0.61,0.84,  2.57,  0.26,  1.64, -0.60,-0.26])    
+    uu=uu/2
+    vv=vv/2
 
     
     # uu0 = np.asarray([ 0.65,  1.92, 1.78,  1.73,  2.99,  2.37])
@@ -377,6 +478,7 @@ if __name__ == "__main__":
         print(i,round(uu[i],2),round(vv[i],2),ws[i],wd[i])
     
     print('i,U,   V,    WS,   WD  << SIMULATION')
+
 
     ws=np.zeros_like(uu)
     wd=np.zeros_like(uu)
@@ -394,24 +496,161 @@ if __name__ == "__main__":
         #     wd[i]+=180
         print(i,round(uu[i],2),round(vv[i],2),round(ws[i],2), round(wd[i],2))
 
-    ws=np.round((uu**2.+vv**2.)**.5,2)
-    wd=np.round(np.arctan2(uu, vv)* 180/math.pi+180,2)	
-    print('u:',stat(uu0, uu, kind='r2'),stat(uu0, uu, kind='r'), stat(uu0, uu, kind='rmse'),'/',round(np.mean(uu),4),'+-',round(np.std(uu),4),'>>',round(np.mean(uu0),4),'+-',round(np.std(uu0),4))
-    print('v:',stat(vv0, vv, kind='r2'),stat(vv0, vv, kind='r'), stat(vv0, vv, kind='rmse'),'/',round(np.mean(vv),4),'+-',round(np.std(vv),4),'>>',round(np.mean(vv0),4),'+-',round(np.std(vv0),4))
-    print('s:',stat(ws0, ws, kind='r2'),stat(ws0, ws, kind='r'), stat(ws0, ws, kind='mae'), stat(ws0, ws, kind='rmse'),'/',round(np.mean(ws),4),'+-',round(np.std(ws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
-    print('d:',stat(wd0, wd, kind='r2'),stat(wd0, wd, kind='r'), stat(wd0, wd, kind='mae'), stat(wd0, wd, kind='rmse'),'/',round(np.mean(wd),4),'+-',round(np.std(wd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", nstation=9, ws0=ws01218, wd0=wd01218, uu0=uu01218, vv0=vv01218, line=-1)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2rhosimple/postProcessing/probes/0/", nstation=9, ws0=ws01218, wd0=wd01218, uu0=uu01218, vv0=vv01218, line=-1)
+
+
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1s/postProcessing/probes/0/")
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0s/postProcessing/probes/0/")
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb2/postProcessing/probes/0/")
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0s2/postProcessing/probes/0/")
+
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0s2/postProcessing/probes/0/", nstation=9, ws0=ws0, wd0=wd0, uu0=uu0, vv0=vv0)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0s2/postProcessing/probes/0/", nstation=6, ws0=ws0, wd0=wd0, uu0=uu0, vv0=vv0)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simple/postProcessing/probes/0/", nstation=60, ws0=ws0, wd0=wd0, uu0=uu0, vv0=vv0)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simpleb2/postProcessing/probes/0/", nstation=60, ws0=ws0, wd0=wd0, uu0=uu0, vv0=vv0)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2az0s3/postProcessing/probes/0/")
+
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", nstation=9, ws0=ws01312, wd0=wd01312, uu0=uu01312, vv0=vv01312)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0simple/postProcessing/probes/0/"   , nstation=9, ws0=ws01312, wd0=wd01312, uu0=uu01312, vv0=vv01312)
+        
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2rhosimple/postProcessing/probes/0/",  nstation=9, ws0=ws01218, wd0=wd01218, uu0=uu01218, vv0=vv01218)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800a2simple/postProcessing/probes/0/", nstation=9, ws0=ws01218, wd0=wd01218, uu0=uu01218, vv0=vv01218)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/"   , nstation=9, ws0=ws01312, wd0=wd01312, uu0=uu01312, vv0=vv01312)
+        prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2simple/postProcessing/probes/0/"   , nstation=9, ws0=ws01312, wd0=wd01312, uu0=uu01312, vv0=vv01312)
+
+        
+    def prob(file, percent=0.5, verbose=False, ws0=None, wd0=None, line=-1, el=None):
+        # test = getProbe(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1s/postProcessing/probes/0/")
+        ws0=np.asarray(ws0)
+        wd0=np.asarray(wd0)
+        uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) 
+        vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2)
+
+        test = getProbe(file)
+        print (datetime.datetime.now(), 'length is ', len(test[1]))
+                
+        elbkup = el.copy()
+        ul=np.zeros(len(elbkup))
+        vl=np.zeros(len(elbkup))
+        ulh=np.zeros(len(elbkup))
+        vlh=np.zeros(len(elbkup))
+        # line=-1  # 0, -1
+        testvar = [x for x in test[1][line] if x!='']  # remove '' in the list
+        for i in range(len(elbkup)):
+            while float(testvar[elbkup[i]])<-99999:
+                elbkup[i]+=3
+            pos = elbkup[i]
+            if i==len(el)-1:
+               lastpos = len(el) - 1
+            else:
+               lastpos = elbkup[i+1]
+            while float(testvar[pos])==float(testvar[elbkup[i]]) and (pos < lastpos-3):
+                pos+=3
+                # if pos>len(test[1][line])-2:
+                #     pos-=3
+                #     break
+            ul[i]=float(testvar[elbkup[i]])
+            vl[i]=float(testvar[elbkup[i]+1])
+            ulh[i]=float(testvar[pos])
+            vlh[i]=float(testvar[pos+1])       
+        uu=ul*percent+ulh*(1.-percent)
+        vv=vl*percent+vlh*(1.-percent)
+
+        ws=np.round((uu**2.+vv**2.)**.5,2)
+        wd=np.round(np.arctan2(uu, vv)* 180/math.pi+180,2)
+        wd[wd-wd0>180] = wd[wd-wd0>180] + 180
+        wd[wd0-wd>180] = wd[wd0-wd>180] + 180
+        print('u:',stat(uu0, uu, kind='r2'),stat(uu0, uu, kind='r'), stat(uu0, uu, kind='rmse'),'/',round(np.mean(uu),4),'+-',round(np.std(uu),4),'>>',round(np.mean(uu0),4),'+-',round(np.std(uu0),4))
+        print('v:',stat(vv0, vv, kind='r2'),stat(vv0, vv, kind='r'), stat(vv0, vv, kind='rmse'),'/',round(np.mean(vv),4),'+-',round(np.std(vv),4),'>>',round(np.mean(vv0),4),'+-',round(np.std(vv0),4))
+        print('s:',stat(ws0, ws, kind='r2'),stat(ws0, ws, kind='r'), stat(ws0, ws, kind='mae'), stat(ws0, ws, kind='rmse'),'/',round(np.mean(ws),4),'+-',round(np.std(ws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
+        print('d:',stat(wd0, wd, kind='r2'),stat(wd0, wd, kind='r'), stat(wd0, wd, kind='mae'), stat(wd0, wd, kind='rmse'),'/',round(np.mean(wd),4),'+-',round(np.std(wd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
+        if verbose:
+            print('u (obs, model)')
+            print (uu0)
+            print (np.round(uu,2))
+            print('v')
+            print (vv0)
+            print (np.round(vv,2))
+            print('ws')
+            print (ws0)
+            print (np.round(ws,1))
+            print('wd')
+            print (wd0)
+            print (wd.astype(int))
+            
+            
+        distancerx = 0
+        distancery = 0
+        adistancerx = 0
+        adistancery = 0
+        maxr = 0
+        for i in range(len(wd0)):
+            distancerx += uu0[i]-uu[i]
+            distancery += vv0[i]-vv[i]
+            adistancerx += math.fabs(uu0[i]-uu[i])
+            adistancery += math.fabs(vv0[i]-vv[i])
+            maxr = max(((uu0[i]-uu[i])**2+(vv0[i]-vv[i])**2)**.5, maxr)
+        print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5, (adistancerx**2+adistancery**2)**.5, maxr)
+
+        return 
+    
+    def probdata(file, percent=0.5, ws0=None, wd0=None, line=-1, el=None):
+        # test = getProbe(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306121800c2az1s/postProcessing/probes/0/")
+        ws0=np.asarray(ws0)
+        wd0=np.asarray(wd0)
+        uu0=np.round(-ws0*np.sin(wd0/180*math.pi),2) 
+        vv0=np.round(-ws0*np.cos(wd0/180*math.pi),2)
+
+        test = getProbe(file)
+        print (datetime.datetime.now(), 'length is ', len(test[1]))
+                
+        elbkup = el.copy()
+        ul=np.zeros(len(elbkup))
+        vl=np.zeros(len(elbkup))
+        ulh=np.zeros(len(elbkup))
+        vlh=np.zeros(len(elbkup))
+        # line=-1  # 0, -1
+        testvar = [x for x in test[1][line] if x!='']  # remove '' in the list
+        for i in range(len(elbkup)):
+            while float(testvar[elbkup[i]])<-99999:
+                elbkup[i]+=3
+            pos = elbkup[i]
+            if i==len(el)-1:
+               lastpos = len(el) - 1
+            else:
+               lastpos = elbkup[i+1]
+            while float(testvar[pos])==float(testvar[elbkup[i]]) and (pos < lastpos-3):
+                pos+=3
+                # if pos>len(test[1][line])-2:
+                #     pos-=3
+                #     break
+            ul[i]=float(testvar[elbkup[i]])
+            vl[i]=float(testvar[elbkup[i]+1])
+            ulh[i]=float(testvar[pos])
+            vlh[i]=float(testvar[pos+1])       
+        uu=ul*percent+ulh*(1.-percent)
+        vv=vl*percent+vlh*(1.-percent)
+
+        ws=np.round((uu**2.+vv**2.)**.5,2)
+        wd=np.round(np.arctan2(uu, vv)* 180/math.pi+180,2)
+        wd[wd-wd0>180] = wd[wd-wd0>180] + 180
+        wd[wd0-wd>180] = wd[wd0-wd>180] + 180
+
+        return ws.tolist(),wd.tolist()
+    
     print('u (obs, model)')
     print (uu0)
-    print (uu)
+    print (np.round(uu,2))
     print('v')
     print (vv0)
-    print (vv)
+    print (np.round(vv,2))
     print('ws')
     print (ws0)
-    print (ws)
+    print (np.round(ws,1))
     print('wd')
     print (wd0)
-    print (wd)
+    print (wd.astype(int))
     plt.figure()
     plt.plot(uu,uu0,'*b')
     plt.plot(vv,vv0,'*r')
@@ -425,38 +664,57 @@ if __name__ == "__main__":
     plt.ylabel("observaion")
     plt.xlim(xmin,xmax)
     plt.ylim(xmin,xmax)
+    plt.title('wrf')
     # plt.title('comfort -1.25, -.85, -.73, -1.91')
  
     haifa1 = [  
+    [202240, 740730, 475], # University
+    [202390, 742120, 245], # technion
+    [207630, 746612,  14], # Bialik
     [197075, 747605, 113],  #// kiryat shprinzak, ramot school france road 79    
     [199490, 745185, 300],  #//hugim, yair katz 4
     [198988, 743528, 300],  #//ahuze, smolskin st.
     [202315, 743652, 225],  #//hagalil 107, tel hai school
-    [204115, 743860, 32],  #// check-post, moshlei yaakov 7
-    [205603, 748278, 19]  #//dgania st. 
+    [204115, 743860,  32],  #// check-post, moshlei yaakov 7
+    [205603, 748278,  19]  #//dgania st. 
     ]
-    stations=[]
+    stationss=[]
+    stationsd=[]
+    ws0=ws1218b.copy()
+    wd0=wd1218b.copy()
     for i in range(len(haifa1)):
-        # stations.append([haifa1[i][0], haifa1[i][1], wd0[i], haifa1[i][2]])
-        stations.append([haifa1[i][0], haifa1[i][1], ws0[i], haifa1[i][2]])
-    stations = np.asarray(stations)
-    forecastedw=np.zeros_like(ws0)
-    for i in range(len(stations)):
-        loo=[] # leave one out
-        for j in range(len(stations)):
+        stationss.append([haifa1[i][0], haifa1[i][1], ws0[i], haifa1[i][2]])
+        stationsd.append([haifa1[i][0], haifa1[i][1], wd0[i], haifa1[i][2]])
+    stationss = np.asarray(stationss)
+    stationsd = np.asarray(stationsd)
+    forecastedws=np.zeros_like(ws0)
+    forecastedwd=np.zeros_like(ws0)
+    for i in range(len(stationss)):
+        loos=[] # leave one out
+        lood=[] # leave one out
+        for j in range(len(stationss)):
             if i!=j:
-                loo.append(stations[j])
-        forecastedw[i] = interp(stations[i,0], stations[i,1], loo, elev = stations[i,3])
+                loos.append(stationss[j])
+                lood.append(stationsd[j])
+        forecastedws[i] = interp(stationss[i,0], stationss[i,1], loos, elev = stationss[i,3])
+        forecastedwd[i] = interp(stationsd[i,0], stationsd[i,1], lood, elev = stationsd[i,3])
         ## forecastidw= interp(stations[i,0], stations[i,1], loo)
     # print('d-',stat(wd0, forecastedw, kind='r2'),stat(wd0, forecastedw, kind='r'), stat(wd0, forecastedw, kind='mae'), stat(wd0, forecastedw, kind='rmse'),'/',round(np.mean(forecastedw),4),'+-',round(np.std(forecastedw),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
-    print('s-',stat(ws0, forecastedw, kind='r2'),stat(ws0, forecastedw, kind='r'), stat(ws0, forecastedw, kind='mae'), stat(ws0, forecastedw, kind='rmse'),'/',round(np.mean(forecastedw),4),'+-',round(np.std(forecastedw),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
-   
+    print('s-',stat(ws0, forecastedws, kind='r2'),stat(ws0, forecastedws, kind='r'), stat(ws0, forecastedws, kind='mae'), stat(ws0, forecastedws, kind='rmse'),'/',round(np.mean(forecastedws),4),'+-',round(np.std(forecastedws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
+    print('d-',stat(wd0, forecastedwd, kind='r2'),stat(wd0, forecastedwd, kind='r'), stat(wd0, forecastedwd, kind='mae'), stat(wd0, forecastedwd, kind='rmse'),'/',round(np.mean(forecastedwd),4),'+-',round(np.std(forecastedwd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
+    forecastedws[:]=ws0[-1]
+    forecastedwd[:]=wd0[-1]
+    print('s-',stat(ws0, forecastedws, kind='r2'),stat(ws0, forecastedws, kind='r'), stat(ws0, forecastedws, kind='mae'), stat(ws0, forecastedws, kind='rmse'),'/',round(np.mean(forecastedws),4),'+-',round(np.std(forecastedws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
+    print('d-',stat(wd0, forecastedwd, kind='r2'),stat(wd0, forecastedwd, kind='r'), stat(wd0, forecastedwd, kind='mae'), stat(wd0, forecastedwd, kind='rmse'),'/',round(np.mean(forecastedwd),4),'+-',round(np.std(forecastedwd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
  
     
  
     if 5==7:
         import json
         import requests
+        
+        url =  "https://api.ims.gov.il/v1/envista/stations/43/data/daily/2023/6/13"
+        
         url = "https://api.ims.gov.il/v1/Envista/stations"
         headers = {
             'Authorization': 'ApiToken f058958a-d8bd-47cc-95d7-7ecf98610e47'
@@ -480,4 +738,181 @@ if __name__ == "__main__":
                         for k in range(len(data2['data'][0]['channels'])):
                             print(data2['data'][0]['channels'][k]['name'],data2['data'][0]['channels'][k]['value'])
                         
-# date 03/09/2024 
+
+ws1218a=np.asarray([1.8,0.8,1.2,1.5,1.0,1.9,0.4,2.5,2.9]) # uni, technion, bialik, shprinzak, galim, ahuza,nosh, checkpost, dgania
+ws1218b=np.asarray([1.6,1.1,1.3,1.4,1.2,1.5,0.3,2.9,2.8])
+ws1218c=np.asarray([1.2,1.0,1.4,1.5,1.6,2.1,1.1,2.9,2.6])
+ws1312a=np.asarray([4.9,4.1,2.4,1.9,3.7,2.8,2.8,6.0,3.8])
+ws1312b=np.asarray([5.5,3.6,2.0,2.0,3.9,3.1,3.4,5.5,3.8])
+ws1312c=np.asarray([5.5,4.3,2.4,1.7,4.8,3.2,3.0,5.1,3.8])
+ws1316a=np.asarray([2.6,1.5,1.6,1.1,1.0,1.6,1.1,3.2,1.6])
+ws1316b=np.asarray([1.7,1.0,1.3,1.1,1.1,1.1,0.3,2.6,1.1])
+ws1316c=np.asarray([1.7,0.6,0.6,0.8,0.6,0.9,0.2,1.2,0.3])
+wd1218a=np.asarray([263,275,277,300,305,273,304,299,287])
+wd1218b=np.asarray([264,296,274,306,298,295,319,306,292])
+wd1218c=np.asarray([267,309,254,304,296,299,332,321,300])
+wd1312a=np.asarray([241,246,312,230,237,248,260,256,300])
+wd1312b=np.asarray([237,225,326,235,225,250,237,243,312])
+wd1312c=np.asarray([239,249,323,227,225,244,242,245,319])
+wd1316a=np.asarray([269,299,245, 30, 14, 62,306,308,296])
+wd1316b=np.asarray([242,276,228, 81, 46, 92,326,314,281])
+wd1316c=np.asarray([173,122,182, 15,156, 69,349,286,226])
+ws1316a=np.asarray([3.5,3.2,0.5,1.1,2.3,1.3,0.3,0.8,0.4])
+ws1300b=np.asarray([3.1,3.1,0.6,0.9,2.5,1.3,0.7,0.5,0.3])
+ws1300c=np.asarray([3.0,2.1,0.5,1.0,2.5,1.2,1.0,0.7,0.3])
+wd1300a=np.asarray([228,227, 43,157,206,172,244,226, 41])
+wd1300b=np.asarray([238,227, 42,166,207,173,238,158,353])
+wd1300c=np.asarray([231,220, 86,144,211,169,232,150,222])
+
+
+el0 = [0,15,30, 45, 60, 75,90,105,120]  #dynamic
+# el4 = [4,19,34, 49, 64, 79,94,109,124]  #dynamic foil pimple
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line= 0)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=1)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=-1)
+
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 1, verbose=True)
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200b2az0rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1, verbose=True)
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa//postProcessing/probes/0/", el=el4, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=1)
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa//postProcessing/probes/0/", el=el4, ws0=(ws1218a+ws1218b+ws1218c)/3., wd0=(wd1218a+wd1218b+wd1218c)/3., line=-1)
+
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line= 0)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimplea/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line= 1)
+# prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600b2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 0)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimplenut/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line= 0)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200c2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line= 0)
+prob(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
+
+
+wsm = np.asarray(ws1218b.tolist() + ws1300b.tolist() + ws1312b.tolist() + ws1316b.tolist())
+wdm = np.asarray(wd1218b.tolist() + wd1300b.tolist() + wd1312b.tolist() + wd1316b.tolist())
+
+ws1 = np.asarray((np.ones(9)*ws1218b[-1]).tolist()+
+                 (np.ones(9)*ws1300b[-1]).tolist()+
+                 (np.ones(9)*ws1312b[-1]).tolist()+
+                 (np.ones(9)*ws1316b[-1]).tolist())
+wd1 = np.asarray((np.ones(9)*wd1218b[-1]).tolist()+
+                 (np.ones(9)*wd1300b[-1]).tolist()+
+                 (np.ones(9)*wd1312b[-1]).tolist()+
+                 (np.ones(9)*wd1316b[-1]).tolist())
+
+wss1218r, wds1218r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=-1)
+wss1218w, wds1218w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/aerofoil7/postProcessing/probes/0/", el=el0, ws0=ws1218b, wd0=wd1218b, line=0)
+wss1300r, wds1300r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=-1)
+wss1300w, wds1300w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306130000a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1300b, wd0=wd1300b, line=0)
+wss1312r, wds1312r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=-1)
+wss1312w, wds1312w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131200a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1312b, wd0=wd1312b, line=0)
+wss1316r, wds1316r =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=-1)
+wss1316w, wds1316w =  probdata(r"/data5/NOBACKUP/nirb/Simulations/Haifa/wrf202306131600a2rhosimple/postProcessing/probes/0/", el=el0, ws0=ws1316b, wd0=wd1316b, line=0)
+
+wssr=np.asarray(wss1218r+wss1300r+wss1312r+wss1316r)
+wssw=np.asarray(wss1218w+wss1300w+wss1312w+wss1316w)
+wdsr=np.asarray(wds1218r+wds1300r+wds1312r+wds1316r)
+wdsw=np.asarray(wds1218w+wds1300w+wds1312w+wds1316w)
+
+print('s-',stat(wsm, wssr, kind='r2'),stat(wsm, wssr, kind='r'), stat(wsm, wssr, kind='mae'), stat(wsm, wssr, kind='rmse'),'/',round(np.mean(wssr),4),'+-',round(np.std(wssr),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
+print('d-',stat(wdm, wdsr, kind='r2'),stat(wdm, wdsr, kind='r'), stat(wdm, wdsr, kind='mae'), stat(wdm, wdsr, kind='rmse'),'/',round(np.mean(wdsr),4),'+-',round(np.std(wdsr),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
+print('s-',stat(wsm, wssw, kind='r2'),stat(wsm, wssw, kind='r'), stat(wsm, wssw, kind='mae'), stat(wsm, wssw, kind='rmse'),'/',round(np.mean(wssw),4),'+-',round(np.std(wssw),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
+print('d-',stat(wdm, wdsw, kind='r2'),stat(wdm, wdsw, kind='r'), stat(wdm, wdsw, kind='mae'), stat(wdm, wdsw, kind='rmse'),'/',round(np.mean(wdsw),4),'+-',round(np.std(wdsw),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
+print('s-',stat(wsm, ws1, kind='r2'),stat(wsm, ws1, kind='r'), stat(wsm, ws1, kind='mae'), stat(wsm, ws1, kind='rmse'),'/',round(np.mean(ws1),4),'+-',round(np.std(ws1),4),'>>',round(np.mean(wsm),4),'+-',round(np.std(wsm),4))
+print('d-',stat(wdm, wd1, kind='r2'),stat(wdm, wd1, kind='r'), stat(wdm, wd1, kind='mae'), stat(wdm, wd1, kind='rmse'),'/',round(np.mean(wd1),4),'+-',round(np.std(wd1),4),'>>',round(np.mean(wdm),4),'+-',round(np.std(wdm),4))
+
+distancerx = 0
+distancery = 0
+distancewx = 0
+distancewy = 0
+distance1x = 0
+distance1y = 0
+adistancerx = 0
+adistancery = 0
+adistancewx = 0
+adistancewy = 0
+adistance1x = 0
+adistance1y = 0
+maxr = 0
+maxw = 0
+max1 = 0
+for i in range(len(wsm)):
+    distancerx += (wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))
+    distancery += (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))
+    distancewx += (wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))
+    distancewy += (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))
+    distance1x += (wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))
+    distance1y += (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))
+    adistancerx += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))
+    adistancery += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))
+    adistancewx += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))
+    adistancewy += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))
+    adistance1x += math.fabs(wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))
+    adistance1y += math.fabs(wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))
+    maxr = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-wssr[i]*math.cos(wdsr[i]/180*math.pi))**2 +
+                 (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssr[i]*math.sin(wdsr[i]/180*math.pi))**2)**.5, maxr)
+    maxw = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-wssw[i]*math.cos(wdsw[i]/180*math.pi))**2 +
+                 (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))**2)**.5, maxw)
+    max1 = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))**2 +
+                 (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))**2)**.5, max1)
+print('rho distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5, (adistancerx**2+adistancery**2)**.5, maxr)
+print('wrf distance (sum, abs, max) = ', (distancewx**2+distancewy**2)**.5, (adistancewx**2+adistancewy**2)**.5, maxw)
+print('1st distance (sum, abs, max) = ', (distance1x**2+distance1y**2)**.5, (adistance1x**2+adistance1y**2)**.5, max1)
+
+
+plt.figure()
+plt.plot(wssr,wsm,'*b', label='CFD')
+plt.plot(wssw,wsm,'*r', label='WRF')
+xmin=min(wsm.min(),wssr.min())
+xmax=max(wsm.max(),wssr.max())
+ln11 = np.linspace(xmin,xmax)
+plt.plot(ln11,ln11,'k')
+plt.xlabel("simulation")
+plt.ylabel("observaion")
+plt.xlim(xmin,xmax)
+plt.ylim(xmin,xmax)
+plt.legend()
+plt.title('Speed')
+
+plt.figure()
+plt.plot(wdsr,wdm,'*b', label='CFD')
+plt.plot(wdsw,wdm,'*r', label='WRF')
+xmin=min(wdm.min(),wdsr.min())
+xmax=max(wdm.max(),wdsr.max())
+ln11 = np.linspace(xmin,xmax)
+plt.plot(ln11,ln11,'k')
+plt.xlabel("simulation")
+plt.ylabel("observaion")
+plt.xlim(xmin,xmax)
+plt.ylim(xmin,xmax)
+plt.legend()
+plt.title('Direction')
+
+distancerx = 0
+distancery = 0
+adistancerx = 0
+adistancery = 0
+maxr = 0
+ts0=ws1316b.copy()
+td0=wd1316b.copy()
+ts =np.ones(len(ts0))*ws1316b[-1]
+td =np.ones(len(td0))*wd1316b[-1]
+# ts = forecastedws.copy()
+# td = forecastedwd.copy()
+for i in range(len(ws1218b)):
+    distancerx += (ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
+    distancery += (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
+    adistancerx += math.fabs(ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
+    adistancery += math.fabs(ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
+    maxr = max(((ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))**2 +
+                 (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))**2)**.5, maxr)
+print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5, (adistancerx**2+adistancery**2)**.5, maxr)

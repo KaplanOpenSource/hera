@@ -216,7 +216,7 @@ class paraviewOpenFOAM:
             ret = {}
             for datasourcename in datasourcenamelist:
                 datasource = pvsimple.FindSource(datasourcename)
-                self.logger.execution(f"Reading source {datasourcename}")
+                self.logger.debug(f"Reading source {datasourcename}")
                 rt = self._readTimeStep(datasource, timeslice, fieldnames, xarray)
                 if rt is not None:
                     ret[datasourcename] = rt
@@ -229,14 +229,14 @@ class paraviewOpenFOAM:
         data = dsa.WrapDataObject(rawData)
 
         if isinstance(data.Points, dsa.VTKNoneArray):
-            self.logger.execution("No data exists for filter... return with None")
+            self.logger.debug("No data exists for filter... return with None")
             return None
         elif isinstance(data.Points, dsa.VTKArray):
             points = numpy.array(data.Points).squeeze()
         else:
             points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
 
-        self.logger.execution(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
+        self.logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
         curstep = pandas.DataFrame()
 
         # create index
@@ -406,7 +406,7 @@ class paraviewOpenFOAM:
                 data = dd.from_pandas(block_data, npartitions=1)
                 data.set_index("time").to_parquet(outfile,append=append,overwrite=overwrite)
 
-                self.logger.execution("Repartitioning to 100MB per partition")
+                self.logger.debug("Repartitioning to 100MB per partition")
                 import pdb
                 pdb.set_trace()
                 dd.read_parquet(outfile).repartition(partition_size = "100MB").reset_index().sort_values("time").set_index("time").to_parquet(outfile)
@@ -419,7 +419,7 @@ class paraviewOpenFOAM:
         if not overwrite:
             # find the time that is saved. Assume that all the filters have the same timelist.
             # find the first.
-            self.logger.execution("Appending to existing data, find the maximal time. ")
+            self.logger.debug("Appending to existing data, find the maximal time. ")
             for filtername in datasourcenamelist:
                 prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")
                 if not os.path.exists(prqtFile):
@@ -429,7 +429,7 @@ class paraviewOpenFOAM:
                 break
             self.logger.debug(f"The maximal time found is {maxTime}. Skipping all the timesteps beofre that.")
         else:
-            self.logger.execution("Overwriting existing data... Deleting current parquets, if they exist")
+            self.logger.debug("Overwriting existing data... Deleting current parquets, if they exist")
             import shutil
             for filtername in datasourcenamelist:
                 prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")

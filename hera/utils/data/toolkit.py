@@ -69,7 +69,7 @@ class dataToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self, "loadAllDatasourcesInAllRepositoriesToProject")
         for repository in self.getDataSourceList():
             try:
-                logger.info(f"Loading the repository {repository}")
+                logger.info(f"Loading the repository {repository} to project {projectName}")
                 self.loadAllDatasourcesInRepositoryToProject(projectName, repositoryName=repository,
                                                              overwrite=overwrite)
             except ValueError as e:
@@ -117,6 +117,7 @@ class dataToolkit(toolkit.abstractToolkit):
             try:
 
                 toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+
 
                 for key, docTypeDict in toolkitDict.items():
                     logger.info(f"Loading document type {key} to toolkit {toolkitName}")
@@ -176,32 +177,24 @@ class dataToolkit(toolkit.abstractToolkit):
             isRelativePath = itemDesc.get("isRelativePath")
             assert (isRelativePath=='True' or isRelativePath=='False') or isinstance(isRelativePath,bool), "isRelativePath must be defined as 'True' or 'False'. "
             # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
-
-            if isRelativePath=='True':
+            if isRelativePath=='True' or isRelativePath is True:
                 logger.debug(
                     f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
                 theItem["resource"] = os.path.join(basedir, theItem["resource"])
 
-            logger.debug(f"Checking if the data item {itemName} is already in project {self.projectName}")
+            logger.debug(f"Checking if the data item {itemName} is already in project {toolkit.projectName}")
             datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
+            if len(datasource) == 0 or overwrite:
 
-            if len(datasource) == 0:
+                if len(datasource) == 1:
+                    logger.debug("Remove the old datasource")
+                    toolkit.deleteDataSource(datasourceName=itemName)
+
                 logger.debug("Adding a new datasource")
                 theItem['dataSourceName'] = itemName
                 theItem['overwrite'] = overwrite
                 toolkit.addDataSource(**theItem)
                 logger.info(f"Added source {itemName} to tool {toolkit.toolkitName} in project {toolkit.projectName}")
-
-            elif overwrite:
-                logger.debug("Updating an existing document")
-                dataitem = datasource[0]
-                dataitem['resource'] = theItem["resource"]
-                dataitem['dataFormat'] = theItem['dataFormat']
-                curDesc = theItem.get("desc", {})
-                curDesc.update(dataitem['desc'])
-                dataitem['desc'] = curDesc
-                dataitem.save()
-                logger.info(f"Updated source {itemName} in tool {toolkit.toolkitName} in project {toolkit.projectName}")
             else:
                 logger.error(f"Source {itemName} already exists in {toolkit.projectName}. Use --overwrite to force update")
 

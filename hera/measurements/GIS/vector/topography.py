@@ -72,7 +72,7 @@ class TopographyToolkit(VectorToolkit):
                 raise ValueError(f"The datasource {datasourceName} has no CRS defined in the metadata. please add it")
 
             if shape.crs is None:
-                logger.execution("The region was defined without crs. Using the crs of the datasource.")
+                logger.debug("The region was defined without crs. Using the crs of the datasource.")
                 shape.crs = doc.desc['desc']['crs']
                 shape = shape.to_crs(topography.crs)
 

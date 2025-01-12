@@ -5,18 +5,15 @@ from ..toolkit import VectorToolkit
 from .analysis import analysis
 
 try:
-#    logger.execution("Trying to Load the FreeCAD module")
     import FreeCAD
     import Part
     import Mesh
 except ImportError as e:
-#    logger.error(f"Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL: {e}")
-#     raise ImportError("FreeCAD module is not installed in this environment. Cannot convert to STL")
     print("FreeCAD module is not installed in this environment. Cannot convert to STL")
 
 import matplotlib.pyplot as plt
 from .....utils.logging import get_classMethod_logger
-from ...utils import WSG84, ITM, ED50_ZONE36N
+from ...utils import WGS84, ITM, ED50_ZONE36N
 from ..... import toolkitHome
 
 
@@ -50,7 +47,7 @@ class BuildingsToolkit(VectorToolkit):
             geopandas.DataFrame
         """
         topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
-        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WSG84))
+        elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84))
         return buildingData.join(elevations)
 
     def buildingsGeopandasToSTLRasterTopography(self,
@@ -112,7 +109,7 @@ class BuildingsToolkit(VectorToolkit):
                 continue
 
             if indx % 100 == 0:
-                logger.execution(f"{indx}/{len(buildingData)} shape file is executed")
+                logger.debug(f"{indx}/{len(buildingData)} shape file is executed")
 
             wallsheight = building[buildingHeightColumn]
             altitude = referenceTopography if flatTerrain else building[buildingElevationColumn] - nonFlatTopographyShift
@@ -145,11 +142,11 @@ class BuildingsToolkit(VectorToolkit):
             newPad.Symmetric = False
             FreeCADDOC.recompute()
 
-        logger.execution(f"Writing the STL {outputFileName}")
+        logger.info(f"Writing the STL {outputFileName}")
         Mesh.export(FreeCADDOC.Objects, outputFileName)
 
 
-    def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WSG84,withElevation=False):
+    def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WGS84, withElevation=False):
         """
         Return the buildings geopandas for the rectangle region.
 

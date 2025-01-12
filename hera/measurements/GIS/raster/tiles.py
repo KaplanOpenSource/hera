@@ -97,6 +97,7 @@ class TilesToolkit(toolkit.abstractToolkit):
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info(f"------- Start : {logger.name}")
 
+
         lon = [maxy, miny]
         lat = [minx, maxx]
 
@@ -220,6 +221,10 @@ class TilesToolkit(toolkit.abstractToolkit):
     def listImages(self,**filters):
         return self.getMeasurementsDocuments(type=self.doctype, **filters)
 
+    def setDefaultTileServer(self,server):
+        self.setConfig(**{"defaultTileServer": server})
+
+
 class presentation:
     """
     Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.
@@ -233,7 +238,7 @@ class presentation:
     def __init__(self,dataLayer):
         self._datalayer = dataLayer
 
-    def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,**filters):
+    def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,display=True,**filters):
         """
         Plot the image.
 
@@ -283,20 +288,27 @@ class presentation:
             else:
                 raise ValueError("extents is either a list(minX, maxX, minY, maxY), dict(minX=, maxX=, minY=, maxY=), or dict(left=, right=, bottom=, top=)")
 
-        if ax is None:
-            fig, ax = plt.subplots()
+        if display:
+            if ax is None:
+                fig, ax = plt.subplots()
+            else:
+                plt.sca(ax)
+
+        lower_left_converted = convertCRS(points=[[extents[0],extents[2]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
+        upper_right_converted = convertCRS(points=[[extents[1],extents[3]]], inputCRS=inputCRS, outputCRS=outputCRS)[0]
+
+        if outputCRS==ITM:
+            extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
         else:
-            plt.sca(ax)
+            extents = [lower_left_converted.y,upper_right_converted.y,lower_left_converted.x,upper_right_converted.x]
 
+        if display:
+            ax = plt.imshow(image, extent=extents)
+        else:
+            # Create AxesImage without displaying it
+            ax = plt.imshow(image, extent=extents)
+            plt.close()  # Close the figure to prevent display
 
-        lower_point = [extents[0],extents[2]]
-        upper_right  = [extents[1],extents[3]]
-        lower_left_converted = convertCRS(points=[lower_point], inputCRS=inputCRS, outputCRS=outputCRS)[0]
-        upper_right_converted = convertCRS(points=[upper_right], inputCRS=inputCRS, outputCRS=outputCRS)[0]
-
-        extents = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
-
-        ax = plt.imshow(image, extent=extents)
         return ax
 
 

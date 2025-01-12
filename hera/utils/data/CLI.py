@@ -8,6 +8,7 @@ from ...datalayer import All as datalayer_All
 from .. import loadJSON
 from .toolkit import dataToolkit
 import pandas
+from tabulate import tabulate
 
 def project_list(arguments):
     """
@@ -121,12 +122,12 @@ def project_dump(arguments):
 
 def project_load(arguments):
 
-    docsDict = loadJSON(arguments.fileName)
+    docsDict = loadJSON(arguments.file)
     proj     = Project(projectName=arguments.projectName)
 
     for indx,doc in enumerate(docsDict):
         print(f"Loading document {indx}/{len(docsDict)}")
-        proj.addDocumentFromDict(doc)
+        proj.addDocumentFromDict(docsDict.get(doc))
 
 
 def repository_list(argumets):
@@ -198,13 +199,13 @@ def repository_show(arguments):
                     print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
                     print("\n")
 
-def repository_load(argumets):
+def repository_load(arguments):
     logger = logging.getLogger("hera.bin.repository_load")
     dtk = dataToolkit()
 
-    repositoryFile = argumets.repositoryName
-    if 'projectName' in argumets:
-        projectName = argumets.projectName
+    repositoryFile = arguments.repositoryName
+    if 'projectName' in arguments:
+        projectName = arguments.projectName
     else:
         projectName = None
 
@@ -212,8 +213,68 @@ def repository_load(argumets):
     repositoryJSON= loadJSON(repositoryFile)
     dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
                                                     repositoryJSON=repositoryJSON,
-                                                    basedir=os.path.dirname(os.path.abspath(argumets.repositoryName)),
-                                                    overwrite=argumets.overwrite)
+                                                    basedir=os.path.dirname(os.path.abspath(arguments.repositoryName)),
+                                                    overwrite=arguments.overwrite)
+
+def display_datasource_versions(arguments):
+    proj = Project(projectName=arguments.projectName)
+    datasources = []
+
+    if not arguments.default:
+        for document in proj.getMeasurementsDocumentsAsDict()['documents']:
+            try:
+                d = {}
+                d['toolkit'] = document['desc']['toolkit']
+                d['datasourceName'] = document['desc']['datasourceName']
+                d['version'] = document['desc']['version']
+
+                if arguments.datasource:
+                    if arguments.datasource==d['datasourceName']:
+                        datasources.append(d)
+                else:
+                    datasources.append(d)
+            except:
+                pass
+    else:
+        config = proj.getConfig()
+        for document in proj.getMeasurementsDocumentsAsDict()['documents']:
+            try:
+                d = {}
+                d['toolkit'] = document['desc']['toolkit']
+                d['datasourceName'] = document['desc']['datasourceName']
+
+                if arguments.datasource:
+                    if arguments.datasource==d['datasourceName']:
+                        default_version = config.get(f"{arguments.datasource}_defaultVersion")
+                    else:
+                        default_version = None
+                else:
+                    default_version = config.get(f"{d['datasourceName']}_defaultVersion")
+
+                if default_version:
+                    d['DEFAULT_VERSION'] = default_version
+                    datasources.append(d)
+
+
+
+            except:
+                pass
+
+    if len(datasources)!=0:
+        headers = datasources[0].keys()
+        rows = [d.values() for d in datasources]
+        print(tabulate(rows, headers=headers, tablefmt="grid"))
+    else:
+        if not arguments.datasource:
+            print(f"No data to display. Are you sure project {arguments.projectName} exists?")
+        else:
+            print(f"No data to display. Are you sure datasource {arguments.datasource} and project {arguments.projectName} exists?")
+
+def update_datasource_default_version(arguments):
+    logger = logging.getLogger("hera.bin.update_datasource_version")
+    arguments.version = tuple(int(item.strip()) for item in arguments.version.split(','))
+    proj = Project(projectName=arguments.projectName)
+    proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource,version=arguments.version)
 
 def update(arguments):
     logger = logging.getLogger("hera.bin.update")
@@ -234,8 +295,13 @@ def update(arguments):
             else:
                 arguments.projectName = configuration['projectName']
 
+    if 'projectName' in arguments:
+        projectName = arguments.projectName
+    else:
+        projectName = None
+
     dtk = dataToolkit()
-    dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName, overwrite=arguments.overwrite)
+    dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=projectName, overwrite=arguments.overwrite)
 
 def db_list(arguments):
     """

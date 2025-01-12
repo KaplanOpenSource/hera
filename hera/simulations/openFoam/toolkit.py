@@ -44,7 +44,7 @@ class OFToolkit(hermesWorkflowToolkit):
     CASETYPE_DECOMPOSED = CASETYPE_DECOMPOSED
     CASETYPE_RECONSTRUCTED = CASETYPE_RECONSTRUCTED
 
-    OF_FLOWDISPERSION = "flowDispersion"
+    DOCTYPE_OF_FLOWDISPERSION = "flowDispersion"
 
     stochasticLagrangian = None
 
@@ -88,6 +88,27 @@ class OFToolkit(hermesWorkflowToolkit):
         """
         return workflow_Eulerian(workflowfile)
 
+    def getMeshFromName(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
+        """
+            Returns the name from the workflow
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource : string or dict
+        The name/dict that defines the item
+
+        readParallel: bool
+                If parallel case exists, read it .
+
+        time : float
+            The time to read the mesh from. (relevant for mesh moving cases).
+
+        Returns
+        -------
+
+        """
+        doc = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        return self.getMesh(doc.getData())
+
     def getMesh(self, caseDirectory, readParallel=True, time=0):
         """
             Reads the mesh from the mesh directory.
@@ -105,6 +126,10 @@ class OFToolkit(hermesWorkflowToolkit):
 
             readParallel: bool
                     If parallel case exists, read it .
+
+            time : float
+                The time to read the mesh from. (relevant for mesh moving cases).
+
         Returns
         -------
             pandas dataframe with the points in the columns             x,y,z
@@ -475,9 +500,9 @@ class Analysis:
 
         return self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **qry)
 
-    def executeAndLoad(self,vtkPipeline,sourceOrName=None,timeList=None, tsBlockNum=50, overwrite=False,append=False,overwriteMetadata=False):
+    def executeVTKFiltersAndLoad(self, vtkPipeline, sourceOrName=None, timeList=None, tsBlockNum=50, overwrite=False, append=False, overwriteMetadata=False):
         """
-
+            Executing VTK pipe line and loading to the DB.
         Parameters
         ----------
         vtkPipeline : VTKPipeLine
@@ -544,7 +569,7 @@ class Presentation:
                       "w") as outputfile:
                 outputfile.writelines(timedata[['globalX', 'globalY', 'globalZ']].to_csv(index=False))
 
-    def toUnstructuredVTK(self, data, outputdirectory, filename, fieldList=None, xcoord="globalX",ycoord="globalY",zcoord="globalZ", timecoord="time"):
+    def toUnstructuredVTK(self, data, outputdirectory, filename, fieldList=None, xcoord="globalX",ycoord="globalY",zcoord="globalZ", timecoord="time",overwrite=False):
         """
             Writes the data as a VTK vtu file.
 
@@ -580,6 +605,16 @@ class Presentation:
                 x = timeData[xcoord].values
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
+
+                if os.path.exists(finalfile):
+                    logger.debug(f"The file exists, remove it if overwrite is True")
+                    if overwrite:
+                        os.remove(finalfile)
+                    else:
+                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        logger.error(err)
+                        raise FileExistsError(err)
+
                 evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
         else:
             # all the data is loaded:
@@ -591,6 +626,16 @@ class Presentation:
                 x = timeData[xcoord].values
                 y = timeData[ycoord].values
                 z = timeData[zcoord].values
+
+                if os.path.exists(finalfile):
+                    logger.debug(f"The file exists, remove it if overwrite is True")
+                    if overwrite:
+                        os.remove(finalfile)
+                    else:
+                        err = f"File {finalfile} exists. Use --overwrite to overwrite the files with newer version"
+                        logger.error(err)
+                        raise FileExistsError(err)
+
                 evtk_hl.pointsToVTK(finalfile, x, y, z, outdata)
 
     def toStructuredVTK(self, data, outputdirectory, filename, extents, dxdydz, timeNameOutput=True):

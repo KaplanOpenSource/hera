@@ -76,7 +76,6 @@ class InjuryLevel(object):
 		curBackend = plt.get_backend()	
 		plt.switch_backend("pdf")
 
-
 		if time in toxicLoads.dims:
 			if toxicLoads[time].size == 1:
 				timeList = [pandas.to_datetime(toxicLoads[time].item())]
@@ -94,9 +93,9 @@ class InjuryLevel(object):
 		retList = []
 
 		for tt in timeList: 
-			concField = toxicLoads.sel(**{time:tt}) if timesel else valueField
+			concField = toxicLoads.sel(**{time:tt}) if timesel else toxicLoads
 
-			ret = self._getGeopandas(concField,x,y,**parameters)
+			ret = self._getGeopandas(concField,x,y) #,**parameters)
 			if not ret.empty:
 
 				ret = ret[ret.area > 1]   # 1 m**2. 

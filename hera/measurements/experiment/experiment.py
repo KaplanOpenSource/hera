@@ -3,14 +3,18 @@ import os
 import pydoc
 import sys
 from ... import toolkit,toolkitHome,datalayer
+from .presentation import experimentPresentation
+from .analysis import experimentAnalysis
+from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
+import pandas as pd
+
 try:
     from argos.experimentSetup import dataObjects as argosDataObjects
-    from argos import DESIGN,DEPLOY
 except ImportError:
     print("Must have argos installed and in the path. ")
 
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
-from hera.utils.jsonutils import loadJSON
+from ...utils  import loadJSON
 import logging
 
 class experimentHome(toolkit.abstractToolkit):
@@ -197,7 +201,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             raise ValueError(f"The experiment setup file doesn't exist. Looking for {setupFile}  ")
 
         # Now initialize the data engine.
-        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration, dataType = dataType)
+        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration,experimentObj=self, dataType = dataType)
         self.entityType = dict()
         self.trialSet = dict()
 
@@ -210,11 +214,9 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
         argosDataObjects.ExperimentZipFile.__init__(self,setupFile)
         toolkit.abstractToolkit.__init__(self,projectName=projectName,toolkitName=f"{experimentName}Toolkit",filesDirectory=cacheDir)
 
-        self._sonicHighFreqToolkit = toolkitHome.getToolkit(toolkitName=toolkitHome.METEOROLOGY_HIGHFREQ,
-                                                            projectName=projectName,
-                                                            filesDirectory=cacheDir)
-
         self._defaultTrialSetName = defaultTrialSetName
+        self._analysis = experimentAnalysis(self,)
+        self._presentation = experimentPresentation(self,self.analysis)
 
     @property
     def defaultTrialSet(self):
@@ -247,7 +249,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
         self._analysis = analysisCLS(self)
         self._presentation = presentationCLS(self,self._analysis)
 
-    def getDataFromTrial(self,deviceType,deviceName = None,trialState = DEPLOY,startTime = None, endTime = None,withMetadata = True):
+    def getDataFromTrial(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = True):
 
         startTime = self.properties['TrialStart'] if startTime is None else startTime
         endTime = self.properties['TrialEnd'] if endTime is None else endTime
@@ -258,32 +260,35 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.entitiesTable(trialState)
+            devicemetadata = self.entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
                     "timestamp")
 
         return data
-    #
-    # def updateDataWithVersion(self,olddata,newdata):
-    #     """
-    #     This procedure gets an old data with version <xx> in field 'version'
-    #     and creates a copy with version+1, then updates all the  data from the new data into it (including
-    #     data that did not exist).
-    #
-    #     For example, lets assume that the old data is
-    #
-    #     deviceName,
-    #
-    #     Parameters
-    #     ----------
-    #     olddata
-    #     newdata
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
+
+    def _process_row(self,row):
+        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
+        return pd.Series([pp.x[0], pp.y[0]])
+
+    def get_devices_image_coordinates(self,trialSetName,trialName,deviceType,outputCRS=ITM):
+        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
+        if 'deviceTypeName' in devices_df.columns:
+            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
+        else:
+            devices_df = devices_df[devices_df['entityType']==deviceType]
+            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
+
+        if outputCRS==ITM:
+            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
+            latitudes = devices_df['ITM_Latitude']
+            longitudes = devices_df['ITM_Longitude']
+        else:
+            latitudes = devices_df['Latitude']
+            longitudes = devices_df['Longitude']
+        min_latitude, max_latitude = min(latitudes), max(latitudes)
+        min_longitude, max_longitude = min(longitudes), max(longitudes)
+        return min_latitude,min_longitude,max_latitude,max_longitude
 
 class TrialSetWithData(argosDataObjects.TrialSet):
 
@@ -298,7 +303,7 @@ class TrialSetWithData(argosDataObjects.TrialSet):
 
 class TrialWithdata(argosDataObjects.Trial):
 
-    def getData(self,deviceType,deviceName = None,trialState = DEPLOY,startTime = None, endTime = None,withMetadata = False):
+    def getData(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = False):
 
         startTime = self.properties['TrialStart'] if startTime is None else startTime
         endTime = self.properties['TrialEnd'] if endTime is None else endTime
@@ -309,7 +314,7 @@ class TrialWithdata(argosDataObjects.Trial):
             raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
 
         if withMetadata:
-            devicemetadata = self.entitiesTable(trialState)
+            devicemetadata = self.entitiesTable()
             if len(devicemetadata) > 0:
                 data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
 
