@@ -5,8 +5,69 @@ from unum.units import *
 from sympy import *
 
 
+class AbstractSigma:
 
-class BriggsRural:
+    def getVirtualDistance(self,sigma0,stability):
+        """
+        Calculates the virtual distances for a given sigma0.
+
+        Parameters
+        ----------
+        sigma0 : 3-tuple of float/unum (default m)
+            The initial cloud size (standard deviation) in the x,y and z dimensions.
+
+        stability : str
+            Must be A-F (capital letters)
+
+        Returns
+        -------
+
+        """
+
+        # 1. use root finding to find Ix and use self.getSigma(x,stability)
+        # 2. use root finding to find Iy and use self.getSigma(x,stability)
+        # 3. use root finding to find Iz and use self.getSigma(x,stability)
+
+        stability=stability
+        x = symbols("x")
+        sigmas = self.getSigma(x, stability)
+        # sigma0 = numpy.array([tonumber(y, m) for y in numpy.atleast_1d(x)])
+        sx,sy,sz = sigma0
+        sx = tonumber(sx, m)
+        sy = tonumber(sy, m)
+        sz = tonumber(sz, m)
+
+        #this option is if the fuction getSigma returns a pandas table:
+        # Ix = float(solve(tonumber(sigmas['sigmaX'][0][0],m) - sx)[0])*m
+        # Iy = float(solve(tonumber(sigmas['sigmaY'][0][0],m) - sy)[0])*m
+        # Iz = float(solve(tonumber(sigmas['sigmaZ'][0][0],m) - sz)[0])*m
+
+        #this option is if the fuction getSigma returns an array
+        Ix = float(solve(tonumber(sigmas['sigmaX'][0],m) - sx)[0])*m
+        Iy = float(solve(tonumber(sigmas['sigmaY'][0],m) - sy)[0])*m
+        Iz = float(solve(tonumber(sigmas['sigmaZ'][0],m) - sz)[0])*m
+
+        return Ix, Iy, Iz
+
+    def getSigma(self,x,stability,sigma0=None):
+        """
+            Return the sigma.
+
+            Implemented in the right sigma class.
+        Parameters
+        ----------
+        x
+        stability
+        sigma0
+
+        Returns
+        -------
+
+        """
+        raise NotImplementedError("The function getSigma is not implemented for abstractSigma. Use the son. ")
+
+
+class BriggsRural(AbstractSigma):
 
     _coeffX = None
     _coeffZ = None
@@ -29,7 +90,7 @@ class BriggsRural:
     def __call__(self,x,stability):
         return self.getSigma(x,stability)
 
-    def getSigma(self,x,stability,sigma0=None):
+    def getSigma(self, x, stability, sigma0=None, units=True):
         """
             Computes the briggs sigma and return the sigma for the request
             distances in the stability. Taking the initial size to be sigma0.
@@ -68,52 +129,31 @@ class BriggsRural:
         Iy = tonumber(Iy,m)
         Iz = tonumber(Iz,m)
 
-        return pandas.DataFrame({
-                'sigmaX' : [Ax*(x+Ix)*(1+Bx*(x+Ix))**Cx],
-                'sigmaY' : [Ax*(x+Iy)*(1+Bx*(x+Iy))**Cx],
-                'sigmaZ' : [Az*(x+Iz)*(1+Bz*(x+Iz))**Cz],'distance' : [x]})
+        # pandas_res = pandas.DataFrame({
+        #         'sigmaX' : [Ax*(x+Ix)*(1+Bx*(x+Ix))**Cx *m],
+        #         'sigmaY' : [Ax*(x+Iy)*(1+Bx*(x+Iy))**Cx *m],
+        #         'sigmaZ' : [Az*(x+Iz)*(1+Bz*(x+Iz))**Cz *m],'distance' : [x *m]})
+
+
+        if units:
+            dict_res = {
+                'sigmaX': Ax * (x + Ix) * (1 + Bx * (x + Ix)) ** Cx * m,
+                'sigmaY': Ax * (x + Iy) * (1 + Bx * (x + Iy)) ** Cx * m,
+                'sigmaZ': Az * (x + Iz) * (1 + Bz * (x + Iz)) ** Cz * m, 'distance': x * m
+            }
+
+        else:
+            dict_res = {
+                'sigmaX': Ax * (x + Ix) * (1 + Bx * (x + Ix)) ** Cx,
+                'sigmaY': Ax * (x + Iy) * (1 + Bx * (x + Iy)) ** Cx,
+                'sigmaZ': Az * (x + Iz) * (1 + Bz * (x + Iz)) ** Cz
+            }
+
+
+        return dict_res
 
 
 
 
 briggsRural = BriggsRural()
-
-
-class AbstractSigma(BriggsRural):
-
-    def getVirtualDistance(self,sigma0,stability):
-        """
-        Calculates the virtual distances for a given sigma0.
-
-        Parameters
-        ----------
-        sigma0 : 3-tuple of float/unum (default m)
-            The initial cloud size in the x,y and z dimensions.
-
-        stability : str
-            Must be A-F (capital letters)
-
-        Returns
-        -------
-
-        """
-
-        # 1. use root finding to find Ix and use self.getSigma(x,stability)
-        # 2. use root finding to find Iy and use self.getSigma(x,stability)
-        # 3. use root finding to find Iz and use self.getSigma(x,stability)
-
-        stability=stability
-        x = symbols("x")
-        sigmas = self.getSigma(x, stability)
-        # sigma0 = numpy.array([tonumber(y, m) for y in numpy.atleast_1d(x)])
-        sx,sy,sz = sigma0
-        sx = tonumber(sx, m)
-        sy = tonumber(sy, m)
-        sz = tonumber(sz, m)
-
-        Ix = float(solve(sigmas['sigmaX'][0][0] - sx)[0])
-        Iy = float(solve(sigmas['sigmaY'][0][0] - sy)[0])
-        Iz = float(solve(sigmas['sigmaZ'][0][0] - sz)[0])
-
-        return Ix, Iy, Iz
 

@@ -90,7 +90,7 @@ class MonaghanConstantConditions(object):
         agentvolatility = self.agent.physicalproperties.getVolatility(self.meteorology.skinSurfaceTemperature)
         agentdensity    = self.agent.physicalproperties.getDensity(self.meteorology.skinSurfaceTemperature)
 
-        p1 = self.meteorology.getWindVeclocity(self.WINDHEIGHT) * self.U2P1
+        p1 = self.meteorology.getWindVelocity(self.WINDHEIGHT) * self.U2P1
 
         evaporation[1] = (sorption_p + p1) / (p1 - self.P0)
         evaporation[4] = (sorption_p + self.P0) / (p1-self.P0)

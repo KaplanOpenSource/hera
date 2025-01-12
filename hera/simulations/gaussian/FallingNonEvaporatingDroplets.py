@@ -9,7 +9,7 @@ from unum.units import *
 from ...utils import tounit,tonumber
 from scipy.optimize import root
 from scipy.constants import g as gconst
-from .Meteorology import meteorologyFactory
+from .Meteorology import MeteorologyFactory
 from .Sigma import briggsRural
 
 from scipy.constants import g as gconst
@@ -217,7 +217,7 @@ class FallingNonEvaporatingDroplets(object):
                 * rho_l : The density of the liquid.
         """
         cloudSigma = (0 * m, 0 * m, 0 * m)
-        self._meteorology = meteorologyFactory.getMeteorology(meteorologyName,**met_kwargs)
+        self._meteorology = MeteorologyFactory().getMeteorology(meteorologyName,**met_kwargs)
 
         dragCoeffFunc   = kwargs.get("dragCoeffFunc","Haugen")
         self._dragfunc = getattr(self,"_DragCoefficient_%s" % dragCoeffFunc.title())
@@ -341,11 +341,11 @@ class FallingNonEvaporatingDroplets(object):
         return 1
 
     def correctionCloud_Plume(self):
-        Ubar = numpy.mean([self.meteorology.getWindVeclocity(z) for z in numpy.arange(0, self.z.asNumber(m))])
+        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, self.z.asNumber(m))])
         return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.25).asNumber()  # taking beta=5
 
     def correctionCloud_Puff(self):
-        Ubar = numpy.mean([self.meteorology.getWindVeclocity(z) for z in numpy.arange(0, self.z.asNumber(m))])
+        Ubar = numpy.mean([self.meteorology.getWindVelocity(z) for z in numpy.arange(0, self.z.asNumber(m))])
         return ((1 + (self.beta * self.getTerminalVelocity() / Ubar) ** 2) ** -0.5).asNumber()  # taking beta=5
 
 
@@ -408,7 +408,7 @@ class FallingNonEvaporatingDroplets(object):
         w_p = tounit(w_p, m / s)
 
         try:
-            U = self.meteorology.getWindVeclocity(z)
+            U = self.meteorology.getWindVelocity(z)
         except RuntimeWarning:
             print("warning",z)
         rho_air = self.meteorology.getAirDensity(z)
