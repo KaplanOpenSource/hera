@@ -9,6 +9,11 @@ import numpy
 import math
 import os
 from scipy.interpolate import griddata
+import numpy as np
+import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Point
+import xarray as xr
 
 
 # ESPG codes
@@ -66,6 +71,51 @@ def convertCRS(points,inputCRS,outputCRS,**kwargs):
 
     origpoints.crs = inputCRS
     return origpoints.to_crs(outputCRS)
+
+
+def create_xarray(minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84):
+    if inputCRS == WSG84:
+        min_pp = convertCRS(points=[[miny, minx]], inputCRS=inputCRS, outputCRS=ITM)[0]
+        max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=inputCRS, outputCRS=ITM)[0]
+    else:
+        min_pp = Point(minx, miny)
+        max_pp = Point(maxx, maxy)
+
+    x = numpy.arange(min_pp.x, max_pp.x, dxdy)
+    y = numpy.arange(min_pp.y, max_pp.y, dxdy)
+    xx, yy = np.meshgrid(x, y[::-1])
+    grid_points = pd.DataFrame({
+        'x': xx.ravel(),
+        'y': yy.ravel()
+    })
+
+    gdf = gpd.GeoDataFrame(
+        grid_points,
+        geometry=gpd.points_from_xy(grid_points['x'], grid_points['y']),
+        crs=ITM
+    )
+
+    gdf_transformed = gdf.to_crs(inputCRS)
+
+    gdf_transformed['lat'] = gdf_transformed.geometry.y
+    gdf_transformed['lon'] = gdf_transformed.geometry.x
+
+    lat_grid = gdf_transformed['lat'].values.reshape(xx.shape)
+    lon_grid = gdf_transformed['lon'].values.reshape(xx.shape)
+
+    i = np.arange(xx.shape[0])
+    j = np.arange(xx.shape[1])
+
+    return xr.DataArray(
+        coords={
+            'i': i,
+            'j': j,
+            'lat': (['i', 'j'], lat_grid),
+            'lon': (['i', 'j'], lon_grid),
+            'dxdy': dxdy
+        },
+        dims=['i', 'j']
+    )
 
 class stlFactory:
     """

@@ -5,7 +5,7 @@
 
 """
 from .... import toolkit
-from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
+from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N,create_xarray
 from ....utils.logging import get_classMethod_logger
 import numpy
 import math
@@ -189,42 +189,44 @@ class TopographyToolkit(toolkit.abstractToolkit):
         return pointList
 
     def getElevation(self,minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84, dataSourceName=None):
-        if inputCRS == WSG84:
-            min_pp = convertCRS(points=[[miny, minx]], inputCRS=WSG84, outputCRS=ITM)[0]
-            max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=WSG84, outputCRS=ITM)[0]
-        else:
-            min_pp = convertCRS(points=[[minx, miny]], inputCRS=ITM, outputCRS=ITM)[0]
-            max_pp = convertCRS(points=[[maxx, maxy]], inputCRS=ITM, outputCRS=ITM)[0]
+        # if inputCRS == WSG84:
+        #     min_pp = convertCRS(points=[[miny, minx]], inputCRS=WSG84, outputCRS=ITM)[0]
+        #     max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=WSG84, outputCRS=ITM)[0]
+        # else:
+        #     min_pp = convertCRS(points=[[minx, miny]], inputCRS=ITM, outputCRS=ITM)[0]
+        #     max_pp = convertCRS(points=[[maxx, maxy]], inputCRS=ITM, outputCRS=ITM)[0]
+        #
+        # x = numpy.arange(min_pp.x, max_pp.x, dxdy)
+        # y = numpy.arange(min_pp.y, max_pp.y, dxdy)
+        # xx = numpy.zeros((len(x), len(y)))
+        # yy = numpy.zeros((len(x), len(y)))
+        # for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)],
+        #                                   [(j, vy) for (j, vy) in enumerate(y[::-1])]):
+        #     print((i, j), end="\r")
+        #     newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
+        #     lat = newpp.y
+        #     lon = newpp.x
+        #     xx[i, j] = lat
+        #     yy[i, j] = lon
+        #
+        # pointList = pd.DataFrame({'lat': xx.flatten(), 'lon': yy.flatten()})
+        # elevation_df = self.getPointListElevation(pointList,dataSourceName)
+        # i = np.arange(xx.shape[0])
+        # j = np.arange(xx.shape[1])
+        #
+        # return xr.DataArray(
+        #     coords={
+        #         'i': i,
+        #         'j': j,
+        #         'lat': (['i', 'j'], xx),
+        #         'lon': (['i', 'j'], yy),
+        #         'elevation': (['i', 'j'], elevation_df['elevation'].values.reshape(xx.shape[0], xx.shape[1])),
+        #         'dxdy': dxdy
+        #     },
+        #     dims=['i', 'j']
+        # )
+        xarray_dataset = create_xarray(minx,miny,maxx,maxy,dxdy,inputCRS)
 
-        x = numpy.arange(min_pp.x, max_pp.x, dxdy)
-        y = numpy.arange(min_pp.y, max_pp.y, dxdy)
-        xx = numpy.zeros((len(x), len(y)))
-        yy = numpy.zeros((len(x), len(y)))
-        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)],
-                                          [(j, vy) for (j, vy) in enumerate(y[::-1])]):
-            print((i, j), end="\r")
-            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
-            lat = newpp.y
-            lon = newpp.x
-            xx[i, j] = lat
-            yy[i, j] = lon
-
-        pointList = pd.DataFrame({'lat': xx.flatten(), 'lon': yy.flatten()})
-        elevation_df = self.getPointListElevation(pointList,dataSourceName)
-        i = np.arange(xx.shape[0])
-        j = np.arange(xx.shape[1])
-
-        return xr.DataArray(
-            coords={
-                'i': i,
-                'j': j,
-                'lat': (['i', 'j'], xx),
-                'lon': (['i', 'j'], yy),
-                'elevation': (['i', 'j'], elevation_df['elevation'].values.reshape(xx.shape[0], xx.shape[1])),
-                'dxdy': dxdy
-            },
-            dims=['i', 'j']
-        )
 
     def getElevationOfXarray(self,xarray_dataset,dataSourceName=None):
         pointList = pd.DataFrame({'lat': xarray_dataset['lat'].values.flatten(), 'lon': xarray_dataset['lon'].values.flatten()})
