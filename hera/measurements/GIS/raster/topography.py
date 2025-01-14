@@ -20,6 +20,7 @@ import numpy as np
 from hera import toolkitHome
 import pandas as pd
 import xarray as xr
+import geopandas as gpd
 
 
 class TopographyToolkit(toolkit.abstractToolkit):
@@ -189,44 +190,11 @@ class TopographyToolkit(toolkit.abstractToolkit):
         return pointList
 
     def getElevation(self,minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84, dataSourceName=None):
-        # if inputCRS == WSG84:
-        #     min_pp = convertCRS(points=[[miny, minx]], inputCRS=WSG84, outputCRS=ITM)[0]
-        #     max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=WSG84, outputCRS=ITM)[0]
-        # else:
-        #     min_pp = convertCRS(points=[[minx, miny]], inputCRS=ITM, outputCRS=ITM)[0]
-        #     max_pp = convertCRS(points=[[maxx, maxy]], inputCRS=ITM, outputCRS=ITM)[0]
-        #
-        # x = numpy.arange(min_pp.x, max_pp.x, dxdy)
-        # y = numpy.arange(min_pp.y, max_pp.y, dxdy)
-        # xx = numpy.zeros((len(x), len(y)))
-        # yy = numpy.zeros((len(x), len(y)))
-        # for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)],
-        #                                   [(j, vy) for (j, vy) in enumerate(y[::-1])]):
-        #     print((i, j), end="\r")
-        #     newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
-        #     lat = newpp.y
-        #     lon = newpp.x
-        #     xx[i, j] = lat
-        #     yy[i, j] = lon
-        #
-        # pointList = pd.DataFrame({'lat': xx.flatten(), 'lon': yy.flatten()})
-        # elevation_df = self.getPointListElevation(pointList,dataSourceName)
-        # i = np.arange(xx.shape[0])
-        # j = np.arange(xx.shape[1])
-        #
-        # return xr.DataArray(
-        #     coords={
-        #         'i': i,
-        #         'j': j,
-        #         'lat': (['i', 'j'], xx),
-        #         'lon': (['i', 'j'], yy),
-        #         'elevation': (['i', 'j'], elevation_df['elevation'].values.reshape(xx.shape[0], xx.shape[1])),
-        #         'dxdy': dxdy
-        #     },
-        #     dims=['i', 'j']
-        # )
         xarray_dataset = create_xarray(minx,miny,maxx,maxy,dxdy,inputCRS)
-
+        pointList = pd.DataFrame({'lat':xarray_dataset['lat'].values.flatten(), 'lon': xarray_dataset['lon'].values.flatten()})
+        elevation_df = self.getPointListElevation(pointList, dataSourceName)
+        xarray_dataset = xarray_dataset.assign_coords(elevation=(('i', 'j'), elevation_df['elevation'].values.reshape(xarray_dataset.shape[0],xarray_dataset.shape[1])))
+        return xarray_dataset
 
     def getElevationOfXarray(self,xarray_dataset,dataSourceName=None):
         pointList = pd.DataFrame({'lat': xarray_dataset['lat'].values.flatten(), 'lon': xarray_dataset['lon'].values.flatten()})
@@ -265,15 +233,21 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
     def getElevationSTL(self,elevation,shiftx=0,shifty=0,solidName="Topography"):
-        # Convert to ITM coordinates for STL file
-        xx = numpy.zeros((elevation.shape[0],elevation.shape[1]))
-        yy = numpy.zeros((elevation.shape[0],elevation.shape[1]))
-        for i in range(elevation.shape[0]):
-            for j in range(elevation.shape[1]):
-                ITM_pp = convertCRS([[elevation[i, j].lon.values, elevation[i, j].lat.values]], inputCRS=WSG84, outputCRS=ITM)[0]
-                xx[i, j] = ITM_pp.x
-                yy[i, j] = ITM_pp.y
+        grid_points = pd.DataFrame({
+            'x': elevation['lat'].values.flatten(),
+            'y': elevation['lon'].values.flatten()
+        })
 
+        gdf = gpd.GeoDataFrame(
+            grid_points,
+            geometry=gpd.points_from_xy(grid_points['y'], grid_points['x']),
+            crs=WSG84
+        )
+        gdf_transformed = gdf.to_crs(ITM)
+        gdf_transformed['y'] = gdf_transformed.geometry.y
+        gdf_transformed['x'] = gdf_transformed.geometry.x
+        xx = gdf_transformed['x'].values.reshape(elevation.shape)
+        yy = gdf_transformed['y'].values.reshape(elevation.shape)
         stlstr = stlFactory().rasterToSTL(xx - shiftx, yy - shifty, elevation['elevation'].values, solidName=solidName)
         return stlstr
 
