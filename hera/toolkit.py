@@ -52,6 +52,7 @@ class ToolkitHome:
     EXPERIMENT = "experiment"
 
     WINDPROFILE = "WindProfile"
+    GAUSSIANDISPERSION = "GaussianDispersion"
 
     _toolkits = None
 
@@ -78,7 +79,8 @@ class ToolkitHome:
             hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit"),
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
 
-            WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit")
+            WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit"),
+            GaussianDispersion = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit")
 
         )
 
