@@ -1,5 +1,5 @@
 from .... import toolkit
-from ..utils import ITM,WSG84,BETA,KARMAN,convertCRS
+from ..utils import ITM,WSG84,BETA,KARMAN,convertCRS,create_xarray
 import numpy
 import math
 from itertools import product
@@ -210,25 +210,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
             return img[ilat, ilon]
 
-
-        if inputCRS==WSG84:
-            min_pp = convertCRS(points=[[miny, minx]], inputCRS=WSG84, outputCRS=ITM)[0]
-            max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=WSG84, outputCRS=ITM)[0]
-        else:
-            min_pp = convertCRS(points=[[minx, miny]], inputCRS=ITM, outputCRS=ITM)[0]
-            max_pp = convertCRS(points=[[maxx,maxy]], inputCRS=ITM, outputCRS=ITM)[0]
-
-        x = numpy.arange(min_pp.x, max_pp.x, dxdy)
-        y = numpy.arange(min_pp.y, max_pp.y, dxdy)
-        xx = numpy.zeros((len(x), len(y)))
-        yy = numpy.zeros((len(x), len(y)))
-        for ((i, vx), (j, vy)) in product([(i, vx) for (i, vx) in enumerate(x)], [(j, vy) for (j, vy) in enumerate(y[::-1])]):
-            print((i, j), end="\r")
-            newpp = convertCRS(points=[[vx, vy]], inputCRS=ITM, outputCRS=WSG84)[0]
-            lat = newpp.y           #converCRS returns the opposite for lat lon
-            lon = newpp.x           #converCRS returns the opposite for lat lon
-            xx[i, j] = lat
-            yy[i, j] = lon
+        xarray_dataset = create_xarray(minx,miny,maxx,maxy,dxdy,inputCRS)
 
         ds = self.getDataSourceData(dataSourceName)
         img = ds.GetRasterBand(1).ReadAsArray()
@@ -240,24 +222,10 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                                                                                         lonResolution=lonResolution,
                                                                                         latUpperLeft=latUpperLeft,
                                                                                         latResolution=latResolution))
-        landcover = vectorizedLandCover(xx, yy)
-        ### Transform to XArray
-        i = np.arange(landcover.shape[0])
-        j = np.arange(landcover.shape[1])
-        xarray = xr.DataArray(
-            landcover,
-            coords={
-                'i': i,
-                'j': j,
-                'lat': (['i', 'j'], xx),
-                'lon': (['i', 'j'], yy),
-                'landcover': (['i', 'j'], landcover),
-                'dxdy': dxdy
-                },
-            dims=['i', 'j']
-            )
-        xarray.attrs['landcover_description'] = self.getCodingMap(dataSourceName)
-        return xarray
+        landcover = vectorizedLandCover(xarray_dataset.lat.values, xarray_dataset.lon.values)
+        xarray_dataset = xarray_dataset.assign_coords(landcover=(('i', 'j'), landcover))
+        return xarray_dataset
+
 
     def getRoughnessAtPoint(self,lon,lat,inputCRS=WSG84, dataSourceName=None):
         """
