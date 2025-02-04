@@ -95,7 +95,7 @@ def create_xarray(minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84):
         crs=ITM
     )
 
-    gdf_transformed = gdf.to_crs(inputCRS)
+    gdf_transformed = gdf.to_crs(WSG84)
 
     gdf_transformed['lat'] = gdf_transformed.geometry.y
     gdf_transformed['lon'] = gdf_transformed.geometry.x

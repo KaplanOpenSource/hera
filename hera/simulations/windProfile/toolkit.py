@@ -13,6 +13,7 @@ from hera.simulations.utils.interpolations import spatialInterpolate
 import os
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
+from hera.measurements.GIS.utils import create_xarray
 
 class WindProfileToolkit(toolkit.abstractToolkit):
     def __init__(self, projectName, filesDirectory=None):
