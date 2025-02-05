@@ -254,7 +254,10 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         landcover = self.getLandCoverAtPoint(lon=lon,lat=lat,inputCRS=inputCRS,dataSourceName=dataSourceName)
 
-        handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+        if datasourceDocument['desc'].get('type', []):
+            handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+        else:
+            handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['desc']['type']}")
         return handlerFunction(landcover)
 
 
@@ -290,7 +293,11 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
         datasourceDocument = self.getDataSourceDocument(dataSourceName)
         if not isBuilding:
-            handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+            if datasourceDocument['desc'].get('type',[]):
+                handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+            else:
+                handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['desc']['type']}")
+
             roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
         else:
@@ -588,15 +595,6 @@ class presentation:
         plt.show()
 
     def _plotWithRectangles(self,ax,plot,rectangles,alpha):
-        # if inputCRS==WSG84:
-        #     extent = plot.get_extent()
-        #     lower_left_converted = convertCRS(points=[[extent[2], extent[0]]], inputCRS=WSG84, outputCRS=ITM)[0]
-        #     upper_right_converted = convertCRS(points=[[extent[3], extent[1]]], inputCRS=WSG84, outputCRS=ITM)[0]
-        #     extent = [lower_left_converted.x,upper_right_converted.x,lower_left_converted.y,upper_right_converted.y]
-        #     ax.imshow(plot.get_array(),extent=extent)
-        # else:
-        #     extent = plot.get_extent()
-        #     ax.imshow(plot.get_array(), extent=extent)
         extent = plot.get_extent()
         ax.imshow(plot.get_array(), extent=extent)
         ax = self._adddRectanglesToPlot(ax, rectangles,alpha)
@@ -626,7 +624,7 @@ class presentation:
         for arr in landcover:
             for x in arr:
                 shape = convertCRS([[x.lon,x.lat]], inputCRS=WSG84, outputCRS=ITM)[0]
-                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values), self.landcover_colors_map.get(int(x.values))))
+                rectangles.append((shape.x, shape.y, float(landcover.dxdy.values), float(landcover.dxdy.values), self.landcover_colors_map.get(int(x.landcover.values))))
 
         return list(set(rectangles))
 
