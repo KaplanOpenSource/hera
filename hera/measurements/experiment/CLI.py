@@ -74,7 +74,6 @@ def create_experiment(arguments):
     else:
         experiment_path = os.getcwd()
 
-
     logger.debug(f" creating code directory if not exist")
     os.makedirs(os.path.join(experiment_path,'code'),exist_ok=True)
 
@@ -94,6 +93,7 @@ def create_experiment(arguments):
     arguments.directory   = experiment_path
     arguments.loadRepositories = True
 
+    logger.debug(f"Creating a project for local")
     projectCLI.project_create(arguments)
 
     if arguments.zip:
@@ -121,6 +121,7 @@ def _create_empty_class(experiment_path,experimentName):
 
 def _create_repository(zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
+    logger.info(f"Creating the repository")
     logger.debug(f" Since zip file is provided, creating a repository..")
     metadata = ExperimentZipFile(zip)
 
@@ -150,15 +151,11 @@ def _create_repository(zip,experiment_path,experimentName,relative):
 
     entities_dict_list = metadata.getExperimentEntities()
     for i,entity in enumerate(entities_dict_list):
-        import pdb
-        pdb.set_trace()
+        entityTypeName = entity['entityTypeName']
+        entityName = entity['entityName']
+        logger.debug(f" Creating record for {entityName} of type {entityTypeName}")
 
-
-        if not perDevice:
-            parquet_name = entity['entityTypeName']
-        else:
-            parquet_name = entity['entityName']
-
+        parquet_name = entityName if metadata.entityType[entityTypeName][entityName].properties['StoreDataPerDevice'] else entityTypeName
         if parquet_name not in repo['experiment']['Measurements'].keys():
             repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
                                                                   "item": {
@@ -198,14 +195,14 @@ def load_experiment_to_project(arguments):
     else:
         experiment_path = os.getcwd()
 
-    repository = glob.glob(f"{experiment_path}/*_repository.json")
+    repository = glob.glob(os.path.join(f"{experiment_path}","*_repository.json"))
     if len(repository)==0:
         raise ValueError(f"Can't find repository file in path directory: {experiment_path}. \n Make sure the path is an experiment directory")
     if len(repository)>1:
         raise ValueError(f" More than 1 repositories found in directory.")
 
     repository = repository[0]
-    repository_name = repository.split("/")[-1]
+    repository_name = os.path.split(repository)[-1]
 
     if arguments.projectName not in datalayer.getProjectList():
         logger.info(f" No project with name {arguments.projectName}, will create a new one.")
