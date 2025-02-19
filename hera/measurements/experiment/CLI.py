@@ -12,6 +12,7 @@ import glob
 import requests
 import zipfile
 from hera import toolkitHome
+from hera.utils.data import CLI as projectCLI
 
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
@@ -88,9 +89,21 @@ def create_experiment(arguments):
     logger.debug(f" creating data directory if not exist")
     os.makedirs(os.path.join(experiment_path, 'data'), exist_ok=True)
 
+    arguments.projectName = arguments.experimentName
+    arguments.overwrite   = True
+    arguments.directory   = experiment_path
+    arguments.loadRepositories = True
+
+    projectCLI.project_create(arguments)
+
     if arguments.zip:
         _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
         _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
+
+    logger.debug("Loading the experiment repository to the project")
+    arguments.file = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
+    projectCLI.repository_load(arguments)
+
 
 def _create_empty_class(experiment_path,experimentName):
     logger = logging.getLogger("hera.bin._create_empty_class")
@@ -103,6 +116,8 @@ def _create_empty_class(experiment_path,experimentName):
         class_script.write("\t###Implement your code here if you wish.\n")
         class_script.write("\tpass")
     logger.debug(f" finished creating an empty class for implementation..")
+
+
 
 def _create_repository(zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
@@ -135,6 +150,10 @@ def _create_repository(zip,experiment_path,experimentName,relative):
 
     entities_dict_list = metadata.getExperimentEntities()
     for i,entity in enumerate(entities_dict_list):
+        import pdb
+        pdb.set_trace()
+
+
         if not perDevice:
             parquet_name = entity['entityTypeName']
         else:
