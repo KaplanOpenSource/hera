@@ -16,7 +16,7 @@
             "momentumTransport",
             "makeSource",
             "g",
-            "IndoorDict",
+            "Neutral2018Dict",
             "dispersionWriter",
             "buildAllRun"
         ],
@@ -457,7 +457,7 @@
                 },
                 "type": "openFOAM.constant.g"
             },
-            "Neutral2018": {
+            "Neutral2018Dict": {
                 "Execution": {
                     "input_parameters": {
                         "C0": 3,
