@@ -101,7 +101,7 @@ def create_experiment(arguments):
         _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
 
     logger.debug("Loading the experiment repository to the project")
-    arguments.file = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
+    arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
     projectCLI.repository_load(arguments)
 
 

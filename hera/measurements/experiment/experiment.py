@@ -272,12 +272,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
         return pd.Series([pp.x[0], pp.y[0]])
 
     def get_devices_image_coordinates(self,trialSetName,trialName,deviceType,outputCRS=ITM):
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
-        if 'deviceTypeName' in devices_df.columns:
-            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
-        else:
-            devices_df = devices_df[devices_df['entityType']==deviceType]
-            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
+        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
 
         if outputCRS==ITM:
             devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
