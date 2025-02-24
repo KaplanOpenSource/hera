@@ -358,7 +358,7 @@ class experimentPresentation:
         return attrMap
 
 
-    def plotDevicesOnImage(self, trialSetName, trialName, deviceType,mapName, ax=None, plotkwargs={},scatterkwargs={}):
+    def plotDevicesOnImage(self, trialSetName, trialName, deviceType,mapName, ax=None, plotkwargs={},scatterkwargs={},textDeltaY = 0.05,textDeltaX = 1):
         """
         Plot map of devices type places in a specific trial set and trial on the requested map.
 
@@ -399,14 +399,13 @@ class experimentPresentation:
         for row in devices_df.itertuples():
             x = row.latitude
             y = row.longitude
-            delta = 0.02
-            if numpy.isnan(row.containedIn):
+            if isinstance(row.containedIn,float):
                 deviceName = row.deviceItemName
             else:
                 deviceName = row.containedIn
 
             ax.scatter(x, y,**scatterkwargs)  # 's' controls size
-            ax.text(x, y + (maxy - miny) * delta, f"{deviceName}", color='red', fontsize=20, ha='center',
+            ax.text(x+textDeltaX, y + (maxy - miny) * textDeltaY, f"{deviceName}", color='red', fontsize=14, ha='center',
                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
 
 
