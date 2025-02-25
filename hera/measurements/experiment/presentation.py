@@ -32,6 +32,8 @@ class experimentPresentation:
     NAMES_SHORT = "short"  # just plot the number
     NAMES_LONG = "long"  # plot the entire name.
 
+    MAP_TILE= "Map"
+
     ########################
     ###
     ###  Init and private functions
@@ -45,6 +47,9 @@ class experimentPresentation:
     _analysis = None
 
     _cmap = None
+
+    tileDataSourceName = None
+
 
     @property
     def cmap(self):
@@ -95,7 +100,7 @@ class experimentPresentation:
     #########################
 
 
-    def setupPlotOrigin(self, ax=None, s=50):
+    def plotOrigin(self, ax=None, s=50):
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
@@ -103,7 +108,7 @@ class experimentPresentation:
 
         return ax
 
-    def setupPlotImage(self, imageName, ax=None, xlabel=True, ylabel=True, withGrid = True,plt_kwargs=dict(),majorLocator=10):
+    def plotImage(self, imageName, ax=None, xlabel=True, ylabel=True, withGrid = True, plt_kwargs=dict(), majorLocator=10):
         """
                 Plots an image of the experiment.
                 If axes is not supplied, creates the figure and the axes. 
@@ -144,10 +149,10 @@ class experimentPresentation:
         metadata = self.datalayer.getImageMetadata(imageName)
         img = self.datalayer.getImage(imageName)
 
-        plt.imshow(img, extent=[metadata['left'],
-                                metadata['right'],
-                                metadata['lower'],
-                                metadata['upper']]
+        plt.imshow(img, extent=[metadata['xleft'],
+                                metadata['xright'],
+                                metadata['ybottom'],
+                                metadata['ytop']]
                    )
 
         for fnc,values in plt_kwargs.items():
@@ -162,11 +167,11 @@ class experimentPresentation:
             plt.ylabel("y [m]")
 
         if withGrid :
-            plt.grid(b=True, which='major', linestyle='-')
-            plt.grid(b=True, which='minor', linestyle='--')
+            plt.grid(which='major', linestyle='-')
+            plt.grid(which='minor', linestyle='--')
 
-            yLocatorSpacing = (metadata['upper']-metadata['lower'])//majorLocator
-            xLocatorSpacing = (metadata['right'] - metadata['left']) // majorLocator
+            yLocatorSpacing = (metadata['ytop']-metadata['ybottom'])//majorLocator
+            xLocatorSpacing = (metadata['xright'] - metadata['xleft']) // majorLocator
 
             locatorSpacing = numpy.min([yLocatorSpacing,xLocatorSpacing])
 
@@ -179,6 +184,36 @@ class experimentPresentation:
         plt.axis("equal")
 
         return ax
+
+    def plotMap(self,trialSetName, trialName):
+        """
+            Plots the tile map (sattelite) of the devices in that region.
+
+            NOT COMPLETE!!.
+        Parameters
+        ----------
+        trialSetName
+        trialName
+
+        Returns
+        -------
+
+        """
+        devices_df = self.trialSet[trialSetName][trialName].entitiesTable
+
+        if ax is None:
+            plot_kwargs = plot_kwargs or {}
+            fig, ax = plt.subplots(1, 1, **plot_kwargs)
+        else:
+            fig = ax.figure
+
+        tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName=self.datalayer.projectName)
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
+        minx, miny, maxx, maxy = self.datalayer.get_devices_image_coordinates(trialSetName, trialName, deviceType)
+        region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
+        img = tiles_tk.getImageFromCorners(**region)
+
+        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
 
     def _plotEntityLocationScatter(self, entityTypeName, trialSet, trialName, status, floorName, ax=None,
                                    plotNameMode=None, scatter_kw=dict()):
@@ -322,13 +357,114 @@ class experimentPresentation:
 
         return attrMap
 
+
+    def plotDevicesOnImage(self, trialSetName, trialName, deviceType,mapName, ax=None, plotkwargs={},scatterkwargs={},textDeltaY = 0.05,textDeltaX = 1):
+        """
+        Plot map of devices type places in a specific trial set and trial on the requested map.
+
+        When the map is the world map, the tiletoolkit is initialized and the self.tileDataSourceName is used instead.
+
+        Parameters
+        ----------
+        trialSetName : str
+            Trial Set Name.
+        trialName: str
+            Trial Name.
+        deviceType: str
+            Device type name.
+        mapName : str
+            The name of the map to plot on.
+        plotkwargs: dict
+            Parameters for matplotlib.pyplot subplot.
+
+        Returns
+        -------
+            fig
+            ax
+        """
+        scatterkwargs.setdefault("s",50)
+        scatterkwargs.setdefault("c", "r")
+        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType and mapName==@mapName")
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, **plotkwargs)
+        else:
+            fig = ax.figure
+
+        maxx = devices_df.max().longitude
+        maxy = devices_df.max().latitude
+
+        minx = devices_df.min().longitude
+        miny = devices_df.min().latitude
+        for row in devices_df.itertuples():
+            x = row.latitude
+            y = row.longitude
+            if isinstance(row.containedIn,float):
+                deviceName = row.deviceItemName
+            else:
+                deviceName = row.containedIn
+
+            ax.scatter(x, y,**scatterkwargs)  # 's' controls size
+            ax.text(x+textDeltaX, y + (maxy - miny) * textDeltaY, f"{deviceName}", color='red', fontsize=14, ha='center',
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+
+        return fig, ax
+
+    def plotDevices(self, trialSetName, trialName, deviceType,mapName, ax=None, plotkwargs=None):
+        """
+        Plot map of devices type places in a specific trial set and trial on the requested map.
+
+        When the map is the world map, the tiletoolkit is initialized and the self.tileDataSourceName is used instead.
+        The plotting of the map itself is perfomed in the plot map function.
+        Parameters
+        ----------
+        trialSetName : str
+            Trial Set Name.
+        trialName: str
+            Trial Name.
+        deviceType: str
+            Device type name.
+        mapName : str
+            The name of the map to plot on.
+        plotkwargs: dict
+            Parameters for matplotlib.pyplot subplot.
+
+        Returns
+        -------
+            fig
+            ax
+        """
+        if ax is None:
+            plot_kwargs = plot_kwargs or {}
+            fig, ax = plt.subplots(1, 1, **plot_kwargs)
+        else:
+            fig = ax.figure
+
+        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
+
+        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
+        minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
+        d = {}
+        for row in devices_df.itertuples():
+            x = row.ITM_Latitude
+            y = row.ITM_Longitude
+            stationCount = d.get(row.stationName,0)+1
+            d[row.stationName] = stationCount
+            num_of_devices_in_station = d[row.stationName]
+            delta = num_of_devices_in_station * 0.02
+
+            ax.scatter(x, y, color='red', marker='o', s=50)  # 's' controls size
+            ax.text(x, y + (maxy - miny) * delta, f"{row.deviceItemName}", color='red', fontsize=20, ha='center',
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+        return fig, ax
+
     ########################
     ###
     ###  Technical plots
     ###
     #########################
-
-
 
     def _get_continuous_cmap(self, cmap_list, float_list=None):
         cdict = dict()
@@ -444,183 +580,8 @@ class experimentPresentation:
         return ax, pvt
 
 
-    def plotNDIRFrequencyDistribution(self,
-                                      trialName,
-                                      trialSetName,
-                                      ax=None):
-        """
-            Calculates the cumulative histogram data of the normalized frequency
 
-        Parameters
-        ----------
-        deviceType
-        trialNameOrList
-        trialSetName
-        samplingWindow
-        ax
-
-
-        Returns
-        -------
-
-        """
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-        else:
-            plt.sca(ax)
-
-        analysisLayer = self.datalayer.analysisLayer
-        long = analysisLayer.getDeviceTypeTransmissionFrequency(NDIR, trialName, trialSetName, normalize=True,
-                                                                wideFormat=False)
-
-        long.groupby("deviceName").mean().hist(density=True, cumulative=True, ax=ax)
-        plt.title("")
-        plt.xlim(0, 1)
-        plt.xlabel("Normalized frequency")
-        plt.ylabel("Fraction of devices")
-
-        if self.presentation.saveFigures:
-            figname = os.path.join(self.presentation.savePath, "technical",
-                                   f"{trialName}_NDIR_DeviceFrequencyDistribution_{trialSetName}.png")
-            plt.savefig(figname)
-
-
-    def plotMessageFrequencyDistribution(self,
-                                         deviceType,
-                                         trialName,
-                                         trialSetName,
-                                         ax=None):
-        """
-            Calculates the cumulative histogram data of the normalized frequency
-
-        Parameters
-        ----------
-        deviceType
-        trialNameOrList
-        trialSetName
-        samplingWindow
-        ax
-
-
-        Returns
-        -------
-
-        """
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-        else:
-            plt.sca(ax)
-
-        analysisLayer = self.datalayer.analysisLayer
-        long = analysisLayer.getDeviceTypeTransmissionFrequency(deviceType, trialName, trialSetName, normalize=True,
-                                                                wideFormat=False)
-
-        long['frequency'].hist(density=True, cumulative=True, ax=ax)
-        plt.title("")
-        plt.xlim(0, 1)
-        plt.xlabel("Normalized frequency")
-        plt.ylabel("Fraction of messages")
-
-        if self.presentation.saveFigures:
-            figname = os.path.join(self.presentation.savePath, "technical",
-                                   f"{trialName}_NDIR_MessagesFrequencyDistribution_{trialSetName}.png")
-            plt.savefig(figname)
-
-
-
-    def devicesProperties(self):
-        devices = []
-        for trialSet in self.datalayer.setup['trialSets']:
-            trialSetName = trialSet['name']
-            for trial in trialSet['trials']:
-                trialName = trial['name']
-                date = trial['createdDate']
-                for device in trial['devicesOnTrial']:
-                    d = {}
-                    d['type'] = device['deviceTypeName']
-                    d['name'] = device['deviceItemName']
-                    d['latitutde'] = device['location']['coordinates'][0]
-                    d['longitute'] = device['location']['coordinates'][1]
-                    d['trialSetName'] = trialSetName
-                    d['trialName'] = trialName
-                    d['trialCreatedDate'] = date
-                    devices.append(d)
-
-        return devices
-
-    def plot_devices(self,trialSetName,trialName,deviceType,ax=None,plot_kwargs=None,toolkitDataSource=None,display=True):
-        """
-        Plot map of devices type places in a specific trial set and trial.
-
-        Parameters
-        ----------
-        trialSetName : str
-            Trial Set Name.
-        trialName: str
-            Trial Name.
-        deviceType: str
-            Device type name.
-        plotkwargs: dict
-            Parameters for matplotlib.pyplot subplot.
-        toolkitDataSource: str
-            The Data Source name for Tile raster toolkit.
-        display: bool
-            Whether to display map picture or not.
-
-        Returns
-        -------
-            fig
-            ax
-        """
-        tiles_tk = toolkitHome.getToolkit(toolkitHome.GIS_TILES,projectName=self.datalayer.projectName)
-
-        devices_df = self.datalayer.trialSet[trialSetName][trialName].entitiesTable
-        if 'deviceTypeName' in devices_df.columns:
-            devices_df = devices_df[devices_df['deviceTypeName']==deviceType]
-
-        else:
-            devices_df = devices_df[devices_df['entityType']==deviceType]
-            devices_df = devices_df.rename(columns={"latitude": "Latitude", "longitude": "Longitude","entityType":"deviceTypeName","entityName":"deviceItemName"})
-
-        devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self.datalayer._process_row, axis=1)
-        minx,miny,maxx,maxy = self.datalayer.get_devices_image_coordinates(trialSetName,trialName,deviceType)
-        region = dict(minx=minx, maxx=maxx, maxy=maxy, miny=miny, zoomlevel=17, inputCRS=ITM, tileServer=toolkitDataSource)
-        img = tiles_tk.getImageFromCorners(**region)
-
-        if ax is None:
-            plot_kwargs = plot_kwargs or {}
-            fig, ax = plt.subplots(1, 1, **plot_kwargs)
-        else:
-            fig = ax.figure
-
-        plot = tiles_tk.presentation.plot(img, ax=ax, display=True)
-        extent = plot.get_extent()
-        x_min, x_max, y_min, y_max = extent
-        ax.imshow(plot.get_array(), extent=extent, origin='lower', cmap='gray')
-        d = {}
-        for row in devices_df.itertuples():
-            x = row.ITM_Latitude
-            y = row.ITM_Longitude
-            try:
-                d[row.stationName] += 1
-            except:
-                d[row.stationName] = 1
-
-            num_of_devices_in_station = d[row.stationName]
-            delta = num_of_devices_in_station * 0.02
-
-            ax.scatter(x, y, color='red', marker='o', s=50)  # 's' controls size
-            ax.text(x, y + (y_max - y_min) * delta, f"{row.deviceItemName}", color='red', fontsize=20, ha='center',
-                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
-
-        if display:
-            plt.show()
-        else:
-            plt.close(fig)
-
-        return fig, ax
-
-    def generate_latex_folder(self,latex_template,folder_path):
+    def generateLatexTable(self, latex_template, folder_path):
         """
         Save folder for overleaf website upload to transform to PDF.
 
@@ -648,7 +609,7 @@ class experimentPresentation:
                 trial_dict['devices'] = []
                 for device_name in devices_df['deviceTypeName'].unique():
                     device_dict = {}
-                    fig , _ = self.plot_devices(trialSetName=trialSet['name'],trialName=trial['name'],device=device_name,display=False)
+                    fig , _ = self.plotDevices(trialSetName=trialSet['name'], trialName=trial['name'], device=device_name, display=False)
                     image_path = os.path.join(folder_path,f"{device_name}.png")
                     fig.savefig(image_path)
                     device_dict['device_name'] = device_name
@@ -673,3 +634,86 @@ class experimentPresentation:
         with open(tex_path, "w", encoding="utf-8") as file:
             file.write(latex_content)
         print(f"LaTeX document generated at: {tex_path}")
+
+
+    # def plotNDIRFrequencyDistribution(self,
+    #                                   trialName,
+    #                                   trialSetName,
+    #                                   ax=None):
+    #     """
+    #         Calculates the cumulative histogram data of the normalized frequency
+    #
+    #     Parameters
+    #     ----------
+    #     deviceType
+    #     trialNameOrList
+    #     trialSetName
+    #     samplingWindow
+    #     ax
+    #
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     if ax is None:
+    #         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    #     else:
+    #         plt.sca(ax)
+    #
+    #     analysisLayer = self.datalayer.analysisLayer
+    #     long = analysisLayer.getDeviceTypeTransmissionFrequency(NDIR, trialName, trialSetName, normalize=True,
+    #                                                             wideFormat=False)
+    #
+    #     long.groupby("deviceName").mean().hist(density=True, cumulative=True, ax=ax)
+    #     plt.title("")
+    #     plt.xlim(0, 1)
+    #     plt.xlabel("Normalized frequency")
+    #     plt.ylabel("Fraction of devices")
+    #
+    #     if self.presentation.saveFigures:
+    #         figname = os.path.join(self.presentation.savePath, "technical",
+    #                                f"{trialName}_NDIR_DeviceFrequencyDistribution_{trialSetName}.png")
+    #         plt.savefig(figname)
+    #
+
+    # def plotMessageFrequencyDistribution(self,
+    #                                      deviceType,
+    #                                      trialName,
+    #                                      trialSetName,
+    #                                      ax=None):
+    #     """
+    #         Calculates the cumulative histogram data of the normalized frequency
+    #
+    #     Parameters
+    #     ----------
+    #     deviceType
+    #     trialNameOrList
+    #     trialSetName
+    #     samplingWindow
+    #     ax
+    #
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     if ax is None:
+    #         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    #     else:
+    #         plt.sca(ax)
+    #
+    #     analysisLayer = self.datalayer.analysisLayer
+    #     long = analysisLayer.getDeviceTypeTransmissionFrequency(deviceType, trialName, trialSetName, normalize=True,
+    #                                                             wideFormat=False)
+    #
+    #     long['frequency'].hist(density=True, cumulative=True, ax=ax)
+    #     plt.title("")
+    #     plt.xlim(0, 1)
+    #     plt.xlabel("Normalized frequency")
+    #     plt.ylabel("Fraction of messages")
+    #
+    #     if self.presentation.saveFigures:
+    #         figname = os.path.join(self.presentation.savePath, "technical",
+    #                                f"{trialName}_NDIR_MessagesFrequencyDistribution_{trialSetName}.png")
+    #         plt.savefig(figname)
