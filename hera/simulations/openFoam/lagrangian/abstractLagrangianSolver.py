@@ -1,6 +1,4 @@
 import logging
-
-import dask.dataframe
 import numpy
 import pandas
 import os
@@ -1015,6 +1013,31 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
                               product(processorList, timeList)]
+
+                ########################################################################3
+                #chunkLoaderList = numpy.array_split(loaderList,100)
+                chunkLoaderList = []
+                retList = []
+                n = 100
+                chunkLoaderList.append([loaderList[i:i + n] for i in range(0, len(loaderList), n)])
+                for array in chunkLoaderList:
+                    itm = dask_dataframe.from_delayed(daskClient.map(loader, array))
+                    retList.append(itm)
+
+                ret = dask_dataframe.concat(retList)
+                ##########################################################################
+                ##########################################################################
+                chunkLoaderList = []
+
+                retList = []
+                n = 100
+                numOfChunks = math.ceil(len(loaderList) / n)
+                for i in range(numOfChunks):
+                    chunkLoaderList.append(loaderList[i * n:i * n + n])
+                    itm = dask_dataframe.from_delayed(daskClient.map(loader, chunkLoaderList[i]))
+                    retList.append(itm)
+                #######################################################################
+
 
                 ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
@@ -2077,7 +2100,9 @@ def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
     #
     # def _isTimestep(self, value):
     #     try:
+
     #         float(value)
     #         return True
     #     except ValueError:
     #         return False
+
