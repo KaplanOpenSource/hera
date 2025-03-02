@@ -6,6 +6,7 @@ import glob
 import shutil
 import json
 import xarray
+import math
 from itertools import product
 
 from dask.delayed import delayed
@@ -1016,30 +1017,30 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 ########################################################################3
                 #chunkLoaderList = numpy.array_split(loaderList,100)
-                chunkLoaderList = []
-                retList = []
-                n = 100
-                chunkLoaderList.append([loaderList[i:i + n] for i in range(0, len(loaderList), n)])
-                for array in chunkLoaderList:
-                    itm = dask_dataframe.from_delayed(daskClient.map(loader, array))
-                    retList.append(itm)
+                #chunkLoaderList = []
+                #retList = []
+                #n = 100
+                #chunkLoaderList.append([loaderList[i:i + n] for i in range(0, len(loaderList), n)])
+                #for array in chunkLoaderList:
+                #    itm = dask_dataframe.from_delayed(daskClient.map(loader, array))
+                #   retList.append(itm)
 
-                ret = dask_dataframe.concat(retList)
+                #ret = dask_dataframe.concat(retList)
                 ##########################################################################
                 ##########################################################################
                 chunkLoaderList = []
-
                 retList = []
                 n = 100
-                numOfChunks = math.ceil(len(loaderList) / n)
+                numOfChunks = math.ceil(len(loaderList) / n) #import math?
                 for i in range(numOfChunks):
                     chunkLoaderList.append(loaderList[i * n:i * n + n])
                     itm = dask_dataframe.from_delayed(daskClient.map(loader, chunkLoaderList[i]))
                     retList.append(itm)
+                ret = dask_dataframe.concat(retList)
                 #######################################################################
 
 
-                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+                #ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
 
             else:
