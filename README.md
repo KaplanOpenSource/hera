@@ -72,9 +72,16 @@ and then try the original again:
 Install GADL
 Use the command: "gadlinfo --version" to obtain OS GDAL version and install same version (or as close as possible) via 
 pip isntall --no-cache-dir GDAL==version
+if GDAL is not installed, install from repository: sudo apt-get install -y libgdal-dev gdal-bin python3-gdal
+
 
 ### 2.4. Setup after installation 
 In order for the package to work the following steps are required.
+
+Add installation path to PYTHONPATH environemnt variable:
+export PYTHONPATH=$USERDEVDIR/hera/:$PYTHONPATH
+
+consider to add this command to your .bashrc to prevent the need to perfrom it in each new terminal
 
 We are still showing two alternatives. The first is the manual one,
 written up before; the second is the more streamlined one which
