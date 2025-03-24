@@ -16,7 +16,7 @@
 
 5. Several required ubuntu Packages
    
-   sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev
+   sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev libgdal-dev gdal-bin python3-gdal
 
 ### 2.2. Installation method
 ### User Level:
