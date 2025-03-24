@@ -71,7 +71,7 @@ and then try the original again:
 
 Install GADL
 Use the command: "gadlinfo --version" to obtain OS GDAL version and install same version (or as close as possible) via 
-pip isntall --no-cache-dir GDAL==version
+`pip install GDAL==`gdal-config --version``
 if GDAL is not installed, install from repository: 
 `sudo apt-get install -y libgdal-dev gdal-bin python3-gdal`
 
