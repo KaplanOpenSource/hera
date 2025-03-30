@@ -1021,16 +1021,23 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 #loaderList = [(os.path.join(timeName, processorName)) for timeName, processorName in
                               #product(timeList, processorList)] #Product of timeListXprocessorList
 
+                tempFolderPath = '/home/sivan/Projects/2025/modelsComparison/tmpData'
+                os.mkdir(tempFolderPath)
                 retList = []
+                fileList = []
                 cpuCount = os.cpu_count()
                 logger.debug(f"Found {cpuCount} CPU. the number of iterations is: {len(loaderList)// cpuCount}")
                 for i in range(0, len(loaderList), cpuCount):
                     logger.debug(f"Loading Chunk {int(i / cpuCount)}")
                     chunkLoaderList = loaderList[i:i + cpuCount]
                     itm = dask_dataframe.from_delayed(daskClient.map(loader, chunkLoaderList))
-                    retList.append(itm.compute())
+                    itm.to_parquet(f'/home/sivan/Projects/2025/modelsComparison/tmpData/tempChankData{int(i / cpuCount)}.prqt')
+                    fileList.append(f"chankData{int(i / cpuCount)}.prqt")
+                    #retList.append(itm.compute())
 
-                ret = dask_dataframe.from_pandas(pandas.concat(retList))
+                tempFullData = dask_dataframe.read_parquet(fileList)
+                tempFullData.to_parquet(tempFolderPath, "fullData.prqt")
+                #ret = dask_dataframe.from_pandas(pandas.concat(retList))
 
             else:
                 logger.info("Process as singleProcessor case")
@@ -1064,12 +1071,18 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
                 import pdb
                 pdb.set_trace()
-                tmp = ret.set_index("datetime").repartition(partition_size="100MB")
-                logger.debug(f"tmp is the problem")
-                tmp.to_parquet(fullname)##problem
-                logger.debug(f"parquet is the problem")
+                tmp = dask_dataframe.read_parquet("tempFullData.prqt").set_index("datetime").repartition(partition_size="100MB")
+                tmp.to_parquet("fullname")
+                #tmp = ret.set_index("datetime").repartition(partition_size="100MB")
+                #tmp.to_parquet(fullname)##problem
                 #ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
                 ret = dask_dataframe.read_parquet(fullname,engine='pyarrow')
+                try:
+                    folder_path = '/home/sivan/Projects/2025/modelsComparison/tmpData'
+                    shutil.rmtree(folder_path)
+                    logger.debug("tmpData folder and its content removed")
+                except:
+                    logger.debug("tmpData folder not removed")
             else:
                 logger.info(f"No caching, return the data as is. ")
 
