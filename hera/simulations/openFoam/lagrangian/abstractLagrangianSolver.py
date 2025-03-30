@@ -914,7 +914,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         Returns
         -------
-            dask.dataFrame.
+            dask_dataframe.
         """
         logger = get_classMethod_logger(self, "getCaseResults")
         logger.info(f"Getting stochastic results. Overwrite {overwrite}")
@@ -1012,36 +1012,25 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
 
+                #import pdb
+                #pdb.set_trace()
+
+                #Original loaderList
                 loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
-                              product(processorList, timeList)]
+                              product(processorList, timeList)] #Product of processorListXtimeList
+                #loaderList = [(os.path.join(timeName, processorName)) for timeName, processorName in
+                              #product(timeList, processorList)] #Product of timeListXprocessorList
 
-                ########################################################################3
-                #chunkLoaderList = numpy.array_split(loaderList,100)
-                #chunkLoaderList = []
-                #retList = []
-                #n = 100
-                #chunkLoaderList.append([loaderList[i:i + n] for i in range(0, len(loaderList), n)])
-                #for array in chunkLoaderList:
-                #    itm = dask_dataframe.from_delayed(daskClient.map(loader, array))
-                #   retList.append(itm)
-
-                #ret = dask_dataframe.concat(retList)
-                ##########################################################################
-                ##########################################################################
-                chunkLoaderList = []
                 retList = []
-                n = 100
-                numOfChunks = math.ceil(len(loaderList) / n) #import math?
-                for i in range(numOfChunks):
-                    chunkLoaderList.append(loaderList[i * n:i * n + n])
-                    itm = dask_dataframe.from_delayed(daskClient.map(loader, chunkLoaderList[i]))
-                    retList.append(itm)
-                ret = dask_dataframe.concat(retList)
-                #######################################################################
+                cpuCount = os.cpu_count()
+                logger.debug(f"Found {cpuCount} CPU. the number of iterations is: {len(loaderList)// cpuCount}")
+                for i in range(0, len(loaderList), cpuCount):
+                    logger.debug(f"Loading Chunk {int(i / cpuCount)}")
+                    chunkLoaderList = loaderList[i:i + cpuCount]
+                    itm = dask_dataframe.from_delayed(daskClient.map(loader, chunkLoaderList))
+                    retList.append(itm.compute())
 
-
-                #ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
-
+                ret = dask_dataframe.from_pandas(pandas.concat(retList))
 
             else:
                 logger.info("Process as singleProcessor case")
@@ -1073,8 +1062,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                                   desc=desc)
 
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
-                ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
-                ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
+                import pdb
+                pdb.set_trace()
+                tmp = ret.set_index("datetime").repartition(partition_size="100MB")
+                logger.debug(f"tmp is the problem")
+                tmp.to_parquet(fullname)##problem
+                logger.debug(f"parquet is the problem")
+                #ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
+                ret = dask_dataframe.read_parquet(fullname,engine='pyarrow')
             else:
                 logger.info(f"No caching, return the data as is. ")
 
@@ -1359,7 +1354,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 ret = ret.groupby(["datetime","x","y","z"]).sum().compute().to_xarray().fillna(0)
                 ret.to_netcdf(fullname)
-                #ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
+                #ret = dask_dataframe.read_parquet(fullname,engine='pyarrow')
             else:
                 logger.info(f"No caching, return the data as is. ")
             daskClient.close()
@@ -1894,8 +1889,10 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
                 newData = newData.compute()
                 newData["mass"] = dataM["mass"]
 
-
     except Exception as e:
+        #print('*******************************************************************')
+        #print(timeName)
+        print(e)
         pass
 
     return newData
@@ -2103,7 +2100,4 @@ def readEulerianConcentration(timeName, casePath,cloudName="kinematicCloud"):
     #     try:
 
     #         float(value)
-    #         return True
-    #     except ValueError:
-    #         return False
-
+    #         return Tru
