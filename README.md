@@ -30,8 +30,9 @@ $ git clone https://github.com/KaplanOpenSource/hera
 
 ### Virtual Environment:
 Setup a virtual environment within hera folder and activate it and proceed to the  installation section.  
+```console
 python3.9 -m venv heraenv
-
+```
 
 ### 2.3. Installation
 
