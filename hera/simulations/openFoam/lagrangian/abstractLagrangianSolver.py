@@ -1012,50 +1012,47 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
                 logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
 
-                #import pdb
-                #pdb.set_trace()
-
                 #Original loaderList
                 loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
                               product(processorList, timeList)] #Product of processorListXtimeList
-                #loaderList = [(os.path.join(timeName, processorName)) for timeName, processorName in
-                              #product(timeList, processorList)] #Product of timeListXprocessorList
 
-                tempFolderPath = '/home/sivan/Projects/2025/modelsComparison/tmpData'
+                #global tempFolderPath
+                tempFolderPath = os.path.join(self.toolkit.filesDirectory, "tmpData")
+                logger.debug(f"Directory {tempFolderPath} will be used")
+                if os.path.exists(tempFolderPath):
+                    logger.debug(f"Directory {tempFolderPath} already exist. It is now deleted... ")
+                    shutil.rmtree(tempFolderPath)
+
                 os.mkdir(tempFolderPath)
                 retList = []
                 fileList = []
                 cpuCount = os.cpu_count()
                 logger.debug(f"Found {cpuCount} CPU. the number of iterations is: {len(loaderList)// cpuCount}")
                 for i in range(0, len(loaderList), cpuCount):
-                    logger.debug(f"Loading Chunk {int(i / cpuCount)}")
+                    logger.debug(f"Loading Chunk {int(i / cpuCount)} / {int(len(loaderList) / cpuCount)}")
                     chunkLoaderList = loaderList[i:i + cpuCount]
                     itm = dask_dataframe.from_delayed(daskClient.map(loader, chunkLoaderList))
-                    itm.to_parquet(f'/home/sivan/Projects/2025/modelsComparison/tmpData/tempChankData{int(i / cpuCount)}.prqt')
-                    fileList.append(f"chankData{int(i / cpuCount)}.prqt")
-                    #retList.append(itm.compute())
+                    tmpFileName = os.path.join(tempFolderPath, f"tempChankData{int(i / cpuCount)}.parquet")
+                    logger.debug(f"Writting parquet {tmpFileName}")
+                    itm.compute().to_parquet(tmpFileName)
 
-                tempFullData = dask_dataframe.read_parquet(fileList)
-                tempFullData.to_parquet(tempFolderPath, "fullData.prqt")
-                #ret = dask_dataframe.from_pandas(pandas.concat(retList))
-
+                parquet_files_pattern = os.path.join(tempFolderPath, "*.parquet")
+                tmpParquetFile = dask_dataframe.read_parquet(parquet_files_pattern)
             else:
                 logger.info("Process as singleProcessor case")
                 timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
                                   key=lambda x: int(x))
                 logger.debug(f"Loading single processor data with time list {timeList}")
-
                 loaderList = [timeName for timeName in timeList]
-
-                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+                tmpParquetFile = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
 
             if cache:
-                logger.info(f"Updating the results in the cache. ")
+                logger.info(f"Updating the results in the cache.")
                 if cacheDoc is not None:
                     logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
                     fullname = cacheDoc.resource
                 else:
-                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
+                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",workflowName)
                     logger.debug(f"Writing data to {targetDir}")
                     os.makedirs(targetDir, exist_ok=True)
                     fullname = os.path.join(targetDir, f"{cloudName}.parquet")
@@ -1069,22 +1066,13 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                                   desc=desc)
 
                 logger.info(f"Writing data to parquet {fullname}... This may take a while")
-                import pdb
-                pdb.set_trace()
-                tmp = dask_dataframe.read_parquet("tempFullData.prqt").set_index("datetime").repartition(partition_size="100MB")
-                tmp.to_parquet("fullname")
-                #tmp = ret.set_index("datetime").repartition(partition_size="100MB")
-                #tmp.to_parquet(fullname)##problem
-                #ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
+                tmpParquetFile.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
                 ret = dask_dataframe.read_parquet(fullname,engine='pyarrow')
-                try:
-                    folder_path = '/home/sivan/Projects/2025/modelsComparison/tmpData'
-                    shutil.rmtree(folder_path)
-                    logger.debug("tmpData folder and its content removed")
-                except:
-                    logger.debug("tmpData folder not removed")
+                if os.path.exists(tempFolderPath):
+                    logger.debug(f"Remoiving directory {tempFolderPath}")
+                    shutil.rmtree(tempFolderPath)
             else:
-                logger.info(f"No caching, return the data as is. ")
+                logger.info(f"No caching, return the data as is.")
 
             daskClient.close()
 
@@ -1903,9 +1891,7 @@ def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTime
                 newData["mass"] = dataM["mass"]
 
     except Exception as e:
-        #print('*******************************************************************')
-        #print(timeName)
-        print(e)
+        #print(e)
         pass
 
     return newData
