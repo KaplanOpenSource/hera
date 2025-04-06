@@ -312,6 +312,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 resource = docList[0].resource
                 logger.debug(f"Deleting {resource}, and writing over it (if exists)")
                 if os.path.exists(resource):
+                    import shutil
                     shutil.rmtree(resource)
             else:
                 err = f"Dispersion flow field already exists in the DB (and probably on the dist). use overwrite=True to remove"
@@ -1021,6 +1022,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 logger.debug(f"Directory {tempFolderPath} will be used")
                 if os.path.exists(tempFolderPath):
                     logger.debug(f"Directory {tempFolderPath} already exist. It is now deleted... ")
+                    import shutil
                     shutil.rmtree(tempFolderPath)
 
                 os.mkdir(tempFolderPath)
