@@ -1484,7 +1484,7 @@ class analysis:
             ret = doc
 
     def calcConcentrationTimeStepFullMesh(self, timeData, extents, dxdydz, xfield="x", yfield="y",
-                                          zfield="z"):
+                                          zfield="z", simuTime=None):
         """
             Converts a xyz particle data (with mass field) to a concentration field in the requested domain (defined by extent).
 
@@ -1515,6 +1515,11 @@ class analysis:
         zfield: str
             The column name of the z coordinates.
 
+        simuTime: datetime
+            The date and time the simulation starts. None as default.
+            if None, gets the datetime the simulation started.
+            else, gets the entered datetime value.
+
 
         Returns
         --------
@@ -1543,10 +1548,21 @@ class analysis:
         else:
             timeList = [timeData]
 
-        return fulldata.expand_dims(dict(datetime=timeList), axis=-1)
+        ######################################################
+        #data_expanded = fulldata.expand_dims(datetime=[pandas.to_datetime(simuTime + timeData[datetime])])
+        if simuTime is not None:
+            data_expanded = fulldata.expand_dims(datetime=[pandas.to_datetime(simuTime + pandas.Timedelta(timeData[datetime], 's'))])
+            return data_expanded
+        else:
+            data_expanded = fulldata.expand_dims(datetime=[pandas.to_datetime(pandas.Timedelta(timeData[datetime], 's'))])
+            return data_expanded
+        #simuTime + pandas.Timedelta(timeData[datetime], 's')
+        ######################################################
+
+        #return fulldata.expand_dims(dict(datetime=timeList), axis=-1)
 
     def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz,extents=None, xfield="x", yfield="y",
-                                       zfield="z",overwrite=False,reReadResults=None, **metadata):
+                                       zfield="z",overwrite=False,reReadResults=None, simuTime=None, **metadata):
         """
             Calculates the eulerian concentration field for each timestep in the data.
             The data is stored as a nc file on the disk.
@@ -1590,6 +1606,12 @@ class analysis:
             If None - take value from overwrite.
             If False - Just recompute the full mesh concentrations.
 
+        simuTime: datetime
+            The date and time the simulation starts. None as default.
+            if None, gets the datetime the simulation started.
+            else, gets the entered datetime value.
+
+
         **metadata: the parameters to add to the document.
 
         :return:
@@ -1613,6 +1635,11 @@ class analysis:
         mdata.update(**metadata)
         mdata = ConfigurationToJSON(mdata)
         docList = self.datalayer.toolkit.getCacheDocuments(type=self.DOCTYPE_CONCENTRATION, **mdata)
+
+        ##########################################################################
+        if simuTime is None:
+            simuTime = pandas.Timestamp.now()
+        ##########################################################################
 
         if len(docList) == 0 or overwrite:
             if len(docList) > 0:
@@ -1666,7 +1693,7 @@ class analysis:
                     logger.debug(f"Processing Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz,
                                                                  xfield=xfield,
-                                                                 yfield=yfield, zfield=zfield)
+                                                                 yfield=yfield, zfield=zfield, simuTime=simuTime)
                     L.append(xry)
 
                 if len(L) > 0:
@@ -1686,7 +1713,7 @@ class analysis:
                     logger.debug(f"Processing Time: {timeName}")
                     xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
                                                                  xfield=xfield,
-                                                                 yfield=yfield, zfield=zfield)
+                                                                 yfield=yfield, zfield=zfield, simuTime=simuTime)
                     L.append(xry)
 
             if len(L) > 0:
