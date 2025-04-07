@@ -16,44 +16,54 @@
 
 5. Several required ubuntu Packages
    
-   sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev
+   sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev libgdal-dev gdal-bin python3-gdal
 
 ### 2.2. Installation method
 ### User Level:
 Proceed to the installation section.
 
+### Clone the Git
+Use the following command to clone the git:  
+```console
+$ git clone https://github.com/KaplanOpenSource/hera
+```
+
 ### Virtual Environment:
-Setup a virtual environment within hera folder and activate it and proceed to the  installation section.
-export HERAENVPATH=~/heraenv
-mkdir $HERAENVPATH
-virtualenv $HERAENVPATH
-source $HERAENVPATH/bin/activate
+Setup a virtual environment within hera folder and activate it and proceed to the  installation section.  
+```console
+python3.9 -m venv heraenv
+```
 
 ### 2.3. Installation
 
 ### The minimum requirements for running Hera include:
 
 ```python
-setuptools
-numpy
-matplotlib
-pandas
-dask[dataframe]
-xarray
-geopandas
-rasterio
-mongoengine
-seaborn
-shapely
-scipy
-unum
-vtk
-pyfoam
-jinja2
-netcdf4
-geojson
-fastparquet
-descartes
+testresources==2.0.1
+numpy==1.21.5
+matplotlib==3.5.1
+pandas==1.3.0
+dask[dataframe]==2021.2.0
+xarray==0.16.2
+geopandas==0.8.2
+rasterio==1.2.6
+mongoengine==0.22.1
+seaborn==0.11.1
+shapely==1.7.1
+scipy==1.6.0
+unum==4.1.4
+vtk==9.1.0
+pyfoam==2020.5
+jinja2==3.0.1
+netcdf4==1.5.5.1
+geojson==2.5.0
+fastparquet==0.8.1
+descartes==1.1.0
+pytest==7.2.0
+exceptiongroup==1.0.4
+iniconfig==1.1.1
+pluggy==1.0.0
+tomli==2.0.1
 ```
 
 Proceed with the python requirements installation:
@@ -71,10 +81,29 @@ and then try the original again:
 
 Install GADL
 Use the command: "gadlinfo --version" to obtain OS GDAL version and install same version (or as close as possible) via 
-pip isntall --no-cache-dir GDAL==version
+pip install GDAL==\`gdal-config --version\` 
+if GDAL is not installed, install from repository: 
+`sudo apt-get install -y libgdal-dev gdal-bin python3-gdal`
+
 
 ### 2.4. Setup after installation 
-In order for the package to work the following steps are required.
+In order for the package to work automaticly each time you enter the virtual enviorment, the following steps are required:
+
+Enter the virtual enviorment bin folder (not activate it):
+```console
+cd HERAENV_PATH/bin
+```
+Edit the activate script:
+```console
+nano activate
+```
+Add two export commands at the end of the file:
+```python
+export PYTHONPATH=$PYTHONPATH:/home/YOUR_OS_USER_NAME/PATH_TO_HERA_GIT_FOLDER/hera/hera/bin
+export PATH=$PATH:/home/YOUR_OS_USER_NAME/PATH_TO_HERA_GIT_FOLDER/hera/hera/bin
+```
+The paths should be of the bin folder inside the hera folder you cloned before.
+
 
 We are still showing two alternatives. The first is the manual one,
 written up before; the second is the more streamlined one which
@@ -99,7 +128,7 @@ Create the following json file within .pyhera folder. The file contains the addr
 
 ```JavaScript
 {
-    "username": {
+    "{username}": {
         "dbIP": "{host}",
         "dbName": "{database name}",
         "password": "{password}",
