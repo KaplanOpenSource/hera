@@ -32,6 +32,11 @@ class experimentHome(toolkit.abstractToolkit):
         self.logger = logging.getLogger()
         self.logger.info("Init experiment toolkit")
 
+
+    @property
+    def experimentMap(self):
+        return self.experimentMap()
+
     #
     def getExperimentsMap(self):
         """
@@ -47,6 +52,10 @@ class experimentHome(toolkit.abstractToolkit):
             M[experimentName]=experiment
 
         return M
+
+    @property
+    def experimentsTable(self):
+        return self.getDataSourceTable()
 
     def getExperimentsTable(self):
         return self.getDataSourceTable()
