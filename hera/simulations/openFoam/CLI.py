@@ -163,11 +163,12 @@ def foam_solver_simulations_list(arguments):
 
     projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-
+    import pdb
+    pdb.set_trace()
     simDocument = wftk.getWorkflowListOfSolvers(arguments.solver)
 
     if len(simDocument) == 0:
-        print(f"{arguments.solver} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+        print(f"There are no cases for {arguments.solver} in {projectName} ")
 
     for groupName in set([x.desc['groupName'] for x in simDocument]):
         ttl = " "*10 + f"Group name: {groupName}" + " "*10
