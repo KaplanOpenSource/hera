@@ -104,6 +104,10 @@ def create_experiment(arguments):
     arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
     projectCLI.repository_load(arguments)
 
+    with open("createNodeRedDeviceMap.sh","w") as noderedFile:
+        noderedFile.writelines("argos-experiment-manager nodered createDeviceMap")
+
+    os.chmod("createNodeRedDeviceMap.sh", 0o755)
 
 def _create_empty_class(experiment_path,experimentName):
     logger = logging.getLogger("hera.bin._create_empty_class")

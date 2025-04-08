@@ -17,6 +17,12 @@ from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
 from ...utils  import loadJSON
 import logging
 
+# The name of the property. This is has to be similar ot the  from the argosweb interface.
+# Dont change!
+TRIALSTART = 'TrialStart'
+TRIALEND = 'TrialStart'
+
+
 class experimentHome(toolkit.abstractToolkit):
     """
         This is the object that function as a factory/home to the other experiments.
@@ -260,8 +266,8 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
 
     def getDataFromTrial(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = True):
 
-        startTime = self.properties['TrialStart'] if startTime is None else startTime
-        endTime = self.properties['TrialEnd'] if endTime is None else endTime
+        startTime = self.properties[TRIALSTART] if startTime is None else startTime
+        endTime = self.properties[TRIALEND] if endTime is None else endTime
 
         data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
 
@@ -301,6 +307,19 @@ class TrialSetWithData(argosDataObjects.TrialSet):
             self[trial['name']] = TrialWithdata(trialSet=self,metadata=trial, experimentData =self._experimentData )
 
     def __init__(self, experiment:experimentSetupWithData, TrialSetSetup: dict, experimentData: dataEngineFactory):
+        """
+            The initialization of the experiment.
+
+            The object that handles the retrieval of the data is different to support
+            access to db, and pandas in the different stages of the experiment.
+
+        Parameters
+        ----------
+        experiment : the data of the experiment.
+        TrialSetSetup : The data of the trials.
+        experimentData : a link to the object that handles the retrieval of the data.
+
+        """
         self._experimentData = experimentData
         super().__init__(experiment, TrialSetSetup)
 
@@ -309,8 +328,8 @@ class TrialWithdata(argosDataObjects.Trial):
 
     def getData(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = False):
 
-        startTime = self.properties['TrialStart'] if startTime is None else startTime
-        endTime = self.properties['TrialEnd'] if endTime is None else endTime
+        startTime = self.properties[TRIALSTART] if startTime is None else startTime
+        endTime = self.properties[TRIALEND] if endTime is None else endTime
 
         data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
 
@@ -337,11 +356,45 @@ class EntityTypeWithData(argosDataObjects.EntityType):
             self[entity['name']] = EntityWithData(entityType=self, metadata=entity,experimentData =self._experimentData)
 
     def __init__(self, experiment:experimentSetupWithData, metadata: dict, experimentData: dataEngineFactory):
+        """
+            The iniitialization of the object with the data.
+
+        Parameters
+        ----------
+        experiment : The data of the experiment.
+        metadata
+        experimentData
+        """
         self._experimentData = experimentData
         super().__init__(experiment, metadata)
 
     def getData(self, startTime=None, endTime=None):
         return self._experimentData.getData(self.name,startTime = startTime,endTime = endTime )
+
+    def getDataTrial(self,trialSetName,trialName):
+        """
+            Returns the device data from the trial.
+        Parameters
+        ----------
+        trialSetName  : str
+            The name of the trial set
+
+        trialName : str
+            The name of the trial.
+
+        Returns
+        -------
+
+        """
+        trial = self.experiment.trialSet[trialSetName][trialName]
+        startTime = trial.properties[TRIALSTART]
+        endTime = trial.properties[TRIALEND]
+        self.propertiesTable
+        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
+
+
+        pass
+
 
 class EntityWithData(argosDataObjects.Entity):
 
@@ -351,4 +404,4 @@ class EntityWithData(argosDataObjects.Entity):
 
 
     def getData(self,startTime=None, endTime=None):
-        return self._experimentData.getData(self.entityType.name,self.name,startTime,endTime)
+        return self._experimentData.getData(deviceType=self.entityType,deviceName=self.name,startTime=startTime,endTime=endTime)
