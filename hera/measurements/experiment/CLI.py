@@ -72,7 +72,7 @@ def create_experiment(arguments):
     if arguments.path:
         experiment_path = arguments.path
     else:
-        experiment_path = os.getcwd()
+        experiment_path = os.path.join(os.getcwd(),arguments.experimentName)
 
     logger.debug(f" creating code directory if not exist")
     os.makedirs(os.path.join(experiment_path,'code'),exist_ok=True)
@@ -104,20 +104,47 @@ def create_experiment(arguments):
     arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
     projectCLI.repository_load(arguments)
 
+    with open("createNodeRedDeviceMap.sh","w") as noderedFile:
+        noderedFile.writelines("argos-experiment-manager nodered createDeviceMap")
+
+    os.chmod("createNodeRedDeviceMap.sh", 0o755)
 
 def _create_empty_class(experiment_path,experimentName):
     logger = logging.getLogger("hera.bin._create_empty_class")
     logger.debug(f" creating an empty class for implementation..")
+
+    baseClass = f"""
+from hera.measurements.experiment.experiment import experimentSetupWithData
+from hera.measurements.experiment.analysis import experimentAnalysis
+from hera.measurements.experiment.presentation import experimentPresentation
+
+
+class {experimentName}(experimentSetupWithData):
+    def __init__(self,projectName,pathToExperiment,filesDirectory):
+        super().__init__(projectName=projectName,pathToExperiment=pathToExperiment,filesDirectory=filesDirectory)
+        self._analysis = {experimentName}Analysis(self)
+        self._presentation = {experimentName}Presentation(self,self.analysis)
+
+class {experimentName}Analysis(experimentSetupWithData):
+    datalayer = None 
+    def __init__(self,datalayer):
+        self.datalayer = datalayer
+
+
+class {experimentName}Presentation(experimentSetupWithData):
+    datalayer = None 
+    analysis  = None 
+    
+    def __init__(self,datalayer,analysis):
+        self.datalayer = datalayer
+        self.analysis  = analysis
+
+"""
+
     with open(f"{os.path.join(experiment_path, 'code', experimentName)}.py", "w") as class_script:
-        class_script.write(f"from hera.measurements.experiment.experiment import experimentSetupWithData")
-        class_script.write("\n\n\n")
-        class_script.write(f"class {experimentName}(experimentSetupWithData):")
-        class_script.write("\n")
-        class_script.write("\t###Implement your code here if you wish.\n")
-        class_script.write("\tpass")
+        class_script.write(baseClass)
+
     logger.debug(f" finished creating an empty class for implementation..")
-
-
 
 def _create_repository(zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
