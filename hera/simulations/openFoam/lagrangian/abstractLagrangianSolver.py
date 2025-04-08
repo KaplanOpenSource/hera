@@ -1551,11 +1551,11 @@ class analysis:
         ######################################################
         #data_expanded = fulldata.expand_dims(datetime=[pandas.to_datetime(simuTime + timeData[datetime])])
         if simuTime is not None:
-            data_expanded = fulldata.expand_dims(datetime=[pandas.to_datetime(simuTime + pandas.Timedelta(timeData[datetime], 's'))])
-            return data_expanded
+            data_expanded = fulldata.expand_dims(dict(datetime=[pandas.to_datetime(simuTime + pandas.Timedelta(timeList[0], 's'))]), axis=-1)
         else:
-            data_expanded = fulldata.expand_dims(datetime=[pandas.to_datetime(pandas.Timedelta(timeData[datetime], 's'))])
-            return data_expanded
+            data_expanded = fulldata.expand_dims(dict(datetime=[pandas.to_datetime(pandas.Timedelta(timeList[0], 's'))]), axis=-1)
+
+        return data_expanded
         #simuTime + pandas.Timedelta(timeData[datetime], 's')
         ######################################################
 
