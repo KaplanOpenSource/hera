@@ -4,9 +4,10 @@
     Should be organized when needed.
 
 """
-from .... import toolkit
-from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N,create_xarray
-from ....utils.logging import get_classMethod_logger
+from hera import toolkit
+from hera.utils import stlFactory, convertCRS, ITM, WSG84, ED50_ZONE36N, create_xarray
+from hera.utils.logging import get_classMethod_logger
+
 import numpy
 import math
 from osgeo import gdal
@@ -17,35 +18,42 @@ import os
 import xarray
 import geopandas
 import numpy as np
+
 from hera import toolkitHome
 import pandas as pd
 import xarray as xr
 import geopandas as gpd
+
+WSG84 = 4326
+
 
 
 class TopographyToolkit(toolkit.abstractToolkit):
 
     def __init__(self, projectName, filesDirectory=None):
         """
-            Initializes vector data toolkit.
+        Initializes the TopographyToolkit.
 
         Parameters
         ----------
-        projectName: str
-            The project Name that the toolkit is initialized on
-        toolkitName: str
-            the specific toolkit, getting from the child.
+        projectName : str
+            The project Name that the toolkit is initialized on.
+        filesDirectory : str or None
+            The path to save region files when they are created.
 
-        FilesDirectory: str or None
-                The path to save a regions files when they are created.
-
-                if str then represents a path (relative or absolute) to save the files in. The directory is created automatically.
-
-                if None, then tries to get the default path of the project from the config. if it does not
-                exist, then use the current directory.
-
+            - If str, it represents a path (relative or absolute) to save the files. The directory is created automatically.
+            - If None, tries to get the default path of the project from the config. If it does not
+              exist, then uses the current working directory.
         """
-        super().__init__(projectName=projectName, toolkitName = 'TopographyToolkit', filesDirectory=filesDirectory)
+
+        # Important change:
+        # Instead of passing a full Project object to the parent class (Toolkit),
+        # we now pass only the project name (as a string).
+        # This is necessary because MongoDB expects simple types like strings,
+        # and cannot serialize full complex Python objects (like Project instances).
+        super().__init__(projectName=projectName, toolkitName='TopographyToolkit', filesDirectory=filesDirectory)
+
+        # Initialize the analysis module for topography calculations
         self._analysis = topographyAnalysis(self)
 
     def getPointElevation(self,lat, long,dataSourceName=None):
@@ -189,17 +197,210 @@ class TopographyToolkit(toolkit.abstractToolkit):
                 processed += grp.shape[0]
         return pointList
 
-    def getElevation(self,minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84, dataSourceName=None):
-        xarray_dataset = create_xarray(minx,miny,maxx,maxy,dxdy,inputCRS)
-        pointList = pd.DataFrame({'lat':xarray_dataset['lat'].values.flatten(), 'lon': xarray_dataset['lon'].values.flatten()})
+
+
+    def convertPointsCRS(self, points, inputCRS, outputCRS, **kwargs):
+        """
+        Convert list/array/DataFrame of points from one CRS to another, using GeoPandas.
+
+        Parameters
+        ----------
+        points : list of tuples, numpy array, or pandas.DataFrame
+            Points to convert.
+
+        inputCRS : int
+            EPSG code of input coordinate system.
+
+        outputCRS : int
+            EPSG code of output coordinate system.
+
+        Returns
+        -------
+        geopandas.GeoDataFrame
+            Converted points with 'geometry' column.
+        """
+
+        if isinstance(points, np.ndarray):
+            if points.ndim == 1:
+                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([points[0]], [points[1]]))
+            else:
+                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(points[:, 0], points[:, 1]))
+
+        elif isinstance(points, pd.DataFrame):
+            x_col = kwargs.get("x", "x")
+            y_col = kwargs.get("y", "y")
+            gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(points[x_col], points[y_col]))
+
+        elif isinstance(points, list):
+            if len(points) == 1:
+                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([points[0][0]], [points[0][1]]))
+            else:
+                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([x[0] for x in points], [x[1] for x in points]))
+
+        else:
+            raise ValueError(f"Unsupported type: {type(points)}")
+
+        gdf.set_crs(inputCRS, inplace=True)
+        return gdf.to_crs(outputCRS)
+
+    def create_xarray(self, minx, miny, maxx, maxy, dxdy=30, inputCRS=WSG84):
+        """
+        Create an xarray grid of lat/lon points within the given bounding box.
+
+        Parameters
+        ----------
+        minx, miny, maxx, maxy : float
+            Bounding box coordinates.
+        dxdy : float
+            Grid spacing (in meters for ITM or degrees for WGS84).
+        inputCRS : int
+            EPSG code of the coordinate system (default is WGS84).
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset containing lat/lon coordinates over the i, j grid.
+
+        Notes
+        -----
+        ✅ Added memory guard: throws an error if grid is larger than 1,000,000 points.
+        """
+
+        if inputCRS == WSG84:
+            # Convert lat/lon to ITM using internal conversion method
+            min_pp = self.convertPointsCRS(points=[[miny, minx]], inputCRS=inputCRS, outputCRS=ITM).geometry.iloc[0]
+            max_pp = self.convertPointsCRS(points=[[maxy, maxx]], inputCRS=inputCRS, outputCRS=ITM).geometry.iloc[0]
+        else:
+            min_pp = Point(minx, miny)
+            max_pp = Point(maxx, maxy)
+
+        x = np.arange(min_pp.x, max_pp.x, dxdy)
+        y = np.arange(min_pp.y, max_pp.y, dxdy)
+
+        # 🔒 Memory guard
+        if len(x) * len(y) > 1_000_000:
+            raise MemoryError(f"Too many grid points: {len(x)} x {len(y)} = {len(x) * len(y)}. "
+                              f"Increase dxdy or reduce area.")
+
+        xx, yy = np.meshgrid(x, y[::-1])
+        grid_points = pd.DataFrame({'x': xx.ravel(), 'y': yy.ravel()})
+
+        gdf = gpd.GeoDataFrame(
+            grid_points,
+            geometry=gpd.points_from_xy(grid_points['x'], grid_points['y']),
+            crs=ITM
+        )
+
+        # Convert back to WGS84
+        gdf_transformed = gdf.to_crs(WSG84)
+        gdf_transformed['lat'] = gdf_transformed.geometry.y
+        gdf_transformed['lon'] = gdf_transformed.geometry.x
+
+        lat_grid = gdf_transformed['lat'].values.reshape(xx.shape)
+        lon_grid = gdf_transformed['lon'].values.reshape(xx.shape)
+
+        i = np.arange(xx.shape[0])
+        j = np.arange(xx.shape[1])
+
+        return xr.Dataset(
+            coords={
+                'i': i,
+                'j': j,
+            },
+            data_vars={
+                'lat': (['i', 'j'], lat_grid),
+                'lon': (['i', 'j'], lon_grid)
+            }
+        )
+
+    def getElevation(self, minx, miny, maxx, maxy, dxdy=30, inputCRS=WSG84, dataSourceName=None):
+        """
+        Generates elevation data over a rectangular area using given resolution.
+
+        Parameters
+        ----------
+        minx, miny, maxx, maxy : float
+            Bounding box coordinates of the area to analyze.
+        dxdy : float
+            Resolution (spacing) in coordinate units (default is 30).
+        inputCRS : CRS
+            Coordinate reference system of the input coordinates.
+        dataSourceName : str, optional
+            Name of the data source to fetch elevations from.
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset with 'lat', 'lon' and calculated 'elevation' layer.
+
+        Notes
+        -----
+        🔧 FIXED: Replaced xarray_dataset.shape access with .shape from 'lat' variable,
+        since xarray.Dataset has no shape attribute.
+        """
+
+        # Create initial lat/lon grid
+        xarray_dataset = self.create_xarray(minx, miny, maxx, maxy, dxdy, inputCRS)
+
+        # Flatten to point list
+        pointList = pd.DataFrame({
+            'lat': xarray_dataset['lat'].values.flatten(),
+            'lon': xarray_dataset['lon'].values.flatten()
+        })
+
+        # Get elevations
         elevation_df = self.getPointListElevation(pointList, dataSourceName)
-        xarray_dataset = xarray_dataset.assign_coords(elevation=(('i', 'j'), elevation_df['elevation'].values.reshape(xarray_dataset.shape[0],xarray_dataset.shape[1])))
+
+        # 🔧 FIX: Use shape of lat array instead of dataset shape
+        i_dim, j_dim = xarray_dataset['lat'].shape
+
+        # Add elevation coordinate to dataset
+        xarray_dataset = xarray_dataset.assign_coords(
+            elevation=(('i', 'j'), elevation_df['elevation'].values.reshape(i_dim, j_dim))
+        )
+
         return xarray_dataset
 
-    def getElevationOfXarray(self,xarray_dataset,dataSourceName=None):
-        pointList = pd.DataFrame({'lat': xarray_dataset['lat'].values.flatten(), 'lon': xarray_dataset['lon'].values.flatten()})
+    def getElevationOfXarray(self, xarray_dataset, dataSourceName=None):
+        """
+        Computes elevation values for each (lat, lon) point in an xarray dataset
+        and returns the same dataset with an added 'elevation' coordinate.
+
+        Parameters
+        ----------
+        xarray_dataset : xarray.Dataset
+            Dataset with 'lat' and 'lon' variables defined over dimensions ['i', 'j']
+        dataSourceName : str, optional
+            Name of the data source to use. If not given, will be extracted from config.
+
+        Returns
+        -------
+        xarray.Dataset
+            Same dataset with added 'elevation' coordinate over ['i', 'j']
+
+        Notes
+        -----
+        🔧 FIXED: previously tried to access `xarray_dataset.shape` which doesn't exist on Dataset.
+        Now correctly gets shape from 'lat' variable.
+        """
+
+        # Convert the xarray dataset into a flat DataFrame of points
+        pointList = pd.DataFrame({
+            'lat': xarray_dataset['lat'].values.flatten(),
+            'lon': xarray_dataset['lon'].values.flatten()
+        })
+
+        # Get elevation values for the points
         elevation_df = self.getPointListElevation(pointList, dataSourceName)
-        xarray_dataset = xarray_dataset.assign_coords(elevation=(['i', 'j'], elevation_df['elevation'].values.reshape(xarray_dataset.shape[0], xarray_dataset.shape[1])))
+
+        # 🔧 FIX: Replace xarray_dataset.shape with actual shape from 'lat' variable
+        i_dim, j_dim = xarray_dataset['lat'].shape
+
+        # Assign elevation as a new coordinate in the dataset
+        xarray_dataset = xarray_dataset.assign_coords(
+            elevation=(['i', 'j'], elevation_df['elevation'].values.reshape(i_dim, j_dim))
+        )
+
         return xarray_dataset
 
     def createElevationSTL(self, minx, miny, maxx, maxy, dxdy = 30,shiftx=0,shifty=0,inputCRS=WSG84, dataSourceName=None, solidName="Topography"):
@@ -233,11 +434,32 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
     def getElevationSTL(self,elevation,shiftx=0,shifty=0,solidName="Topography"):
+        """
+        Generates STL string from elevation dataset.
+
+        Parameters
+        ----------
+        elevation : xarray.Dataset
+            Dataset with 'lat', 'lon' and 'elevation' coordinates.
+        shiftx, shifty : float
+            Optional shifts in X and Y.
+        solidName : str
+            Name of the STL solid.
+
+        Returns
+        -------
+        str
+            STL content as string.
+
+        Notes
+        -----
+        🔧 FIXED: Accessed shape using elevation['elevation'].shape instead of elevation.shape
+        because xarray.Dataset has no attribute 'shape'.
+        """
         grid_points = pd.DataFrame({
             'x': elevation['lat'].values.flatten(),
             'y': elevation['lon'].values.flatten()
         })
-
         gdf = gpd.GeoDataFrame(
             grid_points,
             geometry=gpd.points_from_xy(grid_points['y'], grid_points['x']),
@@ -246,10 +468,14 @@ class TopographyToolkit(toolkit.abstractToolkit):
         gdf_transformed = gdf.to_crs(ITM)
         gdf_transformed['y'] = gdf_transformed.geometry.y
         gdf_transformed['x'] = gdf_transformed.geometry.x
-        xx = gdf_transformed['x'].values.reshape(elevation.shape)
-        yy = gdf_transformed['y'].values.reshape(elevation.shape)
+
+        # 🔧 FIX: Use actual shape from elevation['elevation'] instead of elevation.shape
+        i_dim, j_dim = elevation['elevation'].shape
+        xx = gdf_transformed['x'].values.reshape(i_dim, j_dim)
+        yy = gdf_transformed['y'].values.reshape(i_dim, j_dim)
         stlstr = stlFactory().rasterToSTL(xx - shiftx, yy - shifty, elevation['elevation'].values, solidName=solidName)
         return stlstr
+
 
 class topographyAnalysis:
 
