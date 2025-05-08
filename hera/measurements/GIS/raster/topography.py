@@ -55,6 +55,22 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         # Initialize the analysis module for topography calculations
         self._analysis = topographyAnalysis(self)
+    def findElevationFile(self, filename, dataSourceName):
+        """
+        Attempts to find the .hgt file in one of the registered resource folders.
+        Supports both single path or list of paths.
+        """
+        resources = self.getDataSourceData(dataSourceName)
+        if isinstance(resources, str):
+            resources = [resources]
+
+        for folder in resources:
+            candidate = os.path.join(folder, filename)
+            if os.path.exists(candidate):
+                return candidate
+
+        raise FileNotFoundError(f"{filename} not found in any of: {resources}")
+
 
     def getPointElevation(self,lat, long,dataSourceName=None):
         """
@@ -95,7 +111,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
             raise ValueError(f"The datasource is not found!")
 
         logger.debug(f"Getting the data source {dataSourceName}")
-        fheight = os.path.join(self.getDataSourceData(dataSourceName),filename)
+        fheight = self.findElevationFile(filename, dataSourceName)
 
         ds =  gdal.Open(fheight)
         myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())
@@ -172,7 +188,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         for grpid,grp in pointList.groupby("filename"):
             logger.info(f"\tProcessing the group {grpid} with {grp.shape[0]}. Processed so far {processed}/{totalNumberOfPoints}")
-            fheight = os.path.join(self.getDataSourceData(dataSourceName), grpid)
+            fheight = self.findElevationFile(grpid, dataSourceName)
             logger.debug(f"Getting data from the file {fheight}")
             ds = gdal.Open(fheight)
             myarray = numpy.array(ds.GetRasterBand(1).ReadAsArray())

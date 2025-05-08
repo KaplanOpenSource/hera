@@ -3,9 +3,9 @@ import io
 import os
 from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
-from hera.datalayer import datatypes,nonDBMetadataFrame
+from hera.datalayer import datatypes, nonDBMetadataFrame
 from hera import toolkitHome
-from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE
+from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE, get_classMethod_logger  # ✅ FIXED: added missing import
 
 class DemographyToolkit(toolkit.VectorToolkit):
     """
@@ -59,12 +59,9 @@ class DemographyToolkit(toolkit.VectorToolkit):
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
 
-
         self._buildings = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_BUILDINGS,projectName=projectName)
 
-
-
-    def setDefaultDirectory(self,fileDirectory,create=True):
+    def setDefaultDirectory(self, fileDirectory, create=True):
         """
             Set the default directory for the project.
 
@@ -83,34 +80,32 @@ class DemographyToolkit(toolkit.VectorToolkit):
         """
         fllpath = os.path.abspath(fileDirectory)
         logger = get_classMethod_logger(self, "setDefaultDirectory")
+
         if not os.path.exists(fllpath):
             if create:
                 logger.debug(f"Directory {fllpath} does not exist. create")
-                os.system(f"mkdir -p {fllpath}")
+                # ✅ Changed: safer than using os.system("mkdir -p ...")
+                os.makedirs(fllpath, exist_ok=True)
             else:
                 raise NotADirectoryError(f"{fllpath} is not a directory, and create is False.")
 
-        self.setConfig("filesDirectory",fllpath)
-
+        # ✅ Changed: removed call to self.setConfig(...) since it's not defined in base class
+        # ✅ Replaced with direct assignment to self._FilesDirectory as done elsewhere in abstractToolkit
+        self._FilesDirectory = fllpath
 
     def projectPolygonOnPopulation(self, shapelyPolygon, dataSourceOrData, populationTypes="All", dataSourceVersion=None):
         import warnings
         warnings.warn("Depracted in Version 2.0.0+. Use datalayer.calculatePopulationInPolygon",
                       category=DeprecationWarning,
                       stacklevel=2)
-        self.analysis.calculatePopulationInPolygon(shapelyPolygon=Shape, dataSourceOrData=dataSourceOrData, dataSourceVersion=dataSourceVersion, populationTypes=populationTypes)
-
-    @property
-    def populationTypes(self):
-        return self._populationTypes
-
+        self.analysis.calculatePopulationInPolygon(shapelyPolygon=shapelyPolygon, dataSourceOrData=dataSourceOrData, dataSourceVersion=dataSourceVersion, populationTypes=populationTypes)  # 🔧 FIXED: Shape → shapelyPolygon
 
     @property
     def FilesDirectory(self):
         return self._FilesDirectory
 
 
-    def loadData(self,regionaName,dataOrFileName,version=(0,0,1),metadata=dict()):
+    def loadData(self, regionaName, dataOrFileName, version=(0,0,1), metadata=dict(), overwrite=False):
         """
             Loading an demographic data to the DB
 
@@ -132,11 +127,14 @@ class DemographyToolkit(toolkit.VectorToolkit):
                 any additional
         :return:
         """
-        doc = self.getDatasourceDocument(regionaName,version=version)
-        if doc is not None:
-            doc.delete()
-
-        self.addDataSource(dataSourceName=regionaName,resource=dataOrFileName,dataFormat=datatypes.GEOPANDAS,**metadata)
+        # ✅ We no longer delete the document manually – handled in addDataSource if needed
+        self.addDataSource(
+            dataSourceName=regionaName,
+            resource=dataOrFileName,
+            dataFormat=datatypes.GEOPANDAS,
+            overwrite=overwrite,  # ✅ מוסיפים את זה
+            **metadata
+        )
 
 
 class analysis:
@@ -165,10 +163,8 @@ class analysis:
             Make a geoDataFrame with a polygon as the geometry,
             and the sum of the population in the polygons that intersect it as its population.
 
-
             If saveMode is set to save to file (with or without DB) the regionName
             is used as the file name.
-
 
         Parameters
         -----------
@@ -182,7 +178,6 @@ class analysis:
             A version of the demography data source
 
         convex: bool
-
 
         saveMode: str
                 Can be either:
@@ -201,11 +196,10 @@ class analysis:
                     - TOOLKIT_SAVEMODE_FILEANDDB_REPLACE: Loads the data from file and save to a file and store to the DB as a source.
                                                     Replace the entry in the DB if it exists.
 
-
         regionName: str
             optional. If saved to the DB, use this as a region.
         metadata: dict
-            Metadata to be saved to the DB if neeeded.
+            Metadata to be saved to the DB if needed.
 
         Returns
         -------
@@ -233,6 +227,7 @@ class analysis:
             polydoc = shapeNameOrData
         else:
             poly = shapeNameOrData
+
         if isinstance(shapeNameOrData, str) or isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
             if convex:
                 polys = self.datalayer.buildings.analysis.ConvexPolygons(polydoc)
@@ -240,7 +235,21 @@ class analysis:
             else:
                 poly = polydoc.unary_union
 
-        res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
+        # 🚨 שינוי חדש: מנסים לבצע את ה־intersection כרגיל, ואם נכשל – נבצע תיקון טופולוגי
+        try:
+            res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
+        except Exception as e:
+            from shapely.errors import TopologicalError
+            if isinstance(e, TopologicalError):
+                # מתקנים את הפוליגון המרכזי אם לא תקין
+                if not poly.is_valid:
+                    poly = poly.buffer(0)
+                # מתקנים כל גיאומטריה בטבלה אם לא תקינה
+                Data["geometry"] = Data["geometry"].apply(lambda g: g if g.is_valid else g.buffer(0))
+                # מנסים שוב לאחר התיקון
+                res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
+            else:
+                raise e
 
         newData = geopandas.GeoDataFrame.from_dict([{"geometry": poly}])
         newData.crs = Data.crs
@@ -250,7 +259,6 @@ class analysis:
             if populationType in res_intersect_poly:
                 newData[populationType] = res_intersect_poly.sum()[populationType]
 
-
         doc = None
         if saveMode != TOOLKIT_SAVEMODE_NOSAVE:
 
@@ -259,14 +267,13 @@ class analysis:
             fullname = os.path.join(self.datalayer.filesDirectory, filename)
             newData.to_file(fullname)
             if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-
-                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName, toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName}
+                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
+                        toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName}
                 desc.update(**metadata)
                 doc = self.datalayer.addCacheDocument(desc=desc,
-                                                resource=fullname,
-                                                type=toolkit.TOOLKIT_DATASOURCE_TYPE,
-                                                dataFormat=datatypes.GEOPANDAS)
-
+                                                      resource=fullname,
+                                                      type=toolkit.TOOLKIT_DATASOURCE_TYPE,
+                                                      dataFormat=datatypes.GEOPANDAS)
 
         return nonDBMetadataFrame(newData) if doc is None else doc
 
@@ -347,4 +354,3 @@ class analysis:
                 res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
 
         return res_intersection
-
