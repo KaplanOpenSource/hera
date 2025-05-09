@@ -206,7 +206,8 @@ class TestTopographyToolkit(unittest.TestCase):
         for i, row in points.iterrows():
             lat, lon = row["lat"], row["lon"]
             expected = read_raw_elevation(lat, lon, resource_folders)
-            actual = elevations[i]
+            actual = elevations.iloc[i]
+
 
             if expected is None:
                 print(f"⚠️  Point ({lat}, {lon}): HGT data missing")
@@ -441,5 +442,34 @@ class TestTopographyToolkit(unittest.TestCase):
         self.assertEqual(stats["domainmax"], 40)
         self.assertEqual(stats["domainmin"], 10)
 
+    import nbformat
+    from nbconvert.preprocessors import ExecutePreprocessor
+    import os
+    import unittest
+
 if __name__ == '__main__':
     unittest.main()
+
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+
+class TestTopographyNotebook(unittest.TestCase):
+    def test_notebook_runs_without_errors(self):
+        """
+        🚀 This test executes the TopographyToolkit Jupyter notebook and fails if any cell raises an error.
+        """
+        notebook_path = os.path.abspath(
+            "doc/jupyter/toolkits/measurments/GIS/Raster/TopographyToolkit_Complete_With_Usage.ipynb")
+        self.assertTrue(os.path.exists(notebook_path), f"Notebook not found at {notebook_path}")
+
+        with open(notebook_path, encoding='utf-8') as f:
+            nb = nbformat.read(f, as_version=4)
+
+        ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+
+        try:
+            ep.preprocess(nb, {'metadata': {'path': os.path.dirname(notebook_path)}})
+        except Exception as e:
+            self.fail(f"Notebook execution failed: {e}")
+
+        print("✅ Notebook executed successfully with no errors.")
