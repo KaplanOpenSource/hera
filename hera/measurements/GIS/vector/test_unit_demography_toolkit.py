@@ -4,11 +4,12 @@ import warnings
 from shapely.geometry import Polygon
 from hera.measurements.GIS.vector.demography import DemographyToolkit
 import geopandas as gpd
-from shapely.geometry import Polygon
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE
 from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
 
-# ✅ הסתרת אזהרות Deprecation מרמות נמוכות (Shapely/NumPy וכו')
+# ✅ Suppress deprecation warnings from Shapely/NumPy etc.
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message="An exception was ignored while fetching the attribute .*__array_interface__.*")
 
@@ -40,7 +41,7 @@ class TestDemographyToolkit(unittest.TestCase):
             dataSourceOrData="lamas_population"
         )
 
-        print(f"🧪 Number of intersecting features: {len(result)}")
+        print(f"🧺as Number of intersecting features: {len(result)}")
         if result.empty:
             print("❌ No population data found for the test polygon.")
         else:
@@ -51,11 +52,9 @@ class TestDemographyToolkit(unittest.TestCase):
         self.assertIn("areaFraction", result.columns)
 
     def test_calculatePopulationInPolygon_partial_intersection(self):
-        # לוקחים שני פוליגונים צמודים בקובץ
         polygon1 = self.population_gdf.iloc[0].geometry
         polygon2 = self.population_gdf.iloc[1].geometry
 
-        # יוצרים פוליגון קטן שחותך את שניהם
         intersection_area = polygon1.union(polygon2).centroid.buffer(20)
 
         result = self.toolkit.analysis.calculatePopulationInPolygon(
@@ -63,13 +62,12 @@ class TestDemographyToolkit(unittest.TestCase):
             dataSourceOrData="lamas_population"
         )
 
-        print(f"🧪 Partial intersection result rows: {len(result)}")
+        print(f"🧺as Partial intersection result rows: {len(result)}")
         self.assertFalse(result.empty, "Expected result for partially intersecting polygon")
         self.assertGreaterEqual(len(result), 1, "Expected at least one intersecting region")
         self.assertIn("areaFraction", result.columns)
 
     def test_calculatePopulationInPolygon_outside_bounds(self):
-        # מגדירים פוליגון במקום רחוק מהגבולות (מזרחית למינימום)
         minx, miny, maxx, maxy = self.population_gdf.total_bounds
         far_polygon = Polygon([
             (maxx + 10000, maxy + 10000),
@@ -84,7 +82,7 @@ class TestDemographyToolkit(unittest.TestCase):
             dataSourceOrData="lamas_population"
         )
 
-        print(f"🧪 Outside bounds result rows: {len(result)}")
+        print(f"🧺as Outside bounds result rows: {len(result)}")
         self.assertTrue(result.empty, "Expected empty result for polygon outside data bounds")
 
     def test_calculatePopulationInPolygon_invalid_datasource(self):
@@ -99,11 +97,9 @@ class TestDemographyToolkit(unittest.TestCase):
         print(f"🛑 Caught expected ValueError: {cm.exception}")
 
     def test_createNewArea_simple(self):
-
         print("\n🚀 Running test_createNewArea_simple (Testing createNewArea function)")
 
-        # בונים פוליגון מלבני עם באפר
-        bounds = self.population_gdf.total_bounds  # [minx, miny, maxx, maxy]
+        bounds = self.population_gdf.total_bounds
         buffer = 10
         polygon = Polygon([
             (bounds[0] - buffer, bounds[1] - buffer),
@@ -113,28 +109,23 @@ class TestDemographyToolkit(unittest.TestCase):
             (bounds[0] - buffer, bounds[1] - buffer)
         ])
 
-        # תיקון גיאומטריה לא תקינה
         if not polygon.is_valid:
             polygon = polygon.buffer(0)
 
-        # קריאה לפונקציה
         result = self.toolkit.analysis.createNewArea(
             shapeNameOrData=polygon,
             dataSourceOrData="lamas_population",
             saveMode=TOOLKIT_SAVEMODE_NOSAVE
         )
 
-        # וידוא שהפלט הוא עטיפה מתאימה
         self.assertIsInstance(result, nonDBMetadataFrame)
 
-        # חילוץ הנתונים לבדיקה
         gdf = result.getData()
         self.assertIsInstance(gdf, gpd.GeoDataFrame)
         self.assertEqual(len(gdf), 1)
         self.assertIn("geometry", gdf.columns)
         self.assertIn("total_pop", gdf.columns)
 
-        # בדיקה מול הסכום המקורי
         expected = self.population_gdf["total_pop"].sum()
         actual = gdf.iloc[0]["total_pop"]
         print(f"✅ Expected: {expected}, Got: {actual}")
@@ -143,49 +134,62 @@ class TestDemographyToolkit(unittest.TestCase):
     def test_setDefaultDirectory_creates_and_sets_path(self):
         print("🚀 Running test_setDefaultDirectory_creates_and_sets_path")
         import tempfile
-        import os
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             test_dir = os.path.join(tmpdirname, "demography_test_folder")
             self.toolkit.setDefaultDirectory(test_dir, create=True)
 
-            # ✅ Check using the actual property, not getConfig()
             saved_path = self.toolkit.filesDirectory
             self.assertTrue(os.path.exists(test_dir), "📁 Directory was not created")
-            self.assertEqual(os.path.abspath(test_dir), saved_path, "🧭 Saved path in filesDirectory doesn't match")
+            self.assertEqual(os.path.abspath(test_dir), saved_path, "🗭 Saved path in filesDirectory doesn't match")
 
     def test_calculatePopulationInPolygon_with_known_values(self):
-        from shapely.geometry import Polygon
-        import geopandas as gpd
-
         print("🚀 Running test_calculatePopulationInPolygon_with_known_values")
 
-        # 🔧 Create synthetic test data
         geometry = [
-            Polygon([(0, 0), (2, 0), (2, 2), (0, 2)]),  # Full overlap
-            Polygon([(1, 1), (3, 1), (3, 3), (1, 3)]),  # Partial overlap
-            Polygon([(5, 5), (6, 5), (6, 6), (5, 6)])  # No overlap
+            Polygon([(0, 0), (2, 0), (2, 2), (0, 2)]),
+            Polygon([(1, 1), (3, 1), (3, 3), (1, 3)]),
+            Polygon([(5, 5), (6, 5), (6, 6), (5, 6)])
         ]
         total_pop = [1000, 500, 200]
         gdf = gpd.GeoDataFrame({'total_pop': total_pop, 'geometry': geometry}, crs="EPSG:4326")
 
-        # 🟦 Create polygon that intersects the first two
         test_poly = Polygon([(1, 1), (2.5, 1), (2.5, 2.5), (1, 2.5)])
 
-        # 🧪 Call function
         result = self.toolkit.analysis.calculatePopulationInPolygon(
             shapelyPolygon=test_poly,
             dataSourceOrData=gdf,
             populationTypes="total_pop"
         )
 
-        # ✅ Validate result
         self.assertFalse(result.empty)
         total_estimated = result["total_pop"].sum()
         print(f"✅ Total estimated population in polygon: {total_estimated}")
         self.assertGreater(total_estimated, 0)
-        self.assertLess(total_estimated, 1500)  # Full (1000) + Partial (500) => less than 1500
+        self.assertLess(total_estimated, 1500)
 
+
+class TestDemographyNotebook(unittest.TestCase):
+    def test_notebook_runs_without_errors(self):
+        """
+        🚀 This test executes the DemographyToolkit Jupyter notebook and fails if any cell raises an error.
+        """
+        notebook_path = os.path.abspath(
+            "doc/jupyter/toolkits/measurments/GIS/Demography/Demography_Toolkit_And_Unit_Test.ipynb"
+        )
+        self.assertTrue(os.path.exists(notebook_path), f"Notebook not found at {notebook_path}")
+
+        with open(notebook_path, encoding='utf-8') as f:
+            nb = nbformat.read(f, as_version=4)
+
+        ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+
+        try:
+            ep.preprocess(nb, {'metadata': {'path': os.path.dirname(notebook_path)}})
+        except Exception as e:
+            self.fail(f"Notebook execution failed: {e}")
+
+        print("✅ Notebook executed successfully with no errors.")
 
 if __name__ == '__main__':
     unittest.main()
