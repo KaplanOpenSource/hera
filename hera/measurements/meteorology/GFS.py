@@ -596,7 +596,7 @@ if __name__ == "__main__":
             adistancerx += math.fabs(uu0[i]-uu[i])
             adistancery += math.fabs(vv0[i]-vv[i])
             maxr = max(((uu0[i]-uu[i])**2+(vv0[i]-vv[i])**2)**.5, maxr)
-        print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5, (adistancerx**2+adistancery**2)**.5, maxr)
+        print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(wd0), (adistancerx**2+adistancery**2)**.5/len(wd0), maxr)
 
         return 
     
@@ -674,7 +674,9 @@ if __name__ == "__main__":
     plt.ylim(xmin,xmax)
     plt.title('wrf')
     # plt.title('comfort -1.25, -.85, -.73, -1.91')
- 
+
+###start omri
+    
     haifa1 = [  
     [202240, 740730, 475], # University
     [202390, 742120, 245], # technion
@@ -710,6 +712,93 @@ if __name__ == "__main__":
     # print('d-',stat(wd0, forecastedw, kind='r2'),stat(wd0, forecastedw, kind='r'), stat(wd0, forecastedw, kind='mae'), stat(wd0, forecastedw, kind='rmse'),'/',round(np.mean(forecastedw),4),'+-',round(np.std(forecastedw),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
     print('s-',stat(ws0, forecastedws, kind='r2'),stat(ws0, forecastedws, kind='r'), stat(ws0, forecastedws, kind='mae'), stat(ws0, forecastedws, kind='rmse'),'/',round(np.mean(forecastedws),4),'+-',round(np.std(forecastedws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
     print('d-',stat(wd0, forecastedwd, kind='r2'),stat(wd0, forecastedwd, kind='r'), stat(wd0, forecastedwd, kind='mae'), stat(wd0, forecastedwd, kind='rmse'),'/',round(np.mean(forecastedwd),4),'+-',round(np.std(forecastedwd),4),'>>',round(np.mean(wd0),4),'+-',round(np.std(wd0),4))
+
+    for p in range(3,10):
+        allmaxr=0
+        allbias=0
+        allabs=0
+        wsr=0
+        wdr=0
+        wsr2=0
+        wdr2=0
+        wsmae=0
+        wdmae=0
+        wsrmse=0
+        wdrmse=0
+        
+    
+        ts0=[]#ws0.copy()
+        td0=[]#wd0.copy()
+        # ts = forecastedws.copy()
+        # td = forecastedwd.copy()
+        loops=100000
+    
+        for j in range(loops):
+            distancerx = 0
+            distancery = 0
+            adistancerx = 0
+            adistancery = 0
+            maxr = 0
+    
+    
+            
+            indices = np.random.choice(ws0.shape[0], p, replace=False)
+            mask = np.ones(ws0.shape[0], dtype=bool)
+            mask[indices] = False
+            stationss=[]
+            stationsd=[]
+            for i in range(len(haifa1)):
+                if ~mask[i]:       
+                    stationss.append([haifa1[i][0], haifa1[i][1], ws0[i], haifa1[i][2]])
+                    stationsd.append([haifa1[i][0], haifa1[i][1], wd0[i], haifa1[i][2]])
+            stationss = np.asarray(stationss)
+            stationsd = np.asarray(stationsd)
+            forecastedws=np.zeros(len(stationss))
+            forecastedwd=np.zeros(len(stationss))
+            ts0=[]
+            td0=[]
+            for i in range(len(stationss)):
+                loos=[] # leave one out
+                lood=[] # leave one out
+                for k in range(len(stationss)):
+                    if i!=k:
+                        loos.append(stationss[k])
+                        lood.append(stationsd[k])
+                ts0.append(stationss[i,2])
+                td0.append(stationsd[i,2])
+                forecastedws[i] = interp(stationss[i,0], stationss[i,1], loos, elev = stationss[i,3])
+                forecastedwd[i] = interp(stationsd[i,0], stationsd[i,1], lood, elev = stationsd[i,3])
+        
+            ts = forecastedws.copy()
+            td = forecastedwd.copy()
+            ts0=np.asarray(ts0)
+            td0=np.asarray(td0)
+            
+            for i in range(len(ts0)):
+                distancerx += (ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
+                distancery += (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
+                adistancerx += math.fabs(ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))
+                adistancery += math.fabs(ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
+                maxr = max(((ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))**2 +
+                             (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))**2)**.5, maxr)
+            allmaxr+=maxr
+            allbias+=(distancerx**2+distancery**2)**.5
+            allabs+=(adistancerx**2+adistancery**2)**.5
+            wsr=stat(ts0, ts, kind='r')
+            wdr+=stat(td0, td, kind='r')
+            wsr2+=stat(ts0, ts, kind='r2')
+            wdr2+=stat(td0, td, kind='r2')
+            wsmae+=stat(ts0, ts, kind='mae')
+            wdmae+=stat(td0, td, kind='mae')
+            wsrmse+=stat(ts0, ts, kind='rmse')
+            wdrmse+=stat(td0, td, kind='rmse')
+            
+        print(p,'distance (sum, abs, max) = ', round(allbias/loops/p,2), round(allabs/loops/p,2), round(allmaxr/loops/p,2))
+        print(p,'s (r2 r maem rmse)-',round(wsr2/loops,2), round(wsr/loops,2), round(wsmae/loops,2), round(wsrmse/loops,2))
+        print(p,'d (r2 r maem rmse)-',round(wdr2/loops,2), round(wdr/loops,2), round(wdmae/loops,2), round(wdrmse/loops,2))
+###fin omri
+
+    
     forecastedws[:]=ws0[-1]
     forecastedwd[:]=wd0[-1]
     print('s-',stat(ws0, forecastedws, kind='r2'),stat(ws0, forecastedws, kind='r'), stat(ws0, forecastedws, kind='mae'), stat(ws0, forecastedws, kind='rmse'),'/',round(np.mean(forecastedws),4),'+-',round(np.std(forecastedws),4),'>>',round(np.mean(ws0),4),'+-',round(np.std(ws0),4))
@@ -897,12 +986,12 @@ for i in range(len(wsm)):
                  (wsm[i]*math.sin(wdm[i]/180*math.pi)-wssw[i]*math.sin(wdsw[i]/180*math.pi))**2)**.5, maxw)
     max1 = max(((wsm[i]*math.cos(wdm[i]/180*math.pi)-ws1[i]*math.cos(wd1[i]/180*math.pi))**2 +
                  (wsm[i]*math.sin(wdm[i]/180*math.pi)-ws1[i]*math.sin(wd1[i]/180*math.pi))**2)**.5, max1)
-print('rho distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5, (adistancerx**2+adistancery**2)**.5, maxr)
+print('rho distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(wsm), (adistancerx**2+adistancery**2)**.5/len(wsm), maxr)
 print('wrf distance (sum, abs, max) = ', (distancewx**2+distancewy**2)**.5, (adistancewx**2+adistancewy**2)**.5, maxw)
 print('1st distance (sum, abs, max) = ', (distance1x**2+distance1y**2)**.5, (adistance1x**2+adistance1y**2)**.5, max1)
 
 
-plt.figure()
+plt.figure() 
 plt.plot(wssr,wsm,'*b', label='CFD')
 plt.plot(wssw,wsm,'*r', label='WRF')
 xmin=min(wsm.min(),wssr.min())
@@ -948,7 +1037,7 @@ for i in range(len(ws1218b)):
     adistancery += math.fabs(ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))
     maxr = max(((ts0[i]*math.cos(td0[i]/180*math.pi)-ts[i]*math.cos(td[i]/180*math.pi))**2 +
                  (ts0[i]*math.sin(td0[i]/180*math.pi)-ts[i]*math.sin(td[i]/180*math.pi))**2)**.5, maxr)
-print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5, (adistancerx**2+adistancery**2)**.5, maxr)
+print('distance (sum, abs, max) = ', (distancerx**2+distancery**2)**.5/len(ws1218b), (adistancerx**2+adistancery**2)**.5/len(ws1218b), maxr)
 
 ua=np.linspace(-5,5,3)
 va=np.linspace(-5,5,3)
