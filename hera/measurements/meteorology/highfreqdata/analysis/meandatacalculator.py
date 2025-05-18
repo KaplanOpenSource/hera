@@ -5,7 +5,7 @@ from copy import deepcopy
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
 from .turbulencestatistics import singlePointTurbulenceStatistics
-from .....utils.filter_immediate import Filter
+from hera.utils.filter_immediate import Filter
 
 class AveragingCalculator(AbstractCalculator):
     def __init__(self, rawData, metadata):

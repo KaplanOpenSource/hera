@@ -1,7 +1,7 @@
 import dask
 import pandas
 from copy import deepcopy
-from .....  import datalayer
+from hera.datalayer import collection as datalayer
 
 
 class AbstractCalculator(object):
