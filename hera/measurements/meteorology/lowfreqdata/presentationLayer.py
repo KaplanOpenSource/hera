@@ -552,15 +552,33 @@ class DailyPlots(Plots):
         contour_props = self._getCountourDict(conrourvals_props)
         contourf_props = self._getContourfDict(conrourvals_props,Cmapname)
 
+        if normalization == 'y_normalized':
+            # Normalize each row of the histogram so that row sums to 1
+            Mmax = numpy.nanmax(M_hist)
+            upper_level = numpy.ceil(Mmax * 100) / 100
 
-        if normalization=='y_normalized':
-            contour_props.update(dict(levels= numpy.linspace(conrourvals_props['under_value'],
-                                                             numpy.ceil(M_hist.max() * 100) / 100,
-                                                             conrourvals_props['contourfnum'])[::conrourvals_props['contourskip']]))
+            # === Stability fix ===
+            # If the normalized data has very low variation or is empty,
+            # Mmax might be equal to or smaller than the lower threshold.
+            # This would cause matplotlib to throw:
+            # "Contour levels must be increasing"
+            #
+            # We add a minimal offset to ensure levels are strictly increasing.
+            if upper_level <= conrourvals_props['under_value']:
+                upper_level = conrourvals_props['under_value'] + 0.1
 
-            contourf_props.update(dict(levels=numpy.round(numpy.linspace(conrourvals_props['under_value'],
-                                                                         numpy.ceil(M_hist.max() * 100) / 100,
-                                                                         conrourvals_props['contourfnum']), 2)))
+            # Build valid contour and contourf levels
+            contour_props.update(dict(levels=numpy.linspace(
+                conrourvals_props['under_value'],
+                upper_level,
+                conrourvals_props['contourfnum']
+            )[::conrourvals_props['contourskip']]))
+
+            contourf_props.update(dict(levels=numpy.round(numpy.linspace(
+                conrourvals_props['under_value'],
+                upper_level,
+                conrourvals_props['contourfnum']
+            ), 2)))
 
         contour_props.update(contour_properties)
         contourf_props.update(contourf_properties)
