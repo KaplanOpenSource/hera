@@ -74,9 +74,9 @@ class analysis:
 
         return curdata
 
-    def calcHourlyDist(self,data, Field,bins=30, normalization='density'):
+    def calcHourlyDist(self, data, Field, bins=30, normalization='density'):
         """
-                Calculates hours distribution of the field.
+            Calculates hours distribution of the field.
 
         Parameters
         ----------
@@ -113,15 +113,22 @@ class analysis:
         curdata[Field] = curdata[Field].where(curdata[Field] > -5000)
         # curdata = curdata.query("%s > -9990" % Field)
 
-        curdata=curdata.assign(curdate=curdata.index)
-        curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
-        curdata=curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
+        curdata = curdata.assign(curdate=curdata.index)
+        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
+        curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
         curdata = curdata.dropna()
         y = curdata[Field]
         x = curdata['houronly']
 
-        return calcDist2d(x=x,y=y,bins=bins,normalization=normalization)
+        # ✅ Added fixed range support to avoid histogram truncation
+        # This ensures consistent x-axis (0–24 hours) and y-axis range that includes all values
+        x_range = (0, 24)
+        y_min = min(y.min(), 0)
+        y_max = max(y.max(), 1)  # fallback to 1 if all values are near 0
+        y_range = (y_min, y_max)
+
+        return calcDist2d(x=x, y=y, bins=bins, normalization=normalization, x_range=x_range, y_range=y_range)
 
     def _calculateCov(self, data, data_resampled, x, y, SamplingWindow):
 

@@ -34,14 +34,16 @@ class presenation:
     def datalayer(self):
         return self._datalayer
 
+    def __init__(self, dataLayer, analysis):
+        print("📥 presenation.__init__ called")
+        print("   📌 dataLayer =", type(dataLayer))
+        print("   📌 analysis =", type(analysis))
 
-
-    def __init__(self,dataLayer,analysis):
         self._datalayer = dataLayer
         self._analysis = analysis
 
         self._seasonalPlots = SeasonalPlots(self)
-        self._dailyPlots    = DailyPlots(self)
+        self._dailyPlots = DailyPlots(self)
 
 
 class Plots(object):
@@ -62,9 +64,11 @@ class Plots(object):
     _labelsdict=None
     _scatterdict=None
 
-    def __init__(self,presentation):
+    def __init__(self, presentation):
+        print("📥 Plots.__init__ called")
+        print("   📌 Received presentation object of type:", type(presentation))
 
-        self._presentation = presenation
+        self._presentation = presentation
 
         self._contourvalsdict=dict(under_value=0.1,
                                    contourskip=2,
@@ -178,10 +182,8 @@ class Plots(object):
 
 class SeasonalPlots(Plots):
 
-
-
-    def __init__(self,presentation):
-
+    def __init__(self, presentation):
+        print("📥 SeasonalPlots.__init__ called")
         super().__init__(presentation)
 
     def plotProbContourf_bySeason(self,
@@ -301,24 +303,18 @@ class DailyPlots(Plots):
 
     _linedict=None
 
-    def __init__(self,presentation):
-
+    def __init__(self, presentation):
+        print("📥 DailyPlots.__init__ called")
         super().__init__(presentation)
 
-        self._linedict=dict(zorder=4,
-                            #color='magenta',
-                            linestyle='-',
-                            linewidth=3
-                            # size=0.5,
-                            # edgecolors='k',
-                            # alpha=0.55,
-                            # legend=False
-                            )
+        self._linedict = dict(
+            zorder=4,
+            linestyle='-',
+            linewidth=3
+        )
 
-    def plotScatter(self,data,plotField,ax=None,scatter_properties=dict(),ax_functions_properties=dict()):
-
+    def plotScatter(self, data, plotField, ax=None, scatter_properties=dict(), ax_functions_properties=dict()):
         """
-
         Make a scatter plot for selected plotField vs daily time (in 24 hours)
 
         Parameters
@@ -343,13 +339,12 @@ class DailyPlots(Plots):
         try:
             data = data.set_index("datetime")
         except:
-            if data.index.name!='datetime':
+            if data.index.name != 'datetime':
                 raise Exception("No column 'datetime' in dataframe.!")
 
         if ax is None:
             fig, ax = plt.subplots()
         else:
-
             plt.sca(ax)
 
         scatter_props = dict(self._scatterdict)
@@ -361,11 +356,10 @@ class DailyPlots(Plots):
 
         # curdata = curdata.query("%s > -9990" % plotField)
         curdata = curdata.assign(curdate=curdata.index)
-        curdata.curdate = pd.to_datetime(curdata.curdate,utc=True)
+        curdata.curdate = pd.to_datetime(curdata.curdate, utc=True)
         curdata = curdata.assign(houronly=curdata.curdate.dt.hour + curdata.curdate.dt.minute / 60.)
 
-
-        ax= seaborn.scatterplot(x=curdata['houronly'], y=curdata[plotField], ax=ax, **scatter_props)
+        ax = seaborn.scatterplot(x=curdata['houronly'], y=curdata[plotField], ax=ax, **scatter_props)
 
         ax_func_props = dict(self._plotfieldaxfuncdict.get(plotField, dict()))
         ax_func_props.update(self._axfuncdict)
