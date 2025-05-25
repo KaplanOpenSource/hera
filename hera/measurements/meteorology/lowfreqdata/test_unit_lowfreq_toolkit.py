@@ -54,24 +54,55 @@ class TestLowFreqToolkit(unittest.TestCase):
 
     def test_add_dates_columns(self):
         """
-        ✅ analysis.addDatesColumns - Verify that time-related columns are added correctly.
+        ✅ analysis.addDatesColumns - Verify output structure and stability by comparing to a saved reference.
 
-        This test checks:
-        - That the columns 'yearonly', 'monthonly', and 'season' are added.
-        - That 'season' contains one or more valid values (case-insensitive).
+        If env var `PREPARE_EXPECTED_OUTPUT` is set to "1", the test will generate and save reference output.
+        Otherwise, it compares the current result to the saved reference.
         """
+        import tempfile
+
         df = self.df.copy()
         df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
 
         enriched = self.toolkit.analysis.addDatesColumns(df, datecolumn="datetime")
 
-        for col in ["yearonly", "monthonly", "season"]:
-            self.assertIn(col, enriched.columns, f"❌ Missing expected column '{col}'")
+        # Path where reference output will be saved/loaded
+        expected_path = os.path.join(
+            os.path.dirname(__file__), "expected_output_addDatesColumns.parquet"
+        )
 
-        valid_seasons = {"winter", "spring", "summer", "autumn"}
-        found_seasons = set(enriched["season"].dropna().str.lower().unique())
-        self.assertTrue(bool(found_seasons & valid_seasons),
-                        f"❌ No valid seasons found. Got: {found_seasons}")
+        if os.environ.get("PREPARE_EXPECTED_OUTPUT") == "1":
+            # Save reference output
+            # Convert problematic columns to strings for compatibility
+            if "timeonly" in enriched.columns:
+                enriched["timeonly"] = enriched["timeonly"].astype(str)
+
+            enriched.to_parquet(expected_path, index=False)
+
+            print(f"📁 Saved reference output to {expected_path}")
+        else:
+            # Compare to expected reference
+            self.assertTrue(os.path.exists(expected_path), f"❌ Reference file not found at {expected_path}")
+            expected = pd.read_parquet(expected_path)
+
+            for df_ in (enriched, expected):
+                if "timeonly" in df_.columns:
+                    df_["timeonly"] = df_["timeonly"].astype(str)
+
+            self.assertListEqual(
+                list(enriched.columns),
+                list(expected.columns),
+                "❌ Columns in output do not match reference"
+            )
+
+            pd.testing.assert_frame_equal(
+                enriched.reset_index(drop=True),
+                expected.reset_index(drop=True),
+                check_dtype=False,
+                check_like=True,
+                atol=1e-6,
+                obj="❌ Data mismatch between result and expected"
+            )
 
     def test_calc_hourly_dist_max_normalized(self):
         """
