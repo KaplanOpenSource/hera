@@ -9,15 +9,12 @@ from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
-# ✅ Suppress deprecation warnings from Shapely/NumPy etc.
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-warnings.filterwarnings("ignore", message="An exception was ignored while fetching the attribute .*__array_interface__.*")
 
 class TestDemographyToolkit(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        base_path = os.environ.get("HERA_DATA_PATH", "/home/ilay/hera/hera/tests")
+        base_path = os.environ["HERA_DATA_PATH"]
         cls.population_path = os.path.join(base_path, "measurements", "GIS", "vector", "population_lamas.shp")
         cls.population_gdf = gpd.read_file(cls.population_path)
 
@@ -168,15 +165,26 @@ class TestDemographyToolkit(unittest.TestCase):
         self.assertGreater(total_estimated, 0)
         self.assertLess(total_estimated, 1500)
 
+import os
+import unittest
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
 
 class TestDemographyNotebook(unittest.TestCase):
     def test_notebook_runs_without_errors(self):
         """
-        🚀 This test executes the DemographyToolkit Jupyter notebook and fails if any cell raises an error.
+        🚀 Executes the DemographyToolkit notebook and fails if any cell raises an error.
         """
-        notebook_path = os.path.abspath(
-            "doc/jupyter/toolkits/measurments/GIS/Demography/Demography_Toolkit_And_Unit_Test.ipynb"
-        )
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+
+        notebook_path = os.path.abspath(os.path.join(
+            this_dir,
+            "..", "..", "..",
+            "doc", "jupyter", "toolkits", "measurments",
+            "GIS", "Demography", "Demography_Toolkit_And_Unit_Test.ipynb"
+        ))
+
+        print(f"🔍 Checking notebook at: {notebook_path}")
         self.assertTrue(os.path.exists(notebook_path), f"Notebook not found at {notebook_path}")
 
         with open(notebook_path, encoding='utf-8') as f:
@@ -190,6 +198,7 @@ class TestDemographyNotebook(unittest.TestCase):
             self.fail(f"Notebook execution failed: {e}")
 
         print("✅ Notebook executed successfully with no errors.")
+
 
 if __name__ == '__main__':
     unittest.main()
