@@ -180,7 +180,7 @@ class Project:
         -------
 
         """
-        cnfg =self.getConfig()
+        cnfg = self.getConfig().copy()
         coutnerDict = cnfg.setdefault("counters",{})
         coutnerDict[counterName] =defaultValue
         self.setConfig(**cnfg)
@@ -199,7 +199,7 @@ class Project:
         -------
 
         """
-        cnfg =self.getConfig()
+        cnfg = self.getConfig().copy()
         coutnerDict = cnfg.setdefault("counters", {})
         coutnerDict.setdefault(counterName,defaultValue)
         self.setConfig(**cnfg)
@@ -220,7 +220,7 @@ class Project:
         -------
 
         """
-        cnfg =self.getConfig()
+        cnfg = self.getConfig().copy()
         coutnerDict = cnfg.setdefault("counters", {})
         ret = coutnerDict[counterName]
         return ret
@@ -243,9 +243,10 @@ class Project:
 
             """
             cnfg =self.getConfig()
-            coutnerDict = cnfg.setdefault("counters", {})
-            ret = coutnerDict.setdefault(counterName,0)
-            coutnerDict[counterName] += addition
+            counterDict = cnfg.get("counters",{}).copy()
+            ret = counterDict.setdefault(counterName,0)
+            counterDict[counterName] += addition
+            cnfg["counters"] =counterDict
             self.setConfig(**cnfg)
             return ret
 
