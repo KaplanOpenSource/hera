@@ -1,6 +1,8 @@
 import json
 import os
 import pandas
+from promise.utils import deprecated
+
 from .datahandler import datatypes
 from ..utils.logging import get_classMethod_logger
 from ..utils import loadJSON
@@ -179,7 +181,8 @@ class Project:
 
         """
         cnfg =self.getConfig()
-        cnfg[counterName] =defaultValue
+        coutnerDict = cnfg.setdefault("counters",{})
+        coutnerDict[counterName] =defaultValue
         self.setConfig(**cnfg)
         return cnfg
 
@@ -197,7 +200,8 @@ class Project:
 
         """
         cnfg =self.getConfig()
-        cnfg.setdefault(counterName,defaultValue)
+        coutnerDict = cnfg.setdefault("counters", {})
+        coutnerDict.setdefault(counterName,defaultValue)
         self.setConfig(**cnfg)
         return cnfg
 
@@ -217,12 +221,15 @@ class Project:
 
         """
         cnfg =self.getConfig()
-        ret = cnfg[counterName]
+        coutnerDict = cnfg.setdefault("counters", {})
+        ret = coutnerDict[counterName]
         return ret
 
-    def addCounter(self,counterName,addition=1):
+
+    def getCounterAndAdd(self, counterName, addition=1):
             """
                 Return the value of the counter and add [addition].
+                If the counter is not defined it is initialized to 0.
             Parameters
             ----------
             counterName :  str
@@ -236,11 +243,15 @@ class Project:
 
             """
             cnfg =self.getConfig()
-            ret = cnfg[counterName]
-            cnfg[counterName] += addition
+            coutnerDict = cnfg.setdefault("counters", {})
+            ret = coutnerDict.setdefault(counterName,0)
+            coutnerDict[counterName] += addition
             self.setConfig(**cnfg)
             return ret
 
+    @deprecated(reason="Use getCounterAndAdd instead")
+    def addCounter(self, counterName, addition=1):
+        return self.getCounterAndAdd(counterName,addition)
 
     def getConfig(self):
         """
