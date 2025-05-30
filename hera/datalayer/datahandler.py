@@ -34,9 +34,35 @@ class datatypes:
     PICKLE = "pickle"
     DICT   = "dict"
 
+    type_to_datatype_string = {
+            str: datatypes.STRING,
+            pd.DataFrame: datatypes.CSV_PANDAS,
+            gpd.GeoDataFrame: datatypes.GEOPANDAS,
+            xr.Dataset: datatypes.NETCDF_XARRAY,
+            dict: datatypes.JSON_DICT,
+            list: datatypes.JSON_DICT,  # If applicable
+            Image.Image: datatypes.IMAGE,
+            bytes: datatypes.PICKLE,
+            object: datatypes.PICKLE
+        }
 
-def getHandler(type):
-    return globals()['DataHandler_%s' % type]
+
+def guessHandler(datatype):
+    """
+        Tries to estimate the type of the object and re
+    Parameters
+    ----------
+    obj
+
+    Returns
+    -------
+
+    """
+
+    return getHandler(type_to_datatype_string[datatype])
+
+def getHandler(objType):
+    return globals()[f"DataHandler_{objType}"]
 
 class DataHandler_geotiff(object):
     """
@@ -48,6 +74,10 @@ class DataHandler_geotiff(object):
          -  path: the path to the HDF file (can be a pattern to represent a list of files).
          -  key : a single key.
     """
+
+    @staticmethod
+    def saveData(resource,fileName):
+        raise NotImplementedError("Not implemented yet")
 
     @staticmethod
     def getData(resource,rasterBand=1):
@@ -74,6 +104,12 @@ class DataHandler_string(object):
     """
 
     @staticmethod
+    def saveData(resource,fileName):
+        with open(fileName,"w") as outFile:
+            outFile.write(resource)
+
+
+    @staticmethod
     def getData(resource,desc=None):
         """
         The data in the record is a string.
@@ -94,6 +130,10 @@ class DataHandler_time(object):
     """
         The resource is a timestamp.
     """
+
+    @staticmethod
+    def saveData(resource, fileName):
+        raise NotImplementedError("time is not implemented for saving")
 
     @staticmethod
     def getData(resource,desc=None):
@@ -118,6 +158,11 @@ class DataHandler_csv_pandas(object):
 
         Returns pandas dataframe.
     """
+
+
+    @staticmethod
+    def saveData(resource,fileName):
+        resource.to_csv(fileName)
 
     @staticmethod
     def getData(resource,desc=None):
@@ -150,6 +195,11 @@ class DataHandler_HDF(object):
          -  key : a single key.
     """
 
+
+    @staticmethod
+    def saveData(resource,fileName):
+        raise NotImplementedError("HDF saver not implemented yet")
+
     @staticmethod
     def getData(resource, usePandas=False,desc=None):
         """
@@ -177,6 +227,11 @@ class DataHandler_HDF(object):
 
 class DataHandler_netcdf_xarray(object):
 
+
+    @staticmethod
+    def saveData(resource,fileName):
+        resource.to_netcdf(fileName)
+
     @staticmethod
     def getData(resource,desc=None,**kwargs):
         """
@@ -202,6 +257,12 @@ class DataHandler_netcdf_xarray(object):
 class DataHandler_JSON_dict(object):
 
     @staticmethod
+    def saveData(resource,fileName):
+        with open(fileName,"w") as outFile:
+            json.dump(resource,outFile)
+
+
+    @staticmethod
     def getData(resource,desc=None):
         """
         Loads JSON to dict
@@ -220,6 +281,10 @@ class DataHandler_JSON_dict(object):
 
 
 class DataHandler_JSON_pandas(object):
+
+    @staticmethod
+    def saveData(resource, fileName):
+        resource.to_json(fileName)
 
     @staticmethod
     def getData(resource, usePandas=True,desc=None):
@@ -247,6 +312,12 @@ class DataHandler_JSON_pandas(object):
 
 
 class DataHandler_JSON_geopandas(object):
+
+
+    @staticmethod
+    def saveData(resource, fileName):
+        resource.to_json(fileName)
+
     @staticmethod
     def getData(resource,desc=None,**kwargs):
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
@@ -257,6 +328,12 @@ class DataHandler_JSON_geopandas(object):
 
 
 class DataHandler_geopandas(object):
+
+    @staticmethod
+    def saveData(resource, fileName):
+        resource.to_file(fileName, driver="GPKG")
+
+
     @staticmethod
     def getData(resource,desc=None,**kwargs):
 
@@ -268,6 +345,10 @@ class DataHandler_geopandas(object):
 
 
 class DataHandler_parquet(object):
+
+    @staticmethod
+    def saveData(resource, fileName):
+        resource.to_parquet(fileName)
 
     @staticmethod
     def getData(resource,desc=None, usePandas=False,**kwargs):
@@ -300,6 +381,10 @@ class DataHandler_parquet(object):
 class DataHandler_image(object):
 
     @staticmethod
+    def saveData(resource, fileName):
+        mpimg.imsave(fileName, resource)
+
+    @staticmethod
     def getData(resource,desc=None):
         """
         Loads an image using the resource.
@@ -319,6 +404,12 @@ class DataHandler_image(object):
 
 
 class DataHandler_pickle(object):
+
+
+    @staticmethod
+    def saveData(resource, fileName):
+        with open(fileName, 'wb') as f:
+            pickle.dump(resource, f)
 
     @staticmethod
     def getData(resource,desc=None):
@@ -341,6 +432,10 @@ class DataHandler_pickle(object):
 class DataHandler_dict(object):
 
     @staticmethod
+    def saveData(resource,fileName):
+        pass
+
+    @staticmethod
     def getData(resource,desc=None):
         """
         The resource is a dict.
@@ -358,6 +453,11 @@ class DataHandler_dict(object):
 
 
 class DataHandler_tif(object):
+
+
+    @staticmethod
+    def saveData(resource,fileName):
+        raise NotImplementedError("tif format is not implemented")
 
     @staticmethod
     def getData(resource,desc=None):

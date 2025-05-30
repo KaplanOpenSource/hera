@@ -90,6 +90,25 @@ class Project:
 
     _allowWritingToDefaultProject = None # A flag to allow the update of the default project. Used to add the datasources to it.
 
+    _FilesDirectory = None
+
+    @property
+    def FilesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
+    @property
+    def filesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
+
 
     @property
     def measurements(self) -> Measurements_Collection:
@@ -130,6 +149,95 @@ class Project:
     def projectName(self):
         return self._projectName
 
+
+    def setConfig(self,keep_old_values=True, **kwargs):
+        """
+            Create a config document or updates an existing config document.
+        """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+
+        doc = self._getConfigDocument()
+        if keep_old_values:
+            doc.desc.update(kwargs)
+        else:
+            doc['desc'] = kwargs
+        doc.save()
+
+    def __init__(self, projectName=None, connectionName=None, configurationPath=None,filesDirectory=None):
+        """
+            Initialize the project class.
+
+        Parameters
+        ----------
+        projectName: str default None
+                The name of the project.
+                If projectName is None, try to load it from the [configurationPath]/caseConfiguration.json
+                if configurationPath is None, load it from the current directory.
+                the structure of this file is
+
+                ```
+                    {
+                        "projectName" : [project Name]
+                    }
+                ```
+
+        connectionName: str
+                The name of the DB connection. If not specified, use the
+                connection with the linux user name.
+
+        :param configurationPath: str
+                The path to the caseConfiguration.json file.
+                If not supplied, use the current directory.
+        """
+        logger = get_classMethod_logger(self,"init")
+        self._allowWritingToDefaultProject = False
+
+        if projectName is None:
+            configurationPath = os.getcwd() if configurationPath is None else configurationPath
+            confFile = os.path.join(configurationPath, "caseConfiguration.json")
+            logger.debug(f"projectName is None, try to load file {confFile}")
+            if os.path.exists(confFile):
+                logger.debug(f"Load as JSON")
+                configuration = loadJSON(confFile)
+                if 'projectName' not in configuration:
+                    err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
+                    err += """conifguration should be :
+{
+    'projectName' : [project name]
+}                                        
+"""
+                    logger.error(err)
+                    raise ValueError(err)
+                else:
+                    projectName   = configuration['projectName']
+            else:
+                logger.debug(f"configuration file {confFile} is not found. Using the default project: DEFAULTPROJECT={self.DEFAULTPROJECT}")
+                projectName = self.DEFAULTPROJECT
+
+        logger.info(f"Initializing with logger {projectName}")
+        self._projectName = projectName
+
+        self._measurements  = Measurements_Collection(connectionName=connectionName)
+        self._cache      = Cache_Collection(connectionName=connectionName)
+        self._simulations   = Simulations_Collection(connectionName=connectionName)
+        self._all           =   AbstractCollection(connectionName=connectionName)
+
+        savedFilesDirectory = self.getConfig().get("filesDirectory", None)
+
+        if savedFilesDirectory is None:
+            if filesDirectory is None:
+                filesDirectory = os.path.abspath(os.getcwd())
+            else:
+                filesDirectory= os.path.abspath(filesDirectory)
+
+            logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+            self.setConfig(filesDirectory=filesDirectory)
+        else:
+            filesDirectory = savedFilesDirectory
+
+        os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
+        self._FilesDirectory = filesDirectory
 
     @property
     def simulations(self) -> Simulations_Collection:
@@ -205,6 +313,7 @@ class Project:
         self.setConfig(**cnfg)
         return cnfg
 
+
     def getCounter(self,counterName):
         """
             Return the value of the counter and add [addition].
@@ -224,7 +333,6 @@ class Project:
         coutnerDict = cnfg.setdefault("counters", {})
         ret = coutnerDict[counterName]
         return ret
-
 
     def getCounterAndAdd(self, counterName, addition=1):
             """
@@ -269,6 +377,7 @@ class Project:
         doc = self._getConfigDocument()
         return dict(doc["desc"])
 
+
     def initConfig(self,**kwargs):
         """
             Sets the value of the config, if the keys does not exist. If they exist, leave the old value.
@@ -287,80 +396,6 @@ class Project:
         for key,value in doc['desc'].items():
             doc['desc'].setdefault(key,value)
         doc.save()
-
-
-    def setConfig(self,keep_old_values=True, **kwargs):
-        """
-            Create a config document or updates an existing config document.
-        """
-        if self._projectName == self.DEFAULTPROJECT:
-            raise ValueError("Default project cannot use configuration")
-
-        doc = self._getConfigDocument()
-        if keep_old_values:
-            doc.desc.update(kwargs)
-        else:
-            doc['desc'] = kwargs
-        doc.save()
-
-    def __init__(self, projectName=None, connectionName=None, configurationPath=None):
-        """
-            Initialize the project class.
-
-        Parameters
-        ----------
-        projectName: str default None
-                The name of the project.
-                If projectName is None, try to load it from the [configurationPath]/caseConfiguration.json
-                if configurationPath is None, load it from the current directory.
-                the structure of this file is
-
-                ```
-                    {
-                        "projectName" : [project Name]
-                    }
-                ```
-
-        connectionName: str
-                The name of the DB connection. If not specified, use the
-                connection with the linux user name.
-
-        :param configurationPath: str
-                The path to the caseConfiguration.json file.
-                If not supplied, use the current directory.
-        """
-        logger = get_classMethod_logger(self,"init")
-        self._allowWritingToDefaultProject = False
-
-        if projectName is None:
-            configurationPath = os.getcwd() if configurationPath is None else configurationPath
-            confFile = os.path.join(configurationPath, "caseConfiguration.json")
-            logger.debug(f"projectName is None, try to load file {confFile}")
-            if os.path.exists(confFile):
-                logger.debug(f"Load as JSON")
-                configuration = loadJSON(confFile)
-                if 'projectName' not in configuration:
-                    err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
-                    err += """conifguration should be :
-{
-    'projectName' : [project name]
-}                                        
-"""
-                    logger.error(err)
-                    raise ValueError(err)
-                else:
-                    projectName   = configuration['projectName']
-            else:
-                logger.debug(f"configuration file {confFile} is not found. Using the default project: DEFAULTPROJECT={self.DEFAULTPROJECT}")
-                projectName = self.DEFAULTPROJECT
-
-        logger.info(f"Initializing with logger {projectName}")
-        self._projectName = projectName
-
-        self._measurements  = Measurements_Collection(connectionName=connectionName)
-        self._cache      = Cache_Collection(connectionName=connectionName)
-        self._simulations   = Simulations_Collection(connectionName=connectionName)
-        self._all           =   AbstractCollection(connectionName=connectionName)
 
 
 
