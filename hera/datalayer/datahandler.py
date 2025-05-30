@@ -46,6 +46,23 @@ class datatypes:
             object: datatypes.PICKLE
         }
 
+    datatype_to_extension = {
+        datatypes.STRING: ".txt",
+        datatypes.TIME: ".txt",  # or .time if you have a custom convention
+        datatypes.CSV_PANDAS: ".csv",
+        datatypes.HDF: ".h5",
+        datatypes.NETCDF_XARRAY: ".nc",
+        datatypes.JSON_DICT: ".json",
+        datatypes.JSON_PANDAS: ".json",
+        datatypes.JSON_GEOPANDAS: ".geojson",
+        datatypes.GEOPANDAS: ".gpkg",  # or .shp
+        datatypes.GEOTIFF: ".tif",
+        datatypes.PARQUET: ".parquet",
+        datatypes.IMAGE: ".png",  # could also be .jpg, .tiff depending on use
+        datatypes.PICKLE: ".pkl",
+        datatypes.DICT: ".json",  # often serialized as JSON
+    }
+
 
 def guessHandler(datatype):
     """

@@ -62,13 +62,14 @@ class cacheDecorators:
         self.dataFormat = dataFormat
 
     def __call__(self, *args, **kwargs):
-
         call_info = self._top_caller_info()
+        data = self.checkIfFunctionIsCached(call_info)
+        if data is None:
+            data = self.func(*args, **kwargs)
+            doc = self.saveFunctionCache(call_info,data)
 
-        self.checkIfFunctionIsCached(call_info)
-        result = self.func(*args, **kwargs)
-        self.saveFunctionCache(result)
-        return result
+        ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
+        return ret
 
     def _top_caller_info(self):
         """
@@ -164,13 +165,20 @@ class cacheDecorators:
         if self.dataFormat is None:
              guessedDataFormat = datatypes.type_to_datatype_string[data]
         else:
-            guessedDataFormat = self.getDataParams
+            guessedDataFormat = self.dataFormat
+
+
+        file_extension = datatypes.datatype_to_extension[guessedDataFormat]
+
+        cacheDirectory = os.path.join(proj.filesDirectory,"cache")
+        os.makedirs(cacheDirectory,exist_ok=True)
+        fileName = os.path.join(cacheDirectory,f"{call_info['functionName']}_{fileID}.{file_extension}")
 
         handler = guessHandler(guessedDataFormat)
+        handler.saveData(data,fileName)
 
-
-
-        docList = proj.getCacheDocuments(type="functionCacheData",format = guessedDataFormat,  ,desc = qry)
+        doc = proj.addCacheDocument(type="functionCacheData",format = guessedDataFormat,resource=fileName  ,desc = qry)
+        return doc
 
 
 
