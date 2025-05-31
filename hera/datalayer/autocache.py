@@ -33,7 +33,7 @@ def clearFunctionCache(functionName,projectName=None):
     [doc.delete() for doc in docList]
     return True
 
-def cache(returnFormat,projectName=None,postProcessFunction=None,getDataParams={}):
+def cacheFunction(returnFormat,projectName=None,postProcessFunction=None,getDataParams={}):
     def wrapper(func):
         return cacheDecorators(func=func,
                                projectName=projectName,
@@ -63,9 +63,14 @@ class cacheDecorators:
 
     def __call__(self, *args, **kwargs):
         call_info = self._top_caller_info()
-        data = self.checkIfFunctionIsCached(call_info)
+        # convert any
+        call_info_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=True)
+
+        data = self.checkIfFunctionIsCached(call_info_JSON)
         if data is None:
             data = self.func(*args, **kwargs)
+            # query without the original units. This allows the user to query different units
+            #call_info_query_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=False)
             doc = self.saveFunctionCache(call_info,data)
 
         ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
@@ -125,7 +130,7 @@ class cacheDecorators:
             del params['self']
 
         params['functionName'] = full_name
-        return params
+        return ret
 
     def checkIfFunctionIsCached(self,call_info):
         """
@@ -143,8 +148,7 @@ class cacheDecorators:
         """
 
         proj = Project(self.projectName)
-        qry = dictToMongoQuery(call_info)
-        docList = proj.getCacheDocuments(type="functionCacheData",**qry)
+        docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
         return None if len(docList)==0 else docList[0].getData()
 
     def saveFunctionCache(self,call_info,data):
@@ -160,15 +164,15 @@ class cacheDecorators:
         """
         proj = Project(self.projectName)
         fileID = proj.getCounterAndAdd(call_info['functionName'])
-        qry = dictToMongoQuery(call_info)
+
+        qry  = ConfigurationToJSON(call_info,standardize=True,splitUnits=True,keepOriginalUnits=True)
 
         if self.dataFormat is None:
-             guessedDataFormat = datatypes.type_to_datatype_string[data]
+             guessedDataFormat = datatypes.getDataFormatName(data)
         else:
             guessedDataFormat = self.dataFormat
 
-
-        file_extension = datatypes.datatype_to_extension[guessedDataFormat]
+        file_extension = datatypes.getDataFormatExtension(guessedDataFormat)
 
         cacheDirectory = os.path.join(proj.filesDirectory,"cache")
         os.makedirs(cacheDirectory,exist_ok=True)

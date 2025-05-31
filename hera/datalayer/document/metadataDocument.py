@@ -1,6 +1,6 @@
 from mongoengine import *
 import json
-from ..datahandler import getHandler
+from hera.datalayer.datahandler import getHandler
 
 class MetadataFrame(object):
     """

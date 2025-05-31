@@ -3,14 +3,16 @@ import os
 import pandas
 from promise.utils import deprecated
 
-from .datahandler import datatypes
-from ..utils.logging import get_classMethod_logger
-from ..utils import loadJSON
-from .. import toolkit
-from .collection import AbstractCollection,\
+from hera.datalayer.datahandler import datatypes
+from hera.utils.logging import get_classMethod_logger
+from hera.utils import loadJSON
+from hera import toolkit
+from hera.datalayer.collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
     Simulations_Collection
+
+from hera.utils import ConfigurationToJSON
 
 def getProjectList(connectionName=None):
     """
