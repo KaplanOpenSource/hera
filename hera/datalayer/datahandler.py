@@ -97,8 +97,12 @@ class datatypes:
                 -ext : the extension of the file name.
         """
         objTypeName = datatypes.get_obj_or_instance_fullName(obj_or_class)
-        return datatypes.typeDatatypeMap["object"] if objTypeName not in datatypes.typeDatatypeMap else \
-        datatypes.typeDatatypeMap[objTypeName]["typeName"]
+
+
+        dataItemName = datatypes.typeDatatypeMap["object"] if objTypeName not in datatypes.typeDatatypeMap else \
+        datatypes.typeDatatypeMap[objTypeName]
+
+        return dataItemName["typeName"]
 
     @staticmethod
     def getDataFormatExtension(obj_or_class):
@@ -117,8 +121,12 @@ class datatypes:
                 -ext : the extension of the file name.
         """
         objTypeName = datatypes.get_obj_or_instance_fullName(obj_or_class)
-        return datatypes.typeDatatypeMap["object"] if objTypeName not in datatypes.typeDatatypeMap else \
-        datatypes.typeDatatypeMap[objTypeName]["ext"]
+
+
+        dataItemName = datatypes.typeDatatypeMap["object"] if objTypeName not in datatypes.typeDatatypeMap else \
+        datatypes.typeDatatypeMap[objTypeName]
+
+        return dataItemName["ext"]
 
     @staticmethod
     def guessHandler(obj_or_class):
@@ -131,7 +139,7 @@ class datatypes:
     def getHandler(objectType):
         dataHandlerModule = importlib.import_module("hera.datalayer.datahandler")
 
-        handlerName = f"DataHandler_{objType}"
+        handlerName = f"DataHandler_{objectType}"
 
         if not hasattr(dataHandlerModule, handlerName):
             raise ValueError(f"The data handler for the type {objectType} is not known")

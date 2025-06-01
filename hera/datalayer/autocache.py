@@ -23,15 +23,14 @@ def clearFunctionCache(functionName,projectName=None):
 
     """
     proj = Project(projectName=projectName)
-    docList = proj.get(type ="functionCacheData",functionName=functionName)
+    docList = proj.deleteCacheDocuments(type ="functionCacheData",functionName=functionName)
     for doc in docList:
-        if os.path.exists(doc.resource):
-            if os.path.isdir(doc.resource):
-                shutil.rmtree(doc.resource)
+        if os.path.exists(doc['resource']):
+            if os.path.isdir(doc['resource']):
+                shutil.rmtree(doc['resource'])
             else:
-                os.remove(doc.resource)
+                os.remove(doc['resource'])
 
-    [doc.delete() for doc in docList]
     return True
 
 def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams={}):
@@ -85,11 +84,12 @@ class cacheDecorators:
 
         call_info = dict(bound.arguments)
 
+        # Combine them
+        call_info['functionName'] =  self._get_full_func_name(self.func)
+
         # convert any pint/unum to standardized MKS and dict with the magnitude and units seperated.
         # This will allow the query of the querys even if they are given in different units
         call_info_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=True)
-        import pdb
-        pdb.set_trace()
 
         data = self.checkIfFunctionIsCached(call_info_JSON)
         if data is None:
@@ -99,6 +99,33 @@ class cacheDecorators:
             doc = self.saveFunctionCache(call_info,data)
 
         ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
+        return ret
+
+    def _get_full_func_name(self,func):
+        """Returns the full qualified path: module.[class.]function_name"""
+        if not callable(func):
+            raise TypeError("Provided object is not callable.")
+
+        # Handle bound methods by unwrapping them
+        if inspect.ismethod(func):
+            # Get the original function and its class
+            cls = func.__self__.__class__
+            method_name = func.__name__
+            class_qualname = cls.__qualname__
+            module = func.__module__
+            if module == "__main__":
+                ret = f"{class_qualname}.{method_name}"
+            else:
+                ret = f"{module}.{class_qualname}.{method_name}"
+
+        elif inspect.isfunction(func):
+            ret = func.__qualname__
+        else:
+
+            # Handle unbound class or static methods and plain functions
+            qualname = func.__qualname__
+            module = func.__module__
+            ret = f"{module}.{qualname}"
         return ret
 
     def _top_caller_info(self):
@@ -154,13 +181,7 @@ class cacheDecorators:
         if 'self' in params:
             del params['self']
 
-
-
         params['functionName'] = full_name
-
-
-        import pdb
-        pdb.set_trace()
 
         return params
 
@@ -195,25 +216,20 @@ class cacheDecorators:
 
         """
         proj = Project(self.projectName)
-        fileID = proj.getCounterAndAdd(call_info['functionName'])
-
         qry  = ConfigurationToJSON(call_info,standardize=True,splitUnits=True,keepOriginalUnits=True)
 
-        if self.dataFormat is None:
-             guessedDataFormat = datatypes.getDataFormatName(data)
-        else:
-            guessedDataFormat = self.dataFormat
-
-        file_extension = datatypes.getDataFormatExtension(guessedDataFormat)
+        guessedDataFormat = datatypes.getDataFormatName(data) if self.dataFormat is None else self.dataFormat
+        handler = datatypes.getHandler(guessedDataFormat)
+        file_extension = datatypes.getDataFormatExtension(data)
 
         cacheDirectory = os.path.join(proj.filesDirectory,"cache")
         os.makedirs(cacheDirectory,exist_ok=True)
+        fileID = proj.getCounterAndAdd(call_info['functionName'])
         fileName = os.path.join(cacheDirectory,f"{call_info['functionName']}_{fileID}.{file_extension}")
 
-        handler = guessHandler(guessedDataFormat)
         handler.saveData(data,fileName)
 
-        doc = proj.addCacheDocument(type="functionCacheData",format = guessedDataFormat,resource=fileName  ,desc = qry)
+        doc = proj.addCacheDocument(type="functionCacheData",dataFormat = guessedDataFormat,resource=fileName  ,desc = qry)
         return doc
 
 

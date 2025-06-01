@@ -12,7 +12,7 @@ initialize_logging(disable_existing_loggers=False)
 
 from hera.toolkit import ToolkitHome
 from hera.datalayer import Project,datatypes
-from hera.datalayer.autocache import cacheFunction
+from hera.datalayer.autocache import cacheFunction,clearFunctionCache
 
 
 toolkitHome = ToolkitHome()

@@ -115,7 +115,8 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
 
     return ret
 
-def JSONToConfiguration(valueToProcess,returnUnum=True,returnStandardize=False):
+
+def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False):
     """
         Converts a dictionary (all the values are string) to
         a JSON where all the values are string.
