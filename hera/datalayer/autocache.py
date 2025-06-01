@@ -2,10 +2,11 @@ import os
 import shutil
 import numpy
 from hera import Project
-from hera.utils import dictToMongoQuery
 import inspect
 from functools import wraps
 from hera.datalayer.datahandler import getHandler,datatypes
+from hera.utils import dictToMongoQuery,ConfigurationToJSON
+
 
 def clearFunctionCache(functionName,projectName=None):
     """
@@ -33,15 +34,25 @@ def clearFunctionCache(functionName,projectName=None):
     [doc.delete() for doc in docList]
     return True
 
-def cacheFunction(returnFormat,projectName=None,postProcessFunction=None,getDataParams={}):
-    def wrapper(func):
-        return cacheDecorators(func=func,
-                               projectName=projectName,
-                               returnFormat=returnFormat,
-                               postProcessFunction=postProcessFunction,
-                               getDataParams = getDataParams)
-    return wrapper
+def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams={}):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return cacheDecorators(
+                func=func,
+                dataFormat=returnFormat,
+                projectName=projectName,
+                postProcessFunction=postProcessFunction,
+                getDataParams=getDataParams
+            )(*args, **kwargs)
+        return wrapper
 
+    if _func is None:
+        # Decorator called with parentheses and arguments
+        return decorator
+    else:
+        # Decorator used directly like @cacheFunction
+        return decorator(_func)
 ##############################################################################################
 #####                                                                                    #####
 #####                       Main cacheDecorators                                         #####
@@ -62,9 +73,23 @@ class cacheDecorators:
         self.dataFormat = dataFormat
 
     def __call__(self, *args, **kwargs):
-        call_info = self._top_caller_info()
-        # convert any
+
+
+        sig = inspect.signature(self.func)
+
+        # Bind the passed args and kwargs to the signature
+        bound = sig.bind(*args, **kwargs)
+
+        # Apply defaults to fill in any missing optional arguments
+        bound.apply_defaults()
+
+        call_info = dict(bound.arguments)
+
+        # convert any pint/unum to standardized MKS and dict with the magnitude and units seperated.
+        # This will allow the query of the querys even if they are given in different units
         call_info_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=True)
+        import pdb
+        pdb.set_trace()
 
         data = self.checkIfFunctionIsCached(call_info_JSON)
         if data is None:
@@ -86,7 +111,7 @@ class cacheDecorators:
         """
         # Get the frame of the caller function (1 level back)
         frame = inspect.currentframe()
-        caller_frame = frame.f_back.f_back  # caller of this method
+        caller_frame = frame.f_back  # caller of this method
 
         # Extract the code object of caller
         code = caller_frame.f_code
@@ -129,8 +154,15 @@ class cacheDecorators:
         if 'self' in params:
             del params['self']
 
+
+
         params['functionName'] = full_name
-        return ret
+
+
+        import pdb
+        pdb.set_trace()
+
+        return params
 
     def checkIfFunctionIsCached(self,call_info):
         """

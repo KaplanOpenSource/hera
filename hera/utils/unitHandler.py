@@ -2,15 +2,40 @@ from unum import Unum
 from unum.units import *
 from unum import NameConflictError
 import re
+
 from pint import UnitRegistry
+from pint import Quantity
+from pint.errors import UndefinedUnitError, DimensionalityError
+
 from deprecated import deprecated
 
-tonumber = lambda x, theunit: x.asNumber(theunit) if isinstance(x, Unum) else x
-tounit = lambda x, theunit: x.asUnit(theunit) if isinstance(x, Unum) else x * theunit
+def tonumber(x,theunit):
+    if isinstance(x,Unum):
+        ret = x.asNumber(theunit)
+    elif isinstance(x,Quantity):
+        ret = x.to(theunit).magnitude
+    else:
+        ret = x
+
+    return ret
+
+def tounit(x,theunit):
+    if isinstance(x,Unum):
+        ret = x.asUnit(theunit)
+    elif isinstance(x,Quantity):
+        ret = x.to(theunit)
+    else:
+        ret = Quantity(x,theunit)
+    return ret
+
+# tonumber = lambda x, theunit: x.asNumber(theunit) if isinstance(x, Unum) else x
+# tounit = lambda x, theunit: x.asUnit(theunit) if isinstance(x, Unum) else x * theunit
 tounum = tounit
 
 # Initialize the Pint unit registry
 ureg = UnitRegistry()
+ureg.define('mmH2O = atm / 10197.162129779')
+ureg.define('dunam = 1000*m**2')
 
 try:
     atm = Unum.unit('atm', 1.01325 * bar, 'atmosphere')
