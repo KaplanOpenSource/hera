@@ -1,6 +1,7 @@
 import json
 import os
 import pandas
+import inspect
 from promise.utils import deprecated
 
 from hera.datalayer.datahandler import datatypes
@@ -713,6 +714,82 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
+    def addData(self,name,data,desc,kind,type=None):
+        """
+            Adds a cache document with the data.
+            Estimates the dataFormat from the data type.
+
+            The type is
+        Parameters
+        ----------
+        data : a data that can be dataframe, xarray, numpy ....
+
+        desc : dict
+            A dict with the meatadata to save
+        type : str
+            If None, then set the type to be the name of the function that called this method.
+
+        Returns
+        -------
+            The new document
+        """
+        qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
+
+        guessedDataFormat = self.datatypes.getDataFormatName(data) if self.dataFormat is None else self.dataFormat
+        handler = self.datatypes.getHandler(guessedDataFormat)
+        file_extension = self.datatypes.getDataFormatExtension(data)
+
+        cacheDirectory = os.path.join(self.filesDirectory, "cache")
+        os.makedirs(cacheDirectory, exist_ok=True)
+        fileID = self..getCounterAndAdd(name)
+        fileName = os.path.join(cacheDirectory, f"{guessedDataFormat}_{fileID}.{file_extension}")
+
+        handler.saveData(data, fileName)
+
+        funcName = getattr(self,f"add{kind}Document")
+
+        fullType = f"{name}_{type}" if type is not None else name
+
+        doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
+
+    def addMeasurementData(self,name,data,desc,kind,type=None):
+        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type)
+
+    def addCacheData(self,name,data,desc,kind,type=None):
+        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type)
+
+    def addSimulationData(self,name,data,desc,kind,type=None):
+        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type)
+
+    def _get_full_func_name(self,func):
+        """Returns the full qualified path: module.[class.]function_name"""
+        if not callable(func):
+            raise TypeError("Provided object is not callable.")
+
+        # Handle bound methods by unwrapping them
+        if inspect.ismethod(func):
+            # Get the original function and its class
+            cls = func.__self__.__class__
+            method_name = func.__name__
+            class_qualname = cls.__qualname__
+            module = func.__module__
+            if module == "__main__":
+                ret = f"{class_qualname}.{method_name}"
+            else:
+                ret = f"{module}.{class_qualname}.{method_name}"
+
+        elif inspect.isfunction(func):
+            ret = func.__qualname__
+        else:
+
+            # Handle unbound class or static methods and plain functions
+            qualname = func.__qualname__
+            module = func.__module__
+            ret = f"{module}.{qualname}"
+        return ret
+
+
+
     @staticmethod
     def getProjectList(cls,user=None):
         """
@@ -727,11 +804,3 @@ class Project:
         """
         return list(set(AbstractCollection(connectionName=user).getProjectList()))
 
-
-    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
-        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
-                                                                            "version": version}))==0:
-            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
-
-        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
-        print(f"{version} for dataSource {datasourceName} is now set to default.")

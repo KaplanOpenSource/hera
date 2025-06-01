@@ -450,3 +450,12 @@ class abstractToolkit(Project):
 
         return doc
 
+
+    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
+        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
+                                                                            "version": version}))==0:
+            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
+
+        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
+        print(f"{version} for dataSource {datasourceName} is now set to default.")
+
