@@ -188,7 +188,7 @@ class DataHandler_geotiff(object):
     """
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         raise NotImplementedError("Not implemented yet")
 
     @staticmethod
@@ -216,7 +216,7 @@ class DataHandler_string(object):
     """
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         with open(fileName, "w") as outFile:
             outFile.write(resource)
 
@@ -243,8 +243,20 @@ class DataHandler_time(object):
     """
 
     @staticmethod
-    def saveData(resource, fileName):
-        raise NotImplementedError("time is not implemented for saving")
+    def saveData(resource, fileName,**kwargs):
+        """
+            No need to save as it is stored in the resource.
+        Parameters
+        ----------
+        resource
+        fileName
+        kwargs
+
+        Returns
+        -------
+
+        """
+        pass
 
     @staticmethod
     def getData(resource, desc=None):
@@ -271,7 +283,7 @@ class DataHandler_csv_pandas(object):
     """
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         resource.to_csv(fileName)
 
     @staticmethod
@@ -306,7 +318,7 @@ class DataHandler_HDF(object):
     """
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         raise NotImplementedError("HDF saver not implemented yet")
 
     @staticmethod
@@ -337,8 +349,8 @@ class DataHandler_HDF(object):
 class DataHandler_netcdf_xarray(object):
 
     @staticmethod
-    def saveData(resource, fileName):
-        resource.to_netcdf(fileName)
+    def saveData(resource, fileName,**kwargs):
+        resource.to_netcdf(fileName,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
@@ -365,7 +377,7 @@ class DataHandler_netcdf_xarray(object):
 class DataHandler_zarr_xarray(object):
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         """
             Write the zarr. Rewrites on the file.
             If you want to append, do it manuyally.
@@ -378,7 +390,7 @@ class DataHandler_zarr_xarray(object):
         -------
 
         """
-        resource.to_zarr(fileName, mode="w")
+        resource.to_zarr(fileName, mode="w",**kwargs)
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
@@ -404,9 +416,9 @@ class DataHandler_zarr_xarray(object):
 class DataHandler_JSON_dict(object):
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         with open(fileName, "w") as outFile:
-            json.dump(resource, outFile)
+            json.dump(resource, outFile,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None):
@@ -429,8 +441,8 @@ class DataHandler_JSON_dict(object):
 class DataHandler_JSON_pandas(object):
 
     @staticmethod
-    def saveData(resource, fileName):
-        resource.to_json(fileName)
+    def saveData(resource, fileName,**kwargs):
+        resource.to_json(fileName,**kwargs)
 
     @staticmethod
     def getData(resource, usePandas=True, desc=None):
@@ -460,8 +472,8 @@ class DataHandler_JSON_pandas(object):
 class DataHandler_JSON_geopandas(object):
 
     @staticmethod
-    def saveData(resource, fileName):
-        resource.to_json(fileName)
+    def saveData(resource, fileName,**kwargs):
+        resource.to_json(fileName,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
@@ -475,8 +487,8 @@ class DataHandler_JSON_geopandas(object):
 class DataHandler_geopandas(object):
 
     @staticmethod
-    def saveData(resource, fileName):
-        resource.to_file(fileName, driver="GPKG")
+    def saveData(resource, fileName,**kwargs):
+        resource.to_file(fileName, driver="GPKG",**kwargs)
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
@@ -490,14 +502,17 @@ class DataHandler_geopandas(object):
 class DataHandler_parquet(object):
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
 
         if isinstance(resource, pandas, pandas.DataFrame):
             # pandas. write as a single file.
-            resource.to_parquet(fileName)
+            resource.to_parquet(fileName,**kwargs)
         else:
             # dask - automatically split it
-            resource.to_parquet(fileName, partition_size="100MB")
+
+            kwargs['partition_size'].setdefault("100MB")
+
+            resource.to_parquet(fileName,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None, usePandas=False, **kwargs):
@@ -530,8 +545,8 @@ class DataHandler_parquet(object):
 class DataHandler_image(object):
 
     @staticmethod
-    def saveData(resource, fileName):
-        mpimg.imsave(fileName, resource)
+    def saveData(resource, fileName,**kwargs):
+        mpimg.imsave(fileName, resource,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None):
@@ -555,9 +570,9 @@ class DataHandler_image(object):
 class DataHandler_pickle(object):
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         with open(fileName, 'wb') as f:
-            pickle.dump(resource, f)
+            pickle.dump(resource, f,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None):
@@ -581,7 +596,19 @@ class DataHandler_pickle(object):
 class DataHandler_dict(object):
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
+        """
+            No need to save as it is stored in the resource.
+        Parameters
+        ----------
+        resource
+        fileName
+        kwargs
+
+        Returns
+        -------
+
+        """
         pass
 
     @staticmethod
@@ -604,7 +631,7 @@ class DataHandler_dict(object):
 class DataHandler_tif(object):
 
     @staticmethod
-    def saveData(resource, fileName):
+    def saveData(resource, fileName,**kwargs):
         raise NotImplementedError("tif format is not implemented")
 
     @staticmethod
@@ -629,8 +656,8 @@ class DataHandler_tif(object):
 class DataHandler_numpy_array:
 
     @staticmethod
-    def saveData(resource, fileName):
-        numpy.save(fileName, resource)
+    def saveData(resource, fileName,**kwargs):
+        numpy.save(fileName, resource,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None):
@@ -657,8 +684,8 @@ class DataHandler_numpy_dict_array:
     """
 
     @staticmethod
-    def saveData(resource, fileName):
-        numpy.savez(fileName, **resource)
+    def saveData(resource, fileName,**kwargs):
+        numpy.savez(fileName, **resource,**kwargs)
 
     @staticmethod
     def getData(resource, desc=None):

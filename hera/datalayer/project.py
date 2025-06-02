@@ -714,7 +714,7 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
-    def addData(self,name,data,desc,kind,type=None):
+    def addData(self,name,data,desc,kind,type=None,**kwargs):
         """
             Adds a cache document with the data.
             Estimates the dataFormat from the data type.
@@ -744,7 +744,7 @@ class Project:
         fileID = self..getCounterAndAdd(name)
         fileName = os.path.join(cacheDirectory, f"{guessedDataFormat}_{fileID}.{file_extension}")
 
-        handler.saveData(data, fileName)
+        handler.saveData(data, fileName,**kwargs)
 
         funcName = getattr(self,f"add{kind}Document")
 
@@ -752,14 +752,14 @@ class Project:
 
         doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
 
-    def addMeasurementData(self,name,data,desc,kind,type=None):
-        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type)
+    def addMeasurementData(self,name,data,desc,kind,type=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type,**kwargs)
 
-    def addCacheData(self,name,data,desc,kind,type=None):
-        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type)
+    def addCacheData(self,name,data,desc,kind,type=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type,**kwargs)
 
-    def addSimulationData(self,name,data,desc,kind,type=None):
-        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type)
+    def addSimulationData(self,name,data,desc,kind,type=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type,**kwargs)
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
