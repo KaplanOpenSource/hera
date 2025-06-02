@@ -714,7 +714,7 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
-    def addData(self,name,data,desc,kind,type=None,**kwargs):
+    def addData(self,name,data,desc,kind,type=None,dataFormat=None,**kwargs):
         """
             Adds a cache document with the data.
             Estimates the dataFormat from the data type.
@@ -733,33 +733,36 @@ class Project:
         -------
             The new document
         """
-        qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
-
-        guessedDataFormat = self.datatypes.getDataFormatName(data) if self.dataFormat is None else self.dataFormat
+        guessedDataFormat = self.datatypes.getDataFormatName(data) if dataFormat is None else dataFormat
         handler = self.datatypes.getHandler(guessedDataFormat)
         file_extension = self.datatypes.getDataFormatExtension(data)
 
         cacheDirectory = os.path.join(self.filesDirectory, "cache")
         os.makedirs(cacheDirectory, exist_ok=True)
-        fileID = self..getCounterAndAdd(name)
-        fileName = os.path.join(cacheDirectory, f"{guessedDataFormat}_{fileID}.{file_extension}")
+        fileID = self.getCounterAndAdd(name)
+        fileName = os.path.join(cacheDirectory, f"{name}_{fileID}.{file_extension}")
 
-        handler.saveData(data, fileName,**kwargs)
+        saveParamsUpdatedDict = handler.saveData(data, fileName,**kwargs)
 
         funcName = getattr(self,f"add{kind}Document")
+        fullType = type if type is not None else name
 
-        fullType = f"{name}_{type}" if type is not None else name
+        qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
+        storeParamsDict = qry.get("storeParameters",{})
+        storeParamsDict.update(saveParamsUpdatedDict)
+        qry["storeParameters"] = storeParamsDict
 
         doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
+        return doc
 
-    def addMeasurementData(self,name,data,desc,kind,type=None,**kwargs):
-        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type,**kwargs)
+    def addMeasurementData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type,dataFormat=dataFormat,**kwargs)
 
-    def addCacheData(self,name,data,desc,kind,type=None,**kwargs):
-        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type,**kwargs)
+    def addCacheData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type,dataFormat=dataFormat,**kwargs)
 
-    def addSimulationData(self,name,data,desc,kind,type=None,**kwargs):
-        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type,**kwargs)
+    def addSimulationData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type,dataFormat=dataFormat,**kwargs)
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""

@@ -8,6 +8,19 @@ from hera.datalayer.datahandler import getHandler,datatypes
 from hera.utils import dictToMongoQuery,ConfigurationToJSON
 
 
+def clearAllFunctionsCache(projectName=None):
+    """
+        Remove the cache of all functions.
+    Parameters
+    ----------
+    projectName
+
+    Returns
+    -------
+
+    """
+    clearFunctionCache(functionName=None,projectName=projectName)
+
 def clearFunctionCache(functionName,projectName=None):
     """
         Removes all the cache documents of the function with the data from the disk.
@@ -33,7 +46,7 @@ def clearFunctionCache(functionName,projectName=None):
 
     return True
 
-def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams={}):
+def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams={},storeDataParams={}):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -42,7 +55,8 @@ def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProces
                 dataFormat=returnFormat,
                 projectName=projectName,
                 postProcessFunction=postProcessFunction,
-                getDataParams=getDataParams
+                getDataParams=getDataParams,
+                storeDataParams=storeDataParams
             )(*args, **kwargs)
         return wrapper
 
@@ -64,15 +78,15 @@ class cacheDecorators:
     projectName = None
     dataFormat = None
 
-    def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams={}):
+    def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams={},storeDataParams={}):
         self.func = func
         self.postProcessFunction = postProcessFunction
         self.projectName = projectName
         self.getDataParams = getDataParams
+        self.storeDataParams = storeDataParams
         self.dataFormat = dataFormat
 
     def __call__(self, *args, **kwargs):
-
 
         sig = inspect.signature(self.func)
 
@@ -87,10 +101,12 @@ class cacheDecorators:
         # Combine them
         call_info['functionName'] =  self._get_full_func_name(self.func)
 
+        if 'self' in call_info:
+            del call_info['self']
+
         # convert any pint/unum to standardized MKS and dict with the magnitude and units seperated.
         # This will allow the query of the querys even if they are given in different units
         call_info_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=True)
-
         data = self.checkIfFunctionIsCached(call_info_JSON)
         if data is None:
             data = self.func(*args, **kwargs)
@@ -121,11 +137,11 @@ class cacheDecorators:
         elif inspect.isfunction(func):
             ret = func.__qualname__
         else:
-
             # Handle unbound class or static methods and plain functions
             qualname = func.__qualname__
             module = func.__module__
             ret = f"{module}.{qualname}"
+
         return ret
 
 
@@ -146,7 +162,7 @@ class cacheDecorators:
 
         proj = Project(self.projectName)
         docList = proj.getCacheDocuments(type="functionCacheData",**call_info)
-        return None if len(docList)==0 else docList[0].getData()
+        return None if len(docList)==0 else docList[0].getData(**self.getDataParams)
 
     def saveFunctionCache(self,call_info,data):
         """
@@ -160,21 +176,8 @@ class cacheDecorators:
 
         """
         proj = Project(self.projectName)
-        qry  = ConfigurationToJSON(call_info,standardize=True,splitUnits=True,keepOriginalUnits=True)
+        return proj.addCacheData(name=call_info['functionName'], data=data, desc=call_info, type="functionCacheData",dataFormat=self.dataFormat)
 
-        guessedDataFormat = datatypes.getDataFormatName(data) if self.dataFormat is None else self.dataFormat
-        handler = datatypes.getHandler(guessedDataFormat)
-        file_extension = datatypes.getDataFormatExtension(data)
-
-        cacheDirectory = os.path.join(proj.filesDirectory,"cache")
-        os.makedirs(cacheDirectory,exist_ok=True)
-        fileID = proj.getCounterAndAdd(call_info['functionName'])
-        fileName = os.path.join(cacheDirectory,f"{call_info['functionName']}_{fileID}.{file_extension}")
-
-        handler.saveData(data,fileName)
-
-        doc = proj.addCacheDocument(type="functionCacheData",dataFormat = guessedDataFormat,resource=fileName  ,desc = qry)
-        return doc
 
 
 

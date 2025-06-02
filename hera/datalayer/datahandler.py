@@ -69,7 +69,7 @@ class datatypes:
     typeDatatypeMap = {
         "str": dict(typeName=STRING, ext="txt"),
         "pandas.core.frame.DataFrame": dict(typeName=PARQUET, ext="parquet"),
-        'pandas.core.series.Series': dict(typeName=PARQUET, ext="parquet"),
+        'pandas.core.series.Series': dict(typeName=CSV_PANDAS, ext="csv"),
         "dask_expr._collection.DataFrame": dict(typeName=PARQUET, ext="parquet"),
         'geopandas.geodataframe.GeoDataFrame': dict(typeName=GEOPANDAS, ext="gpkg"),
         'xarray.core.dataarray.DataArray': dict(typeName=ZARR_XARRAY, ext="zarr"),
@@ -219,9 +219,10 @@ class DataHandler_string(object):
     def saveData(resource, fileName,**kwargs):
         with open(fileName, "w") as outFile:
             outFile.write(resource)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         The data in the record is a string.
 
@@ -256,10 +257,10 @@ class DataHandler_time(object):
         -------
 
         """
-        pass
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         The data in the record is a timestamp.
 
@@ -284,10 +285,11 @@ class DataHandler_csv_pandas(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
-        resource.to_csv(fileName)
+        resource.to_csv(fileName,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads a csv file into pandas dataframe.
 
@@ -301,7 +303,7 @@ class DataHandler_csv_pandas(object):
         panda.dataframe
         """
 
-        df = pandas.read_csv(resource)
+        df = pandas.read_csv(resource,**kwargs)
 
         return df
 
@@ -351,9 +353,10 @@ class DataHandler_netcdf_xarray(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         resource.to_netcdf(fileName,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None, **kwargs):
+    def getData(resource, desc={}, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -391,9 +394,10 @@ class DataHandler_zarr_xarray(object):
 
         """
         resource.to_zarr(fileName, mode="w",**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None, **kwargs):
+    def getData(resource, desc={}, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -419,9 +423,10 @@ class DataHandler_JSON_dict(object):
     def saveData(resource, fileName,**kwargs):
         with open(fileName, "w") as outFile:
             json.dump(resource, outFile,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads JSON to dict
 
@@ -443,9 +448,10 @@ class DataHandler_JSON_pandas(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         resource.to_json(fileName,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, usePandas=True, desc=None):
+    def getData(resource, usePandas=True, desc={},**kwargs):
         """
         Loads JSON to pandas/dask
 
@@ -474,9 +480,10 @@ class DataHandler_JSON_geopandas(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         resource.to_json(fileName,**kwargs)
+        return dict(crs = resource.crs )
 
     @staticmethod
-    def getData(resource, desc=None, **kwargs):
+    def getData(resource, desc={}, **kwargs):
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
@@ -489,9 +496,10 @@ class DataHandler_geopandas(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         resource.to_file(fileName, driver="GPKG",**kwargs)
+        return dict(crs=resource.crs)
 
     @staticmethod
-    def getData(resource, desc=None, **kwargs):
+    def getData(resource, desc={}, **kwargs):
         df = geopandas.read_file(resource, **kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
@@ -504,18 +512,20 @@ class DataHandler_parquet(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
 
-        if isinstance(resource, pandas, pandas.DataFrame):
+        if isinstance(resource, pandas.DataFrame):
             # pandas. write as a single file.
+            # if any of the columns is integer it breaks the dask
             resource.to_parquet(fileName,**kwargs)
+            ret = dict(usePandas=True)
         else:
             # dask - automatically split it
-
-            kwargs['partition_size'].setdefault("100MB")
-
+            kwargs.setdefault('partition_size',"100MB")
             resource.to_parquet(fileName,**kwargs)
+            ret = dict(usePandas=False)
+        return ret
 
     @staticmethod
-    def getData(resource, desc=None, usePandas=False, **kwargs):
+    def getData(resource, desc={}, usePandas=False, **kwargs):
         """
         Loads a parquet file to dask/pandas.
 
@@ -532,7 +542,7 @@ class DataHandler_parquet(object):
         dask.Dataframe or pandas.DataFrame
         """
         try:
-            df = dask.dataframes.read_parquet(resource, **kwargs)
+            df = dask.dataframe.read_parquet(resource, **kwargs)
             if usePandas:
                 df = df.compute()
         except ValueError:
@@ -547,9 +557,10 @@ class DataHandler_image(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         mpimg.imsave(fileName, resource,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads an image using the resource.
 
@@ -573,9 +584,10 @@ class DataHandler_pickle(object):
     def saveData(resource, fileName,**kwargs):
         with open(fileName, 'wb') as f:
             pickle.dump(resource, f,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -609,7 +621,7 @@ class DataHandler_dict(object):
         -------
 
         """
-        pass
+        return dict()
 
     @staticmethod
     def getData(resource, desc=None):
@@ -635,7 +647,7 @@ class DataHandler_tif(object):
         raise NotImplementedError("tif format is not implemented")
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -658,9 +670,10 @@ class DataHandler_numpy_array:
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         numpy.save(fileName, resource,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads a numpy array
 
@@ -686,9 +699,10 @@ class DataHandler_numpy_dict_array:
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         numpy.savez(fileName, **resource,**kwargs)
+        return dict()
 
     @staticmethod
-    def getData(resource, desc=None):
+    def getData(resource, desc={},**kwargs):
         """
         Loads a numpy array
 
