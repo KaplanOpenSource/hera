@@ -6,6 +6,9 @@ import dask.dataframe as dd
 import os
 import xarray
 
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+from deprecated import deprecated
+
 #### import the simple module from the paraview
 try:
     import paraview.vtk.numpy_interface.dataset_adapter as dsa
@@ -17,8 +20,6 @@ except ImportError:
     print("paraview module is not Found!. VTK pipeline wont work")
 
 from hera.utils.logging import helpers as hera_logging
-
-
 
 class paraviewOpenFOAM:
     """
@@ -76,7 +77,7 @@ class paraviewOpenFOAM:
     def parquetdir(self, parquetdir):
         self._parquetdir = parquetdir
 
-    def __init__(self, casePath,caseType='Decomposed Case', servername=None,fieldNames =None,name="mainreader"):
+    def __init__(self, casePath,caseType=CASETYPE_DECOMPOSED, servername=None,fieldNames =None,name="mainreader"):
         """
             Initializes the paraviewOpenFOAM class.
 
@@ -135,7 +136,7 @@ class paraviewOpenFOAM:
 
         self._ReadCase(readerName=name, casePath=casePath, CaseType=caseType, fieldNames=fieldNames)
 
-    def _ReadCase(self, readerName, casePath, CaseType='Decomposed Case', fieldNames=None):
+    def _ReadCase(self, readerName, casePath, CaseType=CASETYPE_DECOMPOSED, fieldNames=None):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -158,7 +159,7 @@ class paraviewOpenFOAM:
                 the reader
         """
         self._readerName  = readerName
-        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
+        self._reader = pvsimple.OpenFOAMReader(FileName=f"{casePath}/tmp.foam", CaseType=CaseType, guiName=readerName)
         self.reader.MeshRegions.SelectAll()
         self._possibleRegions = list(self._reader.MeshRegions)
         self._reader.MeshRegions = ['internalMesh']
@@ -167,20 +168,30 @@ class paraviewOpenFOAM:
 
         self._reader.UpdatePipeline()
 
+    def toNonRegularCase(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+
+    def toRegularCase(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
+
+    @deprecated(reason="Old Name, use toNonRegularCase")
     def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
 
+    @deprecated(reason="Old Name, use toRegularCase")
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
 
+    @deprecated(reason="Old Name, use toNonRegularCase")
     def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
 
+    @deprecated(reason="Old Name, use toRegularCase")
     def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
 
 
-    def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, xarray=False):
+    def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, regtularMesh=False):
         """
             reads a list of datasource lists to a dictionary
 
@@ -197,7 +208,7 @@ class paraviewOpenFOAM:
                 The list of times to read.
         fieldnames:
                 The list of fields to write.
-        xarray
+        regtularMesh
                 convert pandas results to xarray (works only for regular grids).
 
         Return
@@ -217,7 +228,7 @@ class paraviewOpenFOAM:
             for datasourcename in datasourcenamelist:
                 datasource = pvsimple.FindSource(datasourcename)
                 self.logger.debug(f"Reading source {datasourcename}")
-                rt = self._readTimeStep(datasource, timeslice, fieldnames, xarray)
+                rt = self._readTimeStep(datasource, timeslice, fieldnames, regtularMesh)
                 if rt is not None:
                     ret[datasourcename] = rt
             yield ret
@@ -270,12 +281,15 @@ class paraviewOpenFOAM:
 
         return curstep
 
-    def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,append=False):
+    @deprecated(reason="Use writeRegularCase instead")
+    def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
+                     append=False):
+        self.writeRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite,append)
+
+    def writeRegularCase(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,append=False):
         """
             Writes a list of datasources (vtk filters) to netcdf (with xarray).
-
             The grid data **must** be regular!!!.
-
             Todo: add a an option for regularization function.
 
         Parameters
@@ -300,14 +314,13 @@ class paraviewOpenFOAM:
         None
 
         """
-
-        def writeList(theList, blockID, blockDig,overWrite,fileDirectory):
+        def writeList(theList, blockID, blockDig, overwrite, fileDirectory):
             data = xarray.concat(theList, dim="time")
             blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
             curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
             if os.path.exists(curfilename):
-                if not overWrite:
-                    raise Exception ('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
+                if not overwrite:
+                    raise FileExistsError(f'NOTE: {curfilename} exists and will be not overwitten')
 
             data.to_netcdf(curfilename)
             blockID += 1
@@ -322,8 +335,6 @@ class paraviewOpenFOAM:
                         raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
 
         timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timeList)
-
-
         os.makedirs(self.netcdfdir,exist_ok=True)
 
         blockDig = max(5, numpy.ceil(numpy.log10(len(timeList))) + 1)
@@ -360,7 +371,12 @@ class paraviewOpenFOAM:
             else:
                 writeList(L,blockID,blockDig,self.netcdfdir)
 
-    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, append=False, filterList=None):
+    @deprecated(reason="Use writeNonRegularCase instead")
+    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
+                      append=False, filterList=None):
+        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
+
+    def writeNonRegularCase(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, append=False, filterList=None):
         """
                 Writes the requested fileters as parquet files.
 

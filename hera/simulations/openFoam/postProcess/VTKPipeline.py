@@ -42,7 +42,6 @@ class VTKPipeLine:
       Executing the pipeline requires:
         1. the case directory
         2. server name (if it exists).
-        3.
 
         After the context is set, a openFOAM reader is created.
         This is because it takes time to initialize the openFOAM readers.
@@ -91,7 +90,6 @@ class VTKPipeLine:
         -------
 
         """
-
         self._nameOrWorkflowFileOrJSONOrResource = nameOrWorkflowFileOrJSONOrResource
 
         if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
