@@ -340,3 +340,286 @@ class VTKpipelineExecutionContext:
 
             self._buildFilterLayer(filter, structureJson[filterGuiName].get("downstream", None), filterWrite)
 
+
+
+
+
+class VTKPipeLineold:
+    """
+        This class represents a VTK pipeline to handle.
+
+        The execution of the VTK Pipeline is handled with the VTKPipelineExecution.
+        Hence, the current class represents only the
+{
+           "metadata" : {
+                  "guiname" : <gui name>,
+                  "timeList" : ...
+            },
+            "pipeline" : {
+                    "filterName" : {
+                            "type" : The type of the filter. (clip,slice,...).
+                            "write"   : bool True/False
+                            "params" : [
+                                    ("key","value"),
+                                          .
+                                          .
+                                          .
+                            ],...
+                            "downstream" : {filterName : ....}
+                            }
+                        }
+      }
+
+      Execution context
+      ------------------
+
+        The execution context is a VTKpipelineExecutionContext.
+
+      Executing the pipeline requires:
+        1. the case directory
+        2. server name (if it exists).
+
+        After the context is set, a openFOAM reader is created.
+        This is because it takes time to initialize the openFOAM readers.
+
+        However, ometimes the user would want to get the time lists.
+        This is done by defining a reader and returning the time step.
+
+        Hence, we allow the user to set an execution context that is a directory of
+        these two parameters.
+
+        Once the context is set, it is possible to get the timesteps, and the fields.
+
+    """
+
+    datalayer = None
+    filters = None
+    timeList = None
+    casePath = None
+
+    def __init__(self, datalayer, nameOrWorkflowFileOrJSONOrResource, serverName=None, caseType=CASETYPE_DECOMPOSED,
+                 timeList=None):
+        self.datalayer = datalayer
+        if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
+            self.casePath = nameOrWorkflowFileOrJSONOrResource
+            self.simulationDocument = None
+            simName = os.path.basename(self.casePath)
+            groupName = simName.split("_")[0] if '_' in simName else ""
+            self.simulationParams = {
+                "simulationName": os.path.basename(self.casePath),
+                "groupName": groupName,
+                "simulationProperties": {}
+            }
+
+        else:
+            simulationDocument = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+            if simDoc is not None:
+                self.casePath = simulationDocument.resource
+                self.simulationDocument = simulationDocument
+                simulationProperties = self.simulationDocument['desc'].copy()
+                self.simulationParams = {
+                    "simulationName": simulationProperties['simulationName'],
+                    "groupName": simulationProperties['groupName'],
+                    "simulationProperties": simulationProperties
+                }
+
+            else:
+                raise ValueError(
+                    f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
+
+        self.filters = dict()
+        self.timeList = timeList
+
+
+    def loadToProject(self, datalayer, overwrite=False):
+        """
+            Loads the pipeline results to the database.
+            We assume that the pipeline was already executed, and that the
+
+        Parameters
+        ----------
+        projectName : str
+                The project name to load the data to.
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "loadToProject")
+        logger.info(f"Loading pipeline to project {datalayer.projectName}")
+        for filterName, filterData in self.VTKpipelineJSON["pipelines"].items():
+            logger.debug(f"Handling filter {filterName}")
+            self._buildFiltersToUpdate(filterName=filterName, filterData=filterData, path="", overwrite=overwrite,
+                                       datalayer=datalayer)
+
+    def getData(self, filterName=None):
+        """
+            Returns the data for the requested nodes
+            If None, return for all the nodes that were write=True.
+
+        Parameters
+        ----------
+        vtkpiplines
+        casePath
+        serverName
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "executePipelines")
+        logger.info(f"Getting the resource case path ")
+
+
+    def getAllFilters(self):
+        """
+            Flatten all the filter names to be in the list of filters to build.
+        Returns
+        -------
+
+        """
+        pass
+
+    def getFiltersToUpdate(self, filterName, timeList=None):
+        """
+            This function checks which filters need to be updated and returns a list of their names.
+
+            It checks if the fitlers data is in the db already with the requested timeList.
+
+        Parameters
+        ----------
+        filterName
+        filterData
+        overwrite
+        timeList
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "_recurseNode")
+        filterFullName = filter.fullName
+        logger.info(f"Adding filter {filterFullName}")
+
+        filtersToUpdate = []
+        if filterData['write']:
+            filterdescriptor = dict(filterName=filterFullName,
+                                    pipeline=vtkPipelineJSON,
+                                    simulationParameters=simulationparams)
+
+            # check if it is already loaded.
+            logger.debug("Checking if the filter is loaded in the project")
+            docList = datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(filterdescriptor))
+            logger.debug("Found document" if len(docList) > 0 else "no documents")
+
+            if len(docList) == 0 or overwrite:
+                logger.debug(f"Updating the filter data. Overwrite flag {overwrite}")
+
+                if len(docList) > 0:
+                    logger.debug("Checking if the time list is similar to the one in the DB")
+                    doc = docList[0]
+                    if doc.desc['timelist'] != timeList:
+                        filtersToUpdate.append(filterFullName)
+                else:
+
+            else:
+                logger.debug("Adding a new record")
+                doc = datalayer.addCacheDocument(type=TYPE_VTK_FILTER,
+                                                 dataFormat=currentdatatype,
+                                                 resource=resource,
+                                                 desc=qryparams)
+
+    logger.debug("Processing the downstream filters. ")
+    ds = filterData.get("downstream", {})
+    for filterName, filterData in ds.items():
+        path += "." + filterName
+        self._buildFiltersToUpdate(filterName=filterName, filterData=filterData, path=path, overwrite=overwrite,
+                                   datalayer=datalayer)
+
+
+def execute(self, sourceOrName=None, timeList=None, tsBlockNum=50, overwrite=False, append=False):
+    """
+        Returns a VTK Execution that will allow the execution of the VTK pipeline.
+
+        We use the execution to let the user access the reader (and thus, the timesteps).
+
+    Parameters
+    ----------
+    sourceOrName: str , None
+            A reader, the name of the reader, or none (to create reader).
+
+            If reader, then assume that the server is already connected.
+
+    timeList : list
+            The list of timesteps to read.
+
+    tsBlockNum: int
+            The block number
+    overwrite : bool
+           If true, overwrite on the parquet.
+
+    append : bool
+           If true, append to existing parquet
+
+    Returns
+    -------
+
+    """
+    logger = get_classMethod_logger(self, "execute")
+
+    if self.executionContext is None:
+        err = f"The execution context is not set. use the method setExecutionContext to set it"
+        logger.error(err)
+        raise ValueError(err)
+
+    self.executionContext.execute(sourceOrName=sourceOrName, timeList=timeList, tsBlockNum=tsBlockNum,
+                                  overwrite=overwrite, append=append)
+
+
+def toJSON(self):
+    """
+        Converts the pipeline to a VTK JSON of the executions.
+
+        {
+                "filterName" : {
+                        "type" : The type of the filter. (clip,slice,...).
+                        "write"   : None/parquet (pandas)/netcdf (xarray),
+                        "params" : [
+                                ("key","value"),
+                                      .
+                                      .
+                                      .
+                        ],...
+                        "downstream" : [Another pipeline]
+                        }
+                    },
+         }
+
+    Returns
+    -------
+
+    """
+    retDict = dict()
+    for filterName, filterData in self.filters.items():
+        retDict.update(filterData.toJSON())
+
+    return dict(metadata=dict(timeList=self.timeList, casePath=self.casePath),
+                pipelines=retDict)
+
+
+def writeJSON(self, fileName):
+    """
+        Writes the pipeline to a JSON file.
+    Parameters
+    ----------
+    fileName
+
+    Returns
+    -------
+
+    """
+    if '.json' not in fileName:
+        fileName = f'{fileName}.json'
+
+    with open(fileName, 'w') as outfile:
+        json.dump(self.toJSON(), fileName, indent=4)

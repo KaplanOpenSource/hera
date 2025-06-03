@@ -29,55 +29,11 @@ class paraviewOpenFOAM:
 
     _componentsNames = None  # names of components for reading.
 
-    _hdfdir        = None    # path to save the hdf.
-    _netcdfdir     = None    # path to save the netcdf.
-    _parquetdir    = None
+    hdfdir        = None    # path to save the hdf.
+    netcdfdir     = None    # path to save the netcdf.
+    parquetdir    = None
 
-
-    _readerName = None
-    _father = None
-
-    @property
-    def reader(self):
-        return self._reader
-
-    @property
-    def readerName(self):
-        return self._readerName
-
-
-    @property
-    def outputPath(self):
-        return self._outputPath
-
-    @property
-    def hdfdir(self):
-        return self._hdfdir
-
-    @hdfdir.setter
-    def hdfdir(self, hdfdir):
-        self._hdfdir = hdfdir
-
-    @property
-    def netcdfdir(self):
-        return self._netcdfdir
-    @property
-    def possibleRegions(self):
-        return self._possibleRegions
-
-    @netcdfdir.setter
-    def netcdfdir(self, netcdfdir):
-        self._netcdfdir = netcdfdir
-
-    @property
-    def parquetdir(self):
-        return self._parquetdir
-
-    @parquetdir.setter
-    def parquetdir(self, parquetdir):
-        self._parquetdir = parquetdir
-
-    def __init__(self, casePath,caseType=CASETYPE_DECOMPOSED, servername=None,fieldNames =None,name="mainreader"):
+    def __init__(self, casePath,caseType=CASETYPE_DECOMPOSED, servername=None,name="mainreader"):
         """
             Initializes the paraviewOpenFOAM class.
 
@@ -110,10 +66,9 @@ class paraviewOpenFOAM:
 
         self._componentsNames = {}
 
-        self.netcdfdir = "netcdf"
+        self.netcdfdir = os.path.join(casePath,"netcdf")
         self.hdfdir = "hdf"
-        self.parquetdir = "parquet"
-
+        self.parquetdir = os.path.join(casePath,"parquet")
 
         # Array shape length 1 - scalar.
         #					 2 - vector.
@@ -134,39 +89,6 @@ class paraviewOpenFOAM:
                                  (2, 2): "_zz"}
 
 
-        self._ReadCase(readerName=name, casePath=casePath, CaseType=caseType, fieldNames=fieldNames)
-
-    def _ReadCase(self, readerName, casePath, CaseType=CASETYPE_DECOMPOSED, fieldNames=None):
-        """
-            Constructs a reader and register it in the vtk pipeline.
-
-            Handles either parallel or single format.
-
-        Parameters
-        -----------
-
-        readerName:
-                the name of the reader.
-        casePath:
-                a full path to the case directory.
-        CaseType: str
-                Either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
-                for single processor cases.
-        fieldnames: list of str
-                List of field names to load.
-                if None, read all the fields.
-        :return:
-                the reader
-        """
-        self._readerName  = readerName
-        self._reader = pvsimple.OpenFOAMReader(FileName=f"{casePath}/tmp.foam", CaseType=CaseType, guiName=readerName)
-        self.reader.MeshRegions.SelectAll()
-        self._possibleRegions = list(self._reader.MeshRegions)
-        self._reader.MeshRegions = ['internalMesh']
-        if fieldNames is not None:
-            self._reader.CellArrays = fieldNames
-
-        self._reader.UpdatePipeline()
 
     def toNonRegularCase(self, datasourcenamelist, timelist=None, fieldnames=None):
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
@@ -376,7 +298,7 @@ class paraviewOpenFOAM:
                       append=False, filterList=None):
         writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
 
-    def writeNonRegularCase(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, append=False, filterList=None):
+    def writeNonRegularCase(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, filterList=None):
         """
                 Writes the requested fileters as parquet files.
 
@@ -420,6 +342,8 @@ class paraviewOpenFOAM:
                     continue
                 block_data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
                 data = dd.from_pandas(block_data, npartitions=1)
+                append = False if overwrite else True
+
                 data.set_index("time").to_parquet(outfile,append=append,overwrite=overwrite)
 
                 self.logger.debug("Repartitioning to 100MB per partition")
@@ -462,7 +386,7 @@ class paraviewOpenFOAM:
         self.logger.debug(f"Filtering out the timesteps. After filteration: {timeList}")
         blockID = 0
         L = []
-        for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timeList, fieldnames=fieldnames):
+        for pnds in self.toRegularCase(datasourcenamelist=datasourcenamelist, timelist=timeList, fieldnames=fieldnames):
 
             L.append(pnds)
             self.logger.debug(f"Current dataFrames in memory  {len(L)}")
