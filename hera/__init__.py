@@ -6,12 +6,14 @@ if python_version < (3, 8):
     raise NotImplementedError("Hera does not support Python versions lower than 3.8")
 
 # Have some initial default logging configuration in case the user hasn't set any
-from .utils.logging.helpers import initialize_logging
+from hera.utils.logging.helpers import initialize_logging
+from hera.utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
 initialize_logging(disable_existing_loggers=False)
-from .utils.logging import with_logger,initialize_logging, get_logger,getClassLogger,get_classMethod_logger
 
-from .toolkit import ToolkitHome
-from .datalayer import Project
+from hera.toolkit import ToolkitHome
+from hera.datalayer import Project,datatypes
+from hera.datalayer.autocache import cacheFunction,clearFunctionCache
+
 
 toolkitHome = ToolkitHome()
 

@@ -1,16 +1,19 @@
 import json
 import os
 import pandas
+import inspect
 from promise.utils import deprecated
 
-from .datahandler import datatypes
-from ..utils.logging import get_classMethod_logger
-from ..utils import loadJSON
-from .. import toolkit
-from .collection import AbstractCollection,\
+from hera.datalayer.datahandler import datatypes
+from hera.utils.logging import get_classMethod_logger
+from hera.utils import loadJSON
+from hera import toolkit
+from hera.datalayer.collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
     Simulations_Collection
+
+from hera.utils import ConfigurationToJSON
 
 def getProjectList(connectionName=None):
     """
@@ -90,6 +93,25 @@ class Project:
 
     _allowWritingToDefaultProject = None # A flag to allow the update of the default project. Used to add the datasources to it.
 
+    _FilesDirectory = None
+
+    @property
+    def FilesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
+    @property
+    def filesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
+
 
     @property
     def measurements(self) -> Measurements_Collection:
@@ -130,6 +152,95 @@ class Project:
     def projectName(self):
         return self._projectName
 
+
+    def setConfig(self,keep_old_values=True, **kwargs):
+        """
+            Create a config document or updates an existing config document.
+        """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+
+        doc = self._getConfigDocument()
+        if keep_old_values:
+            doc.desc.update(kwargs)
+        else:
+            doc['desc'] = kwargs
+        doc.save()
+
+    def __init__(self, projectName=None, connectionName=None, configurationPath=None,filesDirectory=None):
+        """
+            Initialize the project class.
+
+        Parameters
+        ----------
+        projectName: str default None
+                The name of the project.
+                If projectName is None, try to load it from the [configurationPath]/caseConfiguration.json
+                if configurationPath is None, load it from the current directory.
+                the structure of this file is
+
+                ```
+                    {
+                        "projectName" : [project Name]
+                    }
+                ```
+
+        connectionName: str
+                The name of the DB connection. If not specified, use the
+                connection with the linux user name.
+
+        :param configurationPath: str
+                The path to the caseConfiguration.json file.
+                If not supplied, use the current directory.
+        """
+        logger = get_classMethod_logger(self,"init")
+        self._allowWritingToDefaultProject = False
+
+        if projectName is None:
+            configurationPath = os.getcwd() if configurationPath is None else configurationPath
+            confFile = os.path.join(configurationPath, "caseConfiguration.json")
+            logger.debug(f"projectName is None, try to load file {confFile}")
+            if os.path.exists(confFile):
+                logger.debug(f"Load as JSON")
+                configuration = loadJSON(confFile)
+                if 'projectName' not in configuration:
+                    err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
+                    err += """conifguration should be :
+{
+    'projectName' : [project name]
+}                                        
+"""
+                    logger.error(err)
+                    raise ValueError(err)
+                else:
+                    projectName   = configuration['projectName']
+            else:
+                logger.debug(f"configuration file {confFile} is not found. Using the default project: DEFAULTPROJECT={self.DEFAULTPROJECT}")
+                projectName = self.DEFAULTPROJECT
+
+        logger.info(f"Initializing with logger {projectName}")
+        self._projectName = projectName
+
+        self._measurements  = Measurements_Collection(connectionName=connectionName)
+        self._cache      = Cache_Collection(connectionName=connectionName)
+        self._simulations   = Simulations_Collection(connectionName=connectionName)
+        self._all           =   AbstractCollection(connectionName=connectionName)
+
+        savedFilesDirectory = self.getConfig().get("filesDirectory", None)
+
+        if savedFilesDirectory is None:
+            if filesDirectory is None:
+                filesDirectory = os.path.abspath(os.getcwd())
+            else:
+                filesDirectory= os.path.abspath(filesDirectory)
+
+            logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+            self.setConfig(filesDirectory=filesDirectory)
+        else:
+            filesDirectory = savedFilesDirectory
+
+        os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
+        self._FilesDirectory = filesDirectory
 
     @property
     def simulations(self) -> Simulations_Collection:
@@ -205,6 +316,7 @@ class Project:
         self.setConfig(**cnfg)
         return cnfg
 
+
     def getCounter(self,counterName):
         """
             Return the value of the counter and add [addition].
@@ -224,7 +336,6 @@ class Project:
         coutnerDict = cnfg.setdefault("counters", {})
         ret = coutnerDict[counterName]
         return ret
-
 
     def getCounterAndAdd(self, counterName, addition=1):
             """
@@ -269,6 +380,7 @@ class Project:
         doc = self._getConfigDocument()
         return dict(doc["desc"])
 
+
     def initConfig(self,**kwargs):
         """
             Sets the value of the config, if the keys does not exist. If they exist, leave the old value.
@@ -287,80 +399,6 @@ class Project:
         for key,value in doc['desc'].items():
             doc['desc'].setdefault(key,value)
         doc.save()
-
-
-    def setConfig(self,keep_old_values=True, **kwargs):
-        """
-            Create a config document or updates an existing config document.
-        """
-        if self._projectName == self.DEFAULTPROJECT:
-            raise ValueError("Default project cannot use configuration")
-
-        doc = self._getConfigDocument()
-        if keep_old_values:
-            doc.desc.update(kwargs)
-        else:
-            doc['desc'] = kwargs
-        doc.save()
-
-    def __init__(self, projectName=None, connectionName=None, configurationPath=None):
-        """
-            Initialize the project class.
-
-        Parameters
-        ----------
-        projectName: str default None
-                The name of the project.
-                If projectName is None, try to load it from the [configurationPath]/caseConfiguration.json
-                if configurationPath is None, load it from the current directory.
-                the structure of this file is
-
-                ```
-                    {
-                        "projectName" : [project Name]
-                    }
-                ```
-
-        connectionName: str
-                The name of the DB connection. If not specified, use the
-                connection with the linux user name.
-
-        :param configurationPath: str
-                The path to the caseConfiguration.json file.
-                If not supplied, use the current directory.
-        """
-        logger = get_classMethod_logger(self,"init")
-        self._allowWritingToDefaultProject = False
-
-        if projectName is None:
-            configurationPath = os.getcwd() if configurationPath is None else configurationPath
-            confFile = os.path.join(configurationPath, "caseConfiguration.json")
-            logger.debug(f"projectName is None, try to load file {confFile}")
-            if os.path.exists(confFile):
-                logger.debug(f"Load as JSON")
-                configuration = loadJSON(confFile)
-                if 'projectName' not in configuration:
-                    err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
-                    err += """conifguration should be :
-{
-    'projectName' : [project name]
-}                                        
-"""
-                    logger.error(err)
-                    raise ValueError(err)
-                else:
-                    projectName   = configuration['projectName']
-            else:
-                logger.debug(f"configuration file {confFile} is not found. Using the default project: DEFAULTPROJECT={self.DEFAULTPROJECT}")
-                projectName = self.DEFAULTPROJECT
-
-        logger.info(f"Initializing with logger {projectName}")
-        self._projectName = projectName
-
-        self._measurements  = Measurements_Collection(connectionName=connectionName)
-        self._cache      = Cache_Collection(connectionName=connectionName)
-        self._simulations   = Simulations_Collection(connectionName=connectionName)
-        self._all           =   AbstractCollection(connectionName=connectionName)
 
 
 
@@ -676,6 +714,85 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
+    def addData(self,name,data,desc,kind,type=None,dataFormat=None,**kwargs):
+        """
+            Adds a cache document with the data.
+            Estimates the dataFormat from the data type.
+
+            The type is
+        Parameters
+        ----------
+        data : a data that can be dataframe, xarray, numpy ....
+
+        desc : dict
+            A dict with the meatadata to save
+        type : str
+            If None, then set the type to be the name of the function that called this method.
+
+        Returns
+        -------
+            The new document
+        """
+        guessedDataFormat = self.datatypes.getDataFormatName(data) if dataFormat is None else dataFormat
+        handler = self.datatypes.getHandler(guessedDataFormat)
+        file_extension = self.datatypes.getDataFormatExtension(data)
+
+        cacheDirectory = os.path.join(self.filesDirectory, "cache")
+        os.makedirs(cacheDirectory, exist_ok=True)
+        fileID = self.getCounterAndAdd(name)
+        fileName = os.path.join(cacheDirectory, f"{name}_{fileID}.{file_extension}")
+
+        saveParamsUpdatedDict = handler.saveData(data, fileName,**kwargs)
+
+        funcName = getattr(self,f"add{kind}Document")
+        fullType = type if type is not None else name
+
+        qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
+        storeParamsDict = qry.get("storeParameters",{})
+        storeParamsDict.update(saveParamsUpdatedDict)
+        qry["storeParameters"] = storeParamsDict
+
+        doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
+        return doc
+
+    def addMeasurementData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type,dataFormat=dataFormat,**kwargs)
+
+    def addCacheData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type,dataFormat=dataFormat,**kwargs)
+
+    def addSimulationData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type,dataFormat=dataFormat,**kwargs)
+
+    def _get_full_func_name(self,func):
+        """Returns the full qualified path: module.[class.]function_name"""
+        if not callable(func):
+            raise TypeError("Provided object is not callable.")
+
+        # Handle bound methods by unwrapping them
+        if inspect.ismethod(func):
+            # Get the original function and its class
+            cls = func.__self__.__class__
+            method_name = func.__name__
+            class_qualname = cls.__qualname__
+            module = func.__module__
+            if module == "__main__":
+                ret = f"{class_qualname}.{method_name}"
+            else:
+                ret = f"{module}.{class_qualname}.{method_name}"
+
+        elif inspect.isfunction(func):
+            ret = func.__qualname__
+        else:
+
+            # Handle unbound class or static methods and plain functions
+            qualname = func.__qualname__
+            module = func.__module__
+            ret = f"{module}.{qualname}"
+        return ret
+
+
+
     @staticmethod
     def getProjectList(cls,user=None):
         """
@@ -690,11 +807,3 @@ class Project:
         """
         return list(set(AbstractCollection(connectionName=user).getProjectList()))
 
-
-    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
-        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
-                                                                            "version": version}))==0:
-            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
-
-        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
-        print(f"{version} for dataSource {datasourceName} is now set to default.")

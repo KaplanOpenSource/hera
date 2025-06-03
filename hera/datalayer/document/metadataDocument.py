@@ -1,6 +1,6 @@
 from mongoengine import *
 import json
-from ..datahandler import getHandler
+from hera.datalayer.datahandler import getHandler
 
 class MetadataFrame(object):
     """
@@ -49,7 +49,9 @@ class MetadataFrame(object):
         -------
             object according to the datahandler. 
         """
-        return getHandler(self.dataFormat).getData(self.resource,self.desc, **kwargs)
+        storeParametersDict = self.desc.get("storeParameters",{})
+        storeParametersDict.update(kwargs)
+        return getHandler(self.dataFormat).getData(self.resource,self.desc, **storeParametersDict)
 
     def __str__(self):
         return json.dumps(self.asDict(with_id=False),indent=4)

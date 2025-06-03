@@ -1,3 +1,4 @@
+import numpy
 import pandas
 import dask.dataframe
 import xarray
@@ -9,8 +10,8 @@ import sys
 import pickle
 import io
 import rasterio
-from ..utils import loadJSON
-
+from hera.utils import loadJSON
+import importlib
 
 version = sys.version_info[0]
 if version == 3:
@@ -18,25 +19,162 @@ if version == 3:
 elif version == 2:
     from simplejson import JSONDecodeError
 
+
+
+
 class datatypes:
     STRING = "string"
-    TIME   = "time"
+    TIME = "time"
     CSV_PANDAS = "csv_pandas"
-    HDF    = "HDF"
+    HDF = "HDF"
     NETCDF_XARRAY = "netcdf_xarray"
+    ZARR_XARRAY = "zarr_xarray"
     JSON_DICT = "JSON_dict"
     JSON_PANDAS = "JSON_pandas"
     JSON_GEOPANDAS = "JSON_geopandas"
-    GEOPANDAS  = "geopandas"
-    GEOTIFF    = "geotiff"
-    PARQUET    =  "parquet"
+    GEOPANDAS = "geopandas"
+    GEOTIFF = "geotiff"
+    PARQUET = "parquet"
     IMAGE = "image"
     PICKLE = "pickle"
-    DICT   = "dict"
+    DICT = "dict"
+    NUMPY_ARRAY = "numpy_array"
+    NUMPY_DICT_ARRAY = "numpy_dict_array"  # A dict of numpy arrays, no automatic detection.
+
+    @staticmethod
+    def get_obj_or_instance_fullName(obj):
+        """
+        Returns the fully qualified name of a class or instance, including its module.
+
+        Examples:
+            >>> get_full_name(SomeClass)
+            'package.module.SomeClass'
+
+            >>> get_full_name(SomeClass())
+            'package.module.SomeClass'
+        """
+        # If it's a class
+        if isinstance(obj, type):
+            cls = obj
+        else:
+            cls = obj.__class__
+
+        module = cls.__module__
+        qualname = cls.__qualname__
+
+        if module == "builtins":
+            return qualname  # No need to show 'builtins' for int, str, etc.
+        return f"{module}.{qualname}"
+
+    typeDatatypeMap = {
+        "str": dict(typeName=STRING, ext="txt"),
+        "pandas.core.frame.DataFrame": dict(typeName=PARQUET, ext="parquet"),
+        'pandas.core.series.Series': dict(typeName=CSV_PANDAS, ext="csv"),
+        "dask_expr._collection.DataFrame": dict(typeName=PARQUET, ext="parquet"),
+        'geopandas.geodataframe.GeoDataFrame': dict(typeName=GEOPANDAS, ext="gpkg"),
+        'xarray.core.dataarray.DataArray': dict(typeName=ZARR_XARRAY, ext="zarr"),
+        "dict": dict(typeName=JSON_DICT, ext="json"),
+        "list": dict(typeName=JSON_DICT, ext="json"),
+        "bytes": dict(typeName=PICKLE, ext="pckle"),
+        "object": dict(typeName=PICKLE, ext="pckle"),
+        "numpy.ndarray": dict(typeName=NUMPY_ARRAY, ext="npy")
+    }
+
+    @staticmethod
+    def getDataFormatName(obj_or_class):
+        """
+            Tries to find the datatype name in hera for the object.
+            if cannot found, use general object.
+
+        Parameters
+        ----------
+        obj_or_class : object or type.
+
+        Returns
+        -------
+            A dict with
+                - typeName : the string that identifies the datahandler.
+                -ext : the extension of the file name.
+        """
+        objTypeName = datatypes.get_obj_or_instance_fullName(obj_or_class)
 
 
-def getHandler(type):
-    return globals()['DataHandler_%s' % type]
+        dataItemName = datatypes.typeDatatypeMap["object"] if objTypeName not in datatypes.typeDatatypeMap else \
+        datatypes.typeDatatypeMap[objTypeName]
+
+        return dataItemName["typeName"]
+
+    @staticmethod
+    def getDataFormatExtension(obj_or_class):
+        """
+            Tries to find the datatype name in hera for the object.
+            if cannot found, use general object.
+
+        Parameters
+        ----------
+        obj_or_class : object or type.
+
+        Returns
+        -------
+            A dict with
+                - typeName : the string that identifies the datahandler.
+                -ext : the extension of the file name.
+        """
+        objTypeName = datatypes.get_obj_or_instance_fullName(obj_or_class)
+
+
+        dataItemName = datatypes.typeDatatypeMap["object"] if objTypeName not in datatypes.typeDatatypeMap else \
+        datatypes.typeDatatypeMap[objTypeName]
+
+        return dataItemName["ext"]
+
+    @staticmethod
+    def guessHandler(obj_or_class):
+
+        dataTypeName = datatypes.getDataFormatName(obj_or_class)
+
+        return datatypes.getHandler(objectType=dataTypeName)
+
+    @staticmethod
+    def getHandler(objectType):
+        dataHandlerModule = importlib.import_module("hera.datalayer.datahandler")
+
+        handlerName = f"DataHandler_{objectType}"
+
+        if not hasattr(dataHandlerModule, handlerName):
+            raise ValueError(f"The data handler for the type {objectType} is not known")
+
+        return getattr(dataHandlerModule, handlerName)
+
+dataFormatClass = datatypes
+
+def guessHandler(obj_or_class):
+    """
+        Tries to estimate the type of the object and re
+    Parameters
+    ----------
+    obj
+
+    Returns
+    -------
+
+    """
+    return datatypes.guessHandler(obj_or_class)
+
+
+def getHandler(objType):
+    """
+        Returns the handler.
+    Parameters
+    ----------
+    objType
+
+    Returns
+    -------
+
+    """
+    return datatypes.getHandler(objType)
+
 
 class DataHandler_geotiff(object):
     """
@@ -50,7 +188,11 @@ class DataHandler_geotiff(object):
     """
 
     @staticmethod
-    def getData(resource,rasterBand=1):
+    def saveData(resource, fileName,**kwargs):
+        raise NotImplementedError("Not implemented yet")
+
+    @staticmethod
+    def getData(resource, rasterBand=1):
         """
         Reads a geotiff
 
@@ -74,7 +216,13 @@ class DataHandler_string(object):
     """
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        with open(fileName, "w") as outFile:
+            outFile.write(resource)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         The data in the record is a string.
 
@@ -96,7 +244,23 @@ class DataHandler_time(object):
     """
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        """
+            No need to save as it is stored in the resource.
+        Parameters
+        ----------
+        resource
+        fileName
+        kwargs
+
+        Returns
+        -------
+
+        """
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         The data in the record is a timestamp.
 
@@ -120,7 +284,12 @@ class DataHandler_csv_pandas(object):
     """
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        resource.to_csv(fileName,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         Loads a csv file into pandas dataframe.
 
@@ -134,7 +303,7 @@ class DataHandler_csv_pandas(object):
         panda.dataframe
         """
 
-        df = pandas.read_csv(resource)
+        df = pandas.read_csv(resource,**kwargs)
 
         return df
 
@@ -151,7 +320,11 @@ class DataHandler_HDF(object):
     """
 
     @staticmethod
-    def getData(resource, usePandas=False,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        raise NotImplementedError("HDF saver not implemented yet")
+
+    @staticmethod
+    def getData(resource, usePandas=False, desc=None):
         """
         Loads a key from a HDF file or files.
 
@@ -178,7 +351,12 @@ class DataHandler_HDF(object):
 class DataHandler_netcdf_xarray(object):
 
     @staticmethod
-    def getData(resource,desc=None,**kwargs):
+    def saveData(resource, fileName,**kwargs):
+        resource.to_netcdf(fileName,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={}, **kwargs):
         """
         Loads netcdf file into xarray using the open_mfdataset.
 
@@ -194,15 +372,61 @@ class DataHandler_netcdf_xarray(object):
         -------
         xarray
         """
-        df = xarray.open_mfdataset(resource, combine='by_coords',**kwargs)
+        df = xarray.open_mfdataset(resource, combine='by_coords', **kwargs)
 
+        return df
+
+
+class DataHandler_zarr_xarray(object):
+
+    @staticmethod
+    def saveData(resource, fileName,**kwargs):
+        """
+            Write the zarr. Rewrites on the file.
+            If you want to append, do it manuyally.
+        Parameters
+        ----------
+        resource
+        fileName
+
+        Returns
+        -------
+
+        """
+        resource.to_zarr(fileName, mode="w",**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={}, **kwargs):
+        """
+        Loads netcdf file into xarray using the open_mfdataset.
+
+        Parameters
+        ----------
+        resource : str
+            Path to the netcdf file.
+
+        kwargs:
+            parameters to the xarray.open_mfdataset function
+
+        Returns
+        -------
+        xarray
+        """
+        df = xarray.open_zarr(resource, **kwargs)
         return df
 
 
 class DataHandler_JSON_dict(object):
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        with open(fileName, "w") as outFile:
+            json.dump(resource, outFile,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         Loads JSON to dict
 
@@ -222,7 +446,12 @@ class DataHandler_JSON_dict(object):
 class DataHandler_JSON_pandas(object):
 
     @staticmethod
-    def getData(resource, usePandas=True,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        resource.to_json(fileName,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, usePandas=True, desc={},**kwargs):
         """
         Loads JSON to pandas/dask
 
@@ -247,8 +476,14 @@ class DataHandler_JSON_pandas(object):
 
 
 class DataHandler_JSON_geopandas(object):
+
     @staticmethod
-    def getData(resource,desc=None,**kwargs):
+    def saveData(resource, fileName,**kwargs):
+        resource.to_json(fileName,**kwargs)
+        return dict(crs = resource.crs )
+
+    @staticmethod
+    def getData(resource, desc={}, **kwargs):
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
@@ -257,10 +492,15 @@ class DataHandler_JSON_geopandas(object):
 
 
 class DataHandler_geopandas(object):
-    @staticmethod
-    def getData(resource,desc=None,**kwargs):
 
-        df = geopandas.read_file(resource,**kwargs)
+    @staticmethod
+    def saveData(resource, fileName,**kwargs):
+        resource.to_file(fileName, driver="GPKG",**kwargs)
+        return dict(crs=resource.crs)
+
+    @staticmethod
+    def getData(resource, desc={}, **kwargs):
+        df = geopandas.read_file(resource, **kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
 
@@ -270,7 +510,22 @@ class DataHandler_geopandas(object):
 class DataHandler_parquet(object):
 
     @staticmethod
-    def getData(resource,desc=None, usePandas=False,**kwargs):
+    def saveData(resource, fileName,**kwargs):
+
+        if isinstance(resource, pandas.DataFrame):
+            # pandas. write as a single file.
+            # if any of the columns is integer it breaks the dask
+            resource.to_parquet(fileName,**kwargs)
+            ret = dict(usePandas=True)
+        else:
+            # dask - automatically split it
+            kwargs.setdefault('partition_size',"100MB")
+            resource.to_parquet(fileName,**kwargs)
+            ret = dict(usePandas=False)
+        return ret
+
+    @staticmethod
+    def getData(resource, desc={}, usePandas=False, **kwargs):
         """
         Loads a parquet file to dask/pandas.
 
@@ -287,12 +542,12 @@ class DataHandler_parquet(object):
         dask.Dataframe or pandas.DataFrame
         """
         try:
-            df = dask.dataframe.read_parquet(resource,**kwargs)
+            df = dask.dataframe.read_parquet(resource, **kwargs)
             if usePandas:
                 df = df.compute()
         except ValueError:
             # dask cannot read parquet with multi index. so we try to load it with pandas.
-            df = pandas.read_parquet(resource,**kwargs)
+            df = pandas.read_parquet(resource, **kwargs)
 
         return df
 
@@ -300,7 +555,12 @@ class DataHandler_parquet(object):
 class DataHandler_image(object):
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        mpimg.imsave(fileName, resource,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         Loads an image using the resource.
 
@@ -321,7 +581,13 @@ class DataHandler_image(object):
 class DataHandler_pickle(object):
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        with open(fileName, 'wb') as f:
+            pickle.dump(resource, f,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -338,10 +604,27 @@ class DataHandler_pickle(object):
 
         return obj
 
+
 class DataHandler_dict(object):
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        """
+            No need to save as it is stored in the resource.
+        Parameters
+        ----------
+        resource
+        fileName
+        kwargs
+
+        Returns
+        -------
+
+        """
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc=None):
         """
         The resource is a dict.
 
@@ -360,7 +643,11 @@ class DataHandler_dict(object):
 class DataHandler_tif(object):
 
     @staticmethod
-    def getData(resource,desc=None):
+    def saveData(resource, fileName,**kwargs):
+        raise NotImplementedError("tif format is not implemented")
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
         """
         Loads an pickled object using the resource.
 
@@ -374,5 +661,60 @@ class DataHandler_tif(object):
         img
         """
         obj = rasterio.open(resource)
+
+        return obj
+
+
+class DataHandler_numpy_array:
+
+    @staticmethod
+    def saveData(resource, fileName,**kwargs):
+        numpy.save(fileName, resource,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
+        """
+        Loads a numpy array
+
+        Parameters
+        ----------
+        resource : str
+            The path to the pickled object
+
+        Returns
+        -------
+        img
+        """
+        obj = numpy.load(resource)
+
+        return obj
+
+
+class DataHandler_numpy_dict_array:
+    """
+        A dict of numpy arrays.
+    """
+
+    @staticmethod
+    def saveData(resource, fileName,**kwargs):
+        numpy.savez(fileName, **resource,**kwargs)
+        return dict()
+
+    @staticmethod
+    def getData(resource, desc={},**kwargs):
+        """
+        Loads a numpy array
+
+        Parameters
+        ----------
+        resource : str
+            The path to the pickled object
+
+        Returns
+        -------
+        dict of numpy arrays.
+        """
+        obj = numpy.load(resource)
 
         return obj
