@@ -256,7 +256,7 @@ class VTKpipelineExecutionContext:
             if reader is None:
                 reader = self.initializeReader(readerName="reader")
         else:
-            logger.debug(f"Gor reader object:  {sourceOrName}")
+            logger.debug(f"Got reader object:  {sourceOrName}")
             # assume server is connected.
             reader = sourceOrName
 
