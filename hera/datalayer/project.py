@@ -734,6 +734,7 @@ class Project:
             The new document
         """
         guessedDataFormat = self.datatypes.getDataFormatName(data) if dataFormat is None else dataFormat
+
         handler = self.datatypes.getHandler(guessedDataFormat)
         file_extension = self.datatypes.getDataFormatExtension(data)
 

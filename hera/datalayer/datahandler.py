@@ -73,8 +73,8 @@ class datatypes:
         "dask_expr._collection.DataFrame": dict(typeName=PARQUET, ext="parquet"),
         'geopandas.geodataframe.GeoDataFrame': dict(typeName=GEOPANDAS, ext="gpkg"),
         'xarray.core.dataarray.DataArray': dict(typeName=ZARR_XARRAY, ext="zarr"),
-        "dict": dict(typeName=JSON_DICT, ext="json"),
-        "list": dict(typeName=JSON_DICT, ext="json"),
+        "dict": dict(typeName=PICKLE, ext="pckle"),
+        "list": dict(typeName=PICKLE, ext="pckle"),
         "bytes": dict(typeName=PICKLE, ext="pckle"),
         "object": dict(typeName=PICKLE, ext="pckle"),
         "numpy.ndarray": dict(typeName=NUMPY_ARRAY, ext="npy")
