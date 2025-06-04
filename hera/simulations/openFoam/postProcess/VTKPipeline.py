@@ -260,42 +260,52 @@ class registeredVTKPipeLine:
         qry['simulations']['MeshRegions'] = "" if meshRegions is None else meshRegions
 
         filtersToProcess = []
+        filtersOutputFilename = dict()
         for filterNameOrList in requestedFiltersToProcess:
             qry['filterName'] = filterNameOrList
             docList = self.datalayer.getSimulationsDocuments(TYPE_VTK_FILTER, **dictToMongoQuery(qry))
-            if len(docList) > 0:
+            outputFileName = f"{filterNameOrList.replace('.', '-')}.parquet"
+            filtersOutputFilename[filterNameOrList] = docList[0].resource if len(docList) > 0 else os.path.join(self.datalayer.filesDirectory,"vtkpipelinedata",outputFileName)
+
+            if overwrite:
+                filtersToProcess.append(filterNameOrList)
+            elif len(docList) > 0:
                 ret[filterNameOrList] = docList[0].getData()
             else:
                 filtersToProcess.append(filterNameOrList)
 
-
-
         # build the pipeline.
-        logger.info(f"Building the vtk objects from the JSON")
-        filtersToCompute = self._buildFilterLayer(fatherName=None,
-                                                  father=reader,
-                                                  structureJson=self.vtkpipeline.toJSON()['filters'],
-                                                  filtersToProcess=filtersToProcess)
+        if len(filtersToProcess) > 0:
+            filtersToComputeDict = dict() #
+            logger.info(f"Building the vtk objects from the JSON")
+            # Remember that the buildFilterlayer adds the real objects to the pipeline,
+            # and just return the guinames that can be used to retrieve the object with findSource.
+            # Hence it is a list of strings.
+            filtersToCompute = self._buildFilterLayer(fatherName=None,
+                                                      father=reader,
+                                                      structureJson=self.vtkpipeline.toJSON()['filters'])
+
+            # 3. Build the put
+            for filterName in filtersToCompute:
+                filtersToComputeDict[filterName] = filtersOutputFilename[filterName]
+
+            # 3. Compute the values and save the parquet/zarr.
+            methodName = "writeNonRegularCase" if RegularCase is False else "writeRegularCase"
+            method = getattr(self.pvOFBase, methodName)
+
+            method(datasourcenamelist=filtersToComputeDict,
+                   timeList=timeList,
+                   fieldnames=fieldNames,
+                   tsBlockNum=self.tsBlockNum,
+                   overwrite=overwrite)
+
+            # 4. Update the DB.
+            for filterNameOrList in filtersToProcess:
+                print(f"adding {filterNameOrList} to DB")
 
 
 
-        # 3. Compute the values and save the parquet/zarr.
-        methodName = "writeNonRegularCase" if RegularCase is False else "writeRegularCase"
-        method = getattr(self.pvOFBase, methodName)
-
-        method(datasourcenamelist=filtersToCompute,
-               timeList=timeList,
-               fieldnames=fieldNames,
-               tsBlockNum=self.tsBlockNum,
-               overwrite=overwrite)
-
-        # 4. Update the DB.
-        for filterNameOrList in filtersToProcess:
-            print(f"adding {filterNameOrList} to DB")
-
-
-
-    def _buildFilterLayer(self, fatherName, father, structureJson, filtersToProcess):
+    def _buildFilterLayer(self, fatherName, father, structureJson):
         """
             Recursively builds the structure of the leaf.
             Populates the self._filterWrite map
@@ -336,11 +346,9 @@ class registeredVTKPipeLine:
                 filter.UpdatePipeline()
 
                 newFilterName = filterGuiName if fatherName is None else f"{fatherName}.{filterGuiName}"
-                if newFilterName in filtersToProcess:
-                    ret.append(filterGuiName)
-
+                ret.append(filterGuiName)
                 ret += self._buildFilterLayer(newFilterName, filter,
-                                              structureJson[filterGuiName].get("downstream", None), filtersToProcess)
+                                              structureJson[filterGuiName].get("downstream", None))
         return ret
 
 

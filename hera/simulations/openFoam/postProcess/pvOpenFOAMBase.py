@@ -129,18 +129,15 @@ class paraviewOpenFOAM:
 
         return reader
 
-    def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, regularMesh=False):
+    def readTimeSteps(self, datasourcenamedict, timelist=None, fieldnames=None, regularMesh=False):
         """
             reads a list of datasource lists to a dictionary
 
         Parameters
         ----------
 
-        readername: VTK filter, str
-                The reader filter (or its name)
-
-        datasourcenamelist: list
-                A list of names of filters to get.
+        datasourcenamedict: dict
+                filtername -> output path .
 
         timelist: list
                 The list of times to read.
@@ -160,14 +157,12 @@ class paraviewOpenFOAM:
             # read the timestep.
             logger.info("\r Reading time step %s" % timeslice)
             ret = {}
-            for filterItem in datasourcenamelist:
-                datasourcename = filterItem['filter']
-                outputFile = filterItem['outputFile']
-                datasource = pvsimple.FindSource(datasourcename)
-                logger.debug(f"Reading source {datasourcename}")
+            for filterName,outputFile in datasourcenamedict.items():
+                datasource = pvsimple.FindSource(filterName)
+                logger.debug(f"Reading source {filterName}")
                 rt = self._readTimeStep(datasource, timeslice, fieldnames, regtularMesh)
                 if rt is not None:
-                    ret[datasourcename] = dict(data=rt,outputFile=outputFile)
+                    ret[filterName] = rt
             yield ret
 
     def _readTimeStep(self, datasource, timeslice, fieldnames=None, xarray=False):
@@ -306,15 +301,15 @@ class paraviewOpenFOAM:
                 writeList(L,blockID,blockDig,self.netcdfdir)
 
 
-    def writeNonRegularCase(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, filterList=None):
+    def writeNonRegularCase(self, filtersDict, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False):
         """
                 Writes the requested fileters as parquet files.
 
                 if overwrite=False then  find the time that is saved. Assume that all the filters have the same timelist.
         Parameters
         ----------
-        datasourcenamelist : list -> dict(filter=filter,fileName=fileName)
-                List of VTK filters to write as parquets and thier
+        filtersDict : dict : filterName -> output file name
+                List of VTK filters to write as parquets and the corresponding file name. 
 
         timeList : list
                 List of timesteps to write. optional, if None, the use all time series.
@@ -340,17 +335,17 @@ class paraviewOpenFOAM:
         logger = get_classMethod_logger(self,"writeNonRegularCase")
         logger.info(f"Starting writing to parquet filters {','.join(numpy.atleast_1d(datasourcenamelist))}")
 
-        def writeList(theList,blockID):
+        def writeList(theList,blockID,filtersDict):
             filterList = [x for x in theList[0].keys()]
             for filterName in filterList:
                 outputFilterName = filterName.replace(".","-")
-                outputPath = os.path.dirname(theList[0][filterName]['outputFile'])
+                outputPath = os.path.dirname(filtersDict[filterName])
                 outputFile = os.path.join(outputPath,f"tmp_{outputFilterName}_{blockID}.parquet")
 
                 logger.info("\tWriting filter %s in file %s" % (filterName, outputFile))
                 block_data = pandas.concat([pandas.DataFrame(item[filterName]['data']) for item in theList], ignore_index=True,sort=True)
                 data = dd.from_pandas(block_data, npartitions=1)
-                data.set_index("time").to_parquet(outputFile)
+                data.sort_values("Time").to_parquet(outputFile)
 
         if not os.path.isdir(outputPath):
             logger.debug(f"Creating output directory {outputPath}")
@@ -359,13 +354,13 @@ class paraviewOpenFOAM:
         maxTime = -1  # take all
         if overwrite:
             logger.info(f"Removing the old results")
-            for filterItem in datasourcenamelist:
-                if os.path.isfile(filterItem['outputFile']):
-                    logger.debug(f"Parquet file {filterItem['outputFile']} is a file. Removing it")
-                    os.remove(filterItem['outputFile'])
-                elif os.path.isdir(filterItem['outputFile']):
-                    logger.debug(f"Parquet file {filterItem['outputFile']} is a directory. Removing the tree")
-                    shutil.rmtree(filterItem['outputFile'])
+            for filterName,outputPath in filtersDict:
+                if os.path.isfile(outputPath):
+                    logger.debug(f"Parquet file {outputPath} is a file. Removing it")
+                    os.remove(outputPath)
+                elif os.path.isdir(outputPath):
+                    logger.debug(f"Parquet file {outputPath} is a directory. Removing the tree")
+                    shutil.rmtree(outputPath)
 
         logger.debug(f"Getting the time list.")
         readTimesList = self.reader.TimestepValues
@@ -383,7 +378,7 @@ class paraviewOpenFOAM:
         blockID = 0
         tempList = []
         append = False if overwrite else True
-        for filtersData in self.readTimeSteps(datasourcenamelist=datasourcenamelist,
+        for filtersData in self.readTimeSteps(datasourcenamelist=filtersDict,
                                               timelist=timeList,
                                               fieldnames=fieldnames,
                                               outputPath=outputPath,
@@ -392,22 +387,31 @@ class paraviewOpenFOAM:
             tempList.append(filtersData)
             logger.debug(f"Current dataFrames in memory  {len(L)}")
             if len(tempList) == tsBlockNum:
-                writeList(tempList,blockID)
+                writeList(tempList,blockID,filtersDict)
                 tempList=[]
                 blockID += 1
+
         if len(tempList) > 0:
-            writeList(tempList,blockID)
+            writeList(tempList,blockID,filtersDict)
 
         logger.info("Repartitioning to 100MB per partition")
         for filterItem in datasourcenamelist:
             logger.debug(f"Working on {filterItem['filter']}")
 
-            outputFilterName = filterItem['filter'].replace(".", "-")
-            outputPath = os.path.dirname(filterItem['outputPath'])
-            tmpFiles = os.path.join(outputPath, f"tmp_{outputFilterName}*.parquet")
+            outputFilterName = filterName.replace(".", "-")
+            outputPath = os.path.dirname(filtersDict[filterName])
+            outputFile = os.path.join(outputPath, f"tmp_{outputFilterName}_*.parquet")
 
-            dd.read_parquet().repartition(partition_size="100MB").reset_index().sort_values("time").set_index(
-                "time").to_parquet(filterItem['outputFile'])
+            logger.debug(f"Saving  partitions from the files {outputFile}")
+            dd.read_parquet(outputFile).repartition(partition_size="100MB")\
+                .sort_values("time")\
+                .set_index("time")\
+                .to_parquet(filtersDict[filterName])
+
+            logger.debug(f"Removing the old tmp files. ")
+            for fileTodelete in glob.glob(outputFile):
+                os.remove(fileTodelete)
+
 
 
 
