@@ -4,8 +4,11 @@ import os.path
 import importlib
 
 from hera import get_classMethod_logger
-from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,TYPE_VTK_FILTER
 from hera.utils import dictToMongoQuery
+from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
+import paraview.simple as pvsimple
+
 
 class VTKPipeLine:
     """
@@ -13,12 +16,15 @@ class VTKPipeLine:
     """
     filters = None
 
+    FILTER_CELLCENTERS = "CellCenters"
+    FILTER_SLICE = "Slice"
+
     def __init__(self, datalayer, vtkPipeline=None):
         self.datalayer = datalayer
         self.filters = dict() if vtkPipeline is None else vtkPipeline
 
     @staticmethod
-    def newVTKPipelineFilter(name, filterType, write=None, params=[]):
+    def newVTKPipelineFilter(name, filterType, write=True, params=[]):
         """
             Initializes a new filter from the list.
         Parameters
@@ -39,15 +45,14 @@ class VTKPipeLine:
         if filterType not in vtkFilterList:
             filterNameList = ",".join(vtkFilterList)
             raise ValueError(f"{filterType} is not Known. Must be one of {filterNameList}")
-        return getattr(pipelineModule, f"vtkFilter_{filterType}")(name=name, filterType=filterType, write=write,
-                                                                  params=params)
+        return getattr(pipelineModule, f"vtkFilter_{filterType}")(name=name, write=write, params=params)
 
-    def addFilter(self,name, filterType, write=None, params=[]):
+    def addFilter(self,name, filterType, write=True, params=[]):
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name,filterType=filterType,write=write,params=params)
         self.__setitem__(name,newFilter)
 
     def __setitem__(self, key, value):
-        self.filters[key] = item
+        self.filters[key] = value
 
     def __getitem__(self, item):
         """
@@ -63,22 +68,22 @@ class VTKPipeLine:
         -------
 
         """
-        pathList = item.split(".")
-        val = self.filters[pathList[0]]
-        for it in pathList[1:]:
-            val = val[it]
-
+        try:
+            pathList = item.split(".")
+            val = self.filters[pathList[0]]
+            for it in pathList[1:]:
+                val = val[it]
+        except KeyError:
+            raise KeyError(f"The filter {item} is not found in the current pipeline")
         return val
 
-    def registerPipeline(self, nameOrWorkflowFileOrJSONOrResource, serverName=None, caseType=CASETYPE_DECOMPOSED,
-                         timeList=None):
+    def registerPipeline(self, nameOrWorkflowFileOrJSONOrResource, serverName=None, caseType=CASETYPE_DECOMPOSED):
 
-        registeredVTKPipeLine(datalayer=self.datalayer,
+        return registeredVTKPipeLine(datalayer=self.datalayer,
                               vtkpipeline=self,
                               nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResource,
                               serverName=serverName,
-                              caseType=caseType,
-                              timeList=timeList)
+                              caseType=caseType)
 
     def toJSON(self):
         """
@@ -107,10 +112,9 @@ class VTKPipeLine:
         for filterName, filterData in self.filters.items():
             retDict.update(filterData.toJSON())
 
-        return dict(metadata=dict(timeList=self.timeList, casePath=self.casePath),
-                    pipelines=retDict)
+        return dict(filters=retDict)
 
-    def getAllFilters(self):
+    def allFilterNames(self):
         """
             Return a list of the full name of all the filters.
         Parameters
@@ -125,13 +129,10 @@ class VTKPipeLine:
         def recurseAllNames(fatherPath, filtersList):
             ret = []
             nextList = []
-            if len(filtersList) > 0:
-                currentName = filter if fatherPath is None else f"{fatherPath}.{filterName}"
-                for filterName in filtersList:
-                    ret.append(currentName)
-                    curNode = self.__getitem__(currentName)
-                    nextList += curNode.downstream
-                ret += recurseAllNames(currentName, nextList)
+            for filterName,filterObj in filtersList.items():
+                currentName = filterName if fatherPath is None else f"{fatherPath}.{filterName}"
+                ret.append(currentName)
+                ret += recurseAllNames(currentName, filterObj.downstream)
             return ret
 
         return recurseAllNames(None, self.filters)
@@ -151,6 +152,7 @@ class registeredVTKPipeLine:
 
         self.datalayer = datalayer
         self.vtkpipeline = vtkpipeline
+        self.tsBlockNum=50
 
         if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
             self.casePath = nameOrWorkflowFileOrJSONOrResource
@@ -179,26 +181,26 @@ class registeredVTKPipeLine:
                 raise ValueError(
                     f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
 
-        self.filters = dict()
-        self.timeList = timeList
-
-        self.pvOFBase = paraviewOpenFOAM(casePath=casePath,
+        self.pvOFBase = paraviewOpenFOAM(casePath=self.casePath,
                                          caseType=caseType,
                                          servername=serverName)
 
     def clearCache(self):
         pass
 
-    def getData(self, filterName=None, timeList=None, meshRegions=None, nonRegularCase=True):
+    def getData(self, filterNameOrList=None, timeList=None, meshRegions=None, RegularCase=False, sourceOrName = None, fieldNames=None,overwrite=False):
         """
             Returns the data of the vtkpipeline as a dict.
             The stuctucture is similar to that of a vtkpipline.
         Parameters
         ----------
-        filterName
+        filterNameOrList
         timeList
         meshRegions
         nonRegularCase
+        sourceOrName  : str
+            A name of a filter that is already in the pipeline that will be used as a base for the pipeline.
+            If NOne, then initialize a reader.
 
         Returns
         -------
@@ -208,21 +210,26 @@ class registeredVTKPipeLine:
         ret = dict()
 
         # 1. Get the potential filters to process
-        if filterName is None:
-            requestedFiltersToProcess = self.vtkpipeline.getAllFilters()
+        if filterNameOrList is None:
+            requestedFiltersToProcess = self.vtkpipeline.allFilterNames()
         else:
-            requestedFiltersToProcess = list(numpy.atleast_1d(filterName))
+            requestedFiltersToProcess = list(numpy.atleast_1d(filterNameOrList))
         logger.info(f"The potential filters are : {requestedFiltersToProcess}")
 
         # 2. Initialiaze the reader and the time list.
 
         if sourceOrName is None:
-            reader = self.initializeReader(readerName="reader")
+            reader = self.pvOFBase.initializeReader(readerName="reader")
+            if fieldNames is not None:
+                reader.CellArrays = fieldNames
+
         elif isinstance(sourceOrName, str):
             logger.debug(f"Getting the reader {sourceOrName}")
             reader = pvsimple.FindSource(sourceOrName)
             if reader is None:
-                reader = self.getReader(readerName="reader")
+                reader = self.pvOFBase.initializeReader(readerName="reader")
+                if fieldNames is not None:
+                    reader.CellArrays = fieldNames
         else:
             logger.debug(f"Got reader object:  {sourceOrName}")
             # assume server is connected.
@@ -243,7 +250,8 @@ class registeredVTKPipeLine:
             timelist = reader.TimestepValues
 
         # Get the mesh regions.
-        reader.MeshRegions = meshRegions
+        if meshRegions is not None:
+            reader.MeshRegions = meshRegions
 
         # 1. Check if the filters are already in the db
         qry = dict(simulations=self.simulationParams,
@@ -252,76 +260,40 @@ class registeredVTKPipeLine:
         qry['simulations']['MeshRegions'] = "" if meshRegions is None else meshRegions
 
         filtersToProcess = []
-        for filterName in requestedFiltersToProcess:
-            qry['filterName'] = filterName
-            docList = self.datalayer.getSimulationDocuments(TYPE_VTK_FILTER, **dictToMongoQuery(qry))
-            if docList > 0:
-                ret[filterName] = docList[0].getData()
+        for filterNameOrList in requestedFiltersToProcess:
+            qry['filterName'] = filterNameOrList
+            docList = self.datalayer.getSimulationsDocuments(TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            if len(docList) > 0:
+                ret[filterNameOrList] = docList[0].getData()
             else:
-                filtersToProcess.append(filterName)
+                filtersToProcess.append(filterNameOrList)
+
+
 
         # build the pipeline.
+        logger.info(f"Building the vtk objects from the JSON")
         filtersToCompute = self._buildFilterLayer(fatherName=None,
                                                   father=reader,
-                                                  structureJson=self.vtkpipeline["filters"],
+                                                  structureJson=self.vtkpipeline.toJSON()['filters'],
                                                   filtersToProcess=filtersToProcess)
 
-        logger.info(f"Building the filter layer pipeline")
+
 
         # 3. Compute the values and save the parquet/zarr.
-        methodName = "writeNonRegularCase" if nonRegularCase else "writeRegularCase"
+        methodName = "writeNonRegularCase" if RegularCase is False else "writeRegularCase"
         method = getattr(self.pvOFBase, methodName)
 
         method(datasourcenamelist=filtersToCompute,
                timeList=timeList,
-               fieldnames=self._fieldNames,
-               tsBlockNum=tsBlockNum,
-               overwrite=overwrite,
-               append=append)
+               fieldnames=fieldNames,
+               tsBlockNum=self.tsBlockNum,
+               overwrite=overwrite)
 
         # 4. Update the DB.
-        for filterName in filtersToProcess:
-            print(f"adding {filterName} to DB")
+        for filterNameOrList in filtersToProcess:
+            print(f"adding {filterNameOrList} to DB")
 
 
-    def getReader(self, readerName="reader"):
-        """
-            Constructs a reader and register it in the vtk pipeline.
-
-            Handles either parallel or single format.
-
-        Parameters
-        -----------
-
-        readerName: str
-                The name of the reader.  (of the pipline).
-                When using server, then you can have different pipelines with different names.
-
-        casePath: str
-                a full path to the case directory.
-        CaseType: str
-                Either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
-                for single processor cases.
-        fieldnames: list of str
-                List of field names to load.
-                if None, read all the fields.
-
-        servername: str
-                The address of pvserver. If None, use the local single threaded case.
-        :return:
-                the reader
-        """
-        # self._readerName  = readerName
-        reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self._casePath, CaseType=self._caseType,
-                                         guiName=readerName)
-        reader.MeshRegions.SelectAll()
-        possibleRegions = list(reader.MeshRegions)
-        reader.MeshRegions = ['internalMesh']
-        if self._fieldNames is not None:
-            reader.CellArrays = self._fieldNames
-        reader.UpdatePipeline()
-
-        return reader
 
     def _buildFilterLayer(self, fatherName, father, structureJson, filtersToProcess):
         """
@@ -349,7 +321,7 @@ class registeredVTKPipeLine:
         if structureJson is not None:
             for filterGuiName in structureJson:
                 paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
-                filtertype = structureJson[filterGuiName]['type']
+                filtertype = structureJson[filterGuiName]['filterType']
                 filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
                 logger.debug(f"Adding filter {filterGuiName} of type {filtertype} to {fatherName}: {father}")
 
@@ -368,8 +340,7 @@ class registeredVTKPipeLine:
                     ret.append(filterGuiName)
 
                 ret += self._buildFilterLayer(newFilterName, filter,
-                                              structureJson[filterGuiName].get("downstream", None), filtersToProcess,
-                                              filtersList)
+                                              structureJson[filterGuiName].get("downstream", None), filtersToProcess)
         return ret
 
 
@@ -410,7 +381,7 @@ class VTKFilter:
         """
         self.name = name
         self.filterType = filterType
-        self.write = shouldWrite
+        self.write = write
         self.params = params
         self.downstream = dict()
 
@@ -441,13 +412,14 @@ class VTKFilter:
         ret['filterType'] = self.filterType
         ret['write'] = True if self.write else False
         ret['params'] = self.params
+        ret['downstream'] = {}
         for filterName, dsFilter in self.downstream.items():
             ret['downstream'][filterName] = dsFilter.toJSON()
 
         return {self.name: ret}
 
     def __setitem__(self, key, value):
-        self.downstream[key] = item
+        self.downstream[key] = value
 
     def __getitem__(self, item):
         """
@@ -470,32 +442,11 @@ class VTKFilter:
                 val = val[it]
         except KeyError:
             raise KeyError(f"Filter {item} not found")
-
         return val
 
-    def __getitem__(self, item):
-
-        return None
-
-    def append(self, newFilters):
-        """
-            Adds a new filter to the results.
-        Parameters
-        ----------
-        newFilters : list
-            A filter or a filter list.
-
-        Returns
-        -------
-
-        """
-        if isinstance(newFilter, list):
-            self.downstream += newFilter
-            for nf in newFilters:
-                nf.father = self
-        else:
-            self.downstream.append(newFilter)
-            newFilter.father = self
+    def addFilter(self,name, filterType, write=None, params=[]):
+        newFilter = VTKPipeLine.newVTKPipelineFilter(name=name,filterType=filterType,write=write,params=params)
+        self.__setitem__(name,newFilter)
 
 
 class vtkFilter_Slice(VTKFilter):
