@@ -4,7 +4,7 @@ import os.path
 import importlib
 
 from hera import get_classMethod_logger
-from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,TYPE_VTK_FILTER
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED, TYPE_VTK_FILTER
 from hera.utils import dictToMongoQuery
 from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
 import paraview.simple as pvsimple
@@ -47,9 +47,9 @@ class VTKPipeLine:
             raise ValueError(f"{filterType} is not Known. Must be one of {filterNameList}")
         return getattr(pipelineModule, f"vtkFilter_{filterType}")(name=name, write=write, params=params)
 
-    def addFilter(self,name, filterType, write=True, params=[]):
-        newFilter = VTKPipeLine.newVTKPipelineFilter(name=name,filterType=filterType,write=write,params=params)
-        self.__setitem__(name,newFilter)
+    def addFilter(self, name, filterType, write=True, params=[]):
+        newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
+        self.__setitem__(name, newFilter)
 
     def __setitem__(self, key, value):
         self.filters[key] = value
@@ -80,10 +80,10 @@ class VTKPipeLine:
     def registerPipeline(self, nameOrWorkflowFileOrJSONOrResource, serverName=None, caseType=CASETYPE_DECOMPOSED):
 
         return registeredVTKPipeLine(datalayer=self.datalayer,
-                              vtkpipeline=self,
-                              nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResource,
-                              serverName=serverName,
-                              caseType=caseType)
+                                     vtkpipeline=self,
+                                     nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResource,
+                                     serverName=serverName,
+                                     caseType=caseType)
 
     def toJSON(self):
         """
@@ -129,7 +129,7 @@ class VTKPipeLine:
         def recurseAllNames(fatherPath, filtersList):
             ret = []
             nextList = []
-            for filterName,filterObj in filtersList.items():
+            for filterName, filterObj in filtersList.items():
                 currentName = filterName if fatherPath is None else f"{fatherPath}.{filterName}"
                 ret.append(currentName)
                 ret += recurseAllNames(currentName, filterObj.downstream)
@@ -152,7 +152,7 @@ class registeredVTKPipeLine:
 
         self.datalayer = datalayer
         self.vtkpipeline = vtkpipeline
-        self.tsBlockNum=50
+        self.tsBlockNum = 50
 
         if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
             self.casePath = nameOrWorkflowFileOrJSONOrResource
@@ -185,17 +185,40 @@ class registeredVTKPipeLine:
                                          caseType=caseType,
                                          servername=serverName)
 
-    def clearCache(self):
-        pass
+    def clearCache(self, filterName=None):
+        # 1. Get the potential filters to process
+        logger = get_classMethod_logger(self, "clearCache")
+        if filterName is None:
+            requestedFiltersToProcess = self.vtkpipeline.allFilterNames()
+        else:
+            requestedFiltersToProcess = list(numpy.atleast_1d(filterName))
+        logger.info(f"Removing the cache for filters {requestedFiltersToProcess}")
 
-    def getData(self, filterNameOrList=None, timeList=None, meshRegions=None, RegularCase=False, sourceOrName = None, fieldNames=None,overwrite=False):
+        for filterName in requestedFiltersToProcess:
+            logger.debug(f"Removing {filterName}")
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+            docList = self.datalayer.deleteSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            for doc in docList:
+                logger.debug(f"Deleting resources")
+                outputFile = doc.resource
+
+                if os.path.exists(outputFile):
+                    if os.path.isfile(outputFile):
+                        os.remove(outputFile)
+                    else:
+                        shutil.rmtree(outputFile)
+
+    def getData(self, regularMesh, filterName=None, timeList=None, meshRegions=None, , fieldNames=None,
+                overwrite=False):
         """
             Returns the data of the vtkpipeline as a dict.
             The stuctucture is similar to that of a vtkpipline.
         Parameters
         ----------
-        filterNameOrList
-        timeList
+        filterName : str, list of str, None
+            The name of the filter to get, a list of filters or get all the filters that write=True in the pipeline.
+        timeList : None, list
+            The list of timestep
         meshRegions
         nonRegularCase
         sourceOrName  : str
@@ -208,75 +231,72 @@ class registeredVTKPipeLine:
         """
         logger = get_classMethod_logger(self, "execute")
         ret = dict()
+        filext = "zarr" if regularMesh else "parquet"
 
         # 1. Get the potential filters to process
-        if filterNameOrList is None:
+        if filterName is None:
             requestedFiltersToProcess = self.vtkpipeline.allFilterNames()
         else:
-            requestedFiltersToProcess = list(numpy.atleast_1d(filterNameOrList))
-        logger.info(f"The potential filters are : {requestedFiltersToProcess}")
+            requestedFiltersToProcess = list(numpy.atleast_1d(filterName))
+        logger.info(f"The requested filters are : {requestedFiltersToProcess}")
 
         # 2. Initialiaze the reader and the time list.
-
-        if sourceOrName is None:
-            reader = self.pvOFBase.initializeReader(readerName="reader")
-            if fieldNames is not None:
-                reader.CellArrays = fieldNames
-
-        elif isinstance(sourceOrName, str):
-            logger.debug(f"Getting the reader {sourceOrName}")
-            reader = pvsimple.FindSource(sourceOrName)
-            if reader is None:
-                reader = self.pvOFBase.initializeReader(readerName="reader")
-                if fieldNames is not None:
-                    reader.CellArrays = fieldNames
-        else:
-            logger.debug(f"Got reader object:  {sourceOrName}")
-            # assume server is connected.
-            reader = sourceOrName
+        reader = self.pvOFBase.initializeReader(readerName="reader")
+        if fieldNames is not None:
+            reader.CellArrays = fieldNames
 
         # Now execute the pipeline.
-        if timeList is not None and isinstance(timeList, str):
-            # a bit of parsing.
-            readerTL = reader.TimestepValues
-            BandA = [readerTL[0], readerTL[-1]]
+        if timeList is not None:
+            if isinstance(timeList, str):
+                # a bit of parsing.
+                readerTL = reader.TimestepValues
+                BandA = [readerTL[0], readerTL[-1]]
 
-            for i, val in enumerate(timeList.split(":")):
-                BandA[i] = BandA[i] if len(val) == 0 else float(val)
+                for i, val in enumerate(timeList.split(":")):
+                    BandA[i] = BandA[i] if len(val) == 0 else float(val)
 
-            tl = pandas.Series(readerTL)
-            timeList = tl[tl.between(*BandA)].values
+                tl = pandas.Series(readerTL)
+                timeList = tl[tl.between(*BandA)].values
         else:
-            timelist = reader.TimestepValues
+            timeList = reader.TimestepValues
+
+        logger.debug(f"Getting timeList {timeList}")
 
         # Get the mesh regions.
         if meshRegions is not None:
             reader.MeshRegions = meshRegions
 
-        # 1. Check if the filters are already in the db
-        qry = dict(simulations=self.simulationParams,
-                   pipeline=self.vtkpipeline.toJSON())
-        qry['simulations']['timeList'] = timelist
-        qry['simulations']['MeshRegions'] = "" if meshRegions is None else meshRegions
-
         filtersToProcess = []
         filtersOutputFilename = dict()
-        for filterNameOrList in requestedFiltersToProcess:
-            qry['filterName'] = filterNameOrList
-            docList = self.datalayer.getSimulationsDocuments(TYPE_VTK_FILTER, **dictToMongoQuery(qry))
-            outputFileName = f"{filterNameOrList.replace('.', '-')}.parquet"
-            filtersOutputFilename[filterNameOrList] = docList[0].resource if len(docList) > 0 else os.path.join(self.datalayer.filesDirectory,"vtkpipelinedata",outputFileName)
+        DBDocumentsDict = dict()
 
-            if overwrite:
-                filtersToProcess.append(filterNameOrList)
-            elif len(docList) > 0:
-                ret[filterNameOrList] = docList[0].getData()
+        for filterName in requestedFiltersToProcess:
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+            docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            if len(docList) > 0:
+                filtersOutputFilename[filterName] = docList[0].resource
+                dbTimeList = docList[0]['desc']['simulation']['timeList']
+
+                # Filtering the timesteps.
+                timeList = [ts for ts in timeList if ts not in dbTimeList]
+                DBDocumentsDict[filterName] = docList[0]
+
             else:
-                filtersToProcess.append(filterNameOrList)
+                # adding counter to prevent overwriting similar filter from a different pipeline.
+                countr = self.datalayer.getCounterAndAdd("OpenFOAMData")
+                outputFileName = f"{filterName.replace('.', '-')}_{countr}.{filext}"
+                filtersOutputFilename[filterName] = os.path.join(self.casePath, "vtkpipelinedata", outputFileName)
 
-        # build the pipeline.
+            logger.debug(
+                "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
+            if overwrite or len(docList) == 0 or len(timeList) > 0:
+                logger.debug(f"{filterName} added to process because overwrite=True or filter not in DB")
+                filtersToProcess.append(filterName)
+
+        logger.info(f"Computing filters {filtersToProcess}")
+        # Compute the filters.
         if len(filtersToProcess) > 0:
-            filtersToComputeDict = dict() #
+            filtersToComputeDict = dict()  #
             logger.info(f"Building the vtk objects from the JSON")
             # Remember that the buildFilterlayer adds the real objects to the pipeline,
             # and just return the guinames that can be used to retrieve the object with findSource.
@@ -284,26 +304,65 @@ class registeredVTKPipeLine:
             filtersToCompute = self._buildFilterLayer(fatherName=None,
                                                       father=reader,
                                                       structureJson=self.vtkpipeline.toJSON()['filters'])
+            logger.info(f"Added all filters to the layer. Computing filters {filtersToCompute}")
 
-            # 3. Build the put
+            # Build the ourput file name.
             for filterName in filtersToCompute:
+                logger.debug(f"\t{filterName} will saved in {filtersOutputFilename[filterName]}")
                 filtersToComputeDict[filterName] = filtersOutputFilename[filterName]
 
-            # 3. Compute the values and save the parquet/zarr.
-            methodName = "writeNonRegularCase" if RegularCase is False else "writeRegularCase"
-            method = getattr(self.pvOFBase, methodName)
+            # Compute the values and save the parquet/zarr.
+            self.pvOFBase.writeCase(filtersDict=filtersToComputeDict,
+                                    timeList=timeList,
+                                    fieldnames=fieldNames,
+                                    tsBlockNum=self.tsBlockNum,
+                                    overwrite=overwrite, regularMesh=regularMesh)
 
-            method(datasourcenamelist=filtersToComputeDict,
-                   timeList=timeList,
-                   fieldnames=fieldNames,
-                   tsBlockNum=self.tsBlockNum,
-                   overwrite=overwrite)
+        # 4. Update the DB.
 
-            # 4. Update the DB.
-            for filterNameOrList in filtersToProcess:
-                print(f"adding {filterNameOrList} to DB")
+        for filterName in filtersToProcess:
+            logger.debug(f"Updating times {timeList} to filter {filterName}")
+            if filterName in DBDocumentsDict:
+                doc = DBDocumentsDict[filterName]
+                fullTime = sorted(timeList + doc['desc']['simulation']['timeList'])
+                doc.desc['simulation']['timeList'] = fullTime
+                doc.save()
+            else:
+                logger.debug("...Adding a new record to the DB")
 
+                recordData = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+                recordData['simulation']['timeList'] = timeList
+                dataFormat = self.datalayer.datatypes.ZARR_XARRAY if regularMesh else self.datalayer.datatypes.PARQUET
+                doc = self.datalayer.addSimulationsDocument(dataFormat=dataFormat,
+                                                            resource=filtersToComputeDict[filterName],
+                                                            type=TYPE_VTK_FILTER,
+                                                            desc=recordData)
 
+            logger.debug(f"Reading filter {filterName} data")
+
+        for filterName in requestedFiltersToProcess:
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+            docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            ret[filterName] = docList[0].getData()
+
+        return ret
+
+    def getRegularData(self, filterName=None, timeList=None, meshRegions=None, fieldNames=None, overwrite=False):
+        return self.getData(regularMesh=True, filterName=filterName, timeList=timeList, meshRegions=meshRegions,
+                            fieldNames=fieldNames,
+                            overwrite=overwrite)
+
+    def getNonRegularData(self, filterName=None, timeList=None, meshRegions=None, fieldNames=None, overwrite=False):
+        return self.getData(regularMesh=False, filterName=filterName, timeList=timeList, meshRegions=meshRegions,
+                            fieldNames=fieldNames,
+                            overwrite=overwrite)
+
+    def _buildFilterQuery(self, filterName, meshRegions):
+        qry = dict(simulation=self.simulationParams,
+                   pipeline=self.vtkpipeline.toJSON())
+        qry['simulation']['MeshRegions'] = "" if meshRegions is None else meshRegions
+        qry['filterName'] = filterName
+        return qry
 
     def _buildFilterLayer(self, fatherName, father, structureJson):
         """
@@ -325,7 +384,8 @@ class registeredVTKPipeLine:
 
         """
         logger = get_classMethod_logger(self, "_buildFilterLayer")
-        logger.info(f"building Filter layer {structureJson}")
+        logger.debug(f"Initialized logger {logger}")
+        logger.info(f"building Filter layer {json.dumps(structureJson, indent=4)}")
         ret = []
 
         if structureJson is not None:
@@ -333,7 +393,9 @@ class registeredVTKPipeLine:
                 paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
                 filtertype = structureJson[filterGuiName]['filterType']
                 filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
-                logger.debug(f"Adding filter {filterGuiName} of type {filtertype} to {fatherName}: {father}")
+
+                logger.debug(
+                    f"Adding filter {filterGuiName} of type {filtertype} to {'Reader' if fatherName is None else fatherName}")
 
                 for param, pvalue in paramPairList:
                     logger.debug(f"...Adding parameters {param} with value {pvalue}")
@@ -344,11 +406,12 @@ class registeredVTKPipeLine:
                         paramobj = getattr(paramobj, pname)
                     setattr(paramobj, paramnamelist[-1], pvalue)
                 filter.UpdatePipeline()
-
                 newFilterName = filterGuiName if fatherName is None else f"{fatherName}.{filterGuiName}"
+                logger.debug(f"Filter {newFilterName} added to the pipeline. Now adding its downstream filters.")
                 ret.append(filterGuiName)
                 ret += self._buildFilterLayer(newFilterName, filter,
                                               structureJson[filterGuiName].get("downstream", None))
+
         return ret
 
 
@@ -452,9 +515,9 @@ class VTKFilter:
             raise KeyError(f"Filter {item} not found")
         return val
 
-    def addFilter(self,name, filterType, write=None, params=[]):
-        newFilter = VTKPipeLine.newVTKPipelineFilter(name=name,filterType=filterType,write=write,params=params)
-        self.__setitem__(name,newFilter)
+    def addFilter(self, name, filterType, write=None, params=[]):
+        newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
+        self.__setitem__(name, newFilter)
 
 
 class vtkFilter_Slice(VTKFilter):
