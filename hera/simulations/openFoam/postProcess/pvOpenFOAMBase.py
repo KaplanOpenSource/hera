@@ -302,7 +302,7 @@ class paraviewOpenFOAM:
             if append and os.path.exists(outputFile):
                 outputFileList.append(outputFile)
 
-            logger.debug(f"Saving  partitions from the files {outputFile} to a final file")
+            logger.debug(f"Saving all data to {outputFile}")
             if regularMesh:
                 with ProgressBar():
                     # input_data is the directory path here
@@ -339,7 +339,8 @@ class paraviewOpenFOAM:
             outputPath = os.path.dirname(filtersDict[filterName])
             outputFile = os.path.join(outputPath,f"tmp_{outputFilterName}_{blockID:06d}.{fileExt}")
 
-            logger.info("\tWriting filter %s in file %s" % (filterName, outputFile))
+            logger.info(f"\tWriting filter {filterName} in temporary file {outputFile} ")
+
             if regularMesh:
                 ds_slice = xarray.concat([item[filterName] for item in theList], dim='time')
                 ds_slice.to_zarr(outputFile,mode='w')

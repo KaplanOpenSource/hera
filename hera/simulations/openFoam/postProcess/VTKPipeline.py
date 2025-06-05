@@ -8,7 +8,8 @@ from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTE
 from hera.utils import dictToMongoQuery
 from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
 import paraview.simple as pvsimple
-
+import os
+import shutil
 
 class VTKPipeLine:
     """
@@ -196,11 +197,11 @@ class registeredVTKPipeLine:
 
         for filterName in requestedFiltersToProcess:
             logger.debug(f"Removing {filterName}")
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=None)
             docList = self.datalayer.deleteSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             for doc in docList:
                 logger.debug(f"Deleting resources")
-                outputFile = doc.resource
+                outputFile = doc['resource']
 
                 if os.path.exists(outputFile):
                     if os.path.isfile(outputFile):
@@ -208,8 +209,7 @@ class registeredVTKPipeLine:
                     else:
                         shutil.rmtree(outputFile)
 
-    def getData(self, regularMesh, filterName=None, timeList=None, meshRegions=None, , fieldNames=None,
-                overwrite=False):
+    def getData(self, regularMesh, filterName=None, timeList=None, meshRegions=None , fieldNames=None,overwrite=False):
         """
             Returns the data of the vtkpipeline as a dict.
             The stuctucture is similar to that of a vtkpipline.
@@ -271,7 +271,7 @@ class registeredVTKPipeLine:
         DBDocumentsDict = dict()
 
         for filterName in requestedFiltersToProcess:
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             if len(docList) > 0:
                 filtersOutputFilename[filterName] = docList[0].resource
@@ -330,7 +330,7 @@ class registeredVTKPipeLine:
             else:
                 logger.debug("...Adding a new record to the DB")
 
-                recordData = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+                recordData = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
                 recordData['simulation']['timeList'] = timeList
                 dataFormat = self.datalayer.datatypes.ZARR_XARRAY if regularMesh else self.datalayer.datatypes.PARQUET
                 doc = self.datalayer.addSimulationsDocument(dataFormat=dataFormat,
@@ -341,7 +341,7 @@ class registeredVTKPipeLine:
             logger.debug(f"Reading filter {filterName} data")
 
         for filterName in requestedFiltersToProcess:
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             ret[filterName] = docList[0].getData()
 
@@ -357,10 +357,15 @@ class registeredVTKPipeLine:
                             fieldNames=fieldNames,
                             overwrite=overwrite)
 
-    def _buildFilterQuery(self, filterName, meshRegions):
+    def _buildFilterQuery(self, filterName, meshRegions,regularMesh=None):
         qry = dict(simulation=self.simulationParams,
                    pipeline=self.vtkpipeline.toJSON())
-        qry['simulation']['MeshRegions'] = "" if meshRegions is None else meshRegions
+        if meshRegions is not None:
+            qry['simulation']['MeshRegions'] = meshRegions
+
+        if regularMesh is not None:
+            qry['simulation']['regularMesh'] = regularMesh
+
         qry['filterName'] = filterName
         return qry
 
