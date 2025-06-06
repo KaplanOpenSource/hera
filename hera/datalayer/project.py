@@ -714,7 +714,7 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
-    def addData(self,name,data,desc,kind,type=None,dataFormat=None,**kwargs):
+    def saveData(self,name,data,desc,kind,type=None,dataFormat=None,**kwargs):
         """
             Adds a cache document with the data.
             Estimates the dataFormat from the data type.
@@ -756,14 +756,14 @@ class Project:
         doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
         return doc
 
-    def addMeasurementData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
-        self.addData(name=name,data=data,desc=desc,kind="Measurement",type=type,dataFormat=dataFormat,**kwargs)
+    def saveMeasurementData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.saveData(name=name,data=data,desc=desc,kind="Measurement",type=type,dataFormat=dataFormat,**kwargs)
 
-    def addCacheData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
-        self.addData(name=name,data=data,desc=desc,kind="Cache",type=type,dataFormat=dataFormat,**kwargs)
+    def saveCacheData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.saveData(name=name,data=data,desc=desc,kind="Cache",type=type,dataFormat=dataFormat,**kwargs)
 
-    def addSimulationData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
-        self.addData(name=name,data=data,desc=desc,kind="Simulation",type=type,dataFormat=dataFormat,**kwargs)
+    def saveSimulationData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.saveData(name=name,data=data,desc=desc,kind="Simulation",type=type,dataFormat=dataFormat,**kwargs)
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
