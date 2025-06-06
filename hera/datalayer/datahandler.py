@@ -524,7 +524,6 @@ class DataHandler_parquet(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
-
         if isinstance(resource, pandas.DataFrame):
             # pandas. write as a single file.
             # if any of the columns is integer it breaks the dask
@@ -613,7 +612,8 @@ class DataHandler_pickle(object):
         -------
         img
         """
-        obj = pickle.load(resource)
+        with open(resource, 'rb') as f:
+            obj = pickle.load(f)
 
         return obj
 

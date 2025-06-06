@@ -40,7 +40,11 @@ def clearFunctionCache(functionName,projectName=None):
 
     """
     proj = Project(projectName=projectName)
-    docList = proj.deleteCacheDocuments(type ="functionCacheData",functionName=functionName)
+    paramDict = dict()
+    if functionName is not None:
+        paramDict['functionName'] = functionName
+
+    docList = proj.deleteCacheDocuments(type ="functionCacheData",**paramDict)
     for doc in docList:
         if os.path.exists(doc['resource']):
             if os.path.isdir(doc['resource']):
@@ -126,8 +130,9 @@ class cacheDecorators:
         bound.apply_defaults()
 
         call_info = dict(bound.arguments)
+
         if 'self' in call_info:
-            del call_info['self']
+            call_info['context'] = call_info.pop('self')
 
         # convert any pint/unum to standardized MKS and dict with the magnitude and units seperated.
         # This will allow the query of the querys even if they are given in different units
@@ -136,13 +141,13 @@ class cacheDecorators:
         call_info_serialized = dict()
 
         for key,value in call_info_JSON.items():
-
             serializable = cacheDecorators.is_mongo_serializable(value)
             serialized_value = value if serializable else cacheDecorators.obj_to_txt(value)
             call_info_serialized[key] = (serializable,serialized_value)
 
 
         # Add the function name
+
         call_info_serialized['functionName'] =  self._get_full_func_name(self.func)
 
         data = self.checkIfFunctionIsCached(call_info_serialized)
@@ -150,7 +155,8 @@ class cacheDecorators:
             data = self.func(*args, **kwargs)
             # query without the original units. This allows the user to query different units
             #call_info_query_JSON = ConfigurationToJSON(call_info, standardize=True, splitUnits=True, keepOriginalUnits=False)
-            doc = self.saveFunctionCache(call_info_serialized,data)
+            if data is not None:
+                doc = self.saveFunctionCache(call_info_serialized,data)
 
         ret = data if self.postProcessFunction is None else self.postProcessFunction(data)
         return ret
