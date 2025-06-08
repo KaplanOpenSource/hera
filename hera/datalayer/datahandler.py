@@ -69,12 +69,12 @@ class datatypes:
     typeDatatypeMap = {
         "str": dict(typeName=STRING, ext="txt"),
         "pandas.core.frame.DataFrame": dict(typeName=PARQUET, ext="parquet"),
-        'pandas.core.series.Series': dict(typeName=CSV_PANDAS, ext="csv"),
+        'pandas.core.series.Series': dict(typeName=JSON_PANDAS, ext="json"),
         "dask_expr._collection.DataFrame": dict(typeName=PARQUET, ext="parquet"),
         'geopandas.geodataframe.GeoDataFrame': dict(typeName=GEOPANDAS, ext="gpkg"),
         'xarray.core.dataarray.DataArray': dict(typeName=ZARR_XARRAY, ext="zarr"),
-        "dict": dict(typeName=JSON_DICT, ext="json"),
-        "list": dict(typeName=JSON_DICT, ext="json"),
+        "dict": dict(typeName=PICKLE, ext="pckle"),
+        "list": dict(typeName=PICKLE, ext="pckle"),
         "bytes": dict(typeName=PICKLE, ext="pckle"),
         "object": dict(typeName=PICKLE, ext="pckle"),
         "numpy.ndarray": dict(typeName=NUMPY_ARRAY, ext="npy")
@@ -448,7 +448,15 @@ class DataHandler_JSON_pandas(object):
     @staticmethod
     def saveData(resource, fileName,**kwargs):
         resource.to_json(fileName,**kwargs)
-        return dict()
+
+        if isinstance(resource, pandas.Series):
+            ret = dict(pandasSeries=True,usePandas=True)
+        elif isinstance(resource,pandas.DataFrame):
+            ret = dict(usePandas=True)
+        else:
+            ret = dict()
+
+        return ret
 
     @staticmethod
     def getData(resource, usePandas=True, desc={},**kwargs):
@@ -468,7 +476,12 @@ class DataHandler_JSON_pandas(object):
         pandas.DataFrame or dask.DataFrame
         """
         if usePandas:
-            df = pandas.read_json(resource)
+            isSeries = kwargs.get("pandasSeries",False)
+            if isSeries:
+                readParams = dict(typ="series")
+            else:
+                readParams = dict()
+            df = pandas.read_json(resource,**readParams)
         else:
             df = dask.dataframe.read_json(resource)
 
@@ -511,7 +524,6 @@ class DataHandler_parquet(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
-
         if isinstance(resource, pandas.DataFrame):
             # pandas. write as a single file.
             # if any of the columns is integer it breaks the dask
@@ -600,7 +612,8 @@ class DataHandler_pickle(object):
         -------
         img
         """
-        obj = pickle.load(resource)
+        with open(resource, 'rb') as f:
+            obj = pickle.load(f)
 
         return obj
 

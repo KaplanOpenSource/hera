@@ -51,7 +51,7 @@ class MetadataFrame(object):
         """
         storeParametersDict = self.desc.get("storeParameters",{})
         storeParametersDict.update(kwargs)
-        return getHandler(self.dataFormat).getData(self.resource,self.desc, **storeParametersDict)
+        return getHandler(self.dataFormat).getData(resource=self.resource,desc=self.desc, **storeParametersDict)
 
     def __str__(self):
         return json.dumps(self.asDict(with_id=False),indent=4)
