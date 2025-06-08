@@ -299,19 +299,21 @@ class paraviewOpenFOAM:
             outputPath = os.path.dirname(outputFile)
             outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName}_*.{slice_filext}"))]
 
-            if append and os.path.exists(outputFile):
-                outputFileList.append(outputFile)
-
             logger.debug(f"Saving all data to {outputFile}")
-            if regularMesh:
-                with ProgressBar():
-                    # input_data is the directory path here
-                    lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto')
-                    lazy_ds.chunk('auto').to_zarr(f"{outputFile}.final", mode='w')
+            with (ProgressBar()):
+                if regularMesh:
+                        # input_data is the directory path here
+                        if append and os.path.exists(outputFile):
+                            outputFileList.append(outputFile)
 
-            else:
-                with ProgressBar():
-                    dd.read_parquet(outputFileList).repartition(partition_size="100MB")\
+                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto')
+                        lazy_ds.chunk('auto').to_zarr(f"{outputFile}.final", mode='w')
+                else:
+                    newDataList = [dd.read_parquet(outputFileList)]
+                    if append and os.path.exists(outputFile):
+                        newDataList.append(dd.read_parquet(outputFile))
+
+                    allData = dd.concat(newDataList).repartition(partition_size="100MB")\
                         .sort_values("time")\
                         .set_index("time")\
                         .to_parquet(f"{outputFile}.final")
