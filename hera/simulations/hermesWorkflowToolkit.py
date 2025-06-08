@@ -450,13 +450,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             The new ID,
             The name.
         """
-        simList = self.getWorkflowInGroup(groupName=simulationGroup, **kwargs)
-        group_ids = [int(x['desc']['groupID']) for x in simList if x['desc']['groupID'] is not None]
-        if len(group_ids) == 0:
-            newID = 1
-        else:
-            newID = int(numpy.max(group_ids)+1)
-
+        newID = self.getCounterAndAdd(f"simulations_{simulationGroup}")
         return newID, self.getworkFlowName(simulationGroup,newID)
 
     @staticmethod
@@ -608,7 +602,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         currentQuery = dictToMongoQuery(hermesWF.parametersJSON, prefix="parameters")
 
         docList = self.getWorkflowInGroup(groupName=groupName, **currentQuery)
-
+        doc  = None
         if len(docList) > 0 and (not force) and (docList[0]['desc']['workflowName'] != workflowName):
             doc = docList[0]
             wrn = f"The requested workflow {workflowName} has similar parameters to the workflow **{doc['desc']['workflowName']}** in simulation group {groupName}."
@@ -644,19 +638,59 @@ class hermesWorkflowToolkit(abstractToolkit):
             else:
                 info = f"The simulation {workflowName} with type {theSolver} is already in the database in group {groupName}. use the overwrite=True to update the record."
                 logger.info(info)
+                doc = docList[0]
 
-        # 3.  Building and running the workflow.
         if buildExecute:
-            logger.info(f"Building and executing the workflow {workflowName}")
-            build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
+            self.executeWorkflow(doc['desc']['workflowName'])
 
-            logger.info(f"Writing the workflow and the executer python {workflowName}")
-            wfFileName = os.path.join(self.FilesDirectory, f"{workflowName}.json")
-            # attemp to write only if the file is different than the input (that is it exists) or if overwrite (which mean it needs to be updated).
-            if wfFileName != os.path.join(self.FilesDirectory,workflowJSON) or overwrite:
+        return doc
+
+    def executeWorkflow(self,nameOrWorkflowFileOrJSONOrResource,build=True):
+        """
+            Building and Executing the workflow.
+
+            Note that it is only executing the workflow.
+            For OpenFOAM simulations, use the runOFSimulation method that will build the case
+            and then run it.
+
+            Note the procedure removes the [name]_targetFiles
+
+        Parameters
+        ----------
+                nameOrWorkflowFileOrJSONOrResource: str, dict
+
+        Can be
+             - Resource (thedirectory name)
+             - Simulation name
+             - Its workflow
+             - workfolow dict.
+
+        build : bool [default = True]
+            If true, also builds the workflow.
+
+        Returns
+        -------
+            None
+        """
+        logger = get_classMethod_logger(self,"executeWorkflow")
+        docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        for doc in docList:
+            workflowJSON = doc.desc['workflow']
+            workflowName = doc.desc['workflowName']
+            logger.info(f"Processing {workflowName}")
+
+            hermesWF = self.getHermesWorkflowFromJSON(workflowJSON)
+
+            if build:
+                logger.info(f"Building and executing the workflow {workflowName}")
+                build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
+
+                logger.info(f"Writing the workflow and the executer python {workflowName}")
+                wfFileName = os.path.join(self.FilesDirectory, f"{workflowName}.json")
                 hermesWF.write(wfFileName)
-            with open(os.path.join(self.FilesDirectory, f"{workflowName}.py"), "w") as file:
-                file.write(build)
+
+                with open(os.path.join(self.FilesDirectory, f"{workflowName}.py"), "w") as file:
+                    file.write(build)
 
             # delete the run files if exist.
             logger.debug(f"Removing the targetfiles and execute")
@@ -667,6 +701,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
             logger.debug(executionStr)
             os.system(executionStr)
+
 
 
 
@@ -736,12 +771,19 @@ class hermesWorkflowToolkit(abstractToolkit):
 
     def compareWorkflowInGroup(self, workflowGroup, longFormat=False, transpose=False) :
         """
-            Compares all the Workflow in the group name.
+            Compares all the Workflow in the group name
+
+            Each parameter that has different value across the workgroup is in the row, each simulation
+            is in the column.
 
         Parameters
         ----------
         workflowGroup : str
             The group name.
+        longFormat : bool
+            If True, return the results in long format rather than in a wide table.
+        transpose : bool
+            If True return the simulation names as rows
 
         Returns
         -------
@@ -843,7 +885,30 @@ class hermesWorkflowToolkit(abstractToolkit):
                         print(f"\t\t + {simName}")
 
 
+    def workflowTable(self,workflowGroup, longFormat=False, transpose=False):
+        """
+            Compares all the Workflow in the group name
 
+            Each parameter that has different value across the workgroup is in the row, each simulation
+            is in the column.
+
+            Identical to the method compareWorkflowInGroup.
+
+        Parameters
+        ----------
+        workflowGroup : str
+            The group name.
+        longFormat : bool
+            If True, return the results in long format rather than in a wide table.
+        transpose : bool
+            If True return the simulation names as rows
+
+        Returns
+        -------
+            Pandas with the difference in the parameter names.
+        """
+
+        return self.compareWorkflowInGroup(workflowGroup, longFormat, transpose)
 
 
 

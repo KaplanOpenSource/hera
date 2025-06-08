@@ -61,6 +61,30 @@ class OFToolkit(hermesWorkflowToolkit):
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
         self.buoyantReactingFoam  = buoyantReactingFoam_toolkitExtension(self)
 
+
+    def runOFSimulation(self,nameOrWorkflowFileOrJSONOrResource):
+        """
+            Build the workflow and then runs the simulation.
+
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"runOFSimulation")
+        logger.info("Building the case")
+        self.executeWorkflow(nameOrWorkflowFileOrJSONOrResource)
+
+        logger.info("Executing the cases")
+        docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        for doc in docList:
+            logger.info(f"Executing {doc.desc['workflowName']}")
+            os.chdir(doc.resource)
+            os.system("./Allrun")
+
     def processorList(self, caseDirectory):
         """
             Returns the list of processors directories in the case
