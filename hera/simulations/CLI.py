@@ -475,7 +475,7 @@ def workflow_compare(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    res = wftk.compareWorkflow(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
+    res = wftk.compareWorkflows(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
 
 
     if arguments.format == "pandas":

@@ -688,10 +688,10 @@ class hermesWorkflowToolkit(abstractToolkit):
         return compareJSONS(**dict([(wf.name,wf.parametersJSON) for wf in workflowList]),
                             longFormat=longFormat)
 
-    def compareWorkflow(self,
-                        Workflow: Union[list, str],
-                        longFormat : bool = False,
-                        transpose  : bool = False) -> Union[dict, pandas.DataFrame]:
+    def compareWorkflows(self,
+                         Workflow: Union[list, str],
+                         longFormat : bool = False,
+                         transpose  : bool = False) -> Union[dict, pandas.DataFrame]:
         """
             Compares two or more hermes Workflow.
 

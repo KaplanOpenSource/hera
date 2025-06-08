@@ -378,6 +378,11 @@ class workflow_buoyantReactingFoam(workflow_Eulerian):
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
 
 
+class workflow_scalarTransportFoam(workflow_Eulerian):
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+
+
 ##########################################################
 ##                          Workflow_indoorFOAMBoussinesq
 ##########################################################

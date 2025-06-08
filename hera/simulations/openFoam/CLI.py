@@ -174,7 +174,7 @@ def foam_solver_simulations_list(arguments):
         print(ttl)
         print(f"-"*len(ttl))
 
-        res = wftk.compareWorkflow([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
+        res = wftk.compareWorkflows([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
 
         if arguments.format == "pandas":
             output = res
