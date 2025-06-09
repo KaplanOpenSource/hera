@@ -307,7 +307,12 @@ class paraviewOpenFOAM:
                             outputFileList.append(outputFile)
 
                         lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto')
-                        lazy_ds.chunk('auto').to_zarr(f"{outputFile}.final", mode='w')
+                        try:
+                            lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
+                        except NotImplementedError:
+                            # somethimes this works and sometimes the other. not clear yet when...
+                            lazy_ds.chunk("auto").to_zarr(f"test.final", mode='w')
+
                 else:
                     newDataList = [dd.read_parquet(outputFileList)]
                     if append and os.path.exists(outputFile):

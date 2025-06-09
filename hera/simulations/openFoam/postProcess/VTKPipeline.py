@@ -2,6 +2,7 @@ import json
 import numpy
 import os.path
 import importlib
+import tqdm
 
 from hera import get_classMethod_logger
 from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED, TYPE_VTK_FILTER
@@ -168,7 +169,7 @@ class registeredVTKPipeLine:
 
         else:
             simulationDocument = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-            if simDoc is not None:
+            if simulationDocument is not None:
                 self.casePath = simulationDocument.resource
                 self.simulationDocument = simulationDocument
                 simulationProperties = self.simulationDocument['desc'].copy()
@@ -270,7 +271,7 @@ class registeredVTKPipeLine:
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
 
-        for filterName in requestedFiltersToProcess:
+        for filterName in tqdm.tqdm(requestedFiltersToProcess):
             qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             if len(docList) > 0:
