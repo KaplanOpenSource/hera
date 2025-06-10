@@ -100,10 +100,7 @@ def workflow_add(args):
     try:
         wftk.addWorkflowToGroup(workflowJSON=workflowFile,
                                 groupName= args.workflowGroup,
-                                assignName=args.assignName,
-                                overwrite=args.overwrite,
-                                buildExecute=execute,
-                                force=args.force)
+                                buildExecute=execute)
 
     except FileExistsError as e:
         err = f"{str(e)}, use --force if you want to have duplicate records"
