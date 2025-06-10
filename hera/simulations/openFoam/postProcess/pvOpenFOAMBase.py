@@ -1,3 +1,4 @@
+
 from itertools import product
 import pandas
 import numpy
@@ -6,7 +7,7 @@ import glob
 import shutil
 import os
 import xarray
-
+import tqdm
 from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
 from hera import get_classMethod_logger
 from deprecated import deprecated
@@ -276,10 +277,10 @@ class paraviewOpenFOAM:
         tempList = []
 
         append = False if overwrite else True
-        for filtersData in self.readTimeSteps(datasourcenamedict=filtersDict,
+        for filtersData in tqdm.tqdm(self.readTimeSteps(datasourcenamedict=filtersDict,
                                               timelist=readTimesList,
                                               fieldnames=fieldnames,
-                                              regularMesh=regularMesh):
+                                              regularMesh=regularMesh)):
 
             tempList.append(filtersData)
             logger.debug(f"Current dataFrames in memory  {len(tempList)}")
@@ -295,23 +296,23 @@ class paraviewOpenFOAM:
         for filterName,outputFile in filtersDict.items():
             logger.debug(f"Working on {filterName}")
 
-            outputFilterName = filterName.replace(".", "-")
+            outputFilterName = filterName
             outputPath = os.path.dirname(outputFile)
             outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName}_*.{slice_filext}"))]
 
-            logger.debug(f"Saving all data to {outputFile}")
+            logger.debug(f"Saving all data to {outputFile}: {outputFileList}")
             with (ProgressBar()):
                 if regularMesh:
                         # input_data is the directory path here
                         if append and os.path.exists(outputFile):
                             outputFileList.append(outputFile)
 
-                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto')
+                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto',engine="zarr")
                         try:
                             lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
                         except NotImplementedError:
                             # somethimes this works and sometimes the other. not clear yet when...
-                            lazy_ds.chunk("auto").to_zarr(f"test.final", mode='w')
+                            lazy_ds.chunk("auto").to_zarr(f"{outputFile}.final", mode='w')
 
                 else:
                     newDataList = [dd.read_parquet(outputFileList)]
@@ -332,7 +333,7 @@ class paraviewOpenFOAM:
             os.rename(f"{outputFile}.final",outputFile)
 
             logger.debug(f"Removing the old tmp files. ")
-            for fileTodelete in glob.glob(outputFileList[0]):
+            for fileTodelete in outputFileList:
                 if os.path.isfile(fileTodelete):
                     os.remove(fileTodelete)
                 else:

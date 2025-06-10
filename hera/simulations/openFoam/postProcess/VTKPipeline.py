@@ -271,7 +271,7 @@ class registeredVTKPipeLine:
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
 
-        for filterName in tqdm.tqdm(requestedFiltersToProcess):
+        for filterName in requestedFiltersToProcess:
             qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             if len(docList) > 0:
@@ -285,8 +285,8 @@ class registeredVTKPipeLine:
             else:
                 # adding counter to prevent overwriting similar filter from a different pipeline.
                 countr = self.datalayer.getCounterAndAdd("OpenFOAMData")
-                outputFileName = f"{filterName.replace('.', '-')}_{countr}.{filext}"
-                filtersOutputFilename[filterName] = os.path.join(self.casePath, "vtkpipelinedata", outputFileName)
+                outputFileName = f"{filterName}_{countr}.{filext}"
+                filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
 
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
@@ -320,7 +320,6 @@ class registeredVTKPipeLine:
                                     overwrite=overwrite, regularMesh=regularMesh)
 
         # 4. Update the DB.
-
         for filterName in filtersToProcess:
             logger.debug(f"Updating times {timeList} to filter {filterName}")
             if filterName in DBDocumentsDict:
@@ -335,7 +334,7 @@ class registeredVTKPipeLine:
                 recordData['simulation']['timeList'] = timeList
                 dataFormat = self.datalayer.datatypes.ZARR_XARRAY if regularMesh else self.datalayer.datatypes.PARQUET
                 doc = self.datalayer.addSimulationsDocument(dataFormat=dataFormat,
-                                                            resource=filtersToComputeDict[filterName],
+                                                            resource=os.path.abspath(filtersToComputeDict[filterName]),
                                                             type=TYPE_VTK_FILTER,
                                                             desc=recordData)
 
