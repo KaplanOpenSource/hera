@@ -719,7 +719,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         """
         return compareJSONS(**dict([(wf.name, wf.parametersJSON) for wf in workflowList]),
-                            longFormat=longFormat)
+                            longFormat=longFormat,changeDotToUnderscore=True)
 
 
     def compareWorkflows(self,

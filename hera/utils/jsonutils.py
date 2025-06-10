@@ -10,7 +10,7 @@ from hera.utils.unitHandler import *
 from hera.utils.dataframeutils import compareDataframeConfigurations
 
 
-def compareJSONS(longFormat=False,**kwargs):
+def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
     """
         Recieves a group of name->JSONs (as file, string or dict)
         and returns the pandas that compares them.
@@ -21,12 +21,15 @@ def compareJSONS(longFormat=False,**kwargs):
     longFormat : bool
         Return the value as long or wide
 
+    changeDotToUnderscore : bool
+        If true, change the columns names from x.y -> x_y. This will allow using pandas.query function
+
     Returns
     -------
 
     """
     fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
-    return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat)
+    return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
 
 
 def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, keepOriginalUnits=True):
