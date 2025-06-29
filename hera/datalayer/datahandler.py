@@ -33,6 +33,7 @@ class datatypes:
     IMAGE = "image"
     PICKLE = "pickle"
     DICT   = "dict"
+    HGT = "HGT"
 
 
 def getHandler(type):
@@ -376,3 +377,22 @@ class DataHandler_tif(object):
         obj = rasterio.open(resource)
 
         return obj
+
+class DataHandler_HGT(object):
+    """
+    Loads an HGT file using rasterio.
+
+    Parameters
+    ----------
+    resource : str
+        Path to the .hgt file.
+
+    Returns
+    -------
+    rasterio.DatasetReader
+    """
+
+    @staticmethod
+    def getData(resource, desc=None):
+        import rasterio
+        return rasterio.open(resource)

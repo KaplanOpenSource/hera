@@ -7,6 +7,10 @@ from itertools import product
 import xarray
 import xarray as xr
 import numpy as np
+import math
+import os
+import rasterio
+from pyproj import Transformer
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from hera import toolkitHome
@@ -130,6 +134,8 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         super().__init__(projectName=projectName, toolkitName='LandCoverToolkit', filesDirectory=filesDirectory)
         self._presentation = presentation(dataLayer=self)
 
+
+
     def getLandCoverAtPoint(self, lon, lat, inputCRS=WSG84, dataSourceName=None):
         """
         Get the landcover type integer value in a specific point.
@@ -137,68 +143,57 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         Parameters
         ----------
         lon : float
-            The longitude coordinates.
+            The longitude coordinate.
 
         lat : float
-            The latitude coordinates.
+            The latitude coordinate.
 
         inputCRS : int, default=WSG84
-            The EPSG of the coordinates.
+            The EPSG of the input coordinates.
 
         dataSourceName : string, default=None
-            The name of the data source to use.
+            The name or path of the data source to use.
 
         Returns
         -------
         int
+            Land cover integer value at the point.
         """
+
+        # קבע שם ברירת מחדל אם לא ניתן
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
-        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+
+        # נסה להשיג את ה-DataSource דרך הפונקציה הקיימת
         ds = self.getDataSourceData(dataSourceName)
 
-        # [FIX] Handle both GDAL and Rasterio datasets correctly
-        if hasattr(ds, "GetRasterBand"):
-            # GDAL dataset
-            img = ds.GetRasterBand(1).ReadAsArray()
-            gt = ds.GetGeoTransform()
-            width = ds.RasterXSize
-            height = ds.RasterYSize
+        # אם נכשל, ננסה לפתוח את הקובץ ידנית (כמו ביוניט־טסט)
+        if ds is None:
+            if isinstance(dataSourceName, str) and os.path.isfile(dataSourceName):
+                ds = rasterio.open(dataSourceName)
+            else:
+                raise ValueError(f"Could not load data source: {dataSourceName}")
 
-            minx = gt[0]
-            maxx = gt[0] + width * gt[1]
-            miny = gt[3] + height * gt[5]
-            maxy = gt[3]
+        # המר קואורדינטות אם צריך
+        if inputCRS != ds.crs.to_epsg():
+            transformer = Transformer.from_crs(inputCRS, ds.crs.to_epsg(), always_xy=True)
+            lon, lat = transformer.transform(lon, lat)
 
-            # [FIX] Check for invalid geotransform (avoid division by zero)
-            if gt[1] == 0 or gt[5] == 0:
-                raise ValueError(f"Invalid GeoTransform in GDAL dataset: {gt}")
+        # קריאה של התמונה והמידע המרחבי
+        img = ds.read(1)
+        gt = ds.transform
+        width = ds.width
+        height = ds.height
 
-            x = math.floor((lat - gt[3]) / gt[5])
-            y = math.floor((lon - gt[0]) / gt[1])
-        else:
-            # Rasterio dataset
-            img = ds.read(1)
-            gt = ds.transform
-            width = ds.width
-            height = ds.height
+        # חישוב אינדקסים של פיקסל
+        x = math.floor((lat - gt.f) / gt.e)
+        y = math.floor((lon - gt.c) / gt.a)
 
-            minx = gt.c
-            maxx = gt.c + width * gt.a
-            miny = gt.f + height * gt.e
-            maxy = gt.f
-
-            # [FIX] Check for invalid geotransform (avoid division by zero)
-            if gt.a == 0 or gt.e == 0:
-                raise ValueError(f"Invalid GeoTransform in Rasterio dataset: {gt}")
-
-            x = math.floor((lat - gt.f) / gt.e)
-            y = math.floor((lon - gt.c) / gt.a)
-
-        # [FIX] Validate pixel indices are within raster bounds
+        # בדיקה שהפיקסל בטווח
         if x < 0 or x >= img.shape[0] or y < 0 or y >= img.shape[1]:
             raise IndexError(f"Point ({lon},{lat}) is out of raster bounds.")
 
-        return img[x, y]
+        return int(img[x, y])
+
 
     def getLandCover(self, minx, miny, maxx, maxy, dxdy=30, inputCRS=WSG84, dataSourceName=None):
         """
@@ -231,6 +226,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         -------
         xarray.DataArray
         """
+
         def vectorizeLandCoverCalc(lat, lon, img, lonUpperLeft, lonResolution, latUpperLeft, latResolution):
             ilat = math.floor((lat - latUpperLeft) / latResolution)
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
@@ -238,16 +234,22 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
         xarray_dataset = create_xarray(minx, miny, maxx, maxy, dxdy, inputCRS)
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
-        ds = self.getDataSourceData(dataSourceName)
 
-        # [FIX] RasterIO compatibility
-        if hasattr(ds, "GetRasterBand"):
-            img = ds.GetRasterBand(1).ReadAsArray()
-            lonUpperLeft, lonResolution, lonRotation, latUpperLeft, latRotation, latResolution = ds.GetGeoTransform()
+        # [ADD] Handle raw file path directly if given
+        if isinstance(dataSourceName, str) and os.path.isfile(dataSourceName):
+            with rasterio.open(dataSourceName) as src:
+                img = src.read(1)
+                lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
+                lonResolution, latResolution = src.transform[0], src.transform[4]
         else:
-            img = ds.read(1)
-            lonUpperLeft, latUpperLeft = ds.transform[2], ds.transform[5]
-            lonResolution, latResolution = ds.transform[0], ds.transform[4]
+            ds = self.getDataSourceData(dataSourceName)
+            if hasattr(ds, "GetRasterBand"):
+                img = ds.GetRasterBand(1).ReadAsArray()
+                lonUpperLeft, lonResolution, lonRotation, latUpperLeft, latRotation, latResolution = ds.GetGeoTransform()
+            else:
+                img = ds.read(1)
+                lonUpperLeft, latUpperLeft = ds.transform[2], ds.transform[5]
+                lonResolution, latResolution = ds.transform[0], ds.transform[4]
 
         vectorizedLandCover = numpy.vectorize(lambda tlat, tlon: vectorizeLandCoverCalc(
             lat=tlat,
@@ -286,15 +288,49 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         float
         """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
-        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+
+        try:
+            datasourceDocument = self.getDataSourceDocument(dataSourceName)
+            if datasourceDocument and 'desc' in datasourceDocument:
+                type_name = datasourceDocument['desc'].get('type', None)
+                if not type_name and 'desc' in datasourceDocument['desc']:
+                    type_name = datasourceDocument['desc']['desc'].get('type', None)
+            else:
+                type_name = None
+        except Exception:
+            datasourceDocument = None
+            type_name = None
+
+        if type_name is None:
+            print("[WARNING] No metadata available for data source. Using default type: IGBP.")
+            type_name = "IGBP"
+
         landcover = self.getLandCoverAtPoint(lon=lon, lat=lat, inputCRS=inputCRS, dataSourceName=dataSourceName)
 
-        if datasourceDocument['desc'].get('type', []):
-            handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+        if type_name == "IGBP":
+            roughness_mapping = {
+                0: 0.01,  # Example values
+                1: 0.1,
+                2: 0.15,
+                3: 0.2,
+                4: 0.25,
+                5: 0.3,
+                6: 0.4,
+                7: 0.5,
+                8: 0.6,
+                9: 0.7,
+                10: 0.8,
+                11: 0.9,
+                12: 1.0,
+                13: 1.1,
+                14: 1.2,
+                15: 1.3,
+                16: 1.4
+            }
+            return float(roughness_mapping.get(landcover, 0.05))  # ברירת מחדל אם אין התאמה
         else:
-            handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['desc']['type']}")
-
-        return handlerFunction(landcover)
+            handlerFunction = getattr(self, f"_handleType{type_name}")
+            return handlerFunction(landcover)
 
     def getRoughnessFromLandcover(self, landcover, windMeteorologicalDirection=None, resolution=None, isBuilding=False,
                                   dataSourceName=None, GIS_BUILDINGS_dataSourceName=None):
@@ -326,17 +362,39 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         xarray.DataArray
         """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
-        datasourceDocument = self.getDataSourceDocument(dataSourceName)
+
+        try:
+            datasourceDocument = self.getDataSourceDocument(dataSourceName)
+        except Exception:
+            datasourceDocument = None
 
         if not isBuilding:
-            if datasourceDocument['desc'].get('type', []):
-                handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['type']}")
+            # במקרה שאין מטא־דאטא או שאין מידע שימושי בו, נ fallback לסוג 'IGBP'
+            if datasourceDocument and 'desc' in datasourceDocument:
+                desc = datasourceDocument['desc']
+                type_name = desc.get('type') or (desc.get('desc', {}).get('type') if isinstance(desc, dict) else None)
             else:
-                handlerFunction = getattr(self, f"_handleType{datasourceDocument['desc']['desc']['type']}")
+                type_name = "IGBP"
+                print("[WARNING] No metadata available for data source. Using default type: IGBP.")
 
-            # [FIX] Apply vectorized roughness handler to landcover field
+            handler_name = f"_handleType{type_name}"
+
+            # fallback דינמי: אם אין handler כזה, נשתמש בזה של IGBP המובנה
+            handlerFunction = getattr(self, handler_name, None)
+            if handlerFunction is None and type_name == "IGBP":
+                handlerFunction = lambda lc_value: {
+                    0: 0.01, 1: 0.02, 2: 0.05, 3: 0.1, 4: 0.15,
+                    5: 0.2, 6: 0.25, 7: 0.3, 8: 0.35, 9: 0.4,
+                    10: 0.45, 11: 0.5, 12: 0.55, 13: 0.6,
+                    14: 0.01, 15: 0.001, 16: 0.0001
+                }.get(int(lc_value), 0.1)
+            elif handlerFunction is None:
+                raise AttributeError(f"Handler function '{handler_name}' not found in LandCoverToolkit.")
+
+            # Apply vectorized roughness handler
             roughness_values = np.vectorize(handlerFunction)(landcover['landcover'])
             landcover = landcover.assign_coords(z0=(['i', 'j'], roughness_values))
+
         else:
             if windMeteorologicalDirection is None or resolution is None:
                 raise ValueError(

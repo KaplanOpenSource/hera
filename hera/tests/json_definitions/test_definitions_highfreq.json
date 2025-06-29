@@ -1,0 +1,59 @@
+[
+  {
+    "class_path": "hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit",
+    "init_parameters": {
+      "projectName": "TestProject"
+    },
+    "method_name": "docType",
+    "method_type": "attribute",
+    "parameters": {},
+    "output_filename": "expected_outputs/highfreq_docType.json",
+    "output_type": "str"
+  },
+  {
+    "class_path": "hera.measurements.meteorology.highfreqdata.analysis.analysislayer.RawdataAnalysis",
+    "init_parameters": {
+      "datalayer": {
+        "fromFunction": "mockDataLayer"
+      }
+    },
+    "method_name": "singlePointTurbulenceStatistics",
+    "parameters": {
+      "sonicData": {
+        "fromEnv": "HERA_DATA_PATH",
+        "relative": "measurements/meteorology/highfreqdata/slicedYamim_sonic.parquet"
+      },
+      "samplingWindow": "10min",
+      "start": "2022-01-01T00:00:00",
+      "end": "2022-01-01T01:00:00",
+      "height": 2,
+      "buildingHeight": 1.5,
+      "averagedHeight": 2.5
+    },
+    "output_filename": "expected_outputs/highfreq_single_point_turbulence.json",
+    "output_type": "dict"
+  },
+  {
+    "class_path": "hera.measurements.meteorology.highfreqdata.analysis.analysislayer.RawdataAnalysis",
+    "init_parameters": {
+      "datalayer": {
+        "fromFunction": "mockDataLayer"
+      }
+    },
+    "method_name": "AveragingCalculator",
+    "parameters": {
+      "deviceNameOrData": {
+        "fromEnv": "HERA_DATA_PATH",
+        "relative": "measurements/meteorology/highfreqdata/slicedYamim_TRH.parquet"
+      },
+      "samplingWindow": "10min",
+      "start": "2022-01-01T00:00:00",
+      "end": "2022-01-01T01:00:00",
+      "height": 2,
+      "buildingHeight": 1.5,
+      "averagedHeight": 2.5
+    },
+    "output_filename": "expected_outputs/highfreq_average_calc.json",
+    "output_type": "dict"
+  }
+]

@@ -29,48 +29,58 @@ class analysis:
     def __init__(self, dataLayer):
         self._datalayer = dataLayer
 
-
-    def addDatesColumns(self,data, datecolumn=None, monthcolumn=None):
+    def addDatesColumns(self, data, datecolumn=None, monthcolumn=None):
         """
-            This class adds the year,month, date, time, and the season to the dataframe.
+            This class adds the year, month, date, time, and the season to the dataframe.
 
         parameters
         -----------
-        data: dask.dataframe, pandas.Datafram
-            The data to add to.
+        data: dask.dataframe, pandas.DataFrame or str
+            The data to add to. If str, it is assumed to be a path to a Parquet file.
 
         datecolumn: str
             The name of the column with the date.
             If None, use the index.
+
         monthcolumn:
 
         returns
         --------
-            dask.dataframe, pandas.Datafram
+            dask.dataframe, pandas.DataFrame
 
+        Notes
+        ------
+        ✨ Added support: if `data` is a string path, we automatically read it as a Parquet file using pandas.
         """
+
+        # NEW: Support for string input (e.g., path to parquet file)
+        if isinstance(data, str):
+            import pandas as pd
+            data = pd.read_parquet(data)
 
         curdata = data
 
         if datecolumn is None:
             curdata = curdata.assign(curdate=curdata.index)
-            datecolumn='curdate'
+            datecolumn = 'curdate'
 
         curdata = curdata.assign(yearonly=curdata[datecolumn].dt.year)
 
-        if monthcolumn==None:
+        if monthcolumn is None:
             curdata = curdata.assign(monthonly=curdata[datecolumn].dt.month)
             monthcolumn = 'monthonly'
 
-        curdata = curdata.assign(dayonly=curdata[datecolumn].dt.day)\
-                         .assign(timeonly=curdata[datecolumn].dt.time)
+        curdata = curdata.assign(dayonly=curdata[datecolumn].dt.day) \
+            .assign(timeonly=curdata[datecolumn].dt.time)
 
-        tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12], labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']).replace('Winter1', 'Winter')
+        tm = lambda x, field: pandas.cut(x[field], [0, 2, 5, 8, 11, 12],
+                                         labels=['Winter', 'Spring', 'Summer', 'Autumn', 'Winter1']).replace('Winter1',
+                                                                                                             'Winter')
 
-        if isinstance(data,dask.dataframe.DataFrame):
-            curdata = curdata.map_partitions(lambda df: df.assign(season=tm(df,monthcolumn)))
+        if isinstance(data, dask.dataframe.DataFrame):
+            curdata = curdata.map_partitions(lambda df: df.assign(season=tm(df, monthcolumn)))
         else:
-            curdata=curdata.assign(season=tm(curdata, monthcolumn))
+            curdata = curdata.assign(season=tm(curdata, monthcolumn))
 
         return curdata
 
@@ -81,9 +91,10 @@ class analysis:
         Parameters
         ----------
 
-        data: pandas.DataFrame or dask.DataFrame
+        data: pandas.DataFrame or dask.DataFrame or str
                 The data to calculate.
                 We assume that the index is a datetime object.
+                If str, it is assumed to be a path to a Parquet file.
 
         Field: str
                 The name of the column to calculate the statistics on.
@@ -106,7 +117,15 @@ class analysis:
          y_mid: The bin center along the y axis.
          M.T:   Transpose of the 2D histogram.
 
+        Notes
+        ------
+        ✅ Added support for string input: if `data` is a string (path), we automatically read it as a Parquet file.
         """
+
+        # ✅ New: Support for string input (path to Parquet file)
+        if isinstance(data, str):
+            import pandas as pd
+            data = pd.read_parquet(data)
 
         curdata = data.dropna(subset=[Field])
 

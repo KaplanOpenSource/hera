@@ -205,12 +205,14 @@ class analysis:
         -------
             Document with the new data
         """
+        # 🛡️ Ensure regionName is provided if saving is requested
         if saveMode in [TOOLKIT_SAVEMODE_ONLYFILE,
                         TOOLKIT_SAVEMODE_ONLYFILE_REPLACE,
                         TOOLKIT_SAVEMODE_FILEANDDB,
                         TOOLKIT_SAVEMODE_FILEANDDB_REPLACE] and regionName is None:
             raise ValueError("Must specify regionName if saveMode is set to save data")
 
+        # 📦 Load population layer
         if isinstance(dataSourceOrData, str):
             Data = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
             if Data is None:
@@ -218,16 +220,17 @@ class analysis:
         else:
             Data = dataSourceOrData
 
+        # 📦 Load the polygon
         if isinstance(shapeNameOrData, str):
             polydoc = self.datalayer.shapes.getShape(shapeNameOrData)
-
             if polydoc is None:
-                polydoc = geopandas.read_file(io.StringIO(polydoc))
+                polydoc = geopandas.read_file(io.StringIO(shapeNameOrData))
         elif isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
             polydoc = shapeNameOrData
         else:
-            poly = shapeNameOrData
+            poly = shapeNameOrData  # already a shapely geometry
 
+        # 🧠 Construct final geometry if needed
         if isinstance(shapeNameOrData, str) or isinstance(shapeNameOrData, geopandas.geodataframe.GeoDataFrame):
             if convex:
                 polys = self.datalayer.buildings.analysis.ConvexPolygons(polydoc)
@@ -235,46 +238,52 @@ class analysis:
             else:
                 poly = polydoc.unary_union
 
-        # 🚨 שינוי חדש: מנסים לבצע את ה־intersection כרגיל, ואם נכשל – נבצע תיקון טופולוגי
+        # 📐 Intersect population data with polygon (including topology fix)
         try:
             res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
         except Exception as e:
             from shapely.errors import TopologicalError
             if isinstance(e, TopologicalError):
-                # מתקנים את הפוליגון המרכזי אם לא תקין
                 if not poly.is_valid:
                     poly = poly.buffer(0)
-                # מתקנים כל גיאומטריה בטבלה אם לא תקינה
                 Data["geometry"] = Data["geometry"].apply(lambda g: g if g.is_valid else g.buffer(0))
-                # מנסים שוב לאחר התיקון
                 res_intersect_poly = Data.loc[Data["geometry"].intersection(poly).is_empty == False]
             else:
                 raise e
 
+        # 🧾 Construct resulting GeoDataFrame
         newData = geopandas.GeoDataFrame.from_dict([{"geometry": poly}])
         newData.crs = Data.crs
-        populationTypes = list(self.datalayer.populationTypes.values()) if populationTypes is None else populationTypes
 
+        # 🧮 Sum population attributes
+        populationTypes = list(
+            self.datalayer.populationTypes.values()) if populationTypes is None else populationTypes
         for populationType in populationTypes:
             if populationType in res_intersect_poly:
                 newData[populationType] = res_intersect_poly.sum()[populationType]
 
-        doc = None
+        doc = None  # will hold DB document if stored
+
+        # 💾 Save to file or DB if required
         if saveMode != TOOLKIT_SAVEMODE_NOSAVE:
-
             filename = regionName if "." in regionName else f"{regionName}.shp"
-
             fullname = os.path.join(self.datalayer.filesDirectory, filename)
             newData.to_file(fullname)
-            if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-                desc = {toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
-                        toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName}
-                desc.update(**metadata)
-                doc = self.datalayer.addCacheDocument(desc=desc,
-                                                      resource=fullname,
-                                                      type=toolkit.TOOLKIT_DATASOURCE_TYPE,
-                                                      dataFormat=datatypes.GEOPANDAS)
 
+            if saveMode == TOOLKIT_SAVEMODE_FILEANDDB:
+                desc = {
+                    toolkit.TOOLKIT_DATASOURCE_NAME: regionName,
+                    toolkit.TOOLKIT_TOOLKITNAME_FIELD: self.datalayer.toolkitName
+                }
+                desc.update(**metadata)
+                doc = self.datalayer.addCacheDocument(
+                    desc=desc,
+                    resource=fullname,
+                    type=toolkit.TOOLKIT_DATASOURCE_TYPE,
+                    dataFormat=datatypes.GEOPANDAS
+                )
+
+        # 📤 Return result: either wrapped metadata frame or DB document
         return nonDBMetadataFrame(newData) if doc is None else doc
 
     def calculatePopulationInPolygon(self,
