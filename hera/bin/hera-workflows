@@ -64,18 +64,9 @@ if __name__ == "__main__":
     #   Adds a workfow to the project and executes it.
     ##
     parser_prepare = subparsers.add_parser('buildExecute', help='Adds the workflow and executes it.')
-    parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
+    parser_prepare.add_argument('workflowName', type=str, help='The workflow file to load')
     parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.add_argument('--workflowGroup', dest="workflowGroup", default=None, type=str,
-                                help='The simulation group. [Optional]. If None, try to infer from the file name  ')
-    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                help='overwrite the existing workflow with the same name')
-    parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
-                                help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
-    parser_prepare.add_argument('--allowDuplicate', dest="force", action="store_true", default=False,
-                                help='Add the current workflow to the DB even if it exists there under a different name')
-    parser_prepare.set_defaults(execute=True)
-    parser_prepare.set_defaults(func=CLI.workflow_add)
+    parser_prepare.set_defaults(func=CLI.workflow_buildExecute)
 
 
     ### ------------------------

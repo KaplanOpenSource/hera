@@ -187,7 +187,7 @@ class registeredVTKPipeLine:
                                          caseType=caseType,
                                          servername=serverName)
 
-    def clearCache(self, filterName=None):
+    def clearCache(self, regularMesh,filterName=None):
         # 1. Get the potential filters to process
         logger = get_classMethod_logger(self, "clearCache")
         if filterName is None:
@@ -198,10 +198,11 @@ class registeredVTKPipeLine:
 
         for filterName in requestedFiltersToProcess:
             logger.debug(f"Removing {filterName}")
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=None)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=None,regularMesh=regularMesh)
             docList = self.datalayer.deleteSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            logger.info(f"Found {len(docList)} documents to delete. ")
             for doc in docList:
-                logger.debug(f"Deleting resources")
+                logger.debug(f"Deleting resource {doc['desc']['simulation']['simulationName']} : {doc['desc']['pipeline']['filters']} ")
                 outputFile = doc['resource']
 
                 if os.path.exists(outputFile):

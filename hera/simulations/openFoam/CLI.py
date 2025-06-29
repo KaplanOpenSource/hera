@@ -93,6 +93,7 @@ def foam_solver_template_buildExecute(arguments):
         handler_buildExecute(arguments)
     else:
         workflow_add(arguments)
+        handler_buildExecute(arguments)
 
 def foam_solver_templates_list(arguments):
     logger = logging.getLogger("hera.bin")

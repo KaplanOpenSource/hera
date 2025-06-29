@@ -208,6 +208,7 @@ class paraviewOpenFOAM:
                 except ValueError:
                     logger.warning("Field %s is problematic... ommiting" % field)
 
+        curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7), time=curstep.time.round(7))
         curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
 
         return curstep
@@ -315,7 +316,7 @@ class paraviewOpenFOAM:
                             lazy_ds.chunk("auto").to_zarr(f"{outputFile}.final", mode='w')
 
                 else:
-                    newDataList = [dd.read_parquet(outputFileList)]
+                    newDataList = [dd.read_parquet(fileName) for fileName in outputFileList]
                     if append and os.path.exists(outputFile):
                         newDataList.append(dd.read_parquet(outputFile))
 

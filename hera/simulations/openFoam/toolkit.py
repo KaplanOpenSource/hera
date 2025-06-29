@@ -76,7 +76,7 @@ class OFToolkit(hermesWorkflowToolkit):
         """
         logger = get_classMethod_logger(self,"runOFSimulation")
         logger.info("Building the case")
-        self.executeWorkflow(nameOrWorkflowFileOrJSONOrResource)
+        self.executeWorkflowFromDB(nameOrWorkflowFileOrJSONOrResource)
 
         logger.info("Executing the cases")
         docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
