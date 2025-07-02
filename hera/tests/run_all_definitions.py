@@ -8,8 +8,12 @@ import xarray as xr
 from pathlib import Path
 import glob
 import rasterio
+import traceback
+from termcolor import cprint
 
 function_results = {}
+successful_tests = []
+failed_tests = []
 
 # -----------------------------------------------------------------------------------
 # Compares outputs based on the given type using a dynamic registry of comparison functions
@@ -26,7 +30,7 @@ def compare_outputs(result, expected, output_type):
         "float": lambda: result == expected,
         "int": lambda: result == expected,
         "dict": lambda: result == expected,
-        "str": lambda: result == expected,
+        "str": lambda : result == expected,
         "string": lambda: result == expected,
         "bytes": lambda: result == expected,
     }
@@ -42,11 +46,6 @@ def compare_outputs(result, expected, output_type):
 # Saves output to disk in a format based on its type
 # -----------------------------------------------------------------------------------
 def save_output(filename, data, output_type):
-    output_type = output_type.lower()
-
-    if output_type in ["metadataframe", "dataframe"] and hasattr(data, "getData"):
-        print(f"📌 {output_type} type: {type(data)} — using getData()")
-        data = data.getData()
 
     def _write_json(path, obj):
         with open(path, "w") as f:
@@ -59,6 +58,12 @@ def save_output(filename, data, output_type):
     def _write_bytes(path, b):
         with open(path, "wb") as f:
             f.write(b)
+
+    output_type = output_type.lower()
+
+    if output_type in ["metadataframe", "dataframe"] and hasattr(data, "getData"):
+        print(f"📌 {output_type} type: {type(data)} — using getData()")
+        data = data.getData()
 
     handlers = {
         "dataframe": lambda: pd.DataFrame(data).to_json(filename, orient="records", indent=2),
@@ -287,13 +292,19 @@ def run_definition(defn):
     if os.environ.get("PREPARE_EXPECTED_OUTPUT") == "1":
         save_output(output_file, result, output_type)
         print(f"✅ Saved: {output_file}")
+        successful_tests.append(defn['method_name'])
     else:
         expected = load_output(output_file, output_type)
         match = compare_outputs(result, expected, output_type)
-        print(f"{'✅' if match else '❌'} {defn['method_name']} → {output_file}")
-        if not match:
+        if match:
+            print(f"✅ {defn['method_name']} → {output_file}")
+            successful_tests.append(defn['method_name'])
+        else:
+            print(f"❌ {defn['method_name']} → {output_file}")
             print("Expected:", expected)
             print("Got     :", result)
+            failed_tests.append(defn['method_name'])
+
 
 # -----------------------------------------------------------------------------------
 # Loads and runs all test definitions from a given JSON file
@@ -306,6 +317,17 @@ def run_all_from_json(json_file):
         for defn in json.load(f):
             run_definition(defn)
 
+def print_summary():
+    print("\n🧾 Test Summary:")
+    print("=" * 60)
+    for name in successful_tests:
+        cprint(f"✅ {name}", "green")
+    for name in failed_tests:
+        cprint(f"❌ {name}", "red")
+    print("=" * 60)
+    print(f"Total: {len(successful_tests) + len(failed_tests)} | Passed: {len(successful_tests)} | Failed: {len(failed_tests)}")
+
+
 # -----------------------------------------------------------------------------------
 # CLI entry point for executing test JSON files
 # -----------------------------------------------------------------------------------
@@ -313,3 +335,4 @@ if __name__ == "__main__":
     import sys
     for path in sys.argv[1:]:
         run_all_from_json(path)
+    print_summary()
