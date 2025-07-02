@@ -202,9 +202,9 @@ class casualtiesPlot(object):
 		for severity,prop,lineprop in zip(severityList,cycler,boundarycycler):
 			if severity not in projected.index:
 				continue
-			if projected.loc[severity].geometry.type == 'GeometryCollection' or projected.loc[severity].geometry.type == 'MultiPolygon':
+			if projected.loc[severity].geometry.filterType == 'GeometryCollection' or projected.loc[severity].geometry.filterType == 'MultiPolygon':
 				for pol in projected.loc[severity].geometry:
-					if pol.type == 'LineString':
+					if pol.filterType == 'LineString':
 						ax.plot(*pol.xy,**lineprop)
 					else:
 						ax.add_patch(PolygonPatch(pol,**prop) )

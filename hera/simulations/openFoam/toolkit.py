@@ -1,25 +1,25 @@
 import numpy
 import os
 import glob
-from .OFWorkflow import workflow_Eulerian
-from .preprocessOFObjects import OFObjectHome
-from . import TYPE_VTK_FILTER
-from ..hermesWorkflowToolkit import hermesWorkflowToolkit
-from .postProcess.VTKPipeline import VTKPipeLine
-from .lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
-from ...utils.jsonutils import loadJSON
-from ...utils.logging import get_classMethod_logger
+import dask
 from evtk import hl as evtk_hl
 import dask.dataframe as dask_dataframe
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
-from . import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
-    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
-from .eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
-import pandas
 from dask.delayed import delayed
-import dask
+
+from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
+from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
+from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
+from hera.simulations.openFoam.postProcess.VTKPipeline import VTKPipeLine
+from hera.simulations.openFoam.lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
+from hera.utils.jsonutils import loadJSON
+from hera.utils.logging import get_classMethod_logger
+from hera.simulations.openFoam.eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
+from hera.simulations.openFoam  import TYPE_VTK_FILTER
+from hera.simulations.openFoam  import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
+    FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
 
 class OFToolkit(hermesWorkflowToolkit):
     """
@@ -60,6 +60,30 @@ class OFToolkit(hermesWorkflowToolkit):
         self._presentation = Presentation(self, self.analysis)
         self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
         self.buoyantReactingFoam  = buoyantReactingFoam_toolkitExtension(self)
+
+
+    def runOFSimulation(self,nameOrWorkflowFileOrJSONOrResource):
+        """
+            Build the workflow and then runs the simulation.
+
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"runOFSimulation")
+        logger.info("Building the case")
+        self.executeWorkflowFromDB(nameOrWorkflowFileOrJSONOrResource)
+
+        logger.info("Executing the cases")
+        docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        for doc in docList:
+            logger.info(f"Executing {doc.desc['workflowName']}")
+            os.chdir(doc.resource)
+            os.system("./Allrun")
 
     def processorList(self, caseDirectory):
         """
@@ -461,7 +485,7 @@ class Analysis:
         Parameters
         ----------
         """
-        return VTKPipeLine()
+        return VTKPipeLine(self.datalayer)
 
     def getFiltersDocuments(self, nameOrWorkflowFileOrJSONOrResource, filterName=None):
         """

@@ -1,14 +1,19 @@
 import json
 import os
 import pandas
-from .datahandler import datatypes
-from ..utils.logging import get_classMethod_logger
-from ..utils import loadJSON
-from .. import toolkit
-from .collection import AbstractCollection,\
+import inspect
+from promise.utils import deprecated
+
+from hera.datalayer.datahandler import datatypes
+from hera.utils.logging import get_classMethod_logger
+from hera.utils import loadJSON
+from hera import toolkit
+from hera.datalayer.collection import AbstractCollection,\
     Cache_Collection,\
     Measurements_Collection,\
     Simulations_Collection
+
+from hera.utils import ConfigurationToJSON
 
 def getProjectList(connectionName=None):
     """
@@ -88,6 +93,25 @@ class Project:
 
     _allowWritingToDefaultProject = None # A flag to allow the update of the default project. Used to add the datasources to it.
 
+    _FilesDirectory = None
+
+    @property
+    def FilesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
+    @property
+    def filesDirectory(self):
+        """
+            The directory to save files (when creating files).
+        :return:
+        """
+        return self._FilesDirectory
+
+
 
     @property
     def measurements(self) -> Measurements_Collection:
@@ -129,154 +153,6 @@ class Project:
         return self._projectName
 
 
-    @property
-    def simulations(self) -> Simulations_Collection:
-        """
-            Access the simulation type documents.
-
-    Returns
-    -------
-            hera.datalayer.collection.Simulation_Collection
-
-        """
-        return self._simulations
-
-    def _getConfigDocument(self):
-        """
-        Returns the document of the config.
-        If there is no config document, return empty dictionary.
-
-        Returns
-        -------
-
-         dict
-                The configuration of the toolkit.
-        """
-        config_type = f"{self.projectName}__config__"
-        documents = self.getCacheDocuments(type=config_type)
-        if len(documents) == 0:
-            documents = self.addCacheDocument(type=config_type,
-                                  resource="",
-                                  dataFormat=datatypes.STRING,
-                                  desc={})
-            ret = documents
-        else:
-            ret =documents[0]
-
-        return ret
-
-    def setCounter(self,counterName,defaultValue=0):
-        """
-            Defines a counter in the config of the project.
-            The counter is specific to this project.
-        Parameters
-        ----------
-        counterName :  str
-            The counter name.
-
-        Returns
-        -------
-
-        """
-        cnfg =self.getConfig()
-        cnfg[counterName] =defaultValue
-        self.setConfig(**cnfg)
-        return cnfg
-
-    def defineCounter(self,counterName,defaultValue=0):
-        """
-            Defines a counter in the config of the project, if it does not exist
-            The counter is specific to this project.
-        Parameters
-        ----------
-        counterName :  str
-            The counter name.
-
-        Returns
-        -------
-
-        """
-        cnfg =self.getConfig()
-        cnfg.setdefault(counterName,defaultValue)
-        self.setConfig(**cnfg)
-        return cnfg
-
-    def getCounter(self,counterName):
-        """
-            Return the value of the counter and add [addition].
-        Parameters
-        ----------
-        counterName :  str
-            The name of the counter.
-
-        addition : int
-            The amount to add to the counter. The default is 1
-
-        Returns
-        -------
-
-        """
-        cnfg =self.getConfig()
-        ret = cnfg[counterName]
-        return ret
-
-    def addCounter(self,counterName,addition=1):
-            """
-                Return the value of the counter and add [addition].
-            Parameters
-            ----------
-            counterName :  str
-                The name of the counter.
-
-            addition : int
-                The amount to add to the counter. The default is 1
-
-            Returns
-            -------
-
-            """
-            cnfg =self.getConfig()
-            ret = cnfg[counterName]
-            cnfg[counterName] += addition
-            self.setConfig(**cnfg)
-            return ret
-
-
-    def getConfig(self):
-        """
-        Returns the config document's description.
-        If there is no config document, return empty dictionary.
-
-        Returns
-        -------
-        dict
-                The configuration of the toolkit.
-        """
-        if self._projectName == self.DEFAULTPROJECT:
-            raise ValueError("Default project cannot use configuration")
-        doc = self._getConfigDocument()
-        return dict(doc["desc"])
-
-    def initConfig(self,**kwargs):
-        """
-            Sets the value of the config, if the keys does not exist. If they exist, leave the old value.
-        Parameters
-        ----------
-        kwargs
-
-        Returns
-        -------
-
-        """
-        if self._projectName == self.DEFAULTPROJECT:
-            raise ValueError("Default project cannot use configuration")
-
-        doc = self._getConfigDocument()
-        for key,value in doc['desc'].items():
-            doc['desc'].setdefault(key,value)
-        doc.save()
-
-
     def setConfig(self,keep_old_values=True, **kwargs):
         """
             Create a config document or updates an existing config document.
@@ -291,7 +167,7 @@ class Project:
             doc['desc'] = kwargs
         doc.save()
 
-    def __init__(self, projectName=None, connectionName=None, configurationPath=None):
+    def __init__(self, projectName=None, connectionName=None, configurationPath=None,filesDirectory=None):
         """
             Initialize the project class.
 
@@ -349,6 +225,182 @@ class Project:
         self._cache      = Cache_Collection(connectionName=connectionName)
         self._simulations   = Simulations_Collection(connectionName=connectionName)
         self._all           =   AbstractCollection(connectionName=connectionName)
+
+        savedFilesDirectory = self.getConfig().get("filesDirectory", None)
+
+        if savedFilesDirectory is None:
+            if filesDirectory is None:
+                filesDirectory = os.path.abspath(os.getcwd())
+            else:
+                filesDirectory= os.path.abspath(filesDirectory)
+
+            logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+            self.setConfig(filesDirectory=filesDirectory)
+        else:
+            filesDirectory = savedFilesDirectory
+
+        os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
+        self._FilesDirectory = filesDirectory
+
+    @property
+    def simulations(self) -> Simulations_Collection:
+        """
+            Access the simulation type documents.
+
+    Returns
+    -------
+            hera.datalayer.collection.Simulation_Collection
+
+        """
+        return self._simulations
+
+    def _getConfigDocument(self):
+        """
+        Returns the document of the config.
+        If there is no config document, return empty dictionary.
+
+        Returns
+        -------
+
+         dict
+                The configuration of the toolkit.
+        """
+        config_type = f"{self.projectName}__config__"
+        documents = self.getCacheDocuments(type=config_type)
+        if len(documents) == 0:
+            documents = self.addCacheDocument(type=config_type,
+                                  resource="",
+                                  dataFormat=datatypes.STRING,
+                                  desc={})
+            ret = documents
+        else:
+            ret =documents[0]
+
+        return ret
+
+    def setCounter(self,counterName,defaultValue=0):
+        """
+            Defines a counter in the config of the project.
+            The counter is specific to this project.
+        Parameters
+        ----------
+        counterName :  str
+            The counter name.
+
+        Returns
+        -------
+
+        """
+        cnfg = self.getConfig().copy()
+        coutnerDict = cnfg.setdefault("counters",{}).copy()
+        coutnerDict[counterName] =defaultValue
+        cnfg["counters"] = coutnerDict
+        self.setConfig(**cnfg)
+        return cnfg
+
+    def defineCounter(self,counterName,defaultValue=0):
+        """
+            Defines a counter in the config of the project, if it does not exist
+            The counter is specific to this project.
+        Parameters
+        ----------
+        counterName :  str
+            The counter name.
+
+        Returns
+        -------
+
+        """
+        cnfg = self.getConfig().copy()
+        coutnerDict = cnfg.get("counters", {}).copy()
+        coutnerDict.setdefault(counterName,defaultValue)
+        cnfg["counters"] = coutnerDict
+        self.setConfig(**cnfg)
+        return cnfg
+
+
+    def getCounter(self,counterName):
+        """
+            Return the value of the counter and add [addition].
+        Parameters
+        ----------
+        counterName :  str
+            The name of the counter.
+
+        addition : int
+            The amount to add to the counter. The default is 1
+
+        Returns
+        -------
+
+        """
+        cnfg = self.getConfig().copy()
+        coutnerDict = cnfg.setdefault("counters", {})
+        ret = coutnerDict[counterName]
+        return ret
+
+    def getCounterAndAdd(self, counterName, addition=1):
+            """
+                Return the value of the counter and add [addition].
+                If the counter is not defined it is initialized to 0.
+            Parameters
+            ----------
+            counterName :  str
+                The name of the counter.
+
+            addition : int
+                The amount to add to the counter. The default is 1
+
+            Returns
+            -------
+
+            """
+            cnfg =self.getConfig()
+            counterDict = cnfg.get("counters",{}).copy()
+            ret = counterDict.setdefault(counterName,0)
+            counterDict[counterName] += addition
+            cnfg["counters"] =counterDict
+            self.setConfig(**cnfg)
+            return ret
+
+    @deprecated(reason="Use getCounterAndAdd instead")
+    def addCounter(self, counterName, addition=1):
+        return self.getCounterAndAdd(counterName,addition)
+
+    def getConfig(self):
+        """
+        Returns the config document's description.
+        If there is no config document, return empty dictionary.
+
+        Returns
+        -------
+        dict
+                The configuration of the toolkit.
+        """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+        doc = self._getConfigDocument()
+        return dict(doc["desc"])
+
+
+    def initConfig(self,**kwargs):
+        """
+            Sets the value of the config, if the keys does not exist. If they exist, leave the old value.
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+
+        """
+        if self._projectName == self.DEFAULTPROJECT:
+            raise ValueError("Default project cannot use configuration")
+
+        doc = self._getConfigDocument()
+        for key,value in doc['desc'].items():
+            doc['desc'].setdefault(key,value)
+        doc.save()
 
 
 
@@ -664,6 +716,86 @@ class Project:
 
         return self.cache.deleteDocuments(projectName=self._projectName, **kwargs)
 
+    def saveData(self,name,data,desc,kind,type=None,dataFormat=None,**kwargs):
+        """
+            Adds a cache document with the data.
+            Estimates the dataFormat from the data type.
+
+            The type is
+        Parameters
+        ----------
+        data : a data that can be dataframe, xarray, numpy ....
+
+        desc : dict
+            A dict with the meatadata to save
+        type : str
+            If None, then set the type to be the name of the function that called this method.
+
+        Returns
+        -------
+            The new document
+        """
+        guessedDataFormat = self.datatypes.getDataFormatName(data) if dataFormat is None else dataFormat
+
+        handler = self.datatypes.getHandler(guessedDataFormat)
+        file_extension = self.datatypes.getDataFormatExtension(data)
+
+        cacheDirectory = os.path.join(self.filesDirectory, "cache")
+        os.makedirs(cacheDirectory, exist_ok=True)
+        fileID = self.getCounterAndAdd(name)
+        fileName = os.path.join(cacheDirectory, f"{name}_{fileID}.{file_extension}")
+
+        saveParamsUpdatedDict = handler.saveData(data, fileName,**kwargs)
+
+        funcName = getattr(self,f"add{kind}Document")
+        fullType = type if type is not None else name
+
+        qry = ConfigurationToJSON(desc, standardize=True, splitUnits=True, keepOriginalUnits=True)
+        storeParamsDict = qry.get("storeParameters",{})
+        storeParamsDict.update(saveParamsUpdatedDict)
+        qry["storeParameters"] = storeParamsDict
+
+        doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
+        return doc
+
+    def saveMeasurementData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.saveData(name=name,data=data,desc=desc,kind="Measurement",type=type,dataFormat=dataFormat,**kwargs)
+
+    def saveCacheData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.saveData(name=name,data=data,desc=desc,kind="Cache",type=type,dataFormat=dataFormat,**kwargs)
+
+    def saveSimulationData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
+        self.saveData(name=name,data=data,desc=desc,kind="Simulation",type=type,dataFormat=dataFormat,**kwargs)
+
+    def _get_full_func_name(self,func):
+        """Returns the full qualified path: module.[class.]function_name"""
+        if not callable(func):
+            raise TypeError("Provided object is not callable.")
+
+        # Handle bound methods by unwrapping them
+        if inspect.ismethod(func):
+            # Get the original function and its class
+            cls = func.__self__.__class__
+            method_name = func.__name__
+            class_qualname = cls.__qualname__
+            module = func.__module__
+            if module == "__main__":
+                ret = f"{class_qualname}.{method_name}"
+            else:
+                ret = f"{module}.{class_qualname}.{method_name}"
+
+        elif inspect.isfunction(func):
+            ret = func.__qualname__
+        else:
+
+            # Handle unbound class or static methods and plain functions
+            qualname = func.__qualname__
+            module = func.__module__
+            ret = f"{module}.{qualname}"
+        return ret
+
+
+
     @staticmethod
     def getProjectList(cls,user=None):
         """
@@ -678,11 +810,3 @@ class Project:
         """
         return list(set(AbstractCollection(connectionName=user).getProjectList()))
 
-
-    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
-        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
-                                                                            "version": version}))==0:
-            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
-
-        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
-        print(f"{version} for dataSource {datasourceName} is now set to default.")

@@ -151,23 +151,6 @@ class abstractToolkit(Project):
     _analysis = None # holds the datalayer layer.
     _presentation = None # holds the presentation layer
 
-    _FilesDirectory = None
-
-    @property
-    def FilesDirectory(self):
-        """
-            The directory to save files (when creating files).
-        :return:
-        """
-        return self._FilesDirectory
-
-    @property
-    def filesDirectory(self):
-        """
-            The directory to save files (when creating files).
-        :return:
-        """
-        return self._FilesDirectory
 
 
     @property
@@ -219,22 +202,9 @@ class abstractToolkit(Project):
             The directory to save datasource
 
         """
-        super().__init__(projectName=projectName)
+        super().__init__(projectName=projectName,filesDirectory=filesDirectory)
         logger = get_classMethod_logger(self,"init")
         self._toolkitname = toolkitName
-
-        if filesDirectory is None:
-            logger.debug("Directory is not given, tries to load from default or using the current directory")
-            try:
-                self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            except ValueError:
-                self._FilesDirectory = os.getcwd()
-
-            logger.debug(f"Using {self._FilesDirectory}")
-        else:
-            logger.debug(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
-            os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
-            self._FilesDirectory = filesDirectory
 
     @property
     def classLoggerName(self):
@@ -479,4 +449,13 @@ class abstractToolkit(Project):
         doc.delete()
 
         return doc
+
+
+    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
+        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
+                                                                            "version": version}))==0:
+            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
+
+        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
+        print(f"{version} for dataSource {datasourceName} is now set to default.")
 

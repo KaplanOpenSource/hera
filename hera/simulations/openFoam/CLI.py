@@ -93,6 +93,7 @@ def foam_solver_template_buildExecute(arguments):
         handler_buildExecute(arguments)
     else:
         workflow_add(arguments)
+        handler_buildExecute(arguments)
 
 def foam_solver_templates_list(arguments):
     logger = logging.getLogger("hera.bin")
@@ -163,8 +164,7 @@ def foam_solver_simulations_list(arguments):
 
     projectName = None if 'projectName' not in arguments else arguments.projectName  # from hera 2.13.2 the toolkit searches the project name in the case file.
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_OPENFOAM, projectName=projectName)
-    import pdb
-    pdb.set_trace()
+
     simDocument = wftk.getWorkflowListOfSolvers(arguments.solver)
 
     if len(simDocument) == 0:
@@ -175,7 +175,7 @@ def foam_solver_simulations_list(arguments):
         print(ttl)
         print(f"-"*len(ttl))
 
-        res = wftk.compareWorkflow([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
+        res = wftk.compareWorkflows([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
 
         if arguments.format == "pandas":
             output = res
