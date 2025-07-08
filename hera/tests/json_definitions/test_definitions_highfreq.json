@@ -31,7 +31,10 @@
       "averagedHeight": 2.5
     },
     "output_filename": "expected_outputs/highfreq_single_point_turbulence.json",
-    "output_type": "dict"
+    "output_type": "dict",
+    "postprocess": [
+      { "method": "getData", "args": [] }
+    ]
   },
   {
     "class_path": "hera.measurements.meteorology.highfreqdata.analysis.analysislayer.RawdataAnalysis",
@@ -54,6 +57,9 @@
       "averagedHeight": 2.5
     },
     "output_filename": "expected_outputs/highfreq_average_calc.json",
-    "output_type": "dict"
+    "output_type": "dataframe",
+    "postprocess": [
+      { "method": "getData", "args": [] }
+    ]
   }
 ]

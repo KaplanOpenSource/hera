@@ -12,9 +12,14 @@ class AveragingCalculator(AbstractCalculator):
         super(AveragingCalculator, self).__init__(rawData=rawData, metadata=metadata)
 
         self._TemporaryData = self._RawData.resample(self.SamplingWindow).mean().rename(
-            columns={col:col+"_bar" for col in self._RawData.columns})
+            columns={col: col + "_bar" for col in self._RawData.columns})
         for col in self._TemporaryData.columns:
             self._CalculatedParams.append([col, {}])
+
+        self.data = self._TemporaryData  # ✅ כאן נפתרה הבעיה
+
+    def getData(self):
+        return self.data
 
 
 class MeanDataCalculator:

@@ -22,26 +22,6 @@
     "init_parameters": {
       "projectName": "TestProject"
     },
-    "method_name": "analysis.createNewArea",
-    "parameters": {
-      "shapeNameOrData": {
-        "fromFunction": "testPolygon_basic"
-      },
-      "dataSourceOrData": {
-        "fromEnv": "HERA_UNITTEST_DATA",
-        "relative": "measurements/GIS/vector/population_lamas.shp"
-      },
-      "saveMode": 0,
-      "regionName": "TestArea"
-    },
-    "output_type": "metadataframe",
-    "output_filename": "expected_demography_createNewArea.json"
-  },
-  {
-    "class_path": "hera.measurements.GIS.vector.demography.DemographyToolkit",
-    "init_parameters": {
-      "projectName": "TestProject"
-    },
     "method_name": "setDefaultDirectory",
     "parameters": {
       "fileDirectory": {

@@ -34,7 +34,7 @@
       }
     },
     "output_filename": "expected_outputs/landcover_area.json",
-    "output_type": "xarray"
+    "output_type": "dataarray"
   },
   {
     "class_path": "hera.measurements.GIS.raster.landcover.LandCoverToolkit",
@@ -71,6 +71,6 @@
       }
     },
     "output_filename": "expected_outputs/roughness_area.json",
-    "output_type": "xarray"
+    "output_type": "dataarray"
   }
 ]
