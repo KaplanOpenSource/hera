@@ -29,6 +29,9 @@ from shapely.geometry import Point
 WSG84 = 4326
 
 
+WSG84 = 4326
+
+
 
 class TopographyToolkit(toolkit.abstractToolkit):
 

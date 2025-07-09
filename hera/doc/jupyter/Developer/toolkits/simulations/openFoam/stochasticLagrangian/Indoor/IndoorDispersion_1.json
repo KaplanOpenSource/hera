@@ -1,0 +1,572 @@
+{
+    "workflow": {
+        "root": null,
+        "solver": "StochasticLagrangianSolver",
+        "Templates": [],
+        "nodeList": [
+            "Parameters",
+            "ControlDict",
+            "makeDispersionFlowField",
+            "DispersionFlowField_fvSchemes",
+            "createDistanceFromWalls",
+            "makeDispersionCase",
+            "fvSchemes",
+            "KinematicCloudProperties",
+            "physicalProperties",
+            "momentumTransport",
+            "makeSource",
+            "g",
+            "IndoorDict",
+            "dispersionWriter",
+            "buildAllRun"
+        ],
+        "nodes": {
+            "Parameters": {
+                "Execution": {
+                    "input_parameters": {
+                        "originalFlowField": "Indoor_1",
+                        "dispersionFlowField": "Ustar_5cm_sec",
+                        "dispersionCase": "{#moduleName}",
+                        "dispersionDuration": 1200,
+                        "writeInterval": 1,
+                        "SourceCenter": "0 0 1",
+                        "radius": 1,
+                        "height": 0.5,
+                        "particleCount": 1000,
+                        "dispersionFlowParameters": {
+                            "originalFlow": {
+                                "time": {
+                                    "temporalType": "steadyState",
+                                    "timestep": null
+                                },
+                                "linkMeshSymbolically": true
+                            },
+                            "dispersionFields": {
+                                "ustar": 0.05,
+                                "Hmix": 1000
+                            }
+                        }
+                    }
+                },
+                "type": "general.Parameters"
+            },
+            "ControlDict": {
+                "Execution": {
+                    "input_parameters": {
+                        "values": {
+                            "application": "StochasticLagrangianSolver",
+                            "startFrom": "startTime",
+                            "startTime": 0,
+                            "stopAt": "endTime",
+                            "endTime": "{Parameters.output.dispersionDuration}",
+                            "deltaT": 1,
+                            "writeControl": "adjustableRunTime",
+                            "writeInterval": "{Parameters.output.writeInterval}",
+                            "runTimeModifiable": true,
+                            "interpolate": true,
+                            "adjustTimeStep": true,
+                            "purgeWrite": 0,
+                            "writeFormat": "ascii",
+                            "writePrecision": 7,
+                            "writeCompression": false,
+                            "timeFormat": "general",
+                            "timePrecision": 6,
+                            "maxCo": 0.5,
+                            "functions": [],
+                            "libs": []
+                        }
+                    }
+                },
+                "type": "openFOAM.system.ControlDict"
+            },
+            "makeDispersionFlowField": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openFoam stochasticLagrangian dispersionFlow create {Parameters.output.originalFlowField} {Parameters.output.dispersionFlowField} --parameters  {Parameters.output.dispersionFlowParameters} --dispersionDuration {Parameters.output.dispersionDuration} --overwrite"
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "fvSchemes": {
+                "Execution": {
+                    "input_parameters": {
+                        "default": {
+                            "ddtScheme": "Euler",
+                            "gradSchemes": {
+                                "type": "Gauss",
+                                "name": "linear"
+                            },
+                            "divSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": ""
+                            },
+                            "interpolationSchemes": "linear",
+                            "snGradSchemes": "uncorrected",
+                            "wallDist": "meshWave",
+                            "laplacianSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": "uncorrected"
+                            }
+                        },
+                        "fields": {
+                            "p": {
+                                "fluxRequired ": true,
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "(1|A(U))",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "U": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMISTV",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "nuEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    },
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "AnisotropicDiffusion",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "k": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMIST",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "DkEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "epsilon": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMIST",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "DepsilonEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.FvSchemes"
+            },
+            "DispersionFlowField_fvSchemes": {
+                "Execution": {
+                    "input_parameters": {
+                        "default": {
+                            "ddtScheme": "Euler",
+                            "gradSchemes": {
+                                "type": "Gauss",
+                                "name": "linear"
+                            },
+                            "divSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": ""
+                            },
+                            "interpolationSchemes": "linear",
+                            "snGradSchemes": "uncorrected",
+                            "wallDist": "meshWave",
+                            "laplacianSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": "uncorrected"
+                            }
+                        },
+                        "fields": {
+                            "p": {
+                                "fluxRequired ": true,
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "(1|A(U))",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "U": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMISTV",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "nuEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    },
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "AnisotropicDiffusion",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "k": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMIST",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "DkEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            },
+                            "epsilon": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "phi": "phi",
+                                        "type": "Gauss",
+                                        "name": "UMIST",
+                                        "parameters": ""
+                                    }
+                                ],
+                                "laplacianSchemes": [
+                                    {
+                                        "noOfOperators": 2,
+                                        "coefficient": "DepsilonEff",
+                                        "type": "Gauss",
+                                        "name": "linear",
+                                        "parameters": "uncorrected"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.FvSchemes",
+                "requires": [
+                    "makeDispersionFlowField"
+                ]
+            },
+            "createDistanceFromWalls": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "foamJob -parallel -wait distanceFromWalls  -time 0:",
+                        "changeDirTo": "{Parameters.output.originalFlowField}_DFF_{Parameters.output.dispersionFlowField}"
+                    }
+                },
+                "type": "general.RunOsCommand",
+                "requires": [
+                    "makeDispersionFlowField"
+                ]
+            },
+            "makeDispersionCase": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openFoam stochasticLagrangian dispersion create {Parameters.output.dispersionCase} {Parameters.output.originalFlowField}_DFF_{Parameters.output.dispersionFlowField}  --overwrite"
+                    }
+                },
+                "type": "general.RunOsCommand",
+                "requires": [
+                    "makeDispersionFlowField"
+                ]
+            },
+            "KinematicCloudProperties": {
+                "Execution": {
+                    "input_parameters": {
+                        "activeCloud": "true",
+                        "stochasticTurbulenceModel": "Indoor",
+                        "passiveTrace": true,
+                        "injectors": {
+                            "release": {
+                                "type": "Stochastic_ContinuousInjection",
+                                "massTotal": 1,
+                                "parcelBasisType": "mass",
+                                "nParticle": 1,
+                                "StartOfInjection": 0,
+                                "positionsFile": "kinematicCloudPositions",
+                                "U0": [
+                                    0,
+                                    0,
+                                    0
+                                ],
+                                "sizeDistribution": {
+                                    "type": "fixedValue",
+                                    "diameter": 0.006
+                                },
+                                "T0": 273,
+                                "EndOfInjection": 120
+                            }
+                        },
+                        "forces": [],
+                        "patchInteraction": {
+                            "interactionType": "LocalInteraction",
+                            "patches": {
+                                "Walls": {
+                                    "type": "escape"
+                                },
+                                "ceiling": {
+                                    "type": "rebound"
+                                },
+                                "floor": {
+                                    "type": "rebound"
+                                },                                
+                                "door": {
+                                    "type": "escape",
+                                    "timedelayAC": "1"
+                                },                                     
+                                "inlet2": {
+                                    "type": "rebound"
+                                },
+                                "inlet1": {
+                                    "type": "rebound"
+                                },
+                                "outlet": {
+                                    "type": "escape",
+                                    "timedelayAC": "1"
+                                }
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.dispersion.KinematicCloudProperties"
+            },
+            "physicalProperties": {
+                "Execution": {
+                    "input_parameters": {
+                        "transportModel": "Newtonian",
+                        "nu": 1e-05,
+                        "parameters": {
+                            "nu": {
+                                "dimensions": "[0 2 -1 0 0 0 0]",
+                                "value": 1e-05
+                            },
+                            "beta": {
+                                "dimensions": "[0 0 0 -1 0 0 0]",
+                                "value": 0.0033333333333333335,
+                                "printName": true
+                            },
+                            "Tref": {
+                                "dimensions": "[0 0 0 1 0 0 0]",
+                                "value": 300,
+                                "printName": true
+                            },
+                            "Pr": {
+                                "dimensions": "[0 0 0 0 0 0 0]",
+                                "value": 0.7,
+                                "printName": true
+                            },
+                            "Prt": {
+                                "dimensions": "[0 0 0 0 0 0 0]",
+                                "value": 1,
+                                "printName": true
+                            },
+                            "rhoInf": {
+                                "dimensions": "[1 -3 0 0 0 0 0]",
+                                "value": 1.2,
+                                "printName": true
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.constant.physicalProperties"
+            },
+            "momentumTransport": {
+                "Execution": {
+                    "input_parameters": {
+                        "simulationType": "laminar"
+                    }
+                },
+                "type": "openFOAM.constant.momentumTransport"
+            },
+            "makeSource": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openFoam stochasticLagrangian injectors positionFile cylinder {Parameters.output.dispersionCase} --radius {Parameters.output.radius} --center {Parameters.output.SourceCenter} --height {Parameters.output.height} --particles {Parameters.output.particleCount}"
+                    }
+                },
+                "type": "general.RunOsCommand",
+                "requires": [
+                    "makeDispersionCase"
+                ]
+            },
+            "g": {
+                "Execution": {
+                    "input_parameters": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -9.8
+                    }
+                },
+                "type": "openFOAM.constant.g"
+            },
+            "IndoorDict": {
+                "Execution": {
+                    "input_parameters": {
+                        "C0": 3,
+                        "g": 9.81,
+                        "coriolisFactor": 0.0001,
+                        "zd": 0.1,
+                        "Qh": 100,
+                        "T0": 100,
+                        "stable": false,
+                        "_g": 9.81,
+                        "fc": 0.0001
+                    }
+                },
+                "type": "openFOAM.dispersion.IndoorDict"
+            },
+            "buildAllRun": {
+                "Execution": {
+                    "input_parameters": {
+                        "casePath": "{Parameters.output.dispersionCase}",
+                        "caseExecution": {
+                            "parallelCase": true,
+                            "slurm": false,
+                            "getNumberOfSubdomains": 10,
+                            "runFile": []
+                        },
+                        "parallelCase": true,
+                        "runFile": [
+                            {
+                                "name": "StochasticLagrangianSolver",
+                                "couldRunInParallel": true,
+                                "parameters": null
+                            }
+                        ]
+                    },
+                    "requires": "createEmptyCase"
+                },
+                "type": "openFOAM.BuildAllrun"
+            },
+            "dispersionFlowWriter": {
+                "Execution": {
+                    "input_parameters": {
+                        "directoryPath": null,
+                        "Files": {
+                            "fvSchemes": {
+                                "fileName": "system/fvSchemes",
+                                "fileContent": "{DispersionFlowField_fvSchemes.output.openFOAMfile}"
+                            }
+                        },
+                        "casePath": "{Parameters.output.dispersionFlowField}"
+                    }
+                },
+                "type": "general.FilesWriter",
+                "requires": [
+                    "makeDispersionCase"
+                ]
+            },
+            "dispersionWriter": {
+                "Execution": {
+                    "input_parameters": {
+                        "directoryPath": null,
+                        "Files": {
+                            "controlDict": {
+                                "fileName": "system/controlDict",
+                                "fileContent": "{ControlDict.output.openFOAMfile}"
+                            },
+                            "g": {
+                                "fileName": "constant/g",
+                                "fileContent": "{g.output.openFOAMfile}"
+                            },
+                            "IndoorDict": {
+                                "fileName": "system/IndoorDict",
+                                "fileContent": "{IndoorDict.output.openFOAMfile}"
+                            },
+                            "physicalProperties": {
+                                "fileName": "constant/physicalProperties",
+                                "fileContent": "{physicalProperties.output.openFOAMfile}"
+                            },
+                            "momentumTransport": {
+                                "fileName": "constant/momentumTransport",
+                                "fileContent": "{momentumTransport.output.openFOAMfile}"
+                            },
+                            "KinematicCloudProperties": {
+                                "fileName": "constant/kinematicCloudProperties",
+                                "fileContent": "{KinematicCloudProperties.output.openFOAMfile}"
+                            },
+                            "fvSchemes": {
+                                "fileName": "system/fvSchemes",
+                                "fileContent": "{fvSchemes.output.openFOAMfile}"
+                            }
+                        },
+                        "casePath": "{Parameters.output.dispersionCase}"
+                    }
+                },
+                "type": "general.FilesWriter",
+                "requires": [
+                    "makeDispersionCase"
+                ]
+            }
+        }
+    }
+}
