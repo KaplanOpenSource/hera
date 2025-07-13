@@ -1,9 +1,7 @@
 import pandas
 import numpy
-from unum.units import *
-from ...utils.unum import *
-from ...utils import tounit, tonumber
-from ..gaussian import Meteorology as metmodule
+from hera.utils.unitHandler import *
+from hera.simulationss.gaussian import Meteorology as metmodule
 
 
 class StandardMeteorolgyConstant_powerLaw:

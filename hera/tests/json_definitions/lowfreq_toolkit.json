@@ -1,0 +1,43 @@
+[
+  {
+    "class_path": "hera.measurements.meteorology.lowfreqdata.analysis.analysis",
+    "init_parameters": {
+      "dataLayer": null
+    },
+    "method_name": "addDatesColumns",
+    "parameters": {
+      "data": "$HERA_UNITTEST_DATA/measurements/meteorology/lowfreqdata/YAVNEEL_datetime_fixed.parquet",
+      "datecolumn": "datetime"
+    },
+    "output_type": "dataframe",
+    "output_filename": "expected_lowfreq_addDatesColumns.parquet"
+  },
+  {
+    "class_path": "hera.measurements.meteorology.lowfreqdata.analysis.analysis",
+    "init_parameters": {
+      "dataLayer": null
+    },
+    "method_name": "calcHourlyDist",
+    "parameters": {
+      "data": "$HERA_UNITTEST_DATA/measurements/meteorology/lowfreqdata/YAVNEEL.parquet",
+      "Field": "RH",
+      "normalization": "max_normalized"
+    },
+    "output_type": "npz",
+    "output_filename": "expected_lowfreq_calcHourlyDist_max_normalized.npz"
+  },
+  {
+    "class_path": "hera.measurements.meteorology.lowfreqdata.analysis.analysis",
+    "init_parameters": {
+      "dataLayer": null
+    },
+    "method_name": "calcHourlyDist",
+    "parameters": {
+      "data": "$HERA_UNITTEST_DATA/measurements/meteorology/lowfreqdata/YAVNEEL.parquet",
+      "Field": "RH",
+      "normalization": "density"
+    },
+    "output_type": "npz",
+    "output_filename": "expected_lowfreq_calcHourlyDist_density.npz"
+  }
+]

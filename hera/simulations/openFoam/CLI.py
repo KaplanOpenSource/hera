@@ -93,6 +93,7 @@ def foam_solver_template_buildExecute(arguments):
         handler_buildExecute(arguments)
     else:
         workflow_add(arguments)
+        handler_buildExecute(arguments)
 
 def foam_solver_templates_list(arguments):
     logger = logging.getLogger("hera.bin")
@@ -174,7 +175,7 @@ def foam_solver_simulations_list(arguments):
         print(ttl)
         print(f"-"*len(ttl))
 
-        res = wftk.compareWorkflow([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
+        res = wftk.compareWorkflows([groupName], longFormat=arguments.longFormat, transpose=arguments.transpose)
 
         if arguments.format == "pandas":
             output = res

@@ -1,0 +1,117 @@
+[
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "getPointElevation",
+    "parameters": {
+      "lat": 33.75,
+      "long": 35.5,
+      "dataSourceName": "N33E035.hgt"
+    },
+    "output_type": "float",
+    "output_filename": "getPointElevation.json"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "getPointListElevation",
+    "parameters": {
+      "pointList": {
+        "type": "DataFrame",
+        "data": {
+          "lat": [33.75, 33.76],
+          "lon": [35.5, 35.51]
+        }
+      },
+      "dataSourceName": "N33E035.hgt"
+    },
+    "output_type": "DataFrame",
+    "output_filename": "getPointListElevation.json"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "convertPointsCRS",
+    "parameters": {
+      "points": [[35.5, 33.75], [35.51, 33.76]],
+      "inputCRS": 4326,
+      "outputCRS": 2039
+    },
+    "output_type": "GeoDataFrame",
+    "output_filename": "convertPointsCRS.json"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "create_xarray",
+    "parameters": {
+      "minx": 200000,
+      "maxx": 201000,
+      "miny": 600000,
+      "maxy": 601000,
+      "dxdy": 50,
+      "inputCRS": 2039
+    },
+    "output_type": "xarray",
+    "output_filename": "create_xarray.nc"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "getElevation",
+    "parameters": {
+      "minx": 200000,
+      "maxx": 200500,
+      "miny": 600000,
+      "maxy": 601000,
+      "dxdy": 50,
+      "inputCRS": 2039,
+      "dataSourceName": "N31E034.hgt"
+    },
+    "output_type": "xarray",
+    "output_filename": "getElevation.nc"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "getElevationOfXarray",
+    "parameters": {
+      "xarray_dataset": {
+        "fromFunction": "create_xarray"
+      },
+      "dataSourceName": "N33E035.hgt"
+    },
+    "output_type": "xarray",
+    "output_filename": "getElevationOfXarray.nc"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.topography.TopographyToolkit",
+    "init_parameters": {
+      "projectName": "topography_test"
+    },
+    "method_name": "createElevationSTL",
+    "parameters": {
+      "minx": 200000,
+      "maxx": 201000,
+      "miny": 600000,
+      "maxy": 601000,
+      "dxdy": 50,
+      "inputCRS": 2039,
+      "dataSourceName": "N33E035.hgt"
+    },
+    "output_type": "str",
+    "output_filename": "createElevationSTL.txt"
+  }
+]

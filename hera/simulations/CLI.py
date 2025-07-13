@@ -70,8 +70,6 @@ def workflow_add(args):
             add the simulation to the db, even if the workflow exists under a different name.
         assignName: bool,
             generate automated name to the workflow
-        execution   : bool [default false]
-            If True, then execute the workflow.
 
     Returns
     -------
@@ -81,34 +79,10 @@ def workflow_add(args):
     logger.info(" -- Starting: adding workflow to the group --")
 
     projectName = args.projectName
-
-    if projectName is None:
-        logger.info(f"Project name is not found. Trying to load from caseConfiguration ")
-        cse = loadJSON("caseConfiguration.json")
-        projectName = cse.get('projectName')
-        if projectName is None:
-            raise ValueError(f"Project name not supplied. Provide projectName using --projectName, or in the caseConfiguration.json, projectName key ")
-    else:
-        logger.info(f"Using project name {projectName}. ")
-
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
     workflowFile = args.workflow
-    logger.info(f"Adding workflow in {workflowFile}  to DB")
-
-    execute = args.execute
-    try:
-        wftk.addWorkflowToGroup(workflowJSON=workflowFile,
-                                groupName= args.workflowGroup,
-                                assignName=args.assignName,
-                                overwrite=args.overwrite,
-                                buildExecute=execute,
-                                force=args.force)
-
-    except FileExistsError as e:
-        err = f"{str(e)}, use --force if you want to have duplicate records"
-        logger.error(err)
-        print(err)
+    wftk.addUpdateWorkflowFileInGroup(workflowFile)
 
 
 def workflow_delete(arguments):
@@ -419,9 +393,6 @@ def workflowNodes_listParameters(arguments):
             json = loadJSON(arguments.workflowName)
             hermesObject = workflow(json)
     else:
-        if arguments.projectName is None:
-            raise ValueError("Must supply a project name for a non-file workflow")
-
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
         hermesObject = wftk.getHermesWorkflowFromDB(arguments.workflowName)
@@ -475,7 +446,7 @@ def workflow_compare(arguments):
 
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
 
-    res = wftk.compareWorkflow(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
+    res = wftk.compareWorkflows(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
 
 
     if arguments.format == "pandas":
@@ -512,5 +483,33 @@ def workflow_execute(arguments):
     handler_execute(arguments)
 
 def workflow_buildExecute(arguments):
-    handler_buildExecute(arguments)
+    """
+        Builds the executes the workflow.
 
+    Parameters
+    ----------
+    arguments
+        workflowName: str
+            The name of the workflow in the DB or the file name.
+
+        addDB : bool
+            If true, add the workflow if not found.
+
+    Returns
+    -------
+
+    """
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
+
+    workflowName = arguments.workflowName.split(".")[0]
+
+    docList = wftk.getWorkflowListDocumentFromDB(workflowName)
+    if len(docList) == 0:
+        if os.path.isfile(arguments.workflowName):
+            doc = wftk.addUpdateWorkflowFileInGroup(arguments.workflowName)
+        else:
+            raise ValueError(f"The workflowName {arguments.workflowName} is not in the DB and not a file on the disk")
+    else:
+        doc = docList[0]
+
+    wftk.executeWorkflowFromDB(workflowName)

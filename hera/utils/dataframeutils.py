@@ -2,7 +2,7 @@ import logging
 import numpy
 import pandas
 
-def compareDataframeConfigurations(data,datasetName="datasetName",parameterName="parameterName",valueName="value",indexList=None,longFormat=False):
+def compareDataframeConfigurations(data,datasetName="datasetName",parameterName="parameterName",valueName="value",indexList=None,longFormat=False,changeDotToUnderscore=False):
     """
         Compares datasets and outputs the keys that differ between them.
 
@@ -47,6 +47,9 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
 
     longFormat : bool
         The format to return.
+
+    changeDotToUnderscore : bool
+        If true, change the columns names from x.y -> x_y. This will allow using pandas.query function
 
     Returns
     -------
@@ -130,6 +133,9 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
     else:
         ret = data[[datasetName]].drop_duplicates()
 
-
+    if changeDotToUnderscore:
+        newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
+        ret_tmp = ret.T.rename(columns=dict(newColNames))
+        ret = ret_tmp.T
     return ret
 

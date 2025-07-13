@@ -5,12 +5,11 @@ try:
 except ImportError:
 	print("wrong scipy, can't solve the system")
 
-from unum.units import *
-from ...utils import tounit,tonumber
+from hera.utils.unitHandler import *
 from scipy.optimize import root
 from scipy.constants import g as gconst
-from .Meteorology import MeteorologyFactory
-from .Sigma import briggsRural
+from hera.simulations.gaussian.Meteorology import MeteorologyFactory
+from hera.simulations.gaussian.Sigma import briggsRural
 
 from scipy.constants import g as gconst
 
