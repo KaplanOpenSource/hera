@@ -226,7 +226,12 @@ class Project:
         self._simulations   = Simulations_Collection(connectionName=connectionName)
         self._all           =   AbstractCollection(connectionName=connectionName)
 
-        savedFilesDirectory = self.getConfig().get("filesDirectory", None)
+        if self.projectName != self.DEFAULTPROJECT:
+            logger.info(f"Attempting to get default directory from the disk")
+            savedFilesDirectory = self.getConfig().get("filesDirectory", None)
+        else:
+            logger.info(f"Default project, setting to current directory")
+            savedFilesDirectory = None
 
         if savedFilesDirectory is None:
             if filesDirectory is None:
@@ -234,8 +239,9 @@ class Project:
             else:
                 filesDirectory= os.path.abspath(filesDirectory)
 
-            logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
-            self.setConfig(filesDirectory=filesDirectory)
+            if self.projectName != self.DEFAULTPROJECT:
+                logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+                self.setConfig(filesDirectory=filesDirectory)
         else:
             filesDirectory = savedFilesDirectory
 
