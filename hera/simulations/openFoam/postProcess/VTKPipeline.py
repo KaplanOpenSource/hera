@@ -524,6 +524,7 @@ class VTKFilter:
     def addFilter(self, name, filterType, write=None, params=[]):
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
         self.__setitem__(name, newFilter)
+        return newFilter
 
 
 class vtkFilter_Slice(VTKFilter):
@@ -547,7 +548,7 @@ class vtkFilter_Slice(VTKFilter):
         self.params = [("SliceType", "Plane"),
                        ("HyperTreeGridSlicer", "Plance"),
                        ("SliceOffsetValues", 0),
-                       ("SliceType.Origin", [0, 0, 0]),
+                       ("SliceType.Origin", origin),
                        ("HyperTreeGridSlicer.Origin", [0, 0, 0])
                        ]
 
@@ -560,3 +561,19 @@ class vtkFilter_CellCenters(VTKFilter):
     def __init__(self, name, write, **kwargs):
         kwargs.setdefault("params", [])
         super().__init__(name=name, filterType="CellCenters", write=write, **kwargs)
+
+
+class vtkFilter_ExtractBlock(VTKFilter):
+    def __init__(self, name, write, **kwargs):
+        selectors = [f'/Root/boundary/{patchName}' for patchName in patchList]
+        if internalMesh:
+            selectors += ['/Root/internalMesh']
+        params=  [
+            ("Selectors",selectors)
+        ]
+        super().__init__(name=name, filterType="ExtractBlock", write=write, **kwargs)
+
+
+class vtkFilter_IntegrateVariables(VTKFilter):
+    def __init__(self, name, write, patchList=[],internalMesh=False):
+        super().__init__(name=name, filterType="IntegrateVariables", write=write, params=params)
