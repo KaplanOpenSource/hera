@@ -4,7 +4,11 @@ import dask.dataframe
 import xarray
 import json
 import geopandas
-from osgeo import gdal
+try:
+    from osgeo import gdal
+except ImportError:
+    print("gdal not installed, no support for shapefiles")
+
 import matplotlib.image as mpimg
 import sys
 import pickle
