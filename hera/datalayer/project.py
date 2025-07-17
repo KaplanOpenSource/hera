@@ -2,7 +2,7 @@ import json
 import os
 import pandas
 import inspect
-from promise.utils import deprecated
+from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
