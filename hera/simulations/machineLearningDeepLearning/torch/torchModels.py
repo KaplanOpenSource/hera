@@ -1,3 +1,5 @@
+import pandas
+
 try:
     import torch
 except ImportError:
@@ -7,6 +9,9 @@ import inspect
 import os
 from hera.datalayer import Project
 from hera.utils.logging import get_classMethod_logger
+from hera.utils import dictToMongoQuery
+from hera.utils import convertJSONtoPandas
+
 
 class torchModels(Project):
 
@@ -19,7 +24,7 @@ class torchModels(Project):
         """
             Initializes the model class.
 
-        Parameters
+        Parametersmonth
         ----------
         projectName : str
             The name of the project that this class belongs to.
@@ -51,7 +56,7 @@ class torchModels(Project):
             A trainingStrategy object.
         """
 
-    def trainModel(self,modelInstance,trainingStrategy,epoch,startFromCheckpoint=True,deviceName=None):
+    def trainModel(self,modelInstance,trainingStrategy,totalEpoch,startFromCheckpoint=True,deviceName=None):
         """
             Save a model to the DB.
 
@@ -101,7 +106,7 @@ class torchModels(Project):
                 parallelTrain = True
 
 
-        signatureMap = self.get_constructor_args(model)
+        signatureMap = dictToMongoQuery(self.get_constructor_args(model),prefix=hyperParameters)
         modelName,_ = self.get_class_info(model)
 
 
@@ -114,6 +119,7 @@ class torchModels(Project):
                                               resource=newFileName,
                                               dataFormat=self.datatypes.STRING,
                                               desc=dict(
+                                                  modelName=modelName,
                                                   hyperParameters=signatureMap,
                                                   training=dict(state=trainingStrategy.getState(),
                                                                 epoch = epoch,
@@ -121,17 +127,25 @@ class torchModels(Project):
                                                                 )
                                             )
             )
+            current_epoch = 0
         else:
             logger.debug(f"Found. Loading the checkpoint and continue from there")
             doc = docList[0]
             current_epoch = doc.desc['training']['epoch']
             trainingStrategy.loadState(doc.desc['training'])
+            model.load_state_dict(doc.getData())
 
-        for trainIter in trainingStrategy:
+        for epoch in range(current_epoch,totalEpoch):
 
+            avg_loss = trainingStrategy.train(model)
+            print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.6f}")
 
+            # Save checkpoint after every epoch
+            trainingStrategy.storeState(doc,epoch)
 
-    def listModels(self,modelName,**hyperParameters):
+        return avg_loss
+
+    def listModels(self,modelName=None,**hyperParameters):
         """
             Returns the list of models and hyper parameters that are in the project.
         Parameters
@@ -143,7 +157,16 @@ class torchModels(Project):
         -------
 
         """
-        pass
+        signatureMap = dictToMongoQuery(hyperParameters, prefix=hyperParameters)
+
+        docList = self.getSimulationsDocuments(type=TYPE_MODEL, modelName=modelName, **signatureMap)
+        modelList = []
+        for doc in docList:
+            item  = convertJSONtoPandas(doc.desc['hyperParameters'])
+            item.assign(doc.desc['modelName'])
+            modelList,append(item)
+
+        return pandas.concat(modelList,ignore_index=True)
 
     def getModel(self,modelName,**hyperParameters):
         """
@@ -157,7 +180,13 @@ class torchModels(Project):
         -------
 
         """
-        pass
+        signatureMap = dictToMongoQuery(hyperParameters, prefix=hyperParameters)
+
+        docList = self.getSimulationsDocuments(type=TYPE_MODEL, modelName=modelName, **signatureMap)
+        if len(docList)==0:
+            return None
+        return docList[0]
+
 
     ##########################################################
     ##
