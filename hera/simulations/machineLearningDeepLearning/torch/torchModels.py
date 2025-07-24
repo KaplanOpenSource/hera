@@ -1,4 +1,5 @@
 import pandas
+import pydoc
 
 try:
     import torch
@@ -56,7 +57,7 @@ class torchModels(Project):
             A trainingStrategy object.
         """
 
-    def trainModel(self,modelInstance,trainingStrategy,totalEpoch,startFromCheckpoint=True,deviceName=None):
+    def saveModel(self,modelInstance,parametersFile):
         """
             Save a model to the DB.
 
@@ -94,21 +95,10 @@ class torchModels(Project):
 
         """
         logger = get_classMethod_logger(self,"trainModel")
-        deviceName = "cuda" if torch.cuda.is_available() else "cpu" if deviceName is None else deviceName
-        logger.info(f"training the model using device {deviceName}")
-
-        device = torch.device(deviceName)
-        parallelTrain = False
-        if deviceName == self.DEVICE_GPGPU:
-            gpu_count = torch.cuda.device_count()
-            if gpu_count >1:
-                logger.info(f"Found {gpu_count} gpus, training in parallel.")
-                parallelTrain = True
-
 
         signatureMap = dictToMongoQuery(self.get_constructor_args(model),prefix=hyperParameters)
         modelName,_ = self.get_class_info(model)
-
+        clsPath = self.get_class_file_path(model)
 
         docList = self.getSimulationsDocuments(type=TYPE_MODEL,modelName=modelName,**signatureMap)
         if len(docList) == 0:
@@ -120,30 +110,14 @@ class torchModels(Project):
                                               dataFormat=self.datatypes.STRING,
                                               desc=dict(
                                                   modelName=modelName,
-                                                  hyperParameters=signatureMap,
-                                                  training=dict(state=trainingStrategy.getState(),
-                                                                epoch = epoch,
-                                                                loss  = 1e10
-                                                                )
+                                                  modelPath=clsPath,
+                                                  hyperParameters=signatureMap
                                             )
             )
-            current_epoch = 0
         else:
-            logger.debug(f"Found. Loading the checkpoint and continue from there")
             doc = docList[0]
-            current_epoch = doc.desc['training']['epoch']
-            trainingStrategy.loadState(doc.desc['training'])
-            model.load_state_dict(doc.getData())
 
-        for epoch in range(current_epoch,totalEpoch):
-
-            avg_loss = trainingStrategy.train(model)
-            print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.6f}")
-
-            # Save checkpoint after every epoch
-            trainingStrategy.storeState(doc,epoch)
-
-        return avg_loss
+        return doc
 
     def listModels(self,modelName=None,**hyperParameters):
         """
@@ -168,9 +142,9 @@ class torchModels(Project):
 
         return pandas.concat(modelList,ignore_index=True)
 
-    def getModel(self,modelName,**hyperParameters):
+    def getModelDocument(self,modelName,**hyperParameters):
         """
-            Gets a model from the DB and loads it.
+            Gets a model document from the DB
         Parameters
         ----------
         modelName
@@ -186,6 +160,30 @@ class torchModels(Project):
         if len(docList)==0:
             return None
         return docList[0]
+
+    def getModel(self,modelName,**hyperParameters):
+        """
+            Get the model and load it.
+        Parameters
+        ----------
+        modelName
+        hyperParameters
+
+        Returns
+        -------
+
+        """
+        doc = self.getModelDocument(modelName,**hyperParameters)
+        clsPath = doc.desc['modelPath']
+        modelName = doc.desc['modelName']
+        hyperParameters  = doc.desc['hyperParameters']
+
+        os.path.append(clsPath)
+
+        mdlCls = pydoc.locate(modelName)
+
+        return modelName(**hyperParameters)
+
 
 
     ##########################################################
@@ -239,3 +237,14 @@ class torchModels(Project):
         name = cls.__name__
         full_path = f"{module}.{name}"
         return full_path, name
+
+    def get_class_file_path(self,instance):
+        """
+        Returns the full path of the file where the instance's class is defined.
+        """
+        cls = instance.__class__
+        try:
+            file_path = inspect.getfile(cls)
+            return os.path.abspath(file_path)
+        except TypeError:
+            return "Cannot determine file path (might be a built-in class)"
