@@ -3,7 +3,11 @@ import pandas
 import dask.dataframe
 import xarray
 import json
-import geopandas
+
+try:
+    import geopandas
+except ImportError:
+    print("geopandas not installed, no support for gis data format")
 try:
     from osgeo import gdal
 except ImportError:
@@ -13,7 +17,11 @@ import matplotlib.image as mpimg
 import sys
 import pickle
 import io
-import rasterio
+try:
+    import rasterio
+except ImportError:
+    print("rasterio not installed, no support for image data types. ")
+
 from hera.utils import loadJSON
 import importlib
 

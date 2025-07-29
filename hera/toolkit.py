@@ -36,7 +36,7 @@ class ToolkitHome:
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
     LSM            = "LSM"
-
+    MACHINELEARNING_DEEPLEARNING="machine_deep_learning"
     DATA           = "heraData"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
@@ -76,7 +76,8 @@ class ToolkitHome:
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
 
             WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit"),
-            GaussianDispersion = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit")
+            GaussianDispersion = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit"),
+            machine_deep_learning = dict(cls="hera.simulations.machineLearningDeepLearning.toolkit.machineLearningDeepLearningToolkit"),
 
         )
 

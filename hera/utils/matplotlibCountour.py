@@ -1,5 +1,8 @@
-from shapely import geometry
-import geopandas
+try:
+    from shapely import geometry
+    import geopandas
+except ImportError:
+    print("gis support not installed. ")
 
 from hera.utils.unitHandler import  *
 

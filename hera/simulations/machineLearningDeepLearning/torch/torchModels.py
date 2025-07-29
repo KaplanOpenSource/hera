@@ -12,7 +12,9 @@ import pydoc
 from hera.datalayer import Project
 from hera.utils.logging import get_classMethod_logger
 from torch.utils.data import DataLoader
-from toolkit import abstractToolkit
+from pytorch_lightning.callbacks import ModelCheckpoint
+
+from hera.toolkit import abstractToolkit
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from hera.utils import dictToMongoQuery
@@ -20,10 +22,19 @@ from hera.utils import dictToMongoQuery
 class torchLightingModel(Project):
     MODEL= "torchModel"
 
+    machineLearningDeepLearning =None
+
     modelJSON = None
 
 
-    def __init__(self):
+    @property
+    def modelName(self):
+        return self.modelJSON['model']['classpath'].replace(".", "_")
+
+    def __init__(self,mldlModels):
+
+        self.machineLearningDeepLearning = mldlModels
+        super().__init__(projectName=mldlModels.projectName,filesDirectory=mldlModels.filesDirectory)
         self.initModel()
 
     def initModel(self):
@@ -53,23 +64,25 @@ class torchLightingModel(Project):
         params = self.get_init_params(datasetClass)
         params.update(kwargs)
         info['parameters'] = params
-        self.modelJSON['dataset'][name] = info
+        self.modelJSON['dataset'][datasetName] = info
 
     def setTrainDataLoader(self, datasetName,**kwargs):
         name,info = self.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
         params['dataset'] = datasetName
         params.update(kwargs)
-        self.modelJSON['traindDataset'] = params
+        info['parameters'] = params
+        self.modelJSON['traindDataset'] = info
 
     def setTValidateDataLoader(self,datasetName,**kwargs):
         name, info = self.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
         params['dataset'] = datasetName
         params.update(kwargs)
-        self.modelJSON['validateDataset'] = params
+        info['parameters'] = params
+        self.modelJSON['validateDataset'] = info
 
-    def setModel(self,modelName,modelClass,**kwargs):
+    def setModel(self,modelClass,**kwargs):
         name,info = self.get_class_info(modelClass)
         params = self.get_init_params(modelClass)
         params.update(kwargs)
@@ -111,12 +124,6 @@ class torchLightingModel(Project):
         ckpt_path = os.path.join(doc.getData(),"version_0",f'{self.modelName}.pth') if overwrite else None
 
         trainer.fit(model,trainDatasetLoader,validateDatasetLoader,ckpt_path=ckpt_path)
-
-
-    @property
-    def modelName(self):
-        return self.modelJSON['model']['classpath'].replace(".", "_")
-
 
     def getModelDocument(self):
         qry = dictToMongoQuery(self.modelJSON)
@@ -208,7 +215,7 @@ class torchLightingModel(Project):
         return clss(**params)
 
 
-    def get_init_params(cls):
+    def get_init_params(self,cls):
         init = cls.__init__
         sig = inspect.signature(init)
 
@@ -222,11 +229,11 @@ class torchLightingModel(Project):
                 params[name] = param.default
         return params
 
-    def get_class_info(cls):
+    def get_class_info(self,cls):
         module = cls.__module__
         name = cls.__name__
         file_path = inspect.getfile(cls)
-        file_path = os.path.abspath(file_path)
+        file_path = os.path.dirname(os.path.abspath(file_path))
 
         full_path = f"{module}.{name}"
         return name, dict(classpath=full_path, filepath=file_path)

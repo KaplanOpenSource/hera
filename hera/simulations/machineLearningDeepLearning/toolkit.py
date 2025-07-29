@@ -1,7 +1,9 @@
 from hera.utils.logging import with_logger, get_classMethod_logger
 from hera.toolkit import abstractToolkit
 
-class hermesWorkflowToolkit(abstractToolkit):
+from hera.simulations.machineLearningDeepLearning.torch.torchModels import torchLightingModel
+
+class machineLearningDeepLearningToolkit(abstractToolkit):
     """
         The class handles machine/deep learning models.
 
@@ -29,4 +31,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
                          toolkitName= "machineLearningDeepLearningToolkit")
+
+    def getTocrchModel(self):
+        return torchLightingModel(self)
 
