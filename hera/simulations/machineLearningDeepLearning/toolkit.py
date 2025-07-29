@@ -14,7 +14,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
     """
 
-    def __init__(self, projectName: str, filesDirectory: str = None, toolkitName: str = "machineLearningDeepLearningToolkit"):
+    def __init__(self, projectName: str, filesDirectory: str = None):
         """
             Initializes the machineLearning/deepLearning toolkit.
 
@@ -28,7 +28,5 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
-                         toolkitName=toolkitName)
+                         toolkitName= "machineLearningDeepLearningToolkit")
 
-
-        
