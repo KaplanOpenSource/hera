@@ -150,16 +150,17 @@ class torchLightingModel(Project):
         savedir = doc.getData()
         filename = f'{self.modelName}.pth'
 
-        JSONDesc = self.modelJSON['trainer']
+        trainerJSON = self.modelJSON['trainer']
         logger = TensorBoardLogger(savedir, name=None, version=0)
 
-        checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],default_root_dir=savedir,filename=filename)
+        checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],dirpath=savedir,filename=filename)
 
-        trainer    = self.getClass(JSONDesc['trainer'])
-        params     = JSONDesc['trainer']['parameters']
+        trainer    = self.getClass(trainerJSON)
+        params     = trainerJSON['parameters']
         params.update(kwargs)
         params['logger'] = logger
-        return trainer(**params,callbacks=[checkpoint_callback])
+        params['callbacks'] = [checkpoint_callback]
+        return trainer(**params)
 
     def getDatasetLoader(self, JSONdesc):
         """
