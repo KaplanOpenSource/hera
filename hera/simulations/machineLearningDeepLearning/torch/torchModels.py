@@ -40,7 +40,7 @@ class torchLightingModel(Project):
     def initModel(self):
         self.modelJSON = dict()
         self.modelJSON['dataset'] = dict()
-        self.modelJSON['traindDataset'] = dict()
+        self.modelJSON['trainDataset'] = dict()
         self.modelJSON['validateDataset'] = dict()
         self.modelJSON['trainer'] = dict()
         self.modelJSON['model'] = dict()
@@ -62,6 +62,9 @@ class torchLightingModel(Project):
         """
         name,info = self.get_class_info(datasetClass)
         params = self.get_init_params(datasetClass)
+        if 'kwargs' in params:
+            del params['kwargs']
+
         params.update(kwargs)
         info['parameters'] = params
         self.modelJSON['dataset'][datasetName] = info
@@ -69,15 +72,15 @@ class torchLightingModel(Project):
     def setTrainDataLoader(self, datasetName,**kwargs):
         name,info = self.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
-        params['dataset'] = datasetName
+        info['dataset'] = datasetName
         params.update(kwargs)
         info['parameters'] = params
-        self.modelJSON['traindDataset'] = info
+        self.modelJSON['trainDataset'] = info
 
     def setTValidateDataLoader(self,datasetName,**kwargs):
         name, info = self.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
-        params['dataset'] = datasetName
+        info['dataset'] = datasetName
         params.update(kwargs)
         info['parameters'] = params
         self.modelJSON['validateDataset'] = info
@@ -85,7 +88,11 @@ class torchLightingModel(Project):
     def setModel(self,modelClass,**kwargs):
         name,info = self.get_class_info(modelClass)
         params = self.get_init_params(modelClass)
-        params.update(kwargs)
+        if 'kwargs' in params:
+            del params['kwargs']
+        import pdb
+        pdb.set_trace()
+        params.update(**kwargs)
         info['parameters'] = params
         self.modelJSON['model'] = info
 
@@ -174,8 +181,8 @@ class torchLightingModel(Project):
 
         """
         datasetName = JSONdesc['dataset']
-        dataset = self.initClass(self.modelJSON['dataset'][trainerDatasetName])
-        datasetLoader = self.initClass(self.modelJSON['dataset'],dataset=dataset)
+        dataset = self.initClass(self.modelJSON['dataset'][datasetName])
+        datasetLoader = self.initClass(JSONdesc,dataset=dataset)
         return datasetLoader
 
 
@@ -211,8 +218,8 @@ class torchLightingModel(Project):
 
         """
         clss = self.getClass(JSONdesc)
-        params = kwargs.copy()
-        params.update(JSONdesc['parameters'])
+        params = JSONdesc['parameters'].copy()
+        params.update(**kwargs)
         return clss(**params)
 
 
