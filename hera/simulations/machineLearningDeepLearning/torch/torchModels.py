@@ -13,6 +13,8 @@ from hera.datalayer import Project
 from hera.utils.logging import get_classMethod_logger
 from torch.utils.data import DataLoader
 from pytorch_lightning.callbacks import ModelCheckpoint
+from tensorboard.backend.event_processing import event_accumulator
+from glob import glob
 
 from hera.toolkit import abstractToolkit
 import pytorch_lightning as pl
@@ -90,13 +92,11 @@ class torchLightingModel(Project):
         params = self.get_init_params(modelClass)
         if 'kwargs' in params:
             del params['kwargs']
-        import pdb
-        pdb.set_trace()
         params.update(**kwargs)
         info['parameters'] = params
         self.modelJSON['model'] = info
 
-    def setTrainer(self,**kwargs):
+    def setTrainer(self,val_check_interval=1,**kwargs):
         name, info = self.get_class_info(pl.Trainer)
         params = self.get_init_params(pl.Trainer)
         params.update(kwargs)
@@ -112,7 +112,7 @@ class torchLightingModel(Project):
         self.modelJSON['checkpoint'] = info
 
 
-    def fit(self,max_epochs,overwrite=False):
+    def fit(self,max_epochs,continueTraining=True):
         """
             Initializes all the object and returns the trainer.
         Returns
@@ -125,12 +125,49 @@ class torchLightingModel(Project):
         trainDatasetLoader = self.getDatasetLoader(self.modelJSON['trainDataset'])
         validateDatasetLoader = self.getDatasetLoader(self.modelJSON['validateDataset'])
 
-        model = self.initClass(self.modelJSON['model'])
+
+        model = self.getModel()
         trainer = self.getTrainer(max_epochs=max_epochs,doc=doc)
 
-        ckpt_path = os.path.join(doc.getData(),"version_0",f'{self.modelName}.pth') if overwrite else None
+        ckpt_path = os.path.join(doc.getData(),f"{self.modelName}.chk")
+
+        # Remove it before training starts
+        if continueTraining:
+            if not os.path.exists(ckpt_path):
+                ckpt_path = None
+        elif os.path.exists(ckpt_path):
+            os.remove(ckpt_path)
+            ckpt_path = None
 
         trainer.fit(model,trainDatasetLoader,validateDatasetLoader,ckpt_path=ckpt_path)
+
+
+    def getStatistics(self):
+        doc = self.getModelDocument()
+
+        event_files = sorted(glob(os.path.join(doc.getData(),"version_0", "events.out.tfevents.*")))
+        if not event_files:
+            raise FileNotFoundError("No TensorBoard event files found.")
+
+        event_file = event_files[0]
+        ea = event_accumulator.EventAccumulator(event_file)
+        ea.Reload()
+
+        tags = ea.Tags()["scalars"]
+        df_list = []
+
+        for tag in tags:
+            events = ea.Scalars(tag)
+            temp_df = pandas.DataFrame({
+                "tag": tag,
+                "step": [e.step for e in events],
+                "value": [e.value for e in events],
+                "wall_time": [e.wall_time for e in events]
+            })
+            df_list.append(temp_df)
+
+        df = pandas.concat(df_list, ignore_index=True)
+        return df
 
     def getModelDocument(self):
         qry = dictToMongoQuery(self.modelJSON)
@@ -155,19 +192,27 @@ class torchLightingModel(Project):
             doc = self.getModelDocument()
 
         savedir = doc.getData()
-        filename = f'{self.modelName}.pth'
+        filename = self.modelName
 
         trainerJSON = self.modelJSON['trainer']
         logger = TensorBoardLogger(savedir, name=None, version=0)
-
-        checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],dirpath=savedir,filename=filename)
+        checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],dirpath=savedir,filename=filename,monitor = "val_loss")
 
         trainer    = self.getClass(trainerJSON)
         params     = trainerJSON['parameters']
-        params.update(kwargs)
+        params['enable_model_summary'] = True
+        params['limit_val_batches']= 1.0
+        params.update(**kwargs)
         params['logger'] = logger
         params['callbacks'] = [checkpoint_callback]
+
         return trainer(**params)
+
+
+
+
+    def getModel(self):
+        return self.initClass(self.modelJSON['model'])
 
     def getDatasetLoader(self, JSONdesc):
         """
@@ -184,6 +229,8 @@ class torchLightingModel(Project):
         dataset = self.initClass(self.modelJSON['dataset'][datasetName])
         datasetLoader = self.initClass(JSONdesc,dataset=dataset)
         return datasetLoader
+
+
 
 
     def getClass(self,JSONdesc):
@@ -245,6 +292,8 @@ class torchLightingModel(Project):
 
         full_path = f"{module}.{name}"
         return name, dict(classpath=full_path, filepath=file_path)
+
+
 
 
 
