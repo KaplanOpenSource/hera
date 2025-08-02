@@ -129,7 +129,7 @@ class torchLightingModel(Project):
         model = self.getModel()
         trainer = self.getTrainer(max_epochs=max_epochs,doc=doc)
 
-        ckpt_path = os.path.join(doc.getData(),f"{self.modelName}.chk")
+        ckpt_path = os.path.join(doc.getData(),f"{self.modelName}.ckpt")
 
         # Remove it before training starts
         if continueTraining:
