@@ -1,4 +1,5 @@
 import pandas
+import pydoc
 
 try:
     import torch
@@ -251,6 +252,30 @@ class torchLightingModel(Project):
 
         clss = pydoc.locate(classPath)
         return clss
+
+    def getModel(self,modelName,**hyperParameters):
+        """
+            Get the model and load it.
+        Parameters
+        ----------
+        modelName
+        hyperParameters
+
+        Returns
+        -------
+
+        """
+        doc = self.getModelDocument(modelName,**hyperParameters)
+        clsPath = doc.desc['modelPath']
+        modelName = doc.desc['modelName']
+        hyperParameters  = doc.desc['hyperParameters']
+
+        os.path.append(clsPath)
+
+        mdlCls = pydoc.locate(modelName)
+
+        return modelName(**hyperParameters)
+
 
 
     def initClass(self,JSONdesc,**kwargs):
