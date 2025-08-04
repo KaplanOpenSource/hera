@@ -127,7 +127,7 @@ class torchLightingModel(Project):
         validateDatasetLoader = self.getDatasetLoader(self.modelJSON['validateDataset'])
 
 
-        model = self.getModel()
+        model = self.initClass(self.modelJSON['model'])
         trainer = self.getTrainer(max_epochs=max_epochs,doc=doc)
 
         ckpt_path = os.path.join(doc.getData(),f"{self.modelName}.ckpt")
@@ -212,10 +212,6 @@ class torchLightingModel(Project):
         return trainer(**params)
 
 
-
-
-    def getModel(self):
-        return self.initClass(self.modelJSON['model'])
 
     def getDatasetLoader(self, JSONdesc):
         """
