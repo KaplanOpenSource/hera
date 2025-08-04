@@ -3,6 +3,9 @@ from hera.toolkit import abstractToolkit
 
 from hera.simulations.machineLearningDeepLearning.torch.torchModels import torchLightingModel
 
+
+
+
 class machineLearningDeepLearningToolkit(abstractToolkit):
     """
         The class handles machine/deep learning models.
@@ -35,3 +38,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
     def getTocrchModel(self):
         return torchLightingModel(self)
 
+
+    def loadTorchModel(self,modelID):
+        docList = self.getSimulationsDocuments(type= torchLightingModel.MODEL,modelID=modelID)
+
+        if len(docList) == 0 :
+            torchModel = None
+        else:
+            torchModel = torchLightingModel(self)
+            torchModel.modelJSON = docList[0].desc
+        return torchModel

@@ -176,8 +176,10 @@ class torchLightingModel(Project):
 
         if len(docList) == 0:
 
-            modelID = self.getCounterAndAdd(self.modelName)
+            modelID = self.getCounterAndAdd(self.MODEL)
             resource = os.path.join(self.filesDirectory, "modelData", f"{self.modelName}_{modelID}")
+            desc = self.modelJSON
+            desc['modelID'] = modelID
             doc = self.addSimulationsDocument(type=self.MODEL,
                                               resource=resource,
                                               dataFormat=self.datatypes.STRING,
