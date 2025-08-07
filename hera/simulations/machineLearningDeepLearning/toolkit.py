@@ -2,9 +2,8 @@ from hera.utils.logging import with_logger, get_classMethod_logger
 from hera.toolkit import abstractToolkit
 
 from hera.simulations.machineLearningDeepLearning.torch.torchModels import torchLightingModel
-
-
-
+from hera.utils import dictToMongoQuery
+from hera.utils.jsonutils import compareJSONS
 
 class machineLearningDeepLearningToolkit(abstractToolkit):
     """
@@ -35,16 +34,23 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
                          filesDirectory=filesDirectory,
                          toolkitName= "machineLearningDeepLearningToolkit")
 
-    def getTocrchModel(self):
+    def getEmptyTorchModel(self):
         return torchLightingModel(self)
 
+    def listTorchModels(self,longFormat=True,**qry,):
+        qryMongo = dictToMongoQuery(qry)
+        docList = self.getSimulationsDocuments(type=torchLightingModel.MODEL,**qryMongo)
 
-    def loadTorchModel(self,modelID):
-        docList = self.getSimulationsDocuments(type= torchLightingModel.MODEL,modelID=modelID)
+        return compareJSONS(**dict([(f"M{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]),
+                            longFormat=longFormat,changeDotToUnderscore=True)
 
-        if len(docList) == 0 :
-            torchModel = None
+    def getTorchModelByID(self,modelID):
+        docList = self.getSimulationsDocuments(type=torchLightingModel.MODEL, modelID=modelID)
+        if len(docList)>0:
+            mdlDesc = self.getEmptyTorchModel()
+            mdlDesc.modelJSON = docList[0].desc['model']
+            mdlDesc.modelID = docList[0].desc['modelID']
+            mdl = mdlDesc.getModel()
         else:
-            torchModel = torchLightingModel(self)
-            torchModel.modelJSON = docList[0].desc
-        return torchModel
+            mdl= None
+        return mdl

@@ -28,7 +28,7 @@ class torchLightingModel(Project):
     machineLearningDeepLearning =None
 
     modelJSON = None
-
+    modelID = None
 
     @property
     def modelName(self):
@@ -126,7 +126,6 @@ class torchLightingModel(Project):
         trainDatasetLoader = self.getDatasetLoader(self.modelJSON['trainDataset'])
         validateDatasetLoader = self.getDatasetLoader(self.modelJSON['validateDataset'])
 
-
         model = self.initClass(self.modelJSON['model'])
         trainer = self.getTrainer(max_epochs=max_epochs,doc=doc)
 
@@ -178,14 +177,14 @@ class torchLightingModel(Project):
 
             modelID = self.getCounterAndAdd(self.MODEL)
             resource = os.path.join(self.filesDirectory, "modelData", f"{self.modelName}_{modelID}")
-            desc = self.modelJSON
-            desc['modelID'] = modelID
+            self.modelID = modelID
             doc = self.addSimulationsDocument(type=self.MODEL,
                                               resource=resource,
                                               dataFormat=self.datatypes.STRING,
-                                              desc=self.modelJSON)
+                                              desc=dict(model=self.modelJSON,modelID=modelID))
         else:
             doc = docList[0]
+            self.modelID = doc.desc['modelID']
         return doc
 
 
@@ -212,6 +211,10 @@ class torchLightingModel(Project):
         return trainer(**params)
 
 
+
+
+    def getModel(self):
+        return self.initClass(self.modelJSON['model'])
 
     def getDatasetLoader(self, JSONdesc):
         """
@@ -251,7 +254,7 @@ class torchLightingModel(Project):
         clss = pydoc.locate(classPath)
         return clss
 
-    def getModel(self,modelName,**hyperParameters):
+    def getModel(self):
         """
             Get the model and load it.
         Parameters
@@ -263,17 +266,7 @@ class torchLightingModel(Project):
         -------
 
         """
-        doc = self.getModelDocument(modelName,**hyperParameters)
-        clsPath = doc.desc['modelPath']
-        modelName = doc.desc['modelName']
-        hyperParameters  = doc.desc['hyperParameters']
-
-        os.path.append(clsPath)
-
-        mdlCls = pydoc.locate(modelName)
-
-        return modelName(**hyperParameters)
-
+        return self.initClass(self.modelJSON['model'])
 
 
     def initClass(self,JSONdesc,**kwargs):

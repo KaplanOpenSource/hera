@@ -134,7 +134,11 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         ret = data[[datasetName]].drop_duplicates()
 
     if changeDotToUnderscore:
-        newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
+        try:
+            newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
+        except AttributeError:
+            import pdb
+            pdb.set_trace()
         ret_tmp = ret.T.rename(columns=dict(newColNames))
         ret = ret_tmp.T
     return ret
