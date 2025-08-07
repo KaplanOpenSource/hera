@@ -2,7 +2,7 @@ from hera.utils.logging import with_logger, get_classMethod_logger
 from hera.toolkit import abstractToolkit
 
 from hera.simulations.machineLearningDeepLearning.torch.torchModels import torchLightingModel
-from utils import dictToMongoQuery
+from hera.utils import dictToMongoQuery
 
 
 class machineLearningDeepLearningToolkit(abstractToolkit):
