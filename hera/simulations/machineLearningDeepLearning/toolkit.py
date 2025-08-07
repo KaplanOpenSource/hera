@@ -34,7 +34,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
                          filesDirectory=filesDirectory,
                          toolkitName= "machineLearningDeepLearningToolkit")
 
-    def getEmptyTocrchModel(self):
+    def getEmptyTorchModel(self):
         return torchLightingModel(self)
 
     def listTorchModels(self,**qry):

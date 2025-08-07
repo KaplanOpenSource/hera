@@ -121,7 +121,6 @@ class torchLightingModel(Project):
 
         """
         doc = self.getModelDocument()
-
         # 1. Initialize the dataloaders .
         trainDatasetLoader = self.getDatasetLoader(self.modelJSON['trainDataset'])
         validateDatasetLoader = self.getDatasetLoader(self.modelJSON['validateDataset'])
