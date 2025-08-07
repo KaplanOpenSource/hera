@@ -28,7 +28,7 @@ class torchLightingModel(Project):
     machineLearningDeepLearning =None
 
     modelJSON = None
-
+    modelID = None
 
     @property
     def modelName(self):
@@ -175,14 +175,16 @@ class torchLightingModel(Project):
 
         if len(docList) == 0:
 
-            modelID = self.getCounterAndAdd(self.modelName)
+            modelID = self.getCounterAndAdd(self.MODEL)
             resource = os.path.join(self.filesDirectory, "modelData", f"{self.modelName}_{modelID}")
+            self.modelID = modelID
             doc = self.addSimulationsDocument(type=self.MODEL,
                                               resource=resource,
                                               dataFormat=self.datatypes.STRING,
-                                              desc=self.modelJSON)
+                                              desc=dict(model=self.modelJSON,modelID=modelID))
         else:
             doc = docList[0]
+            self.modelID = doc.desc['modelID']
         return doc
 
 
