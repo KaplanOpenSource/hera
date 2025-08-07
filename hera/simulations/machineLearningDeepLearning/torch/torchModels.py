@@ -248,7 +248,7 @@ class torchLightingModel(Project):
         clss = pydoc.locate(classPath)
         return clss
 
-    def getModel(self,modelName,**hyperParameters):
+    def getModel(self):
         """
             Get the model and load it.
         Parameters
@@ -260,17 +260,7 @@ class torchLightingModel(Project):
         -------
 
         """
-        doc = self.getModelDocument(modelName,**hyperParameters)
-        clsPath = doc.desc['modelPath']
-        modelName = doc.desc['modelName']
-        hyperParameters  = doc.desc['hyperParameters']
-
-        os.path.append(clsPath)
-
-        mdlCls = pydoc.locate(modelName)
-
-        return modelName(**hyperParameters)
-
+        return self.initClass(self.modelJSON['model'])
 
 
     def initClass(self,JSONdesc,**kwargs):
