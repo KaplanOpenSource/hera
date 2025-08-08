@@ -1,5 +1,6 @@
 import pandas
 import pydoc
+import copy
 
 try:
     import torch
@@ -116,10 +117,11 @@ class torchLightingModel(Project):
 
 
     def load(self):
-        doc = self.getModelDocument()
-        self.modelID = doc.desc['modelID']
-        self.modelJSON = doc.desc['model']
-        self.modelResource = doc.getData()
+        if self.modelID is None:
+            doc = self.getModelDocument()
+            self.modelID = doc.desc['modelID']
+            self.modelJSON = copy.deepcopy(doc.desc['model'])
+            self.modelResource = doc.getData()
 
     def fit(self,max_epochs,continueTraining=True):
         """
@@ -128,15 +130,14 @@ class torchLightingModel(Project):
         -------
 
         """
-        if self.modelJSON is None:
-            doc = self.getModelDocument()
+        self.load()
 
         # 1. Initialize the dataloaders .
         trainDatasetLoader = self.getDatasetLoader(self.modelJSON['trainDataset'])
         validateDatasetLoader = self.getDatasetLoader(self.modelJSON['validateDataset'])
 
         model = self.initClass(self.modelJSON['model'])
-        trainer = self.getTrainer(max_epochs=max_epochs,doc=doc)
+        trainer = self.getTrainer(max_epochs=max_epochs)
 
         ckpt_path = os.path.join(self.modelResource,f"{self.modelName}.ckpt")
 
@@ -200,8 +201,7 @@ class torchLightingModel(Project):
     def getTrainer(self,**kwargs):
 
         if self.modelResource is None:
-            doc = self.getModelDocument()
-            savedir = doc.getData()
+            self.load()
         else:
             savedir = self.modelResource
 
@@ -241,8 +241,6 @@ class torchLightingModel(Project):
         dataset = self.initClass(self.modelJSON['dataset'][datasetName])
         datasetLoader = self.initClass(JSONdesc,dataset=dataset)
         return datasetLoader
-
-
 
 
     def getClass(self,JSONdesc):
