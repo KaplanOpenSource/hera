@@ -316,7 +316,12 @@ class torchLightingModel(Project):
         file_path = os.path.dirname(os.path.abspath(file_path))
 
         full_path = f"{module}.{name}"
-        return name, dict(classpath=full_path, filepath=file_path)
+        patList = file_path.split(os.path.sep)
+        moduleNameIndex = patList.index(full_path.split(".")[0])
+        patList[0] = '/'
+        module_file_path = os.path.join(*patList[:moduleNameIndex])
+
+        return name, dict(classpath=full_path, filepath=module_file_path)
 
 
 
