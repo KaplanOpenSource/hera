@@ -197,14 +197,15 @@ class torchLightingModel(Project):
         return doc
 
 
-    def getTrainer(self,doc=None,**kwargs):
+    def getTrainer(self,**kwargs):
 
-        if doc is None:
+        if self.modelResource is None:
             doc = self.getModelDocument()
+            savedir = doc.getData()
+        else:
+            savedir = self.modelResource
 
-        savedir = doc.getData()
         filename = self.modelName
-
         trainerJSON = self.modelJSON['trainer']
         logger = TensorBoardLogger(savedir, name=None, version=0)
         checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],dirpath=savedir,filename=filename,monitor = "val_loss")
