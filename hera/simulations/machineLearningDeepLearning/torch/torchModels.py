@@ -133,8 +133,8 @@ class torchLightingModel(Project):
         self.load()
 
         # 1. Initialize the dataloaders .
-        trainDatasetLoader = self.getDatasetLoader(self.modelJSON['trainDataset'])
-        validateDatasetLoader = self.getDatasetLoader(self.modelJSON['validateDataset'])
+        trainDatasetLoader = self.getTrainDataset()
+        validateDatasetLoader = self.getValidateDataset()
 
         model = self.initClass(self.modelJSON['model'])
         trainer = self.getTrainer(max_epochs=max_epochs)
@@ -220,13 +220,19 @@ class torchLightingModel(Project):
 
         return trainer(**params)
 
-
-
-
     def getModel(self):
         return self.initClass(self.modelJSON['model'])
 
-    def getDatasetLoader(self, JSONdesc):
+
+    def getTrainDataset(self):
+        trainDatasetLoader = self._getDatasetLoader(self.modelJSON['trainDataset'])
+
+
+    def getValidateDataset(self):
+        validateDatasetLoader = self._getDatasetLoader(self.modelJSON['validateDataset'])
+
+
+    def _getDatasetLoader(self, JSONdesc):
         """
             The
         Parameters
