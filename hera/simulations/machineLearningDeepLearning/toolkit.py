@@ -1,3 +1,5 @@
+import inspect
+import os
 from hera.utils.logging import with_logger, get_classMethod_logger
 from hera.toolkit import abstractToolkit
 
@@ -37,12 +39,18 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
     def getEmptyTorchModel(self):
         return torchLightingModel(self)
 
-    def listTorchModels(self,longFormat=True,**qry,):
+    def listTorchModels(self, modelObjectOrName=None, longFormat=True, **qry):
         qryMongo = dictToMongoQuery(qry)
+        if modelObjectOrName is not None:
+            if isinstance(modelObjectOrName, str):
+                qryMongo["model__model__classpath"] = modelObjectOrName
+            else:
+                qryMongo["model__model__classpath"] = self.get_model_fullname(modelObjectOrName)
         docList = self.getSimulationsDocuments(type=torchLightingModel.MODEL,**qryMongo)
-
         return compareJSONS(**dict([(f"M{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]),
                             longFormat=longFormat,changeDotToUnderscore=True)
+
+
 
     def getTorchModelByID(self,modelID,**qry):
         qryModngo = dictToMongoQuery(qry,prefix="model")
@@ -54,3 +62,23 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         else:
             mdlDesc= None
         return mdlDesc
+
+    @classmethod
+    def get_model_fullname(cls,modelCls):
+        name,data = cls.get_class_info(modelCls)
+        return data['classpath']
+
+    @classmethod
+    def get_class_info(cls,modelCls):
+        module = modelCls.__module__
+        name = modelCls.__name__
+        file_path = inspect.getfile(modelCls)
+        file_path = os.path.dirname(os.path.abspath(file_path))
+
+        full_path = f"{module}.{name}"
+        patList = file_path.split(os.path.sep)
+        moduleNameIndex = patList.index(full_path.split(".")[0])
+        patList[0] = '/'
+        module_file_path = os.path.join(*patList[:moduleNameIndex])
+
+        return name, dict(classpath=full_path, filepath=module_file_path)

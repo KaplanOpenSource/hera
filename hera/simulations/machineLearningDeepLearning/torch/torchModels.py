@@ -66,7 +66,7 @@ class torchLightingModel(Project):
         -------
 
         """
-        name,info = self.get_class_info(datasetClass)
+        name,info = self.machineLearningDeepLearning.get_class_info(datasetClass)
         params = self.get_init_params(datasetClass)
         if 'kwargs' in params:
             del params['kwargs']
@@ -76,7 +76,7 @@ class torchLightingModel(Project):
         self.modelJSON['dataset'][datasetName] = info
 
     def setTrainDataLoader(self, datasetName,**kwargs):
-        name,info = self.get_class_info(DataLoader)
+        name,info = self.machineLearningDeepLearning.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
         info['dataset'] = datasetName
         params.update(kwargs)
@@ -84,7 +84,7 @@ class torchLightingModel(Project):
         self.modelJSON['trainDataset'] = info
 
     def setTValidateDataLoader(self,datasetName,**kwargs):
-        name, info = self.get_class_info(DataLoader)
+        name, info = self.machineLearningDeepLearning.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
         info['dataset'] = datasetName
         params.update(kwargs)
@@ -92,7 +92,7 @@ class torchLightingModel(Project):
         self.modelJSON['validateDataset'] = info
 
     def setModel(self,modelClass,**kwargs):
-        name,info = self.get_class_info(modelClass)
+        name,info = self.machineLearningDeepLearning.get_class_info(modelClass)
         params = self.get_init_params(modelClass)
         if 'kwargs' in params:
             del params['kwargs']
@@ -101,7 +101,7 @@ class torchLightingModel(Project):
         self.modelJSON['model'] = info
 
     def setTrainer(self,val_check_interval=1,**kwargs):
-        name, info = self.get_class_info(pl.Trainer)
+        name, info = self.machineLearningDeepLearning.get_class_info(pl.Trainer)
         params = self.get_init_params(pl.Trainer)
         params.update(kwargs)
         info['parameters'] = params
@@ -109,7 +109,7 @@ class torchLightingModel(Project):
 
 
     def setCheckPoint(self,**kwargs):
-        name, info = self.get_class_info(ModelCheckpoint)
+        name, info = self.machineLearningDeepLearning.get_class_info(ModelCheckpoint)
         params = self.get_init_params(ModelCheckpoint)
         params.update(kwargs)
         info['parameters'] = params
@@ -223,7 +223,6 @@ class torchLightingModel(Project):
     def getModel(self):
         return self.initClass(self.modelJSON['model'])
 
-
     def getTrainDataset(self):
         return self._getDatasetLoader(self.modelJSON['trainDataset'])
 
@@ -314,19 +313,6 @@ class torchLightingModel(Project):
                 params[name] = param.default
         return params
 
-    def get_class_info(self,cls):
-        module = cls.__module__
-        name = cls.__name__
-        file_path = inspect.getfile(cls)
-        file_path = os.path.dirname(os.path.abspath(file_path))
-
-        full_path = f"{module}.{name}"
-        patList = file_path.split(os.path.sep)
-        moduleNameIndex = patList.index(full_path.split(".")[0])
-        patList[0] = '/'
-        module_file_path = os.path.join(*patList[:moduleNameIndex])
-
-        return name, dict(classpath=full_path, filepath=module_file_path)
 
 
 
