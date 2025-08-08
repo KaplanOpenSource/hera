@@ -225,11 +225,11 @@ class torchLightingModel(Project):
 
 
     def getTrainDataset(self):
-        trainDatasetLoader = self._getDatasetLoader(self.modelJSON['trainDataset'])
+        return self._getDatasetLoader(self.modelJSON['trainDataset'])
 
 
     def getValidateDataset(self):
-        validateDatasetLoader = self._getDatasetLoader(self.modelJSON['validateDataset'])
+        return self._getDatasetLoader(self.modelJSON['validateDataset'])
 
 
     def _getDatasetLoader(self, JSONdesc):
