@@ -29,6 +29,8 @@ class torchLightingModel(Project):
 
     modelJSON = None
     modelID = None
+    modelResource = None
+
 
     @property
     def modelName(self):
@@ -113,6 +115,12 @@ class torchLightingModel(Project):
         self.modelJSON['checkpoint'] = info
 
 
+    def load(self):
+        doc = self.getModelDocument()
+        self.modelID = doc.desc['modelID']
+        self.modelJSON = doc.desc['model']
+        self.modelResource = doc.getData()
+
     def fit(self,max_epochs,continueTraining=True):
         """
             Initializes all the object and returns the trainer.
@@ -120,7 +128,8 @@ class torchLightingModel(Project):
         -------
 
         """
-        doc = self.getModelDocument()
+        if self.modelJSON is None:
+            doc = self.getModelDocument()
 
         # 1. Initialize the dataloaders .
         trainDatasetLoader = self.getDatasetLoader(self.modelJSON['trainDataset'])
@@ -129,7 +138,7 @@ class torchLightingModel(Project):
         model = self.initClass(self.modelJSON['model'])
         trainer = self.getTrainer(max_epochs=max_epochs,doc=doc)
 
-        ckpt_path = os.path.join(doc.getData(),f"{self.modelName}.ckpt")
+        ckpt_path = os.path.join(self.modelResource,f"{self.modelName}.ckpt")
 
         # Remove it before training starts
         if continueTraining:
@@ -143,7 +152,8 @@ class torchLightingModel(Project):
 
 
     def getStatistics(self):
-        doc = self.getModelDocument()
+        if self.modelJSON is None:
+            doc = self.getModelDocument()
 
         event_files = sorted(glob(os.path.join(doc.getData(),"version_0", "events.out.tfevents.*")))
         if not event_files:
@@ -170,21 +180,20 @@ class torchLightingModel(Project):
         return df
 
     def getModelDocument(self):
-        qry = dictToMongoQuery(self.modelJSON)
+        qry = dictToMongoQuery(self.modelJSON,prefix="model")
         docList = self.getSimulationsDocuments(type=self.MODEL, **qry)
 
         if len(docList) == 0:
 
             modelID = self.getCounterAndAdd(self.MODEL)
             resource = os.path.join(self.filesDirectory, "modelData", f"{self.modelName}_{modelID}")
-            self.modelID = modelID
             doc = self.addSimulationsDocument(type=self.MODEL,
                                               resource=resource,
                                               dataFormat=self.datatypes.STRING,
                                               desc=dict(model=self.modelJSON,modelID=modelID))
         else:
             doc = docList[0]
-            self.modelID = doc.desc['modelID']
+
         return doc
 
 
