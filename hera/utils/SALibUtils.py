@@ -1,3 +1,4 @@
+import numpy
 import SALib
 import json
 
@@ -7,7 +8,7 @@ from hera.utils.jsonutils import setJSONPath
 class SALibUtils:
     
     @classmethod
-    def buildSAProblem(self, **kwargs):
+    def buildSAProblem(cls, **kwargs):
         """
             Gets parameters and returns a dict with :
                 - problem : a dict with the problem JSON
@@ -36,7 +37,7 @@ class SALibUtils:
         typeDict = kwargs.copy()
         for key,value in kwargs.items():
             if isinstance(value,dict):
-                boundsFunc = getattr(self,f"_getBounds_{value['type']}")
+                boundsFunc = getattr(cls,f"_getBounds_{value['type']}")
                 bounds = boundsFunc(value['parameters'])
                 boundsList.append(bounds)
             else:
@@ -53,21 +54,23 @@ class SALibUtils:
         return problemJSON
 
     @classmethod
-    def transformSample(cls, batch, problemContainer):
+    def transformSample(cls, batchList, problemContainer):
 
         typeDict = problemContainer['type']
-        newValueList = []
-        for paramName,paramValue in zip(problemContainer['problem']['names'],batch):
+        newbatchList = []
+        for batch in batchList:
+            newValueList = []
+            for paramName,paramValue in zip(problemContainer['problem']['names'],batch):
+                transformerFunc = getattr(cls, f"_transform_{typeDict[paramName]['type']}")
+                newValue = transformerFunc(paramValue,typeDict[paramName])
+                newValueList.append(newValue)
+            newbatchList.append(newValueList)
 
-            transformerFunc = getattr(self, f"_transform_{typeDict[paramName]}")
-            newValue = transformerFunc(paramValue,typeDict[paramName])
-            newValueList.append()
-
-        return newValueList
+        return newbatchList
 
     @classmethod
     def typeInt(cls,lower,upper):
-        return dict(type="int",parameters=[lower,upper])
+        return dict(type="int",parameters=[lower,upper+1])
 
     @classmethod
     def typeList(cls,items):
@@ -83,7 +86,7 @@ class SALibUtils:
     ##----------------------------------------------------------
     @classmethod
     def _getBounds_list(cls,parameters):
-        return [0,len(items)+1]
+        return [0,len(parameters)]
 
     @classmethod
     def _getBounds_int(cls,parameters):
@@ -99,6 +102,8 @@ class SALibUtils:
     @classmethod
     def _transform_list(cls,value,meta):
         indx = int(numpy.floor(value))
+        if indx==len(meta['parameters']):
+            indx -=1
         return meta['parameters'][indx]
 
     @classmethod
@@ -107,11 +112,11 @@ class SALibUtils:
 
     @classmethod
     def _transform_log(cls,value,meta):
-        return 10**value
+        return 10**float(value)
 
     @classmethod
     def _transform_float(cls,value,meta):
-        return value
+        return float(value)
 
 
 
