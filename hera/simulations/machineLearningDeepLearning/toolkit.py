@@ -1,3 +1,4 @@
+import numpy
 import inspect
 import os
 from hera.utils.logging import with_logger, get_classMethod_logger
@@ -8,10 +9,11 @@ from hera.utils import dictToMongoQuery
 from hera.utils.jsonutils import compareJSONS
 from hera.utils.SALibUtils import SALibUtils
 from hera.utils.jsonutils import setJSONPath
+
 try:
     import SALib
-    import SALib.sample as SA_sample
-    import SALib.analyze as SA_analyze
+    from SALib.sample import morris as morris_sample
+    from SALib.analyze import morris as morris_analyze
 except ImportError:
     print("SALib not installed, cannot support sensitivity analysis")
 
@@ -92,7 +94,6 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         morris_sample_parameters = {
             'N': 100,  # Number of trajectories (you can change as needed)
             'num_levels': 4,  # Number of levels in the grid
-            'grid_jump': None,  # Defaults to num_levels // 2 if None
             'optimal_trajectories': None,  # No trajectory optimization by default
             'local_optimization': False  # No local optimization by default
         }
@@ -101,9 +102,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
 
         morris_analyze_parameters = {
             'num_levels': morris_sample_parameters['num_levels'],  # must match the sample design
-            'grid_jump': morris_sample_parameters['grid_jump']
-            if morris_sample_parameters['grid_jump'] is not None
-            else morris_sample_parameters['num_levels'] // 2,
+            'grid_jump':  morris_sample_parameters['num_levels'] // 2,
             'conf_level': 0.95,  # default confidence level
             'print_to_console': False,  # suppress printing by default
             'num_resamples': 1000,  # bootstrap iterations for CIs
@@ -113,23 +112,26 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
 
         baseJson = modelContainer.modelJSON
 
-        raw_param_values = SA_sample.morris.sample(problemContainer,**morris_sample_parameters)
+        raw_param_values = morris_sample.sample(problemContainer['problem'],**morris_sample_parameters)
         samples = SALibUtils.transformSample(batchList=raw_param_values,problemContainer=problemContainer)
-        Y = np.zeros(samples.shape[0])
+
+        Y = numpy.zeros(len(samples))
 
         for i,sample in enumerate(samples):
             # Transfer to a dict of param name -> real value.
-            paramDict = dict([(name,value) for name,value in zip(problemContainer['problem']['name'],sample)])
-            smapleJSON = setJSONPath(base=baseJson,valuesDict = paramDict,inPlace=False)
+            paramDict = dict([(name,value) for name,value in zip(problemContainer['problem']['names'],sample)])
+            sampleJSON = setJSONPath(base=baseJson,valuesDict = paramDict,inPlace=False)
             emptyContainer = self.getEmptyTorchModelContainer()
-            emptyContainer.modelJSON = smapleJSON
+
+
+            emptyContainer.modelJSON = sampleJSON
             emptyContainer.fit(maxEpoch)
             stats = emptyContainer.getStatistics()
 
             result = stats.loc[stats.groupby("tag")["step"].idxmax(), ["tag", "value"]].set_index("tag")
             Y[i] = result.loc["val_loss_epoch"].item()
 
-        Si = SA_analyze.morris.analyze(problemContainer['problem'], samples, Y, **morris_analyze_parameters)
+        Si = morris_analyze.analyze(problemContainer['problem'], samples, Y, **morris_analyze_parameters)
         return Si
 
     #def sensitivityAnalysisExecute_morris
@@ -140,7 +142,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
     ## ====================================================================================================
     ## ====================================================================================================
 
-    @cla ssmethod
+    @classmethod
     def get_model_fullname(cls,modelCls):
         name,data = cls.get_class_info(modelCls)
         return data['classpath']

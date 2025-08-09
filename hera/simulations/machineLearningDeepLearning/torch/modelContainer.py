@@ -4,8 +4,9 @@ import copy
 
 try:
     import torch
+    from pytorch_lightning.utilities.exceptions import MisconfigurationException
 except ImportError:
-    print("pyTorch not Found. Cannot uyse this toolkit")
+    print("pyTorch or pytorch lighting are not Found. Cannot uyse this toolkit")
 
 import inspect
 import os
@@ -28,10 +29,18 @@ class torchLightingModelContainer(Project):
 
     machineLearningDeepLearning =None
 
-    modelJSON = None
+    _modelJSON = None
     modelID = None
     modelResource = None
 
+    @property
+    def modelJSON(self):
+        return self._modelJSON
+
+    @modelJSON.setter
+    def modelJSON(self, value):
+        self._modelJSON = value
+        self.modelID = None
 
     @property
     def modelName(self):
@@ -125,9 +134,13 @@ class torchLightingModelContainer(Project):
 
     @property
     def max_epoch(self):
-        ckpt_path = os.path.join(self.modelResource, f"{self.modelName}.ckpt")
+        ckpt_path = self.checkpoint_path
         ckpt = torch.load(ckpt_path, map_location="cpu")
         return ckpt["epoch"]+1
+
+    @property
+    def checkpoint_path(self):
+        return os.path.join(self.modelResource,f"{self.modelName}.ckpt")
 
     def fit(self,max_epochs,continueTraining=True):
         """
@@ -145,7 +158,7 @@ class torchLightingModelContainer(Project):
         model = self.initClass(self.modelJSON['model'])
         trainer = self.getTrainer(max_epochs=max_epochs)
 
-        ckpt_path = os.path.join(self.modelResource,f"{self.modelName}.ckpt")
+        ckpt_path = self.checkpoint_path
 
         # Remove it before training starts
         if continueTraining:
@@ -155,42 +168,42 @@ class torchLightingModelContainer(Project):
             os.remove(ckpt_path)
             ckpt_path = None
 
-        trainer.fit(model,trainDatasetLoader,validateDatasetLoader,ckpt_path=ckpt_path)
-
+        try:
+            trainer.fit(model,trainDatasetLoader,validateDatasetLoader,ckpt_path=ckpt_path)
+        except MisconfigurationException as e:
+            print(f"Already trained for larger number of epochs. make sure that all set is trained for that number {e}")
 
     def getStatistics(self):
         if self.modelJSON is None:
             doc = self.getModelDocument()
-
         event_files = sorted(glob(os.path.join(self.modelResource,"version_0", "events.out.tfevents.*")))
         if not event_files:
             raise FileNotFoundError("No TensorBoard event files found.")
 
-        event_file = event_files[0]
-        ea = event_accumulator.EventAccumulator(event_file)
-        ea.Reload()
-
-        tags = ea.Tags()["scalars"]
         df_list = []
+        for event_file in event_files:
+            ea = event_accumulator.EventAccumulator(event_file)
+            ea.Reload()
 
-        for tag in tags:
-            events = ea.Scalars(tag)
-            temp_df = pandas.DataFrame({
-                "tag": tag,
-                "step": [e.step for e in events],
-                "value": [e.value for e in events],
-                "wall_time": [e.wall_time for e in events],
-                "max_epoch" : self.max_epoch
-            })
-            df_list.append(temp_df)
+            tags = ea.Tags()["scalars"]
 
-        df = pandas.concat(df_list, ignore_index=True)
+            for tag in tags:
+                events = ea.Scalars(tag)
+                temp_df = pandas.DataFrame({
+                    "tag": tag,
+                    "step": [e.step for e in events],
+                    "value": [e.value for e in events],
+                    "wall_time": [e.wall_time for e in events],
+                    "max_epoch": self.max_epoch
+                })
+                df_list.append(temp_df)
+
+        df = pandas.concat(df_list, ignore_index=True).sort_values("step")
         return df
 
     def getModelDocument(self):
         qry = dictToMongoQuery(self.modelJSON,prefix="model")
         docList = self.getSimulationsDocuments(type=self.MODEL, **qry)
-
         if len(docList) == 0:
 
             modelID = self.getCounterAndAdd(self.MODEL)
@@ -227,7 +240,13 @@ class torchLightingModelContainer(Project):
         return trainer(**params)
 
     def getModel(self):
-        return self.initClass(self.modelJSON['model'])
+        model =  self.initClass(self.modelJSON['model'])
+        if os.path.exists(self.checkpoint_path):
+            checkpoint = torch.load(self.checkpoint_path)
+            model.load_state_dict(checkpoint['state_dict'])
+            model.eval()
+        return model
+        # now loading the state.
 
     def getTrainDataset(self):
         return self._getDatasetLoader(self.modelJSON['trainDataset'])
@@ -272,21 +291,6 @@ class torchLightingModelContainer(Project):
 
         clss = pydoc.locate(classPath)
         return clss
-
-    def getModel(self):
-        """
-            Get the model and load it.
-        Parameters
-        ----------
-        modelName
-        hyperParameters
-
-        Returns
-        -------
-
-        """
-        return self.initClass(self.modelJSON['model'])
-
 
     def initClass(self,JSONdesc,**kwargs):
         """

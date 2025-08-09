@@ -440,7 +440,7 @@ def setJSONPath(base,valuesDict,inPlace=False):
             jsonpath_expr = parse(curkey)
             match = [match for match in jsonpath_expr.find(base_local)][0]
             jsonpath_expr.update(match, value)
-    return base
+    return base_local
 
 
 def JSONVariations(base,variationJSON):
