@@ -130,12 +130,13 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         if longFormat is False:
             ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
+        ret = ret.set_index("parameterNameFullPath")
+        if changeDotToUnderscore:
+            newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
+            ret_tmp = ret.T.rename(columns=dict(newColNames))
+            ret = ret_tmp.T
     else:
         ret = data[[datasetName]].drop_duplicates()
 
-    if changeDotToUnderscore:
-        newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
-        ret_tmp = ret.T.rename(columns=dict(newColNames))
-        ret = ret_tmp.T
     return ret
 
