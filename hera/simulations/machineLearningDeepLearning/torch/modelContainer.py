@@ -23,7 +23,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from hera.utils import dictToMongoQuery
 
-class torchLightingModel(Project):
+class torchLightingModelContainer(Project):
     MODEL= "torchModel"
 
     machineLearningDeepLearning =None

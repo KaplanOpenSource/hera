@@ -2,6 +2,7 @@ import os
 import json
 import pandas
 import logging
+import copy
 from itertools import product
 from json.decoder import JSONDecodeError
 from hera.utils.logging import get_classMethod_logger
@@ -392,6 +393,56 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColum
 
     return pnds1
 
+
+def setJSONPath(base,valuesDict,inPlace=False):
+    """
+        Sets the variables in the values dict to the base.
+        That is the base is a regular JSON file:
+        {
+            "a" : {
+                "b" : 1
+            },
+            "c" : {
+                "d" : 2
+            }
+        }
+
+        And the values dict is a path-> value.
+        {
+            "a.b" : 2
+        }
+
+        so it will return
+        {
+            "a" : {
+                "b" : 2
+            },
+            "c" : {
+                "d" : 2
+            }
+        }
+
+    Parameters
+    ----------
+    base
+    valuesDict
+    inPlace : bool
+        If false create a copy, else change the input.
+
+    Returns
+    -------
+
+    """
+    base_local = base if inPlace else copy.deepcopy(base)
+
+    for key, value in valuesDict.items():
+            curkey = key if key.startswith("$.") else f"$.{key}"
+            jsonpath_expr = parse(curkey)
+            match = [match for match in jsonpath_expr.find(base_local)][0]
+            jsonpath_expr.update(match, value)
+    return base
+
+
 def JSONVariations(base,variationJSON):
     """
         Return a list of JSONs with all the variations.
@@ -407,17 +458,10 @@ def JSONVariations(base,variationJSON):
     variations = [[x for x in JSONvariationItem(dict(base),variation)] for variation in variationJSON]
     for var in product(*variations):
         params = {}
-        local_base = dict(base)
         for item in var:
             params.update(item)
 
-        for key, value in params.items():
-            curkey = key if key.startswith("$.") else f"$.{key}"
-            jsonpath_expr = parse(curkey)
-            match = [match for match in jsonpath_expr.find(local_base)][0]
-            jsonpath_expr.update(match, value)
-
-
+        local_base = setJSONPath(base,params)
         yield local_base
 
 class JSONvariationItem:
