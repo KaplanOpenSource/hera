@@ -6,7 +6,8 @@ from hera.toolkit import abstractToolkit
 from hera.simulations.machineLearningDeepLearning.torch.modelContainer import torchLightingModelContainer
 from hera.utils import dictToMongoQuery
 from hera.utils.jsonutils import compareJSONS
-
+from hera.utils.SALibUtils import SALibUtils
+from hera.utils.jsonutils import setJSONPath
 try:
     import SALib
     import SALib.sample as SA_sample
@@ -55,8 +56,8 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             else:
                 qryMongo["model__model__classpath"] = self.get_model_fullname(modelObjectOrName)
         docList = self.getSimulationsDocuments(type=torchLightingModelContainer.MODEL, **qryMongo)
-        return compareJSONS(**dict([(f"M{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]),
-                            longFormat=longFormat,changeDotToUnderscore=True)
+        return compareJSONS(**dict([(f"{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]),
+                            longFormat=longFormat,changeDotToUnderscore=True).rename(columns=dict(datasetName="modelID"))
 
     def getTorchModelContainerByID(self, modelID, **qry):
         qryModngo = dictToMongoQuery(qry,prefix="model")
@@ -71,7 +72,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
 
 
 
-    def sensitivityAnalysis_morris(self,modelContainer,SALibProblem,categoryParameters=[],sampleParameters=dict()):
+    def sensitivityAnalysis_morris(self,modelContainer,problemContainer,maxEpoch=500,sampleParameters=dict(),analysisParameters=dict()):
         """
             Performs the sensitivity analysis of Morris to identify the
         Parameters
@@ -80,18 +81,9 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             This is the hera container that contains all the data required for the
             dataset, dataloaders and initializing the model.
 
-        SALibProblem : JSON
-            The JSON that defines the parameters and the values for the SALib.
-
-        parametersType: dict
-            parameter Name -> 'category' | 'int' | 'log' | <add more types like gaussian in the future>
-
-            A dict to determine the parameter types.
-
-            Since sample is uniform, we need a transformer to get either cate
-
-            The names of the parameters that are catory parameters.
-            The values of these parameters are rounded and then casted to int.
+        problemContainer : JSON
+            The JSON that defines the parameters, values and their type for the SALib.
+            Created with the SALibUtils.buildSAProblem
 
         Returns
         -------
@@ -104,13 +96,43 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             'optimal_trajectories': None,  # No trajectory optimization by default
             'local_optimization': False  # No local optimization by default
         }
-
-        baseJson = modelContainer.modelJSON
         morris_sample_parameters.update(sampleParameters)
 
-        param_values = sobol.sample(SALibProblem,**morris_sample_parameters)
 
-        Y = np.zeros(param_values.shape[0])
+        morris_analyze_parameters = {
+            'num_levels': morris_sample_parameters['num_levels'],  # must match the sample design
+            'grid_jump': morris_sample_parameters['grid_jump']
+            if morris_sample_parameters['grid_jump'] is not None
+            else morris_sample_parameters['num_levels'] // 2,
+            'conf_level': 0.95,  # default confidence level
+            'print_to_console': False,  # suppress printing by default
+            'num_resamples': 1000,  # bootstrap iterations for CIs
+            'seed': None  # random seed (can be set for reproducibility)
+        }
+        morris_analyze_parameters.update(analysisParameters)
+
+        baseJson = modelContainer.modelJSON
+
+        raw_param_values = SA_sample.morris.sample(problemContainer,**morris_sample_parameters)
+        samples = SALibUtils.transformSample(batchList=raw_param_values,problemContainer=problemContainer)
+        Y = np.zeros(samples.shape[0])
+
+        for i,sample in enumerate(samples):
+            # Transfer to a dict of param name -> real value.
+            paramDict = dict([(name,value) for name,value in zip(problemContainer['problem']['name'],sample)])
+            smapleJSON = setJSONPath(base=baseJson,valuesDict = paramDict,inPlace=False)
+            emptyContainer = self.getEmptyTorchModelContainer()
+            emptyContainer.modelJSON = smapleJSON
+            emptyContainer.fit(maxEpoch)
+            stats = emptyContainer.getStatistics()
+
+            result = stats.loc[stats.groupby("tag")["step"].idxmax(), ["tag", "value"]].set_index("tag")
+            Y[i] = result.loc["val_loss_epoch"].item()
+
+        Si = SA_analyze.morris.analyze(problemContainer['problem'], samples, Y, **morris_analyze_parameters)
+        return Si
+
+    #def sensitivityAnalysisExecute_morris
 
     ## ====================================================================================================
     ## ====================================================================================================
@@ -118,7 +140,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
     ## ====================================================================================================
     ## ====================================================================================================
 
-    @classmethod
+    @cla ssmethod
     def get_model_fullname(cls,modelCls):
         name,data = cls.get_class_info(modelCls)
         return data['classpath']

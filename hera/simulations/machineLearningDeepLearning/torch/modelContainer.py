@@ -123,6 +123,12 @@ class torchLightingModelContainer(Project):
             self.modelJSON = copy.deepcopy(doc.desc['model'])
             self.modelResource = doc.getData()
 
+    @property
+    def max_epoch(self):
+        ckpt_path = os.path.join(self.modelResource, f"{self.modelName}.ckpt")
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+        return ckpt["epoch"]+1
+
     def fit(self,max_epochs,continueTraining=True):
         """
             Initializes all the object and returns the trainer.
@@ -156,7 +162,7 @@ class torchLightingModelContainer(Project):
         if self.modelJSON is None:
             doc = self.getModelDocument()
 
-        event_files = sorted(glob(os.path.join(doc.getData(),"version_0", "events.out.tfevents.*")))
+        event_files = sorted(glob(os.path.join(self.modelResource,"version_0", "events.out.tfevents.*")))
         if not event_files:
             raise FileNotFoundError("No TensorBoard event files found.")
 
@@ -173,7 +179,8 @@ class torchLightingModelContainer(Project):
                 "tag": tag,
                 "step": [e.step for e in events],
                 "value": [e.value for e in events],
-                "wall_time": [e.wall_time for e in events]
+                "wall_time": [e.wall_time for e in events],
+                "max_epoch" : self.max_epoch
             })
             df_list.append(temp_df)
 
@@ -194,7 +201,6 @@ class torchLightingModelContainer(Project):
                                               desc=dict(model=self.modelJSON,modelID=modelID))
         else:
             doc = docList[0]
-
         return doc
 
 
