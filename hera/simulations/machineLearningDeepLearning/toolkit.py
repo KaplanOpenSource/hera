@@ -50,8 +50,6 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         return compareJSONS(**dict([(f"M{mdl.desc['modelID']}", mdl.desc['model']) for mdl in docList]),
                             longFormat=longFormat,changeDotToUnderscore=True)
 
-
-
     def getTorchModelByID(self,modelID,**qry):
         qryModngo = dictToMongoQuery(qry,prefix="model")
         docList = self.getSimulationsDocuments(type=torchLightingModel.MODEL, modelID=modelID,**qryModngo)
@@ -62,6 +60,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         else:
             mdlDesc= None
         return mdlDesc
+
+
+    ## ====================================================================================================
+    ## ====================================================================================================
+    ## ===================================== CLASS METHODS ================================================
+    ## ====================================================================================================
+    ## ====================================================================================================
 
     @classmethod
     def get_model_fullname(cls,modelCls):
