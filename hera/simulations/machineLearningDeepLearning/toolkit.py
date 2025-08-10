@@ -157,6 +157,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             for i,sample in enumerate(samples):
                 logger.debug(f"Running iteration {i} with sample {sample}")
                 # Transfer to a dict of param name -> real value.
+                baseJson = modelContainer.modelJSON
                 paramDict = dict([(name,value) for name,value in zip(problemContainer['problem']['names'],sample)])
                 sampleJSON = setJSONPath(base=baseJson,valuesDict = paramDict,inPlace=False)
                 emptyContainer = self.getEmptyTorchModelContainer()
