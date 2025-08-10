@@ -1,14 +1,20 @@
+import json
+import torch
 import numpy
 import inspect
 import os
+
+import pandas
 from hera.utils.logging import with_logger, get_classMethod_logger
 from hera.toolkit import abstractToolkit
+from hera import toolkitHome
 
 from hera.simulations.machineLearningDeepLearning.torch.modelContainer import torchLightingModelContainer
 from hera.utils import dictToMongoQuery
 from hera.utils.jsonutils import compareJSONS
 from hera.utils.SALibUtils import SALibUtils
 from hera.utils.jsonutils import setJSONPath
+from hera.utils.logging import get_classMethod_logger
 
 try:
     import SALib
@@ -16,6 +22,11 @@ try:
     from SALib.analyze import morris as morris_analyze
 except ImportError:
     print("SALib not installed, cannot support sensitivity analysis")
+
+try:
+    from joblib import Parallel, delayed
+except ImportError:
+    print("joblib not installed, cannot support parallel sensitivity analysis")
 
 
 class machineLearningDeepLearningToolkit(abstractToolkit):
@@ -74,9 +85,10 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
 
 
 
-    def sensitivityAnalysis_morris(self,modelContainer,problemContainer,maxEpoch=500,sampleParameters=dict(),analysisParameters=dict()):
+    def sensitivityAnalysis_morris(self,modelContainer,problemContainer,maxEpoch,sampleParameters=dict(),analysisParameters=dict(),parallel=True):
         """
-            Performs the sensitivity analysis of Morris to identify the
+            Performs the sensitivity analysis of Morris to identify the important parameters.
+
         Parameters
         ----------
         modelContainer : The torch container wrapper model.
@@ -86,23 +98,30 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         problemContainer : JSON
             The JSON that defines the parameters, values and their type for the SALib.
             Created with the SALibUtils.buildSAProblem
+        maxEpoch : int
+            The number of epochs to train
+        sampleParameters : dict
+            parameters for the morris sample
+
+        analysisParameters : dict
+            parameters for the morris analyze.
+        parallel : bool [default=True]
+            If tue, use the parallel option if there are more than 2 gpgpue.
 
         Returns
         -------
-
+            The morris SI as pandas.DataFrame.
         """
+        logger = get_classMethod_logger(self,"sensitivityAnalysis_morris")
         morris_sample_parameters = {
-            'N': 100,  # Number of trajectories (you can change as needed)
+            'N': 4,  # Number of trajectories (you can change as needed)
             'num_levels': 4,  # Number of levels in the grid
             'optimal_trajectories': None,  # No trajectory optimization by default
             'local_optimization': False  # No local optimization by default
         }
         morris_sample_parameters.update(sampleParameters)
-
-
         morris_analyze_parameters = {
             'num_levels': morris_sample_parameters['num_levels'],  # must match the sample design
-            'grid_jump':  morris_sample_parameters['num_levels'] // 2,
             'conf_level': 0.95,  # default confidence level
             'print_to_console': False,  # suppress printing by default
             'num_resamples': 1000,  # bootstrap iterations for CIs
@@ -110,29 +129,50 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         }
         morris_analyze_parameters.update(analysisParameters)
 
-        baseJson = modelContainer.modelJSON
+        raw_samples = morris_sample.sample(problemContainer['problem'],**morris_sample_parameters)
+        samples = SALibUtils.transformSample(batchList=raw_samples,problemContainer=problemContainer)
 
-        raw_param_values = morris_sample.sample(problemContainer['problem'],**morris_sample_parameters)
-        samples = SALibUtils.transformSample(batchList=raw_param_values,problemContainer=problemContainer)
+        num_gpus = torch.cuda.device_count()
+        gpu_ids = [x for x in range(num_gpus)]  # Use both GPUs
 
-        Y = numpy.zeros(len(samples))
+        if num_gpus > 1 and parallel:
+            logger.info("Preparing the models JSON")
 
-        for i,sample in enumerate(samples):
-            # Transfer to a dict of param name -> real value.
-            paramDict = dict([(name,value) for name,value in zip(problemContainer['problem']['names'],sample)])
-            sampleJSON = setJSONPath(base=baseJson,valuesDict = paramDict,inPlace=False)
-            emptyContainer = self.getEmptyTorchModelContainer()
+            modelJSONList = []
+            for i, sample in enumerate(samples):
+                gpu_id = gpu_ids[i % num_gpus]
+                modelContainer.setTrainer(devices=[gpu_id])
+                baseJson = modelContainer.modelJSON
+
+                paramDict = dict([(name, value) for name, value in zip(problemContainer['problem']['names'], sample)])
+                sampleJSON = setJSONPath(base=baseJson, valuesDict=paramDict, inPlace=False)
+                modelJSONList.append(sampleJSON)
 
 
-            emptyContainer.modelJSON = sampleJSON
-            emptyContainer.fit(maxEpoch)
-            stats = emptyContainer.getStatistics()
+            Y = Parallel(n_jobs=num_gpus)(
+                delayed(_evaluateSample)(i, sample,problemContainer['problem'],modelJSONList[i],maxEpoch) for i, sample in enumerate(samples)
+            ) # ,modelContainer
+        else:
+            Y = numpy.zeros(len(samples))
+            for i,sample in enumerate(samples):
+                logger.debug(f"Running iteration {i} with sample {sample}")
+                # Transfer to a dict of param name -> real value.
+                paramDict = dict([(name,value) for name,value in zip(problemContainer['problem']['names'],sample)])
+                sampleJSON = setJSONPath(base=baseJson,valuesDict = paramDict,inPlace=False)
+                emptyContainer = self.getEmptyTorchModelContainer()
+                logger.debug("Fitting the model")
 
-            result = stats.loc[stats.groupby("tag")["step"].idxmax(), ["tag", "value"]].set_index("tag")
-            Y[i] = result.loc["val_loss_epoch"].item()
+                emptyContainer.modelJSON = sampleJSON
+                emptyContainer.fit(maxEpoch,continueTraining=False)
+                stats = emptyContainer.getStatistics()
 
-        Si = morris_analyze.analyze(problemContainer['problem'], samples, Y, **morris_analyze_parameters)
-        return Si
+                result = stats.loc[stats.groupby("tag")["step"].idxmax(), ["tag", "value"]].set_index("tag")
+                Y[i] = result.loc["val_loss_epoch"].item()
+
+        Si = morris_analyze.analyze(problemContainer['problem'], numpy.array(raw_samples), numpy.array(Y), **morris_analyze_parameters)
+        return pandas.DataFrame(Si)
+
+
 
     #def sensitivityAnalysisExecute_morris
 
@@ -161,3 +201,27 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         module_file_path = os.path.join(*patList[:moduleNameIndex])
 
         return name, dict(classpath=full_path, filepath=module_file_path)
+
+
+def _evaluateSample(i,sample,problem,modelJSON,maxEpoch): #,modelContainer):
+    """
+        Used to created the JSON and run the fit for the parallel running over couple of GPU.
+    Parameters
+    ----------
+    gpu_id
+    sample
+    problem
+    modelContainer
+
+    Returns
+    -------
+
+    """
+    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.MACHINELEARNING_DEEPLEARNING)
+    modelContainer = tk.getEmptyTorchModelContainer()
+    modelContainer.modelJSON = modelJSON
+    modelContainer.fit(maxEpoch, continueTraining=False)
+    stats = modelContainer.getStatistics()
+
+    result = stats.loc[stats.groupby("tag")["step"].idxmax(), ["tag", "value"]].set_index("tag")
+    return result.loc["val_loss_epoch"].item()

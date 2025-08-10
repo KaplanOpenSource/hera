@@ -79,6 +79,8 @@ class torchLightingModelContainer(Project):
         params = self.get_init_params(datasetClass)
         if 'kwargs' in params:
             del params['kwargs']
+        if datasetName in self.modelJSON['dataset']:
+            params.update(self.modelJSON['dataset'][datasetName]['parameters'])
 
         params.update(kwargs)
         info['parameters'] = params
@@ -88,6 +90,9 @@ class torchLightingModelContainer(Project):
         name,info = self.machineLearningDeepLearning.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
         info['dataset'] = datasetName
+        if  'parameters' in self.modelJSON['trainDataset']:
+            params.update(self.modelJSON['trainDataset']['parameters'])
+
         params.update(kwargs)
         info['parameters'] = params
         self.modelJSON['trainDataset'] = info
@@ -96,6 +101,9 @@ class torchLightingModelContainer(Project):
         name, info = self.machineLearningDeepLearning.get_class_info(DataLoader)
         params = self.get_init_params(DataLoader)
         info['dataset'] = datasetName
+        if  'parameters' in self.modelJSON['validateDataset']:
+            params.update(self.modelJSON['validateDataset']['parameters'])
+
         params.update(kwargs)
         info['parameters'] = params
         self.modelJSON['validateDataset'] = info
@@ -105,6 +113,11 @@ class torchLightingModelContainer(Project):
         params = self.get_init_params(modelClass)
         if 'kwargs' in params:
             del params['kwargs']
+
+        if 'parameters'  in self.modelJSON['model']:
+            params.update(self.modelJSON['model']['parameters'])
+
+
         params.update(**kwargs)
         info['parameters'] = params
         self.modelJSON['model'] = info
@@ -112,10 +125,12 @@ class torchLightingModelContainer(Project):
     def setTrainer(self,val_check_interval=1,**kwargs):
         name, info = self.machineLearningDeepLearning.get_class_info(pl.Trainer)
         params = self.get_init_params(pl.Trainer)
+        if 'parameters' in self.modelJSON['trainer']:
+            params.update(self.modelJSON['trainer']['parameters'])
+
         params.update(kwargs)
         info['parameters'] = params
-        self.modelJSON['trainer'] = trainer=info
-
+        self.modelJSON['trainer'] = info
 
     def setCheckPoint(self,**kwargs):
         name, info = self.machineLearningDeepLearning.get_class_info(ModelCheckpoint)
@@ -124,13 +139,16 @@ class torchLightingModelContainer(Project):
         info['parameters'] = params
         self.modelJSON['checkpoint'] = info
 
-
     def load(self):
+        logger = get_classMethod_logger(self,"load")
+        logger.info(f"Loadin model. Current ID is {self.modelID}")
         if self.modelID is None:
+            logger.debug(f"Loading or creating a new model in DB")
             doc = self.getModelDocument()
-            self.modelID = doc.desc['modelID']
             self.modelJSON = copy.deepcopy(doc.desc['model'])
+            self.modelID = doc.desc['modelID']
             self.modelResource = doc.getData()
+            logger.debug(f"Set up the new model {self.modelID}")
 
     @property
     def max_epoch(self):
@@ -149,7 +167,10 @@ class torchLightingModelContainer(Project):
         -------
 
         """
+        logger = get_classMethod_logger(self, "fit")
+        logger.info("---- Starting the fit ")
         self.load()
+        logger.info(f"---- For model ID {self.modelID}")
 
         # 1. Initialize the dataloaders .
         trainDatasetLoader = self.getTrainDataset()
@@ -165,7 +186,12 @@ class torchLightingModelContainer(Project):
             if not os.path.exists(ckpt_path):
                 ckpt_path = None
         elif os.path.exists(ckpt_path):
-            os.remove(ckpt_path)
+            try:
+                os.remove(ckpt_path)
+            except FileNotFoundError:
+                pass
+            ckpt_path = None
+        else:
             ckpt_path = None
 
         try:
@@ -176,9 +202,10 @@ class torchLightingModelContainer(Project):
     def getStatistics(self):
         if self.modelJSON is None:
             doc = self.getModelDocument()
-        event_files = sorted(glob(os.path.join(self.modelResource,"version_0", "events.out.tfevents.*")))
+        event_files_path = os.path.join(self.modelResource,"version_0", "events.out.tfevents.*")
+        event_files = sorted(glob(event_files_path))
         if not event_files:
-            raise FileNotFoundError("No TensorBoard event files found.")
+            raise FileNotFoundError(f"No TensorBoard event files found in {event_files_path} ")
 
         df_list = []
         for event_file in event_files:
@@ -202,18 +229,21 @@ class torchLightingModelContainer(Project):
         return df
 
     def getModelDocument(self):
+        logger = get_classMethod_logger(self, "getModelDocument")
         qry = dictToMongoQuery(self.modelJSON,prefix="model")
         docList = self.getSimulationsDocuments(type=self.MODEL, **qry)
         if len(docList) == 0:
-
             modelID = self.getCounterAndAdd(self.MODEL)
+            logger.debug(f"Model not found. Creating new with ID: {modelID} ")
             resource = os.path.join(self.filesDirectory, "modelData", f"{self.modelName}_{modelID}")
             doc = self.addSimulationsDocument(type=self.MODEL,
                                               resource=resource,
                                               dataFormat=self.datatypes.STRING,
                                               desc=dict(model=self.modelJSON,modelID=modelID))
+            logger.debug(f"Model added with ID: {doc.desc['modelID']} ")
         else:
             doc = docList[0]
+            logger.debug(f"Model found with ID: {doc.desc['modelID']} ")
         return doc
 
 
