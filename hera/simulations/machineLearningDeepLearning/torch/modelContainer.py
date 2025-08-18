@@ -173,8 +173,8 @@ class torchLightingModelContainer(Project):
         logger.info(f"---- For model ID {self.modelID}")
 
         # 1. Initialize the dataloaders .
-        trainDatasetLoader = self.getTrainDataset()
-        validateDatasetLoader = self.getValidateDataset()
+        trainDatasetLoader = self.getTrainDatasetLoader()
+        validateDatasetLoader = self.getValidateDatasetLoader()
 
         model = self.initClass(self.modelJSON['model'])
         trainer = self.getTrainer(max_epochs=max_epochs)
@@ -278,12 +278,16 @@ class torchLightingModelContainer(Project):
         return model
         # now loading the state.
 
-    def getTrainDataset(self):
+    def getTrainDatasetLoader(self):
         return self._getDatasetLoader(self.modelJSON['trainDataset'])
 
 
-    def getValidateDataset(self):
+    def getValidateDatasetLoader(self):
         return self._getDatasetLoader(self.modelJSON['validateDataset'])
+
+
+    def getDataSet(self,datasetName):
+        return self.initClass(self.modelJSON['dataset'][datasetName])
 
 
     def _getDatasetLoader(self, JSONdesc):
@@ -298,7 +302,7 @@ class torchLightingModelContainer(Project):
 
         """
         datasetName = JSONdesc['dataset']
-        dataset = self.initClass(self.modelJSON['dataset'][datasetName])
+        dataset = self.getDataSet(datasetName)
         datasetLoader = self.initClass(JSONdesc,dataset=dataset)
         return datasetLoader
 
