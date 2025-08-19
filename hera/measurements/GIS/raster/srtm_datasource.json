@@ -1,0 +1,10 @@
+{
+  "SRTMGL1": {
+    "item": {
+      "resource": "/home/ilay/hera/hera/tests/UNIT_TEST_GIS_RASTER_TOPOGRAPHY/N33E035.hgt",
+      "dataFormat": "SRTM",
+      "valueType": "Elevation",
+      "desc": {}
+    }
+  }
+}

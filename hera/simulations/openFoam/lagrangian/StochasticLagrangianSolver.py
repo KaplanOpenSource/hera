@@ -1,5 +1,5 @@
-from .abstractLagrangianSolver import absractStochasticLagrangianSolver_toolkitExtension
-from .. import FLOWTYPE_INCOMPRESSIBLE
+from hera.simulations.openFoam.lagrangian.abstractLagrangianSolver import absractStochasticLagrangianSolver_toolkitExtension
+from hera.simulations.openFoam import FLOWTYPE_INCOMPRESSIBLE
 
 
 class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSolver_toolkitExtension):

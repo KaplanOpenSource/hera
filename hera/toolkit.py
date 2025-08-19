@@ -1,12 +1,8 @@
-import json
 
-
-from .datalayer import Project
-import os
+from hera.datalayer import Project
 import pandas
-import numpy
 import pydoc
-from .utils.logging import get_classMethod_logger
+from hera.utils.logging import get_classMethod_logger
 
 TOOLKIT_DATASOURCE_TYPE = "ToolkitDataSource"
 TOOLKIT_TOOLKITNAME_FIELD       = "toolkit"
@@ -40,7 +36,7 @@ class ToolkitHome:
     GIS_SHAPES     = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
     LSM            = "LSM"
-
+    MACHINELEARNING_DEEPLEARNING="machine_deep_learning"
     DATA           = "heraData"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
@@ -80,7 +76,8 @@ class ToolkitHome:
             OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
 
             WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit"),
-            GaussianDispersion = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit")
+            GaussianDispersion = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit"),
+            machine_deep_learning = dict(cls="hera.simulations.machineLearningDeepLearning.toolkit.machineLearningDeepLearningToolkit"),
 
         )
 
@@ -151,23 +148,6 @@ class abstractToolkit(Project):
     _analysis = None # holds the datalayer layer.
     _presentation = None # holds the presentation layer
 
-    _FilesDirectory = None
-
-    @property
-    def FilesDirectory(self):
-        """
-            The directory to save files (when creating files).
-        :return:
-        """
-        return self._FilesDirectory
-
-    @property
-    def filesDirectory(self):
-        """
-            The directory to save files (when creating files).
-        :return:
-        """
-        return self._FilesDirectory
 
 
     @property
@@ -219,22 +199,9 @@ class abstractToolkit(Project):
             The directory to save datasource
 
         """
-        super().__init__(projectName=projectName)
+        super().__init__(projectName=projectName,filesDirectory=filesDirectory)
         logger = get_classMethod_logger(self,"init")
         self._toolkitname = toolkitName
-
-        if filesDirectory is None:
-            logger.debug("Directory is not given, tries to load from default or using the current directory")
-            try:
-                self._FilesDirectory = self.getConfig().get("filesDirectory",os.getcwd())
-            except ValueError:
-                self._FilesDirectory = os.getcwd()
-
-            logger.debug(f"Using {self._FilesDirectory}")
-        else:
-            logger.debug(f"Using {os.path.abspath(filesDirectory)}. Creating if does not exist")
-            os.system("mkdir -p %s" % os.path.abspath(filesDirectory))
-            self._FilesDirectory = filesDirectory
 
     @property
     def classLoggerName(self):
@@ -479,4 +446,13 @@ class abstractToolkit(Project):
         doc.delete()
 
         return doc
+
+
+    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
+        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
+                                                                            "version": version}))==0:
+            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
+
+        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
+        print(f"{version} for dataSource {datasourceName} is now set to default.")
 

@@ -1,11 +1,8 @@
 import pandas
-try:
-	import xarray
-except ModuleNotFoundError:
-	pass
+import xarray
 
 import numpy
-from unum.units import *
+from hera.utils.unitHandler import  *
 from scipy.special import erf
 
 class GaussianToMesh(object):

@@ -23,6 +23,11 @@ from hera import toolkitHome
 import pandas as pd
 import xarray as xr
 import geopandas as gpd
+from shapely.geometry import Point
+
+
+WSG84 = 4326
+
 
 WSG84 = 4326
 

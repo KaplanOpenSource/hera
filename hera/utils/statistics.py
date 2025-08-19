@@ -1,67 +1,89 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def calcDist2d(x, y, data=None, bins=20, normalization="max_normalized"):
+def calcDist2d(x, y, data=None, bins=20, normalization="max_normalized", x_range=None, y_range=None):
     """
-    Calculates the distribution of two dimensional data.
+    Calculates the distribution of two dimensional data with optional normalization and axis range.
 
     Parameters
     ----------
-    data : Pandas
-            the data.
+    data : DataFrame or None
+        Optional DataFrame from which to extract x and y columns.
 
-    x: str or numpy array or series
+    x : str or array-like
+        x-values or column name in data.
 
-    y: str or numpy array or series
+    y : str or array-like
+        y-values or column name in data.
 
-    bins: number of bins for hist2d.
+    bins : int
+        Number of bins along each axis.
 
-    normalization:  the normalization method: density or y_normalized or max_normalized
+    normalization : str
+        "density" - normalize by bin area;
+        "y_normalized" - normalize each row to sum to 1;
+        "max_normalized" - normalize so the max is 1.
 
-        max_normalized - normalize the data by the maximal value of the histogram to make 1 the maximum value.
-        y_normalized   - normalize the data by group of x values to make the data proportional to the rest of the group values.
-        density        - normalize the data by the dXdY of the data. assume the data is equidistant.
+    x_range : tuple (optional)
+        Lower and upper limits for x-axis bins (e.g. (0, 24)).
 
+    y_range : tuple (optional)
+        Lower and upper limits for y-axis bins (e.g. (0, 100)).
 
     Returns
     -------
-    tuple with 3 values:
-    (x_mid,y_mid,M.T)
+    x_mid : np.array
+        Midpoints of x bins
 
-     x_mid: The bin center along the x axis.
-     y_mid: The bin center along the y axis.
-     M.T:   Transpose of the 2D histogram.
+    y_mid : np.array
+        Midpoints of y bins
+
+    M.T : np.array
+        Transposed 2D histogram matrix after normalization
     """
 
     tmpfig = plt.figure()
 
-
+    # Extract data
     if data is not None:
-
-        xdata = data[x];
+        xdata = data[x]
         ydata = data[y]
-
     else:
-        xdata = x;
-        ydata = y;
+        xdata = x
+        ydata = y
 
-    M, x_vals, y_vals, _ = plt.hist2d(xdata, ydata, bins=bins)
+    # Set bin ranges if specified
+    hist_range = None
+    if x_range is not None and y_range is not None:
+        hist_range = [x_range, y_range]
+
+    # Compute the histogram
+    M, x_vals, y_vals, _ = plt.hist2d(xdata, ydata, bins=bins, range=hist_range)
     plt.close(tmpfig)
 
+    # Normalization
     if normalization == "density":
         square_area = (x_vals[1] - x_vals[0]) * (y_vals[1] - y_vals[0])
         M = M / square_area
 
+
+
     elif normalization == "y_normalized":
-        M = M / M.sum(axis=1)[:, None]
-        M[np.isnan(M)] = 0
+        M = M.astype(float)
+        col_sums = M.sum(axis=0, keepdims=True)
+        M = np.divide(M, col_sums, out=np.zeros_like(M), where=(col_sums != 0))
+
+
 
     elif normalization == "max_normalized":
-        M = M / M.max()
+        max_val = M.max()
+        if max_val > 0:
+            M = M / max_val
 
     else:
-        raise ValueError("The normaliztion must be either density,y_normalized or max_normalized")
+        raise ValueError("The normalization must be one of: density, y_normalized, max_normalized")
 
+    # Midpoints for each bin
     x_mid = (x_vals[1:] + x_vals[:-1]) / 2
     y_mid = (y_vals[1:] + y_vals[:-1]) / 2
 

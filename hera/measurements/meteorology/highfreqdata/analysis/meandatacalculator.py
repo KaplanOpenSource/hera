@@ -5,16 +5,21 @@ from copy import deepcopy
 from scipy.constants import g
 from .abstractcalculator import AbstractCalculator
 from .turbulencestatistics import singlePointTurbulenceStatistics
-from .....utils.filter_immediate import Filter
+from hera.utils.filter_immediate import Filter
 
 class AveragingCalculator(AbstractCalculator):
     def __init__(self, rawData, metadata):
         super(AveragingCalculator, self).__init__(rawData=rawData, metadata=metadata)
 
         self._TemporaryData = self._RawData.resample(self.SamplingWindow).mean().rename(
-            columns={col:col+"_bar" for col in self._RawData.columns})
+            columns={col: col + "_bar" for col in self._RawData.columns})
         for col in self._TemporaryData.columns:
             self._CalculatedParams.append([col, {}])
+
+        self.data = self._TemporaryData  # ✅ כאן נפתרה הבעיה
+
+    def getData(self):
+        return self.data
 
 
 class MeanDataCalculator:

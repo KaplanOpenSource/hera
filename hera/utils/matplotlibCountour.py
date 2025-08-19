@@ -1,7 +1,10 @@
-from shapely import geometry
-import geopandas
+try:
+    from shapely import geometry
+    import geopandas
+except ImportError:
+    print("gis support not installed. ")
 
-from unum.units import *
+from hera.utils.unitHandler import  *
 
 def standardize_polygon(poly, units_conversion):
     if isinstance(poly, list):
@@ -13,7 +16,7 @@ def standardize_polygon(poly, units_conversion):
     return [(x * units_conversion, y * units_conversion) for (x, y) in zip(xs, ys)]
 
 
-def toGeopandas(ContourData, inunits=m):
+def toGeopandas(ContourData, inunits=ureg.m):
     """
         Converts the contours of matplotlib to polygons.
 
@@ -27,7 +30,7 @@ def toGeopandas(ContourData, inunits=m):
         A geopandas object with the contours as polygons and levels as attributes.
 
     """
-    units_conversion = inunits.asNumber(m)
+    units_conversion = inunits.asNumber(ureg.m)
     polyList = []
     levelsList = []
     for col, level in zip(ContourData.collections, ContourData.levels):

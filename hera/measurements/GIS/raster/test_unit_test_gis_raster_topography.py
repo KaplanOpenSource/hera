@@ -16,25 +16,23 @@ class TestTopographyToolkit(unittest.TestCase):
         cls.project = Project(projectName="MY_PROJECT")
         cls.topo_toolkit = TopographyToolkit(projectName="MY_PROJECT")
 
-        base_path = os.environ.get("HERA_DATA_PATH", "/home/ilay/hera/hera/tests")
-
-        # מציאת כל קבצי .hgt בתיקיות שונות
+        base_path = os.environ.get("HERA_DATA_PATH")
         hgt_files = glob.glob(os.path.join(base_path, "**", "*.hgt"), recursive=True)
         resource_dirs = sorted(set(os.path.dirname(f) for f in hgt_files))
+        print(f"Loaded HGT files: {hgt_files}")
 
         if not resource_dirs:
             raise FileNotFoundError(f"No .hgt files found under {base_path}")
 
         print(f"Detected resource folders:\n" + "\n".join(resource_dirs))
 
-        # הגדרת הקונפיגורציה עם כל הנתיבים
         cls.custom_config = {
             "defaultSRTM": "SRTMGL1",
             "DataSources": {
                 "SRTMGL1": {
                     "item": {
-                        "resource": resource_dirs[0],  # עדיין שדה ברירת מחדל
-                        "resource_folders": resource_dirs,  # נוסיף את כולם
+                        "resource": resource_dirs[0],
+                        "resource_folders": resource_dirs,
                         "dataFormat": "SRTM",
                         "valueType": "Elevation",
                         "desc": {}
@@ -43,10 +41,7 @@ class TestTopographyToolkit(unittest.TestCase):
             }
         }
 
-        # הקונפיג יינתן ל־toolkit
         cls.topo_toolkit.getConfig = lambda: cls.custom_config
-
-        # נעדכן גם את getDataSourceData שיחזיר את כל הרשימה
         cls.topo_toolkit.getDataSourceData = lambda name: cls.custom_config["DataSources"][name]["item"][
             "resource_folders"]
 
@@ -442,13 +437,7 @@ class TestTopographyToolkit(unittest.TestCase):
         self.assertEqual(stats["domainmax"], 40)
         self.assertEqual(stats["domainmin"], 10)
 
-    import nbformat
-    from nbconvert.preprocessors import ExecutePreprocessor
-    import os
-    import unittest
 
-if __name__ == '__main__':
-    unittest.main()
 
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
@@ -473,3 +462,9 @@ class TestTopographyNotebook(unittest.TestCase):
             self.fail(f"Notebook execution failed: {e}")
 
         print("✅ Notebook executed successfully with no errors.")
+
+
+
+if __name__ == '__main__':
+    unittest.main()
+
