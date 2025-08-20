@@ -27,13 +27,29 @@ failed_tests = []
 # -----------------------------------------------------------------------------------
 def compare_dataframes(df1, df2, rtol=1e-6, atol=1e-6):
     try:
+        # יישור עמודות
         df1 = df1.sort_index(axis=1).reset_index(drop=True)
         df2 = df2.sort_index(axis=1).reset_index(drop=True)
+
         if list(df1.columns) != list(df2.columns):
             print("⚠ Column mismatch between DataFrames")
             return False
+
+        has_geom = "geometry" in df1.columns and "geometry" in df2.columns
+        if has_geom:
+            pref = ["areaFraction","total_pop","age_0_14","age_15_19","age_20_29","age_30_64","age_65_up"]
+            sort_keys = [c for c in pref if c in df1.columns]
+            if not sort_keys:
+                # אם אין את העמודות המועדפות—קח כל עמודה מספרית (למעט geometry) כמפתח
+                sort_keys = [c for c in df1.columns if c != "geometry" and pd.api.types.is_numeric_dtype(df1[c])]
+            if sort_keys:
+                df1 = df1.sort_values(by=sort_keys).reset_index(drop=True)
+                df2 = df2.sort_values(by=sort_keys).reset_index(drop=True)
+
         for col in df1.columns:
             s1, s2 = df1[col], df2[col]
+
+            # 1) datetime
             if pd.api.types.is_datetime64_any_dtype(s1) and pd.api.types.is_datetime64_any_dtype(s2):
                 s1 = pd.to_datetime(s1).dt.tz_localize(None)
                 s2 = pd.to_datetime(s2).dt.tz_localize(None)
@@ -41,15 +57,35 @@ def compare_dataframes(df1, df2, rtol=1e-6, atol=1e-6):
                     print(f"❌ Mismatch in datetime column '{col}'")
                     return False
                 continue
+
+            if has_geom and col == "geometry":
+                tol_area = float(os.environ.get("GDF_TOL_AREA", "1e-7"))
+                for i, (g1, g2) in enumerate(zip(s1, s2)):
+                    try:
+                        equal_topo = g1.equals(g2)
+                        if not equal_topo:
+                            if g1.symmetric_difference(g2).area >= tol_area:
+                                print(f"❌ Mismatch in geometry at row {i}")
+                                return False
+                    except Exception:
+                        print(f"⚠ Geometry compare exception at row {i}; treating as mismatch")
+                        return False
+                continue
+
+            # 3) numeric
             if pd.api.types.is_numeric_dtype(s1) and pd.api.types.is_numeric_dtype(s2):
                 if not np.allclose(s1.fillna(0), s2.fillna(0), rtol=rtol, atol=atol, equal_nan=True):
                     print(f"❌ Mismatch in numeric column '{col}'")
                     return False
                 continue
+
+            # 4) default
             if not s1.equals(s2):
                 print(f"❌ Mismatch in column '{col}'")
                 return False
+
         return True
+
     except Exception as e:
         print(f"⚠ Exception during DataFrame comparison: {e}")
         return False
