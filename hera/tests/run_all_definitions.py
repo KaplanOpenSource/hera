@@ -161,22 +161,25 @@ def save_output(filename, data, output_type):
     except ImportError:
         nonDBMetadataFrame = None
 
-    if isinstance(data, (nonDBMetadataFrame, gpd.GeoDataFrame)):
-        ext = ".geojson"
+    # === Respect the filename & extension from JSON ===
+    # If filename already has a dir (or is absolute), use it as-is.
+    # Otherwise, drop it under expected_outputs/<filename>
+    if os.path.isabs(filename) or os.path.dirname(filename):
+        dest = filename
     else:
-        ext = ".json"
+        dest = os.path.join("expected_outputs", filename)
 
-    filename = os.path.join("expected_outputs", Path(filename).stem + ext)
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
 
     if data is None:
-        print(f"⚠️ Output is None, saving as 'null' to {filename}")
-        with open(filename, "w") as f:
+        print(f"⚠️ Output is None, saving as 'null' to {dest}")
+        with open(dest, "w") as f:
             f.write("null")
         return
 
     output_type = output_type.lower()
 
+    # Unwrap custom result holders if needed (kept from your original logic)
     custom_extractors = ["singlePointTurbulenceStatistics", "AveragingCalculator"]
     obj_class = type(data).__name__
 
@@ -193,12 +196,13 @@ def save_output(filename, data, output_type):
             print(f"📌 {output_type} type: {type(data)} — using getData()")
             data = data.getData()
 
+    # Writers (use 'dest' instead of the old 'filename')
     def _write_json(path, obj):
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(obj, f, indent=2, default=str)
 
     def _write_text(path, text):
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(text)
 
     def _write_bytes(path, b):
@@ -207,42 +211,53 @@ def save_output(filename, data, output_type):
 
     handlers = {
         "dataframe": lambda: (
-            data.to_json(filename, orient="records", indent=2)
-            if filename.endswith(".json")
-            else data.to_parquet(filename, index=False, engine="pyarrow")
+            data.to_json(dest, orient="records", indent=2)
+            if dest.endswith(".json")
+            else data.to_parquet(dest, index=False, engine="pyarrow")
         ),
         "metadataframe": lambda: (
-            data.to_file(str(Path(filename)), driver="GeoJSON")
+            data.to_file(str(Path(dest)), driver="GeoJSON")
             if isinstance(data, gpd.GeoDataFrame)
-            else data.to_json(filename, orient="records", indent=2)
+            else data.to_json(dest, orient="records", indent=2)
         ),
         "nondbmetadataframe": lambda: (
-            data.to_file(str(Path(filename)), driver="GeoJSON")
+            data.to_file(str(Path(dest)), driver="GeoJSON")
             if hasattr(data, "to_file")
-            else data.to_json(filename)
+            else data.to_json(dest, orient="records", indent=2)
             if hasattr(data, "to_json")
-            else _write_json(filename, data.getData().to_dict(orient="records"))
+            else _write_json(dest, data.getData().to_dict(orient="records"))
         ),
-        "geodataframe": lambda: data.to_file(str(Path(filename)), driver="GeoJSON"),
-        "float": lambda: _write_json(filename, data),
-        "int": lambda: _write_json(filename, data),
-        "dict": lambda: _write_json(filename, data),
-        "list": lambda: _write_json(filename, data),
-        "str": lambda: _write_text(filename, str(data)),
-        "string": lambda: _write_text(filename, str(data)),
-        "xarray": lambda: data.to_netcdf(filename),
-        "dataarray": lambda: data.to_netcdf(filename),
-        "ndarray": lambda: np.savez(filename, **{f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data}),
-        "npz": lambda: np.savez(filename, **{f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data}),
-        "bytes": lambda: _write_bytes(filename, data),
+        "geodataframe": lambda: (
+            data.to_file(str(Path(dest)), driver="GeoJSON")
+            if dest.endswith((".geojson", ".json"))
+            else (_write_json(dest, json.loads(data.to_json())) )  # fallback
+        ),
+        "float": lambda: _write_json(dest, float(data)),
+        "int": lambda: _write_json(dest, int(data)),
+        "dict": lambda: _write_json(dest, data),
+        "list": lambda: _write_json(dest, data),
+        "tuple": lambda: _write_json(dest, data),
+        "str": lambda: _write_text(dest, str(data)),
+        "string": lambda: _write_text(dest, str(data)),
+        "xarray": lambda: data.to_netcdf(dest),
+        "dataarray": lambda: data.to_netcdf(dest),
+        "ndarray": lambda: np.savez(
+            dest,
+            **({f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data})
+        ),
+        "npz": lambda: np.savez(
+            dest,
+            **({f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data})
+        ),
+        "bytes": lambda: _write_bytes(dest, data),
     }
 
     if output_type in handlers:
         try:
             handlers[output_type]()
-            print(f"✅ Output saved to {filename}")
+            print(f"✅ Output saved to {dest}")
         except Exception as e:
-            print(f"❌ Failed to save output ({output_type}) to {filename}: {e}")
+            print(f"❌ Failed to save output ({output_type}) to {dest}: {e}")
     else:
         raise ValueError(f"❌ Unknown output_type: {output_type}")
 
