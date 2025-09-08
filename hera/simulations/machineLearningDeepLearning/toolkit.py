@@ -83,8 +83,6 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             mdlDesc= None
         return mdlDesc
 
-
-
     def sensitivityAnalysis_morris(self,modelContainer,problemContainer,maxEpoch,sampleParameters=dict(),analysisParameters=dict(),parallel=True):
         """
             Performs the sensitivity analysis of Morris to identify the important parameters.

@@ -1,6 +1,7 @@
 import pandas
 import pydoc
 import copy
+from hera.simulations.machineLearningDeepLearning.LightingModule import LightningModuleHera
 
 try:
     import torch
@@ -173,10 +174,19 @@ class torchLightingModelContainer(Project):
         logger.info(f"---- For model ID {self.modelID}")
 
         # 1. Initialize the dataloaders .
-        trainDatasetLoader = self.getTrainDatasetLoader()
+
         validateDatasetLoader = self.getValidateDatasetLoader()
 
         model = self.initClass(self.modelJSON['model'])
+
+        if isinstance(model,LightningModuleHera):
+            model.setModelContainer(self)
+
+        if hasattr(model,"train_dataloader"):
+            trainDatasetLoader = None
+        else:
+            trainDatasetLoader = self.getTrainDatasetLoader()
+
         trainer = self.getTrainer(max_epochs=max_epochs)
 
         ckpt_path = self.checkpoint_path
@@ -195,7 +205,7 @@ class torchLightingModelContainer(Project):
             ckpt_path = None
 
         try:
-            trainer.fit(model,trainDatasetLoader,validateDatasetLoader,ckpt_path=ckpt_path)
+            trainer.fit(model,val_dataloaders=validateDatasetLoader,train_dataloaders=trainDatasetLoader,ckpt_path=ckpt_path)
         except MisconfigurationException as e:
             print(f"Already trained for larger number of epochs. make sure that all set is trained for that number {e}")
 
@@ -257,7 +267,7 @@ class torchLightingModelContainer(Project):
         filename = self.modelName
         trainerJSON = self.modelJSON['trainer']
         logger = TensorBoardLogger(savedir, name=None, version=0)
-        checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],dirpath=savedir,filename=filename,monitor = "val_loss")
+        checkpoint_callback = self.initClass(self.modelJSON['checkpoint'],dirpath=savedir,filename=filename)
 
         trainer    = self.getClass(trainerJSON)
         params     = trainerJSON['parameters']
@@ -266,7 +276,6 @@ class torchLightingModelContainer(Project):
         params.update(**kwargs)
         params['logger'] = logger
         params['callbacks'] = [checkpoint_callback]
-
         return trainer(**params)
 
     def getModel(self):
