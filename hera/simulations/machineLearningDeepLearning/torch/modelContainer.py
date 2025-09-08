@@ -34,6 +34,8 @@ class torchLightingModelContainer(Project):
     modelID = None
     modelResource = None
 
+    initFromState = None
+
     @property
     def modelJSON(self):
         return self._modelJSON
@@ -51,6 +53,7 @@ class torchLightingModelContainer(Project):
 
         self.machineLearningDeepLearning = mldlModels
         super().__init__(projectName=mldlModels.projectName,filesDirectory=mldlModels.filesDirectory)
+        self.state_other_models = []
         self.initModel()
 
     def initModel(self):
@@ -61,6 +64,10 @@ class torchLightingModelContainer(Project):
         self.modelJSON['trainer'] = dict()
         self.modelJSON['model'] = dict()
         self.modelJSON['checkpoint'] = dict()
+
+    def loadOtherComponent(self,componentName,otherModelID,nameOnOtherModel):
+        self.state_other_models.append(dict(componentName=componentName,nameOnOtherModel=nameOnOtherModel,otherModelID=otherModelID))
+
 
     def setDataset(self,datasetName,datasetClass,**kwargs):
         """
@@ -189,25 +196,30 @@ class torchLightingModelContainer(Project):
 
         trainer = self.getTrainer(max_epochs=max_epochs)
 
-        ckpt_path = self.checkpoint_path
+        ckpt_path_param = dict()
+        ckpt_path = None
+        if len(self.state_other_models) == 0:
+            if continueTraining:
+                ckpt_path = self.checkpoint_path
+                if not os.path.exists(ckpt_path):
+                    ckpt_path = None
+            elif os.path.exists(ckpt_path):
+                    os.remove(ckpt_path)
 
-        # Remove it before training starts
-        if continueTraining:
-            if not os.path.exists(ckpt_path):
-                ckpt_path = None
-        elif os.path.exists(ckpt_path):
-            try:
-                os.remove(ckpt_path)
-            except FileNotFoundError:
-                pass
-            ckpt_path = None
+            ckpt_path_param['ckpt_path'] = ckpt_path
+
         else:
-            ckpt_path = None
+            # load the weights from another model.
+            for otherState in self.state_other_models:
+                if otherState['componentName'] == self.MODEL:
+                    component = model
+                else:
+                    component = getattr(model,otherState['componentName'])
+                prefix   = otherState['nameOnOtherModel']
+                otherChkpnt = self.machineLearningDeepLearning.getTorchModelContainerByID(otherState['otherModelID']).checkpoint_path
+                self.load_submodule_from_ckpt(component,otherChkpnt,prefix)
 
-        try:
-            trainer.fit(model,val_dataloaders=validateDatasetLoader,train_dataloaders=trainDatasetLoader,ckpt_path=ckpt_path)
-        except MisconfigurationException as e:
-            print(f"Already trained for larger number of epochs. make sure that all set is trained for that number {e}")
+            trainer.fit(model,val_dataloaders=validateDatasetLoader,train_dataloaders=trainDatasetLoader,**ckpt_path_param)
 
     def getStatistics(self):
         if self.modelJSON is None:
@@ -367,211 +379,41 @@ class torchLightingModelContainer(Project):
         return params
 
 
+    def load_submodule_from_ckpt(self, submodule, ckpt_path, prefix=None, strict=False):
+        """
+        Load weights from a Lightning checkpoint into a submodule.
+
+        Args:
+            submodule (nn.Module): the part of your model (e.g. model.encoder).
+            ckpt_path (str): path to the Lightning checkpoint (.ckpt).
+            prefix (str or None): prefix of the submodule inside the checkpoint
+                                  (e.g. "encoder." or "decoder.").
+                                  If None, tries to match directly.
+            strict (bool): whether to enforce that all keys match.
+            map_location (str): device mapping for torch.load.
+
+        Returns:
+            missing_keys, unexpected_keys: lists from load_state_dict
+        """
+
+        map_location = "cpu"
+        ckpt = torch.load(ckpt_path, map_location=map_location)
+        state_dict = ckpt["state_dict"]
+
+        if prefix is not None:
+            if prefix[-1] != ".":
+                prefix += '.'
+            # keep only weights belonging to this submodule
+            sub_state = {k.replace(prefix, "", 1): v
+                         for k, v in state_dict.items()
+                         if k.startswith(prefix)}
+        else:
+            sub_state = state_dict
+
+        missing, unexpected = submodule.load_state_dict(sub_state, strict=strict)
+        return missing, unexpected
 
 
 
 
 
-# class torchModels(Project):
-#
-#     DEVICE_GPGPU="cuda"
-#     DEVICE_CPU = "cpu"
-#
-#     TYPE_MODEL = "torchModel_results"
-#
-#     def __init__(self,projectName,filesDirectory):
-#         """
-#             Initializes the model class.
-#
-#         Parametersmonth
-#         ----------
-#         projectName : str
-#             The name of the project that this class belongs to.
-#
-#         filesDirectory : str
-#             The directory to write the files in.
-#         """
-#         super().__init__(projectName=projectName,filesDirectory=filesDirectory)
-#         os.makedirs(os.path.join(self.filesDirectory,"torchModels","modelWeights"),exist_ok=True)
-#
-#
-#     def getTrainingStrategy(self,name,dataLoader,optimizer,**kwargs):
-#         """
-#             Creates an instance of the requested training stragety.
-#
-#         Parameters
-#         ----------
-#         dataLoader : obj
-#             The dataloader to use.
-#         optimizer : obj
-#             The optimizer to use
-#         kwargs:
-#             Specific parameters for the strategy.
-#
-#             Will allow to set the evaulation function in the reinforcement learning strategy.
-#
-#         Returns
-#         -------
-#             A trainingStrategy object.
-#         """
-#
-#     def trainModel(self,modelInstance,trainingStrategy,totalEpoch,startFromCheckpoint=True,deviceName=None):
-#         """
-#             Save a model to the DB.
-#
-#             The procedure saves:
-#                 1. The value of the hyper parameters.
-#                     We assume that all were specified in the constructor of the class.
-#                 2. The code of the model.
-#                 3. Checkpoints are saved automatically, with the current epoch.
-#
-#             The procedure will attempt to train in parallel on all the gpus available.
-#
-#         Parameters
-#         ----------
-#         modelInstance : obj
-#             A class of pyTorch nn.Model.
-#
-#         trainingStrategy: obj
-#             A class that implements the training strategy. Whether just plain vanilla, autoregressive (feeds the
-#             output step by step to the model), or Reinforcement learning (that would require the evaluation function).
-#
-#             The trainingStrategy also includes the batch to work on.
-#
-#         epoch : int
-#             The total epochs to train
-#         startFromCheckpoint : bool [default = True]
-#             If true, try to load the existing
-#
-#         deviceName: str
-#             cuda or cpu.
-#             if None, choose cuda if available.
-#             Use the DEVICE_GPGPU or DEVICE_CPU constants.
-#
-#         Returns
-#         -------
-#
-#         """
-#         logger = get_classMethod_logger(self,"trainModel")
-#         deviceName = "cuda" if torch.cuda.is_available() else "cpu" if deviceName is None else deviceName
-#         logger.info(f"training the model using device {deviceName}")
-#
-#         device = torch.device(deviceName)
-#         parallelTrain = False
-#         if deviceName == self.DEVICE_GPGPU:
-#             gpu_count = torch.cuda.device_count()
-#             if gpu_count >1:
-#                 logger.info(f"Found {gpu_count} gpus, training in parallel.")
-#                 parallelTrain = True
-#
-#
-#         signatureMap = dictToMongoQuery(self.get_constructor_args(model),prefix=hyperParameters)
-#         modelName,_ = self.get_class_info(model)
-#
-#
-#         docList = self.getSimulationsDocuments(type=TYPE_MODEL,modelName=modelName,**signatureMap)
-#         if len(docList) == 0:
-#             logger.debug(f"Not found. Training with the requested epoch and adding to the database")
-#             cntr = self.getCounterAndAdd(modelName)
-#             newFileName = os.path.join(self.filesDirectory,f"{modelName.replace(".","_")}_{cntr}.pth")
-#             doc = self.addSimulationsDocument(type=self.TYPE_MODEL,
-#                                               resource=newFileName,
-#                                               dataFormat=self.datatypes.STRING,
-#                                               desc=dict(
-#                                                   modelName=modelName,
-#                                                   hyperParameters=signatureMap,
-#                                                   training=dict(state=trainingStrategy.getState(),
-#                                                                 epoch = epoch,
-#                                                                 loss  = 1e10
-#                                                                 )
-#                                             )
-#             )
-#             current_epoch = 0
-#         else:
-#             logger.debug(f"Found. Loading the checkpoint and continue from there")
-#             doc = docList[0]
-#             current_epoch = doc.desc['training']['epoch']
-#             trainingStrategy.loadState(doc.desc['training'])
-#             model.load_state_dict(doc.getData())
-#
-#         for epoch in range(current_epoch,totalEpoch):
-#
-#             avg_loss = trainingStrategy.train(model)
-#             print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.6f}")
-#
-#             # Save checkpoint after every epoch
-#             trainingStrategy.storeState(doc,epoch)
-#
-#         return avg_loss
-#
-#     def listModels(self,modelName=None,**hyperParameters):
-#         """
-#             Returns the list of models and hyper parameters that are in the project.
-#         Parameters
-#         ----------
-#         modelName
-#         hyperParameters
-#
-#         Returns
-#         -------
-#
-#         """
-#         signatureMap = dictToMongoQuery(hyperParameters, prefix=hyperParameters)
-#
-#         docList = self.getSimulationsDocuments(type=TYPE_MODEL, modelName=modelName, **signatureMap)
-#         modelList = []
-#         for doc in docList:
-#             item  = convertJSONtoPandas(doc.desc['hyperParameters'])
-#             item.assign(doc.desc['modelName'])
-#             modelList,append(item)
-#
-#         return pandas.concat(modelList,ignore_index=True)
-#
-#     def getModel(self,modelName,**hyperParameters):
-#         """
-#             Gets a model from the DB and loads it.
-#         Parameters
-#         ----------
-#         modelName
-#         hyperParameters
-#
-#         Returns
-#         -------
-#
-#         """
-#         signatureMap = dictToMongoQuery(hyperParameters, prefix=hyperParameters)
-#
-#         docList = self.getSimulationsDocuments(type=TYPE_MODEL, modelName=modelName, **signatureMap)
-#         if len(docList)==0:
-#             return None
-#         return docList[0]
-#
-#
-#     ##########################################################
-#     ##
-#     ##              Utility functions.
-#     ##
-#     ##########################################################
-#     def save_checkpoint(self,model, optimizer, epoch, loss, path):
-#         logger = get_classMethod_logger(self,"save_checkpoint")
-#         torch.save({
-#             'epoch': epoch,
-#             'model_state_dict': model.state_dict(),
-#             'optimizer_state_dict': optimizer.state_dict(),
-#             'loss': loss
-#         }, path)
-#         logger.info(f"Saved the checkpoint to {path}")
-#
-#     def load_checkpoint(self,path, model, optimizer):
-#         logger = get_classMethod_logger(self,"load_checkpoint")
-#         if os.path.exists(path):
-#             checkpoint = torch.load(path)
-#             model.load_state_dict(checkpoint['model_state_dict'])
-#             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-#             epoch = checkpoint['epoch']
-#             loss = checkpoint['loss']
-#             logger.info(f"Loaded checkpoint from epoch {epoch + 1} with loss {loss:.6f}")
-#             return epoch + 1  # resume from next epoch
-#         else:
-#             print("No checkpoint found. Starting from scratch.")
-#             return 0
