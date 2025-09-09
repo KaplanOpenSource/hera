@@ -27,3 +27,6 @@ pluggy==1.0.0
 tomli==2.0.1
 jupyterlab
 ipython
+Pint==0.24.4
+Deprecated==1.2.18
+jsonpath-ng==1.7.0
