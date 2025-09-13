@@ -176,9 +176,9 @@ class torchLightingModelContainer(Project):
 
         """
         logger = get_classMethod_logger(self, "fit")
-        logger.info("---- Starting the fit ")
+        logger.info("Loading the model ")
         self.load()
-        logger.info(f"---- For model ID {self.modelID}")
+        logger.info(f"Loaded  model ID {self.modelID}")
 
         # 1. Initialize the dataloaders .
 
@@ -219,7 +219,8 @@ class torchLightingModelContainer(Project):
                 otherChkpnt = self.machineLearningDeepLearning.getTorchModelContainerByID(otherState['otherModelID']).checkpoint_path
                 self.load_submodule_from_ckpt(component,otherChkpnt,prefix)
 
-            trainer.fit(model,val_dataloaders=validateDatasetLoader,train_dataloaders=trainDatasetLoader,**ckpt_path_param)
+        logger.info("Starting to train")
+        trainer.fit(model,val_dataloaders=validateDatasetLoader,train_dataloaders=trainDatasetLoader,**ckpt_path_param)
 
     def getStatistics(self):
         if self.modelJSON is None:
