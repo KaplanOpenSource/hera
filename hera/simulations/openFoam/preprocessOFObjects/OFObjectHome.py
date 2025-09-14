@@ -84,6 +84,15 @@ class OFObjectHome:
                 "fieldType":"scalar",
                 "fieldComputation":"eulerian"
             },
+            "omega" : { 
+                "dimensions" : {
+                    "default" : {
+                        "s" :-1
+                    }
+                }, 
+                "fieldType":"scalar",
+                "fieldComputation":"eulerian"
+            },
             "alphat" : { 
                 "dimensions" : {
                     "default" : {
