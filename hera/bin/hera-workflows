@@ -106,13 +106,17 @@ if __name__ == "__main__":
     export_parser.set_defaults(func=CLI.workflow_export)
 
     ### ------------------------
-    export_parser = subparsers.add_parser('compareToDisk', help='Compares the workflow in the DB to the file on the disk')
-    export_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to export')
-    export_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    export_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
-                               help='Overwrite the export if the file exists')
+    compare_to_disk_parser = subparsers.add_parser('compareToDisk', help='Compares the workflow in the DB to the file on the disk')
+    compare_to_disk_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to compare')
+    compare_to_disk_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
 
-    export_parser.set_defaults(func=CLI.workflow_compareToDisk)
+    compare_to_disk_parser.set_defaults(func=CLI.workflow_compareToDisk)
+    ### ------------------------
+    sync_parser = subparsers.add_parser('sync', help='Syncs the workflow in the DB to the file on the disk')
+    sync_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to sync')
+    sync_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+
+    sync_parser.set_defaults(func=CLI.workflow_sync_to_db)
     ### ------------------------
 
     parsed = parser.parse_args()

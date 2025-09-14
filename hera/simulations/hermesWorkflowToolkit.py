@@ -163,8 +163,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
             hermes workflow object (or one of its derivatives).
         """
-
-        docList = documentList if isinstance(documentList, Iterable) else [documentList]
+        docList = documentList if isinstance(documentList, list) else [documentList]
 
         if returnFirst:
             doc = docList[0]
@@ -209,6 +208,11 @@ class hermesWorkflowToolkit(abstractToolkit):
             raise ValueError(err)
 
         return hermesWFObj(workFlowJSON, name=name)
+
+    def updateDocumentsWorkflow(document, json):
+        document.desc['workflow'] = loadJSON(json)
+        document.save()
+
 
     def getHermesWorkflowFromDB(self, nameOrWorkflowFileOrJSONOrResource: Union[dict, str, list, workflow],
                                 returnFirst=True, **query):
@@ -534,16 +538,15 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
 
         """
-        logger = get_classMethod_logger(self, "updateWorkflowFileInGroup")
+        get_classMethod_logger(self, "updateWorkflowFileInGroup")
         if workflow is None:
-            raise NotImplementedError("addUpdateWorkflowFileInGroup() requires the 'hermes' library, which is nor installed")
+            raise NotImplementedError("addUpdateWorkflowFileInGroup() requires the 'hermes' library, which is not installed")
 
         workflowName = workflowFileName.split(".")[0]
         doc = self.getWorkflowDocumentByName(workflowName)
         if doc is None:
             workflowJSON = loadJSON(workflowFileName)
             hermesWF = workflow(workflowJSON, self.FilesDirectory)
-
             doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
                                               dataFormat=datatypes.STRING,
                                               type=self.DOCTYPE_WORKFLOW,

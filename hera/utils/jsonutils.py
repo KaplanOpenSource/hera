@@ -11,22 +11,14 @@ from hera.utils.dataframeutils import compareDataframeConfigurations
 
 
 def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
-    """
-        Recieves a group of name->JSONs (as file, string or dict)
-        and returns the pandas that compares them.
-    Parameters
-    ----------
-    kwargs
+    """Recieves {<name>:<json>} mapping in kwargs and compares the values of all the common fields. Returns pandas df of the result.
 
-    longFormat : bool
-        Return the value as long or wide
+    Args:
+        longFormat (bool, optional): Return in long/wide format. Defaults to False.
+        changeDotToUnderscore (bool, optional): instead of showing fields as x.y.z uses x_y_z. This allows using pandas.query function. Defaults to False.
 
-    changeDotToUnderscore : bool
-        If true, change the columns names from x.y -> x_y. This will allow using pandas.query function
-
-    Returns
-    -------
-
+    Returns:
+        DataFrame: df of the comparison results
     """
     fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
     return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)

@@ -2,16 +2,18 @@ import json
 import logging
 import os
 
+import pandas
+
 from .. import toolkitHome
-from .hermesWorkflowToolkit import actionModes
+from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 from ..utils import loadJSON,compareJSONS
 from hermes import workflow
-from hermes.utils.workflowAssembly import handler_build,handler_buildExecute,handler_expand,handler_execute
+from hermes.utils.workflowAssembly import handler_build,handler_execute
 
 
 def WorkflowsGroup_list(args):
     """
-        List all the simulations group
+        List all the simulation groups
     Parameters
     ----------
     args
@@ -21,8 +23,8 @@ def WorkflowsGroup_list(args):
     -------
 
     """
-    logger = logging.getLogger("hera.bin.hera_workflows.add")
-    logger.info(" -- Starting: adding workflow to the group --")
+    logger = logging.getLogger("hera.bin.hera_workflows.group_list")
+    logger.info(" -- Starting: listing all the simulation groups --")
 
     projectName = args.projectName
 
@@ -149,7 +151,7 @@ def workflow_export(arguments):
     -------
 
     """
-    logger = logging.getLogger("hera.bin.hera_workflows.delete")
+    logger = logging.getLogger("hera.bin.hera_workflows.export")
     logger.info(f" -- Starting: Deleting workflows --")
 
 
@@ -185,7 +187,7 @@ def workflow_compareToDisk(arguments):
     -------
 
     """
-    logger = logging.getLogger("hera.bin.hera_workflows.delete")
+    logger = logging.getLogger("hera.bin.hera_workflows.compareToDisk")
     logger.info(f" -- Starting: Deleting workflows --")
 
     if arguments.projectName is None:
@@ -209,11 +211,68 @@ def workflow_compareToDisk(arguments):
             ttl = f"Simulation {smName}"
             print(ttl)
             print("-"*len(ttl))
-            if len(res.columns)==1:
+            if res.empty:
                 print("\t\t ** Disk and DB are identical")
                 print(" ")
             else:
                 print(res)
+
+def sorround_with_char(text:str, total_len:int, char:str="-"):
+    chars = char*max(((total_len-len(text))//2 ), 0)
+    return chars + text + chars
+
+def workflow_sync_to_db(arguments):
+    """
+        Exports the workflow in the DB to the disk
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.sync_to_db")
+    logger.info(f" -- Starting: syncing workflows --")
+
+    if arguments.projectName is None:
+        logger.debug(
+            f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        caseConfiguration = loadJSON("caseConfiguration.json")
+        projectName = caseConfiguration['projectName']
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    assert isinstance(wftk, hermesWorkflowToolkit)
+    
+    
+    workflowDocList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
+
+    if len(workflowDocList) == 0:
+        logger.error(f"... not found.")
+
+    for workflowDoc in workflowDocList:
+        # getHemresWorkflowFromDocument returns a list always
+        sim = wftk.getHemresWorkflowFromDocument(documentList=workflowDoc)
+        outfileName = f"{sim.name}.json"
+        if not os.path.isfile(outfileName):
+            print(f"Workflow {sim.name} (file {outfileName}) does not exist on the disk. use export to create it.")
+        else:
+            localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local")
+            simName = sim.name
+            sim.name = "DB"
+            res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
+            assert isinstance(res, pandas.DataFrame)
+            title = sorround_with_char(f"Simulation {simName}", 64)
+            print(title)
+            if res.empty :
+                print("Disk and DB are identical")
+            else:
+                print("Found Changes:")
+                print(res)
+                logger.info(f"Updating DB with the changes for {sim.name}")
+                wftk.updateDocumentsWorkflow(document=workflowDoc, json=outfileName)
 
 
 
@@ -436,7 +495,7 @@ def workflow_compare(arguments):
     -------
 
     """
-    logger = logging.getLogger("hera.bin.hera_workflows.workflow_compare")
+    logger = logging.getLogger("hera.bin.hera_workflows.compare")
     logger.info(f" -- Starting: Listing workflow nodes --")
 
     if arguments.projectName is None:
