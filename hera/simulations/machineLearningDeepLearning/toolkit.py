@@ -3,18 +3,19 @@ import torch
 import numpy
 import inspect
 import os
-
 import pandas
-from hera.utils.logging import with_logger, get_classMethod_logger
-from hera.toolkit import abstractToolkit
-from hera import toolkitHome
+from collections.abc import Iterable
 
+from hera import toolkitHome
+from hera.toolkit import abstractToolkit
 from hera.simulations.machineLearningDeepLearning.torch.modelContainer import torchLightingModelContainer
+from hera.utils.logging import with_logger, get_classMethod_logger
 from hera.utils import dictToMongoQuery
 from hera.utils.jsonutils import compareJSONS
 from hera.utils.SALibUtils import SALibUtils
 from hera.utils.jsonutils import setJSONPath
 from hera.utils.logging import get_classMethod_logger
+from hera.utils.zipUtils import zip_items
 
 try:
     import SALib
@@ -83,6 +84,102 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             mdlDesc= None
         return mdlDesc
 
+    def packTorchModelByID(self,modelIDorListID,packFileName):
+        """
+            Pack one or more models, checkpoint and
+        Parameters
+        ----------
+        modelIDorListID : int/list of it
+                ID or list of model id
+        packFileName: string
+                The name of the output file.
+
+        Returns
+        -------
+
+        """
+        if isinstance(modelIDorListID,Iterable):
+            modelContainer = [self.getTorchModelContainerByID(x) for x in modelIDorListID]
+        else:
+            modelContainer = self.getTorchModelContainerByID(modelIDorListID)
+
+        self.packTorchModel(modelContainer,packFileName)
+
+    def packTorchModel(self,modelContainerOrListContainers,packFileName):
+        """
+
+        Parameters
+        ----------
+        modelContainer
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"packModel")
+        logger.info("Packing models")
+        if not isinstance(modelContainerOrListContainers,Iterable):
+            modelContainerOrListContainers = [modelContainerOrListContainers] # make it iterable.
+
+        itemsToZip = []
+        modelsDict = dict()
+        for modelContainer in modelContainerOrListContainers:
+            logger.info(f"Pack model {modelContainer.modelID}")
+            modelDoc = modelContainer.getModelDocument()
+            logger.debug("Remove all the locations of the classes. They will be found again when loading")
+            descWithoutFilePaths = remove_key_recursively_new(modelDoc.desc,"filepath")
+            logger.debug(f"Remove all the prefix of the dataset. We assume that it is relative to the files diction of the project (={self.filesDirectory}")
+            descWithoutFilePaths = remove_prefix_from_values(descWithoutFilePaths, "pathToData", self.filesDirectory)
+            modelDescStr = json.dumps(descWithoutFilePaths,indent=4)
+            modelName    = f"{modelContainer.modelName}_{modelContainer.modelID}.json"
+            modelsDict[modelName] = modelDescStr
+            logger.debug("Pack items")
+            itemsToZip.append(modelDoc.getData())
+
+        itemsToZip.append(modelsDict)
+        zip_items(packFileName,itemsToZip)
+
+
+    ## ====================================================================================================
+    ## ====================================================================================================
+    ## ===================================== CLASS METHODS ================================================
+    ## ====================================================================================================
+    ## ====================================================================================================
+
+    @classmethod
+    def get_model_fullname(cls,modelCls):
+        name,data = cls.get_class_info(modelCls)
+        return data['classpath']
+
+    @classmethod
+    def get_class_info(cls,modelCls):
+        module = modelCls.__module__
+        name = modelCls.__name__
+        file_path = inspect.getfile(modelCls)
+        file_path = os.path.dirname(os.path.abspath(file_path))
+
+        full_path = f"{module}.{name}"
+        patList = file_path.split(os.path.sep)
+        moduleNameIndex = patList.index(full_path.split(".")[0])
+        patList[0] = '/'
+        module_file_path = os.path.join(*patList[:moduleNameIndex])
+
+        return name, dict(classpath=full_path, filepath=module_file_path)
+
+## ====================================================================================================
+##
+## =====================================     ANALYSIS  ================================================
+##
+## ====================================================================================================
+
+
+class analysis:
+
+    datalayer = None
+    def __init__(self,datalayer):
+        self.datalayer = datalayer
+
+
     def sensitivityAnalysis_morris(self,modelContainer,problemContainer,maxEpoch,sampleParameters=dict(),analysisParameters=dict(),parallel=True):
         """
             Performs the sensitivity analysis of Morris to identify the important parameters.
@@ -146,7 +243,6 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
                 sampleJSON = setJSONPath(base=baseJson, valuesDict=paramDict, inPlace=False)
                 modelJSONList.append(sampleJSON)
 
-
             Y = Parallel(n_jobs=num_gpus)(
                 delayed(_evaluateSample)(i, sample,problemContainer['problem'],modelJSONList[i],maxEpoch) for i, sample in enumerate(samples)
             ) # ,modelContainer
@@ -171,36 +267,11 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         Si = morris_analyze.analyze(problemContainer['problem'], numpy.array(raw_samples), numpy.array(Y), **morris_analyze_parameters)
         return pandas.DataFrame(Si)
 
-
-
-    #def sensitivityAnalysisExecute_morris
-
-    ## ====================================================================================================
-    ## ====================================================================================================
-    ## ===================================== CLASS METHODS ================================================
-    ## ====================================================================================================
-    ## ====================================================================================================
-
-    @classmethod
-    def get_model_fullname(cls,modelCls):
-        name,data = cls.get_class_info(modelCls)
-        return data['classpath']
-
-    @classmethod
-    def get_class_info(cls,modelCls):
-        module = modelCls.__module__
-        name = modelCls.__name__
-        file_path = inspect.getfile(modelCls)
-        file_path = os.path.dirname(os.path.abspath(file_path))
-
-        full_path = f"{module}.{name}"
-        patList = file_path.split(os.path.sep)
-        moduleNameIndex = patList.index(full_path.split(".")[0])
-        patList[0] = '/'
-        module_file_path = os.path.join(*patList[:moduleNameIndex])
-
-        return name, dict(classpath=full_path, filepath=module_file_path)
-
+## ====================================================================================================
+##
+## =====================================     GLOBAL  ================================================
+##
+## ====================================================================================================
 
 def _evaluateSample(i,sample,problem,modelJSON,maxEpoch): #,modelContainer):
     """
@@ -224,3 +295,59 @@ def _evaluateSample(i,sample,problem,modelJSON,maxEpoch): #,modelContainer):
 
     result = stats.loc[stats.groupby("tag")["step"].idxmax(), ["tag", "value"]].set_index("tag")
     return result.loc["val_loss_epoch"].item()
+
+
+
+def remove_key_recursively_new(d, key_to_remove):
+    """
+    Return a new dict with key `key_to_remove` removed from all nested dicts.
+
+    :param d: original dictionary
+    :param key_to_remove: key to remove
+    :return: new dictionary with the key removed
+    """
+    if isinstance(d, dict):
+        new_dict = {}
+        for k, v in d.items():
+            if k != key_to_remove:
+                if isinstance(v, dict):
+                    new_dict[k] = remove_key_recursively_new(v, key_to_remove)
+                elif isinstance(v, list):
+                    new_dict[k] = [
+                        remove_key_recursively_new(item, key_to_remove) if isinstance(item, dict) else item
+                        for item in v
+                    ]
+                else:
+                    new_dict[k] = v
+        return new_dict
+    else:
+        return d  # non-dict objects are returned as-is
+
+
+def remove_prefix_from_values(d, target_key, prefix):
+    """
+    Recursively remove a prefix from the value of all occurrences of `target_key` in a dict.
+
+    :param d: dictionary to process
+    :param target_key: key whose values will have the prefix removed
+    :param prefix: prefix to remove from the value
+    :return: new dictionary with updated values
+    """
+    if isinstance(d, dict):
+        new_dict = {}
+        for k, v in d.items():
+            if k == target_key and isinstance(v, str) and v.startswith(prefix):
+                new_dict[k] = v[len(prefix)+1:]
+            elif isinstance(v, dict):
+                new_dict[k] = remove_prefix_from_values(v, target_key, prefix)
+            elif isinstance(v, list):
+                new_dict[k] = [
+                    remove_prefix_from_values(item, target_key, prefix) if isinstance(item, dict) else item
+                    for item in v
+                ]
+            else:
+                new_dict[k] = v
+        return new_dict
+    else:
+        return d
+
