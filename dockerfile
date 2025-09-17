@@ -74,7 +74,7 @@ ENV PYTHONPATH="/app"
 RUN mkdir -p /root/.pyhera/log && \
     mkdir -p /root/mongo-db-datadir && \
     echo '{ \
-        "myuser": { \
+        "root": { \
             "dbIP": "127.0.0.1", \
             "dbName": "dbhera", \
             "password": "1234", \
