@@ -5,8 +5,8 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install required packages for pyenv and building Python
-RUN apt-get update && \
-    apt-get install -y \
+RUN apt-get update
+RUN apt-get install -y \
     curl \
     git \
     build-essential \
@@ -34,8 +34,8 @@ RUN python -m ensurepip && \
     python -m pip install --no-cache-dir --upgrade pip
 
 # Install GDAL and other system dependencies    
-RUN apt-get update && \
-    apt-get install -y \
+RUN apt-get update
+RUN apt-get install -y \
     libcairo2-dev \
     pkg-config \
     libgirepository1.0-dev \
@@ -48,9 +48,9 @@ RUN apt-get update && \
 # Install MongoDB 6.0 + mongosh (new shell)
 RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
     echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" \
-      | tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
-    apt-get update && \
-    apt-get install -y mongodb-org mongodb-mongosh && \
+      | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+RUN apt-get update
+RUN apt-get install -y mongodb-org mongodb-mongosh liblzma-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
     
 # Pre-initialize MongoDB users using mongosh
