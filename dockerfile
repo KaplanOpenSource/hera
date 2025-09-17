@@ -59,16 +59,16 @@ RUN mkdir -p /data/db /var/run/mongodb && \
     mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
     mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
     mongod --shutdown
-
-# Set PYTHONPATH safely (fallback to /app if empty)
-# ENV PYTHONPATH="${PYTHONPATH:-/app}:/app"
-
+    
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
 COPY . /app
 
 # Install Python dependencies with pyenv's Python
 RUN python -m pip install --no-cache-dir -r requirements.txt
+
+# Set PYTHONPATH
+ENV PYTHONPATH="/app"
 
 # Create necessary folders and configuration file
 RUN mkdir -p /root/.pyhera/log && \
