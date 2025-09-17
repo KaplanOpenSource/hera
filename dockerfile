@@ -16,10 +16,8 @@ RUN apt-get install -y \
 # Install pyenv
 RUN curl https://pyenv.run | bash
 
-# Set up environment variables for pyenv
-ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
-
 # Install Python 3.9.13 using pyenv
+ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
 RUN pyenv install 3.9.13 && \
     pyenv global 3.9.13
 
@@ -63,8 +61,8 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
-# Set PYTHONPATH
-ENV PYTHONPATH="/app"
+ENV PATH="/app:/app/hera/bin:${PATH}"
+ENV PYTHONPATH="/app:/app/hera/bin"
 
 # Create necessary folders and configuration file
 RUN mkdir -p /root/.pyhera/log && \
@@ -79,4 +77,4 @@ RUN mkdir -p /root/.pyhera/log && \
     }' > /root/.pyhera/config.json
 
 EXPOSE 27017
-CMD ["mongod", "--fork", "--logpath", "/var/log/mongodb.log", "--bind_ip_all", "--dbpath", "/data/db"]
+CMD ["bash", "-c", "sh hera/scripts/run_mongo.sh; exec bash"]
