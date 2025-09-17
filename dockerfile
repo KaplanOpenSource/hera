@@ -29,21 +29,58 @@ ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
 RUN pyenv install 3.9.13 && \
     pyenv global 3.9.13
 
-# Set the working directory
+# Install pip for the installed Python version
+RUN python -m ensurepip && \
+    python -m pip install --no-cache-dir --upgrade pip
+
+# Install GDAL and other system dependencies    
+RUN apt-get update && \
+    apt-get install -y \
+    libcairo2-dev \
+    pkg-config \
+    libgirepository1.0-dev \
+    libgdal-dev \
+    gdal-bin \
+    python3-gdal && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install MongoDB 6.0    
+RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
+    echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" \
+      | tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
+    apt-get update && \  
+    apt-get install -y mongodb-org && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set working directory and copy project files (excluding .venv, .git via .dockerignore)    
 WORKDIR /app
+COPY . /app
 
-# # Copy the requirements file into the container
-# COPY requirements.txt .
+# Install Python dependencies with pyenv's Python
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# # Install pip for the installed Python version
-# RUN python -m ensurepip && \
-#     python -m pip install --no-cache-dir --upgrade pip
+# Create necessary folders and configuration file
+RUN mkdir -p /root/.pyhera/log && \
+    mkdir -p /root/mongo-db-datadir && \
+    echo '{ \
+        "myuser": { \
+            "dbIP": "127.0.0.1", \
+            "dbName": "dbhera", \
+            "password": "1234", \
+            "username": "user" \
+        } \
+    }' > /root/.pyhera/config.json
 
-# # Install the Python dependencies
-# RUN python -m pip install --no-cache-dir -r requirements.txt
+# Add PYTHONPATH so /app is importable
+ENV PYTHONPATH="/app:${PYTHONPATH}"
 
-# # Copy the rest of the application code
-# COPY . .
+# Pre-initialize MongoDB users
+RUN mkdir -p /data/db /var/run/mongodb && \
+    mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
+    mongo admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
+    mongo dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
+    mongod --shutdown
 
-# # Command to run the application
-# CMD ["python", "app.py"]
+EXPOSE 27017
+CMD ["mongod", "--bind_ip_all", "--dbpath", "/data/db"]
