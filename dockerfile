@@ -49,7 +49,7 @@ RUN apt-get install -y mongodb-org mongodb-mongosh liblzma-dev && \
 RUN mkdir -p /data/db /var/run/mongodb && \
     mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
     mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
+    mongosh admin --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
     mongod --shutdown
     
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
@@ -69,10 +69,10 @@ RUN mkdir -p /root/.pyhera/log && \
     mkdir -p /root/mongo-db-datadir && \
     echo '{ \
         "root": { \
-            "dbIP": "host.docker.internal", \
+            "dbIP": "127.0.0.1", \
             "dbName": "dbhera", \
-            "password": "1234", \
-            "username": "user" \
+            "username": "user", \
+            "password": "1234" \
         } \
     }' > /root/.pyhera/config.json
 

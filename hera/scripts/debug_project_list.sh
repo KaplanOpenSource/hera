@@ -1,1 +1,1 @@
-python -m debugpy --listen 0.0.0.0:5678 --wait-for-client hera/bin/hera-project project list
+python -m debugpy --listen 0.0.0.0:5678 --wait-for-client hera/bin/hera-project project create hello
