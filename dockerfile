@@ -7,15 +7,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install required packages for pyenv and building Python
 RUN apt-get update
 RUN apt-get install -y \
-    curl \
-    git \
-    build-essential \
-    libreadline-dev \
-    libssl-dev \
-    libbz2-dev \
-    libsqlite3-dev \
-    libffi-dev \
-    zlib1g-dev && \
+    nano curl git build-essential \
+    libreadline-dev libssl-dev libbz2-dev libsqlite3-dev \
+    libffi-dev zlib1g-dev iputils-ping && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -57,15 +51,17 @@ RUN apt-get install -y mongodb-org mongodb-mongosh liblzma-dev && \
 RUN mkdir -p /data/db /var/run/mongodb && \
     mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
     mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
-    mongod --shutdown
+    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })'
+    # mongod --shutdown
     
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
-COPY . /app
+COPY requirements.txt .
 
 # Install Python dependencies with pyenv's Python
 RUN python -m pip install --no-cache-dir -r requirements.txt
+
+COPY . /app
 
 # Set PYTHONPATH
 ENV PYTHONPATH="/app"
@@ -75,7 +71,7 @@ RUN mkdir -p /root/.pyhera/log && \
     mkdir -p /root/mongo-db-datadir && \
     echo '{ \
         "root": { \
-            "dbIP": "127.0.0.1", \
+            "dbIP": "host.docker.internal", \
             "dbName": "dbhera", \
             "password": "1234", \
             "username": "user" \
