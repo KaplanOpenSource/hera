@@ -52,6 +52,16 @@ RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/sh
     apt-get update && \
     apt-get install -y mongodb-org mongodb-mongosh && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+    
+# Pre-initialize MongoDB users using mongosh
+RUN mkdir -p /data/db /var/run/mongodb && \
+    mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
+    mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
+    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
+    mongod --shutdown
+
+# Set PYTHONPATH safely (fallback to /app if empty)
+# ENV PYTHONPATH="${PYTHONPATH:-/app}:/app"
 
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
@@ -71,16 +81,6 @@ RUN mkdir -p /root/.pyhera/log && \
             "username": "user" \
         } \
     }' > /root/.pyhera/config.json
-
-# Set PYTHONPATH safely (fallback to /app if empty)
-ENV PYTHONPATH="${PYTHONPATH:-/app}:/app"
-
-# Pre-initialize MongoDB users using mongosh
-RUN mkdir -p /data/db /var/run/mongodb && \
-    mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
-    mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
-    mongod --shutdown
 
 EXPOSE 27017
 CMD ["mongod", "--bind_ip_all", "--dbpath", "/data/db"]
