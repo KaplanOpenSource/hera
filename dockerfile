@@ -47,12 +47,12 @@ RUN apt-get update
 RUN apt-get install -y mongodb-org mongodb-mongosh liblzma-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
     
-# Pre-initialize MongoDB users using mongosh
+# Pre-initialize MongoDB users using mongosh, and close it - will start with container
 RUN mkdir -p /data/db /var/run/mongodb && \
     mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
     mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })'
-    # mongod --shutdown
+    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
+    mongod --shutdown
     
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
@@ -79,4 +79,4 @@ RUN mkdir -p /root/.pyhera/log && \
     }' > /root/.pyhera/config.json
 
 EXPOSE 27017
-CMD ["mongod", "--bind_ip_all", "--dbpath", "/data/db"]
+CMD ["mongod", "--fork", "--logpath", "/var/log/mongodb.log", "--bind_ip_all", "--dbpath", "/data/db"]
