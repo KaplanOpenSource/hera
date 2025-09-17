@@ -45,15 +45,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install MongoDB 6.0    
+# Install MongoDB 6.0 + mongosh (new shell)
 RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
     echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" \
       | tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
-    apt-get update && \  
-    apt-get install -y mongodb-org && \
+    apt-get update && \
+    apt-get install -y mongodb-org mongodb-mongosh && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory and copy project files (excluding .venv, .git via .dockerignore)    
+# Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
 COPY . /app
 
@@ -72,14 +72,14 @@ RUN mkdir -p /root/.pyhera/log && \
         } \
     }' > /root/.pyhera/config.json
 
-# Add PYTHONPATH so /app is importable
-ENV PYTHONPATH="/app:${PYTHONPATH}"
+# Set PYTHONPATH safely (fallback to /app if empty)
+ENV PYTHONPATH="${PYTHONPATH:-/app}:/app"
 
-# Pre-initialize MongoDB users
+# Pre-initialize MongoDB users using mongosh
 RUN mkdir -p /data/db /var/run/mongodb && \
     mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
-    mongo admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-    mongo dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
+    mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
+    mongosh dbhera --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
     mongod --shutdown
 
 EXPOSE 27017
