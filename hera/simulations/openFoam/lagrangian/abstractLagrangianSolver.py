@@ -15,13 +15,13 @@ import dask.dataframe as dask_dataframe
 from pandas.core.array_algos.transforms import shift
 from dask.distributed import Client
 
-from ....utils.unum import *
+from hera.utils.unitHandler import *
 
-from ....datalayer import datatypes
-from ....datalayer.document.metadataDocument import MetadataFrame
-from ....utils import dictToMongoQuery,JSONToConfiguration,get_classMethod_logger,ConfigurationToJSON,tonumber
-from .. import FLOWTYPE_INCOMPRESSIBLE
-from ..OFWorkflow import workflow_StochasticLagrangianSolver
+from hera.datalayer import datatypes
+from hera.datalayer.document.metadataDocument import MetadataFrame
+from hera.utils import dictToMongoQuery,JSONToConfiguration,get_classMethod_logger,ConfigurationToJSON,tonumber
+from hera.simulations.openFoam  import FLOWTYPE_INCOMPRESSIBLE
+from hera.simulations.openFoam.OFWorkflow import workflow_StochasticLagrangianSolver
 
 class absractStochasticLagrangianSolver_toolkitExtension:
     """

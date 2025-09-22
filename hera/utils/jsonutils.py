@@ -1,17 +1,16 @@
-from unum.units import *
 import os
 import json
 import pandas
-from json.decoder import JSONDecodeError
-from .unum import *
-from unum import Unum
 import logging
-from .logging import get_classMethod_logger
-from jsonpath_ng import parse
 from itertools import product
-from .dataframeutils import compareDataframeConfigurations
+from json.decoder import JSONDecodeError
+from hera.utils.logging import get_classMethod_logger
+from jsonpath_ng import parse
+from hera.utils.unitHandler import *
+from hera.utils.dataframeutils import compareDataframeConfigurations
 
-def compareJSONS(longFormat=False,**kwargs):
+
+def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
     """
         Recieves a group of name->JSONs (as file, string or dict)
         and returns the pandas that compares them.
@@ -22,15 +21,18 @@ def compareJSONS(longFormat=False,**kwargs):
     longFormat : bool
         Return the value as long or wide
 
+    changeDotToUnderscore : bool
+        If true, change the columns names from x.y -> x_y. This will allow using pandas.query function
+
     Returns
     -------
 
     """
     fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
-    return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat)
+    return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
 
 
-def ConfigurationToJSON(valueToProcess):
+def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, keepOriginalUnits=True):
     """
         Converts a configuration dict (that might include unum objects) to
         JSON dict (where all the values are strings).
@@ -44,6 +46,24 @@ def ConfigurationToJSON(valueToProcess):
         A key-value dict where the values are string.
         Converts unum objects to string like representations:
             1*m/s --> '1*m/s'.
+
+    standardize : bool
+        If true, converts the units to MKS.
+
+    splitUnits : bool
+        If true splits the unum object to number and units list.
+        The units are [MKS units,original units].
+        The units are saved in field <field name>_units if keepUnits is True.
+
+        The JSONToConfiguration locates the <filed names>_units and assembles them.
+        This allows the user to query the data using the __lt and __lg and maintain the
+        right units of the comparison.
+
+    keepOriginalUnits : bool
+        If true, and the splitUnits is true then saved in <field name>_units if keepUnits is True.
+        If false, then the units are not saved. This is used in the getDocuments to build the query
+        dict. There, we don't need the units in the query.
+
     Returns
     -------
         dict with all the values as string
@@ -53,22 +73,53 @@ def ConfigurationToJSON(valueToProcess):
     ret = {}
     logger.debug(f"Processing {valueToProcess}")
     if isinstance(valueToProcess,dict):
+
         for key, value in valueToProcess.items():
             logger.debug("\t dictionary, calling recursively")
-            ret[key] = ConfigurationToJSON(value)
+            ret[key] = ConfigurationToJSON(value, standardize=standardize, splitUnits=splitUnits,
+                                           keepOriginalUnits=keepOriginalUnits)
     elif isinstance(valueToProcess,list):
         logger.debug("\t list, transforming to str every item")
-        ret = [ConfigurationToJSON(x) for x in valueToProcess]
+        ret = [ConfigurationToJSON(x, standardize=standardize, splitUnits=splitUnits,
+                                   keepOriginalUnits=keepOriginalUnits) for x in valueToProcess]
     elif "'" in str(valueToProcess):
         logger.debug(f"\t {valueToProcess} is String, use as is")
         ret = valueToProcess
-    else:
+    elif isinstance(valueToProcess,Unum):
+
         logger.debug(f"\t Try to convert *{valueToProcess}* to string")
-        ret = unumToStr(valueToProcess)
+
+        origPintObj = unumToPint(valueToProcess)
+        pintObj = origPintObj.to_base_units() if standardize else origPintObj
+
+        if splitUnits:
+            ret = dict(magnitude=pintObj.magnitude)
+            ret['units'] = str(pintObj)
+
+            if keepOriginalUnits:
+                ret['value'] = str(origPintObj)
+        else:
+            ret =  str(pintObj)
+
+    elif isinstance(valueToProcess,Quantity):
+        origPintObj = valueToProcess
+        pintObj = origPintObj.to_base_units() if standardize else origPintObj
+
+        if splitUnits:
+            ret = dict(magnitude=pintObj.magnitude)
+            ret['units'] = str(pintObj)
+            if keepOriginalUnits:
+                ret['value'] = str(origPintObj)
+        else:
+            ret = str(pintObj)
+
+    else:
+        ret = valueToProcess
 
     return ret
 
-def JSONToConfiguration(valueToProcess):
+
+def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False):
     """
         Converts a dictionary (all the values are string) to
         a JSON where all the values are string.
@@ -81,23 +132,36 @@ def JSONToConfiguration(valueToProcess):
         A key-value where all the values are strings.
         The unum objects has the format '1*<unit>' (for exampe '1*m/s')
 
+        returnUnum : bool [Default True]
+        If true convert a quantity to Unum.
+
+        returnStandardize: bool [Default False]
+        If true, return the  units in MKS. If False return the original units.
+
     Returns
     -------
         A dict with the values convected to unum.
 
     """
     logger = logging.getLogger("hera.util.JSONToConfiguration")
-    ret ={}
+
     logger.debug(f"Processing {valueToProcess} of type {type(valueToProcess)}")
     if isinstance(valueToProcess,dict):
-        for key, value in valueToProcess.items():
-            logger.debug(f"Transforming key: {key}")
-            ret[key] = JSONToConfiguration(value)
+        if ('magnitude' in valueToProcess) and ('units' in valueToProcess) and ('value' in valueToProcess) and len(valueToProcess)==3:
+            ret = ureg(valueToProcess['value']) if not returnStandardize else ureg(valueToProcess['units'])
+            ret = pintToUnum(ret) if returnUnum else ret
+        else:
+            ret = {}
+            for key, value in valueToProcess.items():
+                logger.debug(f"Transforming key: {key}")
+                ret[key] = JSONToConfiguration(value,returnUnum=returnUnum,returnStandardize=returnStandardize)
     elif isinstance(valueToProcess,list):
         logger.debug("\t list, transforming to unum every item")
-        ret = [JSONToConfiguration(x) for x in valueToProcess]
+        ret = [JSONToConfiguration(x,returnUnum=returnUnum,returnStandardize=returnStandardize) for x in valueToProcess]
     elif isinstance(valueToProcess,Unum):
-        ret = valueToProcess
+        ret = valueToProcess if returnUnum else unumToPint(valueToProcess)
+    elif isinstance(valueToProcess,Quantity):
+        ret = pintToUnum(valueToProcess) if returnUnum else valueToProcess
     elif isinstance(valueToProcess,int):
         ret = valueToProcess
     elif isinstance(valueToProcess,float):
@@ -107,7 +171,12 @@ def JSONToConfiguration(valueToProcess):
         ret = valueToProcess
     else:
         logger.debug(f"\t Try to convert {valueToProcess} to unum")
-        ret = strToUnum(valueToProcess)
+        try:
+            ret = ureg(valueToProcess)
+            ret = pintToUnum(ret) if returnUnum else ret
+        except (UndefinedUnitError, DimensionalityError, ValueError):
+            ret = valueToProcess
+
     return ret
 
 def loadJSON(jsonData):

@@ -1,10 +1,17 @@
+
 from itertools import product
 import pandas
 import numpy
 import dask.dataframe as dd
-
+import glob
+import shutil
 import os
 import xarray
+import tqdm
+from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
+from hera import get_classMethod_logger
+from deprecated import deprecated
+from dask.diagnostics import ProgressBar
 
 #### import the simple module from the paraview
 try:
@@ -18,8 +25,6 @@ except ImportError:
 
 from hera.utils.logging import helpers as hera_logging
 
-
-
 class paraviewOpenFOAM:
     """
         A class to extract openFOAM file format
@@ -28,55 +33,7 @@ class paraviewOpenFOAM:
 
     _componentsNames = None  # names of components for reading.
 
-    _hdfdir        = None    # path to save the hdf.
-    _netcdfdir     = None    # path to save the netcdf.
-    _parquetdir    = None
-
-
-    _readerName = None
-    _father = None
-
-    @property
-    def reader(self):
-        return self._reader
-
-    @property
-    def readerName(self):
-        return self._readerName
-
-
-    @property
-    def outputPath(self):
-        return self._outputPath
-
-    @property
-    def hdfdir(self):
-        return self._hdfdir
-
-    @hdfdir.setter
-    def hdfdir(self, hdfdir):
-        self._hdfdir = hdfdir
-
-    @property
-    def netcdfdir(self):
-        return self._netcdfdir
-    @property
-    def possibleRegions(self):
-        return self._possibleRegions
-
-    @netcdfdir.setter
-    def netcdfdir(self, netcdfdir):
-        self._netcdfdir = netcdfdir
-
-    @property
-    def parquetdir(self):
-        return self._parquetdir
-
-    @parquetdir.setter
-    def parquetdir(self, parquetdir):
-        self._parquetdir = parquetdir
-
-    def __init__(self, casePath,caseType='Decomposed Case', servername=None,fieldNames =None,name="mainreader"):
+    def __init__(self, casePath,caseType=CASETYPE_DECOMPOSED, servername=None,name="mainreader"):
         """
             Initializes the paraviewOpenFOAM class.
 
@@ -103,16 +60,14 @@ class paraviewOpenFOAM:
                 The connection string is printed when the server is initialized.
 
         """
-        self.logger = hera_logging.get_logger(self)
+        logger = get_classMethod_logger(self,"__init__")
         if servername is not None:
             pvsimple.Connect(servername)
 
         self._componentsNames = {}
 
-        self.netcdfdir = "netcdf"
-        self.hdfdir = "hdf"
-        self.parquetdir = "parquet"
-
+        self.casePath = casePath
+        self.caseType = caseType
 
         # Array shape length 1 - scalar.
         #					 2 - vector.
@@ -132,10 +87,7 @@ class paraviewOpenFOAM:
                                  (2, 1): "_zy",
                                  (2, 2): "_zz"}
 
-
-        self._ReadCase(readerName=name, casePath=casePath, CaseType=caseType, fieldNames=fieldNames)
-
-    def _ReadCase(self, readerName, casePath, CaseType='Decomposed Case', fieldNames=None):
+    def initializeReader(self, readerName="reader"):
         """
             Constructs a reader and register it in the vtk pipeline.
 
@@ -144,9 +96,11 @@ class paraviewOpenFOAM:
         Parameters
         -----------
 
-        readerName:
-                the name of the reader.
-        casePath:
+        readerName: str
+                The name of the reader.  (of the pipline).
+                When using server, then you can have different pipelines with different names.
+
+        casePath: str
                 a full path to the case directory.
         CaseType: str
                 Either 'Decomposed Case' for parallel cases or 'Reconstructed Case'
@@ -154,50 +108,39 @@ class paraviewOpenFOAM:
         fieldnames: list of str
                 List of field names to load.
                 if None, read all the fields.
+
+        servername: str
+                The address of pvserver. If None, use the local single threaded case.
         :return:
                 the reader
         """
-        self._readerName  = readerName
-        self._reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % casePath, CaseType=CaseType, guiName=readerName)
-        self.reader.MeshRegions.SelectAll()
-        self._possibleRegions = list(self._reader.MeshRegions)
-        self._reader.MeshRegions = ['internalMesh']
-        if fieldNames is not None:
-            self._reader.CellArrays = fieldNames
+        reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self.casePath, CaseType=self.caseType,guiName=readerName)
+        reader.MeshRegions.SelectAll()
+        possibleRegions = list(reader.MeshRegions)
+        reader.MeshRegions = ['internalMesh']
+        reader.UpdatePipeline()
 
-        self._reader.UpdatePipeline()
+        # setting the local variable.
+        self.reader = reader
+        self.readerName  = readerName
 
-    def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
+        return reader
 
-    def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
-
-    def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=False)
-
-    def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
-        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, xarray=True)
-
-
-    def readTimeSteps(self, datasourcenamelist, timelist=None, fieldnames=None, xarray=False):
+    def readTimeSteps(self, datasourcenamedict, timelist=None, fieldnames=None, regularMesh=False):
         """
             reads a list of datasource lists to a dictionary
 
         Parameters
         ----------
 
-        readername: VTK filter, str
-                The reader filter (or its name)
-
-        datasourcenamelist: list
-                A list of names of filters to get.
+        datasourcenamedict: dict
+                filtername -> output path .
 
         timelist: list
                 The list of times to read.
         fieldnames:
                 The list of fields to write.
-        xarray
+        regtularMesh
                 convert pandas results to xarray (works only for regular grids).
 
         Return
@@ -206,37 +149,36 @@ class paraviewOpenFOAM:
         For each time step.
                     A map datasourcename -> pandas
         """
-        datasourcenamelist = numpy.atleast_1d(datasourcenamelist)
-
-        timelist = self.reader.TimestepValues if timelist is None else numpy.atleast_1d(timelist)
+        logger = get_classMethod_logger(self, "readTimeSteps")
         for timeslice in timelist:
             # read the timestep.
-            self.logger.info("\r Reading time step %s" % timeslice)
-
+            logger.info("\r Reading time step %s" % timeslice)
             ret = {}
-            for datasourcename in datasourcenamelist:
-                datasource = pvsimple.FindSource(datasourcename)
-                self.logger.debug(f"Reading source {datasourcename}")
-                rt = self._readTimeStep(datasource, timeslice, fieldnames, xarray)
+            for filterName,outputFile in datasourcenamedict.items():
+                datasource = pvsimple.FindSource(filterName)
+                logger.debug(f"Reading source {filterName}")
+                rt = self._readTimeStep(datasource, timeslice, fieldnames, regularMesh)
                 if rt is not None:
-                    ret[datasourcename] = rt
+                    ret[filterName] = rt
             yield ret
 
-    def _readTimeStep(self, datasource, timeslice, fieldnames=None, xarray=False):
+    def _readTimeStep(self, datasource, timeslice, fieldnames=None, regularMesh=False):
         # read the timestep.
+        logger = get_classMethod_logger(self, "_readTimeStep")
+
         datasource.UpdatePipeline(timeslice)
         rawData = servermanager.Fetch(datasource)
         data = dsa.WrapDataObject(rawData)
 
         if isinstance(data.Points, dsa.VTKNoneArray):
-            self.logger.debug("No data exists for filter... return with None")
+            logger.debug("No data exists for filter... return with None")
             return None
         elif isinstance(data.Points, dsa.VTKArray):
             points = numpy.array(data.Points).squeeze()
         else:
             points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
 
-        self.logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
+        logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
         curstep = pandas.DataFrame()
 
         # create index
@@ -264,115 +206,27 @@ class paraviewOpenFOAM:
                 try:
                     curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
                 except ValueError:
-                    self.logger.warning("Field %s is problematic... ommiting" % field)
+                    logger.warning("Field %s is problematic... ommiting" % field)
 
-        curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if xarray else curstep
+        curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7), time=curstep.time.round(7))
+        curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
 
         return curstep
 
-    def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,append=False):
-        """
-            Writes a list of datasources (vtk filters) to netcdf (with xarray).
-
-            The grid data **must** be regular!!!.
-
-            Todo: add a an option for regularization function.
-
-        Parameters
-        ----------
-
-        readername: str
-                The name of the reader to use.
-        datasourcenamelist:
-                The name of the datasources to write.,
-        outfile: str
-                the directory to write the files.
-        timeList: list
-                the times to write
-        fieldnames: list
-                the fields to write
-        tsBlockNum: int
-                the number of
-
-        Returns
-        -------
-
-        None
-
-        """
-
-        def writeList(theList, blockID, blockDig,overWrite,fileDirectory):
-            data = xarray.concat(theList, dim="time")
-            blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
-            curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
-            if os.path.exists(curfilename):
-                if not overWrite:
-                    raise Exception ('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
-
-            data.to_netcdf(curfilename)
-            blockID += 1
-
-        def checkIfExist(self,dataChunk,blockID,fileDirectory):
-            filterList = [k for k in dataChunk.keys()]
-            blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
-            for filtername in filterList:
-                curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
-                if os.path.exists(curfilename):
-                    if not overwrite:
-                        raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
-
-        timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timeList)
-
-
-        os.makedirs(self.netcdfdir,exist_ok=True)
-
-        blockDig = max(5, numpy.ceil(numpy.log10(len(timeList))) + 1)
-        blockID = 0
-
-        L = []
-        checkExist=True
-
-        for xray in self.to_xarray(datasourcenamelist=datasourcenamelist, timelist=timeList, fieldnames=fieldnames):
-
-            if checkExist:
-                checkExist =False
-                checkIfExist(xray, blockID, self.netcdfdir)
-
-            L.append(xray)
-            if len(L) == tsBlockNum:
-                if isinstance(L[0],dict):
-                    filterList = [k for k in L[0].keys()]
-                    for filtername in filterList:
-                        writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
-
-                else:
-                    writeList(L, blockID, blockDig, overwrite, self.netcdfdir)
-                L = []
-                blockID += 1
-                checkExist = False
-
-        if len(L)>0:
-            checkIfExist(xray, blockID, self.netcdfdir)
-            if isinstance(L[0],dict):
-                filterList = [k for k in L[0].keys()]
-                for filtername in filterList:
-                    writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
-            else:
-                writeList(L,blockID,blockDig,self.netcdfdir)
-
-    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, append=False, filterList=None):
+    def writeCase(self, filtersDict, regularMesh, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False):
         """
                 Writes the requested fileters as parquet files.
 
                 if overwrite=False then  find the time that is saved. Assume that all the filters have the same timelist.
         Parameters
         ----------
-        datasourcenamelist : list
-                List of VTK filters to write as parquets
+        filtersDict : dict : filterName -> output file name
+                List of VTK filters to write as parquets and the corresponding file name. 
 
-        timeList : list
-                List of timesteps to write. optional, if None, the use all time series.
-
+        timeList : None, list or float.
+                * None :  Use all time series. of the solver
+                * List : get the listed timesteps.
+                * float : Get only timesteps larger than this number
         fieldnames : list
                 List of the fields to write in the filters (i.e the variables).
 
@@ -391,68 +245,230 @@ class paraviewOpenFOAM:
         -------
 
         """
-        self.logger.info(f"Starting writing to parquet filters {','.join(numpy.atleast_1d(datasourcenamelist))}")
+        logger = get_classMethod_logger(self,"writeNonRegularCase")
+        logger.info(f"Starting writing to parquet filters {','.join(filtersDict.keys())}")
 
-        def writeList(theList,filePath,append,overwrite):
-            filterList = [x for x in theList[0].keys()]
-            for filtername in filterList:
-                outfile = os.path.join(filePath,f"{filtername}.parquet")
-                self.logger.info("\tWriting filter %s in file %s" % (filtername, outfile))
-
-                if os.path.exists(outfile) and not append and not overwrite:
-                    self.logger.error(f"The output for {filtername} ({outfile}) exists. use --append to append or --overwrite to overwrite. Ignoring")
-                    continue
-                block_data = pandas.concat([pandas.DataFrame(item[filtername]) for item in theList], ignore_index=True,sort=True)
-                data = dd.from_pandas(block_data, npartitions=1)
-                data.set_index("time").to_parquet(outfile,append=append,overwrite=overwrite)
-
-                self.logger.debug("Repartitioning to 100MB per partition")
-                import pdb
-                pdb.set_trace()
-                dd.read_parquet(outfile).repartition(partition_size = "100MB").reset_index().sort_values("time").set_index("time").to_parquet(outfile)
-
-        if not os.path.isdir(self.parquetdir):
-            self.logger.debug(f"Creating output directory {self.parquetdir}")
-            os.makedirs(self.parquetdir)
+        slice_filext = "zarr" if regularMesh else "parquet"
 
         maxTime = -1  # take all
-        if not overwrite:
-            # find the time that is saved. Assume that all the filters have the same timelist.
-            # find the first.
-            self.logger.debug("Appending to existing data, find the maximal time. ")
-            for filtername in datasourcenamelist:
-                prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")
-                if not os.path.exists(prqtFile):
-                    continue
+        if overwrite:
+            logger.info(f"Removing the old results")
+            for filterName,outputPath in filtersDict.items():
+                logger.debug(f"The data for {filterName} : {outputPath}")
+                if os.path.isfile(outputPath):
+                    logger.debug(f"\tParquet file {outputPath} is a file. Removing it")
+                    os.remove(outputPath)
+                elif os.path.isdir(outputPath):
+                    logger.debug(f"\tParquet file {outputPath} is a directory. Removing the tree")
+                    shutil.rmtree(outputPath)
 
-                maxTime = dd.read_parquet(prqtFile).index.max().compute()
-                break
-            self.logger.debug(f"The maximal time found is {maxTime}. Skipping all the timesteps beofre that.")
-        else:
-            self.logger.debug("Overwriting existing data... Deleting current parquets, if they exist")
-            import shutil
-            for filtername in datasourcenamelist:
-                prqtFile = os.path.join(self.parquetdir, f"{filtername}.parquet")
-                if os.path.isfile(prqtFile):
-                    self.logger.debug(f"Parquet file {prqtFile} is a file. Removing it")
-                    os.remove(prqtFile)
-                elif os.path.isdir(prqtFile):
-                    self.logger.debug(f"Parquet file {prqtFile} is a directory. Removing the tree")
-                    shutil.rmtree(prqtFile)
+        logger.info(f"Making sure that the output directories exist")
+        for filterName, outputFile in filtersDict.items():
+            outputPath = os.path.dirname(outputFile)
+            logger.debug(f"{filterName} for directory {outputPath}")
+            if not os.path.isdir(outputPath):
+                logger.debug(f"\t Does not exist. Creating {outputPath}")
+                os.makedirs(outputPath)
 
-        timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timeList)
-        self.logger.debug(f"Filtering out the timesteps. Original list includes: {timeList}")
-        timeList = [x for x in timeList if x > maxTime]
-        self.logger.debug(f"Filtering out the timesteps. After filteration: {timeList}")
+
+        readTimesList = self.reader.TimestepValues if timeList is None else timeList
+        logger.info(f"Getting timelist {readTimesList}")
+
         blockID = 0
-        L = []
-        for pnds in self.to_pandas(datasourcenamelist=datasourcenamelist, timelist=timeList, fieldnames=fieldnames):
+        tempList = []
 
-            L.append(pnds)
-            self.logger.debug(f"Current dataFrames in memory  {len(L)}")
-            if len(L) == tsBlockNum:
-                writeList(L, self.parquetdir,append=append,overwrite=overwrite)
-                L=[]
+        append = False if overwrite else True
+        for filtersData in tqdm.tqdm(self.readTimeSteps(datasourcenamedict=filtersDict,
+                                              timelist=readTimesList,
+                                              fieldnames=fieldnames,
+                                              regularMesh=regularMesh)):
+
+            tempList.append(filtersData)
+            logger.debug(f"Current dataFrames in memory  {len(tempList)}")
+            if len(tempList) == tsBlockNum:
+                self.writeList(tempList,blockID,filtersDict,regularMesh,slice_filext)
+                tempList=[]
                 blockID += 1
-        if len(L) > 0:
-            writeList(L, self.parquetdir,append=append,overwrite=overwrite)
+
+        if len(tempList) > 0:
+            self.writeList(tempList,blockID,filtersDict,regularMesh,slice_filext)
+
+        logger.info("Repartitioning to 100MB per partition")
+        for filterName,outputFile in filtersDict.items():
+            logger.debug(f"Working on {filterName}")
+
+            outputFilterName = filterName
+            outputPath = os.path.dirname(outputFile)
+            outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName}_*.{slice_filext}"))]
+
+            logger.debug(f"Saving all data to {outputFile}: {outputFileList}")
+            with (ProgressBar()):
+                if regularMesh:
+                        # input_data is the directory path here
+                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto', engine="zarr")
+                        if append and os.path.exists(outputFile):
+                            old_data = xarray.open_mfdataset(outputFile, chunks='auto', engine="zarr")
+                            lazy_ds = xarray.concat([lazy_ds,old_data],dim="time").sortby("time")
+
+                        try:
+                            lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
+                        except NotImplementedError:
+                            # somethimes this works and sometimes the other. not clear yet when...
+                            lazy_ds.chunk("auto").to_zarr(f"{outputFile}.final", mode='w')
+
+                else:
+                    newDataList = [dd.read_parquet(fileName) for fileName in outputFileList]
+                    if append and os.path.exists(outputFile):
+                        newDataList.append(dd.read_parquet(outputFile))
+
+                    allData = dd.concat(newDataList).repartition(partition_size="100MB")\
+                        .sort_values("time")\
+                        .set_index("time")\
+                        .to_parquet(f"{outputFile}.final")
+
+            if os.path.exists(outputFile):
+                if os.path.isfile(outputFile):
+                    os.remove(outputFile)
+                else:
+                    shutil.rmtree(outputFile)
+
+            os.rename(f"{outputFile}.final",outputFile)
+
+            logger.debug(f"Removing the old tmp files. ")
+            for fileTodelete in outputFileList:
+                if os.path.isfile(fileTodelete):
+                    os.remove(fileTodelete)
+                else:
+                    shutil.rmtree(fileTodelete)
+
+    def writeList(self,theList,blockID,filtersDict,regularMesh,fileExt):
+        logger = get_classMethod_logger(self,"writeList")
+        filterList = [x for x in theList[0].keys()]
+        for filterName in filterList:
+            outputFilterName = filterName.replace(".","-")
+            outputPath = os.path.dirname(filtersDict[filterName])
+            outputFile = os.path.join(outputPath,f"tmp_{outputFilterName}_{blockID:06d}.{fileExt}")
+
+            logger.info(f"\tWriting filter {filterName} in temporary file {outputFile} ")
+
+            if regularMesh:
+                ds_slice = xarray.concat([item[filterName] for item in theList], dim='time')
+                ds_slice.to_zarr(outputFile,mode='w')
+            else:
+                block_data = pandas.concat([item[filterName] for item in theList], ignore_index=True,sort=True)
+                data = dd.from_pandas(block_data, npartitions=1)
+                data.sort_values("time").to_parquet(outputFile)
+
+
+    ############################################################################################
+    ####        Depracated
+    ############################################################################################
+
+    @deprecated(reason="Use writeRegularCase instead")
+    def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
+                     append=False):
+        self.writeRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite,append)
+
+
+    @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
+    def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+
+    @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
+    def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
+
+    @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
+    def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
+
+    @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
+    def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
+        return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
+    @deprecated(reason="Use writeNonRegularCase instead")
+    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
+                      append=False, filterList=None):
+        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
+
+    @deprecated(reason="Use writeNonRegularCase instead")
+    def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
+                      append=False, filterList=None):
+        writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
+
+
+    #
+    # def writeRegularCase(self, filtersDict, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,append=False):
+    #     """
+    #         Writes a list of datasources (vtk filters) to netcdf (with xarray).
+    #         The grid data **must** be regular!!!.
+    #         Todo: add a an option for regularization function.
+    #
+    #     Parameters
+    #     ----------
+    #
+    #     readername: str
+    #             The name of the reader to use.
+    #     filtersDict:
+    #             The name of the datasources to write.,
+    #     outfile: str
+    #             the directory to write the files.
+    #     timeList: list
+    #             the times to write
+    #     fieldnames: list
+    #             the fields to write
+    #     tsBlockNum: int
+    #             the number of
+    #
+    #     Returns
+    #     -------
+    #
+    #     None
+    #
+    #     """
+    #
+    #     def checkIfExist(self,dataChunk,blockID,fileDirectory):
+    #         filterList = [k for k in dataChunk.keys()]
+    #         blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
+    #         for filtername in filterList:
+    #             curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
+    #             if os.path.exists(curfilename):
+    #                 if not overwrite:
+    #                     raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
+    #
+    #     timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timeList)
+    #     os.makedirs(self.netcdfdir,exist_ok=True)
+    #
+    #     blockDig = max(5, numpy.ceil(numpy.log10(len(timeList))) + 1)
+    #     blockID = 0
+    #
+    #     L = []
+    #     checkExist=True
+    #
+    #     for xray in self.readTimeSteps(datasourcenamelist=filtersDict, timelist=timeList, fieldnames=fieldnames,regularMesh=True):
+    #
+    #         if checkExist:
+    #             checkExist =False
+    #             checkIfExist(xray, blockID, self.netcdfdir)
+    #
+    #         L.append(xray)
+    #         if len(L) == tsBlockNum:
+    #             if isinstance(L[0],dict):
+    #                 filterList = [k for k in L[0].keys()]
+    #                 for filtername in filterList:
+    #                     writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
+    #
+    #             else:
+    #                 writeList(L, blockID, blockDig, overwrite, self.netcdfdir)
+    #             L = []
+    #             blockID += 1
+    #             checkExist = False
+    #
+    #     if len(L)>0:
+    #         checkIfExist(xray, blockID, self.netcdfdir)
+    #         if isinstance(L[0],dict):
+    #             filterList = [k for k in L[0].keys()]
+    #             for filtername in filterList:
+    #                 writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
+    #         else:
+    #             writeList(L,blockID,blockDig,self.netcdfdir)
+    #

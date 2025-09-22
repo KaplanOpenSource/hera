@@ -5,6 +5,7 @@ CASETYPE_DECOMPOSED = 'Decomposed Case'
 CASETYPE_RECONSTRUCTED = "Reconstructed Case"
 TYPE_VTK_FILTER = "vtk_filter"
 
+
 FLOWTYPE_COMPRESSIBLE = "compressible"
 FLOWTYPE_INCOMPRESSIBLE = "incompressible"
 FLOWTYPE_DISPERSION = "dispersion"

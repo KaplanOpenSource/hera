@@ -4,7 +4,7 @@ import os
 import json
 import getpass
 import logging
-from .metadataDocument import MetadataFrame,nonDBMetadataFrame
+from hera.datalayer.document.metadataDocument import MetadataFrame,nonDBMetadataFrame
 
 dbObjects = {}
 

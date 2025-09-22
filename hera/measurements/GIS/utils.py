@@ -24,7 +24,7 @@ ED50_ZONE36N = 23036
 BETA = 0.2
 KARMAN = 0.41
 
-def convertCRS(points,inputCRS,outputCRS,**kwargs):
+def convertCRS(points, inputCRS, outputCRS, **kwargs):
     """
         Converts the points in data, assuming to be in input CRS to points in output CRS.
 
@@ -47,30 +47,51 @@ def convertCRS(points,inputCRS,outputCRS,**kwargs):
 
     Returns
     -------
-            pandas with columns x,y in the correct CRS.
+            list of shapely.geometry.Point in the correct CRS.
 
+    Notes
+    -----
+    - Original comments preserved.
+    - Fixed implementation to correctly use GeoDataFrame and to_crs().
     """
-    if isinstance(points,numpy.ndarray):
+
+    # Fix: Instead of working with GeometryArray directly, we now create a GeoDataFrame
+    if isinstance(points, numpy.ndarray):
         if len(points.shape) == 1:
-            origpoints = geopandas.points_from_xy([points[0]],[points[1]])
+            # Single point
+            gdf = geopandas.GeoDataFrame(geometry=geopandas.points_from_xy([points[0]], [points[1]]))
         else:
-            origpoints = geopandas.points_from_xy(points[:,0],points[:,1])
+            # Multiple points
+            gdf = geopandas.GeoDataFrame(geometry=geopandas.points_from_xy(points[:, 0], points[:, 1]))
 
-    elif isinstance(points,pandas.DataFrame):
-        origpoints = geopandas.points_from_xy(points[kwargs.get("x","x")],
-                                               points[kwargs.get("y","y")])
-    elif isinstance(points,list):
+    elif isinstance(points, pandas.DataFrame):
+        # DataFrame input, using column names from kwargs if provided
+        gdf = geopandas.GeoDataFrame(geometry=geopandas.points_from_xy(
+            points[kwargs.get("x", "x")],
+            points[kwargs.get("y", "y")]
+        ))
+
+    elif isinstance(points, list):
         if len(points) == 1:
-            origpoints = geopandas.points_from_xy([points[0][0]],[points[0][1]])
+            # Single point in list
+            gdf = geopandas.GeoDataFrame(geometry=geopandas.points_from_xy(
+                [points[0][0]], [points[0][1]]
+            ))
         else:
-            origpoints = geopandas.points_from_xy([x[0] for x in points],[x[1] for x in points])
-
+            # List of points
+            gdf = geopandas.GeoDataFrame(geometry=geopandas.points_from_xy(
+                [x[0] for x in points],
+                [x[1] for x in points]
+            ))
     else:
-        raise ValueError(f"points must be numpy.array,pandas.DataFrame, or list. Not {type(points)}")
+        raise ValueError(f"points must be numpy.array, pandas.DataFrame, or list. Not {type(points)}")
 
+    # Fix: Setting CRS properly before transforming
+    gdf.set_crs(inputCRS, inplace=True)
 
-    origpoints.crs = inputCRS
-    return origpoints.to_crs(outputCRS)
+    # Fix: Return a list of shapely Points, not a GeoDataFrame
+    return list(gdf.to_crs(outputCRS).geometry)
+
 
 
 def create_xarray(minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84):

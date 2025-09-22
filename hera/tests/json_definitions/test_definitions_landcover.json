@@ -1,0 +1,76 @@
+[
+  {
+    "class_path": "hera.measurements.GIS.raster.landcover.LandCoverToolkit",
+    "init_parameters": {
+      "projectName": "unittest_project"
+    },
+    "method_name": "getLandCoverAtPoint",
+    "parameters": {
+      "lon": 35.0,
+      "lat": 32.0,
+      "dataSourceName": {
+        "fromEnv": "HERA_UNITTEST_DATA",
+        "relative": "measurements/GIS/raster/lc_mcd12q1.tif"
+      }
+    },
+    "output_filename": "expected_outputs/landcover_point.json",
+    "output_type": "int"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.landcover.LandCoverToolkit",
+    "init_parameters": {
+      "projectName": "unittest_project"
+    },
+    "method_name": "getLandCover",
+    "parameters": {
+      "minx": 34.9,
+      "miny": 31.9,
+      "maxx": 35.1,
+      "maxy": 32.1,
+      "dxdy": 500,
+      "dataSourceName": {
+        "fromEnv": "HERA_UNITTEST_DATA",
+        "relative": "measurements/GIS/raster/lc_mcd12q1.tif"
+      }
+    },
+    "output_filename": "expected_outputs/landcover_area.json",
+    "output_type": "dataarray"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.landcover.LandCoverToolkit",
+    "init_parameters": {
+      "projectName": "unittest_project"
+    },
+    "method_name": "getRoughnessAtPoint",
+    "parameters": {
+      "lon": 35.0,
+      "lat": 32.0,
+      "dataSourceName": {
+        "fromEnv": "HERA_UNITTEST_DATA",
+        "relative": "measurements/GIS/raster/lc_mcd12q1.tif"
+      }
+    },
+    "output_filename": "expected_outputs/roughness_point.json",
+    "output_type": "float"
+  },
+  {
+    "class_path": "hera.measurements.GIS.raster.landcover.LandCoverToolkit",
+    "init_parameters": {
+      "projectName": "unittest_project"
+    },
+    "method_name": "getRoughness",
+    "parameters": {
+      "minx": 34.9,
+      "miny": 31.9,
+      "maxx": 35.1,
+      "maxy": 32.1,
+      "dxdy": 500,
+      "dataSourceName": {
+        "fromEnv": "HERA_UNITTEST_DATA",
+        "relative": "measurements/GIS/raster/lc_mcd12q1.tif"
+      }
+    },
+    "output_filename": "expected_outputs/roughness_area.json",
+    "output_type": "dataarray"
+  }
+]

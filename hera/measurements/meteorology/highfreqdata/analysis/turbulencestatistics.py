@@ -11,10 +11,14 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
     def __init__(self, rawData, metadata):
         super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata)
+        self.data = None
 
     @property
     def isMissingData(self):
         return self.metaData["isMissingData"]
+
+    def getData(self):
+        return self.data
 
     def fluctuations(self, inMemory=None):
         """
@@ -76,6 +80,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             self._RawData['Tp'] = self._RawData['T'] - self._RawData['T_bar']
             self._RawData['wind_dir_p'] = (180-(180-(self._RawData['wind_dir'] - self._RawData['wind_dir_bar']).abs()).abs()).abs()
 
+            self.data = self._RawData
         return self
 
     def sigma(self, inMemory=None):

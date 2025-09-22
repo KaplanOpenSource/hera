@@ -1,6 +1,6 @@
 from .analysis.analysislayer import RawdataAnalysis
-from .... import toolkit
-from .... import get_classMethod_logger
+from hera import toolkit
+from hera.utils.logging import get_classMethod_logger
 from .parsers.CampbellBinary import Parser
 from .parsers.TOA5 import ASCIIParser
 
