@@ -380,7 +380,7 @@
       "defaultBuildingDataSource": "BNTL"
     },
     "DataSource": {
-      "BNTL": {
+      "Documentation_BNTL": {
         "isRelativePath": "True",
         "item": {
           "resource": "data/GIS_BUILDING/BNTL-JERUSALEM/JERU-BLDG.shp",
@@ -399,7 +399,7 @@
       "defaultTileServer": "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
     },
     "DataSource": {
-      "localTileServer": {
+      "Documentation_TileServer": {
         "isRelativePath": "False",
         "item": {
           "resource": "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
@@ -410,7 +410,7 @@
   },
 "experiment": {
         "DataSource": {
-            "Haifa2014": {
+            "Documentation_Haifa2014": {
                 "isRelativePath": "True",
                 "item": {
                     "dataSourceName": "Haifa2014",
@@ -452,7 +452,7 @@
       "defaultSRTM": "SRTMGL1"
     },
     "DataSource": {
-      "SRTMGL1": {
+      "Documentation_SRTMGL1": {
         "isRelativePath": "True",
         "item": {
           "resource": "data/raster/N31E034.SRTMGL1.hgt",
@@ -468,7 +468,7 @@
       "defaultLandCover": "Type-1"
     },
     "DataSource": {
-      "Type-1": {
+      "Documentation_Type-1": {
         "isRelativePath": "True",
         "item": {
           "resource": "data/landcover/prefixaac.tif",
@@ -483,7 +483,7 @@
   },
 "GIS_Demography": {
     "DataSource": {
-      "lamas": {
+      "Documentation_lamas": {
         "isRelativePath": "True",
         "item": {
           "resource": "data/demography/pop-gush/Dan-population_lamas.shp",
