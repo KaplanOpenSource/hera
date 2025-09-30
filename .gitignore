@@ -16,3 +16,4 @@ venv
 heraenv
 .venv
 .python-version
+node_modules/
