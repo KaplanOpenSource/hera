@@ -19,7 +19,7 @@ export const Projects = () => {
       setError(null);
       try {
         const payload: ExecRequest = {
-          code: 'result = [{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]',
+          code: 'from hera.datalayer.project import getProjectList; result = getProjectList()',
         };
         const r = await fetch(`${API_BASE}/exec`, {
           method: 'POST',
