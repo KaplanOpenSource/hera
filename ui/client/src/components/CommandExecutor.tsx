@@ -1,6 +1,6 @@
 import { Box, Button, TextField } from '@mui/material';
 import { useState } from 'react';
-import { API_BASE } from '../shared/constants.ts';
+import { API_BASE } from '../shared/constants';
 import type { ExecRequest } from '../shared/types';
 
 export const CommandExecutor = () => {
