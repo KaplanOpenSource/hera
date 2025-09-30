@@ -42,8 +42,12 @@ class ExecPayload(BaseModel):
 
 @app.post("/exec")
 def exec_code(payload: ExecPayload):
-    value = eval(payload.code, {}, {"MOCK_PROJECTS": MOCK_PROJECTS})
-    return jsonable_encoder(value)
+    # DANGER: This is a security risk. It allows arbitrary code execution.
+    # Only use this in a trusted environment.
+    # The `_locals` dict will be updated with any variables created in the code.
+    _locals = {"MOCK_PROJECTS": MOCK_PROJECTS}
+    exec(payload.code, {}, _locals)
+    return jsonable_encoder(_locals.get("result", None))
 
 
 # Serve built frontend (Vite) in production

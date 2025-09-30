@@ -1,11 +1,11 @@
 import { Alert, Box, Container } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { CommandExecutor } from '../components/CommandExecutor';
 import { PageTitle } from '../components/PageTitle';
 import { ProjectDetailsView } from '../components/ProjectDetailsView';
 import { ProjectTreeView } from '../components/ProjectTreeView';
+import { API_BASE } from '../shared/constants';
 import type { ExecRequest, Project } from '../shared/types';
-
-const API_BASE = 'http://localhost:8000';
 
 export const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -19,7 +19,7 @@ export const Projects = () => {
       setError(null);
       try {
         const payload: ExecRequest = {
-          code: '[{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]',
+          code: 'result = [{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]',
         };
         const r = await fetch(`${API_BASE}/exec`, {
           method: 'POST',
@@ -27,7 +27,7 @@ export const Projects = () => {
           body: JSON.stringify(payload),
         });
         const data = await r.json();
-        setProjects(data);
+        setProjects(data || []);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to run');
       } finally {
@@ -49,7 +49,7 @@ export const Projects = () => {
 
     try {
       const payload: ExecRequest = {
-        code: `next((p for p in MOCK_PROJECTS if p.id == "${projectId}"), None)`,
+        code: `result = next((p for p in MOCK_PROJECTS if p.id == "${projectId}"), None)`,
       };
       const r = await fetch(`${API_BASE}/exec`, {
         method: 'POST',
@@ -87,6 +87,7 @@ export const Projects = () => {
           <ProjectDetailsView project={selectedProject} />
         </Box>
       </Box>
+      <CommandExecutor />
     </Container>
   );
 };
