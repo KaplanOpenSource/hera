@@ -1,12 +1,11 @@
-FROM hera-base:latest
+FROM hera:latest
 
-COPY server/requirements.txt .
+WORKDIR /app/ui/server
 
 RUN pip install --no-cache-dir -r requirements.txt
-
-COPY server/ .
 
 EXPOSE 8000
 EXPOSE 5678
 
-CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "main.py"]
+# CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
