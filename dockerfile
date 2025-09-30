@@ -80,5 +80,7 @@ RUN mkdir -p /root/.pyhera/log && \
         } \
     }' > /root/.pyhera/config.json
 
+RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
+
 EXPOSE 27017
-CMD ["bash", "-c", "sh hera/scripts/run_mongo.sh; exec bash"]
+CMD ["bash"]
