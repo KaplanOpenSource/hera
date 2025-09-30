@@ -13,3 +13,6 @@ build
 dist
 pyhera.egg-info/
 venv
+heraenv
+.venv
+.python-version
