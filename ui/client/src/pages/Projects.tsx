@@ -19,7 +19,13 @@ export const Projects = () => {
       setError(null);
       try {
         const payload: ExecRequest = {
-          code: 'from hera.datalayer.project import getProjectList; result = getProjectList()',
+          // code: 'result = [{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]',
+          code: `
+from hera.datalayer.project import getProjectList;
+result = [{"id": "p-" + str(i), "name": proj} for i, proj in enumerate(getProjectList())]
+# result = [{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]
+# result = getProjectList()
+          `,
         };
         const r = await fetch(`${API_BASE}/exec`, {
           method: 'POST',
@@ -49,7 +55,8 @@ export const Projects = () => {
 
     try {
       const payload: ExecRequest = {
-        code: `result = next((p for p in MOCK_PROJECTS if p.id == "${projectId}"), None)`,
+        code: `result = next((p for p in MOCK_PROJECTS), None)`,
+        // code: `result = next((p for p in MOCK_PROJECTS if p.id == "${projectId}"), None)`,
       };
       const r = await fetch(`${API_BASE}/exec`, {
         method: 'POST',
