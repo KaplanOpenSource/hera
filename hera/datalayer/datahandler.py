@@ -3,27 +3,17 @@ import pandas
 import dask.dataframe
 import xarray
 import json
-
-try:
-    import geopandas
-except ImportError:
-    print("geopandas not installed, no support for gis data format")
-try:
-    from osgeo import gdal
-except ImportError:
-    print("gdal not installed, no support for shapefiles")
-
+import geopandas
+from osgeo import gdal
 import matplotlib.image as mpimg
 import sys
 import pickle
 import io
-try:
-    import rasterio
-except ImportError:
-    print("rasterio not installed, no support for image data types. ")
-
+import rasterio
 from hera.utils import loadJSON
 import importlib
+import os
+
 
 version = sys.version_info[0]
 if version == 3:
@@ -52,6 +42,7 @@ class datatypes:
     DICT = "dict"
     NUMPY_ARRAY = "numpy_array"
     NUMPY_DICT_ARRAY = "numpy_dict_array"  # A dict of numpy arrays, no automatic detection.
+    CLASS = "Class"
 
     @staticmethod
     def get_obj_or_instance_fullName(obj):
@@ -743,3 +734,91 @@ class DataHandler_numpy_dict_array:
         obj = numpy.load(resource)
 
         return obj
+
+
+class DataHandler_Class(object):
+    """
+    DataType: Class
+
+    resource:
+        Filesystem directory that contains the code for the class (will be added to sys.path).
+        If empty/None, nothing is added to sys.path.
+        If resource points directly to a Python package directory (contains __init__.py),
+        the parent directory is also added so that `import top_pkg.module` resolves.
+
+    desc:
+        - 'classpath' (str): fully qualified import path of the class,
+          e.g. 'mypkg.mymodule.MyClass' (REQUIRED).
+        - 'params' or 'parameters' (dict, optional): keyword-args for the class constructor.
+        - 'instantiate' (bool, optional; default True):
+            If True, return an instance (cls(**...)).
+            If False, return the class object (cls) itself.
+
+    Merge rule (Option B):
+        When both desc.parameters and **kwargs provide the same key,
+        desc.parameters should take precedence (override kwargs).
+    """
+
+    @staticmethod
+    def saveData(resource, fileName, **kwargs):
+        # Storing a "Class" datatype as a file is not supported by this handler.
+        raise NotImplementedError("Saving a Class datatype is not supported")
+
+    @staticmethod
+    def getData(resource, desc=None, **kwargs):
+        import os
+        import sys
+        import importlib
+
+        # 1) Add search paths to sys.path:
+        #    - If resource points to the package directory itself (contains __init__.py),
+        #      also add its parent so that `import top_pkg...` resolves.
+        search_paths = []
+        if resource:
+            abs_path = os.path.abspath(resource)
+            if os.path.isdir(abs_path):
+                pkg_init = os.path.join(abs_path, "__init__.py")
+                if os.path.isfile(pkg_init):
+                    parent = os.path.dirname(abs_path)
+                    if parent not in sys.path:
+                        search_paths.append(parent)
+                if abs_path not in sys.path:
+                    search_paths.append(abs_path)
+        # Prepend for priority (keep user-provided paths before existing ones)
+        for pth in reversed(search_paths):
+            sys.path.insert(0, pth)
+
+        # 2) Resolve metadata
+        desc = desc or {}
+        classpath = desc.get("classpath") or kwargs.get("classpath")
+        if not classpath:
+            raise ValueError('For dataFormat=Class you must provide desc["classpath"]')
+
+        params = desc.get("parameters") or desc.get("params") or {}
+        instantiate = desc.get("instantiate", True)
+
+        # 3) Import module and get class by name
+        module_name, _, class_name = classpath.rpartition(".")
+        if not module_name or not class_name:
+            raise ValueError(
+                f"Invalid classpath '{classpath}'. Expected something like 'pkg.mod.Class'."
+            )
+
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            raise ImportError(
+                f"Cannot import module '{module_name}' for classpath '{classpath}': {e}"
+            )
+
+        try:
+            cls = getattr(module, class_name)
+        except AttributeError:
+            raise ImportError(f"Module '{module_name}' has no attribute '{class_name}'")
+
+        # 4) Merge constructor kwargs so that desc.parameters override duplicates (Option B)
+        call_kwargs = dict(kwargs)   # baseline from **kwargs
+        call_kwargs.update(params)   # desc.parameters WIN on duplicates
+
+        # 5) Return an instance or the class object
+        return cls(**call_kwargs) if instantiate else cls

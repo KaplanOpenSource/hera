@@ -1,7 +1,8 @@
+import json
 import os
 import pydoc
 import sys
-from hera import toolkit
+from ... import toolkit,toolkitHome,datalayer
 from .presentation import experimentPresentation
 from .analysis import experimentAnalysis
 from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
@@ -13,7 +14,7 @@ except ImportError:
     print("Must have argos installed and in the path. ")
 
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
-from hera.utils  import loadJSON
+from ...utils  import loadJSON
 import logging
 
 # The name of the property. This is has to be similar ot the  from the argosweb interface.
@@ -205,6 +206,7 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             raise ValueError(f" The configuration file doesn't exist. Looking for {configurationFileName}")
         self._configuration = loadJSON(configurationFileName)
 
+
         dataSourceConfiguration = dict() if dataSourceConfiguration is None else dataSourceConfiguration
         self._configuration.update(dataSourceConfiguration)
 
@@ -262,7 +264,11 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
         self._analysis = analysisCLS(self)
         self._presentation = presentationCLS(self,self._analysis)
 
-    def getDataFromDateRange(self,deviceType,startTime , endTime ,deviceName = None,withMetadata = True):
+    def getDataFromTrial(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = True):
+
+        startTime = self.properties[TRIALSTART] if startTime is None else startTime
+        endTime = self.properties[TRIALEND] if endTime is None else endTime
+
         data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
 
         if len(data) == 0:
@@ -383,11 +389,11 @@ class EntityTypeWithData(argosDataObjects.EntityType):
         trial = self.experiment.trialSet[trialSetName][trialName]
         startTime = trial.properties[TRIALSTART]
         endTime = trial.properties[TRIALEND]
+        self.propertiesTable
+        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
 
-        StoreDataPerDevice = self.properties['StoreDataPerDevice']
-        data = self._experimentData.getData(deviceType=self.entityType,deviceName=self.name,startTime=startTime,endTime=endTime,
-                                            perDevice=StoreDataPerDevice)
-        return data
+
+        pass
 
 
 class EntityWithData(argosDataObjects.Entity):
@@ -396,11 +402,6 @@ class EntityWithData(argosDataObjects.Entity):
         self._experimentData = experimentData
         super().__init__(entityType, metadata)
 
-    def getData(self,startTime=None, endTime=None):
-        StoreDataPerDevice = self.properties['StoreDataPerDevice']
 
-        return self._experimentData.getData(deviceType=self.entityType,
-                                            deviceName=self.name,
-                                            startTime=startTime,
-                                            endTime=endTime,
-                                            perDevice=StoreDataPerDevice)
+    def getData(self,startTime=None, endTime=None):
+        return self._experimentData.getData(deviceType=self.entityType,deviceName=self.name,startTime=startTime,endTime=endTime)

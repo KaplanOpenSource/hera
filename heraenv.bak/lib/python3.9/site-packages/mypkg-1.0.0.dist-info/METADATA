@@ -1,0 +1,9 @@
+Metadata-Version: 1.2
+Name: mypkg
+Version: 1.0.0
+Summary: This is the documentation for the package.
+Home-page: https://github.com/cjrh/mypkg
+License: UNKNOWN
+Author: Caleb Hattingh
+Author-email: caleb.hattingh@gmail.com
+Classifier: License :: OSI Approved :: Apache Software License

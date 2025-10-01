@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "convertPointsCRS",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::2039" } },
+"features": [
+{ "type": "Feature", "properties": { }, "geometry": { "type": "Point", "coordinates": [ 246841.548995717370417, 850438.986485718633048 ] } },
+{ "type": "Feature", "properties": { }, "geometry": { "type": "Point", "coordinates": [ 247764.823619654518552, 851550.88611656287685 ] } }
+]
+}

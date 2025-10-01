@@ -2,7 +2,7 @@ import json
 import os
 import pandas
 import inspect
-from deprecated import deprecated
+from promise.utils import deprecated
 
 from hera.datalayer.datahandler import datatypes
 from hera.utils.logging import get_classMethod_logger
@@ -158,22 +158,7 @@ class Project:
             Create a config document or updates an existing config document.
         """
         if self._projectName == self.DEFAULTPROJECT:
-            err = """
-                    Default project was initiated and it is cannot use configuration.
-                    
-                    This error os obtained because you have initiated the project or the toolkit 
-                    using projectName=None, and you don't case a caseConfiguration.json in the directory that 
-                    specifies the project name. 
-                    
-                    To solve this project either 
-                    - Create a new project in the directory: 
-                      run  
-                        >> hera-project project create <the directory name>
-                      in the parent directory 
-                    - Create manually the file caseConfigutation.json in the directory with the key 'projectName' that holds 
-                      the name of the project as a string.     
-            """
-            raise ValueError(err)
+            raise ValueError("Default project cannot use configuration")
 
         doc = self._getConfigDocument()
         if keep_old_values:
@@ -241,12 +226,7 @@ class Project:
         self._simulations   = Simulations_Collection(connectionName=connectionName)
         self._all           =   AbstractCollection(connectionName=connectionName)
 
-        if self.projectName != self.DEFAULTPROJECT:
-            logger.info(f"Attempting to get default directory from the disk")
-            savedFilesDirectory = self.getConfig().get("filesDirectory", None)
-        else:
-            logger.info(f"Default project, setting to current directory")
-            savedFilesDirectory = None
+        savedFilesDirectory = self.getConfig().get("filesDirectory", None)
 
         if savedFilesDirectory is None:
             if filesDirectory is None:
@@ -254,9 +234,8 @@ class Project:
             else:
                 filesDirectory= os.path.abspath(filesDirectory)
 
-            if self.projectName != self.DEFAULTPROJECT:
-                logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
-                self.setConfig(filesDirectory=filesDirectory)
+            logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
+            self.setConfig(filesDirectory=filesDirectory)
         else:
             filesDirectory = savedFilesDirectory
 

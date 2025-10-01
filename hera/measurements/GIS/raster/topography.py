@@ -5,7 +5,7 @@
 
 """
 from hera import toolkit
-from hera.utils import stlFactory, convertCRS, ITM, WSG84, ED50_ZONE36N, create_xarray
+from hera.measurements.GIS.utils import stlFactory, convertCRS, ITM, WSG84, ED50_ZONE36N, create_xarray
 from hera.utils.logging import get_classMethod_logger
 
 import numpy
@@ -24,9 +24,6 @@ import pandas as pd
 import xarray as xr
 import geopandas as gpd
 from shapely.geometry import Point
-
-
-WSG84 = 4326
 
 
 WSG84 = 4326

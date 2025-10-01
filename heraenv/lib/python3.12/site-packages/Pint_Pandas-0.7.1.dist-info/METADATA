@@ -1,0 +1,106 @@
+Metadata-Version: 2.1
+Name: Pint-Pandas
+Version: 0.7.1
+Summary: Extend Pandas Dataframe with Physical quantities module
+Author-email: "Hernan E. Grecco" <hernan.grecco@gmail.com>
+License: BSD
+Project-URL: Homepage, https://github.com/hgrecco/pint-pandas
+Keywords: physical,quantities,unit,conversion,science,pandas,dataframe
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.9
+Description-Content-Type: text/x-rst
+License-File: LICENSE
+License-File: AUTHORS
+Requires-Dist: pint>=0.24
+Requires-Dist: pandas>=2.2
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-mpl; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+Requires-Dist: pytest-subtests; extra == "test"
+Requires-Dist: codecov; extra == "test"
+Requires-Dist: coveralls; extra == "test"
+Requires-Dist: nbval; extra == "test"
+Requires-Dist: pyarrow; extra == "test"
+
+.. image:: https://img.shields.io/pypi/v/pint-pandas.svg
+    :target: https://pypi.python.org/pypi/pint-pandas
+    :alt: Latest Version
+
+.. image:: https://img.shields.io/pypi/l/pint-pandas.svg
+    :target: https://pypi.python.org/pypi/pint-pandas
+    :alt: License
+
+.. image:: https://img.shields.io/pypi/pyversions/pint-pandas.svg
+    :target: https://pypi.python.org/pypi/pint-pandas
+    :alt: Python Versions
+
+.. image:: https://github.com/hgrecco/pint-pandas/workflows/CI/badge.svg
+    :target: https://github.com/hgrecco/pint-pandas/actions?query=workflow%3ACI
+    :alt: CI
+
+.. image:: https://github.com/hgrecco/pint-pandas/workflows/Lint/badge.svg
+    :target: https://github.com/hgrecco/pint-pandas/actions?query=workflow%3ALint
+    :alt: LINTER
+
+.. image:: https://coveralls.io/repos/github/hgrecco/pint-pandas/badge.svg?branch=master
+    :target: https://coveralls.io/github/hgrecco/pint-pandas?branch=master
+    :alt: Coverage
+
+
+Pint-Pandas
+===========
+
+Pandas support for `pint <https://pint.readthedocs.io/en/stable/>`_
+
+.. code-block:: python
+
+    >>> import pandas as pd
+    >>> import pint_pandas
+
+
+.. code-block:: python
+
+    >>> df = pd.DataFrame({
+    ...     "torque": pd.Series([1, 2, 2, 3], dtype="pint[lbf ft]"),
+    ...     "angular_velocity": pd.Series([1, 2, 2, 3], dtype="pint[rpm]"),
+    ... })
+    >>> df['power'] = df['torque'] * df['angular_velocity']
+    >>> df.dtypes
+    torque                                       pint[foot * force_pound]
+    angular_velocity                         pint[revolutions_per_minute]
+    power               pint[foot * force_pound * revolutions_per_minute]
+    dtype: object
+
+Documentation
+--------------
+Full documentation is available at http://pint-pandas.readthedocs.io/
+
+Quick Installation
+------------------
+
+To install Pint-Pandas, simply:
+
+.. code-block:: bash
+
+    $ pip install pint-pandas
+
+or utilizing conda, with the conda-forge channel:
+
+.. code-block:: bash
+
+    $ conda install -c conda-forge pint-pandas
+
+and then simply enjoy it!
