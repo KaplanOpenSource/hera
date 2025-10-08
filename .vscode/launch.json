@@ -5,6 +5,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Server (Docker)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "sh build.sh && docker run -it -p 8000:8000 --rm --name hera-server-instance hera-server",
+      "cwd": "${workspaceFolder}/ui/server"
+    },
+    {
+      "name": "Client (Vite/React Dev)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/ui/client"
+    },
+    {
       "name": "Attach Python",
       "type": "debugpy",
       "request": "attach",
@@ -24,6 +38,16 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${file}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Server+Client",
+      "configurations": [
+        "Server (Docker)",
+        "Client (Vite/React Dev)"
+      ],
+      "stopAll": true
     }
   ]
 }
