@@ -1,15 +1,13 @@
 import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from "@mui/material"
-import { useEffect, useState } from "react";
-import { useProjectStore } from "../stores/useProjectStore"
+import { useEffect } from "react";
+import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore"
 
-const NO_PROJECT = "* NONE *";
 export const ProjectChooser = ({ }) => {
-  const { projectNames } = useProjectStore();
-  const [projectId, setProjectId] = useState<string>(NO_PROJECT);
+  const { projectNames, projectId, selectProject } = useProjectStore();
 
   useEffect(() => {
     if (projectId === NO_PROJECT && projectNames.length > 0) {
-      setProjectId(projectNames[0].id);
+      selectProject(projectNames[0].id);
     }
   }, [projectId, projectNames]);
 
@@ -22,7 +20,7 @@ export const ProjectChooser = ({ }) => {
         value={projectId}
         label="Project"
         onChange={(event: SelectChangeEvent) => {
-          setProjectId(event.target.value as string);
+          selectProject(event.target.value as string);
         }}
       >
         {projectNames.map(({ id, name }) => (
