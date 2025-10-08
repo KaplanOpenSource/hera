@@ -64,8 +64,7 @@ result = [{"id": "p-" + str(i), "name": proj} for i, proj in enumerate(getProjec
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <PageTitle />
+    <>
       {error && (
         <Box sx={{ mb: 2 }}>
           <Alert severity="error">{error}</Alert>
@@ -83,8 +82,7 @@ result = [{"id": "p-" + str(i), "name": proj} for i, proj in enumerate(getProjec
           <ProjectDetailsView project={selectedProject} />
         </Box>
       </Box>
-      <CommandExecutor />
-    </Container>
+    </>
   );
 };
 
