@@ -1,5 +1,4 @@
 export interface ProjectName {
-  id: string;
   name: string;
 }
 
@@ -12,6 +11,25 @@ export interface Project {
     cache: number;
   };
   toolkitCount?: number;
+}
+
+export interface ProjectEntire {
+  name: string;
+  documents: ProjectEntire[];
+}
+
+export interface ProjectDocument {
+  _cls: string;
+  projectName: string
+  desc: {
+    toolkit: string;
+    datasourceName: string;
+    version: number[];
+    docid: string;
+  },
+  type: string;
+  resource: string;
+  dataFormat: string;
 }
 
 // The /exec endpoint returns a plain JSON value
