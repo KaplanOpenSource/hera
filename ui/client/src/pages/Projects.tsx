@@ -6,39 +6,28 @@ import { ProjectDetailsView } from '../components/ProjectDetailsView';
 import { ProjectTreeView } from '../components/ProjectTreeView';
 import { API_BASE } from '../shared/constants';
 import type { ExecRequest, Project } from '../shared/types';
+import { execPython } from '../io/execPython';
 
 export const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const fetchProjectNames = async () => {
       setLoading(true);
-      setError(null);
-      try {
-        const payload: ExecRequest = {
-          // code: 'result = [{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]',
-          code: `
+      setError(undefined);
+      const { data, problem } = await execPython(`
 from hera.datalayer.project import getProjectList;
 result = [{"id": "p-" + str(i), "name": proj} for i, proj in enumerate(getProjectList())]
-# result = [{"id": p.id, "name": p.name} for p in MOCK_PROJECTS]
-# result = getProjectList()
-          `,
-        };
-        const r = await fetch(`${API_BASE}/exec`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await r.json();
+          `)
+      if (data) {
         setProjects(data || []);
-      } catch (e: any) {
-        setError(e?.message ?? 'Failed to run');
-      } finally {
-        setLoading(false);
+      } else {
+        setError(problem);
       }
+      setLoading(false);
     };
     fetchProjectNames();
   }, []);
