@@ -305,10 +305,11 @@ class paraviewOpenFOAM:
             with (ProgressBar()):
                 if regularMesh:
                         # input_data is the directory path here
+                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto', engine="zarr")
                         if append and os.path.exists(outputFile):
-                            outputFileList.append(outputFile)
+                            old_data = xarray.open_mfdataset(outputFile, chunks='auto', engine="zarr")
+                            lazy_ds = xarray.concat([lazy_ds,old_data],dim="time").sortby("time")
 
-                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto',engine="zarr")
                         try:
                             lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
                         except NotImplementedError:
