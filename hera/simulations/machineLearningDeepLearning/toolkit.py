@@ -1,4 +1,6 @@
 import json
+import pydoc
+
 import torch
 import numpy
 import inspect
@@ -100,8 +102,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         """
         if isinstance(modelIDorListID,Iterable):
             modelContainer = [self.getTorchModelContainerByID(x) for x in modelIDorListID]
+            if len(modelContainer):
+                raise ValueError(f"Non of the Models ID  {modelIDorListID} not found project {self.projectName}. If this is not the project you ment, make sure caseConfiguration.json exists or that you initialized the toolkit with the desired project name")
         else:
             modelContainer = self.getTorchModelContainerByID(modelIDorListID)
+
+            if modelContainer is None:
+                raise ValueError(f"Model {modelIDorListID} not found in project {self.projectName}. If this is not the project you ment, make sure caseConfiguration.json exists or that you initialized the toolkit with the desired project name")
 
         self.packTorchModel(modelContainer,packFileName)
 
@@ -139,6 +146,33 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         itemsToZip.append(modelsDict)
         zip_items(packFileName,itemsToZip)
 
+    def append_filesDirectory_to_pathToData(self, modelJSON):
+        """
+
+        Parameters
+        ----------
+        modelJSON
+
+        Returns
+        -------
+
+        """
+        if isinstance(modelJSON, dict):
+            new_dict = {}
+            for k, v in modelJSON.items():
+                if k == "pathToData" and isinstance(v, str):
+                    new_dict[k] = os.path.join(self.filesDirectory,v)
+                elif isinstance(v, dict):
+                    new_dict[k] = self.append_filesDirectory_to_pathToData(v)
+                elif isinstance(v, list):
+                    new_dict[k] = [self.append_filesDirectory_to_pathToData(v) if isinstance(item, dict) else item for item in v]
+                else:
+                    new_dict[k] = v
+            return new_dict
+        else:
+            return modelJSON
+
+
 
     ## ====================================================================================================
     ## ====================================================================================================
@@ -152,7 +186,11 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         return data['classpath']
 
     @classmethod
-    def get_class_info(cls,modelCls):
+    def get_class_info(cls, modelClsOrName):
+        if isinstance(modelClsOrName, str):
+            modelCls = pydoc.locate(modelClsOrName)
+        else:
+            modelCls = modelClsOrName
         module = modelCls.__module__
         name = modelCls.__name__
         file_path = inspect.getfile(modelCls)
@@ -165,6 +203,39 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         module_file_path = os.path.join(*patList[:moduleNameIndex])
 
         return name, dict(classpath=full_path, filepath=module_file_path)
+
+    @classmethod
+    def update_filepath_from_classpath(cls,modelJSON):
+        """
+        Recursively adds the correct files path to all the classpath of the machine.
+
+        Parameters
+        ----------
+        modelJSON : dictionary to process
+
+        Returns
+        -------
+
+        """
+
+        if isinstance(modelJSON, dict):
+            new_dict = {}
+            for k, v in modelJSON.items():
+                if k == "classpath" and isinstance(v, str):
+                    _, fileData = cls.get_class_info(v)
+                    new_dict["classpath"] = v
+                    new_dict['filepath'] = fileData['filepath']
+                elif isinstance(v, dict):
+                    new_dict[k] = cls.update_filepath_from_classpath(v)
+                elif isinstance(v, list):
+                    new_dict[k] = [cls.update_filepath_from_classpath(v) if isinstance(item, dict) else item for item in v]
+                else:
+                    new_dict[k] = v
+            return new_dict
+        else:
+            return modelJSON
+
+
 
 ## ====================================================================================================
 ##
@@ -328,6 +399,8 @@ def remove_prefix_from_values(d, target_key, prefix):
     """
     Recursively remove a prefix from the value of all occurrences of `target_key` in a dict.
 
+    Does not take into accoutn JSON files that have list in their root.
+
     :param d: dictionary to process
     :param target_key: key whose values will have the prefix removed
     :param prefix: prefix to remove from the value
@@ -350,4 +423,5 @@ def remove_prefix_from_values(d, target_key, prefix):
         return new_dict
     else:
         return d
+
 
