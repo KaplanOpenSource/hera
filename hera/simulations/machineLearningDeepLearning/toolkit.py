@@ -17,7 +17,7 @@ from hera.utils.jsonutils import compareJSONS
 from hera.utils.SALibUtils import SALibUtils
 from hera.utils.jsonutils import setJSONPath
 from hera.utils.logging import get_classMethod_logger
-from hera.utils.zipUtils import zip_items
+from hera.utils.zipUtils import zip_items,list_json_files_in_zip
 
 try:
     import SALib
@@ -63,6 +63,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
 
     def getEmptyTorchModelContainer(self):
         return torchLightingModelContainer(self)
+
+
+    def getTorchModelFromJSON(self,modelJSON):
+        newModel = torchLightingModelContainer(self)
+        newModel.modelJSON = modelJSON
+        return newModel
+
 
     def listTorchModels(self, modelObjectOrName=None, longFormat=True, **qry):
         qryMongo = dictToMongoQuery(qry)
@@ -146,6 +153,44 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         itemsToZip.append(modelsDict)
         zip_items(packFileName,itemsToZip)
 
+    def loadPackedModel(self,archiveFile,overwrite=False):
+        """
+            Loads the model to the database, and extracts the runtime data to the directory.
+
+            If the model is in the database, we will overwrite the data if the overwrite is True.
+            Otherwise, it will skip.
+
+        Parameters
+        ----------
+        archiveFile
+        overwrite
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"packModel")
+        logger.info("Unpacking models")
+
+        models  = list_json_files_in_zip(archiveFile)
+        for model in models:
+            modelName = model['name']
+            logger.info(f"Loading the model {modelName}")
+            modelJSON = model['content']
+
+            modelJSON = self.update_classes_filepath(modelJSON)
+            modelJSON = self.append_filesDirectory_to_pathToData(modelJSON)
+
+            modelContainer = self.getTorchModelFromJSON(modelJSON['model'])
+            modelContainerDoc = modelContainer.getModelDocument()
+
+            # Check if the directory exists.
+
+            # it it does, overwrite only with overwrite=True.
+
+
+
+
     def append_filesDirectory_to_pathToData(self, modelJSON):
         """
 
@@ -205,7 +250,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         return name, dict(classpath=full_path, filepath=module_file_path)
 
     @classmethod
-    def update_filepath_from_classpath(cls,modelJSON):
+    def update_classes_filepath(cls,modelJSON):
         """
         Recursively adds the correct files path to all the classpath of the machine.
 
@@ -226,9 +271,9 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
                     new_dict["classpath"] = v
                     new_dict['filepath'] = fileData['filepath']
                 elif isinstance(v, dict):
-                    new_dict[k] = cls.update_filepath_from_classpath(v)
+                    new_dict[k] = cls.update_classes_filepath(v)
                 elif isinstance(v, list):
-                    new_dict[k] = [cls.update_filepath_from_classpath(v) if isinstance(item, dict) else item for item in v]
+                    new_dict[k] = [cls.update_classes_filepath(v) if isinstance(item, dict) else item for item in v]
                 else:
                     new_dict[k] = v
             return new_dict

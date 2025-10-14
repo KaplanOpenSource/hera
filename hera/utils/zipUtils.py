@@ -3,6 +3,9 @@ import zipfile
 import os
 import zipfile
 
+from hera.utils.jsonutils import loadJSON
+
+
 def add_directory_to_zip(zipf, folder_path, zip_path=""):
     """
     Recursively adds a folder to the zip file.
@@ -64,4 +67,22 @@ def zip_items(zip_filename, items):
                 raise TypeError(f"Unsupported item type: {type(item)}")
 
 
+def list_json_files_in_zip(zip_path):
 
+    jsonFiles = []
+
+    # Open the zip file in read mode
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        # List all file names inside the zip
+        for file_name in zip_ref.namelist():
+            if ".json" in file_name:
+
+                with zip_ref.open(file_name) as file:
+                    try:
+                        content = file.read().decode('utf-8')
+                    except UnicodeDecodeError:
+                        print("Binary file, skipped reading content.")
+
+                jsonFiles.append(dict(name=file_name,content=loadJSON((content))))
+
+    return jsonFiles
