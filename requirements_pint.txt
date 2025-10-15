@@ -268,7 +268,7 @@ quantecon==0.8.0
 rasterio==1.4.3
 rasterstats==0.20.0
 referencing==0.36.2
-requests==2.31.0
+requests==2.32.4
 requests-oauthlib==2.0.0
 rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
