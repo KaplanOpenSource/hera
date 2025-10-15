@@ -48,11 +48,11 @@ result = json.dumps(project,indent=4)
           `)
           if (data) {
             console.log(data);
-            const project = data as ProjectEntire;
+            const project = JSON.parse(data) as ProjectEntire;
             setCurrentProject(project);
           } else {
             console.log('problem loading:', problem);
-            setProjectNames([]);
+            setCurrentProject(null);
           }
         }
         console.log(`loading project ${currProjectName} done`);

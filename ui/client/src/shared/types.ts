@@ -15,7 +15,7 @@ export interface Project {
 
 export interface ProjectEntire {
   name: string;
-  documents: ProjectEntire[];
+  documents: ProjectDocument[];
 }
 
 export interface ProjectDocument {

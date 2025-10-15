@@ -1,7 +1,7 @@
 import { Paper, Typography } from '@mui/material';
-import type { Project } from '../shared/types';
+import type { Project, ProjectDocument, ProjectEntire } from '../shared/types';
 
-export const ProjectDetailsView = ({ project }: { project: Project | null }) => {
+export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null }) => {
   if (!project) {
     return (
       <Paper sx={{ p: 2, height: '100%' }}>
@@ -14,11 +14,15 @@ export const ProjectDetailsView = ({ project }: { project: Project | null }) => 
   return (
     <Paper sx={{ p: 2, height: '100%' }}>
       <Typography variant="h6">{project.name}</Typography>
-      <Typography>ID: {project.id}</Typography>
-      <Typography>Sim Documents: {project.documents?.sim ?? 'N/A'}</Typography>
-      <Typography>Measure Documents: {project.documents?.measure ?? 'N/A'}</Typography>
-      <Typography>Cache Documents: {project.documents?.cache ?? 'N/A'}</Typography>
-      <Typography>Toolkits: {project.toolkitCount ?? 'N/A'}</Typography>
+      {/* <Typography>ID: {project.name}</Typography> */}
+      <Typography>Documents: {project.documents?.length ?? 'N/A'}</Typography>
+      {project.documents?.map(d => (
+        <Typography key={d.desc.docid}>
+          Name: {d.desc.datasourceName ?? 'N/A'}
+        </Typography>
+      ))}
+      {/* <Typography>Cache Documents: {project.documents?.cache ?? 'N/A'}</Typography>
+      <Typography>Toolkits: {project.toolkitCount ?? 'N/A'}</Typography> */}
     </Paper>
   );
 };
