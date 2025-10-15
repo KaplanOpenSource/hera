@@ -3,6 +3,7 @@ import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import type { Project, ProjectEntire } from '../shared/types';
 import { ProjectTreeItem } from './ProjectTreeItem';
 import { TreeItem } from '@mui/x-tree-view';
+import { ProjectDocumentItem } from './ProjectDocumentItem';
 
 export const ProjectTreeView = ({
   project,
@@ -41,11 +42,10 @@ export const ProjectTreeView = ({
           ) : (
             <TreeItem key={`project-documents`} itemId={`project-documents`} label={`Project ${project.name}`}>
               {project.documents.map(d => (
-                <TreeItem
-                  key={`document${d.desc.docid}`} itemId={`document${d.desc.docid}`} label={`Document: ${d.desc.datasourceName}`}
+                <ProjectDocumentItem
+                  key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
                 >
-
-                </TreeItem>
+                </ProjectDocumentItem>
               ))}
             </TreeItem>
           )
