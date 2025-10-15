@@ -33,8 +33,6 @@ export const ProjectTreeView = ({
   return (
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
-      // onSelectedItemsChange={handleItemSelection}
-      // onExpandedItemsChange={handleItemExpansion}
       >
         {!project
           ? (
@@ -50,9 +48,6 @@ export const ProjectTreeView = ({
             </TreeItem>
           )
         }
-        {/* {projects.map((project) => (
-          <ProjectTreeItem key={project.id} project={project} />
-        ))} */}
       </SimpleTreeView>
     </Paper>
   );
