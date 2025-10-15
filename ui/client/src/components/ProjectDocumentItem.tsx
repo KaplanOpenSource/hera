@@ -1,4 +1,4 @@
-import { Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view"
 import { ProjectDocument, ProjectEntire } from "@shared/types"
 
@@ -14,18 +14,25 @@ export const ProjectDocumentItem = ({
     <TreeItem
       key={id} itemId={id} label={`Document: ${document.desc.datasourceName}`}
     >
-      <Typography>
-        Version: {document.desc.version.join('.')}
-      </Typography>
-      <Typography>
-        Type: {document.type}
-      </Typography>
-      <Typography>
-        resource: {document.resource}
-      </Typography>
-      <Typography>
-        toolkit: {document.desc.toolkit}
-      </Typography>
+      <TreeItem
+        key={id + '-details'} itemId={id + '-details'} label={
+          <>
+            <Typography>
+              Version: {document.desc.version.join('.')}
+            </Typography>
+            <Typography>
+              Type: {document.type}
+            </Typography>
+            <Typography>
+              resource: {document.resource}
+            </Typography>
+            <Typography>
+              toolkit: {document.desc.toolkit}
+            </Typography>
+          </>
+        }
+      >
+      </TreeItem>
     </TreeItem>
   )
 }
