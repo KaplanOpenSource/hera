@@ -741,84 +741,170 @@ class DataHandler_Class(object):
     DataType: Class
 
     resource:
-        Filesystem directory that contains the code for the class (will be added to sys.path).
-        If empty/None, nothing is added to sys.path.
-        If resource points directly to a Python package directory (contains __init__.py),
-        the parent directory is also added so that `import top_pkg.module` resolves.
+        Filesystem directory used to resolve imports:
+        - If 'resource' points to the *package directory itself* (contains __init__.py),
+          we add ONLY its parent directory to sys.path (so 'import mypkg.mymod' works).
+        - If 'resource' points to a *parent directory* that contains the package,
+          we add that parent directory to sys.path.
+        - If resource is empty/None, we do not modify sys.path.
 
     desc:
-        - 'classpath' (str): fully qualified import path of the class,
-          e.g. 'mypkg.mymodule.MyClass' (REQUIRED).
-        - 'params' or 'parameters' (dict, optional): keyword-args for the class constructor.
+        - 'classpath' (str, REQUIRED): fully qualified class path, e.g. 'mypkg.mymod.MyClass'.
+        - 'params' or 'parameters' (dict, optional): kwargs for the class constructor.
         - 'instantiate' (bool, optional; default True):
             If True, return an instance (cls(**...)).
-            If False, return the class object (cls) itself.
+            If False, return the class object (cls).
 
-    Merge rule (Option B):
+    Merge rule:
         When both desc.parameters and **kwargs provide the same key,
-        desc.parameters should take precedence (override kwargs).
+        desc.parameters take precedence (they override **kwargs).
     """
 
     @staticmethod
     def saveData(resource, fileName, **kwargs):
-        # Storing a "Class" datatype as a file is not supported by this handler.
+        # This handler is for dynamically loading Python classes; saving is not supported.
         raise NotImplementedError("Saving a Class datatype is not supported")
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
+        """
+        Load a Python class dynamically.
+
+        Behavior for 'resource':
+        - If 'resource' is a *package directory* (contains __init__.py), we must add
+          the *parent directory* to sys.path so that 'import top_pkg.module' resolves.
+        - If 'resource' is a directory that *contains* the top-level package, we add
+          that directory itself to sys.path.
+
+        Extra robustness:
+        - Move the chosen path to the *front* of sys.path (even if it already exists).
+        - Purge relevant entries from sys.modules before import (avoid stale cache).
+        - Invalidate import caches between attempts.
+        """
         import os
         import sys
         import importlib
 
-        # 1) Add search paths to sys.path:
-        #    - If resource points to the package directory itself (contains __init__.py),
-        #      also add its parent so that `import top_pkg...` resolves.
-        search_paths = []
-        if resource:
-            abs_path = os.path.abspath(resource)
-            if os.path.isdir(abs_path):
-                pkg_init = os.path.join(abs_path, "__init__.py")
-                if os.path.isfile(pkg_init):
-                    parent = os.path.dirname(abs_path)
-                    if parent not in sys.path:
-                        search_paths.append(parent)
-                if abs_path not in sys.path:
-                    search_paths.append(abs_path)
-        # Prepend for priority (keep user-provided paths before existing ones)
-        for pth in reversed(search_paths):
-            sys.path.insert(0, pth)
-
-        # 2) Resolve metadata
+        # ---------- 1) Resolve classpath ----------
         desc = desc or {}
         classpath = desc.get("classpath") or kwargs.get("classpath")
         if not classpath:
             raise ValueError('For dataFormat=Class you must provide desc["classpath"]')
 
-        params = desc.get("parameters") or desc.get("params") or {}
-        instantiate = desc.get("instantiate", True)
-
-        # 3) Import module and get class by name
         module_name, _, class_name = classpath.rpartition(".")
         if not module_name or not class_name:
-            raise ValueError(
-                f"Invalid classpath '{classpath}'. Expected something like 'pkg.mod.Class'."
-            )
+            raise ValueError(f"Invalid classpath '{classpath}'. Expected 'pkg.mod.Class'.")
+        top_pkg = module_name.split(".", 1)[0]
 
-        try:
+        # ---------- 2) sys.path manipulation helpers ----------
+        def move_to_front(path: str):
+            """Ensure 'path' is at sys.path[0] (remove previous occurrence if any)."""
+            try:
+                while path in sys.path:
+                    sys.path.remove(path)
+            except ValueError:
+                pass
+            sys.path.insert(0, path)
+
+        def ensure_parent_for_package_dir(pkg_dir: str):
+            """resource == package dir: put its *parent* at sys.path[0]."""
+            parent = os.path.dirname(pkg_dir)
+            move_to_front(parent)
+
+        def ensure_parent_dir_contains_pkg(parent_dir: str):
+            """resource == parent dir that contains the package."""
+            move_to_front(parent_dir)
+
+        def purge_modules():
+            """Drop relevant modules from sys.modules to avoid stale imports."""
+            for mod in (top_pkg, module_name):
+                if mod in sys.modules:
+                    del sys.modules[mod]
+
+        # ---------- 3) Decide which path to put on sys.path ----------
+        if resource:
+            abs_path = os.path.abspath(resource)
+            if os.path.isdir(abs_path):
+                pkg_init = os.path.join(abs_path, "__init__.py")
+                if os.path.isfile(pkg_init):
+                    # Case A: resource is the *package directory*
+                    ensure_parent_for_package_dir(abs_path)
+                else:
+                    # Case B: resource is a parent dir that *may* contain the package
+                    cand_pkg = os.path.join(abs_path, top_pkg)
+                    if os.path.isdir(cand_pkg) and os.path.isfile(os.path.join(cand_pkg, "__init__.py")):
+                        ensure_parent_dir_contains_pkg(abs_path)
+                    else:
+                        # Fallback: still add the given dir
+                        ensure_parent_dir_contains_pkg(abs_path)
+
+        importlib.invalidate_caches()
+        purge_modules()  # clear caches BEFORE first import attempt
+
+        # ---------- 4) Import module & get class (with one retry and debug) ----------
+        def import_and_get():
             module = importlib.import_module(module_name)
-        except Exception as e:
-            raise ImportError(
-                f"Cannot import module '{module_name}' for classpath '{classpath}': {e}"
-            )
+            try:
+                return getattr(module, class_name)
+            except AttributeError:
+                raise ImportError(f"Module '{module_name}' has no attribute '{class_name}'")
 
         try:
-            cls = getattr(module, class_name)
-        except AttributeError:
-            raise ImportError(f"Module '{module_name}' has no attribute '{class_name}'")
+            cls = import_and_get()
+        except Exception as e1:
+            # Retry once with a stronger path setup: ensure both parent and pkg dir exist at the front
+            debug_notes = []
+            try:
+                if resource:
+                    abs_path = os.path.abspath(resource)
+                    if os.path.isdir(abs_path):
+                        pkg_init = os.path.join(abs_path, "__init__.py")
+                        if os.path.isfile(pkg_init):
+                            # Make sure BOTH parent and pkg dir are at the very front (parent first)
+                            parent = os.path.dirname(abs_path)
+                            move_to_front(parent)
+                            move_to_front(abs_path)  # harmless; parent is still first
+                        else:
+                            cand_pkg = os.path.join(abs_path, top_pkg)
+                            if os.path.isdir(cand_pkg) and os.path.isfile(os.path.join(cand_pkg, "__init__.py")):
+                                move_to_front(abs_path)
+                                move_to_front(cand_pkg)
+                importlib.invalidate_caches()
+                purge_modules()
+                cls = import_and_get()
+            except Exception as e2:
+                # Build rich diagnostics
+                try:
+                    head_sys_path = list(sys.path[:8])
+                except Exception:
+                    head_sys_path = []
+                try:
+                    parent_ls = []
+                    pkg_ls = []
+                    if resource:
+                        ap = os.path.abspath(resource)
+                        if os.path.isdir(ap):
+                            parent = os.path.dirname(ap)
+                            parent_ls = sorted(os.listdir(parent)) if os.path.isdir(parent) else []
+                            pkg_ls = sorted(os.listdir(ap)) if os.path.isdir(ap) else []
+                    debug_notes.append(f"sys.path(head)={head_sys_path}")
+                    debug_notes.append(f"top_pkg={top_pkg} | module_name={module_name}")
+                    debug_notes.append(f"resource={resource}")
+                    debug_notes.append(f"parent_dir_ls={parent_ls[:20]}")
+                    debug_notes.append(f"pkg_dir_ls={pkg_ls[:20]}")
+                except Exception:
+                    pass
+                msg = (
+                        f"Cannot import module '{module_name}' for classpath '{classpath}': {e2}\n"
+                        + "\n".join(debug_notes)
+                )
+                raise ImportError(msg) from e2
 
-        # 4) Merge constructor kwargs so that desc.parameters override duplicates (Option B)
-        call_kwargs = dict(kwargs)   # baseline from **kwargs
-        call_kwargs.update(params)   # desc.parameters WIN on duplicates
+        # ---------- 5) Build kwargs (desc.parameters override **kwargs) ----------
+        params = desc.get("parameters") or desc.get("params") or {}
+        instantiate = desc.get("instantiate", True)
+        call_kwargs = dict(kwargs)
+        call_kwargs.update(params)
 
-        # 5) Return an instance or the class object
+        # ---------- 6) Return instance or class ----------
         return cls(**call_kwargs) if instantiate else cls

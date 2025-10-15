@@ -173,3 +173,28 @@ class ToolkitRepository:
             )
 
         return pd.DataFrame(rows)
+
+    def getToolkitDocument(self, toolkitName: str):
+        """
+        מחזיר את דוקומנט ה-Measurements של ה-toolkit לפי השם.
+        מחפש type="ToolkitDataSource" ושם ב-desc: datasourceName/toolkit.
+        """
+        # ייבוא או גישה ל־project בהתאם למבנה שלך
+        proj = getattr(self, "_project", None)
+        if proj is None and hasattr(self, "project"):
+            proj = self.project
+        if proj is None:
+            return None
+
+        try:
+            docs = proj.getMeasurementsDocuments(type="ToolkitDataSource")
+        except Exception:
+            docs = proj.getMeasurementsDocuments(type="ToolkitDataSource")
+
+        for d in docs:
+            desc = getattr(d, "desc", {}) or {}
+            dn = desc.get("datasourceName") or desc.get("toolkit")
+            if dn == toolkitName:
+                return d
+        return None
+
