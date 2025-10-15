@@ -7,6 +7,7 @@ import { ProjectChooser } from './components/ProjectChooser';
 import { useState } from 'react';
 import { ProjectDetailsView } from './components/ProjectDetailsView';
 import { useProjectStore } from './stores/useProjectStore';
+import { ProjectTreeView } from './components/ProjectTreeView';
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -20,10 +21,6 @@ export default function App() {
         <PageTitle />
         <ProjectChooser />
       </Stack>
-
-      {/* $$$$ TODO:
-      instead of showing at tree of Project state, show the currProject with type ProjectEntire */}
-
       {error && (
         <Box sx={{ mb: 2 }}>
           <Alert severity="error">{error}</Alert>
@@ -31,16 +28,14 @@ export default function App() {
       )}
       <Box sx={{ display: 'flex', gap: 2, height: '80vh' }}>
         <Box sx={{ width: '50%' }}>
-          {/* <ProjectTreeView
-            projects={projects}
-            onProjectSelect={handleProjectSelect}
-            onProjectExpand={fetchProjectDetails}
-          /> */}
-          project tree view
+          <ProjectTreeView
+            project={currProject}
+          />
         </Box>
         <Box sx={{ width: '50%' }}>
-          {/* project details */}
-          <ProjectDetailsView project={currProject} />
+          <ProjectDetailsView
+            project={currProject}
+          />
         </Box>
       </Box>
       <CommandExecutor />
