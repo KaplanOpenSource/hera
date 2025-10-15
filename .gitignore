@@ -13,3 +13,9 @@ build
 dist
 pyhera.egg-info/
 venv
+heraenv/
+heraenv.bak/
+**/.ipynb_checkpoints/
+**/__pycache__/
+**/*.egg-info/
+**/site-packages/
