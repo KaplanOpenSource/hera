@@ -12,12 +12,10 @@ from hera.datalayer import datatypes
 import numpy
 import pydoc
 import warnings
-from ..utils.logging import with_logger, get_classMethod_logger
-from collections.abc import Iterable
+from ..utils.logging import get_classMethod_logger
 
 try:
     from hermes import workflow
-    from hermes.utils.workflowAssembly import handler_build, handler_buildExecute, handler_expand, handler_execute
 except ImportError:
     #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     warnings.warn("hermes is not installed. some features will not work.")
@@ -209,7 +207,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return hermesWFObj(workFlowJSON, name=name)
 
-    def updateDocumentsWorkflow(document, json):
+    def updateDocumentWorkflow(self, document, json):
         document.desc['workflow'] = loadJSON(json)
         document.save()
 
