@@ -70,7 +70,7 @@ def test_register_toolkit_creates_datasource_and_instantiates(tmp_path):
     DemoToolkit = _import_class(resource_dir, classpath)
 
     # Register the class as a datasource (pass the class and projectName)
-    doc = th.registerToolkit(
+    doc = th.registerToolkit(repositoryName="TestRepo", 
         toolkitclass=DemoToolkit,
         projectName=th.projectName,
         datasource_name="DemoToolkit_DS",
@@ -104,7 +104,7 @@ def test_register_toolkit_overwrite_behavior(tmp_path):
     DemoToolkit = _import_class(resource_dir, classpath)
 
     # First registration succeeds
-    doc1 = th.registerToolkit(
+    doc1 = th.registerToolkit(repositoryName="TestRepo", 
         toolkitclass=DemoToolkit,
         projectName=th.projectName,
         datasource_name="DemoToolkit_DS",
@@ -117,7 +117,7 @@ def test_register_toolkit_overwrite_behavior(tmp_path):
     # Second registration with the same name+version and overwrite=False should fail
     failed = False
     try:
-        th.registerToolkit(
+        th.registerToolkit(repositoryName="TestRepo", 
             toolkitclass=DemoToolkit,
             projectName=th.projectName,
             datasource_name="DemoToolkit_DS",
@@ -130,7 +130,7 @@ def test_register_toolkit_overwrite_behavior(tmp_path):
     assert failed, "Expected a failure on duplicate registration without overwrite=True"
 
     # But with overwrite=True it should succeed
-    doc2 = th.registerToolkit(
+    doc2 = th.registerToolkit(repositoryName="TestRepo", 
         toolkitclass=DemoToolkit,
         projectName=th.projectName,
         datasource_name="DemoToolkit_DS",

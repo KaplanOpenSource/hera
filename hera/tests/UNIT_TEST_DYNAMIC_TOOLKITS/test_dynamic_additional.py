@@ -144,7 +144,7 @@ def test_registerToolkit_and_getToolkit_fallback(tmp_path, monkeypatch):
     DemoToolkit = getattr(mod, cls_name)
 
     # Register via ToolkitHome.registerToolkit
-    doc = th.registerToolkit(
+    doc = th.registerToolkit(repositoryName="TestRepo", 
         toolkitclass=DemoToolkit,
         datasource_name="DemoToolkit_DS",
         params={"alpha": 7},
@@ -191,7 +191,7 @@ def test_toolkit_table_contains_dynamic(tmp_path):
     DemoToolkit = getattr(importlib.import_module(mod_name), cls_name)
 
     # Register
-    th.registerToolkit(
+    th.registerToolkit(repositoryName="TestRepo", 
         toolkitclass=DemoToolkit,
         datasource_name="DemoToolkit_DS",
         params={"alpha": 3},
