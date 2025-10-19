@@ -206,83 +206,170 @@ class ToolkitHome:
         all_toolkits = pd.concat([df_static, dynamic], ignore_index=True).drop_duplicates("toolkit")
         return all_toolkits
 
+    # בתוך class ToolkitHome (בקובץ hera/toolkit.py)
+
     def registerToolkit(
             self,
             toolkitclass,
             *,
             projectName,
+            repositoryName,  # <<< חדש: דרישת רפוזיטורי
             datasource_name=None,
             params=None,
             version=(0, 0, 1),
             overwrite=False,
     ):
         """
-        Register a toolkit class as a datasource document in the given project.
+        Register a toolkit class as a datasource document in the given project & repository.
 
         It stores:
-          - resource: the directory path that contains the module file (added to PYTHONPATH by DataHandler_Class)
+          - resource: the directory that contains the module file (DataHandler_Class adds to sys.path)
           - dataFormat: datatypes.CLASS
           - desc: {
-                'toolkit': <datasource_name>,
+                'toolkit'       : <datasource_name>,
                 'datasourceName': <datasource_name>,
-                'version': (major, minor, patch),
-                'classpath': '<module.Class>',
-                'parameters': { ... }
+                'repository'    : <repositoryName>,   # <<< נשמר במסמך
+                'version'       : (major, minor, patch),
+                'classpath'     : '<module.Class>',
+                'parameters'    : { ... }
             }
-
-        Returns the created document (DB object with .resource, .dataFormat, .desc).
         """
         if projectName is None:
             raise ValueError("registerToolkit: 'projectName' is required")
+        if not repositoryName:
+            raise ValueError("registerToolkit: 'repositoryName' is required")
 
         import inspect, os
-
-        # Derive module file path and classpath
         module_path = inspect.getfile(toolkitclass)
         resource_dir = os.path.dirname(os.path.abspath(module_path))
         classpath = f"{toolkitclass.__module__}.{toolkitclass.__qualname__}"
 
-        # Default datasource name from class name if not provided
         ds_name = datasource_name or toolkitclass.__name__
         params = params or {}
 
-        # Build desc
         desc = {
             "toolkit": ds_name,
             "datasourceName": ds_name,
+            "repository": repositoryName,  # <<< שדה רפוזיטורי
             "version": tuple(version),
             "classpath": classpath,
             "parameters": params,
         }
 
-        # Use a Project instance to write a measurements document
         proj = Project(projectName=projectName)
 
-        # Handle overwrite / existence
+        # בדיקת קיום לפי (type, repository, datasourceName, version)
         existing = proj.getMeasurementsDocuments(
-            type=TOOLKIT_DATASOURCE_TYPE,
-            toolkit=ds_name,
+            type="ToolkitDataSource",
+            repository=repositoryName,  # <<< סינון לפי רפוזיטורי
             datasourceName=ds_name,
             version=tuple(version),
         )
         if existing:
             if not overwrite:
                 raise ValueError(
-                    f"Toolkit datasource '{ds_name}' (version {version}) already exists in project '{projectName}'. "
+                    f"Toolkit datasource '{ds_name}' (version {version}) already exists in "
+                    f"repository '{repositoryName}' of project '{projectName}'. "
                     f"Use overwrite=True to replace."
                 )
-            # delete existing (keep first for simplicity; if multiple, delete all)
             for doc in existing:
                 doc.delete()
 
-        # Create the document
         doc = proj.addMeasurementsDocument(
-            type=TOOLKIT_DATASOURCE_TYPE,
+            type="ToolkitDataSource",
             resource=resource_dir,
-            dataFormat=datatypes.CLASS,  # <-- key: stored as Class datatype
+            dataFormat=datatypes.CLASS,
             desc=desc,
         )
         return doc
+
+    def setDefaultRepository(self, *, projectName: str, repositoryName: str, overwrite: bool = True):
+        """
+        Persist default repository name for a project so future calls can omit --repository.
+        We store it as a tiny Project document under type='RepositoryConfig'.
+        """
+        if not projectName:
+            raise ValueError("setDefaultRepository: 'projectName' is required")
+        if not repositoryName:
+            raise ValueError("setDefaultRepository: 'repositoryName' is required")
+
+        proj = Project(projectName=projectName)
+        # delete previous config if exists (by type)
+        if overwrite:
+            old = proj.getMeasurementsDocuments(type="RepositoryConfig")
+            for d in old:
+                d.delete()
+
+        desc = {"defaultRepository": repositoryName}
+
+        # Try to pick a dataFormat constant if available. Fallback: omit the arg.
+        df_arg = {}
+        try:
+            from hera.datalayer import datatypes as _dt
+            dfmt = getattr(_dt, "JSON", None) or getattr(_dt, "json", None) or getattr(_dt, "TEXT", None)
+            if dfmt is not None:
+                df_arg["dataFormat"] = dfmt
+        except Exception:
+            pass
+
+        return proj.addMeasurementsDocument(
+            type="RepositoryConfig",
+            resource=".",  # trivial
+            desc=desc,
+            **df_arg,
+        )
+
+    def getDefaultRepository(self, *, projectName: str) -> str:
+        """
+        Read the saved default repository name (if exists). Returns '' if missing.
+        """
+        if not projectName:
+            raise ValueError("getDefaultRepository: 'projectName' is required")
+        proj = Project(projectName=projectName)
+        docs = proj.getMeasurementsDocuments(type="RepositoryConfig")
+        if not docs:
+            return ""
+        # Take the newest (or first)
+        return docs[0].desc.get("defaultRepository", "") or ""
+
+    def getDatasourceDocument(
+            self,
+            *,
+            projectName: str,
+            datasourceName: str,
+            repositoryName: str = None,
+            version=None,  # tuple like (0,0,1) or None
+    ):
+        """
+        Fetch a ToolkitDataSource by (repository, datasourceName [, version]).
+        If repositoryName is None or '', fallback to the project's defaultRepository.
+        """
+        if not projectName:
+            raise ValueError("getDatasourceDocument: 'projectName' is required")
+        if not datasourceName:
+            raise ValueError("getDatasourceDocument: 'datasourceName' is required")
+
+        repo = (repositoryName or "").strip()
+        if not repo:
+            repo = self.getDefaultRepository(projectName=projectName)
+            if not repo:
+                raise ValueError(
+                    "Repository name is not provided and no defaultRepository is set for the project. "
+                    "Call setDefaultRepository(...) first, or pass repositoryName explicitly."
+                )
+
+        proj = Project(projectName=projectName)
+
+        q = {
+            "type": "ToolkitDataSource",
+            "repository": repo,
+            "datasourceName": datasourceName,
+        }
+        if version is not None:
+            q["version"] = tuple(version)
+
+        docs = proj.getMeasurementsDocuments(**q)
+        return docs[0] if docs else None
 
 
 class abstractToolkit(Project):
