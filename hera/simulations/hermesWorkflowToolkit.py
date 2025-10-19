@@ -12,7 +12,7 @@ from hera.datalayer import datatypes
 import numpy
 import pydoc
 import warnings
-from ..utils.logging import with_logger, get_classMethod_logger
+from hera.utils.logging import with_logger, get_classMethod_logger
 from collections.abc import Iterable
 
 try:
