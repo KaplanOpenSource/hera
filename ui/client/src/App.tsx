@@ -1,13 +1,12 @@
-import { Alert, Box, Container, Stack } from '@mui/material';
-import { FetcherProjectNames } from './io/fetchProject';
-import { Projects } from './pages/Projects';
-import { PageTitle } from './components/PageTitle';
-import { CommandExecutor } from './components/CommandExecutor';
-import { ProjectChooser } from './components/ProjectChooser';
+import { Alert, Box, Stack } from '@mui/material';
 import { useState } from 'react';
+import { CommandExecutor } from './components/CommandExecutor';
+import { PageTitle } from './components/PageTitle';
+import { ProjectChooser } from './components/ProjectChooser';
 import { ProjectDetailsView } from './components/ProjectDetailsView';
-import { useProjectStore } from './stores/useProjectStore';
 import { ProjectTreeView } from './components/ProjectTreeView';
+import { FetchProjects } from './io/FetchProjects';
+import { useProjectStore } from './stores/useProjectStore';
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -15,7 +14,7 @@ export default function App() {
   const { currProject } = useProjectStore();
 
   return (<>
-    <FetcherProjectNames />
+    <FetchProjects />
     <Stack spacing={2} margin={2}>
       <Stack direction={'row'} spacing={2}>
         <PageTitle />
