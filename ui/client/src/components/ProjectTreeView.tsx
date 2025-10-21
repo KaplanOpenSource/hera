@@ -1,9 +1,11 @@
-import { Paper } from '@mui/material';
+import { Paper, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import type { Project, ProjectEntire } from '../shared/types';
 import { ProjectTreeItem } from './ProjectTreeItem';
 import { TreeItem } from '@mui/x-tree-view';
 import { ProjectDocumentItem } from './ProjectDocumentItem';
+import { useState } from 'react';
+import { FetchPython } from '../io/FetchPython';
 
 export const ProjectTreeView = ({
   project,
@@ -30,8 +32,21 @@ export const ProjectTreeView = ({
   //   }
   // };
 
+  const [toolkits, setToolKits] = useState<[string, any][]>([]);
+
+  console.log(toolkits)
   return (
     <Paper sx={{ p: 2 }}>
+      <FetchPython
+        code={`
+from hera import toolkitHome
+import json
+result = json.dumps(toolkitHome._toolkits,indent=4)
+        `}
+        onSuccess={(data) => {
+          setToolKits(Object.entries(JSON.parse(data)))
+        }}
+      />
       <SimpleTreeView
       >
         {!project
@@ -48,6 +63,20 @@ export const ProjectTreeView = ({
             </TreeItem>
           )
         }
+        <TreeItem key={`toolkits`} itemId={`toolkits`} label={`Toolkits`}>
+          {toolkits.map(([name, { cls, desc }]) => (<>
+            <TreeItem key={name} itemId={name} label={name}>
+              <Typography>
+                {cls}
+              </Typography>
+              {desc ?? (
+                <Typography>
+                  {desc}
+                </Typography>
+              )}
+            </TreeItem>
+          </>))}
+        </TreeItem>
       </SimpleTreeView>
     </Paper>
   );
