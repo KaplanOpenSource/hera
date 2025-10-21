@@ -2,6 +2,7 @@ import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, IconButto
 import { useEffect } from "react";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore"
 import { Add } from '@mui/icons-material';
+import { execPython } from "../io/execPython";
 
 export const ProjectChooser = ({ }) => {
   const { projectNames, currProjectName, selectProject } = useProjectStore();
@@ -12,8 +13,12 @@ export const ProjectChooser = ({ }) => {
     }
   }, [currProjectName, projectNames]);
 
-  function addProject(): void {
-    // throw new Error("Function not implemented.");
+  const addProject = () => {
+    execPython(`
+from types import SimpleNamespace
+from hera.utils.data.CLI import project_create
+project_create(SimpleNamespace(projectName="hello3", directory=None, loadRepositories=False))
+      `)
   }
 
   return (
