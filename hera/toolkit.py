@@ -1,5 +1,3 @@
-
-
 from hera.datalayer import Project
 from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 from hera.datalayer.datahandler import DataHandler_Class  # הוסף אם לא קיים
@@ -11,7 +9,7 @@ import pydoc
 from hera.utils.logging import get_classMethod_logger
 
 TOOLKIT_DATASOURCE_TYPE = "ToolkitDataSource"
-TOOLKIT_TOOLKITNAME_FIELD       = "toolkit"
+TOOLKIT_TOOLKITNAME_FIELD = "toolkit"
 TOOLKIT_DATASOURCE_NAME = "datasourceName"
 TOOLKIT_DATASOURCE_VERSION = "version"
 
@@ -65,6 +63,7 @@ class ToolkitHome:
 
     WINDPROFILE = "WindProfile"
     GAUSSIANDISPERSION = "GaussianDispersion"
+    MACHINELEARNING_DEEPLEARNING = "machine_deep_learning"
 
     _toolkits = None
 
@@ -104,7 +103,7 @@ class ToolkitHome:
             RiskAssessment=dict(
                 cls="hera.riskassessment.riskToolkit.RiskToolkit",
                 desc=None,
-                type="simulations"
+                type="riskassessment"
             ),
             LSM=dict(
                 cls="hera.simulations.LSM.toolkit.LSMToolkit",
@@ -146,11 +145,12 @@ class ToolkitHome:
                 desc=None,
                 type="simulations"
             ),
-            jerusalem2018=dict(
-                cls="hera.measurements.experiment.jerusalem.Jerusalem2018.Jerusalem2018",
-                desc="Toolkit for the Jerusalem 2018 experiment",
-                type="measurements"
-            )
+            machine_deep_learning=dict(
+                cls="hera.simulations.machineLearningDeepLearning.toolkit.machineLearningDeepLearningToolkit",
+                desc=None,
+                type="simulations"
+            ),
+
         )
 
     def getToolkit(self, toolkitName, projectName=None, filesDirectory=None, **kwargs):
@@ -402,10 +402,8 @@ class abstractToolkit(Project):
     _toolkitname = None
     _projectName = None
 
-    _analysis = None # holds the datalayer layer.
-    _presentation = None # holds the presentation layer
-
-
+    _analysis = None  # holds the datalayer layer.
+    _presentation = None  # holds the presentation layer
 
     @property
     def presentation(self):
@@ -456,15 +454,15 @@ class abstractToolkit(Project):
             The directory to save datasource
 
         """
-        super().__init__(projectName=projectName,filesDirectory=filesDirectory)
-        logger = get_classMethod_logger(self,"init")
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory)
+        logger = get_classMethod_logger(self, "init")
         self._toolkitname = toolkitName
 
     @property
     def classLoggerName(self):
-        return str(get_classMethod_logger(self,"{the_function_name}")).split(" ")[1]
+        return str(get_classMethod_logger(self, "{the_function_name}")).split(" ")[1]
 
-    def getDataSourceList(self,**filters):
+    def getDataSourceList(self, **filters):
         """
             Returns a list of the data source names
         Parameters
@@ -485,7 +483,7 @@ class abstractToolkit(Project):
 
         return ret
 
-    def getDataSourceMap(self,**filters):
+    def getDataSourceMap(self, **filters):
         """
             Return the list of all data sources and their versions that are related to this toolkit
 
@@ -508,7 +506,7 @@ class abstractToolkit(Project):
         ret = []
         for doc in docList:
             dta = dict(dataFormat=doc['dataFormat'],
-                 resource=doc['resource'])
+                       resource=doc['resource'])
             dta.update(doc.desc)
             ret.append(dta)
         return ret
@@ -523,7 +521,7 @@ class abstractToolkit(Project):
         if len(Table) == 0:
             return pandas.DataFrame()
         else:
-            return pandas.concat((Table),ignore_index=True)
+            return pandas.concat((Table), ignore_index=True)
 
     def getDataSourceDocumentsList(self, **kwargs):
         """
@@ -534,7 +532,7 @@ class abstractToolkit(Project):
             List of docs.
         """
         queryDict = {"type": TOOLKIT_DATASOURCE_TYPE,
-                     TOOLKIT_TOOLKITNAME_FIELD : self.toolkitName}
+                     TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
         queryDict.update(**kwargs)
         return self.getMeasurementsDocuments(**queryDict)
 
@@ -574,22 +572,21 @@ class abstractToolkit(Project):
             except:
                 pass
 
-
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
 
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE, **filters)
 
-        if len(docList) ==0:
-            ret =  None
+        if len(docList) == 0:
+            ret = None
 
-        elif len(docList) ==1:
+        elif len(docList) == 1:
             ret = docList[0]
 
-        elif len(docList)>1:
-            versionsList =[ doc['desc']['version'] for doc in docList]
+        elif len(docList) > 1:
+            versionsList = [doc['desc']['version'] for doc in docList]
             latestVersion = max(versionsList)
-            docList = [doc for doc in docList if doc['desc']['version']==latestVersion]
-            ret =docList[0]
+            docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
+            ret = docList[0]
         return ret
 
     def getDataSourceDocuments(self, datasourceName, version=None, **filters):
@@ -645,7 +642,7 @@ class abstractToolkit(Project):
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         return None if doc is None else doc.getData()
 
-    def addDataSource(self,dataSourceName,resource,dataFormat,version=(0,0,1),overwrite=False,**kwargs):
+    def addDataSource(self, dataSourceName, resource, dataFormat, version=(0, 0, 1), overwrite=False, **kwargs):
         """
             Adds a resource to the toolkit.
             The type is always TOOLKIT_DATASOURCE_TYPE.
@@ -679,23 +676,24 @@ class abstractToolkit(Project):
         if (self.getDataSourceDocument(dataSourceName, version=version) is None) or overwrite:
             if self.getDataSourceDocument(dataSourceName, version=version) is not None:  # not None = Exist
                 # print("Delete existing, and add new data source.")
-                delargs = {TOOLKIT_DATASOURCE_NAME : dataSourceName,
-                           TOOLKIT_DATASOURCE_VERSION :  version}
+                delargs = {TOOLKIT_DATASOURCE_NAME: dataSourceName,
+                           TOOLKIT_DATASOURCE_VERSION: version}
 
                 self.deleteDataSource(**delargs)
-            #else:
-                # print("Does not exist: add data source.")
+            # else:
+            # print("Does not exist: add data source.")
 
             doc = self.addMeasurementsDocument(type=TOOLKIT_DATASOURCE_TYPE,
                                                resource=resource,
                                                dataFormat=dataFormat,
                                                desc=kwargs)
         else:
-            raise ValueError(f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
-            print("exist: Raise exception (ValueError) that the record with the name that was given in the input already exists")
+            raise ValueError(
+                f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
+            print(
+                "exist: Raise exception (ValueError) that the record with the name that was given in the input already exists")
 
         return doc
-
 
     def deleteDataSource(self, datasourceName, version=None, **filters):
 
@@ -704,12 +702,10 @@ class abstractToolkit(Project):
 
         return doc
 
-
-    def setDataSourceDefaultVersion(self,datasourceName:str,version:tuple):
-        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName ,
-                                                                            "version": version}))==0:
+    def setDataSourceDefaultVersion(self, datasourceName: str, version: tuple):
+        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName,
+                                                                          "version": version})) == 0:
             raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
 
         self.setConfig(**{f"{datasourceName}_defaultVersion": version})
         print(f"{version} for dataSource {datasourceName} is now set to default.")
-
