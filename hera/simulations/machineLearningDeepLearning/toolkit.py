@@ -1,6 +1,6 @@
 import json
 import pydoc
-
+import zipfile
 import torch
 import numpy
 import inspect
@@ -184,9 +184,35 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
             modelContainer = self.getTorchModelFromJSON(modelJSON['model'])
             modelContainerDoc = modelContainer.getModelDocument()
 
-            # Check if the directory exists.
 
-            # it it does, overwrite only with overwrite=True.
+            # Check if the directory exists.
+            targetDataPath = modelContainerDoc.getData()
+            if os.path.exists(targetDataPath) and not overwrite:
+                err = f"Model {modelContainer.modelName} with the requested parameters already exists as model {modelContainer.modelID}).  Skipping unpacking since  overwrite flag is flase. If you want to overwrite call with overwrite=True"
+                logger.error(err)
+                #raise ValueError(err)
+            else:
+                os.makedirs(targetDataPath, exist_ok=True)
+                origmodelName = modelName.split(".")[0]
+
+                with zipfile.ZipFile(archiveFile, 'r') as zip_ref:
+                    for member in zip_ref.infolist():
+                        memberName = member.filename
+                        logger.debug(f"Checking item {memberName} in the archive")
+
+
+                        if memberName.startswith(origmodelName) and ".json" not in memberName:
+                            logger.debug(f"Changing path {origmodelName}->{targetDataPath} and write the file there")
+
+                            # creating the
+                            newNameList = [targetDataPath]+memberName.split(os.path.sep)[1:]
+                            newFileName = os.path.join(*newNameList)
+                            print(newFileName)
+                            os.makedirs(os.path.dirname(newFileName), exist_ok=True)
+
+                            with zip_ref.open(memberName) as source, open(newFileName, 'wb') as target:
+                                target.write(source.read())
+
 
 
 
@@ -234,6 +260,8 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
     def get_class_info(cls, modelClsOrName):
         if isinstance(modelClsOrName, str):
             modelCls = pydoc.locate(modelClsOrName)
+            if modelCls is None:
+                raise ValueError(f"class {modelClsOrName} not found. Is this pacakge in the classpath. Make sure the directory that contain the code to this class is in the environmental parameter PYTHONPATH. ")
         else:
             modelCls = modelClsOrName
         module = modelCls.__module__
