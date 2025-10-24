@@ -1,5 +1,11 @@
 
+
 from hera.datalayer import Project
+from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
+from hera.datalayer.datahandler import DataHandler_Class  # הוסף אם לא קיים
+
+import inspect
+import os
 import pandas
 import pydoc
 from hera.utils.logging import get_classMethod_logger
@@ -15,29 +21,39 @@ TOOLKIT_SAVEMODE_ONLYFILE_REPLACE = "File_overwrite"
 TOOLKIT_SAVEMODE_FILEANDDB = "DB"
 TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
-class ToolkitHome:
+import pydoc
+import pandas as pd
+from hera.utils.data.toolkit_repository import ToolkitRepository  # new import for DB integration
 
-    ############### Duplicates of the above for comfortability
+
+class ToolkitHome:
+    """
+    Central registry for available toolkits (static + dynamic).
+    Provides:
+      - getToolkit(toolkitName, ...): locate & instantiate a toolkit class
+      - getToolkitTable(projectName): table of all toolkits (static + DB)
+      - registerToolkit(toolkitclass, ...): register a class into project datasources (dataFormat=Class)
+    """
+
+    # -------- Save modes (kept for compatibility) --------
     TOOLKIT_SAVEMODE_NOSAVE = None
     TOOLKIT_SAVEMODE_ONLYFILE = "File"
     TOOLKIT_SAVEMODE_ONLYFILE_REPLACE = "File_overwrite"
     TOOLKIT_SAVEMODE_FILEANDDB = "DB"
     TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
-    ############################################################
 
-
-    GIS_BUILDINGS  = "GIS_Buildings"
-    GIS_TILES       = "GIS_Tiles"
-    GIS_LANDCOVER   = "GIS_LandCover"
-    #GIS_RASTER     = "GIS_Raster"
+    # -------- Static toolkit identifiers --------
+    GIS_BUILDINGS = "GIS_Buildings"
+    GIS_TILES = "GIS_Tiles"
+    GIS_LANDCOVER = "GIS_LandCover"
     GIS_VECTOR_TOPOGRAPHY = "GIS_Vector_Topography"
     GIS_RASTER_TOPOGRAPHY = "GIS_Raster_Topography"
     GIS_DEMOGRAPHY = "GIS_Demography"
-    GIS_SHAPES     = "GIS_Shapes"
+    GIS_SHAPES = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
-    LSM            = "LSM"
-    MACHINELEARNING_DEEPLEARNING="machine_deep_learning"
-    DATA           = "heraData"
+    LSM = "LSM"
+
+    DATA = "heraData"
 
     SIMULATIONS_WORKFLOWS = "hermesWorkflows"
     SIMULATIONS_OPENFOAM = "OpenFOAM"
@@ -53,64 +69,305 @@ class ToolkitHome:
     _toolkits = None
 
     def __init__(self):
+        # Static built-in toolkits (internal source)
         self._toolkits = dict(
-            GIS_Buildings  = dict(cls = "hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit",desc=None),
-            GIS_Tiles      =  dict(cls = "hera.measurements.GIS.raster.tiles.TilesToolkit",desc=None),
-            GIS_Vector_Topography = dict(cls = "hera.measurements.GIS.vector.topography.TopographyToolkit",desc=None),
-            GIS_Raster_Topography = dict(cls = "hera.measurements.GIS.raster.topography.TopographyToolkit",desc=None),
-            GIS_Demography = dict(cls = "hera.measurements.GIS.vector.demography.DemographyToolkit",desc=None),
-            GIS_LandCover     = dict(cls = "hera.measurements.GIS.raster.landcover.LandCoverToolkit",desc=None),
-
-            RiskAssessment = dict(cls = "hera.riskassessment.riskToolkit.RiskToolkit",desc=None),
-            LSM            = dict(cls = "hera.simulations.LSM.toolkit.LSMToolkit",desc=None),
-
-            OF_LSM         = dict(cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit"),
-
-            MeteoHighFreq  = dict(cls="hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit"),
-
-            MeteoLowFreq = dict(cls="hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit"),
-
-            experiment =dict(cls="hera.measurements.experiment.experiment.experimentHome"),
-
-            hermesWorkflows = dict(cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit"),
-            OpenFOAM = dict(cls="hera.simulations.openFoam.toolkit.OFToolkit"),
-
-            WindProfile = dict(cls="hera.simulations.windProfile.toolkit.WindProfileToolkit"),
-            GaussianDispersion = dict(cls="hera.simulations.gaussian.toolkit.gaussianToolkit"),
-            machine_deep_learning = dict(cls="hera.simulations.machineLearningDeepLearning.toolkit.machineLearningDeepLearningToolkit"),
-
+            GIS_Buildings=dict(
+                cls="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit",
+                desc=None,
+                type="measurements"
+            ),
+            GIS_Tiles=dict(
+                cls="hera.measurements.GIS.raster.tiles.TilesToolkit",
+                desc=None,
+                type="measurements"
+            ),
+            GIS_Vector_Topography=dict(
+                cls="hera.measurements.GIS.vector.topography.TopographyToolkit",
+                desc=None,
+                type="measurements"
+            ),
+            GIS_Raster_Topography=dict(
+                cls="hera.measurements.GIS.raster.topography.TopographyToolkit",
+                desc=None,
+                type="measurements"
+            ),
+            GIS_Demography=dict(
+                cls="hera.measurements.GIS.vector.demography.DemographyToolkit",
+                desc=None,
+                type="measurements"
+            ),
+            GIS_LandCover=dict(
+                cls="hera.measurements.GIS.raster.landcover.LandCoverToolkit",
+                desc=None,
+                type="measurements"
+            ),
+            RiskAssessment=dict(
+                cls="hera.riskassessment.riskToolkit.RiskToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            LSM=dict(
+                cls="hera.simulations.LSM.toolkit.LSMToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            OF_LSM=dict(
+                cls="hera.simulations.openFoam.LSM.toolkit.OFLSMToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            MeteoHighFreq=dict(
+                cls="hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit",
+                desc=None,
+                type="measurements"
+            ),
+            MeteoLowFreq=dict(
+                cls="hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit",
+                desc=None,
+                type="measurements"
+            ),
+            hermesWorkflows=dict(
+                cls="hera.simulations.hermesWorkflowToolkit.hermesWorkflowToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            OpenFOAM=dict(
+                cls="hera.simulations.openFoam.toolkit.OFToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            WindProfile=dict(
+                cls="hera.simulations.windProfile.toolkit.WindProfileToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            GaussianDispersion=dict(
+                cls="hera.simulations.gaussian.toolkit.gaussianToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            jerusalem2018=dict(
+                cls="hera.measurements.experiment.jerusalem.Jerusalem2018.Jerusalem2018",
+                desc="Toolkit for the Jerusalem 2018 experiment",
+                type="measurements"
+            )
         )
-
 
     def getToolkit(self, toolkitName, projectName=None, filesDirectory=None, **kwargs):
         """
-            Returns a toolkit for the requested project.
-
-        Parameters
-        ----------
-        projectName: str
-            The name of the project
-
-
-        filesDirectory: str
-            The directory to save file (if necessary).
-            If None, use the current directory.
-
-        kwargs: dict
-            The parameters for the toolkit.
-            See the specific toolkit documentation for further details.
-
-        Returns
-        -------
-            The tookit
+        Locate a toolkit class by name (static registry or DB), then instantiate it.
         """
-        if toolkitName not in self._toolkits.keys():
-            raise ValueError(f"Toolkit name must be one of [{','.join(self._toolkits.keys())}]. Got {toolkitName} instead")
-        clsName = self._toolkits[toolkitName]['cls']
+        if toolkitName in self._toolkits:
+            clsName = self._toolkits[toolkitName]['cls']
+            toolkitClass = pydoc.locate(clsName)
+            if toolkitClass is None:
+                raise ImportError(f"Cannot locate class: {clsName}")
+            # טולקיטים פנימיים בדרך כלל מקבלים (projectName, filesDirectory=...)
+            return toolkitClass(projectName, filesDirectory=filesDirectory, **kwargs)
 
-        tookit = pydoc.locate(clsName)(projectName, filesDirectory=filesDirectory, **kwargs)
-        return tookit
+        repo = ToolkitRepository(projectName or "DefaultProject")
+        doc = repo.getToolkitDocument(toolkitName)
+        if not doc:
+            raise ValueError(f"Toolkit '{toolkitName}' not found in registry or database.")
 
+        desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
+        resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
+
+        classpath = desc.get("classpath") or desc.get("cls")
+        if not classpath:
+            raise ValueError(f"Toolkit '{toolkitName}' document missing 'cls'/'classpath' in desc.")
+
+        norm_desc = dict(desc)
+        norm_desc["classpath"] = classpath
+        norm_desc.pop("cls", None)
+
+        return DataHandler_Class.getData(resource=resource, desc=norm_desc)
+
+    def getToolkitTable(self, projectName):
+        """
+        Return a DataFrame that merges static toolkits with dynamic toolkits from DB.
+        """
+        repo = ToolkitRepository(projectName)
+        dynamic = repo.getToolkitTable()
+
+        static = []
+        for name, info in self._toolkits.items():
+            static.append({
+                "toolkit": name,
+                "cls": info["cls"],
+                "source": "internal",
+                "type": info.get("type", "measurements"),
+                "description": info.get("desc", "")
+            })
+
+        df_static = pd.DataFrame(static)
+        all_toolkits = pd.concat([df_static, dynamic], ignore_index=True).drop_duplicates("toolkit")
+        return all_toolkits
+
+    # בתוך class ToolkitHome (בקובץ hera/toolkit.py)
+
+    def registerToolkit(
+            self,
+            toolkitclass,
+            *,
+            projectName,
+            repositoryName,  # <<< חדש: דרישת רפוזיטורי
+            datasource_name=None,
+            params=None,
+            version=(0, 0, 1),
+            overwrite=False,
+    ):
+        """
+        Register a toolkit class as a datasource document in the given project & repository.
+
+        It stores:
+          - resource: the directory that contains the module file (DataHandler_Class adds to sys.path)
+          - dataFormat: datatypes.CLASS
+          - desc: {
+                'toolkit'       : <datasource_name>,
+                'datasourceName': <datasource_name>,
+                'repository'    : <repositoryName>,   # <<< נשמר במסמך
+                'version'       : (major, minor, patch),
+                'classpath'     : '<module.Class>',
+                'parameters'    : { ... }
+            }
+        """
+        if projectName is None:
+            raise ValueError("registerToolkit: 'projectName' is required")
+        if not repositoryName:
+            raise ValueError("registerToolkit: 'repositoryName' is required")
+
+        import inspect, os
+        module_path = inspect.getfile(toolkitclass)
+        resource_dir = os.path.dirname(os.path.abspath(module_path))
+        classpath = f"{toolkitclass.__module__}.{toolkitclass.__qualname__}"
+
+        ds_name = datasource_name or toolkitclass.__name__
+        params = params or {}
+
+        desc = {
+            "toolkit": ds_name,
+            "datasourceName": ds_name,
+            "repository": repositoryName,  # <<< שדה רפוזיטורי
+            "version": tuple(version),
+            "classpath": classpath,
+            "parameters": params,
+        }
+
+        proj = Project(projectName=projectName)
+
+        # בדיקת קיום לפי (type, repository, datasourceName, version)
+        existing = proj.getMeasurementsDocuments(
+            type="ToolkitDataSource",
+            repository=repositoryName,  # <<< סינון לפי רפוזיטורי
+            datasourceName=ds_name,
+            version=tuple(version),
+        )
+        if existing:
+            if not overwrite:
+                raise ValueError(
+                    f"Toolkit datasource '{ds_name}' (version {version}) already exists in "
+                    f"repository '{repositoryName}' of project '{projectName}'. "
+                    f"Use overwrite=True to replace."
+                )
+            for doc in existing:
+                doc.delete()
+
+        doc = proj.addMeasurementsDocument(
+            type="ToolkitDataSource",
+            resource=resource_dir,
+            dataFormat=datatypes.CLASS,
+            desc=desc,
+        )
+        return doc
+
+    def setDefaultRepository(self, *, projectName: str, repositoryName: str, overwrite: bool = True):
+        """
+        Persist default repository name for a project so future calls can omit --repository.
+        We store it as a tiny Project document under type='RepositoryConfig'.
+        """
+        if not projectName:
+            raise ValueError("setDefaultRepository: 'projectName' is required")
+        if not repositoryName:
+            raise ValueError("setDefaultRepository: 'repositoryName' is required")
+
+        proj = Project(projectName=projectName)
+        # delete previous config if exists (by type)
+        if overwrite:
+            old = proj.getMeasurementsDocuments(type="RepositoryConfig")
+            for d in old:
+                d.delete()
+
+        desc = {"defaultRepository": repositoryName}
+
+        # Try to pick a dataFormat constant if available. Fallback: omit the arg.
+        df_arg = {}
+        try:
+            from hera.datalayer import datatypes as _dt
+            dfmt = getattr(_dt, "JSON", None) or getattr(_dt, "json", None) or getattr(_dt, "TEXT", None)
+            if dfmt is not None:
+                df_arg["dataFormat"] = dfmt
+        except Exception:
+            pass
+
+        return proj.addMeasurementsDocument(
+            type="RepositoryConfig",
+            resource=".",  # trivial
+            desc=desc,
+            **df_arg,
+        )
+
+    def getDefaultRepository(self, *, projectName: str) -> str:
+        """
+        Read the saved default repository name (if exists). Returns '' if missing.
+        """
+        if not projectName:
+            raise ValueError("getDefaultRepository: 'projectName' is required")
+        proj = Project(projectName=projectName)
+        docs = proj.getMeasurementsDocuments(type="RepositoryConfig")
+        if not docs:
+            return ""
+        # Take the newest (or first)
+        return docs[0].desc.get("defaultRepository", "") or ""
+
+    def getDatasourceDocument(
+            self,
+            *,
+            projectName: str,
+            datasourceName: str,
+            repositoryName: str = None,
+            version=None,  # tuple like (0,0,1) or None
+    ):
+        """
+        Fetch a ToolkitDataSource by (repository, datasourceName [, version]).
+        If repositoryName is None or '', fallback to the project's defaultRepository.
+        """
+        if not projectName:
+            raise ValueError("getDatasourceDocument: 'projectName' is required")
+        if not datasourceName:
+            raise ValueError("getDatasourceDocument: 'datasourceName' is required")
+
+        repo = (repositoryName or "").strip()
+        if not repo:
+            repo = self.getDefaultRepository(projectName=projectName)
+            if not repo:
+                raise ValueError(
+                    "Repository name is not provided and no defaultRepository is set for the project. "
+                    "Call setDefaultRepository(...) first, or pass repositoryName explicitly."
+                )
+
+        proj = Project(projectName=projectName)
+
+        q = {
+            "type": "ToolkitDataSource",
+            "repository": repo,
+            "datasourceName": datasourceName,
+        }
+        if version is not None:
+            q["version"] = tuple(version)
+
+        docs = proj.getMeasurementsDocuments(**q)
+        return docs[0] if docs else None
 
 
 class abstractToolkit(Project):
