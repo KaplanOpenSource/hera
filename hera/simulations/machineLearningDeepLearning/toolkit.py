@@ -1,4 +1,6 @@
 import json
+import pydoc
+import zipfile
 import torch
 import numpy
 import inspect
@@ -15,7 +17,7 @@ from hera.utils.jsonutils import compareJSONS
 from hera.utils.SALibUtils import SALibUtils
 from hera.utils.jsonutils import setJSONPath
 from hera.utils.logging import get_classMethod_logger
-from hera.utils.zipUtils import zip_items
+from hera.utils.zipUtils import zip_items,list_json_files_in_zip
 
 try:
     import SALib
@@ -62,6 +64,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
     def getEmptyTorchModelContainer(self):
         return torchLightingModelContainer(self)
 
+
+    def getTorchModelFromJSON(self,modelJSON):
+        newModel = torchLightingModelContainer(self)
+        newModel.modelJSON = modelJSON
+        return newModel
+
+
     def listTorchModels(self, modelObjectOrName=None, longFormat=True, **qry):
         qryMongo = dictToMongoQuery(qry)
         if modelObjectOrName is not None:
@@ -100,8 +109,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         """
         if isinstance(modelIDorListID,Iterable):
             modelContainer = [self.getTorchModelContainerByID(x) for x in modelIDorListID]
+            if len(modelContainer):
+                raise ValueError(f"Non of the Models ID  {modelIDorListID} not found project {self.projectName}. If this is not the project you ment, make sure caseConfiguration.json exists or that you initialized the toolkit with the desired project name")
         else:
             modelContainer = self.getTorchModelContainerByID(modelIDorListID)
+
+            if modelContainer is None:
+                raise ValueError(f"Model {modelIDorListID} not found in project {self.projectName}. If this is not the project you ment, make sure caseConfiguration.json exists or that you initialized the toolkit with the desired project name")
 
         self.packTorchModel(modelContainer,packFileName)
 
@@ -139,6 +153,97 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         itemsToZip.append(modelsDict)
         zip_items(packFileName,itemsToZip)
 
+    def loadPackedModel(self,archiveFile,overwrite=False):
+        """
+            Loads the model to the database, and extracts the runtime data to the directory.
+
+            If the model is in the database, we will overwrite the data if the overwrite is True.
+            Otherwise, it will skip.
+
+        Parameters
+        ----------
+        archiveFile
+        overwrite
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"packModel")
+        logger.info("Unpacking models")
+
+        models  = list_json_files_in_zip(archiveFile)
+        for model in models:
+            modelName = model['name']
+            logger.info(f"Loading the model {modelName}")
+            modelJSON = model['content']
+
+            modelJSON = self.update_classes_filepath(modelJSON)
+            modelJSON = self.append_filesDirectory_to_pathToData(modelJSON)
+
+            modelContainer = self.getTorchModelFromJSON(modelJSON['model'])
+            modelContainerDoc = modelContainer.getModelDocument()
+
+
+            # Check if the directory exists.
+            targetDataPath = modelContainerDoc.getData()
+            if os.path.exists(targetDataPath) and not overwrite:
+                err = f"Model {modelContainer.modelName} with the requested parameters already exists as model {modelContainer.modelID}).  Skipping unpacking since  overwrite flag is flase. If you want to overwrite call with overwrite=True"
+                logger.error(err)
+                #raise ValueError(err)
+            else:
+                os.makedirs(targetDataPath, exist_ok=True)
+                origmodelName = modelName.split(".")[0]
+
+                with zipfile.ZipFile(archiveFile, 'r') as zip_ref:
+                    for member in zip_ref.infolist():
+                        memberName = member.filename
+                        logger.debug(f"Checking item {memberName} in the archive")
+
+
+                        if memberName.startswith(origmodelName) and ".json" not in memberName:
+                            logger.debug(f"Changing path {origmodelName}->{targetDataPath} and write the file there")
+
+                            # creating the
+                            newNameList = [targetDataPath]+memberName.split(os.path.sep)[1:]
+                            newFileName = os.path.join(*newNameList)
+                            print(newFileName)
+                            os.makedirs(os.path.dirname(newFileName), exist_ok=True)
+
+                            with zip_ref.open(memberName) as source, open(newFileName, 'wb') as target:
+                                target.write(source.read())
+
+
+
+
+
+    def append_filesDirectory_to_pathToData(self, modelJSON):
+        """
+
+        Parameters
+        ----------
+        modelJSON
+
+        Returns
+        -------
+
+        """
+        if isinstance(modelJSON, dict):
+            new_dict = {}
+            for k, v in modelJSON.items():
+                if k == "pathToData" and isinstance(v, str):
+                    new_dict[k] = os.path.join(self.filesDirectory,v)
+                elif isinstance(v, dict):
+                    new_dict[k] = self.append_filesDirectory_to_pathToData(v)
+                elif isinstance(v, list):
+                    new_dict[k] = [self.append_filesDirectory_to_pathToData(v) if isinstance(item, dict) else item for item in v]
+                else:
+                    new_dict[k] = v
+            return new_dict
+        else:
+            return modelJSON
+
+
 
     ## ====================================================================================================
     ## ====================================================================================================
@@ -152,7 +257,13 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         return data['classpath']
 
     @classmethod
-    def get_class_info(cls,modelCls):
+    def get_class_info(cls, modelClsOrName):
+        if isinstance(modelClsOrName, str):
+            modelCls = pydoc.locate(modelClsOrName)
+            if modelCls is None:
+                raise ValueError(f"class {modelClsOrName} not found. Is this pacakge in the classpath. Make sure the directory that contain the code to this class is in the environmental parameter PYTHONPATH. ")
+        else:
+            modelCls = modelClsOrName
         module = modelCls.__module__
         name = modelCls.__name__
         file_path = inspect.getfile(modelCls)
@@ -165,6 +276,39 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         module_file_path = os.path.join(*patList[:moduleNameIndex])
 
         return name, dict(classpath=full_path, filepath=module_file_path)
+
+    @classmethod
+    def update_classes_filepath(cls,modelJSON):
+        """
+        Recursively adds the correct files path to all the classpath of the machine.
+
+        Parameters
+        ----------
+        modelJSON : dictionary to process
+
+        Returns
+        -------
+
+        """
+
+        if isinstance(modelJSON, dict):
+            new_dict = {}
+            for k, v in modelJSON.items():
+                if k == "classpath" and isinstance(v, str):
+                    _, fileData = cls.get_class_info(v)
+                    new_dict["classpath"] = v
+                    new_dict['filepath'] = fileData['filepath']
+                elif isinstance(v, dict):
+                    new_dict[k] = cls.update_classes_filepath(v)
+                elif isinstance(v, list):
+                    new_dict[k] = [cls.update_classes_filepath(v) if isinstance(item, dict) else item for item in v]
+                else:
+                    new_dict[k] = v
+            return new_dict
+        else:
+            return modelJSON
+
+
 
 ## ====================================================================================================
 ##
@@ -328,6 +472,8 @@ def remove_prefix_from_values(d, target_key, prefix):
     """
     Recursively remove a prefix from the value of all occurrences of `target_key` in a dict.
 
+    Does not take into accoutn JSON files that have list in their root.
+
     :param d: dictionary to process
     :param target_key: key whose values will have the prefix removed
     :param prefix: prefix to remove from the value
@@ -350,4 +496,5 @@ def remove_prefix_from_values(d, target_key, prefix):
         return new_dict
     else:
         return d
+
 
