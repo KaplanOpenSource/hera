@@ -29,7 +29,7 @@ branca==0.8.1
 cachetools==5.5.2
 Cartopy==0.23.0
 cassandra-driver==3.29.2
-certifi==2023.7.22
+certifi==2024.7.4
 cffi==1.17.1
 cftime==1.6.4.post1
 charset-normalizer==3.4.1
