@@ -98,7 +98,7 @@ google-pasta==0.2.0
 gql==3.5.2
 graphql-core==3.2.6
 grpcio==1.71.0
-h11==0.14.0
+h11==0.16.0
 h2==4.3.0
 h5py==3.13.0
 hpack==4.1.0
