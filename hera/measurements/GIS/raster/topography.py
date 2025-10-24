@@ -18,15 +18,16 @@ import os
 import xarray
 import geopandas
 import numpy as np
-
 from hera import toolkitHome
 import pandas as pd
 import xarray as xr
 import geopandas as gpd
 from shapely.geometry import Point
+from pyproj import CRS
 
+WGS84 = CRS.from_epsg(4326)
+ITM   = CRS.from_epsg(2039)
 
-WSG84 = 4326
 
 
 
@@ -57,22 +58,67 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         # Initialize the analysis module for topography calculations
         self._analysis = topographyAnalysis(self)
-    def findElevationFile(self, filename, dataSourceName):
+
+    def findElevationFile(self, grpid, dataSourceName):
         """
-        Attempts to find the .hgt file in one of the registered resource folders.
-        Supports both single path or list of paths.
+        Locate the .hgt tile file that corresponds to the given group ID (lat/lon tile).
+
+        Fixes:
+        - Corrects possible latitude/longitude inversion (e.g., N35E033 instead of N33E035)
+        - Prevents double '.hgt.hgt' extensions.
+        - Searches recursively under HERA_DATA_PATH if set, otherwise uses the datasource path.
+
+        Parameters
+        ----------
+        grpid : str
+            Expected format like 'N33E035' or 'S12W044'.
+        dataSourceName : str
+            Name of the data source, e.g. 'SRTMGL1'.
+
+        Returns
+        -------
+        str
+            Full path to the found .hgt file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the tile file cannot be found under the expected data directories.
         """
-        resources = self.getDataSourceData(dataSourceName)
-        if isinstance(resources, str):
-            resources = [resources]
+        import os
+        import re
 
-        for folder in resources:
-            candidate = os.path.join(folder, filename)
-            if os.path.exists(candidate):
-                return candidate
+        # --- Normalize the group ID ---
+        grpid = grpid.upper().strip()
 
-        raise FileNotFoundError(f"{filename} not found in any of: {resources}")
+        # Fix possible inversion (lat/lon swapped)
+        # e.g. input "N35E033" should be "N33E035"
+        match = re.match(r"([NS]\d{2})([EW]\d{3})", grpid)
+        if match:
+            lat, lon = match.groups()
+            lat_num = int(re.sub(r"[NS]", "", lat))
+            lon_num = int(re.sub(r"[EW]", "", lon))
+            if lat_num > 34 and lon_num < 34:
+                # Looks inverted: swap them
+                grpid = f"N{lon_num:02d}E{lat_num:03d}"
 
+        # Remove any double .hgt extension
+        base_name = f"{grpid}.hgt"
+        base_name = base_name.replace(".hgt.hgt", ".hgt")
+
+        # Determine root search path
+        search_root = os.environ.get("HERA_DATA_PATH", "")
+        if not search_root:
+            # Fallback: use dataSource default path
+            search_root = os.path.join(self.projectRoot, "measurements", "GIS", "raster")
+
+        # Search recursively for the tile
+        for root, _, files in os.walk(search_root):
+            if base_name in files:
+                return os.path.join(root, base_name)
+
+        # If still not found, raise an informative error
+        raise FileNotFoundError(f"Tile {base_name} not found under {search_root}")
 
     def getPointElevation(self,lat, long,dataSourceName=None):
         """
@@ -421,35 +467,92 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
         return xarray_dataset
 
-    def createElevationSTL(self, minx, miny, maxx, maxy, dxdy = 30,shiftx=0,shifty=0,inputCRS=WSG84, dataSourceName=None, solidName="Topography"):
+    def createElevationSTL(self, minx, miny, maxx, maxy, dxdy=30, shiftx=0, shifty=0,
+                           inputCRS=WSG84, dataSourceName=None, solidName="Topography",
+                           emit_openfoam_metadata=True, json_sidecar=True, json_path=None):
         """
-            Return the STL string from xarray dataset with the following fields:
+        Return the STL string from xarray dataset AND (optionally) emit OpenFOAM-friendly metadata.
+
         Parameters
         ----------
-        lowerleft_point : float
-                The lower left corner
-        upperright_point: float
-                The upper right corner
-
+        minx, miny, maxx, maxy : float
+            Bounding box in inputCRS (default WGS84).
         dxdy : float
-                The resolution in m (default m).
-        inputCRS : The ESPG code of the input projection.
-
-        outputCRS : The ESPG code of the output projection.
-                    [Default ITM]
-
-        shiftx : Used when one wants to set another point as origin center
-
-        shifty : Used when one wants to set another point as origin center
+            Horizontal spacing. For WGS84 this is degrees; for ITM this is meters.
+        shiftx, shifty : float
+            Optional XY shifts applied later when creating the STL mesh.
+        inputCRS : int
+            EPSG code of input coordinates (default WGS84).
+        dataSourceName : str
+            DEM datasource name (falls back to config default).
+        solidName : str
+            STL solid name.
+        emit_openfoam_metadata : bool
+            If True, print ITM bbox + zMin/zMax to console (for blockMeshDict/snappyHexMesh).
+        json_sidecar : bool
+            If True, also write a JSON sidecar next to the STL path (if provided later).
+        json_path : str or None
+            Explicit path for the metadata JSON. If None and json_sidecar=True, will be derived.
 
         Returns
         -------
-
+        str
+            STL content as string.
+        dict
+            Metadata dict with ITM bbox and z-range (for convenience).
         """
-        elevation = self.getElevation(minx=minx,miny=miny, maxx=maxx, maxy=maxy, dxdy=dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
+        # 1) Build elevation dataset (lat/lon + elevation)
+        elevation = self.getElevation(minx=minx, miny=miny, maxx=maxx, maxy=maxy,
+                                      dxdy=dxdy, inputCRS=inputCRS, dataSourceName=dataSourceName)
 
-        return self.getElevationSTL(elevation,shiftx,shifty,solidName)
+        # 2) Compute ITM bbox and z-range
+        min_x, min_y, max_x, max_y, xx_itm, yy_itm = self._itm_bbox_from_elevation_dataset(elevation)
+        z_min, z_max = self._z_range_from_elevation_dataset(elevation)
 
+        # 3) Emit metadata for OpenFOAM
+        meta = {
+            "crs": "EPSG:2039 (ITM)",
+            "blockMeshDict": {
+                "min_x": round(min_x, 3),
+                "min_y": round(min_y, 3),
+                "max_x": round(max_x, 3),
+                "max_y": round(max_y, 3),
+            },
+            "snappyHexMesh": {
+                "zMin": round(z_min, 2),
+                "zMax": round(z_max, 2),
+            },
+            "source_bbox_inputCRS": {
+                "minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy, "epsg": inputCRS
+            }
+        }
+        if emit_openfoam_metadata:
+            print("\n=== OpenFOAM metadata (paste into your dicts) ===")
+            print(f"[ITM] min_x: {meta['blockMeshDict']['min_x']}  "
+                  f"min_y: {meta['blockMeshDict']['min_y']}  "
+                  f"max_x: {meta['blockMeshDict']['max_x']}  "
+                  f"max_y: {meta['blockMeshDict']['max_y']}")
+            print(f"[Z]   zMin: {meta['snappyHexMesh']['zMin']}  "
+                  f"zMax: {meta['snappyHexMesh']['zMax']}")
+
+        # 4) Produce STL string as before (re-use your existing logic)
+        stl_str = self.getElevationSTL(elevation, shiftx, shifty, solidName)
+
+        # 5) Optionally write JSON sidecar (if the caller later writes STL to disk)
+        #    We do NOT know the STL file path here (this method returns string).
+        #    If you prefer, move JSON writing to the place where you actually save the STL.
+        if json_sidecar:
+            # If caller gave an explicit json_path, use it; otherwise derive a name:
+            derived_json_path = json_path or f"{solidName}_openfoam_meta.json"
+            try:
+                import json
+                with open(derived_json_path, "w") as f:
+                    json.dump(meta, f, indent=2)
+                print("Metadata JSON written to:", derived_json_path)
+            except Exception as e:
+                print("Warning: could not write metadata JSON:", e)
+
+        return stl_str, meta
 
     def getElevationSTL(self,elevation,shiftx=0,shifty=0,solidName="Topography"):
         """
@@ -493,6 +596,53 @@ class TopographyToolkit(toolkit.abstractToolkit):
         yy = gdf_transformed['y'].values.reshape(i_dim, j_dim)
         stlstr = stlFactory().rasterToSTL(xx - shiftx, yy - shifty, elevation['elevation'].values, solidName=solidName)
         return stlstr
+
+    # --- Helper: transform elevation grid to ITM and compute bbox ---
+    def _itm_bbox_from_elevation_dataset(self, elevation_ds):
+        """
+        Compute ITM bbox from an elevation xarray.Dataset that contains
+        'lat', 'lon' (WGS84) and 'elevation'. Returns (min_x, min_y, max_x, max_y, xx_itm, yy_itm).
+        """
+
+        # --- Use the correct axis names and order ---
+        lon_flat = elevation_ds['lon'].values.flatten()  # X = longitude
+        lat_flat = elevation_ds['lat'].values.flatten()  # Y = latitude
+
+        # --- Build GeoDataFrame in WGS84 and convert to ITM ---
+        import geopandas as gpd
+        gdf = gpd.GeoDataFrame(
+            geometry=gpd.points_from_xy(lon_flat, lat_flat),
+            crs=WGS84  # not 'WSG84' and not a bare int
+        ).to_crs(ITM)
+
+        # --- Extract ITM coordinates and reshape back to 2D ---
+        X_itm = gdf.geometry.x.values
+        Y_itm = gdf.geometry.y.values
+        i_dim, j_dim = elevation_ds['elevation'].shape
+        xx_itm = X_itm.reshape(i_dim, j_dim)
+        yy_itm = Y_itm.reshape(i_dim, j_dim)
+
+        # --- Compute bbox (meters) ---
+        import numpy as np
+        min_x = float(np.nanmin(xx_itm));
+        max_x = float(np.nanmax(xx_itm))
+        min_y = float(np.nanmin(yy_itm));
+        max_y = float(np.nanmax(yy_itm))
+        return (min_x, min_y, max_x, max_y, xx_itm, yy_itm)
+
+    # --- Helper: compute z-range from elevation dataset ---
+    def _z_range_from_elevation_dataset(self, elevation_ds):
+        """
+        Compute min/max elevation (Z) from an elevation xarray.Dataset.
+
+        Returns
+        -------
+        (z_min, z_max)
+        """
+        z = elevation_ds['elevation'].values
+        z_min = float(np.nanmin(z))
+        z_max = float(np.nanmax(z))
+        return (z_min, z_max)
 
 
 class topographyAnalysis:
