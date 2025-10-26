@@ -3,6 +3,7 @@ import logging
 import os
 
 import pandas
+from hera.utils import jsonutils
 
 from .. import toolkitHome
 from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
@@ -247,6 +248,67 @@ def workflow_sync_to_db(arguments):
                 logger.info(f"Updating DB with the changes for {sim.name}")
                 wftk.updateDocumentWorkflow(document=workflowDoc, json=outfileName)
 
+def create_workflow_variations(arguments):
+    """creates variations to the base workflow provided based on the variation json
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.create_workflow_variations")
+    logger.info(f" -- Starting: creating workflow variation --")
+    _confirm_project_name(arguments, logger)
+    variation_json_path = str(arguments.variationJson)
+    project_name = str(arguments.projectName)
+    workflow_name = str(arguments.workflow)
+    dry_run = bool(arguments.dry_run)
+    overwrite = bool(arguments.overwrite)
+    naming_scheme = str(arguments.naming_scheme)
+
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=project_name)
+    assert isinstance(wftk, hermesWorkflowToolkit)
+    workflow_doc_list = wftk.getWorkflowListDocumentFromDB(workflow_name)
+
+    if len(workflow_doc_list) == 0:
+        logger.error("workflow not found.")
+    wokflow_doc = workflow_doc_list[0]
+    base_workflow_json = wokflow_doc.to_mongo().copy()['desc']['workflow']
+    base_workflow_name = str(wokflow_doc['desc']['groupName'])
+    base_workflow_path = str(wokflow_doc['resource'])
+    
+    if not os.path.exists(variation_json_path):
+        logger.error(f"{variation_json_path} doesn't point to anything.")    
+    elif not os.path.isfile(variation_json_path):
+        logger.error(f"{variation_json_path} must be a file")
+    
+    with open(variation_json_path) as varitation_json_file:
+        variation_json = json.load(varitation_json_file)
+    
+    variation_scheme = None
+    # Might be changed to a dictionary {<scheme>: <scheme_func>}
+    if naming_scheme == "index":
+        variation_scheme = enumerate(jsonutils.JSONVariations(base_workflow_json, variation_json))
+    else:
+        logger.error(f"naming scheme {naming_scheme} is not implemented")
+        return
+    
+    for variation_suffix, variation in variation_scheme:
+        variation_path = os.path.join(base_workflow_path, "..", base_workflow_name+"_"+str(variation_suffix))
+        if os.path.exists(variation_path) and not overwrite:
+            logger.warning(f"skipping variation {variation_suffix} since it already exists")
+        else:
+            with open(variation_path, "w") as variation_file:
+                json.dump(variation, variation_file)
+        if not dry_run:
+            _ = wftk.addUpdateWorkflowFileInGroup(variation_path)
+        
+
 
 def _confirm_project_name(arguments, logger):
     if arguments.projectName is None:
@@ -332,7 +394,7 @@ def workflow_list(arguments):
 
     simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
-        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes
@@ -343,7 +405,7 @@ def workflow_list(arguments):
                                         listParameters=parameters)
 
 
-    title = f"The simulations in group *{workflowGroup}*  in project *{projectName}* "
+    title = f"The simulations in group *{workflowGroup}*  in project *{arguments.projectName}* "
     print(title)
     print("-" * len(title))
 
@@ -495,7 +557,7 @@ def workflow_compare(arguments):
         ext = "json"
 
     if len(res)==0:
-        print(f"Could not found any workflows to compare in project {projectName}")
+        print(f"Could not found any workflows to compare in project {arguments.projectName}")
     else:
         print(output)
 
