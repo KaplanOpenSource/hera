@@ -2,6 +2,8 @@ import { ProjectEntire, ProjectName } from '@shared/types';
 import { create } from 'zustand';
 
 export const NO_PROJECT = "* NONE *";
+export const DEFAULT_PROJECT = "defaultProject";
+export const EMPTY_NAME_PROJECT = "* Empty Name *";
 
 interface ProjectStore {
   projectNames: ProjectName[]; // List of project names

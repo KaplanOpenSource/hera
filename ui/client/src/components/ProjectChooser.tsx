@@ -1,6 +1,6 @@
 import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, IconButton } from "@mui/material"
 import { useEffect } from "react";
-import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore"
+import { EMPTY_NAME_PROJECT, NO_PROJECT, useProjectStore } from "../stores/useProjectStore"
 import { Add } from '@mui/icons-material';
 import { execPython } from "../io/execPython";
 
@@ -21,6 +21,9 @@ project_create(SimpleNamespace(projectName="hello3", directory=None, loadReposit
       `)
   }
 
+  const unempty = (s: string) => s === '' ? EMPTY_NAME_PROJECT : s;
+  const reempty = (s: string) => s === EMPTY_NAME_PROJECT ? '' : s;
+
   return (
     <>
       <FormControl size="small">
@@ -28,17 +31,19 @@ project_create(SimpleNamespace(projectName="hello3", directory=None, loadReposit
         <Select
           labelId="demo-simple-select-label"
           id="demo-simple-select"
-          value={currProjectName}
+          value={unempty(currProjectName)}
           label="Project"
           onChange={(event: SelectChangeEvent) => {
-            selectProject(event.target.value as string);
+            selectProject(reempty(event.target.value as string));
           }}
         >
-          {projectNames.map(({ name }) => (
-            <MenuItem key={name} value={name}>
-              {name}
-            </MenuItem>
-          ))}
+          {projectNames.map(({ name }) => {
+            return (
+              <MenuItem key={unempty(name)} value={unempty(name)}>
+                {unempty(name)}
+              </MenuItem>
+            )
+          })}
         </Select>
       </FormControl>
       <IconButton

@@ -1,5 +1,5 @@
 import { ProjectEntire, ProjectName } from "@shared/types";
-import { useProjectStore } from "../stores/useProjectStore";
+import { DEFAULT_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { FetchPython } from "./FetchPython";
 
 export const FetchProjects = ({ }) => {
@@ -15,11 +15,13 @@ export const FetchProjects = ({ }) => {
     <>
       <FetchPython
         code={`
-from hera.datalayer.project import getProjectList;
+from hera.datalayer.project import getProjectList
 result = [{"name": proj} for proj in getProjectList()]
         `}
         onSuccess={(data: ProjectName[] | undefined) => {
-          setProjectNames(data || [])
+          const first = (data || []).filter(({ name }) => name === DEFAULT_PROJECT);
+          const rest = (data || []).filter(({ name }) => name !== DEFAULT_PROJECT);
+          setProjectNames([...first, ...rest])
         }}
       />
       <FetchPython
