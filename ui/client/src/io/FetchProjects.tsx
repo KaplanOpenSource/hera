@@ -18,7 +18,9 @@ export const FetchProjects = ({ }) => {
 from hera.datalayer.project import getProjectList;
 result = [{"name": proj} for proj in getProjectList()]
         `}
-        onSuccess={(data: ProjectName[] | undefined) => setProjectNames(data || [])}
+        onSuccess={(data: ProjectName[] | undefined) => {
+          setProjectNames(data || [])
+        }}
       />
       <FetchPython
         code={`
