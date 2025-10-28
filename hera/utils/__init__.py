@@ -7,3 +7,4 @@ from hera.utils.query import *
 from hera.utils.jsonutils import *
 from hera.utils.unitHandler import *
 from hera.utils.angle import *
+from hera.utils.zipUtils import *

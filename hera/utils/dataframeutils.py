@@ -127,10 +127,11 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
 
     if len(diffList) > 0:
         ret = pandas.concat(diffList)
-        if longFormat is False:
+        if longFormat:
+            ret = ret.set_index("parameterNameFullPath")
+        else:
             ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
-        ret = ret.set_index("parameterNameFullPath")
         if changeDotToUnderscore:
             newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
             ret_tmp = ret.T.rename(columns=dict(newColNames))
