@@ -1,25 +1,27 @@
 import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, IconButton } from "@mui/material"
-import { useEffect } from "react";
-import { EMPTY_NAME_PROJECT, NO_PROJECT, useProjectStore } from "../stores/useProjectStore"
+import { EMPTY_NAME_PROJECT, useProjectStore } from "../stores/useProjectStore"
 import { Add } from '@mui/icons-material';
 import { execPython } from "../io/execPython";
+import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
 
 export const ProjectChooser = ({ }) => {
   const { projectNames, currProjectName, selectProject } = useProjectStore();
 
-  useEffect(() => {
-    if (currProjectName === NO_PROJECT && projectNames.length > 0) {
-      selectProject(projectNames[0].name);
-    }
-  }, [currProjectName, projectNames]);
-
-  const addProject = () => {
+  const addProject = async () => {
     const name = prompt('New project name?');
-    execPython(`
+    if (!name) {
+      return;
+    }
+    const { problem } = await execPython(`
 from types import SimpleNamespace
 from hera.utils.data.CLI import project_create
 project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=True, overwrite=False))
       `)
+    if (problem) {
+      return;
+    }
+    await fetchProjectsNames();
+    await fetchProjectDetails(name);
   }
 
   const unempty = (s: string) => s === '' ? EMPTY_NAME_PROJECT : s;

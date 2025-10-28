@@ -1,5 +1,5 @@
 import { Alert, Box, Stack } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
 import { PageTitle } from './components/PageTitle';
 import { ProjectChooser } from './components/ProjectChooser';
