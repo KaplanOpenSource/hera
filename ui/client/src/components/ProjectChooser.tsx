@@ -1,28 +1,9 @@
-import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, IconButton } from "@mui/material"
-import { EMPTY_NAME_PROJECT, useProjectStore } from "../stores/useProjectStore"
-import { Add } from '@mui/icons-material';
-import { execPython } from "../io/execPython";
-import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
+import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent } from "@mui/material";
+import { EMPTY_NAME_PROJECT, useProjectStore } from "../stores/useProjectStore";
+import { AddProjectButton } from "./AddProjectButton";
 
 export const ProjectChooser = ({ }) => {
   const { projectNames, currProjectName, selectProject } = useProjectStore();
-
-  const addProject = async () => {
-    const name = prompt('New project name?');
-    if (!name) {
-      return;
-    }
-    const { problem } = await execPython(`
-from types import SimpleNamespace
-from hera.utils.data.CLI import project_create
-project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=True, overwrite=False))
-      `)
-    if (problem) {
-      return;
-    }
-    await fetchProjectsNames();
-    await fetchProjectDetails(name);
-  }
 
   const unempty = (s: string) => s === '' ? EMPTY_NAME_PROJECT : s;
   const reempty = (s: string) => s === EMPTY_NAME_PROJECT ? '' : s;
@@ -49,11 +30,8 @@ project_create(SimpleNamespace(projectName="${name}", directory=None, loadReposi
           })}
         </Select>
       </FormControl>
-      <IconButton
-        onClick={() => addProject()}
-      >
-        <Add />
-      </IconButton>
+      <AddProjectButton
+      />
     </>
   )
 }
