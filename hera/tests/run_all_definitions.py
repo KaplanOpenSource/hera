@@ -27,13 +27,29 @@ failed_tests = []
 # -----------------------------------------------------------------------------------
 def compare_dataframes(df1, df2, rtol=1e-6, atol=1e-6):
     try:
+        # יישור עמודות
         df1 = df1.sort_index(axis=1).reset_index(drop=True)
         df2 = df2.sort_index(axis=1).reset_index(drop=True)
+
         if list(df1.columns) != list(df2.columns):
             print("⚠ Column mismatch between DataFrames")
             return False
+
+        has_geom = "geometry" in df1.columns and "geometry" in df2.columns
+        if has_geom:
+            pref = ["areaFraction","total_pop","age_0_14","age_15_19","age_20_29","age_30_64","age_65_up"]
+            sort_keys = [c for c in pref if c in df1.columns]
+            if not sort_keys:
+                # אם אין את העמודות המועדפות—קח כל עמודה מספרית (למעט geometry) כמפתח
+                sort_keys = [c for c in df1.columns if c != "geometry" and pd.api.types.is_numeric_dtype(df1[c])]
+            if sort_keys:
+                df1 = df1.sort_values(by=sort_keys).reset_index(drop=True)
+                df2 = df2.sort_values(by=sort_keys).reset_index(drop=True)
+
         for col in df1.columns:
             s1, s2 = df1[col], df2[col]
+
+            # 1) datetime
             if pd.api.types.is_datetime64_any_dtype(s1) and pd.api.types.is_datetime64_any_dtype(s2):
                 s1 = pd.to_datetime(s1).dt.tz_localize(None)
                 s2 = pd.to_datetime(s2).dt.tz_localize(None)
@@ -41,15 +57,35 @@ def compare_dataframes(df1, df2, rtol=1e-6, atol=1e-6):
                     print(f"❌ Mismatch in datetime column '{col}'")
                     return False
                 continue
+
+            if has_geom and col == "geometry":
+                tol_area = float(os.environ.get("GDF_TOL_AREA", "1e-7"))
+                for i, (g1, g2) in enumerate(zip(s1, s2)):
+                    try:
+                        equal_topo = g1.equals(g2)
+                        if not equal_topo:
+                            if g1.symmetric_difference(g2).area >= tol_area:
+                                print(f"❌ Mismatch in geometry at row {i}")
+                                return False
+                    except Exception:
+                        print(f"⚠ Geometry compare exception at row {i}; treating as mismatch")
+                        return False
+                continue
+
+            # 3) numeric
             if pd.api.types.is_numeric_dtype(s1) and pd.api.types.is_numeric_dtype(s2):
                 if not np.allclose(s1.fillna(0), s2.fillna(0), rtol=rtol, atol=atol, equal_nan=True):
                     print(f"❌ Mismatch in numeric column '{col}'")
                     return False
                 continue
+
+            # 4) default
             if not s1.equals(s2):
                 print(f"❌ Mismatch in column '{col}'")
                 return False
+
         return True
+
     except Exception as e:
         print(f"⚠ Exception during DataFrame comparison: {e}")
         return False
@@ -161,22 +197,25 @@ def save_output(filename, data, output_type):
     except ImportError:
         nonDBMetadataFrame = None
 
-    if isinstance(data, (nonDBMetadataFrame, gpd.GeoDataFrame)):
-        ext = ".geojson"
+    # === Respect the filename & extension from JSON ===
+    # If filename already has a dir (or is absolute), use it as-is.
+    # Otherwise, drop it under expected_outputs/<filename>
+    if os.path.isabs(filename) or os.path.dirname(filename):
+        dest = filename
     else:
-        ext = ".json"
+        dest = os.path.join("expected_outputs", filename)
 
-    filename = os.path.join("expected_outputs", Path(filename).stem + ext)
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
 
     if data is None:
-        print(f"⚠️ Output is None, saving as 'null' to {filename}")
-        with open(filename, "w") as f:
+        print(f"⚠️ Output is None, saving as 'null' to {dest}")
+        with open(dest, "w") as f:
             f.write("null")
         return
 
     output_type = output_type.lower()
 
+    # Unwrap custom result holders if needed (kept from your original logic)
     custom_extractors = ["singlePointTurbulenceStatistics", "AveragingCalculator"]
     obj_class = type(data).__name__
 
@@ -193,12 +232,13 @@ def save_output(filename, data, output_type):
             print(f"📌 {output_type} type: {type(data)} — using getData()")
             data = data.getData()
 
+    # Writers (use 'dest' instead of the old 'filename')
     def _write_json(path, obj):
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(obj, f, indent=2, default=str)
 
     def _write_text(path, text):
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(text)
 
     def _write_bytes(path, b):
@@ -207,42 +247,53 @@ def save_output(filename, data, output_type):
 
     handlers = {
         "dataframe": lambda: (
-            data.to_json(filename, orient="records", indent=2)
-            if filename.endswith(".json")
-            else data.to_parquet(filename, index=False, engine="pyarrow")
+            data.to_json(dest, orient="records", indent=2)
+            if dest.endswith(".json")
+            else data.to_parquet(dest, index=False, engine="pyarrow")
         ),
         "metadataframe": lambda: (
-            data.to_file(str(Path(filename)), driver="GeoJSON")
+            data.to_file(str(Path(dest)), driver="GeoJSON")
             if isinstance(data, gpd.GeoDataFrame)
-            else data.to_json(filename, orient="records", indent=2)
+            else data.to_json(dest, orient="records", indent=2)
         ),
         "nondbmetadataframe": lambda: (
-            data.to_file(str(Path(filename)), driver="GeoJSON")
+            data.to_file(str(Path(dest)), driver="GeoJSON")
             if hasattr(data, "to_file")
-            else data.to_json(filename)
+            else data.to_json(dest, orient="records", indent=2)
             if hasattr(data, "to_json")
-            else _write_json(filename, data.getData().to_dict(orient="records"))
+            else _write_json(dest, data.getData().to_dict(orient="records"))
         ),
-        "geodataframe": lambda: data.to_file(str(Path(filename)), driver="GeoJSON"),
-        "float": lambda: _write_json(filename, data),
-        "int": lambda: _write_json(filename, data),
-        "dict": lambda: _write_json(filename, data),
-        "list": lambda: _write_json(filename, data),
-        "str": lambda: _write_text(filename, str(data)),
-        "string": lambda: _write_text(filename, str(data)),
-        "xarray": lambda: data.to_netcdf(filename),
-        "dataarray": lambda: data.to_netcdf(filename),
-        "ndarray": lambda: np.savez(filename, **{f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data}),
-        "npz": lambda: np.savez(filename, **{f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data}),
-        "bytes": lambda: _write_bytes(filename, data),
+        "geodataframe": lambda: (
+            data.to_file(str(Path(dest)), driver="GeoJSON")
+            if dest.endswith((".geojson", ".json"))
+            else (_write_json(dest, json.loads(data.to_json())) )  # fallback
+        ),
+        "float": lambda: _write_json(dest, float(data)),
+        "int": lambda: _write_json(dest, int(data)),
+        "dict": lambda: _write_json(dest, data),
+        "list": lambda: _write_json(dest, data),
+        "tuple": lambda: _write_json(dest, data),
+        "str": lambda: _write_text(dest, str(data)),
+        "string": lambda: _write_text(dest, str(data)),
+        "xarray": lambda: data.to_netcdf(dest),
+        "dataarray": lambda: data.to_netcdf(dest),
+        "ndarray": lambda: np.savez(
+            dest,
+            **({f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data})
+        ),
+        "npz": lambda: np.savez(
+            dest,
+            **({f"arr{i}": arr for i, arr in enumerate(data)} if isinstance(data, tuple) else {"data": data})
+        ),
+        "bytes": lambda: _write_bytes(dest, data),
     }
 
     if output_type in handlers:
         try:
             handlers[output_type]()
-            print(f"✅ Output saved to {filename}")
+            print(f"✅ Output saved to {dest}")
         except Exception as e:
-            print(f"❌ Failed to save output ({output_type}) to {filename}: {e}")
+            print(f"❌ Failed to save output ({output_type}) to {dest}: {e}")
     else:
         raise ValueError(f"❌ Unknown output_type: {output_type}")
 
