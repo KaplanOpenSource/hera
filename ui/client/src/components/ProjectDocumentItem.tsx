@@ -10,26 +10,29 @@ export const ProjectDocumentItem = ({
   document: ProjectDocument,
 }) => {
   const id = `document${document?.desc?.docid}`;
+  console.log(document)
   return (
     <TreeItem
-      key={id} itemId={id} label={`Document: ${document.desc.datasourceName}`}
+      key={id} itemId={id} label={`Document: ${document?.desc?.datasourceName}`}
     >
       <TreeItem
         key={id + '-details'} itemId={id + '-details'} label={
-          <>
+          <Box>
             <Typography>
               Version: {(document.desc?.version || []).join('.')}
             </Typography>
             <Typography>
               Type: {document.type}
             </Typography>
-            <Typography>
-              resource: {document.resource}
-            </Typography>
+            {typeof (document?.resource) == 'string' &&
+              <Typography>
+                resource: {document.resource}
+              </Typography>
+            }
             <Typography>
               toolkit: {document.desc.toolkit}
             </Typography>
-          </>
+          </Box>
         }
       >
       </TreeItem>
