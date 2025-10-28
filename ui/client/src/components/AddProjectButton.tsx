@@ -2,8 +2,11 @@ import { Add } from "@mui/icons-material"
 import { IconButton } from "@mui/material"
 import { execPython } from "../io/execPython";
 import { fetchProjectsNames, fetchProjectDetails } from "../io/FetchProjects";
+import { useProjectStore } from "../stores/useProjectStore";
 
 export const AddProjectButton = ({ }) => {
+  const { selectProject } = useProjectStore();
+
   const addProject = async () => {
     const name = prompt('New project name?');
     if (!name) {
@@ -19,6 +22,7 @@ project_create(SimpleNamespace(projectName="${name}", directory=None, loadReposi
     }
     await fetchProjectsNames();
     await fetchProjectDetails(name);
+    selectProject(name);
   }
 
   return (<>
