@@ -14,3 +14,6 @@ dist
 pyhera.egg-info/
 venv
 .vscode
+heraenv
+.venv
+.python-version
