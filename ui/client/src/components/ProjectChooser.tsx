@@ -14,10 +14,11 @@ export const ProjectChooser = ({ }) => {
   }, [currProjectName, projectNames]);
 
   const addProject = () => {
+    const name = prompt('New project name?');
     execPython(`
 from types import SimpleNamespace
 from hera.utils.data.CLI import project_create
-project_create(SimpleNamespace(projectName="hello3", directory=None, loadRepositories=True, overwrite=False))
+project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=True, overwrite=False))
       `)
   }
 
