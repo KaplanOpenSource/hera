@@ -8,8 +8,8 @@
       "name": "Server (Docker)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "sh build.sh && docker run -it -p 8000:8000 --rm --name hera-server-instance hera-server",
-      "cwd": "${workspaceFolder}/ui/server"
+      "command": "sh ui/server/build.sh && docker run -it -p 8000:8000 --rm --name hera-server-instance hera-server",
+      "cwd": "${workspaceFolder}"
     },
     {
       "name": "Client (Vite/React Dev)",
