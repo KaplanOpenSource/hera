@@ -307,7 +307,43 @@ def create_workflow_variations(arguments):
                 json.dump(variation, variation_file)
         if not dry_run:
             _ = wftk.addUpdateWorkflowFileInGroup(variation_path)
-        
+
+def batch_delete_workflows(arguments):
+    """creates variations to the base workflow provided based on the variation json
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.batch_delete_workflows")
+    logger.info(f" -- Starting: batch delete workflows --")
+    _confirm_project_name(arguments, logger)
+    project_name = str(arguments.projectName)
+    workflow_name = str(arguments.workflow) if arguments.workflow else None
+    group_name = str(arguments.groupName) if arguments.groupName else None
+    hard_delete = bool(arguments.hard)
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=project_name)
+    assert isinstance(wftk, hermesWorkflowToolkit)
+    
+    workflow_to_exclude = None
+    if workflow_name:
+        workflow_doc_list = wftk.getWorkflowListDocumentFromDB(workflow_name)
+
+        if len(workflow_doc_list) == 0:
+            raise ValueError("workflow not found.")
+        else:
+            workflow_to_exclude=workflow_doc_list[0]
+    elif group_name is None:
+        raise ValueError("either group name or workflow name must be provided")
+
+    group_name = group_name if group_name else workflow_to_exclude['desc']['groupName']
+    wftk.deleteWorkflowInGroup(group_name,hard_delete,resetCounter=True, exclude=[workflow_name])
 
 
 def _confirm_project_name(arguments, logger):
