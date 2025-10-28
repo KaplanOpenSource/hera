@@ -22,10 +22,10 @@ export interface ProjectDocument {
   _cls: string;
   projectName: string
   desc: {
-    toolkit: string;
-    datasourceName: string;
-    version: number[];
-    docid: string;
+    toolkit?: string;
+    datasourceName?: string;
+    version?: number[];
+    docid?: string;
   },
   type: string;
   resource: string;

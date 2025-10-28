@@ -64,7 +64,7 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
           )
         }
         <TreeItem key={`toolkits`} itemId={`toolkits`} label={`Toolkits`}>
-          {toolkits.map(([name, { cls, desc }]) => (<>
+          {toolkits.map(([name, { cls, desc }]) => (
             <TreeItem key={name} itemId={name} label={name}>
               <Typography>
                 {cls}
@@ -75,7 +75,7 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
                 </Typography>
               )}
             </TreeItem>
-          </>))}
+          ))}
         </TreeItem>
       </SimpleTreeView>
     </Paper>

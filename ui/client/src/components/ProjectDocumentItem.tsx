@@ -9,7 +9,7 @@ export const ProjectDocumentItem = ({
   project: ProjectEntire,
   document: ProjectDocument,
 }) => {
-  const id = `document${document.desc.docid}`;
+  const id = `document${document?.desc?.docid}`;
   return (
     <TreeItem
       key={id} itemId={id} label={`Document: ${document.desc.datasourceName}`}
@@ -18,7 +18,7 @@ export const ProjectDocumentItem = ({
         key={id + '-details'} itemId={id + '-details'} label={
           <>
             <Typography>
-              Version: {document.desc.version.join('.')}
+              Version: {(document.desc?.version || []).join('.')}
             </Typography>
             <Typography>
               Type: {document.type}
