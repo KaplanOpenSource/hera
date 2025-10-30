@@ -186,6 +186,8 @@ class paraviewOpenFOAM:
         curstep['y'] = points[:, 1]
         curstep['z'] = points[:, 2]
         curstep['time'] = timeslice
+        curstep = curstep.assign(x=curstep.x.round(10), y=curstep.y.round(10), z=curstep.z.round(10),
+                                 time=curstep.time.round(10))
 
         fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
@@ -208,7 +210,8 @@ class paraviewOpenFOAM:
                 except ValueError:
                     logger.warning("Field %s is problematic... ommiting" % field)
 
-        curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7), time=curstep.time.round(7))
+            ci = curstep.set_index(['time', 'x', 'y', 'z'])
+            ci[ci.index.duplicated(keep=False)]
         curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
 
         return curstep
