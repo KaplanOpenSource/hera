@@ -3,7 +3,7 @@ import numpy
 import os.path
 import importlib
 import tqdm
-
+from warnings import deprecated
 from hera import get_classMethod_logger
 from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED, TYPE_VTK_FILTER
 from hera.utils import dictToMongoQuery
@@ -11,6 +11,9 @@ from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOA
 import paraview.simple as pvsimple
 import os
 import shutil
+
+from sklearn.utils import deprecated
+
 
 class VTKPipeLine:
     """
@@ -20,6 +23,10 @@ class VTKPipeLine:
 
     FILTER_CELLCENTERS = "CellCenters"
     FILTER_SLICE = "Slice"
+    FILTER_PLOTOVERLINE = "PlotOverLine"
+    FILTER_EXTRACTBLOCK = "ExtractBlock"
+    FILTER_INTEGRATEVARIABLES = "IntegrateVariables"
+
 
     def __init__(self, datalayer, vtkPipeline=None):
         self.datalayer = datalayer
@@ -49,12 +56,29 @@ class VTKPipeLine:
             raise ValueError(f"{filterType} is not Known. Must be one of {filterNameList}")
         return getattr(pipelineModule, f"vtkFilter_{filterType}")(name=name, write=write, params=params)
 
+    @deprecated("Use addFilterFromParams instead")
     def addFilter(self, name, filterType, write=True, params=[]):
+        self.addFilterFromParams(name, filterType, write, params)
+
+    def addFilterFromParams(self, name, filterType, write=True, params=[]):
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
         self.__setitem__(name, newFilter)
 
-    def addExistingFilter(self, filter):
 
+
+    def addFilterFromObj(self,fileter):
+        """Adds a filter to the pipeline using an already existent instance.
+
+                Parameters
+
+                    filter(VTKFilter)
+                        an instance of a filter
+
+                """
+        self.__setitem__(filter.name, filter)
+
+    @deprecated("Use addFilterFromObj instead")
+    def addExistingFilter(self, filter):
         """Adds a filter to the pipeline using an already existent instance.
 
         Parameters
@@ -544,7 +568,7 @@ class VTKFilter:
         self.params= [(param_name, new_val) if param[0] == param_name else param for param in self.params]
         # in case iteration didn't pass it we append it
         if (param_name, new_val)  not in self.params:
-            self.params .append((param_name,new_val))
+            self.params.append((param_name,new_val))
 
     def enforce_param(self, param_name:str, enforced_param):
         """In case param isn't initialized we set it to the enforced param
