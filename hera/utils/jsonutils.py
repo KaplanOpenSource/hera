@@ -12,34 +12,24 @@ from hera.utils.dataframeutils import compareDataframeConfigurations
 
 
 def compareJSONS(longFormat=False,changeDotToUnderscore=False,**kwargs):
-    """
-        Recieves a group of name->JSONs (as file, string or dict)
-        and returns the pandas that compares them.
+    """Recieves {<name>:<json>} mapping in kwargs and compares the values of all the common fields. Returns pandas df of the result.
+
     Parameters
     ----------
-    kwargs
-
-    longFormat : bool
-        Return the value as long or wide
-
-    changeDotToUnderscore : bool
-        If true, change the columns names from x.y -> x_y. This will allow using pandas.query function
+        longFormat (bool, optional): Return in long/wide format. Defaults to False.
+        changeDotToUnderscore (bool, optional): instead of showing fields as x.y.z uses x_y_z. This allows using pandas.query function. Defaults to False.
 
     Returns
     -------
-
+        DataFrame: df of the comparison results
     """
     fulldata = pandas.concat([convertJSONtoPandas(data).assign(datasetName=name) for name,data in kwargs.items()])
     return compareDataframeConfigurations(fulldata,datasetName="datasetName",parameterName="parameterNameFullPath",longFormat=longFormat,changeDotToUnderscore=changeDotToUnderscore)
 
 
 def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, keepOriginalUnits=True):
-    """
-        Converts a configuration dict (that might include unum objects) to
-        JSON dict (where all the values are strings).
-
-        The unum objects are converted to Str in a way that allows for their
-        retrieval. (see the JSONToConfiguration function)
+    """Converts a configuration dict (that might include unum objects) to JSON dict (where all the values are strings).
+    The unum objects are converted to Str in a way that allows for their retrieval. (see the JSONToConfiguration function)
 
     Parameters
     ----------
@@ -121,22 +111,19 @@ def ConfigurationToJSON(valueToProcess, standardize=False, splitUnits=False, kee
 
 
 def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False):
-    """
-        Converts a dictionary (all the values are string) to
-        a JSON where all the values are string.
-
-        Convert the JSON back to configuration object using  the ConfigurationToJSON function.
+    """Converts a dictionary (all the values are string) to a JSON where all the values are string.
+    Convert the JSON back to configuration object using  the ConfigurationToJSON function.
 
     Parameters
     ----------
-        JSON : dict
+    JSON : dict
         A key-value where all the values are strings.
         The unum objects has the format '1*<unit>' (for exampe '1*m/s')
 
-        returnUnum : bool [Default True]
+    returnUnum : bool [Default True]
         If true convert a quantity to Unum.
 
-        returnStandardize: bool [Default False]
+    returnStandardize: bool [Default False]
         If true, return the  units in MKS. If False return the original units.
 
     Returns
@@ -181,14 +168,11 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
     return ret
 
 def loadJSON(jsonData):
-    """
-        Reads the json object to the memory.
-
-        Could be:
-
-            * file object: any file-like object with the property 'read'.
-            * str: either the JSON or a path to the directory.
-            * dict: the JSON object.
+    """Reads the json object to the memory.
+    Could be:
+    * file object: any file-like object with the property 'read'.
+    * str: either the JSON or a path to the directory.
+    * dict: the JSON object.
 
     Parameters
     ----------
@@ -338,25 +322,21 @@ def processJSONToPandas(jsonData, nameColumn="parameterName", valueColumn="value
     return pnds[[nameColumn,valueColumn]]
 
 def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColumn="value"):
-    """
-        converts a JSON (either in file or loaded, or json str) to pandas.
-        The pandas flattens the JSON using the json path convection.
-        e.g
-        {
-            "a" : {
-                "b" : 1,
-                "c" : [1,2,3]
-            }
+    """converts a JSON (either in file or loaded, or json str) to pandas.
+    The pandas flattens the JSON using the json path convection.
+    e.g
+    {
+        "a" : {
+            "b" : 1,
+            "c" : [1,2,3]
         }
-
-        will be converted to
-         a.b  1
-         a.c_0 1
-         a.c_1 2
-         a.c_2 3
-
-
-        Does not support (currently) JSON whose root is a list but only supports dict
+    }
+    will be converted to
+        a.b  1
+        a.c_0 1
+        a.c_1 2
+        a.c_2 3
+    Does not support (currently) JSON whose root is a list but only supports dict
 
     Parameters
     ----------
@@ -364,17 +344,16 @@ def convertJSONtoPandas(jsonData, nameColumn="parameterNameFullPath", valueColum
         A json data either a file name, a json dict string, or a dict.
 
 
-        nameColumn: str
-            The name of the parameter column name
+    nameColumn: str
+        The name of the parameter column name
 
-        valueColumn : str
-            The name of the value
+    valueColumn : str
+        The name of the value
 
     Returns
     -------
-            pandas.DataFrame
-
-            with the fields nameColumn (the path of the json) and valueColumn
+        pandas.DataFrame
+        with the fields nameColumn (the path of the json) and valueColumn
     """
     param1 =  loadJSON(jsonData)
     pnds1 = processJSONToPandas(param1,nameColumn=nameColumn,valueColumn=valueColumn)
@@ -444,12 +423,12 @@ def setJSONPath(base,valuesDict,inPlace=False):
 
 
 def JSONVariations(base,variationJSON):
-    """
-        Return a list of JSONs with all the variations.
+    """The JSONVariations creates variations of the cartesian product of all the values between the variation groups.  Parameters within the variation group change together. Hence, all the members of one variation group must an identical number of values. 
+    
     Parameters
     ----------
-    base
-    variationJSON
+    base : base json to apply variations to
+    variationJSON : list of variation groups
 
     Returns
     -------

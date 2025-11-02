@@ -1,17 +1,21 @@
 import json
 import logging
-import glob
 import os
 import shutil
+import warnings
 import numpy
 import pandas
 
-from ...datalayer import datatypes
 from ... import toolkitHome
 from ...utils.jsonutils import loadJSON
 from ...utils.freeCAD import getObjFileBoundaries
-from ...utils.logging import get_logger
 from .preprocessOFObjects import OFObjectHome
+try:
+    from hermes.utils.workflowAssembly import handler_buildExecute
+except ImportError:
+    #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
+    warnings.warn("hermes is not installed. some features will not work.")
+    workflow = None
 from ..CLI  import workflow_add
 
 
@@ -89,7 +93,6 @@ def foam_solver_template_buildExecute(arguments):
 
     arguments.force = True
     if arguments.noDB:
-        from hermes.utils.workflowAssembly import handler_buildExecute
         handler_buildExecute(arguments)
     else:
         workflow_add(arguments)
@@ -726,15 +729,6 @@ def foam_BC(arguments):
 
 def hermes_buildExecute(arguments):
     logger = logging.getLogger("bin.hermes_buildExecute")
-    try:
-        from hermes.utils.workflowAssembly import handler_build, handler_buildExecute, handler_expand, \
-            handler_execute
-
-    except ImportError as e:
-        err = f"hermes package is not found. Cannot build and execute file. "
-        logger.error(err)
-        raise ImportError(err)
-
     handler_buildExecute(arguments)
 
 # def stochasticLagrangian_dispersion_create(arguments):
