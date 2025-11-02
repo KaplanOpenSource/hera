@@ -12,6 +12,7 @@ import paraview.simple as pvsimple
 import os
 import shutil
 
+
 class VTKPipeLine:
     """
         Holds a vtk pipline. That is a structure of filters and their parameters
@@ -20,6 +21,8 @@ class VTKPipeLine:
 
     FILTER_CELLCENTERS = "CellCenters"
     FILTER_SLICE = "Slice"
+    FILTER_EXTRACTBLOCK = "ExtractBlock"
+    FILTER_PLOTOVERLINE = "PlotOverLine"
 
     def __init__(self, datalayer, vtkPipeline=None):
         self.datalayer = datalayer
@@ -187,7 +190,7 @@ class registeredVTKPipeLine:
                                          caseType=caseType,
                                          servername=serverName)
 
-    def clearCache(self, regularMesh,filterName=None):
+    def clearCache(self, regularMesh, filterName=None):
         # 1. Get the potential filters to process
         logger = get_classMethod_logger(self, "clearCache")
         if filterName is None:
@@ -198,11 +201,12 @@ class registeredVTKPipeLine:
 
         for filterName in requestedFiltersToProcess:
             logger.debug(f"Removing {filterName}")
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=None,regularMesh=regularMesh)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=None, regularMesh=regularMesh)
             docList = self.datalayer.deleteSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             logger.info(f"Found {len(docList)} documents to delete. ")
             for doc in docList:
-                logger.debug(f"Deleting resource {doc['desc']['simulation']['simulationName']} : {doc['desc']['pipeline']['filters']} ")
+                logger.debug(
+                    f"Deleting resource {doc['desc']['simulation']['simulationName']} : {doc['desc']['pipeline']['filters']} ")
                 outputFile = doc['resource']
 
                 if os.path.exists(outputFile):
@@ -211,7 +215,7 @@ class registeredVTKPipeLine:
                     else:
                         shutil.rmtree(outputFile)
 
-    def getData(self, regularMesh, filterName=None, timeList=None, meshRegions=None , fieldNames=None,overwrite=False):
+    def getData(self, regularMesh, filterName=None, timeList=None, meshRegions=None, fieldNames=None, overwrite=False):
         """
             Returns the data of the vtkpipeline as a dict.
             The stuctucture is similar to that of a vtkpipline.
@@ -273,7 +277,7 @@ class registeredVTKPipeLine:
         DBDocumentsDict = dict()
 
         for filterName in requestedFiltersToProcess:
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions, regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             if len(docList) > 0:
                 filtersOutputFilename[filterName] = docList[0].resource
@@ -287,7 +291,8 @@ class registeredVTKPipeLine:
                 # adding counter to prevent overwriting similar filter from a different pipeline.
                 countr = self.datalayer.getCounterAndAdd("OpenFOAMData")
                 outputFileName = f"{filterName}_{countr}.{filext}"
-                filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
+                filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata",
+                                                                 outputFileName)
 
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
@@ -331,7 +336,8 @@ class registeredVTKPipeLine:
             else:
                 logger.debug("...Adding a new record to the DB")
 
-                recordData = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
+                recordData = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,
+                                                    regularMesh=regularMesh)
                 recordData['simulation']['timeList'] = timeList
                 dataFormat = self.datalayer.datatypes.ZARR_XARRAY if regularMesh else self.datalayer.datatypes.PARQUET
                 doc = self.datalayer.addSimulationsDocument(dataFormat=dataFormat,
@@ -342,7 +348,7 @@ class registeredVTKPipeLine:
             logger.debug(f"Reading filter {filterName} data")
 
         for filterName in requestedFiltersToProcess:
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions, regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             ret[filterName] = docList[0].getData()
 
@@ -358,7 +364,7 @@ class registeredVTKPipeLine:
                             fieldNames=fieldNames,
                             overwrite=overwrite)
 
-    def _buildFilterQuery(self, filterName, meshRegions,regularMesh=None):
+    def _buildFilterQuery(self, filterName, meshRegions, regularMesh=None):
         qry = dict(simulation=self.simulationParams,
                    pipeline=self.vtkpipeline.toJSON())
         if meshRegions is not None:
@@ -398,7 +404,7 @@ class registeredVTKPipeLine:
             for filterGuiName in structureJson:
                 paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
                 filtertype = structureJson[filterGuiName]['filterType']
-                filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName)
+                filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName,registrationName=filterGuiName)
 
                 logger.debug(
                     f"Adding filter {filterGuiName} of type {filtertype} to {'Reader' if fatherName is None else fatherName}")
@@ -564,16 +570,39 @@ class vtkFilter_CellCenters(VTKFilter):
 
 
 class vtkFilter_ExtractBlock(VTKFilter):
-    def __init__(self, name, write, **kwargs):
+    def __init__(self, name, write, patchList, internalMesh=True):
         selectors = [f'/Root/boundary/{patchName}' for patchName in patchList]
         if internalMesh:
             selectors += ['/Root/internalMesh']
-        params=  [
-            ("Selectors",selectors)
+        params = [
+            ("Selectors", selectors)
         ]
-        super().__init__(name=name, filterType="ExtractBlock", write=write, **kwargs)
+        super().__init__(name=name, filterType="ExtractBlock", write=write, params=params)
 
 
 class vtkFilter_IntegrateVariables(VTKFilter):
-    def __init__(self, name, write, patchList=[],internalMesh=False):
-        super().__init__(name=name, filterType="IntegrateVariables", write=write, params=params)
+    def __init__(self, name, write, **kwargs):
+        super().__init__(name=name, filterType="IntegrateVariables", write=write, params=[])
+
+
+class vtkFilter_PlotOverLine(VTKFilter):
+    def __init__(self, name, write,point1,point2,samplingType):
+
+
+        super().__init__(name=name, filterType="PlotOverLine", write=write, params=[])
+
+    def setSamplingPattern_Uniform(self, point1, point2, resolution=1000):
+        self.params = [
+            ("SamplingPattern", "uniform"),
+            ("Point1", point1),
+            ("Point2", point2)
+            ("Resolution", resolution)
+        ]
+
+    def setSamplingPattern_AtCellBoundary(self):
+        self.params = [("SamplingPattern", 'Sample At Cell Boundaries')]
+
+    def setSamplingPattern_AtSegmentCenter(self):
+        self.params = [("SamplingPattern", 'Sample At Segment Centers')]
+
+
