@@ -210,8 +210,6 @@ class paraviewOpenFOAM:
                 except ValueError:
                     logger.warning("Field %s is problematic... ommiting" % field)
 
-            ci = curstep.set_index(['time', 'x', 'y', 'z'])
-            ci[ci.index.duplicated(keep=False)]
         curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
 
         return curstep
