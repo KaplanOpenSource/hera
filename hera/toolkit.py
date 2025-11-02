@@ -153,35 +153,190 @@ class ToolkitHome:
 
         )
 
+    # --- Place this near the top of the file imports if needed ---
+    from hera.datalayer import Project
+
+    # --- Inside class ToolkitHome, replace ONLY the "not found" branch in getToolkit(...) ---
+
     def getToolkit(self, toolkitName, projectName=None, filesDirectory=None, **kwargs):
         """
         Locate a toolkit class by name (static registry or DB), then instantiate it.
+        If not found anywhere, return a lightweight fallback that wraps Project so that
+        repository JSON loading can still proceed without a concrete Toolkit class.
         """
+        # 1) Static registry (unchanged)
         if toolkitName in self._toolkits:
             clsName = self._toolkits[toolkitName]['cls']
             toolkitClass = pydoc.locate(clsName)
             if toolkitClass is None:
                 raise ImportError(f"Cannot locate class: {clsName}")
-            # טולקיטים פנימיים בדרך כלל מקבלים (projectName, filesDirectory=...)
             return toolkitClass(projectName, filesDirectory=filesDirectory, **kwargs)
 
+        # 2) Dynamic registry via DB (unchanged)
         repo = ToolkitRepository(projectName or "DefaultProject")
         doc = repo.getToolkitDocument(toolkitName)
-        if not doc:
-            raise ValueError(f"Toolkit '{toolkitName}' not found in registry or database.")
+        if doc:
+            desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
+            resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
+            classpath = desc.get("classpath") or desc.get("cls")
+            if classpath:
+                norm_desc = dict(desc)
+                norm_desc["classpath"] = classpath
+                norm_desc.pop("cls", None)
+                # Use the dynamic Class loader path when classpath exists
+                return DataHandler_Class.getData(resource=resource, desc=norm_desc)
+            # If there is a dynamic doc but no classpath, we'll fall through to the shim
 
-        desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
-        resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
+        # 3) Fallback SHIM: no static and no usable dynamic class found -> wrap Project
+        class _FallbackToolkit(Project):
+            """
+            Minimal shim so repository JSON loader can operate on the project
+            even without a concrete Toolkit class.
+            """
 
-        classpath = desc.get("classpath") or desc.get("cls")
-        if not classpath:
-            raise ValueError(f"Toolkit '{toolkitName}' document missing 'cls'/'classpath' in desc.")
+            def __init__(self, toolkitName, projectName, filesDirectory=None):
+                super().__init__(projectName=projectName)
+                self._toolkitname = toolkitName
+                self._projectName = projectName
+                self._filesDirectory = filesDirectory
 
-        norm_desc = dict(desc)
-        norm_desc["classpath"] = classpath
-        norm_desc.pop("cls", None)
+            # Keep parity with expected attributes in loaders
+            @property
+            def toolkitName(self):
+                return self._toolkitname
 
-        return DataHandler_Class.getData(resource=resource, desc=norm_desc)
+            @property
+            def projectName(self):
+                return self._projectName
+
+            # Map the methods used by loaders to Project APIs
+
+            # DataSource layer
+            def getDataSourceDocuments(self, **qry):
+                return super().getDataSourceDocuments(**qry)
+
+            def deleteDataSource(self, *, datasourceName):
+                # remove by name if exists
+                try:
+                    docs = super().getDataSourceDocuments(datasourceName=datasourceName)
+                    for d in docs:
+                        d.delete()
+                except Exception:
+                    pass
+
+            def addDataSource(self, **item):
+                # Repository JSON usually passes resource, dataFormat, dataSourceName, etc.
+                return super().addDataSource(**item)
+
+            # Measurements / Cache / Simulations generic helpers used by _DocumentHandler
+            def getMeasurementsDocuments(self, **qry):
+                return super().getMeasurementsDocuments(**qry)
+
+            def addMeasurementsDocument(self, **kwargs):
+                return super().addMeasurementsDocument(**kwargs)
+
+            def getCacheDocuments(self, **qry):
+                return super().getCacheDocuments(**qry)
+
+            def addCacheDocument(self, **kwargs):
+                return super().addCacheDocument(**kwargs)
+
+            def getSimulationsDocuments(self, **qry):
+                return super().getSimulationsDocuments(**qry)
+
+            def addSimulationsDocument(self, **kwargs):
+                return super().addSimulationsDocument(**kwargs)
+
+            # Config used by _handle_Config
+            def setConfig(self, **cfg):
+                current = super().getConfig() or {}
+                current.update(cfg)
+                super().setConfig(**current)
+
+        # Return the shim instance
+        return _FallbackToolkit(toolkitName=toolkitName, projectName=projectName, filesDirectory=filesDirectory)
+
+    # hera/toolkit.py  (inside class ToolkitHome)
+    # -----------------------------------------------------------------------------
+    # Auto-register a missing toolkit using classpath hints (from repository JSON
+    # or from the Toolkit document in DB) and then return an instance via getToolkit.
+    # -----------------------------------------------------------------------------
+    def auto_register_and_get(self,
+                              toolkitName: str,
+                              projectName: str,
+                              repositoryJSON: dict = None,
+                              repositoryName: str = None,
+                              params: dict = None,
+                              version: tuple = (0, 0, 1)):
+        """
+        Attempts to auto-register a missing toolkit and return an instance.
+        1) Try to find a classpath hint in the repositoryJSON (if provided).
+           We look for keys like: repositoryJSON[toolkitName]["Registry"]["classpath"]
+           or ...["Registry"]["cls"].
+        2) If not found, try the DB-backed Toolkit document (ToolkitRepository).
+        3) Import the class, choose a repository to register into:
+             - repositoryName argument if provided,
+             - else the project's default repository (must exist).
+        4) Register via registerToolkit(...), then getToolkit(...) and return it.
+        """
+        params = params or {}
+        classpath_hint = None
+
+        # 1) Classpath hint in the repository JSON
+        if repositoryJSON:
+            try:
+                tk_section = repositoryJSON.get(toolkitName, {})
+                reg = tk_section.get("Registry", {})
+                classpath_hint = reg.get("classpath") or reg.get("cls")
+            except Exception:
+                pass
+
+        # 2) If still not found, try DB Toolkit document
+        if not classpath_hint:
+            from hera.utils.data.toolkit_repository import ToolkitRepository
+            repo = ToolkitRepository(projectName)
+            doc = repo.getToolkitDocument(toolkitName)
+            if doc and getattr(doc, "desc", None):
+                classpath_hint = doc.desc.get("classpath") or doc.desc.get("cls")
+
+        if not classpath_hint:
+            raise ValueError(
+                f"auto_register_and_get: no classpath hint found for toolkit '{toolkitName}'. "
+                f"Provide a 'Registry.classpath'/'cls' in repository JSON or seed a Toolkit document."
+            )
+
+        # Import the class
+        mod_name, _, cls_name = classpath_hint.rpartition(".")
+        if not mod_name or not cls_name:
+            raise ValueError(f"Invalid classpath hint: '{classpath_hint}'")
+        from importlib import import_module
+        try:
+            mod = import_module(mod_name)
+            toolkit_cls = getattr(mod, cls_name)
+        except Exception as exc:
+            raise ImportError(f"Failed to import '{classpath_hint}' for toolkit '{toolkitName}'") from exc
+
+        # Decide target repository for registration
+        repo_to_use = repositoryName or self.getDefaultRepository(projectName=projectName)
+        if not repo_to_use:
+            raise ValueError(
+                f"auto_register_and_get: no target repository for project '{projectName}'. "
+                f"Set a default repository or pass repositoryName explicitly."
+            )
+
+        # Register (idempotent if overwrite=True)
+        self.registerToolkit(
+            toolkitclass=toolkit_cls,
+            datasource_name=toolkitName,
+            params=params,
+            version=version,
+            overwrite=True,
+            projectName=projectName,
+            repositoryName=repo_to_use,
+        )
+
+        # Return an instance
+        return self.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
     def getToolkitTable(self, projectName):
         """
