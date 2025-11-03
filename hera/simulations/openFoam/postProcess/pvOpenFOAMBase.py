@@ -120,7 +120,12 @@ class paraviewOpenFOAM:
         reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self.casePath, CaseType=self.caseType,guiName=readerName)
         reader.MeshRegions.SelectAll()
         possibleRegions = list(reader.MeshRegions)
-        reader.MeshRegions = ['internalMesh']
+        patch_array_info = []
+        for region in possibleRegions:
+            patch_array_info.extend([region, '1'])
+
+        # Apply to reader
+        reader.GetProperty("PatchArrayInfo").SetElements(patch_array_info)
         reader.UpdatePipeline()
 
         # setting the local variable.
@@ -303,7 +308,6 @@ class paraviewOpenFOAM:
                 logger.debug(f"\t Does not exist. Creating {outputPath}")
                 os.makedirs(outputPath)
 
-
         readTimesList = self.reader.TimestepValues if timeList is None else timeList
         logger.info(f"Getting timelist {readTimesList}")
 
@@ -330,7 +334,7 @@ class paraviewOpenFOAM:
         for filterName,outputFile in filtersDict.items():
             logger.debug(f"Working on {filterName}")
 
-            outputFilterName = filterName
+            outputFilterName = filterName.replace(".","-")
             outputPath = os.path.dirname(outputFile)
             outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName}_*.{slice_filext}"))]
 
@@ -342,7 +346,6 @@ class paraviewOpenFOAM:
                         if append and os.path.exists(outputFile):
                             old_data = xarray.open_mfdataset(outputFile, chunks='auto', engine="zarr")
                             lazy_ds = xarray.concat([lazy_ds,old_data],dim="time").sortby("time")
-
                         try:
                             lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
                         except NotImplementedError:
@@ -428,80 +431,3 @@ class paraviewOpenFOAM:
                       append=False, filterList=None):
         writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
 
-
-    #
-    # def writeRegularCase(self, filtersDict, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,append=False):
-    #     """
-    #         Writes a list of datasources (vtk filters) to netcdf (with xarray).
-    #         The grid data **must** be regular!!!.
-    #         Todo: add a an option for regularization function.
-    #
-    #     Parameters
-    #     ----------
-    #
-    #     readername: str
-    #             The name of the reader to use.
-    #     filtersDict:
-    #             The name of the datasources to write.,
-    #     outfile: str
-    #             the directory to write the files.
-    #     timeList: list
-    #             the times to write
-    #     fieldnames: list
-    #             the fields to write
-    #     tsBlockNum: int
-    #             the number of
-    #
-    #     Returns
-    #     -------
-    #
-    #     None
-    #
-    #     """
-    #
-    #     def checkIfExist(self,dataChunk,blockID,fileDirectory):
-    #         filterList = [k for k in dataChunk.keys()]
-    #         blockfrmt = ('{:0%dd}' % blockDig).format(blockID)
-    #         for filtername in filterList:
-    #             curfilename = os.path.join(fileDirectory, "%s_%s.nc" % (filtername, blockfrmt))
-    #             if os.path.exists(curfilename):
-    #                 if not overwrite:
-    #                     raise Exception('NOTE: "%s" is alredy exists and will be not overwitten' % curfilename)
-    #
-    #     timeList = self.reader.TimestepValues if timeList is None else numpy.atleast_1d(timeList)
-    #     os.makedirs(self.netcdfdir,exist_ok=True)
-    #
-    #     blockDig = max(5, numpy.ceil(numpy.log10(len(timeList))) + 1)
-    #     blockID = 0
-    #
-    #     L = []
-    #     checkExist=True
-    #
-    #     for xray in self.readTimeSteps(datasourcenamelist=filtersDict, timelist=timeList, fieldnames=fieldnames,regularMesh=True):
-    #
-    #         if checkExist:
-    #             checkExist =False
-    #             checkIfExist(xray, blockID, self.netcdfdir)
-    #
-    #         L.append(xray)
-    #         if len(L) == tsBlockNum:
-    #             if isinstance(L[0],dict):
-    #                 filterList = [k for k in L[0].keys()]
-    #                 for filtername in filterList:
-    #                     writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
-    #
-    #             else:
-    #                 writeList(L, blockID, blockDig, overwrite, self.netcdfdir)
-    #             L = []
-    #             blockID += 1
-    #             checkExist = False
-    #
-    #     if len(L)>0:
-    #         checkIfExist(xray, blockID, self.netcdfdir)
-    #         if isinstance(L[0],dict):
-    #             filterList = [k for k in L[0].keys()]
-    #             for filtername in filterList:
-    #                 writeList([item[filtername] for item in L], blockID, blockDig, overwrite, self.netcdfdir)
-    #         else:
-    #             writeList(L,blockID,blockDig,self.netcdfdir)
-    #

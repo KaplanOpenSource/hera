@@ -3,7 +3,7 @@ import numpy
 import os.path
 import importlib
 import tqdm
-from warnings import deprecated
+from typing import Literal
 from hera import get_classMethod_logger
 from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED, TYPE_VTK_FILTER
 from hera.utils import dictToMongoQuery
@@ -13,7 +13,6 @@ import os
 import shutil
 
 from sklearn.utils import deprecated
-
 
 class VTKPipeLine:
     """
@@ -27,13 +26,12 @@ class VTKPipeLine:
     FILTER_EXTRACTBLOCK = "ExtractBlock"
     FILTER_INTEGRATEVARIABLES = "IntegrateVariables"
 
-
     def __init__(self, datalayer, vtkPipeline=None):
         self.datalayer = datalayer
         self.filters = dict() if vtkPipeline is None else vtkPipeline
 
     @staticmethod
-    def newVTKPipelineFilter(name, filterType, write=True, params=[]):
+    def newVTKPipelineFilter(name, filterType, write=True, **kwargs):
         """
             Initializes a new filter from the list.
         Parameters
@@ -54,19 +52,13 @@ class VTKPipeLine:
         if filterType not in vtkFilterList:
             filterNameList = ",".join(vtkFilterList)
             raise ValueError(f"{filterType} is not Known. Must be one of {filterNameList}")
-        return getattr(pipelineModule, f"vtkFilter_{filterType}")(name=name, write=write, params=params)
+        return getattr(pipelineModule, f"vtkFilter_{filterType}")(name=name, write=write, **kwargs)
 
-    @deprecated("Use addFilterFromParams instead")
     def addFilter(self, name, filterType, write=True, params=[]):
         self.addFilterFromParams(name, filterType, write, params)
 
-    def addFilterFromParams(self, name, filterType, write=True, params=[]):
-        newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
-        self.__setitem__(name, newFilter)
 
-
-
-    def addFilterFromObj(self,fileter):
+    def addFilterFromObj(self,filterObj):
         """Adds a filter to the pipeline using an already existent instance.
 
                 Parameters
@@ -75,7 +67,7 @@ class VTKPipeLine:
                         an instance of a filter
 
                 """
-        self.__setitem__(filter.name, filter)
+        self.__setitem__(filterObj.name, filterObj)
 
     @deprecated("Use addFilterFromObj instead")
     def addExistingFilter(self, filter):
@@ -309,8 +301,22 @@ class registeredVTKPipeLine:
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
 
-        for filterName in requestedFiltersToProcess:
-            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
+        logger.info(f"Computing filters {filtersToProcess}")
+        # Compute the filters.
+
+        filtersToComputeDict = dict()  #
+        logger.info(f"Building the vtk objects from the JSON")
+        # Remember that the buildFilterlayer adds the real objects to the pipeline,
+        # and just return the guinames that can be used to retrieve the object with findSource.
+        # Hence it is a list of strings.
+        filtersToCompute = self._buildFilterLayer(fatherName=None,
+                                                  father=reader,
+                                                  structureJson=self.vtkpipeline.toJSON()['filters'])
+        logger.info(f"Added all filters to the layer. Computing filters {filtersToCompute}")
+
+        # Build the ourput file name.
+        for filterName in filtersToCompute:
+            qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions, regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             # attempt to extract cached filter results
             if len(docList) > 0:
@@ -324,45 +330,29 @@ class registeredVTKPipeLine:
                 DBDocumentsDict[filterName] = cached_filter
 
             else:
-                # probably should be a UUID
                 # adding counter to prevent overwriting similar filter from a different pipeline.
+                # We use counter and not UUID to make the files on the disk human readable.
                 counter = self.datalayer.getCounterAndAdd("OpenFOAMData")
-                outputFileName = f"{filterName}_{counter}.{filext}"
-                filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
+                fileFilterName = filterName.replace(".","-")
+                outputFileName = f"{fileFilterName}_{counter}.{filext}"
+                filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata",
+                                                                 outputFileName)
 
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
             if overwrite or len(docList) == 0 or len(timeList) > 0:
-                logger.debug(f"{filterName} added to process because overwrite=True or filter not in DB")
-                filtersToProcess.append(filterName)
-
-        logger.info(f"Computing filters {filtersToProcess}")
-        # Compute the filters.
-        if len(filtersToProcess) > 0:
-            filtersToComputeDict = dict()  #
-            logger.info(f"Building the vtk objects from the JSON")
-            # Remember that the buildFilterlayer adds the real objects to the pipeline,
-            # and just return the guinames that can be used to retrieve the object with findSource.
-            # Hence it is a list of strings.
-            filtersToCompute = self._buildFilterLayer(fatherName=None,
-                                                      father=reader,
-                                                      structureJson=self.vtkpipeline.toJSON()['filters'])
-            logger.info(f"Added all filters to the layer. Computing filters {filtersToCompute}")
-
-            # Build the ourput file name.
-            for filterName in filtersToCompute:
                 logger.debug(f"\t{filterName} will saved in {filtersOutputFilename[filterName]}")
                 filtersToComputeDict[filterName] = filtersOutputFilename[filterName]
 
-            # Compute the values and save the parquet/zarr.
-            self.pvOFBase.writeCase(filtersDict=filtersToComputeDict,
-                                    timeList=timeList,
-                                    fieldnames=fieldNames,
-                                    tsBlockNum=self.tsBlockNum,
-                                    overwrite=overwrite, regularMesh=regularMesh)
+        # Compute the values and save the parquet/zarr.
+        self.pvOFBase.writeCase(filtersDict=filtersToComputeDict,
+                                timeList=timeList,
+                                fieldnames=fieldNames,
+                                tsBlockNum=self.tsBlockNum,
+                                overwrite=overwrite, regularMesh=regularMesh)
 
         # 4. Update the DB.
-        for filterName in filtersToProcess:
+        for filterName in filtersToComputeDict.keys():
             logger.debug(f"Updating times {timeList} to filter {filterName}")
             if filterName in DBDocumentsDict:
                 doc = DBDocumentsDict[filterName]
@@ -383,7 +373,7 @@ class registeredVTKPipeLine:
 
             logger.debug(f"Reading filter {filterName} data")
 
-        for filterName in requestedFiltersToProcess:
+        for filterName in filtersToCompute:
             qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions, regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             ret[filterName] = docList[0].getData()
@@ -440,10 +430,9 @@ class registeredVTKPipeLine:
             for filterGuiName in structureJson:
                 paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
                 filtertype = structureJson[filterGuiName]['filterType']
-                filter = getattr(pvsimple, filtertype)(Input=father, guiName=filterGuiName,registrationName=filterGuiName)
-
-                logger.debug(
-                    f"Adding filter {filterGuiName} of type {filtertype} to {'Reader' if fatherName is None else fatherName}")
+                newFilterName = filterGuiName if fatherName is None else f"{fatherName}.{filterGuiName}"
+                filter = getattr(pvsimple, filtertype)(Input=father, guiName=newFilterName,registrationName=newFilterName)
+                logger.debug(f"Adding filter {newFilterName} of type {filtertype} to {'Reader' if fatherName is None else fatherName}")
 
                 for param, pvalue in paramPairList:
                     logger.debug(f"...Adding parameters {param} with value {pvalue}")
@@ -454,10 +443,16 @@ class registeredVTKPipeLine:
                         paramobj = getattr(paramobj, pname)
                     setattr(paramobj, paramnamelist[-1], pvalue)
                 filter.UpdatePipeline()
-                newFilterName = filterGuiName if fatherName is None else f"{fatherName}.{filterGuiName}"
+
                 logger.debug(f"Filter {newFilterName} added to the pipeline. Now adding its downstream filters.")
-                ret.append(filterGuiName)
-                ret += self._buildFilterLayer(newFilterName, filter,
+                if structureJson[filterGuiName]['write']:
+                    logger.debug(f"Adding filter {filterGuiName} to write list.")
+                    ret.append(newFilterName)
+                else:
+                    logger.debug(f"Filter {filterGuiName} is set to write=False. ")
+
+                ret += self._buildFilterLayer(newFilterName,
+                                              filter,
                                               structureJson[filterGuiName].get("downstream", None))
 
         return ret
@@ -528,7 +523,7 @@ class VTKFilter:
         ret['params'] = self.params
         ret['downstream'] = {}
         for filterName, dsFilter in self.downstream.items():
-            ret['downstream'][filterName] = dsFilter.toJSON()
+            ret['downstream'][filterName] = dsFilter.toJSON()[filterName]
 
         return {self.name: ret}
 
@@ -563,6 +558,9 @@ class VTKFilter:
         self.__setitem__(name, newFilter)
         return newFilter
 
+    def addFilterFromObj(self,newFilter):
+        self.__setitem__(newFilter.name, newFilter)
+
     def set_param(self, param_name:str, new_val):
         # change param value in list, keeping at the same index
         self.params= [(param_name, new_val) if param[0] == param_name else param for param in self.params]
@@ -580,6 +578,14 @@ class VTKFilter:
             self.params.append((param_name, enforced_param))
         elif (param_name, enforced_param) not in self.params:
             raise RuntimeError(f"{param_name} must not be different than {enforced_param}")
+
+
+
+
+
+########################################################################################
+## Specialized filters.
+########################################################################################
 
 class vtkFilter_Slice(VTKFilter):
 
@@ -610,9 +616,8 @@ class vtkFilter_PlotOverLine(VTKFilter):
     SAMPLE_AT_CELL_BOUNDARIES = 'Sample At Cell Boundaries'
     SAMPLE_AT_SEGMENT_CENTERS = 'Sample At Segment Centers'
 
-    def __init__(self, name, write, **kwargs):
-        kwargs.setdefault("params",[])
-        super().__init__(name=name, filterType="PlotOverLine", write=write, **kwargs)
+    def __init__(self, name, write):
+        super().__init__(name=name, filterType="PlotOverLine", write=write,params=[])
 
     def setSamplePattern(self, pattern: Literal['Sample Uniformly', 'Sample At Cell Boundaries', 'Sample At Segment Centers']):
         self.set_param("SamplingPattern",  pattern)
@@ -642,14 +647,14 @@ class vtkFilter_CellCenters(VTKFilter):
 
 
 class vtkFilter_ExtractBlock(VTKFilter):
-    def __init__(self, name, write, patchList=[],internalMesh=False, **kwargs):
+    def __init__(self, name, write):
+        super().__init__(name=name, filterType="ExtractBlock", write=write,params=[])
+
+    def setRegionsToExtract(self,internalMesh=True,patchList=[]):
         selectors = [f'/Root/boundary/{patchName}' for patchName in patchList]
         if internalMesh:
             selectors += ['/Root/internalMesh']
-        params=  [
-            ("Selectors",selectors)
-        ]
-        super().__init__(name=name, filterType="ExtractBlock", write=write, **kwargs)
+        self.set_param("Selectors",selectors)
 
 
 class vtkFilter_IntegrateVariables(VTKFilter):
