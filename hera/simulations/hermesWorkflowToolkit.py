@@ -792,7 +792,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return ret
 
-    def deleteWorkflowInGroup(self,workflowGroup,deepDelete=False,resetCounter=True):
+    def deleteWorkflowInGroup(self,workflowGroup,deepDelete=False,resetCounter=True, exclude=[]):
         """
             Deletes all the workflows in the group.
         Parameters
@@ -812,6 +812,8 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         simulationList = self.getWorkflowDocumentsInGroup(groupName=workflowGroup)
         for doc in simulationList:
+            if doc['desc']['workflowName'] in exclude:
+                continue
             if os.path.exists(doc.resource) and deepDelete:
                 shutil.rmtree(doc.resource)
 

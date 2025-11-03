@@ -131,7 +131,6 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         # make sure to have the same structure, we don't have columns since no dataset has anything unique
         return pandas.DataFrame()
     
-    
     if longFormat is False:
             ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
@@ -139,6 +138,6 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
         ret_tmp = ret.T.rename(columns=dict(newColNames))
         ret = ret_tmp.T
-
+    
     return ret
 
