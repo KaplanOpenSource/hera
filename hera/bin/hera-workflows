@@ -127,6 +127,17 @@ if __name__ == "__main__":
 
     
     variation_parser.set_defaults(func=CLI.create_workflow_variations)
+
+    
+    ### --- batch delete based on group name
+    batch_delete_parser = subparsers.add_parser('batch-delete', aliases=["bigdelete"], help='Deletes all the workflows under the same group name')
+    batch_delete_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    batch_delete_parser.add_argument('--workflow', type=str, help='workflow to exclude, if group name not provided uses group name of this workflow')
+    batch_delete_parser.add_argument('--groupName', type=str, help="the name of the group to delete")
+    batch_delete_parser.add_argument('--hard', action="store_true", default=False, help="delete the resource of each workflow from disk")
+    
+    
+    batch_delete_parser.set_defaults(func=CLI.batch_delete_workflows)
     ### ------------------------
 
     parsed = parser.parse_args()
