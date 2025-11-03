@@ -12,12 +12,10 @@ from hera.datalayer import datatypes
 import numpy
 import pydoc
 import warnings
-from hera.utils.logging import with_logger, get_classMethod_logger
-from collections.abc import Iterable
+from ..utils.logging import get_classMethod_logger
 
 try:
     from hermes import workflow
-    from hermes.utils.workflowAssembly import handler_build, handler_buildExecute, handler_expand, handler_execute
 except ImportError:
     #    raise ImportError("hermes is not installed. please install it to use the hermes workflow toolkit.")
     warnings.warn("hermes is not installed. some features will not work.")
@@ -209,7 +207,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return hermesWFObj(workFlowJSON, name=name)
 
-    def updateDocumentsWorkflow(document, json):
+    def updateDocumentWorkflow(self, document, json):
         document.desc['workflow'] = loadJSON(json)
         document.save()
 
@@ -384,6 +382,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return docList
 
+
     def getWorkflowListDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource: Union[dict, str, list, workflow],
                                       **query):
         """
@@ -521,7 +520,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         formatted_number = "{0:04d}".format(flowID)
         return f"{baseName}_{formatted_number}"
 
-    def addUpdateWorkflowFileInGroup(self,workflowFileName):
+    def addUpdateWorkflowFileInGroup(self,workflowFilePath):
         """
             Updates the content of the filename in the database.
 
@@ -542,12 +541,15 @@ class hermesWorkflowToolkit(abstractToolkit):
         if workflow is None:
             raise NotImplementedError("addUpdateWorkflowFileInGroup() requires the 'hermes' library, which is not installed")
 
-        workflowName = workflowFileName.split(".")[0]
+        workflowFile = os.path.basename(workflowFilePath)
+        workflowName = os.path.splitext(workflowFile)[0]
         doc = self.getWorkflowDocumentByName(workflowName)
+        if not os.path.abspath(workflowFilePath).startswith(self.FilesDirectory):
+            raise ValueError(f"{workflowFilePath} is not in {self.FilesDirectory}")
         if doc is None:
-            workflowJSON = loadJSON(workflowFileName)
+            workflowJSON = loadJSON(workflowFilePath)
             hermesWF = workflow(workflowJSON, self.FilesDirectory)
-            doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
+            doc = self.addSimulationsDocument(resource=os.path.abspath(workflowFilePath),
                                               dataFormat=datatypes.STRING,
                                               type=self.DOCTYPE_WORKFLOW,
                                               desc=dict(
@@ -790,7 +792,7 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         return ret
 
-    def deleteWorkflowInGroup(self,workflowGroup,deepDelete=False,resetCounter=True):
+    def deleteWorkflowInGroup(self,workflowGroup,deepDelete=False,resetCounter=True, exclude=[]):
         """
             Deletes all the workflows in the group.
         Parameters
@@ -810,6 +812,8 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         simulationList = self.getWorkflowDocumentsInGroup(groupName=workflowGroup)
         for doc in simulationList:
+            if doc['desc']['workflowName'] in exclude:
+                continue
             if os.path.exists(doc.resource) and deepDelete:
                 shutil.rmtree(doc.resource)
 

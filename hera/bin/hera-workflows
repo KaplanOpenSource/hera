@@ -115,6 +115,26 @@ if __name__ == "__main__":
 
     
     sync_parser.set_defaults(func=CLI.workflow_sync_to_db)
+    
+    ### --- create copies of a workflow variating the fields based on a variation JSON provided
+    variation_parser = subparsers.add_parser('variation', aliases=["var"], help='Takes a workflow and creates new ones using the variation json provided')
+    variation_parser.add_argument('workflow', type=str, help='the base workflow to use')
+    variation_parser.add_argument('variationJson', type=str, help='path to file with variation data')
+    variation_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    variation_parser.add_argument('--dry-run', action="store_true", default=False, help="don't add the workflows to the project")
+    variation_parser.add_argument('--overwrite', action="store_true", default=False, help="overwrite existing variations files")
+    variation_parser.add_argument('--naming-scheme', type=str, choices=["index"], default="index", help="naming scheme used for the variation workflows. defaults to indexing(<base_name>_[0,1...])")
+    variation_parser.set_defaults(func=CLI.create_workflow_variations)
+    
+    ### --- batch delete based on group name
+    batch_delete_parser = subparsers.add_parser('batch-delete', aliases=["bigdelete"], help='Deletes all the workflows under the same group name')
+    batch_delete_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    batch_delete_parser.add_argument('--workflow', type=str, help='workflow to exclude, if group name not provided uses group name of this workflow')
+    batch_delete_parser.add_argument('--groupName', type=str, help="the name of the group to delete")
+    batch_delete_parser.add_argument('--hard', action="store_true", default=False, help="delete the resource of each workflow from disk")
+    
+    
+    batch_delete_parser.set_defaults(func=CLI.batch_delete_workflows)
     ### ------------------------
 
     parsed = parser.parse_args()

@@ -3,6 +3,7 @@ import logging
 import os
 
 import pandas
+from hera.utils import jsonutils
 
 from .. import toolkitHome
 from ..simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
@@ -26,22 +27,15 @@ def WorkflowsGroup_list(args):
     logger = logging.getLogger("hera.bin.hera_workflows.group_list")
     logger.info(" -- Starting: listing all the simulation groups --")
 
-    projectName = args.projectName
+    _confirm_project_name(args, logger)
 
-    if projectName is None:
-        logger.info(f"Project name is not found. Trying to load from caseConfiguration ")
-        cse = loadJSON("caseConfiguration.json")
-        projectName = cse.get('projectName')
-        if projectName is None:
-            raise ValueError(f"Project name not supplied. Provide projectName using --projectName, or in the caseConfiguration.json, projectName key ")
-    else:
-        logger.info(f"Using project name {projectName}. ")
+    logger.info(f"Using project name {args.projectName}. ")
 
 
     solver = args.solver
     workflowName = args.workflowName
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
     wftk.listGroups(solver=solver, workflowName=workflowName)
 
 
@@ -80,8 +74,8 @@ def workflow_add(args):
     logger = logging.getLogger("hera.bin.hera_workflows.add")
     logger.info(" -- Starting: adding workflow to the group --")
 
-    projectName = args.projectName
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    _confirm_project_name(args, logger)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
 
     workflowFile = args.workflow
     wftk.addUpdateWorkflowFileInGroup(workflowFile)
@@ -103,12 +97,8 @@ def workflow_delete(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.delete")
     logger.info(f" -- Starting: Deleting workflows --")
 
-    if arguments.projectName is None:
-        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
-        caseConfiguration = loadJSON("caseConfiguration.json")
-        projectName = caseConfiguration['projectName']
-
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    _confirm_project_name(arguments, logger)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
     simulationList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
     completeRemove = []
@@ -155,12 +145,8 @@ def workflow_export(arguments):
     logger.info(f" -- Starting: Deleting workflows --")
 
 
-    if arguments.projectName is None:
-        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
-        caseConfiguration = loadJSON("caseConfiguration.json")
-        projectName = caseConfiguration['projectName']
-
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    _confirm_project_name(arguments, logger)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
     simulationList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
 
     for sim in simulationList:
@@ -190,13 +176,9 @@ def workflow_compareToDisk(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.compareToDisk")
     logger.info(f" -- Starting: Deleting workflows --")
 
-    if arguments.projectName is None:
-        logger.debug(
-            f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
-        caseConfiguration = loadJSON("caseConfiguration.json")
-        projectName = caseConfiguration['projectName']
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    _confirm_project_name(arguments, logger)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
     simulationList = wftk.getHermesWorkflowFromDB(list(arguments.workflows),returnFirst=False)
 
     for sim in simulationList:
@@ -222,8 +204,7 @@ def sorround_with_char(text:str, total_len:int, char:str="-"):
     return chars + text + chars
 
 def workflow_sync_to_db(arguments):
-    """
-        Exports the workflow in the DB to the disk
+    """Check for differences in the local workflow vs DB and update the changes
 
     Parameters
     ----------
@@ -237,23 +218,16 @@ def workflow_sync_to_db(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.sync_to_db")
     logger.info(f" -- Starting: syncing workflows --")
 
-    if arguments.projectName is None:
-        logger.debug(
-            f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
-        caseConfiguration = loadJSON("caseConfiguration.json")
-        projectName = caseConfiguration['projectName']
+    _confirm_project_name(arguments, logger)
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
     assert isinstance(wftk, hermesWorkflowToolkit)
-    
-    
     workflowDocList = wftk.getWorkflowListDocumentFromDB(list(arguments.workflows))
 
     if len(workflowDocList) == 0:
         logger.error(f"... not found.")
 
     for workflowDoc in workflowDocList:
-        # getHemresWorkflowFromDocument returns a list always
         sim = wftk.getHemresWorkflowFromDocument(documentList=workflowDoc)
         outfileName = f"{sim.name}.json"
         if not os.path.isfile(outfileName):
@@ -265,15 +239,119 @@ def workflow_sync_to_db(arguments):
             res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
             assert isinstance(res, pandas.DataFrame)
             title = sorround_with_char(f"Simulation {simName}", 64)
-            print(title)
-            if res.empty :
-                print("Disk and DB are identical")
-            else:
-                print("Found Changes:")
-                print(res)
+            if not arguments.quiet:
+                print(title)
+            
+            if not arguments.quiet:
+                print("Disk and DB parameters are identical" if res.empty else f"Found Changes:\n{res}")
+            if (not res.empty) or arguments.force:
                 logger.info(f"Updating DB with the changes for {sim.name}")
-                wftk.updateDocumentsWorkflow(document=workflowDoc, json=outfileName)
+                wftk.updateDocumentWorkflow(document=workflowDoc, json=outfileName)
 
+def create_workflow_variations(arguments):
+    """creates variations to the base workflow provided based on the variation json
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.create_workflow_variations")
+    logger.info(f" -- Starting: creating workflow variation --")
+    _confirm_project_name(arguments, logger)
+    variation_json_path = str(arguments.variationJson)
+    project_name = str(arguments.projectName)
+    workflow_name = str(arguments.workflow)
+    dry_run = bool(arguments.dry_run)
+    overwrite = bool(arguments.overwrite)
+    naming_scheme = str(arguments.naming_scheme)
+
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=project_name)
+    assert isinstance(wftk, hermesWorkflowToolkit)
+    workflow_doc_list = wftk.getWorkflowListDocumentFromDB(workflow_name)
+
+    if len(workflow_doc_list) == 0:
+        logger.error("workflow not found.")
+    wokflow_doc = workflow_doc_list[0]
+    base_workflow_json = wokflow_doc.to_mongo().copy()['desc']['workflow']
+    base_workflow_name = str(wokflow_doc['desc']['groupName'])
+    base_workflow_path = str(wokflow_doc['resource'])
+    
+    if not os.path.exists(variation_json_path):
+        logger.error(f"{variation_json_path} doesn't point to anything.")    
+    elif not os.path.isfile(variation_json_path):
+        logger.error(f"{variation_json_path} must be a file")
+    
+    with open(variation_json_path) as varitation_json_file:
+        variation_json = json.load(varitation_json_file)
+    
+    variation_scheme = None
+    # Might be changed to a dictionary {<scheme>: <scheme_func>}
+    if naming_scheme == "index":
+        variation_scheme = enumerate(jsonutils.JSONVariations(base_workflow_json, variation_json))
+    else:
+        logger.error(f"naming scheme {naming_scheme} is not implemented")
+        return
+    
+    for variation_suffix, variation in variation_scheme:
+        variation_path = os.path.join(base_workflow_path, "..", base_workflow_name+"_"+str(variation_suffix))
+        if os.path.exists(variation_path) and not overwrite:
+            logger.warning(f"skipping variation {variation_suffix} since it already exists")
+        else:
+            with open(variation_path, "w") as variation_file:
+                json.dump(variation, variation_file)
+        if not dry_run:
+            _ = wftk.addUpdateWorkflowFileInGroup(variation_path)
+
+def batch_delete_workflows(arguments):
+    """creates variations to the base workflow provided based on the variation json
+
+    Parameters
+    ----------
+    arguments:
+        projectName: if not supplied get from the deleted object.
+
+    Returns
+    -------
+
+    """
+    logger = logging.getLogger("hera.bin.hera_workflows.batch_delete_workflows")
+    logger.info(f" -- Starting: batch delete workflows --")
+    _confirm_project_name(arguments, logger)
+    project_name = str(arguments.projectName)
+    workflow_name = str(arguments.workflow) if arguments.workflow else None
+    group_name = str(arguments.groupName) if arguments.groupName else None
+    hard_delete = bool(arguments.hard)
+
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=project_name)
+    assert isinstance(wftk, hermesWorkflowToolkit)
+    
+    workflow_to_exclude = None
+    if workflow_name:
+        workflow_doc_list = wftk.getWorkflowListDocumentFromDB(workflow_name)
+
+        if len(workflow_doc_list) == 0:
+            raise ValueError("workflow not found.")
+        else:
+            workflow_to_exclude=workflow_doc_list[0]
+    elif group_name is None:
+        raise ValueError("either group name or workflow name must be provided")
+
+    group_name = group_name if group_name else workflow_to_exclude['desc']['groupName']
+    wftk.deleteWorkflowInGroup(group_name,hard_delete,resetCounter=True, exclude=[workflow_name])
+
+
+def _confirm_project_name(arguments, logger):
+    if arguments.projectName is None:
+        logger.debug(
+            f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
+        caseConfiguration = loadJSON("caseConfiguration.json")
+        arguments.projectName = caseConfiguration['projectName']
 
 
 
@@ -331,12 +409,9 @@ def workflow_list(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.list")
     logger.info(f" -- Starting: Listing simulations --")
 
-    if arguments.projectName is None:
-        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
-        caseConfiguration = loadJSON("caseConfiguration.json")
-        projectName = caseConfiguration['projectName']
+    _confirm_project_name(arguments, logger)
 
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
     # if arguments.object is None:
     #     # Listing all the groups in the toolkit.
@@ -355,7 +430,7 @@ def workflow_list(arguments):
 
     simDocument = wftk.getWorkflowListDocumentFromDB(arguments.group)
     if len(simDocument) == 0:
-        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {projectName} ")
+        print(f"{arguments.object} is not a simulation, directory, workflow file or a simulation group in project {arguments.projectName} ")
     workflowGroup = simDocument[0].desc[wftk.DESC_GROUPNAME]
 
     listNodes     = arguments.nodes
@@ -366,7 +441,7 @@ def workflow_list(arguments):
                                         listParameters=parameters)
 
 
-    title = f"The simulations in group *{workflowGroup}*  in project *{projectName}* "
+    title = f"The simulations in group *{workflowGroup}*  in project *{arguments.projectName}* "
     print(title)
     print("-" * len(title))
 
@@ -498,12 +573,8 @@ def workflow_compare(arguments):
     logger = logging.getLogger("hera.bin.hera_workflows.compare")
     logger.info(f" -- Starting: Listing workflow nodes --")
 
-    if arguments.projectName is None:
-        logger.debug(f"projectName is not provided. Looking for the project name in the caseConfiguration.json file (projectName key) ")
-        caseConfiguration = loadJSON("caseConfiguration.json")
-        projectName = caseConfiguration['projectName']
-
-    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=projectName)
+    _confirm_project_name(arguments, logger)
+    wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
     res = wftk.compareWorkflows(arguments.workflows, longFormat=arguments.longFormat, transpose=arguments.transpose)
 
@@ -522,7 +593,7 @@ def workflow_compare(arguments):
         ext = "json"
 
     if len(res)==0:
-        print(f"Could not found any workflows to compare in project {projectName}")
+        print(f"Could not found any workflows to compare in project {arguments.projectName}")
     else:
         print(output)
 
@@ -531,9 +602,6 @@ def workflow_compare(arguments):
 
             with open(flName,"w") as outputFile:
                 outputFile.write(output)
-
-def workflow_expand(arguments):
-    parser_expandWorkflow(arguments)
 
 def workflow_build(arguments):
     handler_build(arguments)
@@ -565,10 +633,8 @@ def workflow_buildExecute(arguments):
     docList = wftk.getWorkflowListDocumentFromDB(workflowName)
     if len(docList) == 0:
         if os.path.isfile(arguments.workflowName):
-            doc = wftk.addUpdateWorkflowFileInGroup(arguments.workflowName)
+            wftk.addUpdateWorkflowFileInGroup(arguments.workflowName)
         else:
             raise ValueError(f"The workflowName {arguments.workflowName} is not in the DB and not a file on the disk")
-    else:
-        doc = docList[0]
 
     wftk.executeWorkflowFromDB(workflowName)
