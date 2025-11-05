@@ -1,10 +1,11 @@
-import { Paper, Typography } from '@mui/material';
+import { IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import type { ProjectEntire } from '../shared/types';
 import { useProjectStore } from '../stores/useProjectStore';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
 import { useState } from 'react';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 export const ProjectTreeView = ({
   project,
@@ -23,21 +24,32 @@ export const ProjectTreeView = ({
         defaultExpandedItems={['project-documents', 'no-toolkit']}
       >
         <TreeItem key={`project-documents`} itemId={`project-documents`}
-          label={(<>
-            <Typography>
-              Project {project.name}
-            </Typography>
-          </>)}
+          label={(
+            <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
+              <Typography>
+                Project {project.name}
+              </Typography>
+              <Tooltip
+                title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
+              >
+                <IconButton size='small' onClick={e => { e.stopPropagation(); setShowEmptyToolkits(!showEmptyToolkits) }}>
+                  {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          )}
         >
           {toolkits.map(toolkit => (
             <ToolkitTreeItem
               project={project}
               toolkit={toolkit}
+              showEmpty={showEmptyToolkits}
             />
           ))}
           <ToolkitTreeItem
             project={project}
             toolkit={undefined}
+            showEmpty={showEmptyToolkits}
           />
         </TreeItem>
       </SimpleTreeView>
