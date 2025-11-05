@@ -37,4 +37,10 @@ export interface ExecRequest {
   code: string;
 }
 
-
+export interface Toolkit {
+  toolkit: string;
+  cls: string;
+  description?: string;
+  source?: string;
+  type?: string;
+}

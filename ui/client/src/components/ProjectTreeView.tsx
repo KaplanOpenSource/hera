@@ -1,6 +1,6 @@
 import { Paper, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import type { Project, ProjectEntire } from '../shared/types';
+import type { Project, ProjectEntire, Toolkit } from '../shared/types';
 import { ProjectTreeItem } from './ProjectTreeItem';
 import { TreeItem } from '@mui/x-tree-view';
 import { ProjectDocumentItem } from './ProjectDocumentItem';
@@ -32,7 +32,7 @@ export const ProjectTreeView = ({
   //   }
   // };
 
-  const [toolkits, setToolKits] = useState<[string, any][]>([]);
+  const [toolkits, setToolKits] = useState<Toolkit[]>([]);
 
   console.log(toolkits)
   console.log(project)
@@ -43,7 +43,7 @@ export const ProjectTreeView = ({
 
   const documentsWithoutToolkit = () => {
     return project?.documents.filter(d => {
-      const found = toolkits.find(([toolkitName, _]) => toolkitName === d?.desc?.toolkit);
+      const found = toolkits.find(({toolkit}) => toolkit === d?.desc?.toolkit);
       return found === undefined;
     });
   }
@@ -54,10 +54,11 @@ export const ProjectTreeView = ({
         code={`
 from hera import toolkitHome
 import json
-result = json.dumps(toolkitHome._toolkits,indent=4)
+table = toolkitHome.getToolkitTable('${project}')
+result = table.to_json(orient='records', indent=2)
         `}
         onSuccess={(data) => {
-          setToolKits(Object.entries(JSON.parse(data)))
+          setToolKits(JSON.parse(data) as Toolkit[])
         }}
       />
       <SimpleTreeView
@@ -80,10 +81,10 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
                   )
                 })}
               </TreeItem>
-              {toolkits.map(([toolkitName, { cls, desc }]) => {
-                const docs = documentsForToolkit(toolkitName);
+              {toolkits.map(({ toolkit, cls, description }) => {
+                const docs = documentsForToolkit(toolkit);
                 return !docs.length ? null : (
-                  <TreeItem key={toolkitName} itemId={toolkitName} label={toolkitName}>
+                  <TreeItem key={toolkit} itemId={toolkit} label={toolkit}>
                     {/* <Typography>
                     {cls}
                   </Typography>
