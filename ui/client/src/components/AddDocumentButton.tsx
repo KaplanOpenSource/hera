@@ -27,9 +27,7 @@ All.addDocument('${currProjectName}', desc={'datasourceName': '${name}'})
     if (problem) {
       return;
     }
-    //     await fetchProjectsNames();
     await fetchProjectDetails(currProjectName);
-    //     selectProject(name);
   }
 
   return (<>
