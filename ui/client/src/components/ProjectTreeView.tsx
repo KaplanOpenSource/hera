@@ -6,6 +6,7 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
 import { useState } from 'react';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { ButtonTooltip } from '../elements/ButtonTooltip';
 
 export const ProjectTreeView = ({
   project,
@@ -29,13 +30,12 @@ export const ProjectTreeView = ({
               <Typography>
                 Project {project.name}
               </Typography>
-              <Tooltip
+              <ButtonTooltip
                 title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
+                onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
               >
-                <IconButton size='small' onClick={e => { e.stopPropagation(); setShowEmptyToolkits(!showEmptyToolkits) }}>
-                  {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
-                </IconButton>
-              </Tooltip>
+                {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
+              </ButtonTooltip>
             </Stack>
           )}
         >

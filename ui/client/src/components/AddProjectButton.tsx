@@ -16,6 +16,7 @@ import { useState } from "react";
 import { execPython } from "../io/execPython";
 import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
+import { ButtonTooltip } from "../elements/ButtonTooltip";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
@@ -38,11 +39,12 @@ project_create(SimpleNamespace(projectName="${name}", directory=None, loadReposi
   }
 
   return (<>
-    <IconButton
+    <ButtonTooltip
+      title='Add project'
       onClick={() => setOpen(true)}
     >
       <Add />
-    </IconButton>
+    </ButtonTooltip>
     <Dialog open={open} onClose={() => setOpen(false)}>
       <DialogTitle>New Project</DialogTitle>
       <DialogContent>
