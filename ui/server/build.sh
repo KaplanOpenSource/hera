@@ -9,4 +9,4 @@ echo "Building server image..."
 docker build -t hera-server -f ui/server/Dockerfile-server .
 
 echo "\nBuild complete.\n\nTo run server use:"
-echo "docker run -it -p 8000:8000 --rm --name hera-server-instance hera-server"
+echo "docker run -it -p 8000:8000 -p 5678:5678 --rm --name hera-server-instance hera-server"

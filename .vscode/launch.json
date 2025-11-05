@@ -8,7 +8,7 @@
       "name": "Server (Docker)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "sh ui/server/build.sh && docker run -it -p 8000:8000 --rm --name hera-server-instance hera-server",
+      "command": "sh ui/server/build.sh && docker run -it -p 8000:8000 -p 5678:5678 --rm --name hera-server-instance hera-server",
       "cwd": "${workspaceFolder}"
     },
     {
