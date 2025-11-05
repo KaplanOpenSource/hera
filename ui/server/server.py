@@ -1,4 +1,6 @@
 
+import os
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -88,7 +90,8 @@ def spa_fallback(full_path: str):  # noqa: ARG001 (unused)
 if __name__ == "__main__":
     # Use a single process: no reload watcher
     import uvicorn
-    import sys
+
+    os.system("sh hera/scripts/run_mongo.sh")
 
     if '--debug' in sys.argv:
         import debugpy
