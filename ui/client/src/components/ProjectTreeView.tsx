@@ -49,6 +49,7 @@ export const ProjectTreeView = ({
   return (
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
+        defaultExpandedItems={['project-documents', 'no-toolkit']}
       >
         {!project
           ? (
