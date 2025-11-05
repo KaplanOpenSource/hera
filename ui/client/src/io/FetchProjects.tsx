@@ -1,4 +1,4 @@
-import { ProjectEntire, ProjectName } from "@shared/types";
+import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { DEFAULT_PROJECT, NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { execPython } from "./execPython";
 import { useEffect } from "react";
@@ -33,6 +33,19 @@ result = json.dumps(project,indent=4)
   }
 }
 
+export const fetchToolkits = async (projectName: string) => {
+  const { setToolkits: setToolKits } = useProjectStore.getState();
+  const { data, problem } = await execPython(`
+from hera import toolkitHome
+import json
+table = toolkitHome.getToolkitTable('${projectName}')
+result = table.to_json(orient='records', indent=2)
+  `);
+  if (!problem) {
+    setToolKits(JSON.parse(data) as Toolkit[])
+  }
+}
+
 export const FetchProjects = ({ }) => {
   const {
     projectNames,
@@ -48,6 +61,7 @@ export const FetchProjects = ({ }) => {
     if (currProjectName === NO_PROJECT && projectNames.length > 0) {
       selectProject(projectNames[0].name);
     } else if (currProjectName !== NO_PROJECT) {
+      fetchToolkits(currProjectName);
       fetchProjectDetails(currProjectName);
     }
   }, [currProjectName, projectNames]);

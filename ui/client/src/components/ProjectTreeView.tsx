@@ -1,11 +1,9 @@
-import { Paper, Typography } from '@mui/material';
-import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import type { Project, ProjectEntire, Toolkit } from '../shared/types';
-import { ProjectTreeItem } from './ProjectTreeItem';
+import { Paper } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
+import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
+import type { ProjectEntire } from '../shared/types';
+import { useProjectStore } from '../stores/useProjectStore';
 import { ProjectDocumentItem } from './ProjectDocumentItem';
-import { useState } from 'react';
-import { FetchPython } from '../io/FetchPython';
 
 export const ProjectTreeView = ({
   project,
@@ -32,7 +30,7 @@ export const ProjectTreeView = ({
   //   }
   // };
 
-  const [toolkits, setToolKits] = useState<Toolkit[]>([]);
+  const { toolkits } = useProjectStore();
 
   console.log(toolkits)
   console.log(project)
@@ -43,24 +41,13 @@ export const ProjectTreeView = ({
 
   const documentsWithoutToolkit = () => {
     return project?.documents.filter(d => {
-      const found = toolkits.find(({toolkit}) => toolkit === d?.desc?.toolkit);
+      const found = toolkits.find(({ toolkit }) => toolkit === d?.desc?.toolkit);
       return found === undefined;
     });
   }
 
   return (
     <Paper sx={{ p: 2 }}>
-      <FetchPython
-        code={`
-from hera import toolkitHome
-import json
-table = toolkitHome.getToolkitTable('${project}')
-result = table.to_json(orient='records', indent=2)
-        `}
-        onSuccess={(data) => {
-          setToolKits(JSON.parse(data) as Toolkit[])
-        }}
-      />
       <SimpleTreeView
       >
         {!project
