@@ -105,7 +105,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
                     logger.error("The data is in incorrect format. List must consits a tuple (name,data) or dict {<namekey>:dat}")
                     raise ValueError("The data is in incorrect format. List must consits a tuple (name,data) or dict {<namekey>:dat}")
 
-                tmpList.append(item_name.assign(**{datasetName: item_name}))
+                tmpList.append(item_data.assign(**{datasetName: item_name}))
 
             configurations = pandas.concat(tmpList)
     elif isinstance(data,pandas.DataFrame):
@@ -127,16 +127,17 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
 
     if len(diffList) > 0:
         ret = pandas.concat(diffList)
-        if longFormat is False:
+    else:
+        # make sure to have the same structure, we don't have columns since no dataset has anything unique
+        return pandas.DataFrame()
+    
+    if longFormat is False:
             ret = ret.pivot(index=indexList+[parameterName], columns=datasetName, values=valueName)
 
-        ret = ret.set_index("parameterNameFullPath")
-        if changeDotToUnderscore:
-            newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
-            ret_tmp = ret.T.rename(columns=dict(newColNames))
-            ret = ret_tmp.T
-    else:
-        ret = data[[datasetName]].drop_duplicates()
-
+    if changeDotToUnderscore:
+        newColNames = [(oldName,oldName.replace(".","_")) for oldName in ret.T.columns]
+        ret_tmp = ret.T.rename(columns=dict(newColNames))
+        ret = ret_tmp.T
+    
     return ret
 
