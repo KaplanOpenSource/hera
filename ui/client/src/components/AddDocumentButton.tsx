@@ -1,39 +1,34 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
-  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControlLabel,
-  FormGroup,
   TextField,
 } from "@mui/material";
 import { useState } from "react";
 import { execPython } from "../io/execPython";
-import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
+import { fetchProjectDetails } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
 
 export const AddDocumentButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [loadRepositories, setLoadRepositories] = useState(true);
-  const { selectProject } = useProjectStore();
+  const { currProjectName } = useProjectStore();
 
   const go = async () => {
-    //     const { problem } = await execPython(`
-    // from types import SimpleNamespace
-    // from hera.utils.data.CLI import project_create
-    // project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=${loadRepositories ? 'True' : 'False'}, overwrite=False))
-    //       `)
-    //     if (problem) {
-    //       return;
-    //     }
+    const { problem } = await execPython(`
+from hera.datalayer import All
+All.addDocument('${currProjectName}', desc={'datasourceName': '${name}'})
+      `)
+    if (problem) {
+      return;
+    }
     //     await fetchProjectsNames();
-    //     await fetchProjectDetails(name);
+    await fetchProjectDetails(currProjectName);
     //     selectProject(name);
   }
 
@@ -44,23 +39,23 @@ export const AddDocumentButton = ({ }) => {
     >
       <Add />
     </ButtonTooltip>
-    <Dialog open={open} onClose={() => setOpen(false)}>
+    <Dialog open={open} onClose={() => setOpen(false)} onClick={e => e.stopPropagation()}>
       <DialogTitle>Add Document</DialogTitle>
       <DialogContent>
         <DialogContentText>
           Adding a document
         </DialogContentText>
-        {/* <TextField
+        <TextField
           autoFocus
           required
           margin="dense"
           size="small"
-          label="Project Name"
+          label="Name"
           fullWidth
           variant="outlined"
           value={name}
           onChange={(e) => setName(e.target.value)}
-        /> */}
+        />
         {/* <FormGroup>
           <FormControlLabel
             label="Load Repositories"
