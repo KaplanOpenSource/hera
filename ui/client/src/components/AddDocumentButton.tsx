@@ -17,40 +17,40 @@ import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
 
-export const AddProjectButton = ({ }) => {
+export const AddDocumentButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
   const { selectProject } = useProjectStore();
 
   const go = async () => {
-    const { problem } = await execPython(`
-from types import SimpleNamespace
-from hera.utils.data.CLI import project_create
-project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=${loadRepositories ? 'True' : 'False'}, overwrite=False))
-      `)
-    if (problem) {
-      return;
-    }
-    await fetchProjectsNames();
-    await fetchProjectDetails(name);
-    selectProject(name);
+    //     const { problem } = await execPython(`
+    // from types import SimpleNamespace
+    // from hera.utils.data.CLI import project_create
+    // project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=${loadRepositories ? 'True' : 'False'}, overwrite=False))
+    //       `)
+    //     if (problem) {
+    //       return;
+    //     }
+    //     await fetchProjectsNames();
+    //     await fetchProjectDetails(name);
+    //     selectProject(name);
   }
 
   return (<>
     <ButtonTooltip
-      title='Add project'
+      title='Add Document'
       onClick={() => setOpen(true)}
     >
       <Add />
     </ButtonTooltip>
     <Dialog open={open} onClose={() => setOpen(false)}>
-      <DialogTitle>New Project</DialogTitle>
+      <DialogTitle>Add Document</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Adding a new project, please fill initial details
+          Adding a document
         </DialogContentText>
-        <TextField
+        {/* <TextField
           autoFocus
           required
           margin="dense"
@@ -60,8 +60,8 @@ project_create(SimpleNamespace(projectName="${name}", directory=None, loadReposi
           variant="outlined"
           value={name}
           onChange={(e) => setName(e.target.value)}
-        />
-        <FormGroup>
+        /> */}
+        {/* <FormGroup>
           <FormControlLabel
             label="Load Repositories"
             control={<Checkbox
@@ -69,7 +69,7 @@ project_create(SimpleNamespace(projectName="${name}", directory=None, loadReposi
               onChange={(e) => setLoadRepositories(e.target.checked)}
             />}
           />
-        </FormGroup>
+        </FormGroup> */}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
@@ -79,7 +79,7 @@ project_create(SimpleNamespace(projectName="${name}", directory=None, loadReposi
           go();
           setOpen(false);
         }}>
-          Add Project
+          Add Document
         </Button>
       </DialogActions>
     </Dialog>

@@ -5,6 +5,7 @@ import { useProjectStore } from "../stores/useProjectStore";
 import { Add } from "@mui/icons-material";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
 import { Stack, Typography } from "@mui/material";
+import { AddDocumentButton } from "./AddDocumentButton";
 
 export const ToolkitTreeItem = ({
   project,
@@ -38,12 +39,8 @@ export const ToolkitTreeItem = ({
           <Typography>
             {toolkitLabel}
           </Typography>
-          <ButtonTooltip
-            title={'Add document'}
-            onClick={() => { }}
-          >
-            <Add />
-          </ButtonTooltip>
+          <AddDocumentButton
+          />
         </Stack>
       }
     >
