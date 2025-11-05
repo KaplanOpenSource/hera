@@ -24,7 +24,7 @@ export const ToolkitTreeItem = ({
   }
 
   const toolkitName = toolkit ? toolkit.toolkit : 'no-toolkit';
-  const toolkitLabel = toolkit ? toolkit.toolkit : 'Without Toolkit';
+  const toolkitLabel = toolkit ? toolkit.toolkit : 'No Toolkit Documents';
   const docs = toolkit ? documentsForToolkit(toolkitName) : documentsWithoutToolkit();
   return !docs.length ? null : (
     <TreeItem key={toolkitName} itemId={toolkitName} label={toolkitLabel}>

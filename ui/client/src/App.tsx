@@ -1,4 +1,4 @@
-import { Alert, Box, Stack } from '@mui/material';
+import { Alert, Box, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
 import { PageTitle } from './components/PageTitle';
@@ -27,9 +27,17 @@ export default function App() {
       )}
       <Box sx={{ display: 'flex', gap: 2, height: '80vh' }}>
         <Box sx={{ width: '50%' }}>
-          <ProjectTreeView
-            project={currProject}
-          />
+          {currProject
+            ? (
+              <ProjectTreeView
+                project={currProject}
+              />
+            )
+            : (
+              <Typography>
+                No project loaded
+              </Typography>
+            )}
         </Box>
         <Box sx={{ width: '50%' }}>
           <ProjectDetailsView
