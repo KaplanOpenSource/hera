@@ -88,6 +88,12 @@ def spa_fallback(full_path: str):  # noqa: ARG001 (unused)
 if __name__ == "__main__":
     # Use a single process: no reload watcher
     import uvicorn
+    import sys
+
+    if '--debug' in sys.argv:
+        import debugpy
+        debugpy.listen(("0.0.0.0", 5678))
+        print("debugpy listening on 0.0.0.0:5678 - attach your debugger")
 
     uvicorn.run(
         "server:app",
