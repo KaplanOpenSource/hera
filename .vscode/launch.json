@@ -12,6 +12,13 @@
       "cwd": "${workspaceFolder}"
     },
     {
+      "name": "Server debug (Docker)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "sh ui/server/build.sh && docker run -it -p 8000:8000 -p 5678:5678 --rm --name hera-server-instance hera-server python ui/server/server.py --debug",
+      "cwd": "${workspaceFolder}"
+    },
+    {
       "name": "Client (Vite/React Dev)",
       "type": "node-terminal",
       "request": "launch",
@@ -31,7 +38,8 @@
           "localRoot": "${workspaceFolder}",
           "remoteRoot": "/app"
         }
-      ]
+      ],
+      "preLaunchTask": "wait 5s"
     },
     {
       "name": "Python Debugger: Python File",
@@ -46,6 +54,15 @@
       "configurations": [
         "Server (Docker)",
         "Client (Vite/React Dev)"
+      ],
+      "stopAll": true
+    },
+        {
+      "name": "Debug Server+Client",
+      "configurations": [
+        "Server debug (Docker)",
+        "Client (Vite/React Dev)",
+        "Attach Python"
       ],
       "stopAll": true
     }
