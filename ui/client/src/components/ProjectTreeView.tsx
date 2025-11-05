@@ -73,14 +73,10 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
                 {documentsWithoutToolkit()?.map(d => {
                   const id = `document${d?.desc?.docid}`;
                   return (
-                    // <ProjectDocumentItem
-                    //   key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
-                    // >
-                    // </ProjectDocumentItem>
-                    <TreeItem
-                      key={id} itemId={id} label={`Document: ${d?.desc?.datasourceName}`}
+                    <ProjectDocumentItem
+                      key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
                     >
-                    </TreeItem>
+                    </ProjectDocumentItem>
                   )
                 })}
               </TreeItem>
@@ -99,14 +95,10 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
                     {docs.map(d => {
                       const id = `document${d?.desc?.docid}`;
                       return (
-                        // <ProjectDocumentItem
-                        //   key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
-                        // >
-                        // </ProjectDocumentItem>
-                        <TreeItem
-                          key={id} itemId={id} label={`Document: ${d?.desc?.datasourceName}`}
+                        <ProjectDocumentItem
+                          key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
                         >
-                        </TreeItem>
+                        </ProjectDocumentItem>
                       )
                     })}
                   </TreeItem>
@@ -115,20 +107,6 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
             </TreeItem>
           )
         }
-        {/* <TreeItem key={`toolkits`} itemId={`toolkits`} label={`Toolkits`}>
-          {toolkits.map(([name, { cls, desc }]) => (
-            <TreeItem key={name} itemId={name} label={name}>
-              <Typography>
-                {cls}
-              </Typography>
-              {desc ?? (
-                <Typography>
-                  {desc}
-                </Typography>
-              )}
-            </TreeItem>
-          ))}
-        </TreeItem> */}
       </SimpleTreeView>
     </Paper>
   );
