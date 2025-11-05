@@ -9,7 +9,7 @@ export const ProjectDocumentItem = ({
   project: ProjectEntire,
   document: ProjectDocument,
 }) => {
-  const id = `document${document?.desc?.docid}`;
+  const id = `document${document?._id.$oid}`;
   const name = document?.desc?.datasourceName || document?.type || document._cls;
   // console.log(document.desc.version)
   return (

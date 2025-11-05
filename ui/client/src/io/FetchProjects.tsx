@@ -23,13 +23,8 @@ export const fetchProjectDetails = async (projectName: string) => {
   const { data, problem } = await execPython(`
 import json
 from hera.datalayer import All
-docList = []
-for doc in All.getDocuments('${projectName}'):
-    docDict = doc.asDict()
-    if ('docid' not in docDict['desc']):
-        docDict['desc']['docid'] = str(doc.id)
-    docList.append(docDict)
-project = {"name": '${projectName}', "documents": docList}
+docs = All.getDocumentsAsDict('${projectName}', with_id=True)
+project = {"name": '${projectName}', "documents": docs['documents']}
 result = json.dumps(project,indent=4)
   `);
   if (!problem) {

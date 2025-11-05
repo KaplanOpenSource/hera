@@ -17,7 +17,7 @@ export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null 
       {/* <Typography>ID: {project.name}</Typography> */}
       <Typography>Documents: {project.documents?.length ?? 'N/A'}</Typography>
       {project.documents?.map(d => (
-        <Typography key={d.desc.docid}>
+        <Typography key={d._id.$oid}>
           Name: {d.desc.datasourceName ?? 'N/A'}
         </Typography>
       ))}

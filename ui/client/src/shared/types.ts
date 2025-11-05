@@ -20,12 +20,15 @@ export interface ProjectEntire {
 
 export interface ProjectDocument {
   _cls: string;
-  projectName: string
+  _id: { '$oid': string };
+  projectName: string;
   desc: {
     toolkit?: string;
     datasourceName?: string;
     version?: number[];
-    docid?: string;
+    filesDirectory?: string;
+    analysis_CacheCounter?: number;
+    // docid?: string;
   },
   type: string;
   resource: string;

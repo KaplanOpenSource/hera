@@ -72,10 +72,9 @@ result = table.to_json(orient='records', indent=2)
             >
               <TreeItem key={'no-toolkit'} itemId={'no-toolkit'} label='Without Toolkit'>
                 {documentsWithoutToolkit()?.map(d => {
-                  const id = `document${d?.desc?.docid}`;
                   return (
                     <ProjectDocumentItem
-                      key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
+                      key={`proj${project.name}_doc${d._id.$oid}`} project={project} document={d}
                     >
                     </ProjectDocumentItem>
                   )
@@ -94,10 +93,9 @@ result = table.to_json(orient='records', indent=2)
                     </Typography>
                   )} */}
                     {docs.map(d => {
-                      const id = `document${d?.desc?.docid}`;
                       return (
                         <ProjectDocumentItem
-                          key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
+                          key={`proj${project.name}_doc${d._id.$oid}`} project={project} document={d}
                         >
                         </ProjectDocumentItem>
                       )
