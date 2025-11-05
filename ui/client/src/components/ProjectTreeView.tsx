@@ -35,6 +35,19 @@ export const ProjectTreeView = ({
   const [toolkits, setToolKits] = useState<[string, any][]>([]);
 
   console.log(toolkits)
+  console.log(project)
+
+  const documentsForToolkit = (toolkitName: string) => {
+    return project?.documents.filter(d => d?.desc?.toolkit === toolkitName) || [];
+  }
+
+  const documentsWithoutToolkit = () => {
+    return project?.documents.filter(d => {
+      const found = toolkits.find(([toolkitName, _]) => toolkitName === d?.desc?.toolkit);
+      return found === undefined;
+    });
+  }
+
   return (
     <Paper sx={{ p: 2 }}>
       <FetchPython
@@ -53,17 +66,56 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
           ? (
             <TreeItem key={`no-project`} itemId={`no-project`} label="No project loaded" disabled />
           ) : (
-            <TreeItem key={`project-documents`} itemId={`project-documents`} label={`Project ${project.name}`}>
-              {project.documents.map(d => (
-                <ProjectDocumentItem
-                  key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
-                >
-                </ProjectDocumentItem>
-              ))}
+            <TreeItem key={`project-documents`} itemId={`project-documents`}
+              label={`Project ${project.name}`}
+            >
+              <TreeItem key={'no-toolkit'} itemId={'no-toolkit'} label='Without Toolkit'>
+                {documentsWithoutToolkit()?.map(d => {
+                  const id = `document${d?.desc?.docid}`;
+                  return (
+                    // <ProjectDocumentItem
+                    //   key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
+                    // >
+                    // </ProjectDocumentItem>
+                    <TreeItem
+                      key={id} itemId={id} label={`Document: ${d?.desc?.datasourceName}`}
+                    >
+                    </TreeItem>
+                  )
+                })}
+              </TreeItem>
+              {toolkits.map(([toolkitName, { cls, desc }]) => {
+                const docs = documentsForToolkit(toolkitName);
+                return !docs.length ? null : (
+                  <TreeItem key={toolkitName} itemId={toolkitName} label={toolkitName}>
+                    {/* <Typography>
+                    {cls}
+                  </Typography>
+                  {desc ?? (
+                    <Typography>
+                      {desc}
+                    </Typography>
+                  )} */}
+                    {docs.map(d => {
+                      const id = `document${d?.desc?.docid}`;
+                      return (
+                        // <ProjectDocumentItem
+                        //   key={`proj${project.name}_doc${d.desc.docid}`} project={project} document={d}
+                        // >
+                        // </ProjectDocumentItem>
+                        <TreeItem
+                          key={id} itemId={id} label={`Document: ${d?.desc?.datasourceName}`}
+                        >
+                        </TreeItem>
+                      )
+                    })}
+                  </TreeItem>
+                )
+              })}
             </TreeItem>
           )
         }
-        <TreeItem key={`toolkits`} itemId={`toolkits`} label={`Toolkits`}>
+        {/* <TreeItem key={`toolkits`} itemId={`toolkits`} label={`Toolkits`}>
           {toolkits.map(([name, { cls, desc }]) => (
             <TreeItem key={name} itemId={name} label={name}>
               <Typography>
@@ -76,7 +128,7 @@ result = json.dumps(toolkitHome._toolkits,indent=4)
               )}
             </TreeItem>
           ))}
-        </TreeItem>
+        </TreeItem> */}
       </SimpleTreeView>
     </Paper>
   );
