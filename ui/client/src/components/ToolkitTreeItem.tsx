@@ -2,6 +2,9 @@ import { TreeItem } from "@mui/x-tree-view";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 import { ProjectEntire, Toolkit } from "@shared/types";
 import { useProjectStore } from "../stores/useProjectStore";
+import { Add } from "@mui/icons-material";
+import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { Stack, Typography } from "@mui/material";
 
 export const ToolkitTreeItem = ({
   project,
@@ -29,7 +32,21 @@ export const ToolkitTreeItem = ({
   const toolkitLabel = toolkit ? toolkit.toolkit : 'No Toolkit Documents';
   const docs = toolkit ? documentsForToolkit(toolkitName) : documentsWithoutToolkit();
   return (!docs.length && !showEmpty) ? null : (
-    <TreeItem key={toolkitName} itemId={toolkitName} label={toolkitLabel}>
+    <TreeItem key={toolkitName} itemId={toolkitName}
+      label={
+        <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
+          <Typography>
+            {toolkitLabel}
+          </Typography>
+          <ButtonTooltip
+            title={'Add document'}
+            onClick={() => { }}
+          >
+            <Add />
+          </ButtonTooltip>
+        </Stack>
+      }
+    >
       {/* <Typography>
           {cls}
         </Typography>
