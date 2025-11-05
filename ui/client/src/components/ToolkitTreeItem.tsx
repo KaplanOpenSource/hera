@@ -40,6 +40,7 @@ export const ToolkitTreeItem = ({
             {toolkitLabel}
           </Typography>
           <AddDocumentButton
+            toolkit={toolkit}
           />
         </Stack>
       }

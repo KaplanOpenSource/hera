@@ -18,18 +18,20 @@ export interface ProjectEntire {
   documents: ProjectDocument[];
 }
 
+export interface DocumentDesc {
+  toolkit?: string;
+  datasourceName?: string;
+  version?: number[];
+  filesDirectory?: string;
+  analysis_CacheCounter?: number;
+  // docid?: string;
+}
+
 export interface ProjectDocument {
   _cls: string;
   _id: { '$oid': string };
   projectName: string;
-  desc: {
-    toolkit?: string;
-    datasourceName?: string;
-    version?: number[];
-    filesDirectory?: string;
-    analysis_CacheCounter?: number;
-    // docid?: string;
-  },
+  desc: DocumentDesc,
   type: string;
   resource: string;
   dataFormat: string;

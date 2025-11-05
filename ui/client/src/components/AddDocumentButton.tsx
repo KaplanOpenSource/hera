@@ -13,16 +13,25 @@ import { execPython } from "../io/execPython";
 import { fetchProjectDetails } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { DocumentDesc, Toolkit } from "@shared/types";
 
-export const AddDocumentButton = ({ }) => {
+export const AddDocumentButton = ({
+  toolkit = undefined,
+}: {
+  toolkit?: Toolkit | undefined,
+}) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const { currProjectName } = useProjectStore();
 
   const go = async () => {
+    const desc: DocumentDesc = { datasourceName: name };
+    if (toolkit?.toolkit) {
+      desc.toolkit = toolkit.toolkit;
+    }
     const { problem } = await execPython(`
 from hera.datalayer import All
-All.addDocument('${currProjectName}', desc={'datasourceName': '${name}'})
+All.addDocument('${currProjectName}', desc=${JSON.stringify(desc)})
       `)
     if (problem) {
       return;
