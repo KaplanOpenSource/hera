@@ -220,7 +220,7 @@ class cacheDecorators:
 
         """
         proj = Project(self.projectName)
-        return proj.addCacheData(name=call_info['functionName'], data=data, desc=call_info, type="functionCacheData",dataFormat=self.dataFormat)
+        return proj.saveCacheData(name=call_info['functionName'], data=data, desc=call_info, type="functionCacheData",dataFormat=self.dataFormat)
 
 
 
