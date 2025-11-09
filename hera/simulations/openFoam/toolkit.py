@@ -8,6 +8,7 @@ from itertools import chain
 from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
+from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
 
 from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
@@ -188,21 +189,78 @@ class OFToolkit(hermesWorkflowToolkit):
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
             logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
-            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres ")
-            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres  -time {time}")
+            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer} -time {time}")
             if not os.path.exists(checkPath):
-                logger.error("Error running the writeCellCentres. Check mesh")
+                logger.error("Error running the writeCellCentres. Executing writeCellCentres failed. Are you sure that the openFOAM environment is set?"\
+                             "try to load the enviroment and then rerun (in jupyter, you need to restart the server)")
+
                 raise RuntimeError("Error running the writeCellCentres. Check mesh")
         else:
             logger.debug(f"Cell centers exist in {caseType} case.")
 
-        logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
+        logger.debug(f"Loading the cell centers in time {time}. Using {caseType}")
         cellCenters = self.OFObjectHome.readFieldFromCase(fieldName="cellCenters",
                                                          flowType=FLOWTYPE_INCOMPRESSIBLE,
                                                          caseDirectory=caseDirectory,
                                                          timeStep=time,
                                                          readParallel=readParallel)
         return cellCenters
+
+    def getMeshExtentFromName(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
+        """
+            Returns the name from the workflow
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource : string or dict
+        The name/dict that defines the item
+
+        readParallel: bool
+                If parallel case exists, read it .
+
+        time : float
+            The time to read the mesh from. (relevant for mesh moving cases).
+
+        Returns
+        -------
+
+        """
+        doc = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        return self.getMeshExtent(doc.getData())
+
+
+    def getMeshExtent(self,caseDirectory):
+        """
+
+        """
+        blockmesh_path = os.path.join(caseDirectory,"system","blockMeshDict")
+        if not os.path.exists(blockmesh_path):
+            raise FileNotFoundError(f"File not found: {blockmesh_path}")
+
+        # Parse the blockMeshDict
+        mesh_dict = ParsedParameterFile(blockmesh_path)
+
+        if "vertices" not in mesh_dict:
+            raise KeyError("No 'vertices' section found in blockMeshDict")
+
+        vertices = mesh_dict["vertices"]
+
+        # Convert list of tuples or lists to numpy array
+        coords = numpy.array(vertices, dtype=float)
+
+        # Compute the coordinate bounds
+        xmin, ymin, zmin = coords.min(axis=0)
+        xmax, ymax, zmax = coords.max(axis=0)
+
+        bounds = {
+            "x": (xmin, xmax),
+            "y": (ymin, ymax),
+            "z": (zmin, zmax)
+        }
+
+        return bounds
+
+        return boundary_info
 
     def createEmptyCase(self, caseDirectory: str, fieldList: list, flowType: str, additionalFieldsDescription=dict()):
         """
