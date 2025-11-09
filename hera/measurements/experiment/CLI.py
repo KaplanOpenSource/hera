@@ -96,9 +96,13 @@ def create_experiment(arguments):
     logger.debug(f"Creating a project for local")
     projectCLI.project_create(arguments)
 
-    if arguments.zip:
-        _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
-        _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
+    zip=None if arguments.zip is None else arguments.zip
+    _create_repository(zip,experiment_path,arguments.experimentName,arguments.relative)
+    _make_runtimeExperimentData(zip,experiment_path,arguments.experimentName)
+
+    # if arguments.zip:
+    #     _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
+    #     _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
 
     logger.debug("Loading the experiment repository to the project")
     arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
@@ -150,7 +154,7 @@ def _create_repository(zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
     logger.info(f"Creating the repository")
     logger.debug(f" Since zip file is provided, creating a repository..")
-    metadata = ExperimentZipFile(zip)
+    metadata = ExperimentZipFile(zip) if zip else None
 
     repo = {}
     perDevice = True         ##Will be defined by the updated zip format!
@@ -175,27 +179,27 @@ def _create_repository(zip,experiment_path,experimentName,relative):
                                                                   }
 
     repo['experiment']['Measurements'] = {}
+    if metadata:
+        entities_dict_list = metadata.getExperimentEntities()
+        for i,entity in enumerate(entities_dict_list):
+            entityTypeName = entity['entityTypeName']
+            entityName = entity['entityName']
+            logger.debug(f" Creating record for {entityName} of type {entityTypeName}")
 
-    entities_dict_list = metadata.getExperimentEntities()
-    for i,entity in enumerate(entities_dict_list):
-        entityTypeName = entity['entityTypeName']
-        entityName = entity['entityName']
-        logger.debug(f" Creating record for {entityName} of type {entityTypeName}")
-
-        parquet_name = entityName if metadata.entityType[entityTypeName][entityName].properties['StoreDataPerDevice'] else entityTypeName
-        if parquet_name not in repo['experiment']['Measurements'].keys():
-            repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
-                                                                  "item": {
-                                                                  "type": "Experiment_rawData",
-                                                                  "resource": os.path.join('data',f"{parquet_name}.parquet"),
-                                                                  "dataFormat": "parquet",
-                                                                  "desc": {
-                                                                          "deviceType": entity['entityTypeName'],
-                                                                          "experimentName": experimentName,
-                                                                          "deviceName": entity['entityName']
-                                                                        }
+            parquet_name = entityName if metadata.entityType[entityTypeName][entityName].properties['StoreDataPerDevice'] else entityTypeName
+            if parquet_name not in repo['experiment']['Measurements'].keys():
+                repo['experiment']['Measurements'][parquet_name] = {"isRelativePath": "True",
+                                                                      "item": {
+                                                                      "type": "Experiment_rawData",
+                                                                      "resource": os.path.join('data',f"{parquet_name}.parquet"),
+                                                                      "dataFormat": "parquet",
+                                                                      "desc": {
+                                                                              "deviceType": entity['entityTypeName'],
+                                                                              "experimentName": experimentName,
+                                                                              "deviceName": entity['entityName']
+                                                                            }
+                                                                          }
                                                                       }
-                                                                  }
 
     with open(os.path.join(experiment_path,f'{experimentName}_repository.json'), "w") as f:
         json.dump(repo, f, indent=4)
@@ -211,7 +215,8 @@ def _make_runtimeExperimentData(zip,experiment_path,experimentName):
     with open(os.path.join(experiment_path, 'runtimeExperimentData','Datasources_Configurations.json'), "w") as f:
         json.dump(config, f, indent=2)
     logger.debug(f" saved Datasources_Configurations json")
-    shutil.copy(zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{experimentName}.zip'))
+    if zip:
+        shutil.copy(zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{experimentName}.zip'))
 
 def load_experiment_to_project(arguments):
     logger = logging.getLogger("hera.bin.experiment_load_experiment_to_project")
