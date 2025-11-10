@@ -298,8 +298,9 @@ def create_workflow_variations(arguments):
         logger.error(f"naming scheme {naming_scheme} is not implemented")
         return
     
+    workflow_folder = os.path.dirname(base_workflow_path)
     for variation_suffix, variation in variation_scheme:
-        variation_path = os.path.join(base_workflow_path, "..", base_workflow_name+"_"+str(variation_suffix))
+        variation_path = os.path.join(workflow_folder, base_workflow_name+"_"+str(variation_suffix)+".json")
         if os.path.exists(variation_path) and not overwrite:
             logger.warning(f"skipping variation {variation_suffix} since it already exists")
         else:

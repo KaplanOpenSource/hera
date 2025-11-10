@@ -124,7 +124,10 @@ if __name__ == "__main__":
     variation_parser.add_argument('--dry-run', action="store_true", default=False, help="don't add the workflows to the project")
     variation_parser.add_argument('--overwrite', action="store_true", default=False, help="overwrite existing variations files")
     variation_parser.add_argument('--naming-scheme', type=str, choices=["index"], default="index", help="naming scheme used for the variation workflows. defaults to indexing(<base_name>_[0,1...])")
+
+    
     variation_parser.set_defaults(func=CLI.create_workflow_variations)
+
     
     ### --- batch delete based on group name
     batch_delete_parser = subparsers.add_parser('batch-delete', aliases=["bigdelete"], help='Deletes all the workflows under the same group name')
