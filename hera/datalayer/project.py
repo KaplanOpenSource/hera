@@ -158,7 +158,22 @@ class Project:
             Create a config document or updates an existing config document.
         """
         if self._projectName == self.DEFAULTPROJECT:
-            raise ValueError("Default project cannot use configuration")
+            err = """
+                    Default project was initiated and it is cannot use configuration.
+                    
+                    This error os obtained because you have initiated the project or the toolkit 
+                    using projectName=None, and you don't case a caseConfiguration.json in the directory that 
+                    specifies the project name. 
+                    
+                    To solve this project either 
+                    - Create a new project in the directory: 
+                      run  
+                        >> hera-project project create <the directory name>
+                      in the parent directory 
+                    - Create manually the file caseConfigutation.json in the directory with the key 'projectName' that holds 
+                      the name of the project as a string.     
+            """
+            raise ValueError(err)
 
         doc = self._getConfigDocument()
         if keep_old_values:

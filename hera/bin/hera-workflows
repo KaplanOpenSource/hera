@@ -14,28 +14,26 @@ if __name__ == "__main__":
     logger = logging.getLogger("hera.bin.hera_workflows")
     logger.debug("Starting the hera_workflows command line")
 
-    projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from caseConfiguration'
-
+    PROJECT_NAME_HELP_DESC = 'The project name. [Optional]. If does not exist take from caseConfiguration'
+    
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='Topic:')
-
-    ##
-    #   List
-    ##
+    
+    ## --- List
     list_parser = subparsers.add_parser('list', help='Lists items in the DB')
     list_subparser = list_parser.add_subparsers(help='Handles simulation group')
 
     ## --- groups
-    parser_prepare = list_subparser.add_parser('groups', help='List the group in the project.')
-    parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.add_argument('--solver', type=str,dest="solver", default=None, help='Specify the solver of the workflow')
-    parser_prepare.add_argument('--workflowName',dest="workflowName",action="store_true", default=False, help='If exists, show the simulation names')
-    parser_prepare.set_defaults(func=CLI.WorkflowsGroup_list)
+    workflow_group_parser = list_subparser.add_parser('groups', help='List the group in the project.')
+    workflow_group_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    workflow_group_parser.add_argument('--solver', type=str,dest="solver", default=None, help='Specify the solver of the workflow')
+    workflow_group_parser.add_argument('--workflowName',dest="workflowName",action="store_true", default=False, help='If exists, show the simulation names')
+    workflow_group_parser.set_defaults(func=CLI.WorkflowsGroup_list)
 
     ## --- Workflows
     listSimulations_parser = list_subparser.add_parser('workflows', help='Lists the workflows in the group of that project.')
     listSimulations_parser.add_argument('group', type=str, default=None, help='The simulation group to list')
-    listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
+    listSimulations_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=PROJECT_NAME_HELP_DESC)
     listSimulations_parser.add_argument('--nodes', dest="nodes",action="store_true", default=False, help='If exsists, list the nodes of each simulation')
     listSimulations_parser.add_argument('--parameters', dest="parameters", action="store_true", default=False,
                                         help='If exsists, list the nodes of each simulation with their parameters (replace --nodes)')
@@ -43,37 +41,33 @@ if __name__ == "__main__":
     #                                    help='If exsists, return the results as JSON and not as pandas table')
     listSimulations_parser.set_defaults(func=CLI.workflow_list)
 
-    ##
-    #   Adds a workfow to the project. Optional execution.
-    ##
-    parser_prepare = subparsers.add_parser('add', help='Adds a workflow to the group in the group.')
-    parser_prepare.add_argument('workflow', type=str, help='The workflow file to load')
-    parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.add_argument('--workflowGroup',dest="workflowGroup", default=None, type=str, help='The simulation group. [Optional]. If None, try to infer from the file name  ')
-    parser_prepare.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+    ## --- Adds a workfow to the project. Optional execution.
+    workflow_add_parser = subparsers.add_parser('add', help='Adds a workflow to the group in the group.')
+    workflow_add_parser.add_argument('workflow', type=str, help='The workflow file to load')
+    workflow_add_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    workflow_add_parser.add_argument('--workflowGroup',dest="workflowGroup", default=None, type=str, help='The simulation group. [Optional]. If None, try to infer from the file name  ')
+    workflow_add_parser.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                 help='overwrite the existing workflow with the same name')
-    parser_prepare.add_argument('--assignName', dest="assignName", action="store_true", default=False,
+    workflow_add_parser.add_argument('--assignName', dest="assignName", action="store_true", default=False,
                                 help='If true, finds a new name to the simulation based on the maximal id in the simulation group.')
-    parser_prepare.add_argument('--allowDuplicate', dest="force", action="store_true", default=False,
+    workflow_add_parser.add_argument('--allowDuplicate', dest="force", action="store_true", default=False,
                                 help='Add the current workflow to the DB even if it exists there under a different name')
-    parser_prepare.add_argument('--execute', dest="execute", action="store_true", default=False,
+    workflow_add_parser.add_argument('--execute', dest="execute", action="store_true", default=False,
                                 help='If flag exists, store the execute flag. ')
-    parser_prepare.set_defaults(func=CLI.workflow_add)
+    workflow_add_parser.set_defaults(func=CLI.workflow_add)
 
-    ##
-    #   Adds a workfow to the project and executes it.
-    ##
-    parser_prepare = subparsers.add_parser('buildExecute', help='Adds the workflow and executes it.')
-    parser_prepare.add_argument('workflowName', type=str, help='The workflow file to load')
-    parser_prepare.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    parser_prepare.set_defaults(func=CLI.workflow_buildExecute)
+    ## --- Adds a workfow to the project and executes it.
+    workflow_build_exec_parser = subparsers.add_parser('buildExecute', help='Adds the workflow and executes it.')
+    workflow_build_exec_parser.add_argument('workflowName', type=str, help='The workflow file to load')
+    workflow_build_exec_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    workflow_build_exec_parser.set_defaults(func=CLI.workflow_buildExecute)
 
 
-    ### ------------------------
+    ### --- Compare multiple workflows
     compare_parser = subparsers.add_parser('compare', help='Compare two or more workflows')
     compare_parser.add_argument('workflows', nargs="+", type=str,
                                 help='[groupName] - compare all the simulations in the group, [sim1,sim2,..] compare the different simulations.old. simX is either a simulation name in the DB or a file on the disk')
-    compare_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=projectNameHelpDesc)
+    compare_parser.add_argument('--projectName', dest="projectName", default=None, type=str, help=PROJECT_NAME_HELP_DESC)
     compare_parser.add_argument('--longTable', dest="longFormat", action="store_true", default=False,
                                         help='If exsists, list the parameters as a long table. If does not exist data is pivoted')
     compare_parser.add_argument('--transpose', dest="transpose", action="store_true", default=False,
@@ -86,33 +80,64 @@ if __name__ == "__main__":
                                         help='write the output to a file')
     compare_parser.set_defaults(func=CLI.workflow_compare)
 
-    ### ------------------------
+    ### --- Delete and export a simulation
     delete_parser = subparsers.add_parser('delete', help='Delete a workflow. Exports the simulation that was deleted ')
     delete_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to remove')
-    delete_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    delete_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
     delete_parser.add_argument('--export',dest="Export", default=False, action="store_true", help='Export the deleted file from the DB to the disk')
     delete_parser.add_argument('--overwrite', dest="forceOverwrite", default=False, action="store_true",
                                help='Overwrite the export if the file exists')
 
     delete_parser.set_defaults(func=CLI.workflow_delete)
 
-    ### ------------------------
+    ### --- Export a simulation
     export_parser = subparsers.add_parser('export', help='Export the workflows to the disk')
     export_parser.add_argument('workflows', nargs="+", type=str,help='the list of workflows to export')
-    export_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
+    export_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
     export_parser.add_argument('--overwrite', dest="forceOverwrite", default=False, action="store_true",
                                help='Overwrite the export if the file exists')
 
     export_parser.set_defaults(func=CLI.workflow_export)
 
-    ### ------------------------
-    export_parser = subparsers.add_parser('compareToDisk', help='Compares the workflow in the DB to the file on the disk')
-    export_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to export')
-    export_parser.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
-    export_parser.add_argument('--forceOverwrite', dest="forceOverwrite", default=False, action="store_true",
-                               help='Overwrite the export if the file exists')
+    ### --- Compares DB workflows to their version on disk
+    compare_to_disk_parser = subparsers.add_parser('compareToDisk', help='Compares the workflow in the DB to the file on the disk')
+    compare_to_disk_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to compare')
+    compare_to_disk_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
 
-    export_parser.set_defaults(func=CLI.workflow_compareToDisk)
+    compare_to_disk_parser.set_defaults(func=CLI.workflow_compareToDisk)
+    
+    ### --- Sync a workflow from disk to DB
+    sync_parser = subparsers.add_parser('sync', help='Syncs the workflow with the DB to the file on the disk. By default will sync only when there are changes in node parameters.')
+    sync_parser.add_argument('workflows', nargs="+", type=str, help='the list of workflows to sync')
+    sync_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    sync_parser.add_argument('--force', "--f", dest="force", action="store_true", default=False, help="Forcefully override the DB with the file on disk")
+    sync_parser.add_argument('--quiet', "--q", dest="quiet", action="store_true", default=False, help="Quitely check differences without printing")
+
+    
+    sync_parser.set_defaults(func=CLI.workflow_sync_to_db)
+    
+    ### --- create copies of a workflow variating the fields based on a variation JSON provided
+    variation_parser = subparsers.add_parser('variation', aliases=["var"], help='Takes a workflow and creates new ones using the variation json provided')
+    variation_parser.add_argument('workflow', type=str, help='the base workflow to use')
+    variation_parser.add_argument('variationJson', type=str, help='path to file with variation data')
+    variation_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    variation_parser.add_argument('--dry-run', action="store_true", default=False, help="don't add the workflows to the project")
+    variation_parser.add_argument('--overwrite', action="store_true", default=False, help="overwrite existing variations files")
+    variation_parser.add_argument('--naming-scheme', type=str, choices=["index"], default="index", help="naming scheme used for the variation workflows. defaults to indexing(<base_name>_[0,1...])")
+
+    
+    variation_parser.set_defaults(func=CLI.create_workflow_variations)
+
+    
+    ### --- batch delete based on group name
+    batch_delete_parser = subparsers.add_parser('batch-delete', aliases=["bigdelete"], help='Deletes all the workflows under the same group name')
+    batch_delete_parser.add_argument('--projectName', type=str, default=None, help=PROJECT_NAME_HELP_DESC)
+    batch_delete_parser.add_argument('--workflow', type=str, help='workflow to exclude, if group name not provided uses group name of this workflow')
+    batch_delete_parser.add_argument('--groupName', type=str, help="the name of the group to delete")
+    batch_delete_parser.add_argument('--hard', action="store_true", default=False, help="delete the resource of each workflow from disk")
+    
+    
+    batch_delete_parser.set_defaults(func=CLI.batch_delete_workflows)
     ### ------------------------
 
     parsed = parser.parse_args()
