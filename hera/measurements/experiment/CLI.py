@@ -96,13 +96,8 @@ def create_experiment(arguments):
     logger.debug(f"Creating a project for local")
     projectCLI.project_create(arguments)
 
-    zip=None if arguments.zip is None else arguments.zip
-    _create_repository(zip,experiment_path,arguments.experimentName,arguments.relative)
-    _make_runtimeExperimentData(zip,experiment_path,arguments.experimentName)
-
-    # if arguments.zip:
-    #     _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
-    #     _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
+    _create_repository(arguments.zip,experiment_path,arguments.experimentName,arguments.relative)
+    _make_runtimeExperimentData(arguments.zip,experiment_path,arguments.experimentName)
 
     logger.debug("Loading the experiment repository to the project")
     arguments.repositoryName = os.path.join(experiment_path,f"{arguments.experimentName}_repository.json")
