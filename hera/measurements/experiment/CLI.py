@@ -145,11 +145,11 @@ class {experimentName}Presentation(experimentSetupWithData):
 
     logger.debug(f" finished creating an empty class for implementation..")
 
-def _create_repository(zip,experiment_path,experimentName,relative):
+def _create_repository(argos_zip,experiment_path,experimentName,relative):
     logger = logging.getLogger("hera.bin._create_repository")
     logger.info(f"Creating the repository")
     logger.debug(f" Since zip file is provided, creating a repository..")
-    metadata = ExperimentZipFile(zip) if zip else None
+    metadata = ExperimentZipFile(argos_zip) if argos_zip else None
 
     repo = {}
     perDevice = True         ##Will be defined by the updated zip format!
@@ -198,10 +198,15 @@ def _create_repository(zip,experiment_path,experimentName,relative):
 
     with open(os.path.join(experiment_path,f'{experimentName}_repository.json'), "w") as f:
         json.dump(repo, f, indent=4)
+    
+    default_datasources = {"experimentName": experimentName}
+    configurationFilePath = os.path.join(experiment_path, 'runtimeExperimentData', "Datasources_Configurations.json")
+    with open(configurationFilePath, "w") as f:
+        json.dump(default_datasources, f, indent=4)
 
     logger.debug(f" finished creating the repository json file")
 
-def _make_runtimeExperimentData(zip,experiment_path,experimentName):
+def _make_runtimeExperimentData(argos_zip,experiment_path,experimentName):
     logger = logging.getLogger("hera.bin._make_runtimeExperimentData")
     logger.debug(f" creating runtimeExperimentData directory if it does not exists")
     os.makedirs(os.path.join(experiment_path, 'runtimeExperimentData'), exist_ok=True)
@@ -210,8 +215,8 @@ def _make_runtimeExperimentData(zip,experiment_path,experimentName):
     with open(os.path.join(experiment_path, 'runtimeExperimentData','Datasources_Configurations.json'), "w") as f:
         json.dump(config, f, indent=2)
     logger.debug(f" saved Datasources_Configurations json")
-    if zip:
-        shutil.copy(zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{experimentName}.zip'))
+    if argos_zip:
+        shutil.copy(argos_zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{experimentName}.zip'))
 
 def load_experiment_to_project(arguments):
     logger = logging.getLogger("hera.bin.experiment_load_experiment_to_project")
