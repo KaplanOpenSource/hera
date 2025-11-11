@@ -121,8 +121,7 @@ def compareDataframeConfigurations(data,datasetName="datasetName",parameterName=
         if grpdata[valueName].unique().shape[0] > 1:
             logger.debug(f"{grpid}:: Normal Field. Different  ")
             diffList.append(grpdata.copy())
-
-        if 0 < grpdata[valueName].count() < datasetCount:
+        elif 0 < grpdata[valueName].count() < datasetCount:
             diffList.append(grpdata.copy())
 
     if len(diffList) > 0:
