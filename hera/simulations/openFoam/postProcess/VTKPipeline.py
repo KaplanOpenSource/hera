@@ -1,10 +1,13 @@
 import json
+from typing import Literal
 import numpy
 import os.path
 import importlib
 import tqdm
+import pandas
 
 from hera import get_classMethod_logger
+import hera.simulations.openFoam.postProcess.VTKPipeline as pipelineModule
 from hera.simulations.openFoam import CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED, TYPE_VTK_FILTER
 from hera.utils import dictToMongoQuery
 from hera.simulations.openFoam.postProcess.pvOpenFOAMBase import paraviewOpenFOAM
@@ -42,7 +45,6 @@ class VTKPipeLine:
         -------
 
         """
-        pipelineModule = importlib.import_module("hera.simulations.openFoam.postProcess.VTKPipeline")
         vtkFilterList = [x.split("_")[1] for x in dir(pipelineModule) if x.startswith("vtkFilter")]
         if filterType not in vtkFilterList:
             filterNameList = ",".join(vtkFilterList)
@@ -52,6 +54,18 @@ class VTKPipeLine:
     def addFilter(self, name, filterType, write=True, params=[]):
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
         self.__setitem__(name, newFilter)
+        
+    def addExistingFilter(self, filter):
+        
+        """Adds a filter to the pipeline using an already existent instance.
+
+        Parameters
+        
+            filter(VTKFilter)
+                an instance of a filter
+
+        """
+        self.__setitem__(filter.name, filter)
 
     def __setitem__(self, key, value):
         self.filters[key] = value
@@ -275,18 +289,22 @@ class registeredVTKPipeLine:
         for filterName in requestedFiltersToProcess:
             qry = self._buildFilterQuery(filterName=filterName, meshRegions=meshRegions,regularMesh=regularMesh)
             docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            # attempt to extract cached filter results
             if len(docList) > 0:
-                filtersOutputFilename[filterName] = docList[0].resource
-                dbTimeList = docList[0]['desc']['simulation']['timeList']
+                # There should only be one filter result cached
+                cached_filter = docList[0]
+                filtersOutputFilename[filterName] = cached_filter.resource
+                dbTimeList = cached_filter['desc']['simulation']['timeList']
 
                 # Filtering the timesteps.
                 timeList = [ts for ts in timeList if ts not in dbTimeList]
-                DBDocumentsDict[filterName] = docList[0]
+                DBDocumentsDict[filterName] = cached_filter
 
             else:
+                # probably should be a UUID
                 # adding counter to prevent overwriting similar filter from a different pipeline.
-                countr = self.datalayer.getCounterAndAdd("OpenFOAMData")
-                outputFileName = f"{filterName}_{countr}.{filext}"
+                counter = self.datalayer.getCounterAndAdd("OpenFOAMData")
+                outputFileName = f"{filterName}_{counter}.{filext}"
                 filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
 
             logger.debug(
@@ -430,31 +448,26 @@ class VTKFilter:
     father = None
 
     def __init__(self, name, filterType, write, params):
-        """
-            Init an abstract node.
-
-            "filterName": {
-                "type": The type of the filter.(clip, slice, ...).
-                "write": True/False
-                "params": [
-                    ("key", "value"),
-                    .
-                    .
-                    .
-                ], ...
-                    "downstream": [Another pipeline]
-            }
+        """Init an abstract node.
+        
+        "filterName": {
+            "type": The type of the filter.(clip, slice, ...).
+            "write": True/False
+            "params": [
+                ("key", "value"),
+                .
+                .
+                .
+            ], ...
+                "downstream": [Another pipeline]
+        }
 
         Parameters
         ----------
-        filterType  : str
-            A VTK filter name : clip/cell centers and ect.
-        write : bool
-            Should we write this filter output?
-
-        params : dict
-            A list of key, value for the parameters of the dict.
-            The order of the paramters is important, as it might change the behaviour of the object (like in the slice or clip filters).
+            name (str): Name of the filter
+            filterType (str): A VTK filter name : clip/cell centers and ect.
+            write (bool): Should we write this filter output?
+            params (dict): A list of key, value for the parameters of the dict. The order of the paramters is important, as it might change the behaviour of the object (like in the slice or clip filters).
         """
         self.name = name
         self.filterType = filterType
@@ -465,10 +478,10 @@ class VTKFilter:
     @property
     def fullName(self):
         """
-            Returns the full path of the filter from the father.
+        
         Returns
         -------
-
+        full path of the filter from the father.
         """
 
         def traverse(filter):
@@ -479,11 +492,11 @@ class VTKFilter:
         return ".".join(traverse(self))
 
     def toJSON(self):
-        """
-            converts the node
+        """converts the node
+        
         Returns
         -------
-
+        Jsonified filter
         """
         ret = dict()
         ret['filterType'] = self.filterType
@@ -499,10 +512,10 @@ class VTKFilter:
         self.downstream[key] = value
 
     def __getitem__(self, item):
-        """
-            Return the filter.
+        """Return the filter.
+        
+        Allows path syntax A.B.C
 
-            Allows path syntax A.B.C
         Parameters
         ----------
         item : str
@@ -525,33 +538,76 @@ class VTKFilter:
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
         self.__setitem__(name, newFilter)
         return newFilter
+    
+    def set_param(self, param_name:str, new_val):
+        # change param value in list, keeping at the same index
+        self.params= [(param_name, new_val) if param[0] == param_name else param for param in self.params]
+        # in case iteration didn't pass it we append it
+        if (param_name, new_val)  not in self.params:
+            self.params .append((param_name,new_val))
+            
+    def enforce_param(self, param_name:str, enforced_param):
+        """In case param isn't initialized we set it to the enforced param
+
+        Raises:
+            RuntimeError: Raises in case param is already set to something that's not the enforced param 
+        """
+        if all(param[0] != param_name for param in self.params):
+            self.params.append((param_name, enforced_param))
+        elif (param_name, enforced_param) not in self.params:
+            raise RuntimeError(f"{param_name} must not be different than {enforced_param}")
+
 
 
 class vtkFilter_Slice(VTKFilter):
 
     def __init__(self, name, write, **kwargs):
-        kwargs.setdefault("params", [])
+        kwargs.setdefault("params",[])
         super().__init__(name=name, filterType="Slice", write=write, **kwargs)
+                
+    def setPlaneOrigin(self, origin:list[3]):
+        """Setting plane slice origin
 
-    def setPlane(self, origin):
+        Parameters:
+            origin (list[3]): a 3-tuple of the origin
         """
-            Setting slice as plane with the origin
-        Parameters
-        ----------
-        origin : list
-            a 3-tuple of the origin
+        self.enforce_param("SliceType", "Plane")
+        self.set_param("SliceType.Origin", origin)
+            
+    def setPlaneNormal(self, normal:list[3]):
+        """Setting plane slice normal
 
-        Returns
-        -------
-
+        Parameters:
+            normal (list[3]): a 3-tuple of the normal
         """
-        self.params = [("SliceType", "Plane"),
-                       ("HyperTreeGridSlicer", "Plance"),
-                       ("SliceOffsetValues", 0),
-                       ("SliceType.Origin", origin),
-                       ("HyperTreeGridSlicer.Origin", [0, 0, 0])
-                       ]
+        self.enforce_param("SliceType", "Plane")
+        self.set_param("SliceType.Normal", normal)
 
+class vtkFilter_PlotOverLine(VTKFilter):
+    SAMPLE_UNIFORMLY = 'Sample Uniformly'
+    SAMPLE_AT_CELL_BOUNDARIES = 'Sample At Cell Boundaries'
+    SAMPLE_AT_SEGMENT_CENTERS = 'Sample At Segment Centers'
+
+    def __init__(self, name, write, **kwargs):
+        kwargs.setdefault("params",[])
+        super().__init__(name=name, filterType="PlotOverLine", write=write, **kwargs)
+
+    def setSamplePattern(self, pattern: Literal['Sample Uniformly', 'Sample At Cell Boundaries', 'Sample At Segment Centers']):
+        self.set_param("SamplingPattern",  pattern)
+
+    def setUniformSampleResolution(self, res: int):
+        self.enforce_param("SamplingPattern", 'Sample Uniformly')
+        self.set_param("Resolution", res)
+
+    def setPoints(self, point1:list[3],point2:list[3]):
+        """Setting PlotOverLine point1(start point) and point2(end point)
+        
+        Parameters:
+            point1 (list[3]): a 3-tuple of the start point
+            point2 (list[3]): a 3-tuple of the end point       
+        """
+        self.set_param("Point1", point1)
+        self.set_param("Point2", point2)
 
 class vtkFilter_CellCenters(VTKFilter):
     """
@@ -564,7 +620,7 @@ class vtkFilter_CellCenters(VTKFilter):
 
 
 class vtkFilter_ExtractBlock(VTKFilter):
-    def __init__(self, name, write, **kwargs):
+    def __init__(self, name, write, patchList=[],internalMesh=False, **kwargs):
         selectors = [f'/Root/boundary/{patchName}' for patchName in patchList]
         if internalMesh:
             selectors += ['/Root/internalMesh']
@@ -575,5 +631,5 @@ class vtkFilter_ExtractBlock(VTKFilter):
 
 
 class vtkFilter_IntegrateVariables(VTKFilter):
-    def __init__(self, name, write, patchList=[],internalMesh=False):
-        super().__init__(name=name, filterType="IntegrateVariables", write=write, params=params)
+    def __init__(self, name, write, patchList=[],internalMesh=False, **kwargs):
+        super().__init__(name=name, filterType="IntegrateVariables", write=write, **kwargs)

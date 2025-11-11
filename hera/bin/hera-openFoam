@@ -208,10 +208,12 @@ def addSolverCaseManagement(subparser, solverName, incompressible):
     """
     parser_templates = subparser.add_parser('case', help=f'Manages the case of  {solverName}')
     case_subparser = parser_templates.add_subparsers()
+    projectNameHelpDesc = 'The project name. [Optional]. If does not exist take from caseConfiguration'
 
     parser_createEmpty = case_subparser.add_parser('createEmpty', help='Creates a case')
     parser_createEmpty.add_argument('caseDirectory', type=str, help='The directory to create')
     parser_createEmpty.add_argument('--fields', nargs='*', type=str, help='[list of field]')
+    parser_createEmpty.add_argument('--projectName', type=str, default=None, help=projectNameHelpDesc)
     parser_createEmpty.add_argument('--fieldsDescription', default=None, type=str,
                                     help="A JSON file with addition fields definitions (in file)", required=False)
     parser_createEmpty.set_defaults(incompressible=incompressible)

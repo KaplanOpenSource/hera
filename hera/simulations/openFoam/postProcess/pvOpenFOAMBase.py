@@ -1,5 +1,6 @@
 
 from itertools import product
+import json
 import pandas
 import numpy
 import dask.dataframe as dd
@@ -12,6 +13,8 @@ from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
 from hera import get_classMethod_logger
 from deprecated import deprecated
 from dask.diagnostics import ProgressBar
+from paraview.servermanager import Proxy
+from paraview.servermanager import ProxyProperty
 
 #### import the simple module from the paraview
 try:
@@ -149,14 +152,43 @@ class paraviewOpenFOAM:
         For each time step.
                     A map datasourcename -> pandas
         """
+        def debug_proxy_data(proxy: Proxy, nested=True, depth = 0):
+            """Use to make sure all filter data is set correctly(right before execution)
+
+            Parameters
+            ----------
+                proxy (Proxy): every paraview object with data is a proxy and so is the paraview filter
+                nested (bool, optional): should the debug log go into each sub object(hence creating a tree). Defaults to True.
+                depth (int, optional): the starting depth in the print(mostly internal use). Defaults to 0.
+            """
+            for prop_name in proxy.ListProperties():
+                prop = proxy.GetProperty(prop_name)
+                tree_sign = '├' if prop_name != proxy.ListProperties()[-1] else '╰'
+                print_prefix = f"{'.│'*depth} {f'{tree_sign}─' if depth != 0 else ''}"
+                if isinstance(prop,ProxyProperty):
+                    prop_data = prop.GetData()
+                    if isinstance(prop_data,Proxy):
+                        logger.debug(f"{print_prefix}{prop_name} -> Proxy of type {prop} with {len(proxy.ListProperties())} properties")
+                        if nested:
+                            depth += 1
+                            debug_proxy_data(prop_data, depth=depth)
+                            depth -= 1
+                    else:
+                        logger.debug(f"{print_prefix}{prop_name} -> {prop_data}")
+                else:
+                    logger.debug(f"{print_prefix}{prop_name} -> {prop}")
+        
         logger = get_classMethod_logger(self, "readTimeSteps")
         for timeslice in timelist:
             # read the timestep.
             logger.info("\r Reading time step %s" % timeslice)
             ret = {}
-            for filterName,outputFile in datasourcenamedict.items():
+            for filterName,_ in datasourcenamedict.items():
                 datasource = pvsimple.FindSource(filterName)
                 logger.debug(f"Reading source {filterName}")
+                assert isinstance(datasource, Proxy)
+                logger.debug("Calculating filter with the following parameters:")
+                debug_proxy_data(datasource)
                 rt = self._readTimeStep(datasource, timeslice, fieldnames, regularMesh)
                 if rt is not None:
                     ret[filterName] = rt

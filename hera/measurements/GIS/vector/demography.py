@@ -1,6 +1,7 @@
 import geopandas
 import io
 import os
+import geopandas as gpd
 from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
@@ -216,7 +217,10 @@ class analysis:
         if isinstance(dataSourceOrData, str):
             Data = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
             if Data is None:
-                Data = geopandas.read_file(io.StringIO(dataSourceOrData))
+                if os.path.exists(dataSourceOrData):
+                    Data = geopandas.read_file(dataSourceOrData)  # ← נתיב לקובץ (shp/geojson/gpkg)
+                else:
+                    Data = geopandas.read_file(io.StringIO(dataSourceOrData))  # ← תוכן טקסטואלי (GeoJSON)
         else:
             Data = dataSourceOrData
 
@@ -338,10 +342,13 @@ class analysis:
 
         poly = shapelyPolygon
 
-        if isinstance(dataSourceOrData,str):
+        if isinstance(dataSourceOrData, str):
             demography = self.datalayer.getDataSourceData(dataSourceOrData, dataSourceVersion)
             if demography is None:
-                demography = geopandas.read_file(io.StringIO(dataSourceOrData))
+                if os.path.exists(dataSourceOrData):
+                    demography = gpd.read_file(dataSourceOrData)  # ← נתיב לקובץ (shp/gpkg/geojson)
+                else:
+                    demography = gpd.read_file(io.StringIO(dataSourceOrData))  # ← טקסט (GeoJSON)
         else:
             demography = dataSourceOrData
 
