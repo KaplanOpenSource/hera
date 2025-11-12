@@ -47,6 +47,9 @@ RUN apt-get install -y \
     gdal-bin \
     python3-gdal
 
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs
+
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pre-initialize MongoDB users using mongosh, and close it - will start with container
@@ -82,12 +85,17 @@ RUN mkdir -p /root/.pyhera/log && \
 
 RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 
+COPY ./ui/client /client
+WORKDIR /client
+RUN npm install
+RUN npm run build
+
+WORKDIR /app
+
+# COPY . /app
+
 EXPOSE 27017
 EXPOSE 8000
 EXPOSE 5678
 
-# COPY . /app
-
 CMD ["python", "ui/server/server.py"]
-
-# CMD ["bash"]
