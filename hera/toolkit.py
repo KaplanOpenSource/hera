@@ -845,8 +845,6 @@ class abstractToolkit(Project):
         else:
             raise ValueError(
                 f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
-            print(
-                "exist: Raise exception (ValueError) that the record with the name that was given in the input already exists")
 
         return doc
 
