@@ -72,17 +72,17 @@ ENV PATH="/app:/app/hera/bin:${PATH}"
 ENV PYTHONPATH="/app:/app/hera/bin"
 
 # Create necessary folders and configuration file
-RUN mkdir -p /root/mongo-db-datadir && \
-# RUN mkdir -p /root/.pyhera/log && \
-#     echo '{ \
-#         "root": { \
-#             "dbIP": "127.0.0.1", \
-#             # "dbIP": "host.docker.internal", \
-#             "dbName": "dbhera", \
-#             "username": "user", \
-#             "password": "1234" \
-#         } \
-#     }' > /root/.pyhera/config.json
+RUN mkdir -p /root/.pyhera/log && \
+    mkdir -p /root/mongo-db-datadir && \
+    echo '{ \
+        "root": { \
+            "dbIP": "127.0.0.1", \
+            # "dbIP": "host.docker.internal", \
+            "dbName": "dbhera", \
+            "username": "user", \
+            "password": "1234" \
+        } \
+    }' > /root/.pyhera/config.json
 
 RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 

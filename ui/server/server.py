@@ -87,8 +87,8 @@ if __name__ == "__main__":
     # Use a single process: no reload watcher
     import uvicorn
 
-    # os.system("sh hera/scripts/run_mongo.sh")
-    # os.system("sh hera/scripts/add_repo.sh")
+    os.system("sh hera/scripts/run_mongo.sh")
+    os.system("sh hera/scripts/add_repo.sh")
 
     if "--debug" in sys.argv:
         import debugpy
