@@ -85,6 +85,11 @@ class ToolkitHome:
                 desc=None,
                 type="measurements"
             ),
+            experiment=dict(
+                cls="hera.measurements.experiment.experiment.experimentHome",
+                desc=None,
+                type="measurements"
+            ),
             GIS_Raster_Topography=dict(
                 cls="hera.measurements.GIS.raster.topography.TopographyToolkit",
                 desc=None,
