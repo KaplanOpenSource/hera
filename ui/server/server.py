@@ -1,4 +1,3 @@
-
 import os
 import sys
 from pathlib import Path
@@ -35,30 +34,27 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
-# Code execution endpoint (simple: eval expression and return its value)
-
-
 class ExecPayload(BaseModel):
     code: str
 
 
+# Code execution endpoint (simple: eval expression and return its value)
 @app.post("/exec")
 def exec_code(payload: ExecPayload):
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
     _locals = {"MOCK_PROJECTS": MOCK_PROJECTS}
-    print('executing: ' + payload.code)
+    print("executing: " + payload.code)
     exec(payload.code, {}, _locals)
     result = _locals.get("result", None)
-    print('got:', result)
+    print("got:", result)
     return jsonable_encoder(result)
 
 
 # Serve built frontend (Vite) in production
-FRONTEND_DIST = (
-    Path(__file__).resolve().parent.parent / "client" / "dist"
-)
+# FRONTEND_DIST = Path(__file__).resolve().parent.parent / "client" / "dist"
+FRONTEND_DIST = Path("/client/dist").resolve()
 
 if FRONTEND_DIST.exists():
     assets_dir = FRONTEND_DIST / "assets"
@@ -94,8 +90,9 @@ if __name__ == "__main__":
     os.system("sh hera/scripts/run_mongo.sh")
     os.system("sh hera/scripts/add_repo.sh")
 
-    if '--debug' in sys.argv:
+    if "--debug" in sys.argv:
         import debugpy
+
         debugpy.listen(("0.0.0.0", 5678))
         print("debugpy listening on 0.0.0.0:5678 - attach your debugger")
 
