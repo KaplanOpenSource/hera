@@ -25,9 +25,14 @@ export const AddProjectButton = ({ }) => {
 
   const go = async () => {
     const { problem } = await execPython(`
+import os
 from types import SimpleNamespace
 from hera.utils.data.CLI import project_create
-project_create(SimpleNamespace(projectName="${name}", directory=None, loadRepositories=${loadRepositories ? 'True' : 'False'}, overwrite=False))
+project_create(SimpleNamespace(
+  projectName='${name}',
+  directory=os.path.join(os.getcwd(), 'projects', '${name}'),
+  loadRepositories=${loadRepositories ? 'True' : 'False'},
+  overwrite=False))
       `)
     if (problem) {
       return;
