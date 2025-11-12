@@ -59,11 +59,11 @@ RUN mkdir -p /data/db /var/run/mongodb && \
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
 COPY requirements.txt .
+COPY ui/server/requirements-server.txt .
 
 # Install Python dependencies with pyenv's Python
 RUN python -m pip install --no-cache-dir -r requirements.txt
-
-COPY . /app
+RUN python -m pip install --no-cache-dir -r requirements-server.txt
 
 ENV PATH="/app:/app/hera/bin:${PATH}"
 ENV PYTHONPATH="/app:/app/hera/bin"
@@ -83,4 +83,11 @@ RUN mkdir -p /root/.pyhera/log && \
 RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 
 EXPOSE 27017
-CMD ["bash"]
+EXPOSE 8000
+EXPOSE 5678
+
+# COPY . /app
+
+CMD ["python", "ui/server/server.py"]
+
+# CMD ["bash"]
