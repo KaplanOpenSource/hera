@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "prebuild": "npm run typegen",
     "dev": "vite --config vite.config.ts",
     "build": "vite build --config vite.config.ts",
-    "preview": "vite preview --config vite.config.ts"
+    "preview": "vite preview --config vite.config.ts",
+    "typegen": "npm run ts-json-schema && npm run py-models",
+    "ts-json-schema": "npx typescript-json-schema tsconfig.json '*' --required --out schema.json",
+    "py-models": "datamodel-codegen --input schema.json --input-file-type jsonschema --output ../server/models.py"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",

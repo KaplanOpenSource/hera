@@ -56,9 +56,10 @@ export const ToolkitTreeItem = ({
       {docs.map(d => {
         return (
           <ProjectDocumentItem
-            key={`proj${project.name}_doc${d._id.$oid}`} project={project} document={d}
-          >
-          </ProjectDocumentItem>
+            key={`proj${project.name}_doc${d._id.$oid}`}
+            project={project}
+            document={d}
+          />
         )
       })}
     </TreeItem>
