@@ -1,4 +1,4 @@
-import { API_BASE } from "../shared/constants";
+import { BASEURL } from "../shared/baseurl";
 import { ExecRequest } from "../shared/types";
 
 export const execPython = async (code: string): Promise<{ data: any; problem: undefined | string; }> => {
@@ -7,7 +7,7 @@ export const execPython = async (code: string): Promise<{ data: any; problem: un
     const payload: ExecRequest = {
       code,
     };
-    const r = await fetch(`${API_BASE}/exec`, {
+    const r = await fetch(`${BASEURL}/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

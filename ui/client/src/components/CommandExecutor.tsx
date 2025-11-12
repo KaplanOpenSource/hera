@@ -1,6 +1,6 @@
 import { Box, Button, TextField } from '@mui/material';
 import { useState } from 'react';
-import { API_BASE } from '../shared/constants';
+import { BASEURL } from '../shared/baseurl';
 import type { ExecRequest } from '../shared/types';
 
 export const CommandExecutor = () => {
@@ -10,7 +10,7 @@ export const CommandExecutor = () => {
     const payload: ExecRequest = {
       code: command,
     };
-    const r = await fetch(`${API_BASE}/exec`, {
+    const r = await fetch(`${BASEURL}/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
