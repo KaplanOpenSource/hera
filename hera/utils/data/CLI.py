@@ -312,6 +312,10 @@ def db_list(arguments):
 
     Returns
     -------
+￼
+￼
+￼
+
 
     """
     dbconfig = getMongoJSON()
@@ -341,3 +345,242 @@ def db_create(arguments):
 
 def db_remove(arguments):
     removeConnection(arguments.connectionName)
+
+import logging
+from tabulate import tabulate
+from ...toolkit import ToolkitHome
+from pydoc import locate  # for resolving classpath -> class
+
+# --- in hera/utils/data/CLI.py ---
+def toolkit_list(arguments):
+    """
+    Print a combined list of toolkits (static + dynamic from DB) for a project.
+    Uses ToolkitHome.getToolkitDocuments(...) as the single source of truth.
+    """
+    import logging
+    from tabulate import tabulate
+    logger = logging.getLogger("hera.utils.CLI.toolkit_list")
+    project = arguments.project
+
+    try:
+        from ...toolkit import ToolkitHome
+        th = ToolkitHome()
+
+        docs = th.getToolkitDocuments(name=None, projectName=project) or []
+        rows = []
+        for d in docs:
+            desc = d.get("desc", {}) if isinstance(d, dict) else getattr(d, "desc", {}) or {}
+            rows.append({
+                "toolkit": d.get("toolkit") if isinstance(d, dict) else getattr(d, "toolkit", ""),
+                "cls": desc.get("classpath", ""),
+                "source": desc.get("source", "internal"),
+                "type": desc.get("type", ""),
+                "repository": desc.get("repositoryName", ""),
+                "version": desc.get("version", ""),
+            })
+
+        if rows:
+            print(tabulate(rows, headers="keys", tablefmt="github"))
+        else:
+            print("No toolkits found (static + DB are empty).")
+
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+
+def toolkit_register(arguments):
+    """
+    Register a toolkit using a classpath and metadata.
+    Delegates to ToolkitHome.registerToolkit (expects a class object).
+    """
+    logger = logging.getLogger("hera.utils.CLI.toolkit_register")
+    project = arguments.project
+    cls_path = arguments.cls
+    name = arguments.name
+    repository = arguments.repository
+    version_txt = arguments.version
+
+    # parse version "0,0,1" -> (0,0,1)
+    try:
+        version = tuple(int(x.strip()) for x in version_txt.split(","))
+    except Exception:
+        version = (0, 0, 1)
+
+    try:
+        th = ToolkitHome()
+
+        # Resolve classpath -> class
+        toolkit_cls = locate(cls_path)
+        if toolkit_cls is None:
+            raise ImportError(f"Cannot locate class by classpath: {cls_path}")
+
+        # Call registerToolkit with a class object
+        th.registerToolkit(
+            toolkitclass=toolkit_cls,
+            projectName=project,
+            repositoryName=repository,
+            datasource_name=name,
+            version=version,
+            overwrite=True,
+        )
+        print(f"Toolkit '{name}' registered (cls={cls_path}, repo={repository}, version={version}).")
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+
+def toolkit_load(arguments):
+    """
+    Instantiate a toolkit by name.
+    Delegates to ToolkitHome.getToolkit (static -> DB -> dynamic import).
+    """
+    logger = logging.getLogger("hera.utils.CLI.toolkit_load")
+    project = arguments.project
+    name = arguments.name
+    try:
+        th = ToolkitHome()
+        try:
+            tk = th.getToolkit(toolkitName=name, projectName=project)
+        except Exception as ex:
+            # Optional: try auto-register (if you הוספת ב-toolkit.py)
+            auto = getattr(th, "auto_register_and_get", None)
+            if callable(auto):
+                tk = auto(toolkitName=name, projectName=project)
+            else:
+                raise ex
+
+        print(f"Loaded toolkit: {getattr(tk, 'name', name)}")
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+# --- Add to hera/utils/data/CLI.py ---
+
+def toolkit_default_repo_show(arguments):
+    """
+    Show the project's default repository, via ToolkitHome.getDefaultRepository(projectName=...).
+    """
+    import logging
+    logger = logging.getLogger("hera.utils.CLI.toolkit_default_repo_show")
+    project = getattr(arguments, "project", None) or "DefaultProject"
+    try:
+        from ...toolkit import ToolkitHome
+        th = ToolkitHome()
+        repo = th.getDefaultRepository(projectName=project)  # אתה כבר מימשת
+        print(repo if repo else "<no default repository>")
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+
+def toolkit_default_repo_set(arguments):
+    """
+    Set the project's default repository, via ToolkitHome.setDefaultRepository(projectName=..., repositoryName=...).
+    """
+    import logging
+    logger = logging.getLogger("hera.utils.CLI.toolkit_default_repo_set")
+    project = getattr(arguments, "project", None) or "DefaultProject"
+    repo_name = getattr(arguments, "repository", None)
+    if not repo_name:
+        print("[ERROR] --repository is required")
+        return
+    try:
+        from ...toolkit import ToolkitHome
+        th = ToolkitHome()
+        th.setDefaultRepository(projectName=project, repositoryName=repo_name)  # אתה כבר מימשת
+        print(f"Default repository set to '{repo_name}' for project '{project}'.")
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+
+def toolkit_import_json(arguments):
+    """
+    Import a JSON repository that declares toolkits (and optionally experiments),
+    and register them into the project.
+    Usage:
+      hera-toolkit import-json --project <name> --file <path> [--no-experiments]
+    """
+    import logging
+    logger = logging.getLogger("hera.utils.CLI.toolkit_import_json")
+    project = getattr(arguments, "project", None)
+    json_path = getattr(arguments, "file", None)
+    no_experiments = getattr(arguments, "no_experiments", False)
+
+    try:
+        from ...toolkit import ToolkitHome
+        th = ToolkitHome()
+
+        # טולקיטים
+        registered = th.import_toolkits_from_json(projectName=project, json_path=json_path)
+        print(f"Registered toolkits: {registered}" if registered else "No toolkits in JSON.")
+
+        # ניסויים (אופציונלי)
+        if not no_experiments:
+            exps = th.import_experiments_from_json(projectName=project, json_path=json_path)
+            if exps:
+                print(f"Loaded experiments data: {exps}")
+
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+# --- in hera/utils/data/CLI.py ---
+def project_measurements_list(arguments):
+    """
+    Print project measurements documents in a concise table.
+    Filters:
+      --project: project name (if omitted, Project may derive from CWD by your implementation)
+      --type:    filter by 'type' field (e.g., ToolkitDataSource, Experiment_rawData)
+      --contains: substring filter on 'datasourceName' or 'resource'
+    """
+    import logging
+    from tabulate import tabulate
+    logger = logging.getLogger("hera.utils.CLI.project_measurements_list")
+
+    project = getattr(arguments, "project", None)
+    typ = getattr(arguments, "type", None)
+    contains = getattr(arguments, "contains", None)
+
+    try:
+        from hera.datalayer import Project
+        proj = Project(projectName=project) if project else Project()
+
+        # Build query dict dynamically
+        query = {}
+        if typ:
+            query["type"] = typ
+
+        docs = proj.getMeasurementsDocuments(**query) or []
+
+        rows = []
+        for d in docs:
+            # Pull common fields safely (desc is a dict in most implementations)
+            desc = getattr(d, "desc", {}) or {}
+            rows.append({
+                "type": getattr(d, "type", "") or desc.get("type", ""),
+                "datasourceName": getattr(d, "datasourceName", "") or desc.get("datasourceName", ""),
+                "resource": getattr(d, "resource", "") or desc.get("resource", ""),
+                "dataFormat": getattr(d, "dataFormat", "") or desc.get("dataFormat", ""),
+                "version": getattr(d, "version", "") or desc.get("version", ""),
+                "repository": getattr(d, "repository", "") or desc.get("repository", ""),
+            })
+
+        # Optional substring filter
+        if contains:
+            needle = str(contains).lower()
+            rows = [r for r in rows if needle in str(r.get("datasourceName", "")).lower()
+                                  or needle in str(r.get("resource", "")).lower()]
+
+        if rows:
+            print(tabulate(rows, headers="keys", tablefmt="github"))
+        else:
+            print("No measurement documents found for the given filters.")
+
+    except Exception as e:
+        logger.exception(e)
+        print(f"[ERROR] {e}")
+
+
+
