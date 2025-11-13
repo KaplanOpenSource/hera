@@ -36,20 +36,37 @@ def _require_result_set():
 
 def _expected_base_dir():
     """
-    Returns Path('tests/expected/<RESULT_SET>').
-    Creates it in prepare-mode, errors in run-mode if missing.
+    Return Path('<HERA_UNITTEST_DATA>/expected/<RESULT_SET>').
+
+    Base directory is:
+      - $HERA_UNITTEST_DATA if defined
+      - otherwise: ~/hera_unittest_data
+
+    In prepare-mode (PREPARE_EXPECTED_OUTPUT=1) the directory is created
+    if missing. In run-mode it must already exist, otherwise we exit
+    with an error.
     """
     rs = _require_result_set()
-    base = Path("tests") / "expected" / rs
+
+    # Base root for all unittest data (configurable via env var)
+    unit_root = os.environ.get(
+        "HERA_UNITTEST_DATA",
+        os.path.expanduser("~/hera_unittest_data"),
+    )
+
+    base = Path(unit_root) / "expected" / rs
+
     is_prepare = os.environ.get("PREPARE_EXPECTED_OUTPUT") == "1"
     if is_prepare:
         base.mkdir(parents=True, exist_ok=True)
     else:
         if not base.exists():
             print(f"Expected results set '{rs}' not found at {base}", file=sys.stderr)
-            print(f"First create it: scripts/run_all_json_tests.sh prepare --result-set {rs}", file=sys.stderr)
+            print("First create it: scripts/run_all_json_tests.sh prepare --result-set {rs}", file=sys.stderr)
             sys.exit(3)
+
     return base
+
 
 # =========================
 # DataFrame comparisons
