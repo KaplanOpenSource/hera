@@ -21,6 +21,7 @@ TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
 import pydoc
 import pandas as pd
+from typing import Optional
 from hera.utils.data.toolkit_repository import ToolkitRepository  # new import for DB integration
 
 
@@ -277,26 +278,32 @@ class ToolkitHome:
         # Return an instance
         return self.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
-    def getToolkitTable(self, projectName):
+    def getToolkitTable(self, projectName: Optional[str]):
         """
-        Return a DataFrame that merges static toolkits with dynamic toolkits from DB.
+        Build a DataFrame from getToolkitDocuments(...).
+        This avoids duplicated logic and guarantees both static + DB rows are represented.
         """
-        repo = ToolkitRepository(projectName)
-        dynamic = repo.getToolkitTable()
+        import pandas as pd
 
-        static = []
-        for name, info in self._toolkits.items():
-            static.append({
-                "toolkit": name,
-                "cls": info["cls"],
-                "source": "internal",
-                "type": info.get("type", "measurements"),
-                "description": info.get("desc", "")
+        docs = self.getToolkitDocuments(name=None, projectName=projectName) or []
+        rows = []
+        for d in docs:
+            desc = d.get("desc", {})
+            rows.append({
+                "toolkit": d.get("toolkit", ""),
+                "cls": desc.get("classpath", ""),
+                "source": desc.get("source", ""),
+                "type": desc.get("type", ""),
+                "repositoryName": desc.get("repositoryName", ""),
+                "version": desc.get("version", ""),
             })
 
-        df_static = pd.DataFrame(static)
-        all_toolkits = pd.concat([df_static, dynamic], ignore_index=True).drop_duplicates("toolkit")
-        return all_toolkits
+        if not rows:
+            return pd.DataFrame(columns=["toolkit", "cls", "source", "type", "repositoryName", "version"])
+
+        # Drop duplicates by (toolkit, source) to avoid double rows for the same name/source
+        df = pd.DataFrame(rows).drop_duplicates(subset=["toolkit", "source"], keep="first")
+        return df
 
     # בתוך class ToolkitHome (בקובץ hera/toolkit.py)
 
@@ -462,6 +469,206 @@ class ToolkitHome:
 
         docs = proj.getMeasurementsDocuments(**q)
         return docs[0] if docs else None
+
+    # --- inside class ToolkitHome (toolkit.py) ---
+    from typing import Optional, List, Dict
+
+    def getToolkitDocuments(self, name: Optional[str] = None, projectName: Optional[str] = None) -> List[Dict]:
+        """
+        Single source of truth for listing toolkits.
+        Returns a uniform list of "document-like" dicts coming from:
+          1) Static registry (self._toolkits)
+          2) Dynamic DB documents (type='ToolkitDataSource') of the given project
+
+        Each item looks like:
+          {
+            "toolkit": "<name>",
+            "desc": {
+              "classpath": "<module.Class>",
+              "type": "<category>",                      # e.g. "measurements"
+              "source": "internal" | "db",
+              "repositoryName": "<repo or ''>",
+              "version": (major, minor, patch) | ""
+            }
+          }
+        """
+        docs: List[Dict] = []
+
+        # 1) Static: normalize entries to the unified shape
+        for tk_name, info in (self._toolkits or {}).items():
+            if name and tk_name != name:
+                continue
+            docs.append({
+                "toolkit": tk_name,
+                "desc": {
+                    "classpath": info.get("cls", ""),
+                    "type": info.get("type", "measurements"),
+                    "source": "internal",
+                    "repositoryName": "",
+                    "version": "",
+                }
+            })
+
+        # 2) Dynamic (DB): query the project's measurements for type='ToolkitDataSource'
+        if projectName:
+            try:
+                from hera.datalayer import Project
+                proj = Project(projectName=projectName)
+                dyn_docs = proj.getMeasurementsDocuments(type="ToolkitDataSource") or []
+                for d in dyn_docs:
+                    try:
+                        # Many implementations store all useful fields under desc
+                        desc = getattr(d, "desc", {}) or {}
+                        tk_name = desc.get("datasourceName") or getattr(d, "datasourceName", None)
+                        if not tk_name:
+                            continue
+                        if name and tk_name != name:
+                            continue
+
+                        docs.append({
+                            "toolkit": tk_name,
+                            "desc": {
+                                "classpath": desc.get("classpath", ""),
+                                # Fallback to "measurements" if type is not provided
+                                "type": desc.get("type", "") or "measurements",
+                                "source": "db",
+                                # Repository and version may appear either on desc or the document
+                                "repositoryName": desc.get("repository", "") or getattr(d, "repository", ""),
+                                "version": tuple(desc.get("version", ())) or getattr(d, "version", ""),
+                            }
+                        })
+                    except Exception:
+                        # Be forgiving for partially-formed rows
+                        pass
+            except Exception:
+                # No project/DB available: static list is still valuable
+                pass
+
+        return docs
+
+    # --- Add inside class ToolkitHome (toolkit.py) ---
+
+    def import_toolkits_from_json(self, *, projectName: str, json_path: str,
+                                  default_repository: str = None, overwrite: bool = True) -> list:
+        """
+        Read a simple JSON file and register all Toolkits it declares into the given project.
+        Each entry under 'toolkits' should include:
+          - name (datasourceName)
+          - classpath (module.Class)
+          - version [major,minor,patch] (optional, defaults to [0,0,1])
+          - parameters {} (optional)
+        The repository is taken from:
+          - 'repository' at the root of the JSON
+          - else default_repository argument
+          - else project's default repository (getDefaultRepository)
+
+        Returns a list of toolkit names that were registered.
+        """
+        import json
+        from pydoc import locate
+
+        if not projectName:
+            raise ValueError("import_toolkits_from_json: projectName is required")
+
+        with open(json_path, "r") as f:
+            payload = json.load(f) or {}
+
+        repo_from_json = (payload.get("repository") or "").strip()
+        repo_to_use = repo_from_json or (default_repository or self.getDefaultRepository(projectName=projectName))
+        if not repo_to_use:
+            raise ValueError(
+                f"No repository provided in JSON and no default repository set for project '{projectName}'. "
+                f"Set one via ToolkitHome.setDefaultRepository(...) or pass default_repository."
+            )
+
+        toolkits = payload.get("toolkits") or []
+        if not isinstance(toolkits, list):
+            raise ValueError("import_toolkits_from_json: 'toolkits' must be a list")
+
+        registered = []
+        for item in toolkits:
+            name = item.get("name")
+            classpath = item.get("classpath")
+            version = item.get("version", [0, 0, 1])
+            params = item.get("parameters", {})
+
+            if not name or not classpath:
+                raise ValueError(f"Toolkit entry missing name/classpath: {item}")
+
+            # locate class
+            tk_class = locate(classpath)
+            if tk_class is None:
+                raise ImportError(f"Cannot locate class by classpath: {classpath}")
+
+            # register
+            self.registerToolkit(
+                toolkitclass=tk_class,
+                projectName=projectName,
+                repositoryName=repo_to_use,
+                datasource_name=name,
+                params=params,
+                version=tuple(int(x) for x in version),
+                overwrite=overwrite,
+            )
+            registered.append(name)
+
+        return registered
+
+    def import_experiments_from_json(self, *, projectName: str, json_path: str) -> list:
+        """
+        From the same JSON, load raw experiment measurements (legacy path).
+        Each entry under 'experiments' is:
+          {
+            "name": "ExpName",
+            "data": [
+              { "type": "Experiment_rawData", "resource": "...", "dataFormat": "parquet", "desc": {...}, "isRelativePath": true }
+            ]
+          }
+        Returns a list of experiment names that were loaded.
+        """
+        import json
+        import os
+        from hera.datalayer import Project
+
+        if not projectName:
+            raise ValueError("import_experiments_from_json: projectName is required")
+
+        with open(json_path, "r") as f:
+            payload = json.load(f) or {}
+
+        experiments = payload.get("experiments") or []
+        if not isinstance(experiments, list):
+            raise ValueError("'experiments' must be a list")
+
+        proj = Project(projectName=projectName)
+        loaded = []
+
+        for exp in experiments:
+            exp_name = exp.get("name")
+            data_items = exp.get("data", [])
+            for di in data_items:
+                typ = di.get("type")
+                resource = di.get("resource")
+                data_fmt = di.get("dataFormat")
+                desc = di.get("desc", {})
+                is_rel = bool(di.get("isRelativePath", False))
+
+                res_path = resource
+                if is_rel:
+                    # שמירה על התנהגות "יחסית" לקובץ ה-JSON
+                    base = os.path.dirname(os.path.abspath(json_path))
+                    res_path = os.path.abspath(os.path.join(base, resource))
+
+                proj.addMeasurementsDocument(
+                    type=typ,
+                    resource=res_path,
+                    dataFormat=data_fmt,
+                    desc=desc,
+                )
+            if exp_name and exp_name not in loaded:
+                loaded.append(exp_name)
+
+        return loaded
 
 
 class abstractToolkit(Project):
