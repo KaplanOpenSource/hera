@@ -150,7 +150,11 @@ class ToolkitHome:
                 desc=None,
                 type="simulations"
             ),
-
+            experiment=dict(
+                cls="hera.measurements.experiment.experiment.experimentHome",
+                desc=None,
+                type="measurements"
+            ),
         )
 
     # --- Place this near the top of the file imports if needed ---
@@ -173,88 +177,23 @@ class ToolkitHome:
             return toolkitClass(projectName, filesDirectory=filesDirectory, **kwargs)
 
         # 2) Dynamic registry via DB (unchanged)
-        repo = ToolkitRepository(projectName or "DefaultProject")
-        doc = repo.getToolkitDocument(toolkitName)
-        if doc:
-            desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
-            resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
-            classpath = desc.get("classpath") or desc.get("cls")
-            if classpath:
-                norm_desc = dict(desc)
-                norm_desc["classpath"] = classpath
-                norm_desc.pop("cls", None)
-                # Use the dynamic Class loader path when classpath exists
-                return DataHandler_Class.getData(resource=resource, desc=norm_desc)
-            # If there is a dynamic doc but no classpath, we'll fall through to the shim
-
-        # 3) Fallback SHIM: no static and no usable dynamic class found -> wrap Project
-        class _FallbackToolkit(Project):
-            """
-            Minimal shim so repository JSON loader can operate on the project
-            even without a concrete Toolkit class.
-            """
-
-            def __init__(self, toolkitName, projectName, filesDirectory=None):
-                super().__init__(projectName=projectName)
-                self._toolkitname = toolkitName
-                self._projectName = projectName
-                self._filesDirectory = filesDirectory
-
-            # Keep parity with expected attributes in loaders
-            @property
-            def toolkitName(self):
-                return self._toolkitname
-
-            @property
-            def projectName(self):
-                return self._projectName
-
-            # Map the methods used by loaders to Project APIs
-
-            # DataSource layer
-            def getDataSourceDocuments(self, **qry):
-                return super().getDataSourceDocuments(**qry)
-
-            def deleteDataSource(self, *, datasourceName):
-                # remove by name if exists
-                try:
-                    docs = super().getDataSourceDocuments(datasourceName=datasourceName)
-                    for d in docs:
-                        d.delete()
-                except Exception:
-                    pass
-
-            def addDataSource(self, **item):
-                # Repository JSON usually passes resource, dataFormat, dataSourceName, etc.
-                return super().addDataSource(**item)
-
-            # Measurements / Cache / Simulations generic helpers used by _DocumentHandler
-            def getMeasurementsDocuments(self, **qry):
-                return super().getMeasurementsDocuments(**qry)
-
-            def addMeasurementsDocument(self, **kwargs):
-                return super().addMeasurementsDocument(**kwargs)
-
-            def getCacheDocuments(self, **qry):
-                return super().getCacheDocuments(**qry)
-
-            def addCacheDocument(self, **kwargs):
-                return super().addCacheDocument(**kwargs)
-
-            def getSimulationsDocuments(self, **qry):
-                return super().getSimulationsDocuments(**qry)
-
-            def addSimulationsDocument(self, **kwargs):
-                return super().addSimulationsDocument(**kwargs)
-
-            # Config used by _handle_Config
-            def setConfig(self, **cfg):
-                current = super().getConfig() or {}
-                current.update(cfg)
-                super().setConfig(**current)
+        # 
+        # repo = ToolkitRepository(projectName or "DefaultProject")
+        # doc = repo.getToolkitDocument(toolkitName)
+        # if doc:
+        #     desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
+        #     resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
+        #     classpath = desc.get("classpath") or desc.get("cls")
+        #     if classpath:
+        #         norm_desc = dict(desc)
+        #         norm_desc["classpath"] = classpath
+        #         norm_desc.pop("cls", None)
+        #         # Use the dynamic Class loader path when classpath exists
+        #         return DataHandler_Class.getData(resource=resource, desc=norm_desc)
+        #     # If there is a dynamic doc but no classpath, we'll fall through to the shim
 
         # Return the shim instance
-        return _FallbackToolkit(toolkitName=toolkitName, projectName=projectName, filesDirectory=filesDirectory)
+        #return _FallbackToolkit(toolkitName=toolkitName, projectName=projectName, filesDirectory=filesDirectory)
 
     # hera/toolkit.py  (inside class ToolkitHome)
     # -----------------------------------------------------------------------------
