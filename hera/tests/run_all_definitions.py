@@ -5,6 +5,7 @@ import math
 import glob
 import traceback
 import importlib
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -33,6 +34,25 @@ def _require_result_set():
         print("Missing RESULT_SET (set via --result-set or env RESULT_SET)", file=sys.stderr)
         sys.exit(2)
     return rs
+
+
+def _get_base_expected_dir() -> Path:
+    """
+    Resolve the base directory for expected results:
+    Prefer $HERA_UNITTEST_DATA/expected/<RESULT_SET>.
+    Fallback to tests/expected/<RESULT_SET> if HERA_UNITTEST_DATA is not set.
+    Create the directory in prepare mode.
+    """
+    rs = os.environ.get("RESULT_SET", "BASELINE")
+    env_root = os.environ.get("HERA_UNITTEST_DATA")
+    if env_root:
+        base = Path(env_root) / "expected" / rs
+    else:
+        base = Path("tests") / "expected" / rs
+
+    if os.environ.get("PREPARE_EXPECTED_OUTPUT", "0") == "1":
+        base.mkdir(parents=True, exist_ok=True)
+    return base
 
 def _expected_base_dir():
     """

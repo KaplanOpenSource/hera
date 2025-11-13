@@ -49,13 +49,19 @@ if [[ -z "${RESULT_SET_ARG}" && -z "${RESULT_SET:-}" ]]; then
 fi
 export RESULT_SET="${RESULT_SET_ARG:-${RESULT_SET}}"
 
-EXP_DIR="${REPO_ROOT}/tests/expected/${RESULT_SET}"
+# Expected directory must live under HERA_UNITTEST_DATA
+if [[ -z "${HERA_UNITTEST_DATA:-}" ]]; then
+  echo "HERA_UNITTEST_DATA is not set in tests/env.template"
+  exit 1
+fi
+EXP_DIR="${HERA_UNITTEST_DATA}/expected/${RESULT_SET}"
+
 if [[ "${MODE}" == "prepare" ]]; then
   mkdir -p "${EXP_DIR}"
   export PREPARE_EXPECTED_OUTPUT=1
 else
   if [[ ! -d "${EXP_DIR}" ]]; then
-    echo "Expected results set '${RESULT_SET}' not found at tests/expected/${RESULT_SET}"
+    echo "Expected results set '${RESULT_SET}' not found at ${EXP_DIR}"
     echo "First create it: $0 prepare --result-set ${RESULT_SET}"
     exit 3
   fi
@@ -91,7 +97,7 @@ else
   exit 5
 fi
 
-echo "MODE=${MODE} | RESULT_SET=${RESULT_SET} | EXP_DIR=tests/expected/${RESULT_SET}"
+echo "MODE=${MODE} | RESULT_SET=${RESULT_SET} | EXP_DIR=${EXP_DIR}"
 echo "RUNNER=${RUNNER}"
 echo "JSON_DIR=${JSON_DIR}"
 echo
