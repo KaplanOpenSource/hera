@@ -371,8 +371,12 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         elif isinstance(nameOrWorkflowFileOrJSONOrResource, dict) or isinstance(nameOrWorkflowFileOrJSONOrResource,
                                                                                 workflow):
-            qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON if isinstance(
-                nameOrWorkflowFileOrJSONOrResource, workflow) else nameOrWorkflowFileOrJSONOrResource
+            if isinstance(nameOrWorkflowFileOrJSONOrResource, workflow):
+                qryDict = nameOrWorkflowFileOrJSONOrResource.parametersJSON
+            else:
+                wrkflw = self.getHermesWorkflowFromJSON(nameOrWorkflowFileOrJSONOrResource)
+                qryDict = wrkflw.parametersJSON
+
             logger.debug(f"Searching for {qryDict} using parameters")
             currentQuery = dictToMongoQuery(qryDict, prefix="parameters")
             currentQuery.update(mongo_crit)
@@ -545,7 +549,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         workflowName = os.path.splitext(workflowFile)[0]
         doc = self.getWorkflowDocumentByName(workflowName)
         if not os.path.abspath(workflowFilePath).startswith(self.FilesDirectory):
-            raise ValueError(f"{workflowFilePath} is not in {self.FilesDirectory}")
+            raise ValueError(f"{os.path.abspath(workflowFilePath)} is not in {self.FilesDirectory}")
         if doc is None:
             workflowJSON = loadJSON(workflowFilePath)
             hermesWF = workflow(workflowJSON, self.FilesDirectory)
@@ -625,9 +629,12 @@ class hermesWorkflowToolkit(abstractToolkit):
                                                   workflow=hermesWF.json,
                                                   parameters=hermesWF.parametersJSON)
                                               )
-            if writeWorkflowToFile:
-                with open(os.path.join(self.FilesDirectory, f"{workflowName}.json"), "w") as outFile:
-                    json.dump(hermesWF.json, outFile, indent=4)
+
+        if writeWorkflowToFile:
+            workflowName = self.getworkFlowName(doc.desc['groupName'], doc.desc['groupID'])
+            hermesWF = workflow(doc.desc['workflow'], self.FilesDirectory)
+            with open(os.path.join(self.FilesDirectory, f"{workflowName}.json"), "w") as outFile:
+                json.dump(hermesWF.json, outFile, indent=4)
 
 
         return doc
