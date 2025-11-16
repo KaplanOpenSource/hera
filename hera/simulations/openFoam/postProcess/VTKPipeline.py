@@ -56,7 +56,10 @@ class VTKPipeLine:
 
     def addFilter(self, name, filterType, write=True, params=[]):
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
-        self.__setitem__(name, newFilter)
+        self.downstream[name] = newFilter
+        return self
+
+    def addFilterFromObj(self,name,):
         
     def addExistingFilter(self, filter):
         
