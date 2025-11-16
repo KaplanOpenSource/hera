@@ -23,6 +23,9 @@ class VTKPipeLine:
 
     FILTER_CELLCENTERS = "CellCenters"
     FILTER_SLICE = "Slice"
+    FILTER_PLOTOVERLINE = "PlotOverLine"
+    FILTER_EXTRACTBLOCK = "ExtractBlock"
+    FILTER_INTEGRATEVARIABLES= "IntegrateVariables"
 
     def __init__(self, datalayer, vtkPipeline=None):
         self.datalayer = datalayer
@@ -629,7 +632,15 @@ class vtkFilter_ExtractBlock(VTKFilter):
         ]
         super().__init__(name=name, filterType="ExtractBlock", write=write, **kwargs)
 
+    def setRegionsToExtract(self,patchList, internalMesh=True):
+        selectors = [f'/Root/boundary/{patchName}' for patchName in patchList]
+        if internalMesh:
+            selectors += ['/Root/internalMesh']
+
+        self.set_param("Selectors", selectors)
+
+
 
 class vtkFilter_IntegrateVariables(VTKFilter):
-    def __init__(self, name, write, patchList=[],internalMesh=False, **kwargs):
+    def __init__(self, name, write, **kwargs):
         super().__init__(name=name, filterType="IntegrateVariables", write=write, **kwargs)

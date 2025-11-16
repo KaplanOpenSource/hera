@@ -131,7 +131,12 @@ class OFToolkit(hermesWorkflowToolkit):
         -------
 
         """
-        doc = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(docList)==0:
+            return None
+        else:
+            doc = docList[0]
+
         return self.getMesh(doc.getData())
 
     def getMesh(self, caseDirectory, readParallel=True, time=0):
@@ -225,42 +230,56 @@ class OFToolkit(hermesWorkflowToolkit):
         -------
 
         """
-        doc = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(docList)==0:
+            return None
+        else:
+            doc = docList[0]
+
         return self.getMeshExtent(doc.getData())
+
+    def read_points_file(self,path):
+        pts = []
+        with open(path) as f:
+            lines = f.readlines()
+
+        # find the line containing only the number (e.g., "1606203")
+        idx = next(i for i,l in enumerate(lines) if l.strip().isdigit())
+
+        # points start 2 lines after that:
+        start = idx + 2
+
+        for line in lines[start:]:
+            line = line.strip()
+            if line == ")":      # end of list
+                break
+            if line.startswith("(") and line.endswith(")"):
+                x, y, z = line[1:-1].split()
+                pts.append([float(x), float(y), float(z)])
+        return numpy.array(pts)
 
 
     def getMeshExtent(self,caseDirectory):
         """
 
         """
-        blockmesh_path = os.path.join(caseDirectory,"system","blockMeshDict")
-        if not os.path.exists(blockmesh_path):
-            raise FileNotFoundError(f"File not found: {blockmesh_path}")
+        points_path = os.path.join(caseDirectory,"constant","polyMesh","points")
+        if not os.path.exists(points_path):
+            raise FileNotFoundError(f"File not found: {points_path}")
 
         # Parse the blockMeshDict
-        mesh_dict = ParsedParameterFile(blockmesh_path)
-
-        if "vertices" not in mesh_dict:
-            raise KeyError("No 'vertices' section found in blockMeshDict")
-
-        vertices = mesh_dict["vertices"]
-
-        # Convert list of tuples or lists to numpy array
-        coords = numpy.array(vertices, dtype=float)
+        pts = self.read_points_file(points_path)
 
         # Compute the coordinate bounds
-        xmin, ymin, zmin = coords.min(axis=0)
-        xmax, ymax, zmax = coords.max(axis=0)
+        xmin, ymin, zmin = pts.min(axis=0)
+        xmax, ymax, zmax = pts.max(axis=0)
 
         bounds = {
             "x": (xmin, xmax),
             "y": (ymin, ymax),
             "z": (zmin, zmax)
         }
-
         return bounds
-
-        return boundary_info
 
     def createEmptyCase(self, caseDirectory: str, fieldList: list, flowType: str, additionalFieldsDescription=dict()):
         """
