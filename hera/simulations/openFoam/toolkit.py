@@ -8,8 +8,9 @@ from itertools import chain
 from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
+from hera.utils import dictToMongoQuery
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
-
+import shutil
 from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
@@ -527,6 +528,118 @@ class OFToolkit(hermesWorkflowToolkit):
             ret.append(BoxRecord)
         return "\n".join(ret)
 
+    def getVTKPipelineCacheDocuments(self,regularMesh=None,filterName=None,simulationName=None,groupName=None):
+        """
+            Return the list of the cached documents in the case.
+        Parameters
+        ----------
+        regularMesh
+        filterName
+
+        Returns
+        -------
+
+        """
+        qry = dict()
+        if regularMesh is not None:
+            qry['regularMesh'] = regularMesh
+
+        if filterName is not None:
+            qry['filterName'] = filterName
+
+        if simulationName is not None:
+            simdata = qry.setdefault("simulation",dict())
+            simdata['simulationName'] = simulationName
+
+        if groupName is not None:
+            simdata = qry.setdefault("simulation",dict())
+            simdata['groupName'] = groupName
+
+        return self.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+
+    def clearVTKPipelineCache(self,regularMesh=None,filterName=None,simulationName=None,groupName=None):
+        """
+            deletes the cache documents and the data from the disk.
+            Use with care!.
+        Parameters
+        ----------
+        regularMesh
+        filterName
+        simulationName
+        groupName
+
+        Returns
+        -------
+
+        """
+
+        # 1. Get the potential filters to process
+        logger = get_classMethod_logger(self, "clearCache")
+
+        docList = self.getVTKPipelineCacheDocuments(regularMesh = regularMesh, filterName = filterName, simulationName = simulationName, groupName= groupName)
+
+        logger.info(f"Found {len(docList)} documents to delete. ")
+        for doc in docList:
+            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
+            outputFile = doc['resource']
+
+            if os.path.exists(outputFile):
+                if os.path.isfile(outputFile):
+                    os.remove(outputFile)
+                else:
+                    shutil.rmtree(outputFile)
+
+        for doc in docList:
+            doc.delete()
+
+    def getTimeList(self,nameOrWorkflowFileOrJSONOrResourceorDirectory,singleProcessor=False,returnFirst=True):
+        """
+            Extract the computed Time steps from the case.
+            Tries to load as parallel, and if fails falls to the single (unless singleProcessor is True
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResourceorDirectory: str
+                the case directory, Name, directory, json, or json-file of a case.
+        singleProcessor
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"getTimeList")
+        logger.info("Getting the simulation from the database")
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResourceorDirectory)
+        if len(docList) ==0 :
+            logger.info(f"Simulation not found, trying to interpret as a directory on the disk")
+            if os.path.exists(nameOrWorkflowFileOrJSONOrResourceorDirectory):
+                casePathList = [nameOrWorkflowFileOrJSONOrResourceorDirectory]
+            else:
+                err = f"Case {nameOrWorkflowFileOrJSONOrResourceorDirectory} not found in DB or on disk"
+                logger.error(err)
+                raise ValueError(err)
+        else:
+            casePathList = [(x.desc['workflowName'],x.getData()) for x in docList]
+
+        ret = dict()
+        for name,case in casePathList:
+
+            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(case, "processor*"))]
+            isSingle = len(processorList) == 0 or singleProcessor
+            if isSingle:
+                timeList = sorted([float(x) for x in os.listdir(case) if (
+                        os.path.isdir(x) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+            else:
+                timeList = sorted([float(x) for x in os.listdir(os.path.join(case, processorList[0])) if (
+                        os.path.isdir(os.path.join(case, processorList[0], x)) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+            ret[name] = timeList
+
+        return ret[casePathList[0][0]] if returnFirst else ret
 
 class Analysis:
     """

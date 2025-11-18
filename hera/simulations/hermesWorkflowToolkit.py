@@ -284,8 +284,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         return None if len(docList) == 0 else docList[0]
 
 
-    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations",
-                                  **query):
+    def getWorkflowDocumentFromDB(self, nameOrWorkflowFileOrJSONOrResource, doctype=None, dockind="Simulations",**query):
         """
             Tries to find item as name, workflow directory , groupname or through the resource.
             Additional queries are also applicable.
