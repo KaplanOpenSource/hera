@@ -220,9 +220,6 @@ class paraviewOpenFOAM:
         curstep['z'] = points[:, 2]
         curstep['time'] = timeslice
 
-        import pdb
-        pdb.set_trace()
-
         fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
             if isinstance(data.PointData[field], dsa.VTKNoneArray):
