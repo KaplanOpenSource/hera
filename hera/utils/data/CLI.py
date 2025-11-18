@@ -8,6 +8,9 @@ from ...datalayer import All as datalayer_All
 from .. import loadJSON
 from .toolkit import dataToolkit
 import pandas
+import logging
+from ...toolkit import ToolkitHome
+from pydoc import locate  # for resolving classpath -> class
 from tabulate import tabulate
 
 def project_list(arguments):
@@ -346,10 +349,7 @@ def db_create(arguments):
 def db_remove(arguments):
     removeConnection(arguments.connectionName)
 
-import logging
-from tabulate import tabulate
-from ...toolkit import ToolkitHome
-from pydoc import locate  # for resolving classpath -> class
+
 
 # --- in hera/utils/data/CLI.py ---
 def toolkit_list(arguments):
@@ -512,11 +512,9 @@ def toolkit_import_json(arguments):
         from ...toolkit import ToolkitHome
         th = ToolkitHome()
 
-        # טולקיטים
         registered = th.import_toolkits_from_json(projectName=project, json_path=json_path)
         print(f"Registered toolkits: {registered}" if registered else "No toolkits in JSON.")
 
-        # ניסויים (אופציונלי)
         if not no_experiments:
             exps = th.import_experiments_from_json(projectName=project, json_path=json_path)
             if exps:

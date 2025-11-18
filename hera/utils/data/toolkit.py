@@ -1,39 +1,53 @@
 import json
 import argparse
-from hera import toolkitHome,toolkit
-from hera.utils import loadJSON, dictToMongoQuery
-from hera.utils.logging import get_classMethod_logger
 import pathlib
 import os
 
+from hera.utils import loadJSON, dictToMongoQuery
+from hera.utils.logging import get_classMethod_logger
+from hera.toolkit import abstractToolkit, ToolkitHome
 
-class dataToolkit(toolkit.abstractToolkit):
+
+
+import json
+import argparse
+import pathlib
+import os
+
+from hera.utils import loadJSON, dictToMongoQuery
+from hera.utils.logging import get_classMethod_logger
+from hera.toolkit import abstractToolkit, ToolkitHome
+
+
+class dataToolkit(abstractToolkit):
     """
-        A toolkit to handle the data (replacing the function of hera-data).
+    Toolkit for managing data repositories (replacing the old hera-data).
 
-        It is initialized only with the DEFAULT project.
+    It is initialized only with the DEFAULT project.
 
-        The structure of a datasource file is:
+    The structure of a datasource file is:
+
         {
-            <toolkit name>: {
-              <datasource name>: {
-                "resource": <location of datasource>,
-                "dataFormat": <type of data source>,
-                "desc": {
-                  < any other parameters/ metadata descriptions of the datasource>
+            "<toolkit name>": {
+                "<datasource name>": {
+                    "resource": "<location of datasource>",
+                    "dataFormat": "<type of data source>",
+                    "desc": {
+                        ... metadata ...
+                    }
                 },
-                .
-                .
-
+                ...
             },
-            .
-            .
-
-       }
+            ...
+        }
     """
 
     def __init__(self):
-        super().__init__(toolkitName="heradata", projectName=self.DEFAULTPROJECT, filesDirectory=None)
+        # DEFAULTPROJECT comes from the base Project class (inherited via abstractToolkit)
+        super().__init__(toolkitName="heradata",
+                         projectName=self.DEFAULTPROJECT,
+                         filesDirectory=None)
+
 
     def addRepository(self, repositoryName, repositoryPath, overwrite=False):
         """
@@ -130,8 +144,10 @@ class dataToolkit(toolkit.abstractToolkit):
                            Function = self._handle_Function)
 
         # repositoryJSON is expected to be a dict mapping: toolkitName -> section
+        tk_home = ToolkitHome()
+
         for toolkitName, toolkitDict in (repositoryJSON or {}).items():
-            toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+            toolkit = tk_home.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
             for key, docTypeDict in toolkitDict.items():
                 logger.info(f"Loading document type {key} to toolkit {toolkitName}")
