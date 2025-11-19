@@ -212,13 +212,21 @@ class paraviewOpenFOAM:
             points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
 
         logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
-        curstep = pandas.DataFrame()
 
-        # create index
-        curstep['x'] = points[:, 0]
-        curstep['y'] = points[:, 1]
-        curstep['z'] = points[:, 2]
-        curstep['time'] = timeslice
+
+        # For filters like integrate, the len points.shape==1, and therefore [:,0] will break the code.
+        # However, it means that there are no points, and therefore we will skip it.
+        if len(points.shape)==2:
+            # create index
+            curstep = pandas.DataFrame()
+            curstep['x'] = points[:, 0]
+            curstep['y'] = points[:, 1]
+            curstep['z'] = points[:, 2]
+            curstep['time'] = timeslice
+            curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7),
+                                     time=curstep.time.round(7))
+        else:
+            curstep = pandas.DataFrame([dict(time=timeslice)])
 
         fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
@@ -229,20 +237,28 @@ class paraviewOpenFOAM:
             else:
                 arry = numpy.concatenate([numpy.array(x) for x in data.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
 
-            # Array shape length 1 - scalar.
+            # Array shape length 0 - Integration - a scalar that is not a field.
+            #                    1 - scalar.
             #					 2 - vector.
             #					 3 - tensor.
             # the dict holds their names.
             TypeIndex = len(arry.shape) - 1
-            for indxiter in product(*([range(3)] * TypeIndex)):
-                L = tuple([slice(None, None, None)] + list(indxiter))
-                try:
-                    curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
-                except ValueError:
-                    logger.warning("Field %s is problematic... ommiting" % field)
+            if TypeIndex >0:
+                for indxiter in product(*([range(3)] * TypeIndex)):
+                    L = tuple([slice(None, None, None)] + list(indxiter))
+                    try:
+                        curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
+                    except ValueError:
+                        logger.warning("Field %s is problematic... ommiting" % field)
+            else:
+                # For integrate variables filter, there is only scalar.
+                val = numpy.atleast_1d(arry)[0] # 0 dim did some troubles.
+                curstep[field] = val
 
-        curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7), time=curstep.time.round(7))
-        curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
+        if 'x' in curstep:
+            curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
+        else:
+            curstep = curstep.set_index(['time']).to_xarray() if regularMesh else curstep
 
         return curstep
 

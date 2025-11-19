@@ -4,7 +4,7 @@ from typing import Union
 import pandas
 import shutil
 import os
-
+from collections.abc import Iterable
 from hera.toolkit import abstractToolkit
 from hera.utils import loadJSON, compareJSONS
 from hera.utils.query import dictToMongoQuery
@@ -161,7 +161,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
             hermes workflow object (or one of its derivatives).
         """
-        docList = documentList if isinstance(documentList, list) else [documentList]
+        docList = documentList if isinstance(documentList, Iterable) else [documentList]
 
         if returnFirst:
             doc = docList[0]
@@ -241,7 +241,6 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         logger = get_classMethod_logger(self, "getHermesWorkflowFromDB")
         docList = self.getWorkflowListDocumentFromDB(nameOrWorkflowFileOrJSONOrResource, **query)
-
         if len(docList) == 0:
             logger.error(f"... not found. ")
             ret = None
@@ -560,7 +559,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                                                   groupID=workflowName.split("_")[-1],
                                                   workflowName=workflowName,
                                                   solver=hermesWF.solver,
-                                                  workflow=hermesWF.json,
+                                                  workflow=hermesWF.json['workflow'],
                                                   parameters=hermesWF.parametersJSON)
                                               )
         return doc

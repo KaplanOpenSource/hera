@@ -198,6 +198,7 @@ class torchLightingModelContainer(Project):
 
         ckpt_path_param = dict()
         ckpt_path = None
+
         if len(self.state_other_models) == 0:
             if continueTraining:
                 ckpt_path = self.checkpoint_path
