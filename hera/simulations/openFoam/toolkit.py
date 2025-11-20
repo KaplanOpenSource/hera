@@ -2,6 +2,7 @@ import numpy
 import os
 import glob
 import dask
+import pandas
 from evtk import hl as evtk_hl
 import dask.dataframe as dask_dataframe
 from itertools import chain
@@ -9,7 +10,6 @@ from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
 from hera.utils import dictToMongoQuery
-from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile
 import shutil
 from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
@@ -528,7 +528,7 @@ class OFToolkit(hermesWorkflowToolkit):
             ret.append(BoxRecord)
         return "\n".join(ret)
 
-    def getVTKPipelineCacheDocuments(self,regularMesh=None,filterName=None,simulationName=None,groupName=None):
+    def getVTKPipelineCacheDocuments(self, regularMesh=None, filterName=None, workflowName=None, groupName=None):
         """
             Return the list of the cached documents in the case.
         Parameters
@@ -547,17 +547,37 @@ class OFToolkit(hermesWorkflowToolkit):
         if filterName is not None:
             qry['filterName'] = filterName
 
-        if simulationName is not None:
+        if workflowName is not None:
             simdata = qry.setdefault("simulation",dict())
-            simdata['simulationName'] = simulationName
+            simdata['workflowName'] = workflowName
 
         if groupName is not None:
             simdata = qry.setdefault("simulation",dict())
             simdata['groupName'] = groupName
 
-        return self.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
 
-    def clearVTKPipelineCache(self,regularMesh=None,filterName=None,simulationName=None,groupName=None):
+        return self.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+
+    def getVTKPipelineCacheTable(self,regularMesh=None, filterName=None, workflowName=None, groupName=None):
+        """
+            Return the table.
+        Parameters
+        ----------
+        regularMesh
+        filterName
+        workflowName
+        groupName
+
+        Returns
+        -------
+
+        """
+        docList = self.getVTKPipelineCacheDocuments(regularMesh=regularMesh, filterName=filterName,
+                                                    workflowName=workflowName, groupName=groupName)
+        cacheDict = [dict(filterName=doc.desc['filterName'],workflowName=doc.desc['simulation']['workflowName'],groupName=doc.desc['simulation']['groupName']) for doc in docList]
+        return pandas.DataFrame(cacheDict)
+
+    def clearVTKPipelineCache(self, regularMesh=None, filterName=None, workflowName=None, groupName=None):
         """
             deletes the cache documents and the data from the disk.
             Use with care!.
@@ -565,7 +585,7 @@ class OFToolkit(hermesWorkflowToolkit):
         ----------
         regularMesh
         filterName
-        simulationName
+        workflowName
         groupName
 
         Returns
@@ -576,7 +596,7 @@ class OFToolkit(hermesWorkflowToolkit):
         # 1. Get the potential filters to process
         logger = get_classMethod_logger(self, "clearCache")
 
-        docList = self.getVTKPipelineCacheDocuments(regularMesh = regularMesh, filterName = filterName, simulationName = simulationName, groupName= groupName)
+        docList = self.getVTKPipelineCacheDocuments(regularMesh = regularMesh, filterName = filterName, workflowName= workflowName, groupName= groupName)
 
         logger.info(f"Found {len(docList)} documents to delete. ")
         for doc in docList:

@@ -213,7 +213,6 @@ class paraviewOpenFOAM:
 
         logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
 
-
         # For filters like integrate, the len points.shape==1, and therefore [:,0] will break the code.
         # However, it means that there are no points, and therefore we will skip it.
         if len(points.shape)==2:
@@ -243,7 +242,7 @@ class paraviewOpenFOAM:
             #					 3 - tensor.
             # the dict holds their names.
             TypeIndex = len(arry.shape) - 1
-            if TypeIndex >0:
+            if TypeIndex >=0:
                 for indxiter in product(*([range(3)] * TypeIndex)):
                     L = tuple([slice(None, None, None)] + list(indxiter))
                     try:

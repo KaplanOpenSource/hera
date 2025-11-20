@@ -319,7 +319,7 @@ class registeredVTKPipeLine:
         DBDocumentsDict = dict()
         for filterName in requestedFiltersToProcess:
             qry = self._buildFilterQuery(filterName=filterName,regularMesh=regularMesh)
-            docList = self.datalayer.getSimulationsDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+            docList = self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             # attempt to extract cached filter results
             if len(docList) > 0:
                 # There should only be one filter result cached
@@ -389,7 +389,7 @@ class registeredVTKPipeLine:
                 recordData = self._buildFilterQuery(filterName=filterName, regularMesh=regularMesh)
                 recordData['simulation']['timeList'] = timeList
                 dataFormat = self.datalayer.datatypes.ZARR_XARRAY if regularMesh else self.datalayer.datatypes.PARQUET
-                doc = self.datalayer.addSimulationsDocument(dataFormat=dataFormat,
+                doc = self.datalayer.addCacheDocument(dataFormat=dataFormat,
                                                             resource=os.path.abspath(filtersToComputeDict[filterName]),
                                                             type=TYPE_VTK_FILTER,
                                                             desc=recordData)
