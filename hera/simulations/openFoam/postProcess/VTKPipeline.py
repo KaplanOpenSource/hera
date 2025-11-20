@@ -373,6 +373,9 @@ class registeredVTKPipeLine:
                                     tsBlockNum=self.tsBlockNum,
                                     overwrite=overwrite, regularMesh=regularMesh)
 
+            for name, proxy in list(pvsimple.GetSources().items()):
+                pvsimple.Delete(proxy)
+
 
 
         # 4. Update the DB.
