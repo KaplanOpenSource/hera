@@ -3,6 +3,8 @@ import os
 import glob
 import dask
 import pandas
+import shutil
+import json
 from evtk import hl as evtk_hl
 import dask.dataframe as dask_dataframe
 from itertools import chain
@@ -10,13 +12,12 @@ from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
 from hera.utils import dictToMongoQuery
-import shutil
 from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 from hera.simulations.openFoam.postProcess.VTKPipeline import VTKPipeLine
 from hera.simulations.openFoam.lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
-from hera.utils.jsonutils import loadJSON
+from hera.utils.jsonutils import loadJSON,JSONVariations
 from hera.utils.logging import get_classMethod_logger
 from hera.simulations.openFoam.eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
 from hera.simulations.openFoam  import TYPE_VTK_FILTER
@@ -86,6 +87,57 @@ class OFToolkit(hermesWorkflowToolkit):
             logger.info(f"Executing {doc.desc['workflowName']}")
             os.chdir(doc.resource)
             os.system("./Allrun")
+
+    def prepareSlurmExecution(self,baseConfiguration,jsonVariations,decomposeProcessors,slurmExecutionFileName="submit_all.sh",caseListFileName="cases.txt"):
+        """
+            Adds the different configurations to the workgroup,
+
+        Parameters
+        ----------
+        baseConfiguration
+        jsonVariations
+        slurmExecutionFileName
+        caseListFileName
+
+        Returns
+        -------
+
+        """
+
+        logger = get_classMethod_logger(self,"prepareSlurmExecution")
+        caseList = ""
+        for counter, jsonConfig in enumerate(JSONVariations(baseConfiguration, jsonVariations)):
+            doc = self.addWorkflowToGroup(workflowJSON=jsonConfig,
+                                          groupName="effectiveArea",
+                                          writeWorkflowToFile=True)
+            caseList += f"{doc.desc['workflowName']}\n"
+            logger.info(f"Adding {doc.desc['workflowName']}")
+
+        slurmBatchFile = f"""#!/bin/bash
+#SBATCH --job-name=foam_cases
+#SBATCH --array=1-{counter}     # number of jobs = number of lines in cases.txt
+#SBATCH -n {decomposeProcessors} # number of CPUs per job
+#SBATCH --output=slurm_%A_%a.out
+
+# Read the directory for this array task
+dir=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {caseListFileName})
+
+echo "Running case in directory: $dir"
+
+hera-openFoam buildExecute "$dir" --overwrite
+
+cd "$dir" || {{ echo "Directory $dir not found"; exit 1; }}
+
+# Run the Allrun script
+bash Allrun"""
+
+        with open(slurmExecutionFileName,"w") as outputFile:
+            outputFile.write(slurmBatchFile)
+
+        with open(caseListFileName,"w") as outputFile:
+            outputFile.write(caseList)
+
+
 
     def processorList(self, caseDirectory):
         """
