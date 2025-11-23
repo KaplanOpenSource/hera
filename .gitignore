@@ -9,25 +9,19 @@ __pycache__
 *.pyc
 *.swp
 *.log
-build 
+build
 dist
 pyhera.egg-info/
 venv
-<<<<<<< HEAD
-heraenv/
-heraenv.bak/
-**/.ipynb_checkpoints/
-**/__pycache__/
-**/*.egg-info/
-**/site-packages/
-=======
 heraenv
 .venv
 .python-version
->>>>>>> origin/master
 
 # --- local venv & noise ---
 heraenv/
 heraenv.bak/
 **/__pycache__/
 **/.ipynb_checkpoints/
+.vscode/
+.venv
+.python-version

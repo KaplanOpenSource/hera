@@ -25,6 +25,7 @@ TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
 import pydoc
 import pandas as pd
+from typing import Optional
 from hera.utils.data.toolkit_repository import ToolkitRepository  # new import for DB integration
 
 
@@ -148,63 +149,164 @@ class ToolkitHome:
                 desc=None,
                 type="simulations"
             ),
-            jerusalem2018=dict(
-                cls="hera.measurements.experiment.jerusalem.Jerusalem2018.Jerusalem2018",
-                desc="Toolkit for the Jerusalem 2018 experiment",
+            machine_deep_learning=dict(
+                cls="hera.simulations.machineLearningDeepLearning.toolkit.machineLearningDeepLearningToolkit",
+                desc=None,
+                type="simulations"
+            ),
+            experiment=dict(
+                cls="hera.measurements.experiment.experiment.experimentHome",
+                desc=None,
                 type="measurements"
-            )
+            ),
         )
+
+    # --- Place this near the top of the file imports if needed ---
+    from hera.datalayer import Project
+
+    # --- Inside class ToolkitHome, replace ONLY the "not found" branch in getToolkit(...) ---
 
     def getToolkit(self, toolkitName, projectName=None, filesDirectory=None, **kwargs):
         """
         Locate a toolkit class by name (static registry or DB), then instantiate it.
+        If not found anywhere, return a lightweight fallback that wraps Project so that
+        repository JSON loading can still proceed without a concrete Toolkit class.
         """
+        # 1) Static registry (unchanged)
         if toolkitName in self._toolkits:
             clsName = self._toolkits[toolkitName]['cls']
             toolkitClass = pydoc.locate(clsName)
             if toolkitClass is None:
                 raise ImportError(f"Cannot locate class: {clsName}")
-            # טולקיטים פנימיים בדרך כלל מקבלים (projectName, filesDirectory=...)
             return toolkitClass(projectName, filesDirectory=filesDirectory, **kwargs)
 
-        repo = ToolkitRepository(projectName or "DefaultProject")
-        doc = repo.getToolkitDocument(toolkitName)
-        if not doc:
-            raise ValueError(f"Toolkit '{toolkitName}' not found in registry or database.")
+        # 2) Dynamic registry via DB (unchanged)
+        # 
+        # repo = ToolkitRepository(projectName or "DefaultProject")
+        # doc = repo.getToolkitDocument(toolkitName)
+        # if doc:
+        #     desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
+        #     resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
+        #     classpath = desc.get("classpath") or desc.get("cls")
+        #     if classpath:
+        #         norm_desc = dict(desc)
+        #         norm_desc["classpath"] = classpath
+        #         norm_desc.pop("cls", None)
+        #         # Use the dynamic Class loader path when classpath exists
+        #         return DataHandler_Class.getData(resource=resource, desc=norm_desc)
+        #     # If there is a dynamic doc but no classpath, we'll fall through to the shim
 
-        desc = getattr(doc, "desc", None) or (doc.get("desc", {}) if isinstance(doc, dict) else {})
-        resource = getattr(doc, "resource", None) or (doc.get("resource", "") if isinstance(doc, dict) else "")
+        # Return the shim instance
+        #return _FallbackToolkit(toolkitName=toolkitName, projectName=projectName, filesDirectory=filesDirectory)
 
-        classpath = desc.get("classpath") or desc.get("cls")
-        if not classpath:
-            raise ValueError(f"Toolkit '{toolkitName}' document missing 'cls'/'classpath' in desc.")
-
-        norm_desc = dict(desc)
-        norm_desc["classpath"] = classpath
-        norm_desc.pop("cls", None)
-
-        return DataHandler_Class.getData(resource=resource, desc=norm_desc)
-
-    def getToolkitTable(self, projectName):
+    # hera/toolkit.py  (inside class ToolkitHome)
+    # -----------------------------------------------------------------------------
+    # Auto-register a missing toolkit using classpath hints (from repository JSON
+    # or from the Toolkit document in DB) and then return an instance via getToolkit.
+    # -----------------------------------------------------------------------------
+    def auto_register_and_get(self,
+                              toolkitName: str,
+                              projectName: str,
+                              repositoryJSON: dict = None,
+                              repositoryName: str = None,
+                              params: dict = None,
+                              version: tuple = (0, 0, 1)):
         """
-        Return a DataFrame that merges static toolkits with dynamic toolkits from DB.
+        Attempts to auto-register a missing toolkit and return an instance.
+        1) Try to find a classpath hint in the repositoryJSON (if provided).
+           We look for keys like: repositoryJSON[toolkitName]["Registry"]["classpath"]
+           or ...["Registry"]["cls"].
+        2) If not found, try the DB-backed Toolkit document (ToolkitRepository).
+        3) Import the class, choose a repository to register into:
+             - repositoryName argument if provided,
+             - else the project's default repository (must exist).
+        4) Register via registerToolkit(...), then getToolkit(...) and return it.
         """
-        repo = ToolkitRepository(projectName)
-        dynamic = repo.getToolkitTable()
+        params = params or {}
+        classpath_hint = None
 
-        static = []
-        for name, info in self._toolkits.items():
-            static.append({
-                "toolkit": name,
-                "cls": info["cls"],
-                "source": "internal",
-                "type": info.get("type", "measurements"),
-                "description": info.get("desc", "")
+        # 1) Classpath hint in the repository JSON
+        if repositoryJSON:
+            try:
+                tk_section = repositoryJSON.get(toolkitName, {})
+                reg = tk_section.get("Registry", {})
+                classpath_hint = reg.get("classpath") or reg.get("cls")
+            except Exception:
+                pass
+
+        # 2) If still not found, try DB Toolkit document
+        if not classpath_hint:
+            from hera.utils.data.toolkit_repository import ToolkitRepository
+            repo = ToolkitRepository(projectName)
+            doc = repo.getToolkitDocument(toolkitName)
+            if doc and getattr(doc, "desc", None):
+                classpath_hint = doc.desc.get("classpath") or doc.desc.get("cls")
+
+        if not classpath_hint:
+            raise ValueError(
+                f"auto_register_and_get: no classpath hint found for toolkit '{toolkitName}'. "
+                f"Provide a 'Registry.classpath'/'cls' in repository JSON or seed a Toolkit document."
+            )
+
+        # Import the class
+        mod_name, _, cls_name = classpath_hint.rpartition(".")
+        if not mod_name or not cls_name:
+            raise ValueError(f"Invalid classpath hint: '{classpath_hint}'")
+        from importlib import import_module
+        try:
+            mod = import_module(mod_name)
+            toolkit_cls = getattr(mod, cls_name)
+        except Exception as exc:
+            raise ImportError(f"Failed to import '{classpath_hint}' for toolkit '{toolkitName}'") from exc
+
+        # Decide target repository for registration
+        repo_to_use = repositoryName or self.getDefaultRepository(projectName=projectName)
+        if not repo_to_use:
+            raise ValueError(
+                f"auto_register_and_get: no target repository for project '{projectName}'. "
+                f"Set a default repository or pass repositoryName explicitly."
+            )
+
+        # Register (idempotent if overwrite=True)
+        self.registerToolkit(
+            toolkitclass=toolkit_cls,
+            datasource_name=toolkitName,
+            params=params,
+            version=version,
+            overwrite=True,
+            projectName=projectName,
+            repositoryName=repo_to_use,
+        )
+
+        # Return an instance
+        return self.getToolkit(toolkitName=toolkitName, projectName=projectName)
+
+    def getToolkitTable(self, projectName: Optional[str]):
+        """
+        Build a DataFrame from getToolkitDocuments(...).
+        This avoids duplicated logic and guarantees both static + DB rows are represented.
+        """
+        import pandas as pd
+
+        docs = self.getToolkitDocuments(name=None, projectName=projectName) or []
+        rows = []
+        for d in docs:
+            desc = d.get("desc", {})
+            rows.append({
+                "toolkit": d.get("toolkit", ""),
+                "cls": desc.get("classpath", ""),
+                "source": desc.get("source", ""),
+                "type": desc.get("type", ""),
+                "repositoryName": desc.get("repositoryName", ""),
+                "version": desc.get("version", ""),
             })
 
-        df_static = pd.DataFrame(static)
-        all_toolkits = pd.concat([df_static, dynamic], ignore_index=True).drop_duplicates("toolkit")
-        return all_toolkits
+        if not rows:
+            return pd.DataFrame(columns=["toolkit", "cls", "source", "type", "repositoryName", "version"])
+
+        # Drop duplicates by (toolkit, source) to avoid double rows for the same name/source
+        df = pd.DataFrame(rows).drop_duplicates(subset=["toolkit", "source"], keep="first")
+        return df
 
     # בתוך class ToolkitHome (בקובץ hera/toolkit.py)
 
@@ -370,6 +472,206 @@ class ToolkitHome:
 
         docs = proj.getMeasurementsDocuments(**q)
         return docs[0] if docs else None
+
+    # --- inside class ToolkitHome (toolkit.py) ---
+    from typing import Optional, List, Dict
+
+    def getToolkitDocuments(self, name: Optional[str] = None, projectName: Optional[str] = None) -> List[Dict]:
+        """
+        Single source of truth for listing toolkits.
+        Returns a uniform list of "document-like" dicts coming from:
+          1) Static registry (self._toolkits)
+          2) Dynamic DB documents (type='ToolkitDataSource') of the given project
+
+        Each item looks like:
+          {
+            "toolkit": "<name>",
+            "desc": {
+              "classpath": "<module.Class>",
+              "type": "<category>",                      # e.g. "measurements"
+              "source": "internal" | "db",
+              "repositoryName": "<repo or ''>",
+              "version": (major, minor, patch) | ""
+            }
+          }
+        """
+        docs: List[Dict] = []
+
+        # 1) Static: normalize entries to the unified shape
+        for tk_name, info in (self._toolkits or {}).items():
+            if name and tk_name != name:
+                continue
+            docs.append({
+                "toolkit": tk_name,
+                "desc": {
+                    "classpath": info.get("cls", ""),
+                    "type": info.get("type", "measurements"),
+                    "source": "internal",
+                    "repositoryName": "",
+                    "version": "",
+                }
+            })
+
+        # 2) Dynamic (DB): query the project's measurements for type='ToolkitDataSource'
+        if projectName:
+            try:
+                from hera.datalayer import Project
+                proj = Project(projectName=projectName)
+                dyn_docs = proj.getMeasurementsDocuments(type="ToolkitDataSource") or []
+                for d in dyn_docs:
+                    try:
+                        # Many implementations store all useful fields under desc
+                        desc = getattr(d, "desc", {}) or {}
+                        tk_name = desc.get("datasourceName") or getattr(d, "datasourceName", None)
+                        if not tk_name:
+                            continue
+                        if name and tk_name != name:
+                            continue
+
+                        docs.append({
+                            "toolkit": tk_name,
+                            "desc": {
+                                "classpath": desc.get("classpath", ""),
+                                # Fallback to "measurements" if type is not provided
+                                "type": desc.get("type", "") or "measurements",
+                                "source": "db",
+                                # Repository and version may appear either on desc or the document
+                                "repositoryName": desc.get("repository", "") or getattr(d, "repository", ""),
+                                "version": tuple(desc.get("version", ())) or getattr(d, "version", ""),
+                            }
+                        })
+                    except Exception:
+                        # Be forgiving for partially-formed rows
+                        pass
+            except Exception:
+                # No project/DB available: static list is still valuable
+                pass
+
+        return docs
+
+    # --- Add inside class ToolkitHome (toolkit.py) ---
+
+    def import_toolkits_from_json(self, *, projectName: str, json_path: str,
+                                  default_repository: str = None, overwrite: bool = True) -> list:
+        """
+        Read a simple JSON file and register all Toolkits it declares into the given project.
+        Each entry under 'toolkits' should include:
+          - name (datasourceName)
+          - classpath (module.Class)
+          - version [major,minor,patch] (optional, defaults to [0,0,1])
+          - parameters {} (optional)
+        The repository is taken from:
+          - 'repository' at the root of the JSON
+          - else default_repository argument
+          - else project's default repository (getDefaultRepository)
+
+        Returns a list of toolkit names that were registered.
+        """
+        import json
+        from pydoc import locate
+
+        if not projectName:
+            raise ValueError("import_toolkits_from_json: projectName is required")
+
+        with open(json_path, "r") as f:
+            payload = json.load(f) or {}
+
+        repo_from_json = (payload.get("repository") or "").strip()
+        repo_to_use = repo_from_json or (default_repository or self.getDefaultRepository(projectName=projectName))
+        if not repo_to_use:
+            raise ValueError(
+                f"No repository provided in JSON and no default repository set for project '{projectName}'. "
+                f"Set one via ToolkitHome.setDefaultRepository(...) or pass default_repository."
+            )
+
+        toolkits = payload.get("toolkits") or []
+        if not isinstance(toolkits, list):
+            raise ValueError("import_toolkits_from_json: 'toolkits' must be a list")
+
+        registered = []
+        for item in toolkits:
+            name = item.get("name")
+            classpath = item.get("classpath")
+            version = item.get("version", [0, 0, 1])
+            params = item.get("parameters", {})
+
+            if not name or not classpath:
+                raise ValueError(f"Toolkit entry missing name/classpath: {item}")
+
+            # locate class
+            tk_class = locate(classpath)
+            if tk_class is None:
+                raise ImportError(f"Cannot locate class by classpath: {classpath}")
+
+            # register
+            self.registerToolkit(
+                toolkitclass=tk_class,
+                projectName=projectName,
+                repositoryName=repo_to_use,
+                datasource_name=name,
+                params=params,
+                version=tuple(int(x) for x in version),
+                overwrite=overwrite,
+            )
+            registered.append(name)
+
+        return registered
+
+    def import_experiments_from_json(self, *, projectName: str, json_path: str) -> list:
+        """
+        From the same JSON, load raw experiment measurements (legacy path).
+        Each entry under 'experiments' is:
+          {
+            "name": "ExpName",
+            "data": [
+              { "type": "Experiment_rawData", "resource": "...", "dataFormat": "parquet", "desc": {...}, "isRelativePath": true }
+            ]
+          }
+        Returns a list of experiment names that were loaded.
+        """
+        import json
+        import os
+        from hera.datalayer import Project
+
+        if not projectName:
+            raise ValueError("import_experiments_from_json: projectName is required")
+
+        with open(json_path, "r") as f:
+            payload = json.load(f) or {}
+
+        experiments = payload.get("experiments") or []
+        if not isinstance(experiments, list):
+            raise ValueError("'experiments' must be a list")
+
+        proj = Project(projectName=projectName)
+        loaded = []
+
+        for exp in experiments:
+            exp_name = exp.get("name")
+            data_items = exp.get("data", [])
+            for di in data_items:
+                typ = di.get("type")
+                resource = di.get("resource")
+                data_fmt = di.get("dataFormat")
+                desc = di.get("desc", {})
+                is_rel = bool(di.get("isRelativePath", False))
+
+                res_path = resource
+                if is_rel:
+                    # שמירה על התנהגות "יחסית" לקובץ ה-JSON
+                    base = os.path.dirname(os.path.abspath(json_path))
+                    res_path = os.path.abspath(os.path.join(base, resource))
+
+                proj.addMeasurementsDocument(
+                    type=typ,
+                    resource=res_path,
+                    dataFormat=data_fmt,
+                    desc=desc,
+                )
+            if exp_name and exp_name not in loaded:
+                loaded.append(exp_name)
+
+        return loaded
 
 
 class abstractToolkit(Project):
@@ -693,8 +995,8 @@ class abstractToolkit(Project):
                                                dataFormat=dataFormat,
                                                desc=kwargs)
         else:
-            raise ValueError(f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
-            print("exist: Raise exception (ValueError) that the record with the name that was given in the input already exists")
+            raise ValueError(
+                f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
 
         return doc
 
@@ -714,4 +1016,3 @@ class abstractToolkit(Project):
 
         self.setConfig(**{f"{datasourceName}_defaultVersion": version})
         print(f"{version} for dataSource {datasourceName} is now set to default.")
-

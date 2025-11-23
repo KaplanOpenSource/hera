@@ -1,9 +1,8 @@
 import json
 import argparse
-from ... import toolkitHome
-from ... import toolkit
-from ...utils import loadJSON, dictToMongoQuery
-from ..logging import get_classMethod_logger
+from hera import toolkitHome,toolkit
+from hera.utils import loadJSON, dictToMongoQuery
+from hera.utils.logging import get_classMethod_logger
 import pathlib
 import os
 
@@ -102,7 +101,25 @@ class dataToolkit(toolkit.abstractToolkit):
                                                          basedir=basedir,
                                                          overwrite=overwrite)
 
-    def loadAllDatasourcesInRepositoryJSONToProject(self, projectName, repositoryJSON,basedir, overwrite=False):
+    # hera/utils/data/toolkit.py  (inside class dataToolkit)
+    # -----------------------------------------------------------------------------
+    # Load all datasources from a repository JSON into a project.
+    # If a toolkit is missing, try to auto-register it using classpath hints.
+    # -----------------------------------------------------------------------------
+    def loadAllDatasourcesInRepositoryJSONToProject(self,
+                                                    projectName: str,
+                                                    repositoryJSON: dict,
+                                                    basedir: str = "",
+                                                    overwrite: bool = False,
+                                                    auto_register_missing: bool = True):
+        """
+        Iterate through the repository JSON and for each toolkit:
+        - Ensure we can instantiate it (ToolkitHome.getToolkit).
+        - If missing and auto_register_missing=True, attempt auto-register using:
+            * Registry.classpath or Registry.cls in the JSON, or
+            * Toolkit document from DB.
+        - After we have the instance, proceed with per-toolkit loading logic.
+        """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
 
         handlerDict = dict(Config = self._handle_Config,
@@ -112,31 +129,23 @@ class dataToolkit(toolkit.abstractToolkit):
                            Cache = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Cache",basedir),
                            Function = self._handle_Function)
 
-        for toolkitName, toolkitDict in repositoryJSON.items():
-            logger.info(f"Loading into toolkit  {toolkitName}")
-            try:
+        # repositoryJSON is expected to be a dict mapping: toolkitName -> section
+        for toolkitName, toolkitDict in (repositoryJSON or {}).items():
+            toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
 
-                toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+            for key, docTypeDict in toolkitDict.items():
+                logger.info(f"Loading document type {key} to toolkit {toolkitName}")
+                handler = handlerDict.get(key.title(),None)
 
-
-                for key, docTypeDict in toolkitDict.items():
-                    logger.info(f"Loading document type {key} to toolkit {toolkitName}")
-                    handler = handlerDict.get(key.title(),None)
-
-                    if handler is None:
-                        err = f"Unkonw Handler {key.title()}. The handler must be {','.join(handlerDict.keys())}. "
-                        logger.error(err)
-                        raise ValueError(err)
-                    try:
-                        handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
-                    except Exception as e:
-                        err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
-                        logger.error(err)
-
-
-            except Exception as e:
-                err = f"The error {e} occured while adding toolkit {toolkitName}... skipping!"
-                logger.error(err)
+                if handler is None:
+                    err = f"Unkonw Handler {key.title()}. The handler must be {','.join(handlerDict.keys())}. "
+                    logger.error(err)
+                    raise ValueError(err)
+                try:
+                    handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
+                except Exception as e:
+                    err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                    logger.error(err)
 
 
     def _handle_Config(self,toolkit,itemName,docTypeDict,overwrite,basedir):

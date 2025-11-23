@@ -1,0 +1,459 @@
+{
+    "workflow": {
+        "root": null,
+        "solver": "simpleFoam",
+        "SolvedFields": "p U k omega nut",
+        "AuxFields": "",
+        "Templates": [],
+        "nodeList": [
+            "Parameters",
+            "createEmptyCase",
+            "createClassyBlocksPipe",
+            "decomposePar",
+            "controlDict",
+            "fvSchemes",
+            "fvSolution",
+            "physicalProperties",
+            "momentumTransport",
+            "defineNewBoundaryConditions",
+            "buildAllRun",
+            "fileWriter",
+            "runSimulation"
+        ],
+        "nodes": {
+            "Parameters": {
+                "Execution": {
+                    "input_parameters": {
+                        "OFversion": "of10",
+                        "targetDirectory": "{#moduleName}",
+                        "decomposeProcessors": 30
+                    }
+                },
+                "type": "general.Parameters"
+            },
+            "createEmptyCase": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "hera-openFoam {workflow.solver} case createEmpty {Parameters.output.targetDirectory} --fields {workflow.SolvedFields}"
+                    }
+                },
+                "type": "general.RunOsCommand"
+            },
+            "createClassyBlocksPipe": {
+                "Execution": {
+                    "input_parameters": {
+                        "ModulePath": "generate_pipe_mesh",
+                        "ClassName": "pipe_mesher",
+                        "MethodName": "create_pipe",
+                        "Parameters": {
+                            "target_dir": "{Parameters.output.targetDirectory}/system"
+                        }
+                    }
+                },
+                "requires": "fileWriter",
+                "type": "general.RunPythonCode"
+            },
+            "decomposePar": {
+                "Execution": {
+                    "input_parameters": {
+                        "numberOfSubdomains": "{Parameters.output.decomposeProcessors}"
+                    }
+                },
+                "type": "openFOAM.system.DecomposePar"
+            },
+            "controlDict": {
+                "Execution": {
+                    "input_parameters": {
+                        "values": {
+                            "application": "{workflow.solver}",
+                            "startFrom": "startTime",
+                            "startTime": 0,
+                            "stopAt": "endTime",
+                            "endTime": 500,
+                            "deltaT": 0.1,
+                            "writeControl": "timeStep",
+                            "writeInterval": 50,
+                            "runTimeModifiable": true,
+                            "interpolate": true,
+                            "adjustTimeStep": true,
+                            "purgeWrite": 0,
+                            "writeFormat": "ascii",
+                            "writePrecision": 6,
+                            "writeCompression": false,
+                            "timeFormat": "general",
+                            "timePrecision": 6,
+                            "maxCo": 0.5,
+                            "functions": [],
+                            "libs": []
+                        }
+                    }
+                },
+                "type": "openFOAM.system.ControlDict"
+            },
+            "fvSchemes": {
+                "Execution": {
+                    "input_parameters": {
+                        "default": {
+                            "ddtScheme": "steadyState",
+                            "gradSchemes": {
+                                "type": "Gauss",
+                                "name": "linear"
+                            },
+                            "divSchemes": {
+                                "type": "Gauss",
+                                "name": "linear"
+                            },
+                            "interpolationSchemes": "linear",
+                            "snGradSchemes": "corrected",
+                            "wallDist": "meshWave",
+                            "laplacianSchemes": {
+                                "type": "Gauss",
+                                "name": "linear",
+                                "parameters": "corrected"
+                            }
+                        },
+                        "fields": {
+                            "U": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "phi": "phi",
+                                        "type": "bounded Gauss",
+                                        "name": "linearUpwind",
+                                        "parameters": "grad(U)"
+                                    }
+                                ]
+                            },
+                            "k": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "phi": "phi",
+                                        "type": "bounded Gauss",
+                                        "name": "linearUpwind",
+                                        "parameters": "grad(U)"
+                                    }
+                                ]
+                            },
+                            "omega": {
+                                "fluxRequired ": false,
+                                "divSchemes": [
+                                    {
+                                        "phi": "phi",
+                                        "type": "bounded Gauss",
+                                        "name": "linearUpwind",
+                                        "parameters": "grad(U)"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.FvSchemes"
+            },
+            "fvSolution": {
+                "Execution": {
+                    "input_parameters": {
+                        "fields": {
+                            "p": {
+                                "solver": "GAMG",
+                                "preconditioner": "DIC",
+                                "tolerance": 1e-08,
+                                "relTol": 0.1,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PCG",
+                                    "preconditioner": "DIC",
+                                    "tolerance": 1e-08,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                },
+                                "smoother": "GaussSeidel"
+                            },
+                            "U": {
+                                "solver": "smoothSolver",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.1,
+                                "maxIter": 5000,
+                                "final": {
+                                    "solver": "PBiCG",
+                                    "preconditioner": "DILU",
+                                    "tolerance": 1e-08,
+                                    "relTol": 0,
+                                    "maxIter": 5000
+                                },
+                                "smoother": "GaussSeidel",
+                                "nSweeps": 2
+                            },
+                            "omega": {
+                                "solver": "smoothSolver",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.1,
+                                "maxIter": 5000,
+                                "smoother": "GaussSeidel",
+                                "nSweeps": 2
+                            },
+                            "k": {
+                                "solver": "smoothSolver",
+                                "preconditioner": "DILU",
+                                "tolerance": 1e-08,
+                                "relTol": 0.1,
+                                "maxIter": 5000,
+                                "smoother": "GaussSeidel",
+                                "nSweeps": 2
+                            }
+                        },
+                        "solverProperties": {
+                            "algorithm": "SIMPLE",
+                            "residualControl": {
+                                "p": 0.0001,
+                                "U": 0.0001,
+                                "k": 0.0001,
+                                "omega": 0.0001
+                            },
+                            "solverFields": {
+                                "nNonOrthogonalCorrectors": 0,
+                                "pRefCell": 0,
+                                "pRefValue": 0
+                            }
+                        },
+                        "relaxationFactors": {
+                            "fields": {
+                                "p": 0.4,
+                                "U": 0.15
+                            },
+                            "equations": {
+                                "p": {
+                                    "factor": 0.4,
+                                    "final": 0.4
+                                },
+                                "U": {
+                                    "factor": 0.5,
+                                    "final": 0.7
+                                },
+                                "k": {
+                                    "factor": 0.6
+                                },
+                                "omega": {
+                                    "factor": 0.6
+                                }
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.FvSolution"
+            },
+            "physicalProperties": {
+                "Execution": {
+                    "input_parameters": {
+                        "transportModel": "constant",
+                        "nu": 1e-05,
+                        "parameters": {
+                            "nu": {
+                                "dimensions": "[0 2 -1 0 0 0 0]",
+                                "value": 2e-05
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.constant.physicalProperties"
+            },
+            "momentumTransport": {
+                "Execution": {
+                    "input_parameters": {
+                        "simulationType": "RAS",
+                        "Model": "kOmegaSST",
+                        "turbulence": true
+                    }
+                },
+                "type": "openFOAM.constant.momentumTransport"
+            },
+            "defineNewBoundaryConditions": {
+                "Execution": {
+                    "input_parameters": {
+                        "fields": {
+                            "U": {
+                                "internalField": "uniform (0 0 0)",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform (15 0 0)"
+                                    },
+                                    "outlet": {
+                                        "type": "inletOutlet",
+                                        "inletValue": "uniform (0 0 0)"
+                                    },
+                                    "walls": {
+                                        "type": "noSlip"
+                                    }
+                                }
+                            },
+                            "omega": {
+                                "internalField": "uniform 203.9409",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "fixedValue",
+                                        "value": "$internalField"
+                                    },
+                                    "outlet": {
+                                        "type": "zeroGradient"
+                                    },
+                                    "walls": {
+                                        "type": "omegaWallFunction",
+                                        "value": "uniform  0    "
+                                    }
+                                }
+                            },
+                            "k": {
+                                "internalField": "uniform 0.3912",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform  6e-4"
+                                    },
+                                    "outlet": {
+                                        "type": "zeroGradient"
+                                    },
+                                    "walls": {
+                                        "type": "kLowReWallFunction",
+                                        "value": "uniform  0"
+                                    }
+                                }
+                            },
+                            "nut": {
+                                "internalField": "uniform 0",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "calculated",
+                                        "value": "uniform  0"
+                                    },
+                                    "outlet": {
+                                        "type": "calculated",
+                                        "value": "uniform  0"
+                                    },
+                                    "walls": {
+                                        "type": "nutUSpaldingWallFunction",
+                                        "value": "uniform  0"
+                                    }
+                                }
+                            },
+                            "p": {
+                                "internalField": "uniform 0",
+                                "boundaryField": {
+                                    "inlet": {
+                                        "type": "zeroGradient"
+                                    },
+                                    "outlet": {
+                                        "type": "fixedValue",
+                                        "value": "uniform 0"
+                                    },
+                                    "walls": {
+                                        "type": "zeroGradient"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "type": "openFOAM.system.ChangeDictionary"
+            },
+            "buildAllRun": {
+                "Execution": {
+                    "input_parameters": {
+                        "casePath": "{Parameters.output.targetDirectory}",
+                        "caseExecution": {
+                            "parallelCase": true,
+                            "slurm": false,
+                            "getNumberOfSubdomains": "{Parameters.output.decomposeProcessors}",
+                            "runFile": []
+                        },
+                        "parallelCase": true,
+                        "runFile": [
+                            {
+                                "name": "blockMesh",
+                                "couldRunInParallel": false,
+                                "parameters": null
+                            },
+                            {
+                                "name": "decomposePar",
+                                "parameters": "-force",
+                                "couldRunInParallel": false
+                            },
+                            {
+                                "name": "changeDictionary",
+                                "parameters": null,
+                                "couldRunInParallel": true
+                            },
+                            {
+                                "name": "simpleFoam",
+                                "parameters": null,
+                                "couldRunInParallel": true
+                            }
+                        ]
+                    }
+                },
+                "requires": "createClassyBlocksPipe",
+                "type": "openFOAM.BuildAllrun"
+            },
+            "fileWriter": {
+                "Execution": {
+                    "input_parameters": {
+                        "directoryPath": ".",
+                        "Files": {
+                            "decomposePar": {
+                                "fileName": "system/decomposeParDict",
+                                "fileContent": "{decomposePar.output.openFOAMfile}"
+                            },
+                            "controlDict": {
+                                "fileName": "system/controlDict",
+                                "fileContent": "{controlDict.output.openFOAMfile}"
+                            },
+                            "fvSchemes": {
+                                "fileName": "system/fvSchemes",
+                                "fileContent": "{fvSchemes.output.openFOAMfile}"
+                            },
+                            "fvSolution": {
+                                "fileName": "system/fvSolution",
+                                "fileContent": "{fvSolution.output.openFOAMfile}"
+                            },
+                            "physphysicalProperties": {
+                                "fileName": "constant/physicalProperties",
+                                "fileContent": "{physicalProperties.output.openFOAMfile}"
+                            },
+                            "momentumTransport": {
+                                "fileName": "constant/momentumTransport",
+                                "fileContent": "{momentumTransport.output.openFOAMfile}"
+                            },
+                            "changeDictionary": {
+                                "fileName": "system/changeDictionaryDict",
+                                "fileContent": "{defineNewBoundaryConditions.output.openFOAMfile}"
+                            }
+                        },
+                        "casePath": "{Parameters.output.targetDirectory}"
+                    }
+                },
+                "requires": "createEmptyCase",
+                "type": "general.FilesWriter"
+            },
+            "runSimulation": {
+                "Execution": {
+                    "input_parameters": {
+                        "Method": "Command list",
+                        "Command": "./Allrun",
+                        "changeDirTo": "{Parameters.output.targetDirectory}"
+                    }
+                },
+                "requires": [
+                    "buildAllRun",
+                    "createEmptyCase",
+                    "fileWriter",
+                    "createClassyBlocksPipe"
+                ],
+                "type": "general.RunOsCommand"
+            }
+        }
+    }
+}
