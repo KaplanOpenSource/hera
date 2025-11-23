@@ -525,60 +525,73 @@ def toolkit_import_json(arguments):
         print(f"[ERROR] {e}")
 
 # --- in hera/utils/data/CLI.py ---
-def project_measurements_list(arguments):
+@staticmethod
+def project_measurements_list(args):
     """
-    Print project measurements documents in a concise table.
-    Filters:
-      --project: project name (if omitted, Project may derive from CWD by your implementation)
-      --type:    filter by 'type' field (e.g., ToolkitDataSource, Experiment_rawData)
-      --contains: substring filter on 'datasourceName' or 'resource'
+    Implementation for:
+      hera-project project measurements list
+      (used also by 'simulations list' and 'cache list' via shortcut)
     """
-    import logging
-    from tabulate import tabulate
-    logger = logging.getLogger("hera.utils.CLI.project_measurements_list")
+    from hera.datalayer import Project
 
-    project = getattr(arguments, "project", None)
-    typ = getattr(arguments, "type", None)
-    contains = getattr(arguments, "contains", None)
+    project = getattr(args, "project", None)
+    mtype = getattr(args, "type", None)
+    shortcut = getattr(args, "shortcut", None)
+    contains = getattr(args, "contains", None)
 
-    try:
-        from hera.datalayer import Project
-        proj = Project(projectName=project) if project else Project()
+    # Map shortcuts to measurement types
+    shortcut_map = {
+        "ds": "ToolkitDataSource",      # dynamic toolkits
+        "exp": "Experiment_rawData",    # experiments
+        "sim": "Simulation_rawData",    # (אם יהיה)
+        "cache": "Cache_rawData",       # (אם יהיה)
+        "all": None,                    # no type filter
+    }
 
-        # Build query dict dynamically
-        query = {}
-        if typ:
-            query["type"] = typ
+    if shortcut:
+        if shortcut not in shortcut_map:
+            print(f"Unknown shortcut '{shortcut}'. Valid: {', '.join(shortcut_map.keys())}")
+            return
+        mtype = shortcut_map[shortcut]
 
-        docs = proj.getMeasurementsDocuments(**query) or []
+    # Open project (or default)
+    proj = Project(projectName=project) if project else Project()
 
-        rows = []
+    query = {}
+    if mtype:
+        query["type"] = mtype
+
+    docs = proj.getMeasurementsDocuments(**query)
+
+    # Optional substring filter
+    if contains:
+        filtered = []
         for d in docs:
-            # Pull common fields safely (desc is a dict in most implementations)
-            desc = getattr(d, "desc", {}) or {}
-            rows.append({
-                "type": getattr(d, "type", "") or desc.get("type", ""),
-                "datasourceName": getattr(d, "datasourceName", "") or desc.get("datasourceName", ""),
-                "resource": getattr(d, "resource", "") or desc.get("resource", ""),
-                "dataFormat": getattr(d, "dataFormat", "") or desc.get("dataFormat", ""),
-                "version": getattr(d, "version", "") or desc.get("version", ""),
-                "repository": getattr(d, "repository", "") or desc.get("repository", ""),
-            })
+            name = getattr(d, "datasourceName", "") or d.desc.get("datasourceName", "")
+            resource = getattr(d, "resource", "") or ""
+            if contains in str(name) or contains in str(resource):
+                filtered.append(d)
+        docs = filtered
 
-        # Optional substring filter
-        if contains:
-            needle = str(contains).lower()
-            rows = [r for r in rows if needle in str(r.get("datasourceName", "")).lower()
-                                  or needle in str(r.get("resource", "")).lower()]
+    if not docs:
+        print("No measurements found for given filters.")
+        return
 
-        if rows:
-            print(tabulate(rows, headers="keys", tablefmt="github"))
-        else:
-            print("No measurement documents found for the given filters.")
+    # Build rows for pretty table
+    rows = []
+    for d in docs:
+        rows.append({
+            "type": getattr(d, "type", ""),
+            "datasourceName": getattr(d, "datasourceName", "") or d.desc.get("datasourceName", ""),
+            "resource": getattr(d, "resource", ""),
+            "dataFormat": getattr(d, "dataFormat", ""),
+            "version": d.desc.get("version", ""),
+            "repository": d.desc.get("repository", ""),
+        })
 
-    except Exception as e:
-        logger.exception(e)
-        print(f"[ERROR] {e}")
+    import pandas as pd
+    df = pd.DataFrame(rows)
+    print(df.to_markdown(index=False))
 
 
 
