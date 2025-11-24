@@ -202,7 +202,18 @@ class registeredVTKPipeLine:
         self.vtkpipeline = vtkpipeline
         self.tsBlockNum = 50
 
-        if os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
+        simulationDocumentList = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if simulationDocumentList is not None:
+            simulationDocument = simulationDocumentList[0]
+            self.casePath = simulationDocument.resource
+            self.simulationDocument = simulationDocument
+            simulationProperties = self.simulationDocument['desc'].copy()
+            self.simulationParams = {
+                "workflowName": simulationProperties['workflowName'],
+                "groupName": simulationProperties['groupName'],
+                "workflowParameters": simulationProperties['parameters']
+            }
+        elif os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
             self.casePath = nameOrWorkflowFileOrJSONOrResource
             self.simulationDocument = None
             simName = os.path.basename(self.casePath)
@@ -210,25 +221,11 @@ class registeredVTKPipeLine:
             self.simulationParams = {
                 "workflowName": os.path.basename(self.casePath),
                 "groupName": groupName,
-                "workflowProperties": {}
+                "workflowParameters": {}
             }
 
         else:
-            simulationDocumentList = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-            if simulationDocumentList is not None:
-                simulationDocument = simulationDocumentList[0]
-                self.casePath = simulationDocument.resource
-                self.simulationDocument = simulationDocument
-                simulationProperties = self.simulationDocument['desc'].copy()
-                self.simulationParams = {
-                    "workflowName": simulationProperties['workflowName'],
-                    "groupName": simulationProperties['groupName'],
-                    "workflowParameters": simulationProperties['parameters']
-                }
-
-            else:
-                raise ValueError(
-                    f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
+            raise ValueError(f"Simulation {nameOrWorkflowFileOrJSONOrResource} is not in the DB, and does not represent a valid case directory")
 
         self.pvOFBase = paraviewOpenFOAM(casePath=self.casePath,
                                          caseType=caseType,
