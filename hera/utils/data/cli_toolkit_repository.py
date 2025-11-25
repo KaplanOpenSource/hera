@@ -22,7 +22,8 @@ from importlib import import_module
 from typing import Any, Dict, Tuple
 
 from hera.toolkit import ToolkitHome
-from hera.utils.data.toolkit_repository import ToolkitRepository
+from hera.datalayer import Project
+
 
 
 # ------------------------------- Utilities -----------------------------------
@@ -161,6 +162,7 @@ def cmd_add_doc(args: argparse.Namespace) -> None:
         if mod_name and cls_name:
             try:
                 # Try importing to verify the classpath really exists
+                from importlib import import_module
                 mod = import_module(mod_name)
                 getattr(mod, cls_name)
                 keep_classpath = True
@@ -179,26 +181,29 @@ def cmd_add_doc(args: argparse.Namespace) -> None:
     if keep_classpath:
         desc["classpath"] = classpath   # only if verified importable
 
-    # Upsert via Project API
-    repo = ToolkitRepository(args.project)               # helper for lookups
-    existing = repo.getToolkitDocument(args.name)        # returns measurements doc or None
+    # Upsert via Project API (no ToolkitRepository)
+    proj = Project(projectName=args.project)
+    existing = proj.getMeasurementsDocuments(
+        type="ToolkitDataSource",
+        datasourceName=args.name,
+    )
 
     if existing and not args.overwrite:
         print(f"(exists) Toolkit '{args.name}' already present; use --overwrite to replace")
         return
 
-    # If exists and overwrite requested -> delete old doc
+    # If exists and overwrite requested -> delete old docs
     if existing:
-        try:
-            existing.delete()
-        except Exception:
-            pass
+        for d in existing:
+            try:
+                d.delete()
+            except Exception:
+                pass
 
-    # Insert a fresh measurements document with type="ToolkitDataSource"
-    proj = repo._project  # underlying Project
     proj.addMeasurementsDocument(
         type="ToolkitDataSource",
         dataFormat="Class",
+        resource=".",
         desc=desc,
     )
 

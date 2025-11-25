@@ -3,26 +3,19 @@ from ... import toolkitHome
 import getpass
 import json
 import logging
-from ...datalayer import getProjectList,Project,createProjectDirectory,removeConnection,addOrUpdateDatabase,getMongoJSON
+from ...datalayer import getProjectList, Project, createProjectDirectory, removeConnection, addOrUpdateDatabase, getMongoJSON
 from ...datalayer import All as datalayer_All
 from .. import loadJSON
 from .toolkit import dataToolkit
 import pandas
-import logging
 from ...toolkit import ToolkitHome
 from pydoc import locate  # for resolving classpath -> class
 from tabulate import tabulate
 
+
 def project_list(arguments):
     """
         List all the projects of the user.
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-
     """
     connectionName = getpass.getuser() if arguments.connectionName is None else arguments.connectionName
 
@@ -30,10 +23,10 @@ def project_list(arguments):
     ttl = f"Projects in the connection {connectionName}"
     print("\n")
     print(ttl)
-    print("-"*len(ttl))
+    print("-" * len(ttl))
     projList = []
     for projName in projectList:
-        projDesct = {"Project Name" : projName}
+        projDesct = {"Project Name": projName}
         if arguments.fulldetails:
             proj = Project(projectName=projName, connectionName=connectionName)
             cacheCount = len(proj.getCacheDocuments())
@@ -49,69 +42,58 @@ def project_list(arguments):
     df = pandas.DataFrame(projList).sort_values("Project Name")
 
     with pandas.option_context('display.max_rows', None,
-                           'display.max_columns', None,
-                           'display.width', 1000,
-                           'display.precision', 3,
-                           'display.colheader_justify', 'center'):
+                               'display.max_columns', None,
+                               'display.width', 1000,
+                               'display.precision', 3,
+                               'display.colheader_justify', 'center'):
         print(df)
 
+    print("-" * len(ttl))
 
-    print("-"*len(ttl))
 
 def project_create(arguments):
     """
         Creating a directory and a project.
-
-        The project is a caseConfiguration file with the configuration name.
-
-    Parameters
-    ----------
-    arguments :
-        -- directory: the directory to use
-        -- database: the name of the DB to use
-
-    Returns
-    -------
-
     """
     if arguments.directory is None:
-        directory = os.path.join(os.getcwd(),arguments.projectName)
+        directory = os.path.join(os.getcwd(), arguments.projectName)
     else:
         directory = arguments.directory
 
-    createProjectDirectory(outputPath=directory,projectName=arguments.projectName)
+    createProjectDirectory(outputPath=directory, projectName=arguments.projectName)
     print(f"Created project {arguments.projectName} in directory {directory}")
 
     if arguments.loadRepositories:
         dtk = dataToolkit()
-        dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName,overwrite=arguments.overwrite)
+        dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=arguments.projectName,
+                                                         overwrite=arguments.overwrite)
+
 
 def project_dump(arguments):
 
-    fullQuery=dict(projectName = arguments.projectName)
+    fullQuery = dict(projectName=arguments.projectName)
 
     for queryElement in arguments.query:
         fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
 
-
     docList = []
     for doc in datalayer_All.getDocuments(**fullQuery):
         docDict = doc.asDict()
-        if ('docid' not in docDict['desc']):
+        if 'docid' not in docDict['desc']:
             docDict['desc']['docid'] = str(doc.id)
 
         docList.append(docDict)
 
-    outStr = json.dumps(docList,indent=4)
+    outStr = json.dumps(docList, indent=4)
 
     outputFileName = arguments.fileName
     if outputFileName is not None:
-        with open(outputFileName,"w") as outputFile:
+        with open(outputFileName, "w") as outputFile:
             outputFile.write(outStr)
 
-    if arguments.outputFormat=='json':
+    if arguments.outputFormat == 'json':
         print(outStr)
-    elif arguments.outputFormat=='table':
+    elif arguments.outputFormat == 'table':
         df = pandas.DataFrame(docList)
         with pandas.option_context('display.max_rows', None,
                                    'display.max_columns', None,
@@ -126,9 +108,9 @@ def project_dump(arguments):
 def project_load(arguments):
 
     docsDict = loadJSON(arguments.file)
-    proj     = Project(projectName=arguments.projectName)
+    proj = Project(projectName=arguments.projectName)
 
-    for indx,doc in enumerate(docsDict):
+    for indx, doc in enumerate(docsDict):
         print(f"Loading document {indx}/{len(docsDict)}")
         proj.addDocumentFromDict(docsDict.get(doc))
 
@@ -137,7 +119,7 @@ def repository_list(argumets):
     dtk = dataToolkit()
 
     repDataframe = dtk.getRepositoryTable()
-    if len(repDataframe) ==0:
+    if len(repDataframe) == 0:
         print("The user does not have repositories.")
     else:
         with pandas.option_context('display.max_rows', None,
@@ -147,6 +129,7 @@ def repository_list(argumets):
                                    'display.precision', 3,
                                    'display.colheader_justify', 'center'):
             print(repDataframe)
+
 
 def repository_add(argumets):
     logger = logging.getLogger("hera.bin.repository_add")
@@ -158,6 +141,7 @@ def repository_add(argumets):
     dtk.addRepository(repositoryName=repositoryName,
                       repositoryPath=argumets.repositoryName,
                       overwrite=argumets.overwrite)
+
 
 def repository_remove(arguments):
     logger = logging.getLogger("hera.bin.repository_remove")
@@ -175,20 +159,20 @@ def repository_show(arguments):
     datasourceName = arguments.repositoryName
     logger.info(f"Listing the datasource {datasourceName}")
     repositoryData = dtk.getDataSourceData(datasourceName=datasourceName)
-    dataTypeList = ['DataSource','Measurements','Cache','Simulations']
+    dataTypeList = ['DataSource', 'Measurements', 'Cache', 'Simulations']
 
     for toolkitName, toolDesc in repositoryData.items():
         ttl = f"\t\t\033[1mToolkit:\033[0m {toolkitName}"
-        print("#"*(2*len(ttl.expandtabs())))
+        print("#" * (2 * len(ttl.expandtabs())))
         print(ttl)
-        print("#"*(2*len(ttl.expandtabs())))
+        print("#" * (2 * len(ttl.expandtabs())))
 
         for datatype in dataTypeList:
-            print("="*len(datatype))
+            print("=" * len(datatype))
             print(f"{datatype}")
-            print("="*len(datatype))
+            print("=" * len(datatype))
 
-            for repName,repItems in toolDesc.get(datatype,{}).items():
+            for repName, repItems in toolDesc.get(datatype, {}).items():
                 ttl = f"\033[1mName:\033[0m {repName}"
                 print(f"\t{ttl}")
                 print("-" * (2 * len(ttl.expandtabs())))
@@ -199,8 +183,9 @@ def repository_show(arguments):
                                            'display.max_colwidth', None,
                                            'display.precision', 3,
                                            'display.colheader_justify', 'center'):
-                    print(pandas.DataFrame.from_dict(repItems['item'],orient='index',columns=['Value']))
+                    print(pandas.DataFrame.from_dict(repItems['item'], orient='index', columns=['Value']))
                     print("\n")
+
 
 def repository_load(arguments):
     logger = logging.getLogger("hera.bin.repository_load")
@@ -213,11 +198,12 @@ def repository_load(arguments):
         projectName = None
 
     logger.info(f"Loading the repository {repositoryFile} to the project {projectName if projectName is not None else 'default project'}")
-    repositoryJSON= loadJSON(repositoryFile)
+    repositoryJSON = loadJSON(repositoryFile)
     dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName=projectName,
                                                     repositoryJSON=repositoryJSON,
                                                     basedir=os.path.dirname(os.path.abspath(arguments.repositoryName)),
                                                     overwrite=arguments.overwrite)
+
 
 def display_datasource_versions(arguments):
     proj = Project(projectName=arguments.projectName)
@@ -232,7 +218,7 @@ def display_datasource_versions(arguments):
                 d['version'] = document['desc']['version']
 
                 if arguments.datasource:
-                    if arguments.datasource==d['datasourceName']:
+                    if arguments.datasource == d['datasourceName']:
                         datasources.append(d)
                 else:
                     datasources.append(d)
@@ -247,7 +233,7 @@ def display_datasource_versions(arguments):
                 d['datasourceName'] = document['desc']['datasourceName']
 
                 if arguments.datasource:
-                    if arguments.datasource==d['datasourceName']:
+                    if arguments.datasource == d['datasourceName']:
                         default_version = config.get(f"{arguments.datasource}_defaultVersion")
                     else:
                         default_version = None
@@ -258,12 +244,10 @@ def display_datasource_versions(arguments):
                     d['DEFAULT_VERSION'] = default_version
                     datasources.append(d)
 
-
-
             except:
                 pass
 
-    if len(datasources)!=0:
+    if len(datasources) != 0:
         headers = datasources[0].keys()
         rows = [d.values() for d in datasources]
         print(tabulate(rows, headers=headers, tablefmt="grid"))
@@ -273,11 +257,13 @@ def display_datasource_versions(arguments):
         else:
             print(f"No data to display. Are you sure datasource {arguments.datasource} and project {arguments.projectName} exists?")
 
+
 def update_datasource_default_version(arguments):
     logger = logging.getLogger("hera.bin.update_datasource_version")
     arguments.version = tuple(int(item.strip()) for item in arguments.version.split(','))
     proj = Project(projectName=arguments.projectName)
-    proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource,version=arguments.version)
+    proj.setDataSourceDefaultVersion(datasourceName=arguments.datasource, version=arguments.version)
+
 
 def update(arguments):
     logger = logging.getLogger("hera.bin.update")
@@ -306,38 +292,29 @@ def update(arguments):
     dtk = dataToolkit()
     dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=projectName, overwrite=arguments.overwrite)
 
+
 def db_list(arguments):
     """
         List the databases in the
-    Parameters
-    ----------
-    arguments
-
-    Returns
-    -------
-￼
-￼
-￼
-
-
     """
     dbconfig = getMongoJSON()
     conList = []
-    for connectionName,connectionData in dbconfig.items():
-        condict = {"Connection Name" : connectionName}
+    for connectionName, connectionData in dbconfig.items():
+        condict = {"Connection Name": connectionName}
         if arguments.fulldetails:
             condict.update(connectionData)
 
         conList.append(condict)
 
-    df = pandas.DataFrame(conList).rename(columns=dict(dbIP="IP",dbName="databaseName"))
+    df = pandas.DataFrame(conList).rename(columns=dict(dbIP="IP", dbName="databaseName"))
 
     with pandas.option_context('display.max_rows', None,
-                           'display.max_columns', None,
-                           'display.width', 1000,
-                           'display.precision', 3,
-                           'display.colheader_justify', 'center'):
+                               'display.max_columns', None,
+                               'display.width', 1000,
+                               'display.precision', 3,
+                               'display.colheader_justify', 'center'):
         print(df)
+
 
 def db_create(arguments):
     addOrUpdateDatabase(connectionName=arguments.connectionName,
@@ -346,25 +323,23 @@ def db_create(arguments):
                         databaseIP=arguments.IP,
                         databaseName=arguments.databaseName)
 
+
 def db_remove(arguments):
     removeConnection(arguments.connectionName)
 
 
+# --- Toolkit related CLI ---
 
-# --- in hera/utils/data/CLI.py ---
 def toolkit_list(arguments):
     """
     Print a combined list of toolkits (static + dynamic from DB) for a project.
     Uses ToolkitHome.getToolkitDocuments(...) as the single source of truth.
     """
-    import logging
-    from tabulate import tabulate
     logger = logging.getLogger("hera.utils.CLI.toolkit_list")
     project = arguments.project
 
     try:
-        from ...toolkit import ToolkitHome
-        th = ToolkitHome()
+        th = ToolkitHome(projectName=project)
 
         docs = th.getToolkitDocuments(name=None, projectName=project) or []
         rows = []
@@ -408,17 +383,16 @@ def toolkit_register(arguments):
         version = (0, 0, 1)
 
     try:
-        th = ToolkitHome()
+        th = ToolkitHome(projectName=project)
 
         # Resolve classpath -> class
         toolkit_cls = locate(cls_path)
         if toolkit_cls is None:
             raise ImportError(f"Cannot locate class by classpath: {cls_path}")
 
-        # Call registerToolkit with a class object
+        # Call registerToolkit with a class object (no projectName – ToolkitHome כבר יודע)
         th.registerToolkit(
             toolkitclass=toolkit_cls,
-            projectName=project,
             repositoryName=repository,
             datasource_name=name,
             version=version,
@@ -433,41 +407,30 @@ def toolkit_register(arguments):
 def toolkit_load(arguments):
     """
     Instantiate a toolkit by name.
-    Delegates to ToolkitHome.getToolkit (static -> DB -> dynamic import).
+    Delegates to ToolkitHome.getToolkit (static + dynamic + experiments).
     """
     logger = logging.getLogger("hera.utils.CLI.toolkit_load")
     project = arguments.project
     name = arguments.name
     try:
-        th = ToolkitHome()
-        try:
-            tk = th.getToolkit(toolkitName=name, projectName=project)
-        except Exception as ex:
-            # Optional: try auto-register (if you הוספת ב-toolkit.py)
-            auto = getattr(th, "auto_register_and_get", None)
-            if callable(auto):
-                tk = auto(toolkitName=name, projectName=project)
-            else:
-                raise ex
-
+        # ToolkitHome itself is a toolkit; projectName is loaded automatically
+        th = ToolkitHome(projectName=project)
+        tk = th.getToolkit(toolkitName=name)
         print(f"Loaded toolkit: {getattr(tk, 'name', name)}")
     except Exception as e:
         logger.exception(e)
         print(f"[ERROR] {e}")
 
-# --- Add to hera/utils/data/CLI.py ---
 
 def toolkit_default_repo_show(arguments):
     """
     Show the project's default repository, via ToolkitHome.getDefaultRepository(projectName=...).
     """
-    import logging
     logger = logging.getLogger("hera.utils.CLI.toolkit_default_repo_show")
     project = getattr(arguments, "project", None) or "DefaultProject"
     try:
-        from ...toolkit import ToolkitHome
-        th = ToolkitHome()
-        repo = th.getDefaultRepository(projectName=project)  # אתה כבר מימשת
+        th = ToolkitHome(projectName=project)
+        repo = th.getDefaultRepository(projectName=project)
         print(repo if repo else "<no default repository>")
     except Exception as e:
         logger.exception(e)
@@ -478,7 +441,6 @@ def toolkit_default_repo_set(arguments):
     """
     Set the project's default repository, via ToolkitHome.setDefaultRepository(projectName=..., repositoryName=...).
     """
-    import logging
     logger = logging.getLogger("hera.utils.CLI.toolkit_default_repo_set")
     project = getattr(arguments, "project", None) or "DefaultProject"
     repo_name = getattr(arguments, "repository", None)
@@ -486,9 +448,8 @@ def toolkit_default_repo_set(arguments):
         print("[ERROR] --repository is required")
         return
     try:
-        from ...toolkit import ToolkitHome
-        th = ToolkitHome()
-        th.setDefaultRepository(projectName=project, repositoryName=repo_name)  # אתה כבר מימשת
+        th = ToolkitHome(projectName=project)
+        th.setDefaultRepository(projectName=project, repositoryName=repo_name)
         print(f"Default repository set to '{repo_name}' for project '{project}'.")
     except Exception as e:
         logger.exception(e)
@@ -499,18 +460,14 @@ def toolkit_import_json(arguments):
     """
     Import a JSON repository that declares toolkits (and optionally experiments),
     and register them into the project.
-    Usage:
-      hera-toolkit import-json --project <name> --file <path> [--no-experiments]
     """
-    import logging
     logger = logging.getLogger("hera.utils.CLI.toolkit_import_json")
     project = getattr(arguments, "project", None)
     json_path = getattr(arguments, "file", None)
     no_experiments = getattr(arguments, "no_experiments", False)
 
     try:
-        from ...toolkit import ToolkitHome
-        th = ToolkitHome()
+        th = ToolkitHome(projectName=project)
 
         registered = th.import_toolkits_from_json(projectName=project, json_path=json_path)
         print(f"Registered toolkits: {registered}" if registered else "No toolkits in JSON.")
@@ -524,8 +481,8 @@ def toolkit_import_json(arguments):
         logger.exception(e)
         print(f"[ERROR] {e}")
 
-# --- in hera/utils/data/CLI.py ---
-@staticmethod
+
+# שים לב: הקטע הבא נראה כאילו אמור להיות בתוך class, אבל אני משאיר כמו שהיה
 def project_measurements_list(args):
     """
     Implementation for:
@@ -543,8 +500,8 @@ def project_measurements_list(args):
     shortcut_map = {
         "ds": "ToolkitDataSource",      # dynamic toolkits
         "exp": "Experiment_rawData",    # experiments
-        "sim": "Simulation_rawData",    # (אם יהיה)
-        "cache": "Cache_rawData",       # (אם יהיה)
+        "sim": "Simulation_rawData",    # (if any)
+        "cache": "Cache_rawData",       # (if any)
         "all": None,                    # no type filter
     }
 
@@ -592,6 +549,3 @@ def project_measurements_list(args):
     import pandas as pd
     df = pd.DataFrame(rows)
     print(df.to_markdown(index=False))
-
-
-

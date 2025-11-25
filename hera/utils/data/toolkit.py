@@ -131,34 +131,70 @@ class dataToolkit(abstractToolkit):
         - Ensure we can instantiate it (ToolkitHome.getToolkit).
         - If missing and auto_register_missing=True, attempt auto-register using:
             * Registry.classpath or Registry.cls in the JSON, or
-            * Toolkit document from DB.
         - After we have the instance, proceed with per-toolkit loading logic.
         """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
 
-        handlerDict = dict(Config = self._handle_Config,
-                           Datasource = self._handle_DataSource,
-                           Measurements = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Measurements",basedir),
-                           Simulations = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Simulations",basedir),
-                           Cache = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Cache",basedir),
-                           Function = self._handle_Function)
+        handlerDict = dict(
+            Config=self._handle_Config,
+            Datasource=self._handle_DataSource,
+            Measurements=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, docTypeDict, overwrite, "Measurements", basedir
+            ),
+            Simulations=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, docTypeDict, overwrite, "Simulations", basedir
+            ),
+            Cache=lambda toolkit, itemName, itemDesc, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, itemDesc, overwrite, "Cache", basedir
+            ),
+            Function=self._handle_Function,
+        )
 
-        # repositoryJSON is expected to be a dict mapping: toolkitName -> section
-        tk_home = ToolkitHome()
+        tk_home = ToolkitHome(projectName=projectName)
 
         for toolkitName, toolkitDict in (repositoryJSON or {}).items():
-            toolkit = tk_home.getToolkit(toolkitName=toolkitName, projectName=projectName)
+            try:
+                toolkit = tk_home.getToolkit(toolkitName=toolkitName)
+            except Exception as e:
+                logger.info(f"Toolkit '{toolkitName}' not found via getToolkit: {e}")
+                toolkit = None
+
+
+            if toolkit is None and auto_register_missing:
+                auto = getattr(tk_home, "auto_register_and_get", None)
+                if callable(auto):
+                    try:
+                        toolkit = auto(
+                            toolkitName=toolkitName,
+                            repositoryJSON=repositoryJSON,
+                            repositoryName=None,
+                        )
+                        logger.info(f"Auto-registered toolkit '{toolkitName}' via auto_register_and_get")
+                    except Exception as e:
+                        logger.error(f"Failed to auto-register toolkit '{toolkitName}': {e}")
+                        continue
+                else:
+                    logger.error("auto_register_and_get is not available on ToolkitHome")
+                    continue
+
+            if toolkit is None:
+                logger.error(f"Skipping toolkit '{toolkitName}' – could not load or auto-register it.")
+                continue
 
             for key, docTypeDict in toolkitDict.items():
                 logger.info(f"Loading document type {key} to toolkit {toolkitName}")
-                handler = handlerDict.get(key.title(),None)
+                handler = handlerDict.get(key.title(), None)
 
                 if handler is None:
-                    err = f"Unkonw Handler {key.title()}. The handler must be {','.join(handlerDict.keys())}. "
+                    err = f"Unkonw Handler {key.title()}. The handler must be {', '.join(handlerDict.keys())}. "
                     logger.error(err)
                     raise ValueError(err)
                 try:
-                    handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
+                    handler(toolkit=toolkit,
+                            itemName=key,
+                            docTypeDict=docTypeDict,
+                            overwrite=overwrite,
+                            basedir=basedir)
                 except Exception as e:
                     err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
                     logger.error(err)
