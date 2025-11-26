@@ -14,19 +14,19 @@ RUN apt-get install -y \
     pkg-config \
     libgirepository1.0-dev \
     libffi-dev \
-    zlib1g-dev
-RUN apt-get install -y \
-    xz-utils
+    zlib1g-dev \
+    xz-utils \
+    liblzma-dev
+# RUN apt-get install -y \
 
 # Install MongoDB 6.0 + mongosh (new shell)
-RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
-    echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" \
-      | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-RUN apt-get update
-RUN apt-get install -y \
-    mongodb-org \
-    mongodb-mongosh \
-    liblzma-dev
+# RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-6.0.gpg && \
+#     echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" \
+#       | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+# RUN apt-get update
+# RUN apt-get install -y \
+#     mongodb-org \
+#     mongodb-mongosh \
     
 # Install pyenv
 RUN curl https://pyenv.run | bash
@@ -53,11 +53,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pre-initialize MongoDB users using mongosh, and close it - will start with container
-RUN mkdir -p /data/db /var/run/mongodb && \
-    mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
-    mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
-    mongosh admin --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
-    mongod --shutdown
+# RUN mkdir -p /data/db /var/run/mongodb && \
+#     mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db && \
+#     mongosh admin --eval 'db.createUser({ user: "Admin", pwd: "Admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ] })' && \
+#     mongosh admin --eval 'db.createUser({ user: "user", pwd: "1234", roles: [ { role: "readWrite", db: "dbhera" } ] })' && \
+#     mongod --shutdown
     
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
@@ -76,15 +76,15 @@ RUN mkdir -p /root/.pyhera/log && \
     mkdir -p /root/mongo-db-datadir && \
     echo '{ \
         "root": { \
-            "dbIP": "127.0.0.1", \
-            # "dbIP": "host.docker.internal", \
-            "dbName": "dbhera", \
-            "username": "user", \
-            "password": "1234" \
+            # "dbIP": "127.0.0.1", \
+            "dbIP": "host.docker.internal", \
+            "dbName": "olymp", \
+            "username": "hera", \
+            "password": "heracles" \
         } \
     }' > /root/.pyhera/config.json
 
-RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
+# RUN echo 'mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db' >> /root/.bashrc
 
 COPY ./ui/client /client
 WORKDIR /client
