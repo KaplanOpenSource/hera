@@ -8,14 +8,14 @@
       "name": "Server (Docker)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "sh ui/server/build.sh && docker run -it -p 8000:8000 -p 5678:5678 --rm --name hera-server-instance hera-server",
+      "command": "docker run -it --network host -v .:/app --rm --name hera-server-instance hera-server",
       "cwd": "${workspaceFolder}"
     },
     {
       "name": "Server debug (Docker)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "sh ui/server/build.sh && docker run -it -p 8000:8000 -p 5678:5678 --rm --name hera-server-instance hera-server python ui/server/server.py --debug",
+      "command": "docker run -it --network host -v .:/app --rm --name hera-server-instance hera-server python ui/server/server.py --debug",
       "cwd": "${workspaceFolder}"
     },
     {
