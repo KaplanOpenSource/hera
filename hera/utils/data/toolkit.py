@@ -1,9 +1,8 @@
 import json
 import argparse
-from ... import toolkitHome
-from ... import toolkit
-from ...utils import loadJSON, dictToMongoQuery
-from ..logging import get_classMethod_logger
+from hera import toolkitHome,toolkit
+from hera.utils import loadJSON, dictToMongoQuery
+from hera.utils.logging import get_classMethod_logger
 import pathlib
 import os
 
@@ -121,61 +120,33 @@ class dataToolkit(toolkit.abstractToolkit):
             * Toolkit document from DB.
         - After we have the instance, proceed with per-toolkit loading logic.
         """
-        import logging
-        logger = logging.getLogger(__name__)
+        logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
 
-        from hera.toolkit import ToolkitHome
-        toolkitHome = ToolkitHome()
+        handlerDict = dict(Config = self._handle_Config,
+                           Datasource = self._handle_DataSource,
+                           Measurements = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Measurements",basedir),
+                           Simulations = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Simulations",basedir),
+                           Cache = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Cache",basedir),
+                           Function = self._handle_Function)
 
         # repositoryJSON is expected to be a dict mapping: toolkitName -> section
         for toolkitName, toolkitDict in (repositoryJSON or {}).items():
-            try:
-                # 1) Try direct getToolkit
+            toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+
+            for key, docTypeDict in toolkitDict.items():
+                logger.info(f"Loading document type {key} to toolkit {toolkitName}")
+                handler = handlerDict.get(key.title(),None)
+
+                if handler is None:
+                    err = f"Unkonw Handler {key.title()}. The handler must be {','.join(handlerDict.keys())}. "
+                    logger.error(err)
+                    raise ValueError(err)
                 try:
-                    toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+                    handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
                 except Exception as e:
-                    # 2) If missing and allowed, try auto-register & retry
-                    if auto_register_missing:
-                        toolkit = toolkitHome.auto_register_and_get(
-                            toolkitName=toolkitName,
-                            projectName=projectName,
-                            repositoryJSON=repositoryJSON,
-                            repositoryName=None,  # use project's default if available
-                            params={},  # pass params if you store defaults in JSON
-                            version=(0, 0, 1),
-                        )
-                    else:
-                        raise e
+                    err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                    logger.error(err)
 
-                # 3) At this point we have a toolkit instance.
-                #    If you have any per-toolkit loading steps (e.g., attach datasources),
-                #    perform them here. The original code likely had something like:
-                #
-                #    self._loadSingleToolkitFromRepositorySection(
-                #        projectName=projectName,
-                #        toolkit=toolkit,
-                #        section=toolkitDict,
-                #        basedir=basedir,
-                #        overwrite=overwrite,
-                #    )
-                #
-                # If you have such a helper, call it. Otherwise, leave this as a no-op.
-                #
-                # NOTE: adapt this call to your original implementation.
-                if hasattr(self, "_loadSingleToolkitFromRepositorySection"):
-                    self._loadSingleToolkitFromRepositorySection(
-                        projectName=projectName,
-                        toolkit=toolkit,
-                        section=toolkitDict,
-                        basedir=basedir,
-                        overwrite=overwrite,
-                    )
-
-            except Exception as e:
-                logger.error(
-                    "The error %s occurred while adding toolkit %s... skipping!",
-                    e, toolkitName
-                )
 
     def _handle_Config(self,toolkit,itemName,docTypeDict,overwrite,basedir):
         """

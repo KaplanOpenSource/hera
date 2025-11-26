@@ -2,18 +2,20 @@
 import argparse
 import logging
 from hera.utils.data import CLI
-from hera.utils.logging import initialize_logging,with_logger
+from hera.utils.logging import initialize_logging, with_logger
 
-if __name__=="__main__":
+if __name__ == "__main__":
+    # Console logging setup
     initialize_logging(
-          with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
-          with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
-    #     with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
-    #     with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
+        # with_logger("hera.simulations.hermesWorkflowToolkit", handlers=['console'], level='INFO', propagate=False),
+        # with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
     )
 
     logger = logging.getLogger("hera.bin.hera_projects")
 
+    # Root parser
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='sub-command help')
 
@@ -21,22 +23,22 @@ if __name__=="__main__":
     db_project = subparsers.add_parser('db', help='Database management')
     db_subparsers = db_project.add_subparsers(help='Database management')
 
-    # List
+    # db list
     db_list = db_subparsers.add_parser('list', help='list project')
     db_list.add_argument('--onlyName', dest="fulldetails", default=True, action="store_false",
-                             help='Print only the database connection names')
+                         help='Print only the database connection names')
     db_list.set_defaults(func=CLI.db_list)
 
-    # Create
+    # db create
     db_new = db_subparsers.add_parser('create', help='create a project')
-    db_new.add_argument('connectionName', type=str,  help='The database name to create')
-    db_new.add_argument('--username', type=str,  required=True,help='The username')
-    db_new.add_argument('--password', type=str,  required=True,help='The database name to create')
-    db_new.add_argument('--IP', type=str,  required=True,help='The database name to create')
+    db_new.add_argument('connectionName', type=str, help='The database name to create')
+    db_new.add_argument('--username', type=str, required=True, help='The username')
+    db_new.add_argument('--password', type=str, required=True, help='The database name to create')
+    db_new.add_argument('--IP', type=str, required=True, help='The database name to create')
     db_new.add_argument('--databaseName', type=str, required=True, help='The database name to create')
     db_new.set_defaults(func=CLI.db_create)
 
-    # Remove
+    # db remove
     db_remove = db_subparsers.add_parser('remove', help='create a project')
     db_remove.add_argument('connectionName', type=str, default=None, help='The database name to create')
     db_remove.set_defaults(func=CLI.db_remove)
@@ -45,107 +47,115 @@ if __name__=="__main__":
     parser_project = subparsers.add_parser('project', help='projects management')
     project_subparsers = parser_project.add_subparsers(help='projects management')
 
-    # List
+    # project list
     parser_list = project_subparsers.add_parser('list', help='list project')
     parser_list.add_argument('--connectionName', dest="connectionName", type=str, default=None,
-                            help='connection to use. The default is the user name')
-    parser_list.add_argument('--onlyName', dest="fulldetails", default=True, action="store_false",help='Print only the project name')
+                             help='connection to use. The default is the user name')
+    parser_list.add_argument('--onlyName', dest="fulldetails", default=True, action="store_false",
+                             help='Print only the project name')
     parser_list.set_defaults(func=CLI.project_list)
 
-    # Create
+    # project create
     parser_new = project_subparsers.add_parser('create', help='create a project')
     parser_new.add_argument('projectName', type=str, default=None, help='The project name to create')
-    parser_new.add_argument('--directory', dest="directory",type=str, default=None, help='directory to create the project in')
-    parser_new.add_argument('--noRepositories', dest="loadRepositories",default=True,action="store_false")
-    parser_new.add_argument('--dont-overwrite',dest="overwrite",default=True,action="store_true")
+    parser_new.add_argument('--directory', dest="directory", type=str, default=None,
+                            help='directory to create the project in')
+    parser_new.add_argument('--noRepositories', dest="loadRepositories", default=True, action="store_false")
+    parser_new.add_argument('--dont-overwrite', dest="overwrite", default=True, action="store_true")
     parser_new.set_defaults(func=CLI.project_create)
 
-    ### Dump/save
+    # project dump/save
     parser_dump = project_subparsers.add_parser('dump', help='Saves the project record to the disk')
     parser_dump.add_argument('projectName', type=str, default=None, help='The project name to create')
-    parser_dump.add_argument('query',metavar='query',nargs='*', type=str, help='the query parameters')
-    parser_dump.add_argument('--fileName',type=str, help='save to',default=None,required=False)
-    parser_dump.add_argument('--format', dest="outputFormat", default="table",choices=['table','json'], help='Print only the project name')
+    parser_dump.add_argument('query', metavar='query', nargs='*', type=str, help='the query parameters')
+    parser_dump.add_argument('--fileName', type=str, help='save to', default=None, required=False)
+    parser_dump.add_argument('--format', dest="outputFormat", default="table", choices=['table', 'json'],
+                             help='Output format')
     parser_dump.set_defaults(func=CLI.project_dump)
 
-    ### Load
+    # project load
     parser_load = project_subparsers.add_parser('load', help='load dumped record into the project')
     parser_load.add_argument('projectName', type=str, default=None, help='The project name to create')
     parser_load.add_argument('file', type=str, help='The dumped file name')
     parser_load.set_defaults(func=CLI.project_load)
 
-    ### update
+    # project update repositories
     repository_update = project_subparsers.add_parser('updateRepositories', help='Update all repositories in workspace to a project')
-    repository_update.add_argument('--projectName',default=None ,help='The project to load the repository')
+    repository_update.add_argument('--projectName', default=None, help='The project to load the repository')
     repository_update.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                 help='overwrite the existing projcet with the repository')
+                                   help='overwrite the existing projcet with the repository')
     repository_update.set_defaults(func=CLI.update)
 
     # ----------------- Versions
     parser_version = project_subparsers.add_parser('version', help='Manage project datasources versions')
     version_subparsers = parser_version.add_subparsers(help='Version management')
 
-    # Display
+    # version display
     parser_display = version_subparsers.add_parser('display', help='Display version information')
     parser_display.add_argument('projectName', type=str, help='Project Name.')
     parser_display.add_argument('--datasource', type=str, help='The name of the datasource. If not provided, will show all datasources')
-    parser_display.add_argument('--default', dest="default", default=False , help='If to show Default Versions only.')
+    parser_display.add_argument('--default', dest="default", default=False, help='If to show Default Versions only.')
     parser_display.set_defaults(func=CLI.display_datasource_versions)
 
-    # Update
+    # version update
     version_update = version_subparsers.add_parser('update', help='Update datasource version.')
-    version_update.add_argument('projectName',type=str,help='Project Name.')
-    version_update.add_argument('datasource',type=str,help='Datasource Name.')
-    version_update.add_argument('version',type=str,help='Version in Fromat "d,d,d". For example "0,0,1".')
+    version_update.add_argument('projectName', type=str, help='Project Name.')
+    version_update.add_argument('datasource', type=str, help='Datasource Name.')
+    version_update.add_argument('version', type=str, help='Version in Fromat "d,d,d". For example "0,0,1".')
     version_update.set_defaults(func=CLI.update_datasource_default_version)
 
     # ----------------- Repository
     repository_parser = subparsers.add_parser('repository', help='handling repositories')
     repository_subparsers = repository_parser.add_subparsers(help='sub-command help')
 
-    # list
+    # repository list
     repository_list = repository_subparsers.add_parser('list', help='lists objects')
     repository_list.set_defaults(func=CLI.repository_list)
 
-    ### add
+    # repository add
     repository_add = repository_subparsers.add_parser('add', help='Add the data repository to the default project')
     repository_add.add_argument('repositoryName', type=str, help='The full path to the repository descriptor file of the repository')
     repository_add.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                 help='overwrite the existing workflow with the same name')
     repository_add.set_defaults(func=CLI.repository_add)
 
-    ### remove
+    # repository remove
     repository_remove = repository_subparsers.add_parser('remove', help='Remove data repository from the default project')
     repository_remove.add_argument('repositoryName', type=str, help='name of the repository')
     repository_remove.set_defaults(func=CLI.repository_remove)
 
-    ### show
+    # repository show
     repository_show = repository_subparsers.add_parser('show', help='Show the items in the data repository')
     repository_show.add_argument('repositoryName', type=str, help='name of the repository')
     repository_show.set_defaults(func=CLI.repository_show)
 
-    ### load
+    # repository load
     repository_load = repository_subparsers.add_parser('load', help='Load the repository to a project')
     repository_load.add_argument('repositoryName', type=str, help='name of the repository')
     repository_load.add_argument('projectName', type=str, help='name of the project')
     repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                help='overwrite the existing workflow with the same name')
+                                 help='overwrite the existing workflow with the same name')
     repository_load.set_defaults(func=CLI.repository_load)
 
+    # ----------------- NEW: Project Measurements (display helper)
+    # Adds: hera-project project measurements list [--project ...] [--type ...] [--contains ...]
+    measurements_parser = project_subparsers.add_parser('measurements', help='Measurements commands')
+    measurements_sub = measurements_parser.add_subparsers(help='Measurements sub-commands')
 
-    ##################### exec
+    # project measurements list
+    meas_list = measurements_sub.add_parser('list', help='List project measurements')
+    # --project is optional: if your Project() can infer from CWD; otherwise pass it explicitly
+    meas_list.add_argument('--project', required=False, help='Project name (optional if auto-detected)')
+    # Filter by 'type' (e.g., ToolkitDataSource, Experiment_rawData)
+    meas_list.add_argument('--type', required=False, help="Filter by 'type' field")
+    # Substring filter on datasourceName/resource
+    meas_list.add_argument('--contains', required=False, help='Substring filter on datasourceName or resource')
+    meas_list.set_defaults(func=CLI.project_measurements_list)
+
+    # ----------------- Exec
     parsed = parser.parse_args()
     logger.debug(f"Got {parsed} in the command line")
     if 'func' not in parsed:
         parser.print_help()
     else:
         parsed.func(parsed)
-
-
-
-
-
-
-
-
-
