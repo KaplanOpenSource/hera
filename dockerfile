@@ -76,8 +76,9 @@ RUN mkdir -p /root/.pyhera/log && \
     mkdir -p /root/mongo-db-datadir && \
     echo '{ \
         "root": { \
-            # "dbIP": "127.0.0.1", \
-            "dbIP": "host.docker.internal", \
+            "dbIP": "127.0.0.1", \
+            # "dbIP": "172.17.0.1", \
+            # "dbIP": "host.docker.internal", \
             "dbName": "olymp", \
             "username": "hera", \
             "password": "heracles" \
