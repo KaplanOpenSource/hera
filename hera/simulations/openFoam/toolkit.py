@@ -88,16 +88,22 @@ class OFToolkit(hermesWorkflowToolkit):
             os.chdir(doc.resource)
             os.system("./Allrun")
 
-    def prepareSlurmExecution(self,baseConfiguration,jsonVariations,decomposeProcessors,slurmExecutionFileName="submit_all.sh",caseListFileName="cases.txt"):
+    def prepareSlurmExecution(self,baseConfiguration,jsonVariations,decomposeProcessors,slurmExecutionFileName="submit_all.sh",caseListFileName="cases.txt",overwrite=False):
         """
             Adds the different configurations to the workgroup,
 
         Parameters
         ----------
-        baseConfiguration
-        jsonVariations
-        slurmExecutionFileName
-        caseListFileName
+        baseConfiguration : dict
+                basic hermes workflow to run
+        jsonVariations :
+                Variation file (using the jsonutils variations) format.
+        slurmExecutionFileName: str
+                The name of the bash file to create with the slurm batch run
+
+        caseListFileName:
+                The batchfile uses case file name, so add it.
+        overwrite : bool
 
         Returns
         -------
