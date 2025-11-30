@@ -120,7 +120,7 @@ def create_bibtex_entry(file_metadata):
         return entry
     # Handle files without custom fields as misc
     else: return ''
-    # """
+    #
     #     entry_type = 'misc'
     #     title = get_metadata(properties, 'cm:name', '')
     #     writers = get_metadata(properties, 'cm:creator', 'Unknown')
@@ -136,7 +136,7 @@ def create_bibtex_entry(file_metadata):
     #     entry += f"  year = \"{year}\",\n"
     #     entry += "}\n"
     #     return entry
-    # """
+    #
 def convert_to_bibtex(username,password):
     files = get_all_documents(username,password)
     bib_entries = []
