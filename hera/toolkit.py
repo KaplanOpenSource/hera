@@ -438,6 +438,7 @@ class ToolkitHome(abstractToolkit):
           1) Static registry (self._toolkits).
           2) Dynamic ToolkitDataSource document registered via ToolkitHome
              (type='ToolkitDataSource', toolkit='ToolkitHome').
+          3) Experiment toolkits, via experimentHome.getExperiment(...).
         """
         # 1) Static built-in toolkits
         if toolkitName in (self._toolkits or {}):
@@ -446,37 +447,40 @@ class ToolkitHome(abstractToolkit):
             toolkit_cls = pydoc.locate(cls_path)
             if toolkit_cls is None:
                 raise ImportError(f"Cannot locate class: {cls_path}")
-            # Static toolkits הם גם abstractToolkit-ים, ולכן מקבלים projectName=None
+
+            # Static toolkits are also abstractToolkit derivatives
             return toolkit_cls(
                 projectName=self.projectName,
                 filesDirectory=filesDirectory,
                 **kwargs,
             )
 
-        # 2) Dynamic toolkits registered as ToolkitDataSource של ToolkitHome
+        # 2) Dynamic toolkits registered as ToolkitDataSource of ToolkitHome
         doc = self.getDataSourceDocument(datasourceName=toolkitName)
-        if doc is None:
-            # אופציונלי: fallback ל-experiment toolkit (אם יש API מתאים)
-            if self.experimentTK is not None:
-                try:
-                    # נניח של-experiment toolkit יש getExperiment; אם לא – יתפוס Exception
-                    exp = getattr(self.experimentTK, "getExperiment", None)
-                    if callable(exp):
-                        return exp(toolkitName, filesDirectory=filesDirectory, **kwargs)
-                except Exception:
-                    pass
+        if doc is not None:
+            tk = doc.getData()
+            if hasattr(tk, "setFilesDirectory") and filesDirectory is not None:
+                tk.setFilesDirectory(filesDirectory)
+            return tk
 
-            raise ValueError(
-                f"Toolkit '{toolkitName}' not found in static registry or as ToolkitDataSource "
-                f"in project '{self.projectName}'."
-            )
+        # 3) Experiment toolkits fallback (experimentHome)
+        # experimentTK is an experimentHome instance when available.
+        if self.experimentTK is not None:
+            try:
+                # Direct call to experimentHome.getExperiment(...)
+                return self.experimentTK.getExperiment(
+                    experimentName=toolkitName,
+                    filesDirectory=filesDirectory,
+                )
+            except Exception:
+                # experimentHome does not recognize this experiment name
+                pass
 
-        tk = doc.getData()
-
-        if hasattr(tk, "setFilesDirectory") and filesDirectory is not None:
-            tk.setFilesDirectory(filesDirectory)
-
-        return tk
+        # Nothing found in any registry
+        raise ValueError(
+            f"Toolkit '{toolkitName}' not found in static registry, ToolkitDataSource, "
+            f"or experiment toolkit in project '{self.projectName}'."
+        )
 
     # ------------------------------------------------------------------
     # Auto-register + get (kept for compatibility – but uses datasource API)
