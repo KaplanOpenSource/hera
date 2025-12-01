@@ -191,8 +191,10 @@ class torchLightingModelContainer(Project):
 
         # 1. Initialize the dataloaders .
 
+        logger.info("Getting validation dataset")
         validateDatasetLoader = self.getValidateDatasetLoader()
 
+        logger.info("Initializing model")
         model = self.initClass(self.modelJSON['model'])
 
         if isinstance(model,LightningModuleHera):
