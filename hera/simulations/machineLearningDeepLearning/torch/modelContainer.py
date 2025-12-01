@@ -30,19 +30,28 @@ class torchLightingModelContainer(Project):
 
     machineLearningDeepLearning =None
 
-    _modelJSON = None
+    _modelDict = None
     modelID = None
     modelResource = None
 
     initFromState = None
 
     @property
+    def modelDict(self):
+        return self._modelDict
+
+    @modelDict.setter
+    def modelDict(self, value):
+        self._modelDict = value
+        self.modelID = None
+
+    @property
     def modelJSON(self):
-        return self._modelJSON
+        return self._modelDict
 
     @modelJSON.setter
     def modelJSON(self, value):
-        self._modelJSON = value
+        self._modelDict = value
         self.modelID = None
 
     @property
@@ -302,15 +311,43 @@ class torchLightingModelContainer(Project):
         # now loading the state.
 
     def getTrainDatasetLoader(self):
+        """
+            Return the trainer class with the relevant dataset.
+        Returns
+        -------
+
+        """
         return self._getDatasetLoader(self.modelJSON['trainDataset'])
 
 
     def getValidateDatasetLoader(self):
+        """
+            Returns the loader class with the relevant dataaset.
+        Returns
+        -------
+
+        """
         return self._getDatasetLoader(self.modelJSON['validateDataset'])
 
 
-    def getDataSet(self,datasetName):
-        return self.initClass(self.modelJSON['dataset'][datasetName])
+    def getDatasetNames(self):
+        return [x for x in self.modelJSON['dataset'].keys()]
+
+    def getDataSet(self,datasetName,**kwargs):
+        """
+            Returns the dataset
+        Parameters
+        ----------
+        datasetName
+
+        Returns
+        -------
+
+        """
+        datasetDict = dict(self.modelJSON['dataset'][datasetName])
+        datasetDict['parameters'].update(kwargs)
+
+        return self.initClass(datasetDict)
 
 
     def _getDatasetLoader(self, JSONdesc):
