@@ -1,6 +1,7 @@
 import pandas
 import os
 import glob
+import tqdm
 from ....utils.logging import get_classMethod_logger
 from .. import FIELDTYPE_VECTOR,  FIELDTYPE_SCALAR
 from PyFoam.RunDictionary.ParsedParameterFile import ParsedParameterFile,WriteParameterFile
@@ -197,8 +198,6 @@ class OFField(OFObject):
                 self.data[procName]['boundaryField']["proc.*"] = boundaryField
 
 
-
-
     def readBoundariesFromCase(self, caseDirectory,internalValue=None, readParallel=True):
         """
             Reads the boundaries from the case.
@@ -348,8 +347,16 @@ class OFField(OFObject):
                 self.parallel = False
             else:
                 self.parallel = True
+
+                effective_level_int = logger.getEffectiveLevel()
+                if effective_level_int == logger.DEBUG:
+                    itrObj = tqdm.tqdm(procPaths)
+                else:
+                    itrObj = procPaths
                 for proc in procPaths:
-                    self.data.update({os.path.basename(proc): ParsedParameterFile(os.path.join( proc, str(timeStep), self.fileName))})
+                    self.data.update({os.path.basename(proc): ParsedParameterFile(
+                        os.path.join(proc, str(timeStep), self.fileName))})
+
         except FileNotFoundError as e:
             err = f"File not found, initializing as an empty field: {e} "
             logger.warning(err)
