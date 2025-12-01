@@ -1,3 +1,4 @@
+import pint
 import os
 import json
 import pandas
@@ -463,6 +464,7 @@ class JSONvariationItem:
     _curIter = None # the ID of the
     _itemCount = None
 
+    convetToBaseUnits = None
     def __init__(self,base,variationItem,convetToBaseUnits=True):
         """
             The base is the json that will be changes.
@@ -479,6 +481,7 @@ class JSONvariationItem:
 
         self.base = base
         self._itemCount = None
+        self.convetToBaseUnits = convetToBaseUnits
         for key,value in variationItem.items():
             if self._itemCount is None:
                 self._itemCount = len(value)
@@ -503,8 +506,11 @@ class JSONvariationItem:
 
         result = {}
         for key, value in self.variationItem.items():
-            isinstance(quantity, pint.Quantity):
-            result[key] = value[self._curIter]
+            quantity = value[self._curIter]
+            if self.convetToBaseUnits and isinstance(quantity, pint.Quantity):
+                result[key] = quantity.to_base_units().magnitude
+            else:
+                result[key] = quantity
         self._curIter += 1
         return result
 
