@@ -4,7 +4,6 @@ import { execPython } from "./execPython";
 import { useEffect } from "react";
 
 export const fetchProjectsNames = async () => {
-  const { setProjectNames } = useProjectStore.getState();
   const { data, problem } = await execPython(`
 from hera.datalayer.project import getProjectList
 result = [{"name": proj} for proj in getProjectList()]
@@ -14,7 +13,8 @@ result = [{"name": proj} for proj in getProjectList()]
     const projects = (data || []) as ProjectName[];
     const first = projects.filter(({ name }) => name === DEFAULT_PROJECT);
     const rest = projects.filter(({ name }) => name !== DEFAULT_PROJECT);
-    setProjectNames([...first, ...rest])
+    useProjectStore.getState().setProjectNames([...first, ...rest])
+    // console.log('inside:', useProjectStore.getState().projectNames, data)
   }
 }
 
@@ -56,6 +56,8 @@ export const FetchProjects = ({ }) => {
   useEffect(() => {
     fetchProjectsNames();
   }, [])
+
+  // console.log('outside:', useProjectStore.getState().projectNames)
 
   useEffect(() => {
     if (currProjectName === NO_PROJECT && projectNames.length > 0) {

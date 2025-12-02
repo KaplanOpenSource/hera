@@ -36,20 +36,14 @@ project_create(SimpleNamespace(
   overwrite=False))
       `)
     if (problem) {
+      // console.log(problem)
+      // debugger
       return;
     }
-    setTimeout(async () => {
-      // debugger
-      await fetchProjectsNames();
-      // debugger
-      setTimeout(async () => {
-        console.log('after fetch', projectNames.map(x => x.name))
-        await fetchProjectDetails(name);
-        setTimeout(async () => {
-          selectProject(name);
-        }, 0);
-      }, 0);
-    }, 0);
+    await fetchProjectsNames();
+    // console.log('after fetch', projectNames.map(x => x.name), useProjectStore.getState().projectNames.map(x =>x.name))
+    await fetchProjectDetails(name);
+    selectProject(name);
     setOpen(false);
   }
 

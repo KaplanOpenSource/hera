@@ -44,7 +44,7 @@ def exec_code(payload: ExecPayload):
     # DANGER: This is a security risk. It allows arbitrary code execution.
     # Only use this in a trusted environment.
     # The `_locals` dict will be updated with any variables created in the code.
-    _locals = {"MOCK_PROJECTS": MOCK_PROJECTS}
+    _locals = {} # "MOCK_PROJECTS": MOCK_PROJECTS}
     print("executing: " + payload.code)
     exec(payload.code, {}, _locals)
     result = _locals.get("result", None)
