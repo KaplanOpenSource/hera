@@ -21,10 +21,10 @@ export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const { selectProject } = useProjectStore();
+  const { selectProject, projectNames } = useProjectStore();
   const inputRef = useRef();
 
-  const go = async () => {
+  const doAddProject = async () => {
     const { problem } = await execPython(`
 import os
 from types import SimpleNamespace
@@ -38,9 +38,19 @@ project_create(SimpleNamespace(
     if (problem) {
       return;
     }
-    await fetchProjectsNames();
-    await fetchProjectDetails(name);
-    selectProject(name);
+    setTimeout(async () => {
+      // debugger
+      await fetchProjectsNames();
+      // debugger
+      setTimeout(async () => {
+        console.log('after fetch', projectNames.map(x => x.name))
+        await fetchProjectDetails(name);
+        setTimeout(async () => {
+          selectProject(name);
+        }, 0);
+      }, 0);
+    }, 0);
+    setOpen(false);
   }
 
   return (<>
@@ -53,7 +63,11 @@ project_create(SimpleNamespace(
     >
       <Add />
     </ButtonTooltip>
-    <Dialog open={open} onClose={() => setOpen(false)}>
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      onKeyDown={e => { if (e.code === 'Enter') doAddProject() }}
+    >
       <DialogTitle>New Project</DialogTitle>
       <DialogContent>
         <DialogContentText>
@@ -85,10 +99,7 @@ project_create(SimpleNamespace(
         <Button onClick={() => setOpen(false)}>
           Cancel
         </Button>
-        <Button onClick={() => {
-          go();
-          setOpen(false);
-        }}>
+        <Button onClick={() => doAddProject()}>
           Add Project
         </Button>
       </DialogActions>

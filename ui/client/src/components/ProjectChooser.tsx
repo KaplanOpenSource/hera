@@ -8,6 +8,8 @@ export const ProjectChooser = ({ }) => {
   const unempty = (s: string) => s === '' ? EMPTY_NAME_PROJECT : s;
   const reempty = (s: string) => s === EMPTY_NAME_PROJECT ? '' : s;
 
+  // console.log('projectNames', projectNames.map(x => x.name));
+
   return (
     <>
       <FormControl size="small">
