@@ -21,10 +21,16 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   currProjectName: NO_PROJECT,
   currProject: null,
   toolkits: [],
-  setProjectNames: (names) => set({ projectNames: names }),
+  setProjectNames: (names) => {
+    set({ projectNames: names })
+  },
   selectProject: (newProjectName: string) => {
     set({ currProjectName: newProjectName })
   },
-  setCurrentProject: (project) => set({ currProject: project }),
-  setToolkits: (val) => set({ toolkits: val }),
+  setCurrentProject: (project) => {
+    set({ currProject: project })
+  },
+  setToolkits: (val) => {
+    set({ toolkits: val })
+  },
 }));

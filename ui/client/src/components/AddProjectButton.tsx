@@ -16,33 +16,54 @@ import { execPython } from "../io/execPython";
 import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { ProjectEntire, ProjectName } from "@shared/types";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const { selectProject, projectNames } = useProjectStore();
+  const { selectProject, setProjectNames, projectNames, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
 
   const doAddProject = async () => {
-    const { problem } = await execPython(`
+    const { problem, data } = await execPython(`
 import os
+import json
 from types import SimpleNamespace
+
 from hera.utils.data.CLI import project_create
+from hera.datalayer.project import getProjectList
+from hera.datalayer import All
+
 project_create(SimpleNamespace(
   projectName='${name}',
   directory=os.path.join(os.getcwd(), 'projects', '${name}'),
   loadRepositories=${loadRepositories ? 'True' : 'False'},
   overwrite=False))
-      `)
+
+projectNames = [{"name": proj} for proj in getProjectList()]
+
+docs = All.getDocumentsAsDict('${name}', with_id=True)
+project = {"name": '${name}', "documents": docs['documents']}
+
+result = {"projectNames": projectNames, "project": project}
+    `)
+    // result = json.dumps(project,indent=4)
     if (problem) {
       // console.log(problem)
       // debugger
       return;
     }
-    await fetchProjectsNames();
-    // console.log('after fetch', projectNames.map(x => x.name), useProjectStore.getState().projectNames.map(x =>x.name))
-    await fetchProjectDetails(name);
+
+    // hera doesnt update new project immediately so we build names in front
+    // await fetchProjectsNames();
+    const details = (data?.project) as ProjectEntire;
+    const names = (data?.projectNames || []) as ProjectName[];
+    if (!names.find(x => x.name === name)) {
+      names.push({ name });
+    }
+    setProjectNames(names);
+    setCurrentProject(details);
     selectProject(name);
     setOpen(false);
   }
