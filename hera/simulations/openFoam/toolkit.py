@@ -2,19 +2,22 @@ import numpy
 import os
 import glob
 import dask
+import pandas
+import shutil
+import json
 from evtk import hl as evtk_hl
 import dask.dataframe as dask_dataframe
 from itertools import chain
 from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
-
+from hera.utils import dictToMongoQuery
 from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
 from hera.simulations.openFoam.postProcess.VTKPipeline import VTKPipeLine
 from hera.simulations.openFoam.lagrangian.StochasticLagrangianSolver import StochasticLagrangianSolver_toolkitExtension
-from hera.utils.jsonutils import loadJSON
+from hera.utils.jsonutils import loadJSON,JSONVariations
 from hera.utils.logging import get_classMethod_logger
 from hera.simulations.openFoam.eulerian.buoyantReactingFoam import buoyantReactingFoam_toolkitExtension
 from hera.simulations.openFoam  import TYPE_VTK_FILTER
@@ -85,6 +88,63 @@ class OFToolkit(hermesWorkflowToolkit):
             os.chdir(doc.resource)
             os.system("./Allrun")
 
+    def prepareSlurmExecution(self,baseConfiguration,jsonVariations,decomposeProcessors,slurmExecutionFileName="submit_all.sh",caseListFileName="cases.txt",overwrite=False):
+        """
+            Adds the different configurations to the workgroup,
+
+        Parameters
+        ----------
+        baseConfiguration : dict
+                basic hermes workflow to run
+        jsonVariations :
+                Variation file (using the jsonutils variations) format.
+        slurmExecutionFileName: str
+                The name of the bash file to create with the slurm batch run
+
+        caseListFileName:
+                The batchfile uses case file name, so add it.
+        overwrite : bool
+
+        Returns
+        -------
+
+        """
+
+        logger = get_classMethod_logger(self,"prepareSlurmExecution")
+        caseList = ""
+        for counter, jsonConfig in enumerate(JSONVariations(baseConfiguration, jsonVariations)):
+            doc = self.addWorkflowToGroup(workflowJSON=jsonConfig,
+                                          groupName="effectiveArea",
+                                          writeWorkflowToFile=True)
+            caseList += f"{doc.desc['workflowName']}\n"
+            logger.info(f"Adding {doc.desc['workflowName']}")
+
+        slurmBatchFile = f"""#!/bin/bash
+#SBATCH --job-name=foam_cases
+#SBATCH --array=1-{counter}     # number of jobs = number of lines in cases.txt
+#SBATCH -n {decomposeProcessors} # number of CPUs per job
+#SBATCH --output=slurm_%A_%a.out
+
+# Read the directory for this array task
+dir=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {caseListFileName})
+
+echo "Running case in directory: $dir"
+
+hera-openFoam buildExecute "$dir" --overwrite
+
+cd "$dir" || {{ echo "Directory $dir not found"; exit 1; }}
+
+# Run the Allrun script
+bash Allrun"""
+
+        with open(slurmExecutionFileName,"w") as outputFile:
+            outputFile.write(slurmBatchFile)
+
+        with open(caseListFileName,"w") as outputFile:
+            outputFile.write(caseList)
+
+
+
     def processorList(self, caseDirectory):
         """
             Returns the list of processors directories in the case
@@ -130,7 +190,12 @@ class OFToolkit(hermesWorkflowToolkit):
         -------
 
         """
-        doc = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(docList)==0:
+            return None
+        else:
+            doc = docList[0]
+
         return self.getMesh(doc.getData())
 
     def getMesh(self, caseDirectory, readParallel=True, time=0):
@@ -188,21 +253,92 @@ class OFToolkit(hermesWorkflowToolkit):
         caseType = "decomposed" if useParallel else "composed"
         if not os.path.exists(checkPath):
             logger.debug(f"Cell centers does not exist in {caseType} case. Calculating...")
-            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres ")
-            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer}")
+            os.system(f"foamJob {parallelExec} {casePointer} -wait postProcess -func writeCellCentres  -time {time}")
+            logger.debug(f"done: foamJob {parallelExec} -wait postProcess -func writeCellCentres {casePointer} -time {time}")
             if not os.path.exists(checkPath):
-                logger.error("Error running the writeCellCentres. Check mesh")
+                logger.error("Error running the writeCellCentres. Executing writeCellCentres failed. Are you sure that the openFOAM environment is set?"\
+                             "try to load the enviroment and then rerun (in jupyter, you need to restart the server)")
+
                 raise RuntimeError("Error running the writeCellCentres. Check mesh")
         else:
             logger.debug(f"Cell centers exist in {caseType} case.")
 
-        logger.debug(f"Loading the cell centers in time {time}. Usint {caseType}")
+        logger.debug(f"Loading the cell centers in time {time}. Using {caseType}")
         cellCenters = self.OFObjectHome.readFieldFromCase(fieldName="cellCenters",
                                                          flowType=FLOWTYPE_INCOMPRESSIBLE,
                                                          caseDirectory=caseDirectory,
                                                          timeStep=time,
                                                          readParallel=readParallel)
         return cellCenters
+
+    def getMeshExtentFromName(self,nameOrWorkflowFileOrJSONOrResource,readParallel=True, time=0):
+        """
+            Returns the name from the workflow
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResource : string or dict
+        The name/dict that defines the item
+
+        readParallel: bool
+                If parallel case exists, read it .
+
+        time : float
+            The time to read the mesh from. (relevant for mesh moving cases).
+
+        Returns
+        -------
+
+        """
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(docList)==0:
+            return None
+        else:
+            doc = docList[0]
+
+        return self.getMeshExtent(doc.getData())
+
+    def read_points_file(self,path):
+        pts = []
+        with open(path) as f:
+            lines = f.readlines()
+
+        # find the line containing only the number (e.g., "1606203")
+        idx = next(i for i,l in enumerate(lines) if l.strip().isdigit())
+
+        # points start 2 lines after that:
+        start = idx + 2
+
+        for line in lines[start:]:
+            line = line.strip()
+            if line == ")":      # end of list
+                break
+            if line.startswith("(") and line.endswith(")"):
+                x, y, z = line[1:-1].split()
+                pts.append([float(x), float(y), float(z)])
+        return numpy.array(pts)
+
+
+    def getMeshExtent(self,caseDirectory):
+        """
+
+        """
+        points_path = os.path.join(caseDirectory,"constant","polyMesh","points")
+        if not os.path.exists(points_path):
+            raise FileNotFoundError(f"File not found: {points_path}")
+
+        # Parse the blockMeshDict
+        pts = self.read_points_file(points_path)
+
+        # Compute the coordinate bounds
+        xmin, ymin, zmin = pts.min(axis=0)
+        xmax, ymax, zmax = pts.max(axis=0)
+
+        bounds = {
+            "x": (xmin, xmax),
+            "y": (ymin, ymax),
+            "z": (zmin, zmax)
+        }
+        return bounds
 
     def createEmptyCase(self, caseDirectory: str, fieldList: list, flowType: str, additionalFieldsDescription=dict()):
         """
@@ -450,6 +586,138 @@ class OFToolkit(hermesWorkflowToolkit):
             ret.append(BoxRecord)
         return "\n".join(ret)
 
+    def getVTKPipelineCacheDocuments(self, regularMesh=None, filterName=None, workflowName=None, groupName=None):
+        """
+            Return the list of the cached documents in the case.
+        Parameters
+        ----------
+        regularMesh
+        filterName
+
+        Returns
+        -------
+
+        """
+        qry = dict()
+        if regularMesh is not None:
+            qry['regularMesh'] = regularMesh
+
+        if filterName is not None:
+            qry['filterName'] = filterName
+
+        if workflowName is not None:
+            simdata = qry.setdefault("simulation",dict())
+            simdata['workflowName'] = workflowName
+
+        if groupName is not None:
+            simdata = qry.setdefault("simulation",dict())
+            simdata['groupName'] = groupName
+
+
+        return self.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
+
+    def getVTKPipelineCacheTable(self,regularMesh=None, filterName=None, workflowName=None, groupName=None):
+        """
+            Return the table.
+        Parameters
+        ----------
+        regularMesh
+        filterName
+        workflowName
+        groupName
+
+        Returns
+        -------
+
+        """
+        docList = self.getVTKPipelineCacheDocuments(regularMesh=regularMesh, filterName=filterName,
+                                                    workflowName=workflowName, groupName=groupName)
+        cacheDict = [dict(filterName=doc.desc['filterName'],workflowName=doc.desc['simulation']['workflowName'],groupName=doc.desc['simulation']['groupName']) for doc in docList]
+        return pandas.DataFrame(cacheDict)
+
+    def clearVTKPipelineCache(self, regularMesh=None, filterName=None, workflowName=None, groupName=None):
+        """
+            deletes the cache documents and the data from the disk.
+            Use with care!.
+        Parameters
+        ----------
+        regularMesh
+        filterName
+        workflowName
+        groupName
+
+        Returns
+        -------
+
+        """
+
+        # 1. Get the potential filters to process
+        logger = get_classMethod_logger(self, "clearCache")
+
+        docList = self.getVTKPipelineCacheDocuments(regularMesh = regularMesh, filterName = filterName, workflowName= workflowName, groupName= groupName)
+
+        logger.info(f"Found {len(docList)} documents to delete. ")
+        for doc in docList:
+            logger.debug(f"Deleting resource {doc['desc']['filterName']} : {doc['desc']['pipeline']['filters']} ")
+            outputFile = doc['resource']
+
+            if os.path.exists(outputFile):
+                if os.path.isfile(outputFile):
+                    os.remove(outputFile)
+                else:
+                    shutil.rmtree(outputFile)
+
+        for doc in docList:
+            doc.delete()
+
+    def getTimeList(self,nameOrWorkflowFileOrJSONOrResourceorDirectory,singleProcessor=False,returnFirst=True):
+        """
+            Extract the computed Time steps from the case.
+            Tries to load as parallel, and if fails falls to the single (unless singleProcessor is True
+        Parameters
+        ----------
+        nameOrWorkflowFileOrJSONOrResourceorDirectory: str
+                the case directory, Name, directory, json, or json-file of a case.
+        singleProcessor
+
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"getTimeList")
+        logger.info("Getting the simulation from the database")
+        docList = self.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource=nameOrWorkflowFileOrJSONOrResourceorDirectory)
+        if len(docList) ==0 :
+            logger.info(f"Simulation not found, trying to interpret as a directory on the disk")
+            if os.path.exists(nameOrWorkflowFileOrJSONOrResourceorDirectory):
+                casePathList = [nameOrWorkflowFileOrJSONOrResourceorDirectory]
+            else:
+                err = f"Case {nameOrWorkflowFileOrJSONOrResourceorDirectory} not found in DB or on disk"
+                logger.error(err)
+                raise ValueError(err)
+        else:
+            casePathList = [(x.desc['workflowName'],x.getData()) for x in docList]
+
+        ret = dict()
+        for name,case in casePathList:
+
+            processorList = [os.path.basename(proc) for proc in glob.glob(os.path.join(case, "processor*"))]
+            isSingle = len(processorList) == 0 or singleProcessor
+            if isSingle:
+                timeList = sorted([float(x) for x in os.listdir(case) if (
+                        os.path.isdir(x) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+            else:
+                timeList = sorted([float(x) for x in os.listdir(os.path.join(case, processorList[0])) if (
+                        os.path.isdir(os.path.join(case, processorList[0], x)) and
+                        x.isdigit() and
+                        (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
+                                  key=lambda x: int(x))
+            ret[name] = timeList
+
+        return ret[casePathList[0][0]] if returnFirst else ret
 
 class Analysis:
     """

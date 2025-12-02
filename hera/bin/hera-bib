@@ -1,0 +1,353 @@
+#! /usr/bin/env python
+import requests
+import os
+import argparse
+"""
+creats a .bib file from all the alfresco files available to the user 
+"""
+
+# Configuration
+ALFRESCO_URL = "http://mathsrv23:8020/alfresco"  # Set Alfresco URL
+
+def get_all_documents(username,password):
+    """
+    Get all documents from Alfresco.
+    """
+    query = "TYPE:'cm:content'"  # Query to get all content types
+    url = f"{ALFRESCO_URL}/api/-default-/public/search/versions/1/search"
+    all_documents = []  # List to store all documents
+    skip_count = 0  # Counter for skipping documents
+
+    while True:
+        resp = requests.post(
+            url,
+            auth=(username, password),
+            json={
+                "query": {"query": query},
+                "paging": {"maxItems": 1000, "skipCount": skip_count},
+                "include": ["properties"]
+            }
+        )
+
+        resp.raise_for_status()  # Raises an error for bad responses
+        data = resp.json()
+        docs = data.get('list', {}).get('entries', [])
+
+        all_documents.extend(docs)  # Add fetched documents to the list
+
+        # Check if there are more documents to fetch
+        if len(docs) < 1000:
+            break  # No more documents to fetch
+
+        skip_count += 1000  # Increment skipCount for the next request
+    return all_documents
+
+def get_metadata(properties, field_key, default_value):
+    """Utility to get metadata, falling back on standard fields or a default value."""
+    return properties.get(field_key) or properties.get(f'cm:{field_key.split(":")[-1]}') or default_value
+
+def create_bibtex_entry(file_metadata):
+    properties = file_metadata.get('properties', {})
+    entry_id = None
+
+    # Check for article fields
+    if 'math:art_cite_key' in properties:
+        entry_type = 'article'
+        cite_key = get_metadata(properties, 'math:art_cite_key', 'error')
+        title = get_metadata(properties, 'cm:title', 'No Title')
+        author = get_metadata(properties, 'math:art_writers', 'Unknown')
+        publish_date = get_metadata(properties, 'math:art_publishdate', properties.get('cm:created', 'Unknown Date'))
+        year = publish_date.split('-')[0] if publish_date != 'Unknown Date' else properties.get('cm:created', 'Unknown Year').split('-')[0]
+
+        journal = get_metadata(properties, 'math:art_journal', 'Unknown')
+        volume = get_metadata(properties, 'math:art_volume', 'Unknown')
+        number = get_metadata(properties, 'math:art_number', 'Unknown')
+        pages = get_metadata(properties, 'math:art_pages', 'Unknown')
+        note = get_metadata(properties, 'math:art_note', '')
+
+        entry = f"@{entry_type}{{{cite_key},\n"
+        entry += f"  author = \"{author}\",\n"
+        entry += f"  title = \"{title}\",\n"
+        entry += f"  year = \"{year}\",\n"
+        entry += f"  journal = \"{journal}\",\n"
+        entry += f"  volume = \"{volume}\",\n"
+        entry += f"  number = \"{number}\",\n"
+        entry += f"  pages = \"{pages}\",\n"
+        entry += f"  note = \"{note}\",\n"
+        entry += "}\n"
+        return entry
+
+    # Check for report fields
+    elif 'math:rep_cite_key' in properties:
+        entry_type = 'techreport'
+        cite_key = get_metadata(properties, 'math:rep_cite_key','')
+        author = get_metadata(properties, 'math:rep_writers', 'Unknown')
+        institution = get_metadata(properties, 'math:rep_inst', 'Unknown')
+        title = get_metadata(properties, 'cm:title', 'No Title')
+        report_date = get_metadata(properties, 'math:rep_date', properties.get('cm:created', 'Unknown Date'))
+        year = report_date.split('-')[0] if 'Unknown' not in report_date else 'Unknown Year'
+        classification = get_metadata(properties, 'math:rep_classification', 'No classification')
+        note = get_metadata(properties, 'math:rep_note', '')
+
+        entry = f"@{entry_type}{{{cite_key},\n"
+        entry += f"  author = \"{author}\",\n"
+        entry += f"  institution = \"{institution}\",\n"
+        entry += f"  title = \"{title}\",\n"
+        entry += f"  year = \"{year}\",\n"
+        entry += f"  classification = \"{classification}\",\n"
+        entry += f"  note = \"{note}\",\n"
+        entry += "}\n"
+        return entry
+    # Check for letter fields
+    elif 'math:let_cite_key' in properties:
+        entry_type = 'misc'
+        cite_key = get_metadata(properties, 'math:let_cite_key','')
+        title = get_metadata(properties, 'cm:title', 'No Title')
+        author = get_metadata(properties, 'math:let_writer', 'Unknown')
+        date = get_metadata(properties, 'math:let_date', properties.get('cm:created', 'Unknown Date'))
+        year = date.split('-')[0] if 'Unknown' not in date else 'Unknown Year'
+        classification = get_metadata(properties, 'math:let_classification', 'No classification')
+        recipients = get_metadata(properties, 'math:let_recipients', 'Unknown')
+
+        entry = f"@{entry_type}{{{cite_key},\n"
+        entry += f"  author = \"{author}\",\n"
+        entry += f"  title = \"{title}\",\n"
+        entry += f"  year = \"{year}\",\n"
+        entry += f"  classification = \"{classification}\",\n"
+        entry += f"  recipients = \"{recipients}\",\n"
+
+        entry += "}\n"
+        return entry
+    # Handle files without custom fields as misc
+    else: return ''
+    #
+    #     entry_type = 'misc'
+    #     title = get_metadata(properties, 'cm:name', '')
+    #     writers = get_metadata(properties, 'cm:creator', 'Unknown')
+    #     added_date = properties.get('cm:created', 'Unknown Date')
+    #     entry_id = title.replace(" ", "_").lower()
+    #
+    #     # Extract year from added date (assuming format 'YYYY-MM-DD')
+    #     year = added_date.split('-')[0] if 'Unknown' not in added_date else 'Unknown Year'
+    #
+    #     entry = f"@{entry_type}{{{entry_id},\n"
+    #     entry += f"  author = \"{writers}\",\n"
+    #     entry += f"  title = \"{title}\",\n"
+    #     entry += f"  year = \"{year}\",\n"
+    #     entry += "}\n"
+    #     return entry
+    #
+def convert_to_bibtex(username,password):
+    files = get_all_documents(username,password)
+    bib_entries = []
+
+    for file in files:
+        bib_entry = create_bibtex_entry(file['entry'])
+        bib_entries.append(bib_entry)
+
+    # Write to .bib file
+    filename = f"{username}_output.bib"
+    with open(filename, 'w') as bibfile:
+        bibfile.writelines(bib_entries)
+
+
+if __name__ == "__main__":
+    username = os.getenv("USER")
+    parser = argparse.ArgumentParser(description="Read user information.")
+    parser.add_argument('--password', type=str, help='The password of the current user', required=True)
+    args = parser.parse_args()
+    password = args.password
+
+    convert_to_bibtex(username,password)
+
+# -- other fuctions that might be usful for alfresco --
+
+def get_all_documents(username, password):
+    """Get all documents from Alfresco."""
+    query = "TYPE:'cm:content'"
+    url = f"{ALFRESCO_URL}/api/-default-/public/search/versions/1/search"
+    all_documents = []
+    skip_count = 0
+
+    while True:
+        resp = requests.post(
+            url,
+            auth=(username, password),
+            json={
+                "query": {"query": query},
+                "paging": {"maxItems": 1000, "skipCount": skip_count},
+                "include": ["properties"]
+            }
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        docs = data.get('list', {}).get('entries', [])
+
+        all_documents.extend(docs)
+
+        if len(docs) < 1000:
+            break
+
+        skip_count += 1000  # Increment for the next request
+
+    return all_documents
+
+def search_documents_by_keyword(username, password, keyword):
+    """Search documents by description keyword."""
+    query = f"cm:description:'{keyword}' OR cm:content:'{keyword}'"
+    url = f"{ALFRESCO_URL}/api/-default-/public/search/versions/1/search"
+
+    resp = requests.post(
+        url,
+        auth=(username, password),
+        json={
+            "query": {"query": query},
+            "paging": {"maxItems": 100, "skipCount": 0},
+            "include": ["properties"]
+        }
+    )
+    resp.raise_for_status()
+    return resp.json().get('list', {}).get('entries', [])
+
+def get_documents_by_user(username, password, target_user):
+    """Get all documents created by a specific user."""
+    query = f"TYPE:'cm:content' AND cm:creator:'{target_user}'"
+    url = f"{ALFRESCO_URL}/api/-default-/public/search/versions/1/search"
+
+    resp = requests.post(
+        url,
+        auth=(username, password),
+        json={
+            "query": {"query": query},
+            "paging": {"maxItems": 100, "skipCount": 0},
+            "include": ["properties"]
+        }
+    )
+    resp.raise_for_status()
+    return resp.json().get('list', {}).get('entries', [])
+
+def download_file_by_node_id(username, password, node_id):
+    """Download a file by its node ID."""
+    url = f"{ALFRESCO_URL}/api/-default-/public/alfresco/versions/1/nodes/{node_id}/content"
+    resp = requests.get(url, auth=(username, password),)
+    resp.raise_for_status()
+    return resp.content
+
+def get_node_information(username, password, node_id):
+    """Get information about a specific node."""
+    url = f"{ALFRESCO_URL}/api/-default-/public/alfresco/versions/1/nodes/{node_id}"
+    resp = requests.get(url, auth=(username, password))
+    resp.raise_for_status()
+    return resp.json()
+
+
+def upload_file_to_folder(username, password, folder_id, file_path):
+    url = f"{ALFRESCO_URL}/api/-default-/public/alfresco/versions/1/nodes/{folder_id}/children"
+
+    file_name = os.path.basename(file_path)
+
+    # Prepare the file to be uploaded
+    files = {
+        'filedata': (file_name, open(file_path, 'rb'))
+    }
+
+    # Make the POST request
+    response = requests.post(url, files=files, auth=(username, password))
+    response.raise_for_status()  # Raise an error for bad responses
+    return response.json()  # Return the JSON response if successful
+
+def get_folder_id_by_name(username, password, folder_name):
+    query = f"cm:name:'{folder_name}' AND TYPE:'cm:folder'"
+    url = f"{ALFRESCO_URL}/api/-default-/public/search/versions/1/search"
+
+    resp = requests.post(
+        url,
+        auth=(username, password),
+        json={
+            "query": {"query": query},
+            "paging": {"maxItems": 1, "skipCount": 0},
+            "include": ["properties"]
+        }
+    )
+
+    resp.raise_for_status()
+    entries = resp.json().get('list', {}).get('entries', [])
+    if entries:
+        return entries[0]['entry']['id']
+    else:
+        raise ValueError(f"Folder '{folder_name}' not found.")
+
+def change_content_type(username, password,node_id,new_type):
+    url = f"{ALFRESCO_URL}/api/-default-/public/alfresco/versions/1/nodes/{node_id}"
+
+    data = {'nodeType': new_type}
+    resp = requests.put(url, json=data,auth=(username, password))
+    resp.raise_for_status()
+
+    return resp.json()
+def main_menu(username, password):
+    while True:
+        print("\nChoose an option:")
+        print("1. Search documents by description keyword")
+        print("2. Get all documents by user")
+        print("3. Download a file by node ID")
+        print("4. Get node information")
+        print("5. Upload a file")
+        print("6. Convert documents to BibTeX")
+        print("7. Change content type of a document")
+        print("8. Exit")
+
+        choice = input("Enter your choice (1-8): ")
+
+        if choice == '1':
+            keyword = input("Enter the description keyword to search: ")
+            documents = search_documents_by_keyword(username, password, keyword)
+            for doc in documents:
+                print(f"Document ID: {doc['entry']['id']}, Name: {doc['entry']['name']}")
+
+        elif choice == '2':
+            target_user = input("Enter the username to retrieve documents: ")
+            documents = get_documents_by_user(username, password, target_user)
+            for doc in documents:
+                print(f"Document ID: {doc['entry']['id']}, Name: {doc['entry']['name']}")
+
+        elif choice == '3':
+            node_id = input("Enter the node ID to download: ")
+            content = download_file_by_node_id(username, password, node_id)
+            with open(f"{node_id}_downloaded_file", "wb") as file:
+                file.write(content)
+            print(f"File downloaded as {node_id}_downloaded_file.")
+
+        elif choice == '4':
+            node_id = input("Enter the node ID to get information: ")
+            info = get_node_information(username, password, node_id)
+            print(json.dumps(info, indent=4))
+
+        elif choice == '5':
+            folder_name = input("Enter the folder name to upload the file: ")
+            file_path = input("Enter the path of the file to upload: ")
+            try:
+                folder_id = get_folder_id_by_name(username, password, folder_name)
+                upload_file_to_folder(username, password, folder_id, file_path)
+                print("File uploaded successfully.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+        elif choice == '6':
+            convert_to_bibtex(username, password)
+            print(f"Documents converted to BibTeX and saved to {username}_output.bib.")
+
+        elif choice == '7':
+            node_id = input("Enter the node ID to change: ")
+            new_type = input("Enter the new type (e.g., bib:article, bib:report, bib:letter): ")
+            try:
+                change_content_type(username, password, node_id, new_type)
+                print("Content type changed successfully.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+        elif choice == '8':
+            print("Exiting...")
+            break
+
+        else:
+            print("Invalid choice, please try again.")

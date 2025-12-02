@@ -19,7 +19,7 @@ import logging
 # The name of the property. This is has to be similar ot the  from the argosweb interface.
 # Dont change!
 TRIALSTART = 'TrialStart'
-TRIALEND = 'TrialStart'
+TRIALEND = 'TrialEnd'
 
 
 class experimentHome(toolkit.abstractToolkit):

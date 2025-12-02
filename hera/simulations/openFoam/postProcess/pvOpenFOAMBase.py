@@ -13,8 +13,6 @@ from hera.simulations.openFoam import CASETYPE_DECOMPOSED,CASETYPE_RECONSTRUCTED
 from hera import get_classMethod_logger
 from deprecated import deprecated
 from dask.diagnostics import ProgressBar
-from paraview.servermanager import Proxy
-from paraview.servermanager import ProxyProperty
 
 #### import the simple module from the paraview
 try:
@@ -22,6 +20,9 @@ try:
     import paraview.simple as pvsimple
     from paraview import servermanager
     #### disable automatic camera reset on 'Show'
+    from paraview.servermanager import Proxy
+    from paraview.servermanager import ProxyProperty
+
     pvsimple._DisableFirstRenderCameraReset()
 except ImportError:
     print("paraview module is not Found!. VTK pipeline wont work")
@@ -120,7 +121,7 @@ class paraviewOpenFOAM:
         reader = pvsimple.OpenFOAMReader(FileName="%s/tmp.foam" % self.casePath, CaseType=self.caseType,guiName=readerName)
         reader.MeshRegions.SelectAll()
         possibleRegions = list(reader.MeshRegions)
-        reader.MeshRegions = ['internalMesh']
+        reader.MeshRegions = possibleRegions
         reader.UpdatePipeline()
 
         # setting the local variable.
@@ -211,13 +212,20 @@ class paraviewOpenFOAM:
             points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
 
         logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
-        curstep = pandas.DataFrame()
 
-        # create index
-        curstep['x'] = points[:, 0]
-        curstep['y'] = points[:, 1]
-        curstep['z'] = points[:, 2]
-        curstep['time'] = timeslice
+        # For filters like integrate, the len points.shape==1, and therefore [:,0] will break the code.
+        # However, it means that there are no points, and therefore we will skip it.
+        if len(points.shape)==2:
+            # create index
+            curstep = pandas.DataFrame()
+            curstep['x'] = points[:, 0]
+            curstep['y'] = points[:, 1]
+            curstep['z'] = points[:, 2]
+            curstep['time'] = timeslice
+            curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7),
+                                     time=curstep.time.round(7))
+        else:
+            curstep = pandas.DataFrame([dict(time=timeslice)])
 
         fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
@@ -228,20 +236,28 @@ class paraviewOpenFOAM:
             else:
                 arry = numpy.concatenate([numpy.array(x) for x in data.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
 
-            # Array shape length 1 - scalar.
+            # Array shape length 0 - Integration - a scalar that is not a field.
+            #                    1 - scalar.
             #					 2 - vector.
             #					 3 - tensor.
             # the dict holds their names.
             TypeIndex = len(arry.shape) - 1
-            for indxiter in product(*([range(3)] * TypeIndex)):
-                L = tuple([slice(None, None, None)] + list(indxiter))
-                try:
-                    curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
-                except ValueError:
-                    logger.warning("Field %s is problematic... ommiting" % field)
+            if TypeIndex >=0:
+                for indxiter in product(*([range(3)] * TypeIndex)):
+                    L = tuple([slice(None, None, None)] + list(indxiter))
+                    try:
+                        curstep["%s%s" % (field, self._componentsNames[indxiter])] = arry[L]
+                    except ValueError:
+                        logger.warning("Field %s is problematic... ommiting" % field)
+            else:
+                # For integrate variables filter, there is only scalar.
+                val = numpy.atleast_1d(arry)[0] # 0 dim did some troubles.
+                curstep[field] = val
 
-        curstep = curstep.assign(x=curstep.x.round(7), y=curstep.y.round(7), z=curstep.z.round(7), time=curstep.time.round(7))
-        curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
+        if 'x' in curstep:
+            curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
+        else:
+            curstep = curstep.set_index(['time']).to_xarray() if regularMesh else curstep
 
         return curstep
 
@@ -331,7 +347,7 @@ class paraviewOpenFOAM:
 
             outputFilterName = filterName
             outputPath = os.path.dirname(outputFile)
-            outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName}_*.{slice_filext}"))]
+            outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName.replace('.','-')}_*.{slice_filext}"))]
 
             logger.debug(f"Saving all data to {outputFile}: {outputFileList}")
             with (ProgressBar()):
@@ -352,9 +368,8 @@ class paraviewOpenFOAM:
                     newDataList = [dd.read_parquet(fileName) for fileName in outputFileList]
                     if append and os.path.exists(outputFile):
                         newDataList.append(dd.read_parquet(outputFile))
-
                     allData = dd.concat(newDataList).repartition(partition_size="100MB")\
-                        .sort_values("time")\
+                        .reset_index()\
                         .set_index("time")\
                         .to_parquet(f"{outputFile}.final")
 
@@ -379,7 +394,7 @@ class paraviewOpenFOAM:
         for filterName in filterList:
             outputFilterName = filterName.replace(".","-")
             outputPath = os.path.dirname(filtersDict[filterName])
-            outputFile = os.path.join(outputPath,f"tmp_{outputFilterName}_{blockID:06d}.{fileExt}")
+            outputFile = os.path.join(outputPath,f"tmp_{outputFilterName.replace('.','-')}_{blockID:06d}.{fileExt}")
 
             logger.info(f"\tWriting filter {filterName} in temporary file {outputFile} ")
 
@@ -389,7 +404,7 @@ class paraviewOpenFOAM:
             else:
                 block_data = pandas.concat([item[filterName] for item in theList], ignore_index=True,sort=True)
                 data = dd.from_pandas(block_data, npartitions=1)
-                data.sort_values("time").to_parquet(outputFile)
+                data.sort_values("time").set_index("time").to_parquet(outputFile)
 
 
     ############################################################################################
