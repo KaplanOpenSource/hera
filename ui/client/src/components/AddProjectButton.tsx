@@ -11,7 +11,7 @@ import {
   FormGroup,
   TextField,
 } from "@mui/material";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { execPython } from "../io/execPython";
 import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
@@ -22,6 +22,7 @@ export const AddProjectButton = ({ }) => {
   const [name, setName] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
   const { selectProject } = useProjectStore();
+  const inputRef = useRef();
 
   const go = async () => {
     const { problem } = await execPython(`
@@ -45,7 +46,10 @@ project_create(SimpleNamespace(
   return (<>
     <ButtonTooltip
       title='Add project'
-      onClick={() => setOpen(true)}
+      onClick={() => {
+        setOpen(true);
+        setTimeout(() => (inputRef.current as any)?.focus(), 0)
+      }}
     >
       <Add />
     </ButtonTooltip>
@@ -56,7 +60,8 @@ project_create(SimpleNamespace(
           Adding a new project, please fill initial details
         </DialogContentText>
         <TextField
-          autoFocus
+          inputRef={inputRef}
+          // autoFocus
           required
           margin="dense"
           size="small"
