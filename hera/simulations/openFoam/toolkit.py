@@ -90,10 +90,10 @@ class OFToolkit(hermesWorkflowToolkit):
 
     def prepareSlurmExecution(self,baseConfiguration,
                               jsonVariations,
-                              slurmExecutionFileName="submit_all.sh",
-                              caseListFileName="cases.txt",
                               allocateProcessorsPerRun=None,
                               memoryInGB=None,
+                              slurmExecutionFileName="submit_all.sh",
+                              caseListFileName="cases.txt",
                               exclusive=False):
         """
             Adds the different configurations to the workgroup,
