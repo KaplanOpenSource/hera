@@ -1,5 +1,6 @@
-import { Paper, Typography } from '@mui/material';
+import { Box, Paper, Stack, Typography } from '@mui/material';
 import type { Project, ProjectDocument, ProjectEntire } from '../shared/types';
+import { Article, ReceiptLong } from '@mui/icons-material';
 
 export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null }) => {
   if (!project) {
@@ -17,9 +18,21 @@ export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null 
       {/* <Typography>ID: {project.name}</Typography> */}
       <Typography>Documents: {project.documents?.length ?? 'N/A'}</Typography>
       {project.documents?.map(d => (
-        <Typography key={d._id.$oid}>
-          Name: {d.desc.datasourceName ?? 'N/A'}
-        </Typography>
+        <Stack key={d._id.$oid} direction='row'>
+          {d.desc.datasourceName
+            ? (<>
+              <Article />
+              <Typography>
+                {d.desc.datasourceName}
+              </Typography>
+            </>)
+            : (<>
+              <ReceiptLong />
+              <Typography>
+                {d.type ?? 'N/A'}
+              </Typography>
+            </>)}
+        </Stack>
       ))}
       {/* <Typography>Cache Documents: {project.documents?.cache ?? 'N/A'}</Typography>
       <Typography>Toolkits: {project.toolkitCount ?? 'N/A'}</Typography> */}
