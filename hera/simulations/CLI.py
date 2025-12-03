@@ -290,8 +290,11 @@ def create_workflow_variations(arguments):
     with open(variation_json_path) as varitation_json_file:
         variation_json = json.load(varitation_json_file)
     
+    if not dry_run and naming_scheme=="index":
+        logger.error(f"Naming scheme must be index(not {naming_scheme}) on wet run, needs to align with groupid")
+        return
+    
     variation_scheme = None
-    # Might be changed to a dictionary {<scheme>: <scheme_func>}
     if naming_scheme == "index":
         variation_scheme = enumerate(jsonutils.JSONVariations(base_workflow_json, variation_json))
     else:
@@ -307,7 +310,7 @@ def create_workflow_variations(arguments):
             with open(variation_path, "w") as variation_file:
                 json.dump(variation, variation_file)
         if not dry_run:
-            _ = wftk.addUpdateWorkflowFileInGroup(variation_path)
+            _ = wftk.addWorkflowFileInGroup(variation_path)
 
 def batch_delete_workflows(arguments):
     """creates variations to the base workflow provided based on the variation json
