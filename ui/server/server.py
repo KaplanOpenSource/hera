@@ -53,8 +53,8 @@ def exec_code(payload: ExecPayload):
 
 
 # Serve built frontend (Vite) in production
-# FRONTEND_DIST = Path(__file__).resolve().parent.parent / "client" / "dist"
-FRONTEND_DIST = Path("/client/dist").resolve()
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "client" / "bundle"
+# FRONTEND_DIST = Path("/client/dist").resolve()
 
 if FRONTEND_DIST.exists():
     assets_dir = FRONTEND_DIST / "assets"

@@ -8,12 +8,11 @@ import {
   DialogTitle,
   TextField,
 } from "@mui/material";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { execPython } from "../io/execPython";
-import { fetchProjectDetails } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
-import { DocumentDesc, Toolkit } from "@shared/types";
+import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
 
 export const AddDocumentButton = ({
   toolkit = undefined,
@@ -22,37 +21,54 @@ export const AddDocumentButton = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const { currProjectName } = useProjectStore();
+  const [resource, setResource] = useState('');
+  const { currProjectName, setCurrentProject } = useProjectStore();
+  const inputRef = useRef();
 
-  const go = async () => {
+  const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (toolkit?.toolkit) {
       desc.toolkit = toolkit.toolkit;
     }
-    const { problem } = await execPython(`
+    const { problem, data } = await execPython(`
+import json
 from hera.datalayer import All
-All.addDocument('${currProjectName}', desc=${JSON.stringify(desc)})
+All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
+
+docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
+result = {"name": '${currProjectName}', "documents": docs['documents']}
       `)
     if (problem) {
       return;
     }
-    await fetchProjectDetails(currProjectName);
+    setCurrentProject((data as ProjectEntire));
+    setOpen(false);
   }
 
   return (<>
     <ButtonTooltip
       title='Add Document'
-      onClick={() => setOpen(true)}
+      onClick={() => {
+        setOpen(true)
+        setName('');
+        setTimeout(() => (inputRef.current as any)?.focus(), 0)
+      }}
     >
       <Add />
     </ButtonTooltip>
-    <Dialog open={open} onClose={() => setOpen(false)} onClick={e => e.stopPropagation()}>
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => { if (e.code === 'Enter') doAddDoc() }}
+    >
       <DialogTitle>Add Document</DialogTitle>
       <DialogContent>
         <DialogContentText>
           Adding a document
         </DialogContentText>
         <TextField
+          inputRef={inputRef}
           autoFocus
           required
           margin="dense"
@@ -63,23 +79,22 @@ All.addDocument('${currProjectName}', desc=${JSON.stringify(desc)})
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        {/* <FormGroup>
-          <FormControlLabel
-            label="Load Repositories"
-            control={<Checkbox
-              checked={loadRepositories}
-              onChange={(e) => setLoadRepositories(e.target.checked)}
-            />}
-          />
-        </FormGroup> */}
+        <TextField
+          margin="dense"
+          size="small"
+          label="Resource"
+          fullWidth
+          variant="outlined"
+          value={resource}
+          onChange={(e) => setResource(e.target.value)}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
           Cancel
         </Button>
         <Button onClick={() => {
-          go();
-          setOpen(false);
+          doAddDoc();
         }}>
           Add Document
         </Button>
