@@ -21,6 +21,7 @@ export const AddDocumentButton = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [resource, setResource] = useState('');
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
 
@@ -32,7 +33,7 @@ export const AddDocumentButton = ({
     const { problem, data } = await execPython(`
 import json
 from hera.datalayer import All
-All.addDocument('${currProjectName}', desc=${JSON.stringify(desc)})
+All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
 
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 result = {"name": '${currProjectName}', "documents": docs['documents']}
@@ -78,15 +79,15 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        {/* <FormGroup>
-          <FormControlLabel
-            label="Load Repositories"
-            control={<Checkbox
-              checked={loadRepositories}
-              onChange={(e) => setLoadRepositories(e.target.checked)}
-            />}
-          />
-        </FormGroup> */}
+        <TextField
+          margin="dense"
+          size="small"
+          label="Resource"
+          fullWidth
+          variant="outlined"
+          value={resource}
+          onChange={(e) => setResource(e.target.value)}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
