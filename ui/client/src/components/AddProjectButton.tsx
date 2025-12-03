@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 import { useRef, useState } from "react";
 import { execPython } from "../io/execPython";
-import { fetchProjectDetails, fetchProjectsNames } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
 import { ProjectEntire, ProjectName } from "@shared/types";
@@ -22,7 +21,7 @@ export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const { selectProject, setProjectNames, projectNames, setCurrentProject } = useProjectStore();
+  const { selectProject, setProjectNames, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
 
   const doAddProject = async () => {
@@ -48,10 +47,7 @@ project = {"name": '${name}', "documents": docs['documents']}
 
 result = {"projectNames": projectNames, "project": project}
     `)
-    // result = json.dumps(project,indent=4)
     if (problem) {
-      // console.log(problem)
-      // debugger
       return;
     }
 
@@ -73,6 +69,7 @@ result = {"projectNames": projectNames, "project": project}
       title='Add project'
       onClick={() => {
         setOpen(true);
+        setName('');
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
       }}
     >

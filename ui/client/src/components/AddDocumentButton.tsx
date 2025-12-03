@@ -8,9 +8,8 @@ import {
   DialogTitle,
   TextField,
 } from "@mui/material";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { execPython } from "../io/execPython";
-import { fetchProjectDetails } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
 import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
@@ -23,8 +22,9 @@ export const AddDocumentButton = ({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const { currProjectName, setCurrentProject } = useProjectStore();
+  const inputRef = useRef();
 
-  const go = async () => {
+  const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (toolkit?.toolkit) {
       desc.toolkit = toolkit.toolkit;
@@ -35,31 +35,39 @@ from hera.datalayer import All
 All.addDocument('${currProjectName}', desc=${JSON.stringify(desc)})
 
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
-project = {"name": '${currProjectName}', "documents": docs['documents']}
-result = json.dumps(project,indent=4)
+result = {"name": '${currProjectName}', "documents": docs['documents']}
       `)
     if (problem) {
       return;
     }
-
-    const project = JSON.parse(data) as ProjectEntire;
-    setCurrentProject(project);
+    setCurrentProject((data as ProjectEntire));
+    setOpen(false);
   }
 
   return (<>
     <ButtonTooltip
       title='Add Document'
-      onClick={() => setOpen(true)}
+      onClick={() => {
+        setOpen(true)
+        setName('');
+        setTimeout(() => (inputRef.current as any)?.focus(), 0)
+      }}
     >
       <Add />
     </ButtonTooltip>
-    <Dialog open={open} onClose={() => setOpen(false)} onClick={e => e.stopPropagation()}>
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => { if (e.code === 'Enter') doAddDoc() }}
+    >
       <DialogTitle>Add Document</DialogTitle>
       <DialogContent>
         <DialogContentText>
           Adding a document
         </DialogContentText>
         <TextField
+          inputRef={inputRef}
           autoFocus
           required
           margin="dense"
@@ -85,8 +93,7 @@ result = json.dumps(project,indent=4)
           Cancel
         </Button>
         <Button onClick={() => {
-          go();
-          setOpen(false);
+          doAddDoc();
         }}>
           Add Document
         </Button>
