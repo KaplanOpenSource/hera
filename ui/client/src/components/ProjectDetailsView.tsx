@@ -1,6 +1,6 @@
-import { Box, Paper, Stack, Typography } from '@mui/material';
-import type { Project, ProjectDocument, ProjectEntire } from '../shared/types';
 import { Article, ReceiptLong } from '@mui/icons-material';
+import { Paper, Stack, Typography } from '@mui/material';
+import type { ProjectEntire } from '../shared/types';
 
 export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null }) => {
   if (!project) {
