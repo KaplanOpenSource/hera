@@ -128,10 +128,10 @@ class dataToolkit(abstractToolkit):
                                                     auto_register_missing: bool = True):
         """
         Iterate through the repository JSON and for each toolkit:
-        - Ensure we can instantiate it (ToolkitHome.getToolkit).
-        - If missing and auto_register_missing=True, attempt auto-register using:
-            * Registry.classpath or Registry.cls in the JSON, or
-        - After we have the instance, proceed with per-toolkit loading logic.
+        - Try to get an instance via ToolkitHome.getToolkit.
+        - If missing and auto_register_missing=True, attempt auto-register ONLY if there is
+          a clear classpath hint in the JSON (Registry.classpath or Registry.cls).
+        - After we have a valid instance, dispatch to the appropriate handler per section.
         """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
 
@@ -153,50 +153,83 @@ class dataToolkit(abstractToolkit):
         tk_home = ToolkitHome(projectName=projectName)
 
         for toolkitName, toolkitDict in (repositoryJSON or {}).items():
+            # 1) Try static/dynamic resolution via ToolkitHome.getToolkit
             try:
                 toolkit = tk_home.getToolkit(toolkitName=toolkitName)
             except Exception as e:
                 logger.info(f"Toolkit '{toolkitName}' not found via getToolkit: {e}")
                 toolkit = None
 
-
+            # 2) Optional auto-registration, but only if there is a clear classpath hint
             if toolkit is None and auto_register_missing:
-                auto = getattr(tk_home, "auto_register_and_get", None)
-                if callable(auto):
-                    try:
-                        toolkit = auto(
-                            toolkitName=toolkitName,
-                            repositoryJSON=repositoryJSON,
-                            repositoryName=None,
-                        )
-                        logger.info(f"Auto-registered toolkit '{toolkitName}' via auto_register_and_get")
-                    except Exception as e:
-                        logger.error(f"Failed to auto-register toolkit '{toolkitName}': {e}")
-                        continue
-                else:
-                    logger.error("auto_register_and_get is not available on ToolkitHome")
-                    continue
+                registry = {}
+                classpath_hint = None
 
+                if isinstance(toolkitDict, dict):
+                    registry = toolkitDict.get("Registry", {}) or {}
+                    if isinstance(registry, dict):
+                        classpath_hint = registry.get("classpath") or registry.get("cls")
+
+                if not classpath_hint:
+                    # No classpath -> do not attempt auto-registration for this key
+                    logger.info(
+                        f"No classpath hint (Registry.classpath/cls) for key '{toolkitName}' in repository JSON; "
+                        f"skipping auto-registration."
+                    )
+                else:
+                    auto = getattr(tk_home, "auto_register_and_get", None)
+                    if callable(auto):
+                        try:
+                            toolkit = auto(
+                                toolkitName=toolkitName,
+                                repositoryJSON=repositoryJSON,
+                                repositoryName=None,
+                            )
+                            logger.info(
+                                f"Auto-registered toolkit '{toolkitName}' via auto_register_and_get "
+                                f"using classpath '{classpath_hint}'"
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to auto-register toolkit '{toolkitName}': {e}")
+                            # Skip this key but continue with others
+                            continue
+                    else:
+                        logger.error("auto_register_and_get is not available on ToolkitHome")
+                        continue
+
+            # 3) If we still do not have a toolkit instance, skip this key quietly
             if toolkit is None:
-                logger.error(f"Skipping toolkit '{toolkitName}' – could not load or auto-register it.")
+                logger.info(
+                    f"Skipping key '{toolkitName}' in repository JSON – "
+                    f"no matching toolkit and no auto-registration performed."
+                )
                 continue
 
+            # 4) Dispatch sections (Config, Datasource, Measurements, Simulations, Cache, Function)
             for key, docTypeDict in toolkitDict.items():
                 logger.info(f"Loading document type {key} to toolkit {toolkitName}")
                 handler = handlerDict.get(key.title(), None)
 
                 if handler is None:
-                    err = f"Unkonw Handler {key.title()}. The handler must be {', '.join(handlerDict.keys())}. "
+                    err = (
+                        f"Unkonw Handler {key.title()}. "
+                        f"The handler must be {', '.join(handlerDict.keys())}. "
+                    )
                     logger.error(err)
                     raise ValueError(err)
+
                 try:
-                    handler(toolkit=toolkit,
-                            itemName=key,
-                            docTypeDict=docTypeDict,
-                            overwrite=overwrite,
-                            basedir=basedir)
+                    handler(
+                        toolkit=toolkit,
+                        itemName=key,
+                        docTypeDict=docTypeDict,
+                        overwrite=overwrite,
+                        basedir=basedir,
+                    )
                 except Exception as e:
-                    err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                    err = (
+                        f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                    )
                     logger.error(err)
 
 
