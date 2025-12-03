@@ -13,7 +13,7 @@ import { execPython } from "../io/execPython";
 import { fetchProjectDetails } from "../io/FetchProjects";
 import { useProjectStore } from "../stores/useProjectStore";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
-import { DocumentDesc, Toolkit } from "@shared/types";
+import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
 
 export const AddDocumentButton = ({
   toolkit = undefined,
@@ -22,21 +22,28 @@ export const AddDocumentButton = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const { currProjectName } = useProjectStore();
+  const { currProjectName, setCurrentProject } = useProjectStore();
 
   const go = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (toolkit?.toolkit) {
       desc.toolkit = toolkit.toolkit;
     }
-    const { problem } = await execPython(`
+    const { problem, data } = await execPython(`
+import json
 from hera.datalayer import All
 All.addDocument('${currProjectName}', desc=${JSON.stringify(desc)})
+
+docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
+project = {"name": '${currProjectName}', "documents": docs['documents']}
+result = json.dumps(project,indent=4)
       `)
     if (problem) {
       return;
     }
-    await fetchProjectDetails(currProjectName);
+
+    const project = JSON.parse(data) as ProjectEntire;
+    setCurrentProject(project);
   }
 
   return (<>
