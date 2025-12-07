@@ -1,47 +1,28 @@
 import os
-import pydoc
 import sys
+import logging
+import pydoc
+import pandas as pd
+
 from hera import toolkit
 from .presentation import experimentPresentation
 from .analysis import experimentAnalysis
-from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
-import pandas as pd
+from hera.measurements.GIS.utils import WSG84, ITM, convertCRS
 
 try:
     from argos.experimentSetup import dataObjects as argosDataObjects
 except ImportError:
-    print("Must have argos installed and in the path. ")
+    # Argos is optional; if it is not installed, experiment toolkits cannot be used.
+    print("Must have argos installed and in the path.")
 
-from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
-from hera.utils  import loadJSON
-import logging
+from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB, DASKDB
+from hera.utils import loadJSON
 
-# The name of the property. This is has to be similar ot the  from the argosweb interface.
-# Dont change!
-TRIALSTART = 'TrialStart'
-TRIALEND = 'TrialStart'
-import os
-import pydoc
-import sys
-from hera import toolkit
-from .presentation import experimentPresentation
-from .analysis import experimentAnalysis
-from hera.measurements.GIS.utils import WSG84,ITM,convertCRS
-import pandas as pd
-
-try:
-    from argos.experimentSetup import dataObjects as argosDataObjects
-except ImportError:
-    print("Must have argos installed and in the path. ")
-
-from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB,DASKDB
-from hera.utils  import loadJSON
-import logging
-
-# The name of the property. This is has to be similar ot the  from the argosweb interface.
-# Dont change!
-TRIALSTART = 'TrialStart'
-TRIALEND = 'TrialStart'
+# Experiment trial time field names.
+# These names must match the properties in the Argos web interface.
+# Do not change unless the Argos schema changes.
+TRIALSTART = "TrialStart"
+TRIALEND = "TrialEnd"
 
 
 class experimentHome(toolkit.abstractToolkit):
