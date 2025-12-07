@@ -18,8 +18,7 @@ except ImportError:
 from .dataEngine import dataEngineFactory, PARQUETHERA, PANDASDB, DASKDB
 from hera.utils import loadJSON
 
-# Experiment trial time field names.
-# These names must match the properties in the Argos web interface.
+# The name of the properties. These must match the Argos web interface.
 # Do not change unless the Argos schema changes.
 TRIALSTART = "TrialStart"
 TRIALEND = "TrialEnd"
@@ -27,107 +26,140 @@ TRIALEND = "TrialEnd"
 
 class experimentHome(toolkit.abstractToolkit):
     """
-        This is the object that function as a factory/home to the other experiments.
-        It is responsible for getting the right toolkit for the requested experiment.
-
+    This object functions as a factory/home for the other experiments.
+    It is responsible for getting the right toolkit for the requested experiment.
     """
 
-    DOCTYPE_ENTITIES = 'EntitiesData'
-    CODE_DIRECTORY = 'code'
+    DOCTYPE_ENTITIES = "EntitiesData"
+    CODE_DIRECTORY = "code"
 
     def __init__(self, projectName, filesDirectory=None):
-        super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory)
+        super().__init__(
+            projectName=projectName,
+            toolkitName="experimentToolKit",
+            filesDirectory=filesDirectory,
+        )
         self.logger = logging.getLogger()
         self.logger.info("Init experiment toolkit")
 
-
     @property
     def experimentMap(self):
-        return self.experimentMap()
+        """
+        Backward-compatibility alias.
+        Historically this was a property, so we keep the interface,
+        even though today the real logic is in getExperimentsMap().
+        """
+        return self.getExperimentsMap()
 
-    #
     def getExperimentsMap(self):
         """
-        Get dictionary of experiments map of project.
+        Get a dictionary mapping experiment name -> datasource document.
 
         Returns
         -------
-            dict
+        dict
+            Keys are experiment names (datasourceName),
+            values are the matching datasource documents.
         """
-        M=dict()
+        experiments_map = {}
         for experiment in self.getDataSourceMap():
-            experimentName=experiment['datasourceName']
-            M[experimentName]=experiment
-
-        return M
+            experimentName = experiment["datasourceName"]
+            experiments_map[experimentName] = experiment
+        return experiments_map
 
     @property
     def experimentsTable(self):
+        """
+        Return a tabular view (DataFrame-like) of experiment datasources.
+        """
         return self.getDataSourceTable()
 
     def getExperimentsTable(self):
+        """
+        Backward-compatible alias for experimentsTable.
+        """
         return self.getDataSourceTable()
 
-    def getExperiment(self,experimentName,filesDirectory=None):
+    def getExperiment(self, experimentName, filesDirectory=None):
         """
         Get the specific experiment class.
 
         Parameters
         ----------
         experimentName : str
-                The name of the experimen
-        filesDirectory: str
-                The directory to save the cache/intermediate files.
-                If None, use the [current directory]/experimentCache.
+            The name of the experiment.
+        filesDirectory : str, optional
+            The directory to save cache/intermediate files.
+            If None, uses the current working directory / 'experimentCache'.
 
         Returns
         -------
-            experimentSetupWithData
+        experimentSetupWithData
         """
-
         self.logger.info(f"Getting experiment {experimentName}")
-        L = self.getDataSourceDocument(datasourceName=experimentName)
-        if L:
-            self.logger.info(f"Found experiment. Loading")
-            experimentPath=L.getData()
-            sys.path.append(os.path.join(experimentPath,self.CODE_DIRECTORY))
-            self.logger.debug(f"Adding path {os.path.join(experimentPath,self.CODE_DIRECTORY)} to classpath")
+        ds_doc = self.getDataSourceDocument(datasourceName=experimentName)
+
+        if ds_doc:
+            self.logger.info("Found experiment. Loading")
+            experimentPath = ds_doc.getData()
+
+            # Add experiment's 'code' directory to sys.path so we can import its toolkit.
+            sys.path.append(os.path.join(experimentPath, self.CODE_DIRECTORY))
+            self.logger.debug(
+                f"Adding path {os.path.join(experimentPath, self.CODE_DIRECTORY)} to sys.path"
+            )
+
             toolkitName = f"{experimentName}.{experimentName}"
-            self.logger.debug(f"Loading toolkits: {toolkitName}")
+            self.logger.debug(f"Loading toolkit: {toolkitName}")
 
             toolkitCls = pydoc.locate(toolkitName)
             if toolkitCls is None:
-                err = f"Cannot find toolkit {toolkitName} in {os.path.join(experimentPath,self.CODE_DIRECTORY)}"
+                err = (
+                    f"Cannot find toolkit {toolkitName} in "
+                    f"{os.path.join(experimentPath, self.CODE_DIRECTORY)}"
+                )
                 self.logger.error(err)
                 raise ValueError(err)
 
-            return toolkitCls(projectName=self.projectName,
-                              pathToExperiment=experimentPath,filesDirectory=filesDirectory)
-        else:
-            err = f"Experiment {experimentName} not found in Project {self.projectName}. Please load the experiment to the project. "
-            self.logger.error(err)
-            raise ValueError(err)
+            return toolkitCls(
+                projectName=self.projectName,
+                pathToExperiment=experimentPath,
+                filesDirectory=filesDirectory,
+            )
 
+        err = (
+            f"Experiment {experimentName} not found in Project {self.projectName}. "
+            f"Please load the experiment to the project."
+        )
+        self.logger.error(err)
+        raise ValueError(err)
 
     def keys(self):
         """
-        Get the experiments names of project.
+        Get the experiment names of the project.
 
         Returns
         -------
-            list
+        list of str
         """
-        return [x for x in self.getExperimentsMap()]
+        return [name for name in self.getExperimentsMap()]
 
     def __getitem__(self, item):
+        """
+        Allow experimentHome['expName'] syntax to return a specific experiment.
+        """
         return self.getExperiment(item)
 
     def experimentDataType(self):
-        return self._experimentDataType
+        """
+        Backward-compatibility hook for experiment data type.
+        """
+        return getattr(self, "_experimentDataType", None)
 
-class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstractToolkit):
+
+class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstractToolkit):
     """
-        A class that unifies the argos.experiment setup with the data.
+    A class that unifies the argos.experiment setup with the data.
     """
 
     _configuration = None
@@ -151,73 +183,101 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
 
     @property
     def name(self):
-        return self.configuration['experimentName']
+        return self.configuration["experimentName"]
 
     def _initTrialSets(self):
+        """
+        Initialize trial sets from the experiment setup metadata.
+        """
         experimentSetup = self.setup
-        for trialset in experimentSetup['trialSets']:
-            self.trialSet[trialset['name']] = TrialSetWithData(experiment = self, TrialSetSetup=trialset,experimentData= self._experimentData)
+        for trialset in experimentSetup["trialSets"]:
+            self.trialSet[trialset["name"]] = TrialSetWithData(
+                experiment=self,
+                TrialSetSetup=trialset,
+                experimentData=self._experimentData,
+            )
 
     def _initEntitiesTypes(self):
+        """
+        Initialize entity types from the experiment setup metadata.
+        """
         experimentSetup = self.setup
-        for entityType in experimentSetup['entityTypes']:
-            self.entityType[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
+        for entityType in experimentSetup["entityTypes"]:
+            self.entityType[entityType["name"]] = EntityTypeWithData(
+                experiment=self,
+                metadata=entityType,
+                experimentData=self._experimentData,
+            )
 
     def getExperimentData(self):
         """
-        Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).
+        Get the Data Engine of the experiment.
+        Accessing experiment data is done through this object (using .getData()).
 
         Returns
         -------
-            parquetDataEngineHera , pandasDataEngineDB or daskDataEngineDB.
+        parquetDataEngineHera or pandasDataEngineDB or daskDataEngineDB
         """
         return self._experimentData
 
-    def __init__(self, projectName, pathToExperiment, dataType=PARQUETHERA, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
+    def __init__(
+        self,
+        projectName,
+        pathToExperiment,
+        dataType=PARQUETHERA,
+        dataSourceConfiguration=dict(),
+        filesDirectory=None,
+        defaultTrialSetName=None,
+    ):
         """
-            Initializes the specific experiment toolkit.
+        Initialize the specific experiment toolkit.
 
         Parameters
         ----------
-        projectName: str
-                The project name to work with.
-
-        pathToExperiment:
-                The path to the experiment data.
-
-        dataType: str
-                Define how the data is retrieved: dask or pandas directly from the mongoDB, or through the
-                                                  parquet.
-
+        projectName : str
+            The project name to work with.
+        pathToExperiment : str
+            The path to the experiment data.
+        dataType : str
+            How data is retrieved: dask/pandas from MongoDB, or parquet.
         dataSourceConfiguration : dict
-                overwrite the datasources configuration of the experiment.
-                See ... for structure.
-
-        filesDirectory: str
-                The directory to save the cache/intermediate files.
-                If None, use the [current directory]/experimentCache.
-
-        defaultTrialSet: str
-                A default trialset to use if not supplied.
-
+            Override datasources configuration of the experiment.
+        filesDirectory : str, optional
+            Directory to save cache/intermediate files.
+            If None, uses [current directory]/experimentCache.
+        defaultTrialSetName : str, optional
+            Default trial set to use if not supplied.
         """
-        # setup the configuration file name
-        configurationFileName = os.path.join(pathToExperiment, 'runtimeExperimentData', "Datasources_Configurations.json")
+        # Locate configuration file
+        configurationFileName = os.path.join(
+            pathToExperiment, "runtimeExperimentData", "Datasources_Configurations.json"
+        )
 
         if not os.path.isfile(configurationFileName):
-            raise ValueError(f" The configuration file doesn't exist. Looking for {configurationFileName}")
+            raise ValueError(
+                f"The configuration file does not exist. Looking for {configurationFileName}"
+            )
         self._configuration = loadJSON(configurationFileName)
 
         dataSourceConfiguration = dict() if dataSourceConfiguration is None else dataSourceConfiguration
         self._configuration.update(dataSourceConfiguration)
 
-        experimentName = self.configuration['experimentName']
-        setupFile = os.path.join(pathToExperiment, 'runtimeExperimentData', f"{experimentName}.zip" )
+        experimentName = self.configuration["experimentName"]
+        setupFile = os.path.join(
+            pathToExperiment, "runtimeExperimentData", f"{experimentName}.zip"
+        )
         if not os.path.isfile(setupFile):
-            raise ValueError(f"The experiment setup file doesn't exist. Looking for {setupFile}  ")
+            raise ValueError(
+                f"The experiment setup file does not exist. Looking for {setupFile}"
+            )
 
-        # Now initialize the data engine.
-        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration,experimentObj=self, dataType = dataType)
+        # Initialize the data engine
+        self._experimentData = dataEngineFactory().getDataEngine(
+            projectName,
+            self._configuration,
+            experimentObj=self,
+            dataType=dataType,
+        )
         self.entityType = dict()
         self.trialSet = dict()
 
@@ -225,14 +285,19 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
             filesDirectory = os.getcwd()
 
         cacheDir = os.path.join(filesDirectory, "experimentCache")
-        os.makedirs(cacheDir,exist_ok=True)
+        os.makedirs(cacheDir, exist_ok=True)
 
-        argosDataObjects.ExperimentZipFile.__init__(self,setupFile)
-        toolkit.abstractToolkit.__init__(self,projectName=projectName,toolkitName=f"{experimentName}Toolkit",filesDirectory=cacheDir)
+        argosDataObjects.ExperimentZipFile.__init__(self, setupFile)
+        toolkit.abstractToolkit.__init__(
+            self,
+            projectName=projectName,
+            toolkitName=f"{experimentName}Toolkit",
+            filesDirectory=cacheDir,
+        )
 
         self._defaultTrialSetName = defaultTrialSetName
-        self._analysis = experimentAnalysis(self,)
-        self._presentation = experimentPresentation(self,self.analysis)
+        self._analysis = experimentAnalysis(self)
+        self._presentation = experimentPresentation(self, self.analysis)
 
     @property
     def defaultTrialSet(self):
@@ -242,552 +307,275 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstrac
     def trialsOfDefaultTrialSet(self):
         return self.trialSet[self.defaultTrialSet]
 
-    def _initAnalysisAndPresentation(self,analysisCLS,presentationCLS):
+    def _initAnalysisAndPresentation(self, analysisCLS, presentationCLS):
         """
-            Initializes the analysis and the presentation classes
-            and sets the datalayer.
+        Initialize the analysis and presentation classes and set the data layer.
 
         Parameters
         ----------
-        analysisCLS :  class
-                The analysis class. It is recommended that it will inherit from
-                .analysis.experimentAnalysis
-
+        analysisCLS : class
+            The analysis class, recommended to inherit from .analysis.experimentAnalysis.
         presentationCLS : class
-                The presentation class. It is recommended that it will inherit from
-                .presentation.experimentPresentation
+            The presentation class, recommended to inherit from .presentation.experimentPresentation.
+        """
+        self._analysis = analysisCLS(self)
+        self._presentation = presentationCLS(self, self._analysis)
 
+    def getDataFromDateRange(
+        self,
+        deviceType,
+        startTime,
+        endTime,
+        deviceName=None,
+        withMetadata=True,
+    ):
+        """
+        Retrieve data for a given device type and time range.
+
+        Parameters
+        ----------
+        deviceType : str
+        startTime : datetime-like
+        endTime : datetime-like
+        deviceName : str, optional
+        withMetadata : bool
 
         Returns
         -------
-
+        DataFrame
         """
-        self._analysis = analysisCLS(self)
-        self._presentation = presentationCLS(self,self._analysis)
-
-    def getDataFromDateRange(self,deviceType,startTime , endTime ,deviceName = None,withMetadata = True):
-        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
+        data = self._experimentData.getData(
+            deviceType=deviceType,
+            deviceName=deviceName,
+            startTime=startTime,
+            endTime=endTime,
+        )
 
         if len(data) == 0:
-            raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
+            raise ValueError(
+                f"There is no data for {deviceType} between the dates {startTime} and {endTime}"
+            )
 
         if withMetadata:
             devicemetadata = self.entitiesTable()
             if len(devicemetadata) > 0:
-                data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
-                    "timestamp")
+                data = (
+                    data.reset_index()
+                    .merge(
+                        devicemetadata,
+                        left_on="deviceName",
+                        right_on="entityName",
+                    )
+                    .set_index("timestamp")
+                )
 
         return data
 
-    def _process_row(self,row):
+    def _process_row(self, row):
+        """
+        Helper for coordinate conversion of a single row (Longitude, Latitude).
+        """
         pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
         return pd.Series([pp.x[0], pp.y[0]])
 
-    def get_devices_image_coordinates(self,trialSetName,trialName,deviceType,outputCRS=ITM):
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
+    def get_devices_image_coordinates(
+        self,
+        trialSetName,
+        trialName,
+        deviceType,
+        outputCRS=ITM,
+    ):
+        """
+        Compute bounding box of devices in image coordinates (ITM or original).
 
-        if outputCRS==ITM:
-            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
-            latitudes = devices_df['ITM_Latitude']
-            longitudes = devices_df['ITM_Longitude']
+        Returns
+        -------
+        (min_latitude, min_longitude, max_latitude, max_longitude)
+        """
+        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query(
+            "deviceTypeName==@deviceType"
+        )
+
+        if outputCRS == ITM:
+            devices_df[["ITM_Latitude", "ITM_Longitude"]] = devices_df.apply(
+                self._process_row, axis=1
+            )
+            latitudes = devices_df["ITM_Latitude"]
+            longitudes = devices_df["ITM_Longitude"]
         else:
-            latitudes = devices_df['Latitude']
-            longitudes = devices_df['Longitude']
+            latitudes = devices_df["Latitude"]
+            longitudes = devices_df["Longitude"]
+
         min_latitude, max_latitude = min(latitudes), max(latitudes)
         min_longitude, max_longitude = min(longitudes), max(longitudes)
-        return min_latitude,min_longitude,max_latitude,max_longitude
+        return min_latitude, min_longitude, max_latitude, max_longitude
+
 
 class TrialSetWithData(argosDataObjects.TrialSet):
+    """
+    TrialSet that is aware of the experiment data engine.
+    """
 
     def _initTrials(self):
-        for trial in self._metadata['trials']:
-            self[trial['name']] = TrialWithdata(trialSet=self,metadata=trial, experimentData =self._experimentData )
+        for trial in self._metadata["trials"]:
+            self[trial["name"]] = TrialWithdata(
+                trialSet=self,
+                metadata=trial,
+                experimentData=self._experimentData,
+            )
 
-    def __init__(self, experiment:experimentSetupWithData, TrialSetSetup: dict, experimentData: dataEngineFactory):
+    def __init__(self, experiment: experimentSetupWithData, TrialSetSetup: dict, experimentData: dataEngineFactory):
         """
-            The initialization of the experiment.
-
-            The object that handles the retrieval of the data is different to support
-            access to db, and pandas in the different stages of the experiment.
-
-        Parameters
-        ----------
-        experiment : the data of the experiment.
-        TrialSetSetup : The data of the trials.
-        experimentData : a link to the object that handles the retrieval of the data.
-
+        Initialize the TrialSet with a link to the shared experiment data engine.
         """
         self._experimentData = experimentData
         super().__init__(experiment, TrialSetSetup)
 
 
 class TrialWithdata(argosDataObjects.Trial):
+    """
+    Trial object that knows how to pull its data from the shared experiment data engine.
+    """
 
-    def getData(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = False):
-
+    def getData(
+        self,
+        deviceType,
+        deviceName=None,
+        startTime=None,
+        endTime=None,
+        withMetadata=False,
+    ):
+        """
+        Retrieve trial data for a given device type and time range.
+        If startTime/endTime are not provided, the trial properties TRIALSTART/TRIALEND are used.
+        """
         startTime = self.properties[TRIALSTART] if startTime is None else startTime
         endTime = self.properties[TRIALEND] if endTime is None else endTime
 
-        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
+        data = self._experimentData.getData(
+            deviceType=deviceType,
+            deviceName=deviceName,
+            startTime=startTime,
+            endTime=endTime,
+        )
 
         if len(data) == 0:
-            raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
+            raise ValueError(
+                f"There is no data for {deviceType} between the dates {startTime} and {endTime}"
+            )
 
         if withMetadata:
             devicemetadata = self.entitiesTable()
             if len(devicemetadata) > 0:
-                data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
+                data = (
+                    data.reset_index()
+                    .merge(
+                        devicemetadata,
+                        left_on="deviceName",
+                        right_on="entityName",
+                    )
+                    .set_index("timestamp")
+                )
 
         return data
 
-
-    def __init__(self, trialSet: TrialSetWithData, metadata: dict, experimentData: dataEngineFactory):
+    def __init__(
+        self,
+        trialSet: TrialSetWithData,
+        metadata: dict,
+        experimentData: dataEngineFactory,
+    ):
         self._experimentData = experimentData
         super().__init__(trialSet, metadata)
 
 
 class EntityTypeWithData(argosDataObjects.EntityType):
+    """
+    EntityType that knows how to pull its data from the shared experiment data engine.
+    """
 
     def _initEntities(self):
-        for entity in self._metadata['entities']:
-            self[entity['name']] = EntityWithData(entityType=self, metadata=entity,experimentData =self._experimentData)
+        for entity in self._metadata["entities"]:
+            self[entity["name"]] = EntityWithData(
+                entityType=self,
+                metadata=entity,
+                experimentData=self._experimentData,
+            )
 
-    def __init__(self, experiment:experimentSetupWithData, metadata: dict, experimentData: dataEngineFactory):
+    def __init__(
+        self,
+        experiment: experimentSetupWithData,
+        metadata: dict,
+        experimentData: dataEngineFactory,
+    ):
         """
-            The iniitialization of the object with the data.
-
-        Parameters
-        ----------
-        experiment : The data of the experiment.
-        metadata
-        experimentData
+        Initialize the EntityType with a link to the shared experiment data engine.
         """
         self._experimentData = experimentData
         super().__init__(experiment, metadata)
 
     def getData(self, startTime=None, endTime=None):
-        return self._experimentData.getData(self.name,startTime = startTime,endTime = endTime )
-
-    def getDataTrial(self,trialSetName,trialName):
         """
-            Returns the device data from the trial.
+        Retrieve all data for this entity type (optionally in a time range).
+        """
+        return self._experimentData.getData(
+            self.name,
+            startTime=startTime,
+            endTime=endTime,
+        )
+
+    def getDataTrial(self, trialSetName, trialName):
+        """
+        Return the device data for this entity type in a specific trial.
+
         Parameters
         ----------
-        trialSetName  : str
-            The name of the trial set
-
+        trialSetName : str
         trialName : str
-            The name of the trial.
 
         Returns
         -------
-
+        DataFrame
         """
         trial = self.experiment.trialSet[trialSetName][trialName]
         startTime = trial.properties[TRIALSTART]
         endTime = trial.properties[TRIALEND]
 
-        StoreDataPerDevice = self.properties['StoreDataPerDevice']
-        data = self._experimentData.getData(deviceType=self.entityType,deviceName=self.name,startTime=startTime,endTime=endTime,
-                                            perDevice=StoreDataPerDevice)
+        StoreDataPerDevice = self.properties["StoreDataPerDevice"]
+        data = self._experimentData.getData(
+            deviceType=self.entityType,
+            deviceName=self.name,
+            startTime=startTime,
+            endTime=endTime,
+            perDevice=StoreDataPerDevice,
+        )
         return data
 
 
 class EntityWithData(argosDataObjects.Entity):
+    """
+    Entity that knows how to pull its data from the shared experiment data engine.
+    """
 
-    def __init__(self, entityType: EntityTypeWithData, metadata: dict, experimentData):
+    def __init__(
+        self,
+        entityType: EntityTypeWithData,
+        metadata: dict,
+        experimentData,
+    ):
         self._experimentData = experimentData
         super().__init__(entityType, metadata)
-
-    def getData(self,startTime=None, endTime=None):
-        StoreDataPerDevice = self.properties['StoreDataPerDevice']
-
-        return self._experimentData.getData(deviceType=self.entityType,
-                                            deviceName=self.name,
-                                            startTime=startTime,
-                                            endTime=endTime,
-                                            perDevice=StoreDataPerDevice)
-
-
-class experimentHome(toolkit.abstractToolkit):
-    """
-        This is the object that function as a factory/home to the other experiments.
-        It is responsible for getting the right toolkit for the requested experiment.
-
-    """
-
-    DOCTYPE_ENTITIES = 'EntitiesData'
-    CODE_DIRECTORY = 'code'
-
-    def __init__(self, projectName, filesDirectory=None):
-        super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory)
-        self.logger = logging.getLogger()
-        self.logger.info("Init experiment toolkit")
-
-
-    @property
-    def experimentMap(self):
-        return self.experimentMap()
-
-    #
-    def getExperimentsMap(self):
-        """
-        Get dictionary of experiments map of project.
-
-        Returns
-        -------
-            dict
-        """
-        M=dict()
-        for experiment in self.getDataSourceMap():
-            experimentName=experiment['datasourceName']
-            M[experimentName]=experiment
-
-        return M
-
-    @property
-    def experimentsTable(self):
-        return self.getDataSourceTable()
-
-    def getExperimentsTable(self):
-        return self.getDataSourceTable()
-
-    def getExperiment(self,experimentName,filesDirectory=None):
-        """
-        Get the specific experiment class.
-
-        Parameters
-        ----------
-        experimentName : str
-                The name of the experimen
-        filesDirectory: str
-                The directory to save the cache/intermediate files.
-                If None, use the [current directory]/experimentCache.
-
-        Returns
-        -------
-            experimentSetupWithData
-        """
-
-        self.logger.info(f"Getting experiment {experimentName}")
-        L = self.getDataSourceDocument(datasourceName=experimentName)
-        if L:
-            self.logger.info(f"Found experiment. Loading")
-            experimentPath=L.getData()
-            sys.path.append(os.path.join(experimentPath,self.CODE_DIRECTORY))
-            self.logger.debug(f"Adding path {os.path.join(experimentPath,self.CODE_DIRECTORY)} to classpath")
-            toolkitName = f"{experimentName}.{experimentName}"
-            self.logger.debug(f"Loading toolkits: {toolkitName}")
-
-            toolkitCls = pydoc.locate(toolkitName)
-            if toolkitCls is None:
-                err = f"Cannot find toolkit {toolkitName} in {os.path.join(experimentPath,self.CODE_DIRECTORY)}"
-                self.logger.error(err)
-                raise ValueError(err)
-
-            return toolkitCls(projectName=self.projectName,
-                              pathToExperiment=experimentPath,filesDirectory=filesDirectory)
-        else:
-            err = f"Experiment {experimentName} not found in Project {self.projectName}. Please load the experiment to the project. "
-            self.logger.error(err)
-            raise ValueError(err)
-
-
-    def keys(self):
-        """
-        Get the experiments names of project.
-
-        Returns
-        -------
-            list
-        """
-        return [x for x in self.getExperimentsMap()]
-
-    def __getitem__(self, item):
-        return self.getExperiment(item)
-
-    def experimentDataType(self):
-        return self._experimentDataType
-
-class experimentSetupWithData(argosDataObjects.ExperimentZipFile,toolkit.abstractToolkit):
-    """
-        A class that unifies the argos.experiment setup with the data.
-    """
-
-    _configuration = None
-    entityType = None
-    trialSet = None
-
-    _analysis = None
-    _presentation = None
-
-    @property
-    def analysis(self):
-        return self._analysis
-
-    @property
-    def presentation(self):
-        return self._presentation
-
-    @property
-    def configuration(self):
-        return self._configuration
-
-    @property
-    def name(self):
-        return self.configuration['experimentName']
-
-    def _initTrialSets(self):
-        experimentSetup = self.setup
-        for trialset in experimentSetup['trialSets']:
-            self.trialSet[trialset['name']] = TrialSetWithData(experiment = self, TrialSetSetup=trialset,experimentData= self._experimentData)
-
-    def _initEntitiesTypes(self):
-        experimentSetup = self.setup
-        for entityType in experimentSetup['entityTypes']:
-            self.entityType[entityType['name']] = EntityTypeWithData(experiment=self, metadata = entityType, experimentData= self._experimentData)
-
-    def getExperimentData(self):
-        """
-        Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).
-
-        Returns
-        -------
-            parquetDataEngineHera , pandasDataEngineDB or daskDataEngineDB.
-        """
-        return self._experimentData
-
-    def __init__(self, projectName, pathToExperiment, dataType=PARQUETHERA, dataSourceConfiguration=dict(), filesDirectory=None,defaultTrialSetName=None):
-        """
-            Initializes the specific experiment toolkit.
-
-        Parameters
-        ----------
-        projectName: str
-                The project name to work with.
-
-        pathToExperiment:
-                The path to the experiment data.
-
-        dataType: str
-                Define how the data is retrieved: dask or pandas directly from the mongoDB, or through the
-                                                  parquet.
-
-        dataSourceConfiguration : dict
-                overwrite the datasources configuration of the experiment.
-                See ... for structure.
-
-        filesDirectory: str
-                The directory to save the cache/intermediate files.
-                If None, use the [current directory]/experimentCache.
-
-        defaultTrialSet: str
-                A default trialset to use if not supplied.
-
-        """
-        # setup the configuration file name
-        configurationFileName = os.path.join(pathToExperiment, 'runtimeExperimentData', "Datasources_Configurations.json")
-
-        if not os.path.isfile(configurationFileName):
-            raise ValueError(f" The configuration file doesn't exist. Looking for {configurationFileName}")
-        self._configuration = loadJSON(configurationFileName)
-
-        dataSourceConfiguration = dict() if dataSourceConfiguration is None else dataSourceConfiguration
-        self._configuration.update(dataSourceConfiguration)
-
-        experimentName = self.configuration['experimentName']
-        setupFile = os.path.join(pathToExperiment, 'runtimeExperimentData', f"{experimentName}.zip" )
-        if not os.path.isfile(setupFile):
-            raise ValueError(f"The experiment setup file doesn't exist. Looking for {setupFile}  ")
-
-        # Now initialize the data engine.
-        self._experimentData = dataEngineFactory().getDataEngine(projectName,self._configuration,experimentObj=self, dataType = dataType)
-        self.entityType = dict()
-        self.trialSet = dict()
-
-        if filesDirectory is None:
-            filesDirectory = os.getcwd()
-
-        cacheDir = os.path.join(filesDirectory, "experimentCache")
-        os.makedirs(cacheDir,exist_ok=True)
-
-        argosDataObjects.ExperimentZipFile.__init__(self,setupFile)
-        toolkit.abstractToolkit.__init__(self,projectName=projectName,toolkitName=f"{experimentName}Toolkit",filesDirectory=cacheDir)
-
-        self._defaultTrialSetName = defaultTrialSetName
-        self._analysis = experimentAnalysis(self,)
-        self._presentation = experimentPresentation(self,self.analysis)
-
-    @property
-    def defaultTrialSet(self):
-        return self._defaultTrialSetName
-
-    @property
-    def trialsOfDefaultTrialSet(self):
-        return self.trialSet[self.defaultTrialSet]
-
-    def _initAnalysisAndPresentation(self,analysisCLS,presentationCLS):
-        """
-            Initializes the analysis and the presentation classes
-            and sets the datalayer.
-
-        Parameters
-        ----------
-        analysisCLS :  class
-                The analysis class. It is recommended that it will inherit from
-                .analysis.experimentAnalysis
-
-        presentationCLS : class
-                The presentation class. It is recommended that it will inherit from
-                .presentation.experimentPresentation
-
-
-        Returns
-        -------
-
-        """
-        self._analysis = analysisCLS(self)
-        self._presentation = presentationCLS(self,self._analysis)
-
-    def getDataFromDateRange(self,deviceType,startTime , endTime ,deviceName = None,withMetadata = True):
-        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
-
-        if len(data) == 0:
-            raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
-
-        if withMetadata:
-            devicemetadata = self.entitiesTable()
-            if len(devicemetadata) > 0:
-                data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index(
-                    "timestamp")
-
-        return data
-
-    def _process_row(self,row):
-        pp = convertCRS([[row.Longitude, row.Latitude]], inputCRS=WSG84, outputCRS=ITM)
-        return pd.Series([pp.x[0], pp.y[0]])
-
-    def get_devices_image_coordinates(self,trialSetName,trialName,deviceType,outputCRS=ITM):
-        devices_df = self.trialSet[trialSetName][trialName].entitiesTable.query("deviceTypeName==@deviceType")
-
-        if outputCRS==ITM:
-            devices_df[['ITM_Latitude', 'ITM_Longitude']] = devices_df.apply(self._process_row, axis=1)
-            latitudes = devices_df['ITM_Latitude']
-            longitudes = devices_df['ITM_Longitude']
-        else:
-            latitudes = devices_df['Latitude']
-            longitudes = devices_df['Longitude']
-        min_latitude, max_latitude = min(latitudes), max(latitudes)
-        min_longitude, max_longitude = min(longitudes), max(longitudes)
-        return min_latitude,min_longitude,max_latitude,max_longitude
-
-class TrialSetWithData(argosDataObjects.TrialSet):
-
-    def _initTrials(self):
-        for trial in self._metadata['trials']:
-            self[trial['name']] = TrialWithdata(trialSet=self,metadata=trial, experimentData =self._experimentData )
-
-    def __init__(self, experiment:experimentSetupWithData, TrialSetSetup: dict, experimentData: dataEngineFactory):
-        """
-            The initialization of the experiment.
-
-            The object that handles the retrieval of the data is different to support
-            access to db, and pandas in the different stages of the experiment.
-
-        Parameters
-        ----------
-        experiment : the data of the experiment.
-        TrialSetSetup : The data of the trials.
-        experimentData : a link to the object that handles the retrieval of the data.
-
-        """
-        self._experimentData = experimentData
-        super().__init__(experiment, TrialSetSetup)
-
-
-class TrialWithdata(argosDataObjects.Trial):
-
-    def getData(self,deviceType,deviceName = None,startTime = None, endTime = None,withMetadata = False):
-
-        startTime = self.properties[TRIALSTART] if startTime is None else startTime
-        endTime = self.properties[TRIALEND] if endTime is None else endTime
-
-        data = self._experimentData.getData(deviceType=deviceType,deviceName=deviceName,startTime=startTime,endTime=endTime)
-
-        if len(data) == 0:
-            raise ValueError(f"There is no data for {deviceType} between the dates {startTime} and {endTime}")
-
-        if withMetadata:
-            devicemetadata = self.entitiesTable()
-            if len(devicemetadata) > 0:
-                data = data.reset_index().merge(devicemetadata, left_on="deviceName", right_on="entityName").set_index("timestamp")
-
-        return data
-
-
-    def __init__(self, trialSet: TrialSetWithData, metadata: dict, experimentData: dataEngineFactory):
-        self._experimentData = experimentData
-        super().__init__(trialSet, metadata)
-
-
-class EntityTypeWithData(argosDataObjects.EntityType):
-
-    def _initEntities(self):
-        for entity in self._metadata['entities']:
-            self[entity['name']] = EntityWithData(entityType=self, metadata=entity,experimentData =self._experimentData)
-
-    def __init__(self, experiment:experimentSetupWithData, metadata: dict, experimentData: dataEngineFactory):
-        """
-            The iniitialization of the object with the data.
-
-        Parameters
-        ----------
-        experiment : The data of the experiment.
-        metadata
-        experimentData
-        """
-        self._experimentData = experimentData
-        super().__init__(experiment, metadata)
 
     def getData(self, startTime=None, endTime=None):
-        return self._experimentData.getData(self.name,startTime = startTime,endTime = endTime )
-
-    def getDataTrial(self,trialSetName,trialName):
         """
-            Returns the device data from the trial.
-        Parameters
-        ----------
-        trialSetName  : str
-            The name of the trial set
-
-        trialName : str
-            The name of the trial.
-
-        Returns
-        -------
-
+        Retrieve data for this specific entity (device).
         """
-        trial = self.experiment.trialSet[trialSetName][trialName]
-        startTime = trial.properties[TRIALSTART]
-        endTime = trial.properties[TRIALEND]
+        StoreDataPerDevice = self.properties["StoreDataPerDevice"]
 
-        StoreDataPerDevice = self.properties['StoreDataPerDevice']
-        data = self._experimentData.getData(deviceType=self.entityType,deviceName=self.name,startTime=startTime,endTime=endTime,
-                                            perDevice=StoreDataPerDevice)
-        return data
-
-
-class EntityWithData(argosDataObjects.Entity):
-
-    def __init__(self, entityType: EntityTypeWithData, metadata: dict, experimentData):
-        self._experimentData = experimentData
-        super().__init__(entityType, metadata)
-
-    def getData(self,startTime=None, endTime=None):
-        StoreDataPerDevice = self.properties['StoreDataPerDevice']
-
-        return self._experimentData.getData(deviceType=self.entityType,
-                                            deviceName=self.name,
-                                            startTime=startTime,
-                                            endTime=endTime,
-                                            perDevice=StoreDataPerDevice)
+        return self._experimentData.getData(
+            deviceType=self.entityType,
+            deviceName=self.name,
+            startTime=startTime,
+            endTime=endTime,
+            perDevice=StoreDataPerDevice,
+        )
