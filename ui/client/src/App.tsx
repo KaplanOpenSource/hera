@@ -1,9 +1,9 @@
 import { Alert, Box, Stack, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
+import { ProjectDetailsView } from './components/details/ProjectDetailsView';
 import { PageTitle } from './components/PageTitle';
 import { ProjectChooser } from './components/ProjectChooser';
-import { ProjectDetailsView } from './components/ProjectDetailsView';
 import { ProjectTreeView } from './components/ProjectTreeView';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';

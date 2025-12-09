@@ -1,12 +1,12 @@
-import { IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Paper, Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
+import { useState } from 'react';
+import { ButtonTooltip } from '../elements/ButtonTooltip';
 import type { ProjectEntire } from '../shared/types';
 import { useProjectStore } from '../stores/useProjectStore';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { useState } from 'react';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { ButtonTooltip } from '../elements/ButtonTooltip';
 
 export const ProjectTreeView = ({
   project,

@@ -1,8 +1,8 @@
 import { Article, ReceiptLong } from '@mui/icons-material';
 import { Paper, Stack, Typography } from '@mui/material';
-import type { ProjectEntire } from '../shared/types';
+import type { ProjectEntire } from '../../shared/types';
 import { useEffect } from 'react';
-import { idFromDocId } from '../shared/idDocId';
+import { idFromDocId } from '../../shared/idDocId';
 
 export const ProjectDetailsView = ({
   project,
