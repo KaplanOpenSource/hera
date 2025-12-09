@@ -13,7 +13,7 @@ export const execPython = async (code: string): Promise<{ data: any; problem: un
       body: JSON.stringify(payload),
     });
     const data = await r.json();
-    console.log('got', data);
+    console.log('result =', data);
     return { data, problem: undefined };
   } catch (e: any) {
     const problem = e?.message ?? 'Failed to run';
