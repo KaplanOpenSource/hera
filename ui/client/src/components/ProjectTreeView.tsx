@@ -25,7 +25,9 @@ export const ProjectTreeView = ({
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
         defaultExpandedItems={['project-documents', 'no-toolkit']}
-        onSelectedItemsChange={(_e, itemIds) => setSelectedItemIds(itemIds ? [itemIds] : [])}
+        onSelectedItemsChange={(e, itemIds) => {
+          setSelectedItemIds(itemIds ? [itemIds] : [])
+        }}
         multiSelect={false}
       >
         <TreeItem key={`project-documents`} itemId={`project-documents`}

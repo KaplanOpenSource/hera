@@ -28,6 +28,8 @@ result = docs.asDict(with_id=True)
         if (data) (
           setDoc(data)
         )
+      } else {
+        setDoc(undefined);
       }
     })()
   }, [docid])
