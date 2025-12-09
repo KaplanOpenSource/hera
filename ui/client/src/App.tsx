@@ -12,6 +12,11 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const { currProject } = useProjectStore();
+  const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
+
+  // TODO:
+  // 1. when clicking on document - show it instead of project
+  // 2. button to delete project - aka all its docs
 
   return (<>
     <FetchProjects />
@@ -31,6 +36,7 @@ export default function App() {
             ? (
               <ProjectTreeView
                 project={currProject}
+                setSelectedItemIds={setSelectedItemIds}
               />
             )
             : (
@@ -42,6 +48,7 @@ export default function App() {
         <Box sx={{ width: '50%' }}>
           <ProjectDetailsView
             project={currProject}
+            selectedItemsIds={selectedItemsIds}
           />
         </Box>
       </Box>

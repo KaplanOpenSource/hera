@@ -1,8 +1,16 @@
 import { Article, ReceiptLong } from '@mui/icons-material';
 import { Paper, Stack, Typography } from '@mui/material';
 import type { ProjectEntire } from '../shared/types';
+import { useEffect } from 'react';
+import { idFromDocId } from '../shared/idDocId';
 
-export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null }) => {
+export const ProjectDetailsView = ({
+  project,
+  selectedItemsIds,
+}: {
+  project: ProjectEntire | null,
+  selectedItemsIds: string[],
+}) => {
   if (!project) {
     return (
       <Paper sx={{ p: 2, height: '100%' }}>
@@ -11,6 +19,10 @@ export const ProjectDetailsView = ({ project }: { project: ProjectEntire | null 
       </Paper>
     );
   }
+
+  useEffect(() => {
+    console.log(idFromDocId(selectedItemsIds[0]));
+  }, [selectedItemsIds])
 
   return (
     <Paper sx={{ p: 2, height: '100%' }}>

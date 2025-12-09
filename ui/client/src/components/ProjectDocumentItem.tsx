@@ -5,6 +5,7 @@ import { ButtonTooltip } from "../elements/ButtonTooltip";
 import { Delete } from "@mui/icons-material";
 import { fetchProjectDetails } from "../io/FetchProjects";
 import { execPython } from "../io/execPython";
+import { idDocId } from "../shared/idDocId";
 
 export const ProjectDocumentItem = ({
   project,
@@ -13,7 +14,7 @@ export const ProjectDocumentItem = ({
   project: ProjectEntire,
   document: ProjectDocument,
 }) => {
-  const id = `document${document?._id.$oid}`;
+  const id = idDocId(document?._id.$oid);
   const name = document?.desc?.datasourceName || document?.type || document._cls;
 
   const deleteDocument = async () => {
