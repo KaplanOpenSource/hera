@@ -1,3 +1,4 @@
+import { Stack, TextField, Typography } from '@mui/material';
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 
 const DetailsViewItem = ({
@@ -12,14 +13,14 @@ const DetailsViewItem = ({
   index: number,
 }) => {
   const key = `___lvl${level}_idx${index}_${itemKey}`
-  return (
-    <TreeItem
-      key={key}
-      itemId={key}
-      label={itemKey}
-    >
-      {typeof itemValue === 'object'
-        ? Object.entries(itemValue).map(([k, v], i) => (
+  return typeof itemValue === 'object'
+    ? (
+      <TreeItem
+        key={key}
+        itemId={key}
+        label={itemKey}
+      >
+        {Object.entries(itemValue).map(([k, v], i) => (
           <DetailsViewItem
             key={k}
             itemKey={k}
@@ -27,20 +28,28 @@ const DetailsViewItem = ({
             level={level + 1}
             index={i}
           />
-        ))
-        : (
-          <TreeItem
-            itemId={`${key}_item`}
-            key={`${key}_item`}
-            label={
-              JSON.stringify(itemValue)
-            }
-          >
-          </TreeItem>
+        ))}
+      </TreeItem>
+    )
+    : (
+      <TreeItem
+        key={key}
+        itemId={key}
+        label={(
+          <Stack direction='row' spacing={1} justifyItems={'center'} alignItems={'center'}>
+            <Typography>
+              {itemKey}
+            </Typography>
+            <TextField
+              size='small'
+              value={
+                JSON.stringify(itemValue)
+              }
+            />
+          </Stack>
         )}
-    </TreeItem>
-
-  )
+      />
+    )
 }
 
 export const DetailsViewDocument = ({
