@@ -3,5 +3,5 @@ export const idDocId = (oid: string) => {
 }
 
 export const idFromDocId = (docid: string) => {
-  return docid.startsWith("document_") ? docid.replace("document_", "") : undefined;
+  return docid && docid.startsWith("document_") ? docid.replace("document_", "") : undefined;
 }

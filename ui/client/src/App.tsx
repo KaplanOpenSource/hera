@@ -1,7 +1,7 @@
 import { Alert, Box, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
-import { ProjectDetailsView } from './components/details/ProjectDetailsView';
+import { DetailsViewPanel } from './components/details/DetailsViewPanel';
 import { PageTitle } from './components/PageTitle';
 import { ProjectChooser } from './components/ProjectChooser';
 import { ProjectTreeView } from './components/ProjectTreeView';
@@ -46,10 +46,18 @@ export default function App() {
             )}
         </Box>
         <Box sx={{ width: '50%' }}>
-          <ProjectDetailsView
-            project={currProject}
-            selectedItemsIds={selectedItemsIds}
-          />
+          {currProject
+            ? (
+              <DetailsViewPanel
+                project={currProject}
+                selectedItemsIds={selectedItemsIds}
+              />
+            )
+            : (
+              <Typography>
+                Select a project to see more details
+              </Typography>
+            )}
         </Box>
       </Box>
       <CommandExecutor />
