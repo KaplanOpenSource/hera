@@ -29,9 +29,14 @@ const DetailsViewItem = ({
           />
         ))
         : (
-          <span>
-            {JSON.stringify(itemValue)}
-          </span>
+          <TreeItem
+            itemId={`${key}_item`}
+            key={`${key}_item`}
+            label={
+              JSON.stringify(itemValue)
+            }
+          >
+          </TreeItem>
         )}
     </TreeItem>
 
