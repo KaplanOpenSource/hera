@@ -4,6 +4,7 @@ import type { ProjectEntire } from '../../shared/types';
 import { useEffect, useState } from 'react';
 import { idFromDocId } from '../../shared/idDocId';
 import { execPython } from '../../io/execPython';
+import { DetailsViewProject } from './DetailsViewProject';
 
 export const DetailsViewPanel = ({
   project,
@@ -38,30 +39,10 @@ result = docs.asDict(with_id=True)
     <Paper sx={{ p: 2, height: '100%' }}>
       {doc
         ? <pre>{JSON.stringify(doc, null, 2)}</pre>
-        : (<>
-          <Typography variant="h6">{project.name}</Typography>
-          {/* <Typography>ID: {project.name}</Typography> */}
-          <Typography>Documents: {project.documents?.length ?? 'N/A'}</Typography>
-          {project.documents?.map(d => (
-            <Stack key={d._id.$oid} direction='row'>
-              {d.desc.datasourceName
-                ? (<>
-                  <Article />
-                  <Typography>
-                    {d.desc.datasourceName}
-                  </Typography>
-                </>)
-                : (<>
-                  <ReceiptLong />
-                  <Typography>
-                    {d.type ?? 'N/A'}
-                  </Typography>
-                </>)}
-            </Stack>
-          ))}
-          {/* <Typography>Cache Documents: {project.documents?.cache ?? 'N/A'}</Typography>
-      <Typography>Toolkits: {project.toolkitCount ?? 'N/A'}</Typography> */}
-        </>)}
+        : (
+          <DetailsViewProject
+            project={project}
+          />)}
     </Paper>
   );
 };
