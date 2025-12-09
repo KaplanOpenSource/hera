@@ -11,7 +11,8 @@ export const DetailsViewDocument = ({
   const convert = (s: any) => {
     const ret: TreeViewBaseItem[] = [];
     for (const [k, v] of Object.entries(s)) {
-      ret.push({ id: k, label: k, children: [{ id: k + '_ch', label: JSON.stringify(v) }] });
+      const children = typeof v === 'object' ? convert(v) : [{ id: k + '_ch', label: JSON.stringify(v) }];
+      ret.push({ id: k, label: k, children });
     }
     return ret;
   }
