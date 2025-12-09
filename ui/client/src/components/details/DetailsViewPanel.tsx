@@ -1,9 +1,9 @@
-import { Article, ReceiptLong } from '@mui/icons-material';
-import { Paper, Stack, Typography } from '@mui/material';
-import type { ProjectEntire } from '../../shared/types';
+import { Paper } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { idFromDocId } from '../../shared/idDocId';
 import { execPython } from '../../io/execPython';
+import { idFromDocId } from '../../shared/idDocId';
+import type { ProjectEntire } from '../../shared/types';
+import { DetailsViewDocument } from './DetailsViewDocument';
 import { DetailsViewProject } from './DetailsViewProject';
 
 export const DetailsViewPanel = ({
@@ -38,7 +38,11 @@ result = docs.asDict(with_id=True)
   return (
     <Paper sx={{ p: 2, height: '100%' }}>
       {doc
-        ? <pre>{JSON.stringify(doc, null, 2)}</pre>
+        ? (
+          <DetailsViewDocument
+            doc={doc}
+          />
+        )
         : (
           <DetailsViewProject
             project={project}
