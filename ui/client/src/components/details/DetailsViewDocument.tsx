@@ -3,8 +3,10 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 import { ProjectDocument } from '@shared/types';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { DetailsViewItem } from './DetailsViewItem';
 import { execPython } from '../../io/execPython';
+import { DetailsViewItem } from './DetailsViewItem';
+
+const FORBIDDEN_FIELDS = ['_id', '_cls', 'projectName'];
 
 export const DetailsViewDocument = ({
   doc,
@@ -22,7 +24,6 @@ export const DetailsViewDocument = ({
 from hera.datalayer import All
 doc = All.getDocumentByID('${docid}')
 `];
-    const FORBIDDEN_FIELDS = ['_id', '_cls', 'projectName'];
     for (const [field, prevVal] of Object.entries(doc)) {
       if (!FORBIDDEN_FIELDS.includes(field) && JSON.stringify(prevVal) !== JSON.stringify(shownDoc[field])) {
         lines.push(`doc.${field} = ${JSON.stringify(shownDoc[field])}`)
