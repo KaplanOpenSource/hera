@@ -1,14 +1,17 @@
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { useState } from 'react';
 
 const DetailsViewItem = ({
   itemKey,
   itemValue,
+  setItemValue,
   level = 0,
   index,
 }: {
   itemKey: string,
   itemValue: any,
+  setItemValue: (newVal: any) => void,
   level: number,
   index: number,
 }) => {
@@ -27,6 +30,7 @@ const DetailsViewItem = ({
             itemValue={v}
             level={level + 1}
             index={i}
+            setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
           />
         ))}
       </TreeItem>
@@ -39,6 +43,7 @@ const DetailsViewItem = ({
           <DetailsViewItemSingle
             itemKey={itemKey}
             itemValue={itemValue}
+            setItemValue={newVal => setItemValue(newVal)}
           />
         )}
       />
@@ -50,16 +55,18 @@ export const DetailsViewDocument = ({
 }: {
   doc: any,
 }) => {
+  const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc)));
   const name = doc?.desc?.datasourceName || doc?.type || doc._cls;
-  const items: [string, any][] = Object.entries(doc);
 
+  console.log(shownDoc)
   return (
     <SimpleTreeView>
       <DetailsViewItem
         itemKey={name}
-        itemValue={doc}
+        itemValue={shownDoc}
         level={0}
         index={0}
+        setItemValue={newVal => setShownDoc(newVal)}
       />
     </SimpleTreeView>
   )
