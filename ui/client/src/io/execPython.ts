@@ -17,7 +17,7 @@ export const execPython = async (code: string): Promise<{ data: any; problem: un
     return { data, problem: undefined };
   } catch (e: any) {
     const problem = e?.message ?? 'Failed to run';
-    console.log('problem:', problem);
+    console.trace('problem:', problem);
     return { data: undefined, problem };
   }
 }

@@ -7,6 +7,7 @@ import { ProjectChooser } from './components/ProjectChooser';
 import { ProjectTreeView } from './components/ProjectTreeView';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
+import { ServerConstantReader } from './stores/useServerConstants';
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -14,11 +15,8 @@ export default function App() {
   const { currProject } = useProjectStore();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
 
-  // TODO:
-  // 1. when clicking on document - show it instead of project
-  // 2. button to delete project - aka all its docs
-
   return (<>
+    <ServerConstantReader />
     <FetchProjects />
     <Stack spacing={2} margin={2}>
       <Stack direction={'row'} spacing={2}>
