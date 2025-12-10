@@ -1,4 +1,4 @@
-import { Done } from '@mui/icons-material';
+import { Close, Done } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
@@ -22,16 +22,22 @@ export const DetailsViewDocument = ({
         level={0}
         index={0}
         setItemValue={newVal => setShownDoc(newVal)}
-        labelAdditions={<>
-          {JSON.stringify(doc) === JSON.stringify(shownDoc) ? null : (
+        labelAdditions={JSON.stringify(doc) === JSON.stringify(shownDoc) ? null : (
+          <>
             <ButtonTooltip
               title='Update Document'
-              onClick={()=> setDoc(shownDoc)}
+              onClick={() => setDoc(shownDoc)}
             >
               <Done />
             </ButtonTooltip>
-          )}
-        </>}
+            <ButtonTooltip
+              title='Revert Document'
+              onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc)))}
+            >
+              <Close />
+            </ButtonTooltip>
+          </>
+        )}
       />
     </SimpleTreeView>
   )
