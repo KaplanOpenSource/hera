@@ -1,54 +1,10 @@
-import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
-import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { Done } from '@mui/icons-material';
+import { SimpleTreeView } from '@mui/x-tree-view';
+import { ProjectDocument } from '@shared/types';
 import { useState } from 'react';
-
-const DetailsViewItem = ({
-  itemKey,
-  itemValue,
-  setItemValue,
-  level = 0,
-  index,
-}: {
-  itemKey: string,
-  itemValue: any,
-  setItemValue: (newVal: any) => void,
-  level: number,
-  index: number,
-}) => {
-  const key = `___lvl${level}_idx${index}_${itemKey}`
-  return typeof itemValue === 'object'
-    ? (
-      <TreeItem
-        key={key}
-        itemId={key}
-        label={itemKey}
-      >
-        {Object.entries(itemValue).map(([k, v], i) => (
-          <DetailsViewItem
-            key={k}
-            itemKey={k}
-            itemValue={v}
-            level={level + 1}
-            index={i}
-            setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
-          />
-        ))}
-      </TreeItem>
-    )
-    : (
-      <TreeItem
-        key={key}
-        itemId={key}
-        label={(
-          <DetailsViewItemSingle
-            itemKey={itemKey}
-            itemValue={itemValue}
-            setItemValue={newVal => setItemValue(newVal)}
-          />
-        )}
-      />
-    )
-}
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { DetailsViewItem } from './DetailsViewItem';
+import { execPython } from '../../io/execPython';
 
 export const DetailsViewDocument = ({
   doc,
@@ -58,7 +14,23 @@ export const DetailsViewDocument = ({
   const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc)));
   const name = doc?.desc?.datasourceName || doc?.type || doc._cls;
 
-  console.log(shownDoc)
+  const updateDocument = async () => {
+    const id = (doc as ProjectDocument)._id.$oid;
+    const lines = [`
+from hera.datalayer import All
+doc = All.getDocumentByID('${id}')
+`];
+    const FORBIDDEN_FIELDS = ['_id', '_cls', 'projectName'];
+    for (const [field, prevVal] of Object.entries(doc)) {
+      if (!FORBIDDEN_FIELDS.includes(field) && JSON.stringify(prevVal) !== JSON.stringify(shownDoc[field])) {
+        lines.push(`doc.${field} = ${JSON.stringify(shownDoc[field])}`)
+      }
+    }
+    lines.push('doc.save()')
+    const code = lines.join('\n');
+    await execPython(code);
+  }
+
   return (
     <SimpleTreeView>
       <DetailsViewItem
@@ -67,6 +39,16 @@ export const DetailsViewDocument = ({
         level={0}
         index={0}
         setItemValue={newVal => setShownDoc(newVal)}
+        labelAdditions={<>
+          {JSON.stringify(doc) === JSON.stringify(shownDoc) ? null : (
+            <ButtonTooltip
+              title='Update Document'
+              onClick={updateDocument}
+            >
+              <Done />
+            </ButtonTooltip>
+          )}
+        </>}
       />
     </SimpleTreeView>
   )
