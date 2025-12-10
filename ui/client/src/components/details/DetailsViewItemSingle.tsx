@@ -26,10 +26,10 @@ export const DetailsViewItemSingle = ({
         </Case>
         <Case value={'dataFormat'}>
           <FormControl style={{ marginTop: 10, minWidth: '100px' }}>
-            <InputLabel id="demo-simple-select-label">{itemKey}</InputLabel>
+            <InputLabel>
+              {itemKey}
+            </InputLabel>
             <Select
-              labelId="demo-simple-select-label"
-              id="demo-simple-select"
               value={itemValue}
               label="dataFormat"
               size='small'

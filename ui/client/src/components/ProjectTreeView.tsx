@@ -47,12 +47,14 @@ export const ProjectTreeView = ({
         >
           {toolkits.map(toolkit => (
             <ToolkitTreeItem
+              key={toolkit.toolkit}
               project={project}
               toolkit={toolkit}
               showEmpty={showEmptyToolkits}
             />
           ))}
           <ToolkitTreeItem
+            key={'no_toolkit'}
             project={project}
             toolkit={undefined}
             showEmpty={showEmptyToolkits}
