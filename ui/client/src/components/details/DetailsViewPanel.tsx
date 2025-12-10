@@ -18,7 +18,6 @@ export const DetailsViewPanel = ({
 
   useEffect(() => {
     (async () => {
-      console.log(docid);
       if (docid) {
         const { data } = await execPython(`
 import json
@@ -41,6 +40,7 @@ result = docs.asDict(with_id=True)
         ? (
           <DetailsViewDocument
             doc={doc}
+            setDoc={setDoc}
           />
         )
         : (

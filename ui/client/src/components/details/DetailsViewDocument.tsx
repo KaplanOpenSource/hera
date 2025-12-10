@@ -8,17 +8,19 @@ import { execPython } from '../../io/execPython';
 
 export const DetailsViewDocument = ({
   doc,
+  setDoc,
 }: {
   doc: any,
+  setDoc: (newVal: any) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc)));
   const name = doc?.desc?.datasourceName || doc?.type || doc._cls;
 
   const updateDocument = async () => {
-    const id = (doc as ProjectDocument)._id.$oid;
+    const docid = (doc as ProjectDocument)._id.$oid;
     const lines = [`
 from hera.datalayer import All
-doc = All.getDocumentByID('${id}')
+doc = All.getDocumentByID('${docid}')
 `];
     const FORBIDDEN_FIELDS = ['_id', '_cls', 'projectName'];
     for (const [field, prevVal] of Object.entries(doc)) {
@@ -26,9 +28,16 @@ doc = All.getDocumentByID('${id}')
         lines.push(`doc.${field} = ${JSON.stringify(shownDoc[field])}`)
       }
     }
-    lines.push('doc.save()')
+    lines.push(`
+doc.save()
+docs = All.getDocumentByID('${docid}')
+result = docs.asDict(with_id=True)
+`)
     const code = lines.join('\n');
-    await execPython(code);
+    const { data } = await execPython(code);
+    if (data) {
+      setDoc(data)
+    }
   }
 
   return (
