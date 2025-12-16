@@ -97,6 +97,7 @@ export function useConfirm() {
             onChange={(e) => setText(e.target.value)}
             sx={{ marginTop: 1 }}
             size='small'
+            error={!isValidated}
           />
         )}
       </DialogContent>
