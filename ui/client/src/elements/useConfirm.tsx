@@ -40,6 +40,8 @@ export function useConfirm() {
 
   const resolverRef = React.useRef<((value: ConfirmResult) => void) | null>(null);
 
+  const isValidated = options.textValidate ? options.textValidate(text) : true;
+
   const confirmOpen = React.useCallback((opts: ConfirmOptions): Promise<ConfirmResult> => {
     setOptions({
       yesText: "Yes",
@@ -61,7 +63,7 @@ export function useConfirm() {
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && isValidated) {
       event.preventDefault();
       close(true);
     }
@@ -99,14 +101,23 @@ export function useConfirm() {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => close(false)} size='small'>
+        <Button
+          size='small'
+          onClick={(e) => {
+            e.stopPropagation();
+            close(false);
+          }}
+        >
           {options.noText}
         </Button>
         <Button
           size='small'
           variant="contained"
-          onClick={() => close(true)}
-          disabled={options.textValidate && !options.textValidate(text)}
+          onClick={(e) => {
+            e.stopPropagation();
+            close(true);
+          }}
+          disabled={!isValidated}
         >
           {options.yesText}
         </Button>
