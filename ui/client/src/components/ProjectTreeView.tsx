@@ -7,6 +7,7 @@ import { ButtonTooltip } from '../elements/ButtonTooltip';
 import type { ProjectEntire } from '../shared/types';
 import { useProjectStore } from '../stores/useProjectStore';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
+import { RepositoryAddButton } from './RepositoryAddButton';
 
 export const ProjectTreeView = ({
   project,
@@ -42,6 +43,8 @@ export const ProjectTreeView = ({
               >
                 {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
               </ButtonTooltip>
+              <RepositoryAddButton
+              />
             </Stack>
           )}
         >

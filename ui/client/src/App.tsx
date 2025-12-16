@@ -23,7 +23,7 @@ export default function App() {
     <ServerConstantReader />
     <FetchProjects />
     <Stack spacing={2} margin={2}>
-      <Stack direction={'row'} spacing={2}>
+      <Stack direction={'row'}>
         <PageTitle />
         <ProjectChooser />
       </Stack>
