@@ -6,6 +6,7 @@ import { Delete } from "@mui/icons-material";
 import { fetchProjectDetails } from "../io/FetchProjects";
 import { execPython } from "../io/execPython";
 import { idDocId } from "../shared/idDocId";
+import { useConfirm } from "../elements/useConfirm";
 
 export const ProjectDocumentItem = ({
   project,
@@ -14,6 +15,8 @@ export const ProjectDocumentItem = ({
   project: ProjectEntire,
   document: ProjectDocument,
 }) => {
+  const { confirmOpen, ConfirmDialog } = useConfirm()
+
   const id = idDocId(document?._id.$oid);
   const name = document?.desc?.datasourceName || document?.type || document._cls;
 
@@ -41,13 +44,14 @@ All.deleteDocumentByID('${document?._id.$oid}')
           <ButtonTooltip
             title={isProjectConfig ? 'Project Config is deleted only with project' : 'Delete Document'}
             disabled={isProjectConfig}
-            onClick={() => {
-              if (confirm(`Are you sure you want to delete ${name}?`)) {
+            onClick={async () => {
+              if ((await confirmOpen({ title: `Are you sure you want to delete ${name}?` })).confirmed) {
                 deleteDocument()
               }
             }}
           >
             <Delete />
+            {ConfirmDialog}
           </ButtonTooltip>
         </Stack>
       }
