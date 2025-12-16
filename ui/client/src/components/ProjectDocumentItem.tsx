@@ -28,6 +28,8 @@ All.deleteDocumentByID('${document?._id.$oid}')
     await fetchProjectDetails(project.name);
   }
 
+  const isProjectConfig = document.type === project.name + '__config__'
+
   return (
     <TreeItem
       key={id} itemId={id}
@@ -37,7 +39,8 @@ All.deleteDocumentByID('${document?._id.$oid}')
             {name}
           </Typography>
           <ButtonTooltip
-            title={'Delete Document'}
+            title={isProjectConfig ? 'Project Config is deleted only with project' : 'Delete Document'}
+            disabled={isProjectConfig}
             onClick={() => {
               if (confirm(`Are you sure you want to delete ${name}?`)) {
                 deleteDocument()
@@ -47,7 +50,6 @@ All.deleteDocumentByID('${document?._id.$oid}')
             <Delete />
           </ButtonTooltip>
         </Stack>
-
       }
     >
       <TreeItem
