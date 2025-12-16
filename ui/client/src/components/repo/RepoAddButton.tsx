@@ -1,29 +1,17 @@
 import { LibraryAdd } from "@mui/icons-material";
-import {
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-  Stack,
-  TextField
-} from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
 import { execPython } from "../../io/execPython";
-import { useProjectStore } from "../../stores/useProjectStore";
 import { ProjectEntire } from "../../shared/types";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { RepoAddEditor, RepoAddParams } from "./RepoAddEditor";
 
-export const RepositoryAddButton = ({ }) => {
+export const RepoAddButton = ({ }) => {
   const { currProject, setCurrentProject } = useProjectStore();
 
-  type RepoParams = {
-    repositoryJson: string;
-    baseDir: string;
-    overwrite: boolean;
-  };
+  const { openDialog, DialogComponent } = useDialog<RepoAddParams>();
 
-  const { openDialog, DialogComponent } = useDialog<RepoParams>();
-
-  const addRepo = async (params: RepoParams) => {
+  const addRepo = async (params: RepoAddParams) => {
     const { data } = await execPython(`
 import logging
 import os
@@ -51,37 +39,13 @@ result = {"project": project}
         const result = await openDialog({
           title: 'Load Datasources Repository To Project',
           initialValues: { repositoryJson: '', baseDir: '', overwrite: true },
-          render: ({ values, setValues }) => (
-            <Stack direction={'column'} spacing={2}>
-              <TextField
-                label="Repository Json (as string)"
-                fullWidth
-                value={values.repositoryJson}
-                onClick={e => e.stopPropagation()}
-                onChange={(e) => setValues({ ...values, repositoryJson: e.target.value })}
-                size="small"
-                rows={10}
-                multiline={true}
+          render:
+            ({ values, setValues }) => (
+              <RepoAddEditor
+                values={values}
+                setValues={setValues}
               />
-              <TextField
-                label="Base Directory"
-                fullWidth
-                value={values.baseDir}
-                onClick={e => e.stopPropagation()}
-                onChange={(e) => setValues({ ...values, baseDir: e.target.value })}
-                size="small"
-              />
-              <FormGroup>
-                <FormControlLabel
-                  label="Overwrite"
-                  control={<Checkbox
-                    checked={values.overwrite}
-                    onChange={(e) => setValues({ ...values, overwrite: e.target.checked })}
-                  />}
-                />
-              </FormGroup>
-            </Stack>
-          ),
+            )
         });
 
         if (result.confirmed && result.values) {

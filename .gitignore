@@ -19,3 +19,4 @@ heraenv
 node_modules/
 projects/
 mongo-db-datadir/
+ui/client/data/
