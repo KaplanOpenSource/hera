@@ -32,13 +32,15 @@ result = {"project": project}
     }
   }
 
+  const baseDir = currProject?.documents.find(x => x.type === currProject.name + '__config__')?.desc.filesDirectory || '';
+
   return (<>
     <ButtonTooltip
       title={'Load Datasources To Project (Repository)'}
       onClick={async () => {
         const result = await openDialog({
           title: 'Load Datasources Repository To Project',
-          initialValues: { repositoryJson: '', baseDir: '', overwrite: true },
+          initialValues: { repositoryJson: '', baseDir: baseDir, overwrite: true },
           render:
             ({ values, setValues }) => (
               <RepoAddEditor
