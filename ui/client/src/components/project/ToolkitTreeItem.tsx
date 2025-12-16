@@ -1,9 +1,9 @@
 import { TreeItem } from "@mui/x-tree-view";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 import { ProjectEntire, Toolkit } from "@shared/types";
-import { useProjectStore } from "../stores/useProjectStore";
+import { useProjectStore } from "../../stores/useProjectStore";
 import { Add } from "@mui/icons-material";
-import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Stack, Typography } from "@mui/material";
 import { AddDocumentButton } from "./AddDocumentButton";
 

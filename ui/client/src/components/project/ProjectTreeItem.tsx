@@ -1,5 +1,5 @@
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
-import type { Project } from '../shared/types';
+import type { Project } from '../../shared/types';
 
 export const ProjectTreeItem = ({ project }: { project: Project }) => {
   const hasDetails = project.documents && project.toolkitCount !== undefined;

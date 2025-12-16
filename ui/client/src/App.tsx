@@ -1,10 +1,10 @@
 import { Alert, Box, Stack, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
-import { PageTitle } from './components/PageTitle';
-import { ProjectChooser } from './components/ProjectChooser';
-import { ProjectTreeView } from './components/ProjectTreeView';
+import { PageTitle } from './components/header/PageTitle';
+import { ProjectChooser } from './components/header/ProjectChooser';
+import { ProjectTreeView } from './components/project/ProjectTreeView';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
@@ -15,11 +15,15 @@ export default function App() {
   const { currProject } = useProjectStore();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
 
+  useEffect(() => {
+    setSelectedItemIds([]);
+  }, [currProject?.name])
+
   return (<>
     <ServerConstantReader />
     <FetchProjects />
     <Stack spacing={2} margin={2}>
-      <Stack direction={'row'} spacing={2}>
+      <Stack direction={'row'}>
         <PageTitle />
         <ProjectChooser />
       </Stack>

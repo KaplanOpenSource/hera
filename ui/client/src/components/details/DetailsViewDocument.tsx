@@ -2,7 +2,7 @@ import { Close, Done } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { DetailsViewItem } from './DetailsViewItem';
+import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 
 export const DetailsViewDocument = ({
   doc,
@@ -15,7 +15,9 @@ export const DetailsViewDocument = ({
   const name = doc?.desc?.datasourceName || doc?.type || doc._cls;
 
   return (
-    <SimpleTreeView>
+    <SimpleTreeView
+      defaultExpandedItems={[keyForDetailsViewItem(name)]}
+    >
       <DetailsViewItem
         itemKey={name}
         itemValue={shownDoc}

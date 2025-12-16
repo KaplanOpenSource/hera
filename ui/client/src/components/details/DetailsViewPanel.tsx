@@ -29,7 +29,6 @@ export const DetailsViewPanel = ({
     })()
   }, [docid])
 
-
   const changeDocument = async (shownDoc: any) => {
     const data = await updateDocument(shownDoc, doc);
     if (data) {

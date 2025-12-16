@@ -1,11 +1,12 @@
 import { Box, Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view"
 import { ProjectDocument, ProjectEntire } from "@shared/types"
-import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Delete } from "@mui/icons-material";
-import { fetchProjectDetails } from "../io/FetchProjects";
-import { execPython } from "../io/execPython";
-import { idDocId } from "../shared/idDocId";
+import { fetchProjectDetails } from "../../io/FetchProjects";
+import { execPython } from "../../io/execPython";
+import { idDocId } from "../../shared/idDocId";
+import { useConfirm } from "../../elements/useConfirm";
 
 export const ProjectDocumentItem = ({
   project,
@@ -14,6 +15,8 @@ export const ProjectDocumentItem = ({
   project: ProjectEntire,
   document: ProjectDocument,
 }) => {
+  const { confirmOpen, ConfirmDialog } = useConfirm()
+
   const id = idDocId(document?._id.$oid);
   const name = document?.desc?.datasourceName || document?.type || document._cls;
 
@@ -28,6 +31,8 @@ All.deleteDocumentByID('${document?._id.$oid}')
     await fetchProjectDetails(project.name);
   }
 
+  const isProjectConfig = document.type === project.name + '__config__'
+
   return (
     <TreeItem
       key={id} itemId={id}
@@ -37,17 +42,18 @@ All.deleteDocumentByID('${document?._id.$oid}')
             {name}
           </Typography>
           <ButtonTooltip
-            title={'Delete Document'}
-            onClick={() => {
-              if (confirm(`Are you sure you want to delete ${name}?`)) {
+            title={isProjectConfig ? 'Project Config is deleted only with project' : 'Delete Document'}
+            disabled={isProjectConfig}
+            onClick={async () => {
+              if ((await confirmOpen({ title: `Are you sure you want to delete ${name}?` })).confirmed) {
                 deleteDocument()
               }
             }}
           >
             <Delete />
+            {ConfirmDialog}
           </ButtonTooltip>
         </Stack>
-
       }
     >
       <TreeItem

@@ -12,9 +12,9 @@ import {
   TextField,
 } from "@mui/material";
 import { useRef, useState } from "react";
-import { execPython } from "../io/execPython";
-import { useProjectStore } from "../stores/useProjectStore";
-import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { execPython } from "../../io/execPython";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { ProjectEntire, ProjectName } from "@shared/types";
 
 export const AddProjectButton = ({ }) => {
