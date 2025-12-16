@@ -1,17 +1,19 @@
-import { IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Paper, Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
+import { useState } from 'react';
+import { ButtonTooltip } from '../elements/ButtonTooltip';
 import type { ProjectEntire } from '../shared/types';
 import { useProjectStore } from '../stores/useProjectStore';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { useState } from 'react';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { ButtonTooltip } from '../elements/ButtonTooltip';
 
 export const ProjectTreeView = ({
   project,
+  setSelectedItemIds,
 }: {
   project: ProjectEntire;
+  setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
   const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
@@ -23,6 +25,10 @@ export const ProjectTreeView = ({
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
         defaultExpandedItems={['project-documents', 'no-toolkit']}
+        onSelectedItemsChange={(e, itemIds) => {
+          setSelectedItemIds(itemIds ? [itemIds] : [])
+        }}
+        multiSelect={false}
       >
         <TreeItem key={`project-documents`} itemId={`project-documents`}
           label={(
@@ -41,12 +47,14 @@ export const ProjectTreeView = ({
         >
           {toolkits.map(toolkit => (
             <ToolkitTreeItem
+              key={toolkit.toolkit}
               project={project}
               toolkit={toolkit}
               showEmpty={showEmptyToolkits}
             />
           ))}
           <ToolkitTreeItem
+            key={'no_toolkit'}
             project={project}
             toolkit={undefined}
             showEmpty={showEmptyToolkits}

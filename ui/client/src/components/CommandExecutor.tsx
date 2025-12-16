@@ -1,36 +1,38 @@
-import { Box, Button, TextField } from '@mui/material';
+import { Box, Button, Stack, TextField, Tooltip } from '@mui/material';
 import { useState } from 'react';
-import { BASEURL } from '../shared/baseurl';
-import type { ExecRequest } from '../shared/types';
+import { execPython } from '../io/execPython';
 
 export const CommandExecutor = () => {
   const [command, setCommand] = useState('');
 
   const handleExec = async () => {
-    const payload: ExecRequest = {
-      code: command,
-    };
-    const r = await fetch(`${BASEURL}/exec`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await r.json();
-    console.log(data);
+    // const { data } = 
+    await execPython(command)
+    // console.log(data);
   };
 
   return (
-    <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-      <TextField
-        label="Command"
-        variant="outlined"
-        fullWidth
-        value={command}
-        onChange={(e) => setCommand(e.target.value)}
-      />
-      <Button variant="contained" onClick={handleExec}>
-        Execute
-      </Button>
-    </Box>
+    <Tooltip
+      title={<span>Executes a python command<br />The variable named result will be printed to console</span>}
+    >
+      <Stack direction={'row'} spacing={1} sx={{ bottom: 10, right: 10, left: 10, position: 'absolute' }}>
+        <TextField
+          // size='small'
+          label="Command"
+          variant="outlined"
+          fullWidth
+          value={command}
+          onChange={(e) => setCommand(e.target.value)}
+        />
+        <Button
+          size='small'
+          variant="contained"
+          sx={{ textTransform: 'none' }}
+          onClick={handleExec}
+        >
+          Execute Python
+        </Button>
+      </Stack>
+    </Tooltip>
   );
 };

@@ -1,19 +1,22 @@
 import { Alert, Box, Stack, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
+import { DetailsViewPanel } from './components/details/DetailsViewPanel';
 import { PageTitle } from './components/PageTitle';
 import { ProjectChooser } from './components/ProjectChooser';
-import { ProjectDetailsView } from './components/ProjectDetailsView';
 import { ProjectTreeView } from './components/ProjectTreeView';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
+import { ServerConstantReader } from './stores/useServerConstants';
 
 export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const { currProject } = useProjectStore();
+  const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
 
   return (<>
+    <ServerConstantReader />
     <FetchProjects />
     <Stack spacing={2} margin={2}>
       <Stack direction={'row'} spacing={2}>
@@ -31,6 +34,7 @@ export default function App() {
             ? (
               <ProjectTreeView
                 project={currProject}
+                setSelectedItemIds={setSelectedItemIds}
               />
             )
             : (
@@ -40,9 +44,18 @@ export default function App() {
             )}
         </Box>
         <Box sx={{ width: '50%' }}>
-          <ProjectDetailsView
-            project={currProject}
-          />
+          {currProject
+            ? (
+              <DetailsViewPanel
+                project={currProject}
+                selectedItemsIds={selectedItemsIds}
+              />
+            )
+            : (
+              <Typography>
+                Select a project to see more details
+              </Typography>
+            )}
         </Box>
       </Box>
       <CommandExecutor />
