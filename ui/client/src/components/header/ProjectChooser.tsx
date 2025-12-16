@@ -1,5 +1,5 @@
 import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material";
-import { EMPTY_NAME_PROJECT, useProjectStore } from "../stores/useProjectStore";
+import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { AddProjectButton } from "./AddProjectButton";
 import { DeleteProjectButton } from "./DeleteProjectButton";
 

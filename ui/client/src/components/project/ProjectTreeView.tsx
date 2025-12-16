@@ -3,11 +3,11 @@ import { Paper, Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
-import { ButtonTooltip } from '../elements/ButtonTooltip';
-import type { ProjectEntire } from '../shared/types';
-import { useProjectStore } from '../stores/useProjectStore';
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import type { ProjectEntire } from '../../shared/types';
+import { useProjectStore } from '../../stores/useProjectStore';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { RepositoryAddButton } from './RepositoryAddButton';
+import { RepositoryAddButton } from '../repo/RepositoryAddButton';
 
 export const ProjectTreeView = ({
   project,

@@ -1,9 +1,9 @@
 import { Delete } from "@mui/icons-material";
-import { ButtonTooltip } from "../elements/ButtonTooltip";
-import { useConfirm } from "../elements/useConfirm";
-import { execPython } from "../io/execPython";
-import { ProjectEntire, ProjectName } from "../shared/types";
-import { useProjectStore } from "../stores/useProjectStore";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
+import { useConfirm } from "../../elements/useConfirm";
+import { execPython } from "../../io/execPython";
+import { ProjectEntire, ProjectName } from "../../shared/types";
+import { useProjectStore } from "../../stores/useProjectStore";
 
 export const DeleteProjectButton = ({ }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm()

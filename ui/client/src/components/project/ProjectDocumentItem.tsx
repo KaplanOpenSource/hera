@@ -1,12 +1,12 @@
 import { Box, Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view"
 import { ProjectDocument, ProjectEntire } from "@shared/types"
-import { ButtonTooltip } from "../elements/ButtonTooltip";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Delete } from "@mui/icons-material";
-import { fetchProjectDetails } from "../io/FetchProjects";
-import { execPython } from "../io/execPython";
-import { idDocId } from "../shared/idDocId";
-import { useConfirm } from "../elements/useConfirm";
+import { fetchProjectDetails } from "../../io/FetchProjects";
+import { execPython } from "../../io/execPython";
+import { idDocId } from "../../shared/idDocId";
+import { useConfirm } from "../../elements/useConfirm";
 
 export const ProjectDocumentItem = ({
   project,

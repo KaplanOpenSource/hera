@@ -6,11 +6,11 @@ import {
   Stack,
   TextField
 } from "@mui/material";
-import { ButtonTooltip } from "../elements/ButtonTooltip";
-import { useDialog } from "../elements/useDialog";
-import { execPython } from "../io/execPython";
-import { useProjectStore } from "../stores/useProjectStore";
-import { ProjectEntire } from "../shared/types";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
+import { useDialog } from "../../elements/useDialog";
+import { execPython } from "../../io/execPython";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { ProjectEntire } from "../../shared/types";
 
 export const RepositoryAddButton = ({ }) => {
   const { currProject, setCurrentProject } = useProjectStore();
