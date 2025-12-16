@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -21,7 +22,7 @@ export interface DialogOptions<TValues> {
   /** Render function for dialog body */
   render: (args: {
     values: TValues;
-    setValue: <K extends keyof TValues>(key: K, value: TValues[K]) => void;
+    setValues: (newValues: TValues) => void;
   }) => ReactNode;
 }
 
@@ -72,15 +73,13 @@ export function useDialog<TValues extends Record<string, any>>() {
     });
   };
 
-  const setValue = <K extends keyof TValues>(key: K, value: TValues[K]) => {
-    setValues((prev) => ({ ...(prev as TValues), [key]: value }));
-  };
-
   const DialogComponent = options ? (
     <Dialog open={open} onClose={() => close(false)}>
       <DialogTitle>{options.title}</DialogTitle>
       <DialogContent>
-        {options.render({ values: values as TValues, setValue })}
+        <Box sx={{ marginTop: 1 }}>
+          {options.render({ values: values as TValues, setValues })}
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button type="button" onClick={(e) => {
@@ -117,19 +116,19 @@ export function useDialog<TValues extends Record<string, any>>() {
 //   const result = await openDialog({
 //     title: 'Confirm action',
 //     initialValues: { reason: '', count: 1 },
-//     render: ({ values, setValue }) => (
+//     render: ({ values, setValues }) => (
 //       <>
 //         <TextField
 //           label="Reason"
 //           fullWidth
 //           value={values.reason}
-//           onChange={(e) => setValue('reason', e.target.value)}
+//           onChange={(e) => setValues({...values, reason: e.target.value})}
 //         />
 //         <TextField
 //           type="number"
 //           label="Count"
 //           value={values.count}
-//           onChange={(e) => setValue('count', Number(e.target.value))}
+//           onChange={(e) => setValues({...values, count: Number(e.target.value)})}
 //         />
 //       </>
 //     ),

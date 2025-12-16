@@ -1,45 +1,62 @@
-import { LibraryAdd } from "@mui/icons-material"
-import { ButtonTooltip } from "../elements/ButtonTooltip"
+import { LibraryAdd } from "@mui/icons-material";
+import {
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
+  Stack,
+  TextField
+} from "@mui/material";
+import { ButtonTooltip } from "../elements/ButtonTooltip";
 import { useDialog } from "../elements/useDialog";
-import { Stack, TextField } from "@mui/material";
 
 export const RepositoryAddButton = ({ }) => {
   const { openDialog, DialogComponent } = useDialog<{
-    reason: string;
-    count: number;
+    repositoryJson: string;
+    baseDir: string;
+    overwrite: boolean;
   }>();
 
-  const handleClick = async () => {
-    const result = await openDialog({
-      title: 'Confirm action',
-      initialValues: { reason: '', count: 1 },
-      render: ({ values, setValue }) => (
-        <Stack direction={'column'} spacing={1}>
-          <TextField
-            label="Reason"
-            fullWidth
-            value={values.reason}
-            onChange={(e) => setValue('reason', e.target.value)}
-          />
-          <TextField
-            type="number"
-            label="Count"
-            value={values.count}
-            onChange={(e) => setValue('count', Number(e.target.value))}
-          />
-        </Stack>
-      ),
-    });
-
-    if (result.confirmed) {
-      console.log(result.values);
-    }
-  };
 
   return (<>
     <ButtonTooltip
       title={'Load Datasources To Project (Repository)'}
-      onClick={handleClick}
+      onClick={async () => {
+        const result = await openDialog({
+          title: 'Load Datasources Repository To Project',
+          initialValues: { repositoryJson: '', baseDir: '', overwrite: true },
+          render: ({ values, setValues }) => (
+            <Stack direction={'column'} spacing={2}>
+              <TextField
+                label="Repository Json (as string)"
+                fullWidth
+                value={values.repositoryJson}
+                onChange={(e) => setValues({ ...values, repositoryJson: e.target.value })}
+                size="small"
+              />
+              <TextField
+                label="Base Directory"
+                fullWidth
+                value={values.baseDir}
+                onChange={(e) => setValues({ ...values, baseDir: e.target.value })}
+                size="small"
+              />
+              <FormGroup>
+                <FormControlLabel
+                  label="Overwrite"
+                  control={<Checkbox
+                    checked={values.overwrite}
+                    onChange={(e) => setValues({ ...values, overwrite: e.target.checked })}
+                  />}
+                />
+              </FormGroup>
+            </Stack>
+          ),
+        });
+
+        if (result.confirmed) {
+          console.log(result.values);
+        }
+      }}
     >
       <LibraryAdd />
       {DialogComponent}
