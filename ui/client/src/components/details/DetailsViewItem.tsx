@@ -3,6 +3,10 @@ import { TreeItem } from '@mui/x-tree-view';
 import { ReactNode } from 'react';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
+export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
+  return `___lvl${level}_idx${index}_${itemKey}`;
+}
+
 export const DetailsViewItem = ({
   itemKey,
   itemValue,
@@ -18,7 +22,8 @@ export const DetailsViewItem = ({
   index: number,
   labelAdditions?: ReactNode,
 }) => {
-  const key = `___lvl${level}_idx${index}_${itemKey}`
+  const key = keyForDetailsViewItem(itemKey, level, index);
+
   return typeof itemValue === 'object'
     ? (
       <TreeItem

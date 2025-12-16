@@ -1,5 +1,5 @@
 import { Alert, Box, Stack, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
 import { PageTitle } from './components/PageTitle';
@@ -14,6 +14,10 @@ export default function App() {
   const [error, setError] = useState<string | undefined>(undefined);
   const { currProject } = useProjectStore();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedItemIds([]);
+  }, [currProject?.name])
 
   return (<>
     <ServerConstantReader />
