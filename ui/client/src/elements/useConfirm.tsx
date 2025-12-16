@@ -18,6 +18,7 @@ export interface ConfirmOptions {
   requireText?: boolean;
   textLabel?: string;
   textPlaceholder?: string;
+  textValidate?: (text: string) => boolean;
 }
 
 export interface ConfirmResult {
@@ -92,16 +93,20 @@ export function useConfirm() {
             placeholder={options.textPlaceholder}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            sx={{ marginTop: 1 }}
+            size='small'
           />
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => close(false)}>
+        <Button onClick={() => close(false)} size='small'>
           {options.noText}
         </Button>
         <Button
+          size='small'
           variant="contained"
           onClick={() => close(true)}
+          disabled={options.textValidate && !options.textValidate(text)}
         >
           {options.yesText}
         </Button>
