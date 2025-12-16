@@ -8,14 +8,33 @@ import {
 } from "@mui/material";
 import { ButtonTooltip } from "../elements/ButtonTooltip";
 import { useDialog } from "../elements/useDialog";
+import { execPython } from "../io/execPython";
+import { useProjectStore } from "../stores/useProjectStore";
 
 export const RepositoryAddButton = ({ }) => {
-  const { openDialog, DialogComponent } = useDialog<{
+  const { currProject } = useProjectStore();
+
+  type RepoParams = {
     repositoryJson: string;
     baseDir: string;
     overwrite: boolean;
-  }>();
+  };
 
+  const { openDialog, DialogComponent } = useDialog<RepoParams>();
+
+  const addRepo = (params: RepoParams) => {
+    execPython(`
+import logging
+import os
+from hera.utils.data.toolkit import dataToolkit
+logger = logging.getLogger("hera.bin.repository_load")
+dtk = dataToolkit()
+dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName='${currProject?.name}',
+                                                repositoryJSON=${params.repositoryJson},
+                                                basedir=os.path.abspath('${params.baseDir}'),
+                                                overwrite=${params.overwrite ? 'True' : 'False'})
+      `);
+  }
 
   return (<>
     <ButtonTooltip
@@ -53,8 +72,8 @@ export const RepositoryAddButton = ({ }) => {
           ),
         });
 
-        if (result.confirmed) {
-          console.log(result.values);
+        if (result.confirmed && result.values) {
+          addRepo(result.values)
         }
       }}
     >
