@@ -14,3 +14,7 @@ __pycache__/
 # Ignore Dockerfile artifacts
 Dockerfile
 .dockerignore
+
+node_modules/
+ui/client/node_modules/
+ui/client/dist/
