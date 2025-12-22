@@ -88,7 +88,13 @@ class OFToolkit(hermesWorkflowToolkit):
             os.chdir(doc.resource)
             os.system("./Allrun")
 
-    def prepareSlurmExecution(self,baseConfiguration,jsonVariations,decomposeProcessors,slurmExecutionFileName="submit_all.sh",caseListFileName="cases.txt",overwrite=False):
+    def prepareSlurmExecution(self,baseConfiguration,
+                              jsonVariations,
+                              slurmExecutionFileName="submit_all.sh",
+                              caseListFileName="cases.txt",
+                              allocateProcessorsPerRun=None,
+                              memoryInGB=None,
+                              exclusive=False):
         """
             Adds the different configurations to the workgroup,
 
@@ -119,10 +125,13 @@ class OFToolkit(hermesWorkflowToolkit):
             caseList += f"{doc.desc['workflowName']}\n"
             logger.info(f"Adding {doc.desc['workflowName']}")
 
+        processorLine = f"#SBATCH -n {allocateProcessorsPerRun} # number of CPUs per job" if allocateProcessorsPerRun is not None else ""
+        meomoryLine   = f"#SBATCH -mem={memoryInGB}G" if memoryInGB is not None else ""
         slurmBatchFile = f"""#!/bin/bash
 #SBATCH --job-name=foam_cases
 #SBATCH --array=1-{counter}     # number of jobs = number of lines in cases.txt
-#SBATCH -n {decomposeProcessors} # number of CPUs per job
+{processorLine}
+{meomoryLine}
 #SBATCH --output=slurm_%A_%a.out
 
 # Read the directory for this array task
