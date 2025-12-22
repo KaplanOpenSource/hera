@@ -1,0 +1,1 @@
+docker build -t hera-server -f dockerfile .
