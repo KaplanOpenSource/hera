@@ -297,7 +297,6 @@ class torchLightingModelContainer(Project):
         trainer    = self.getClass(trainerJSON)
         params     = trainerJSON['parameters']
         params['enable_model_summary'] = True
-        params['model_summary'] = "full"
         params.update(**kwargs)
         params['logger'] = logger
         params['callbacks'] = [checkpoint_callback]
