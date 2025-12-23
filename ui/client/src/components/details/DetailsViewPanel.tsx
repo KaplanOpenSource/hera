@@ -1,8 +1,8 @@
 import { Paper } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { fetchDocument, updateDocument } from '../../io/FetchDocument';
+import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
-import type { ProjectEntire } from '../../shared/types';
 import { DetailsViewDocument } from './DetailsViewDocument';
 import { DetailsViewProject } from './DetailsViewProject';
 
@@ -10,7 +10,7 @@ export const DetailsViewPanel = ({
   project,
   selectedItemsIds,
 }: {
-  project: ProjectEntire,
+  project: ProjectObj,
   selectedItemsIds: string[],
 }) => {
   const docid = idFromDocId(selectedItemsIds[0]);

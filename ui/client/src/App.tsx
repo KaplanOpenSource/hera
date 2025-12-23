@@ -12,12 +12,14 @@ import { ServerConstantReader } from './stores/useServerConstants';
 export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const { currProject } = useProjectStore();
+  const { getProject } = useProjectStore();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
+
+  const project = getProject();
 
   useEffect(() => {
     setSelectedItemIds([]);
-  }, [currProject?.name])
+  }, [project?.name])
 
   return (<>
     <ServerConstantReader />
@@ -34,10 +36,10 @@ export default function App() {
       )}
       <Box sx={{ display: 'flex', gap: 2, height: '80vh' }}>
         <Box sx={{ width: '50%' }}>
-          {currProject
+          {project
             ? (
               <ProjectTreeView
-                project={currProject}
+                project={project.data} // TODO: send the project obj
                 setSelectedItemIds={setSelectedItemIds}
               />
             )
@@ -48,10 +50,10 @@ export default function App() {
             )}
         </Box>
         <Box sx={{ width: '50%' }}>
-          {currProject
+          {project
             ? (
               <DetailsViewPanel
-                project={currProject}
+                project={project}
                 selectedItemsIds={selectedItemsIds}
               />
             )

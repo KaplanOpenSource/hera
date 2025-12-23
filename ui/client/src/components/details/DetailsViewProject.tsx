@@ -1,29 +1,29 @@
 import { Article, ReceiptLong } from "@mui/icons-material"
-import { Typography, Stack } from "@mui/material"
-import { ProjectEntire } from "@shared/types"
+import { Stack, Typography } from "@mui/material"
+import { ProjectObj } from "../../objects/ProjectObj"
 
 export const DetailsViewProject = ({
   project,
 }: {
-  project: ProjectEntire,
+  project: ProjectObj,
 }) => {
   return (<>
     <Typography variant="h6">{project.name}</Typography>
     {/* <Typography>ID: {project.name}</Typography> */}
     <Typography>Documents: {project.documents?.length ?? 'N/A'}</Typography>
-    {project.documents?.map(d => (
-      <Stack key={d._id.$oid} direction='row'>
-        {d.desc.datasourceName
+    {project.allDocuments?.map(d => (
+      <Stack key={d.docid} direction='row'>
+        {!d.isConfig
           ? (<>
             <Article />
             <Typography>
-              {d.desc.datasourceName}
+              {d.name}
             </Typography>
           </>)
           : (<>
             <ReceiptLong />
             <Typography>
-              {d.type ?? 'N/A'}
+              {d.name ?? 'N/A'}
             </Typography>
           </>)}
       </Stack>
