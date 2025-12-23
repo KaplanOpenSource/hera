@@ -42,13 +42,16 @@ export const DetailsViewDocument = ({
       <SimpleTreeView
         defaultExpandedItems={[keyForDetailsViewItem(doc.name)]}
       >
-        <DetailsViewItem
-          itemKey={doc.name}
-          itemValue={shownDoc}
-          level={0}
-          index={0}
-          setItemValue={newVal => setShownDoc(newVal)}
-        />
+        {Object.entries(shownDoc).map(([k, v], i) => (
+          <DetailsViewItem
+            key={k}
+            itemKey={k}
+            itemValue={v}
+            level={1}
+            index={i}
+            setItemValue={newVal => setShownDoc({ ...shownDoc, [k]: newVal })}
+          />
+        ))}
       </SimpleTreeView>
     </>
   )

@@ -1,6 +1,5 @@
 import { Stack } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
-import { ReactNode } from 'react';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
