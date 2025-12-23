@@ -22,12 +22,9 @@ const parseJson = (str: string) => {
   }
 }
 
-
 // TODO:
-// 1. go over issue 526 and create a todo list
 // 2. implement data sources checkboxes to remove/add from the json, use internal json obj clone or something
 // 3. allow upload of json from a file
-// 4. go on with showing the config as formular fields on the project tree item instead of a separate tree item
 
 export const RepoAddEditor = ({
   values,
