@@ -8,6 +8,10 @@ enum ItemTypesEnum {
   string = 'string',
 }
 
+const isnum = (v: any) => {
+  return ['number', 'bigint'].includes(typeof v) && Number.isFinite(v);
+}
+
 export const DetailsViewItemSingle = ({
   itemKey,
   itemValue,
@@ -18,7 +22,7 @@ export const DetailsViewItemSingle = ({
   setItemValue: (newVal: any) => void,
 }) => {
   const { dataTypes } = useServerConstants();
-  const [itemType, setItemType] = useState<ItemTypesEnum>((Number.isFinite(itemValue) ? 'number' : 'string') as ItemTypesEnum);
+  const [itemType, setItemType] = useState<ItemTypesEnum>((isnum(itemValue) ? 'number' : 'string') as ItemTypesEnum);
 
   return (
     <Stack direction='row' spacing={1} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 8 }}>
