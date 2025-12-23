@@ -1,19 +1,19 @@
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Paper, Stack, Typography } from '@mui/material';
+import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import type { ProjectEntire } from '../../shared/types';
+import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { ToolkitTreeItem } from './ToolkitTreeItem';
 import { RepoAddButton } from '../repo/RepoAddButton';
+import { ToolkitTreeItem } from './ToolkitTreeItem';
 
 export const ProjectTreeView = ({
   project,
   setSelectedItemIds,
 }: {
-  project: ProjectEntire;
+  project: ProjectObj;
   setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
@@ -26,9 +26,10 @@ export const ProjectTreeView = ({
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
         defaultExpandedItems={['project-documents', 'no-toolkit']}
-        onSelectedItemsChange={(e, itemIds) => {
+        onSelectedItemsChange={(_e, itemIds) => {
           setSelectedItemIds(itemIds ? [itemIds] : [])
         }}
+        expansionTrigger={'iconContainer'}
         multiSelect={false}
       >
         <TreeItem key={`project-documents`} itemId={`project-documents`}
@@ -48,6 +49,14 @@ export const ProjectTreeView = ({
             </Stack>
           )}
         >
+          <Tooltip title='Files directory where the project is located'>
+            <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
+              <Folder />
+              <Typography>
+                {project.configDocument?.data.desc.filesDirectory}
+              </Typography>
+            </Stack>
+          </Tooltip>
           {toolkits.map(toolkit => (
             <ToolkitTreeItem
               key={toolkit.toolkit}

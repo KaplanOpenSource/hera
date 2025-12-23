@@ -1,33 +1,40 @@
 import { Paper } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { fetchDocument, updateDocument } from '../../io/FetchDocument';
+import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
-import type { ProjectEntire } from '../../shared/types';
 import { DetailsViewDocument } from './DetailsViewDocument';
-import { DetailsViewProject } from './DetailsViewProject';
 
 export const DetailsViewPanel = ({
   project,
   selectedItemsIds,
 }: {
-  project: ProjectEntire,
+  project: ProjectObj,
   selectedItemsIds: string[],
 }) => {
-  const docid = idFromDocId(selectedItemsIds[0]);
   const [doc, setDoc] = useState<any>(undefined);
 
   useEffect(() => {
     (async () => {
+      const docid = idFromDocId(selectedItemsIds[0]);
       if (docid) {
         const data = await fetchDocument(docid);
-        if (data) (
-          setDoc(data)
-        )
-      } else {
-        setDoc(undefined);
+        if (data) {
+          setDoc(data);
+          return;
+        }
       }
+      const confid = project?.configDocument?.docid;
+      if (confid) {
+        const data = await fetchDocument(confid);
+        if (data) {
+          setDoc(data);
+          return;
+        }
+      }
+      setDoc(undefined);
     })()
-  }, [docid])
+  }, [selectedItemsIds[0], project?.name])
 
   const changeDocument = async (shownDoc: any) => {
     const data = await updateDocument(shownDoc, doc);
@@ -41,14 +48,11 @@ export const DetailsViewPanel = ({
       {doc
         ? (
           <DetailsViewDocument
-            doc={doc}
-            setDoc={(newVal) => changeDocument(newVal)}
+            doc={new DocumentObj(doc, project)}
+            setDoc={(newDoc) => changeDocument(newDoc.data)}
           />
         )
-        : (
-          <DetailsViewProject
-            project={project}
-          />)}
+        : null}
     </Paper>
   );
 };
