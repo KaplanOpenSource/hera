@@ -36,7 +36,10 @@ export const DetailsViewItemSingle = ({
             value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
             onChange={(e) => {
               if (itemType === 'number') {
-                setItemValue(parseFloat(e.target.value))
+                const num = parseFloat(e.target.value);
+                if (Number.isFinite(num)) {
+                  setItemValue(num)
+                }
               } else {
                 setItemValue(e.target.value)
               }
