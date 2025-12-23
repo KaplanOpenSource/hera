@@ -1,12 +1,14 @@
-import { Box, Stack, Typography } from "@mui/material";
-import { TreeItem } from "@mui/x-tree-view"
-import { ProjectDocument, ProjectEntire } from "@shared/types"
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Delete } from "@mui/icons-material";
+import { Box, Stack, Typography } from "@mui/material";
+import { TreeItem } from "@mui/x-tree-view";
+import { ProjectDocument, ProjectEntire } from "@shared/types";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
+import { useConfirm } from "../../elements/useConfirm";
 import { fetchProjectDetails } from "../../io/FetchProjects";
 import { execPython } from "../../io/execPython";
 import { idDocId } from "../../shared/idDocId";
-import { useConfirm } from "../../elements/useConfirm";
+
+// TODO: accept ProjectObj and DocumentObj
 
 export const ProjectDocumentItem = ({
   project,
