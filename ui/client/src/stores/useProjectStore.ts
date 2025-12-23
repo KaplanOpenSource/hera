@@ -1,5 +1,6 @@
 import { ProjectEntire, ProjectName, Toolkit } from '@shared/types';
 import { create } from 'zustand';
+import { ProjectObj } from '../objects/ProjectObj';
 
 export const NO_PROJECT = "* NONE *";
 export const DEFAULT_PROJECT = "defaultProject";
@@ -14,9 +15,10 @@ interface ProjectStore {
   selectProject: (newProjectId: string) => void;
   setCurrentProject: (project: ProjectEntire | null) => void; // Sets current project
   setToolkits: (val: Toolkit[]) => void;
+  getProject: () => ProjectObj | null;
 }
 
-export const useProjectStore = create<ProjectStore>((set) => ({
+export const useProjectStore = create<ProjectStore>((set, get) => ({
   projectNames: [],
   currProjectName: NO_PROJECT,
   currProject: null,
@@ -33,4 +35,8 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   setToolkits: (val) => {
     set({ toolkits: val })
   },
+  getProject: () => {
+    const { currProject } = get();
+    return currProject ? new ProjectObj(currProject) : null;
+  }
 }));
