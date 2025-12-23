@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 from .....utils.logging import get_classMethod_logger
 from ...utils import WGS84, ITM, ED50_ZONE36N
 from ..... import toolkitHome
+import geopandas as gpd
+from shapely.geometry import *
 
 
 class BuildingsToolkit(VectorToolkit):
@@ -168,7 +170,7 @@ class BuildingsToolkit(VectorToolkit):
             The datasource name. If none, will use the default datasource.
 
         withElevation : bool,default=False.
-            If True, use the topography (raster) toolkit to get the heghts.
+            If True, use the topography (raster) toolkit to get the heights.
 
         Returns
         -------
@@ -184,3 +186,96 @@ class BuildingsToolkit(VectorToolkit):
             buildings = self.getBuildingHeightFromRasterTopographyToolkit(buildings)
 
         return buildings
+    @staticmethod
+    def get_buildings_height(gdf):
+        """
+        Extract building names, geometries(coordination), and height information from a GeoDataFrame.
+        if there is no height available - it will calculate the number of levels in the building * 3/
+        else: none
+
+        Parameters:
+        gdf (GeoDataFrame): A GeoPandas DataFrame containing building geometries
+                            and associated properties.
+
+        Returns:
+        geopandas.DataFrame
+
+        """
+        building_info = []
+
+        for index, row in gdf.iterrows():
+            name = row.get('name', 'Unnamed')  # Extract the building name
+
+            # Retain the original geometry
+            geometry = row.geometry
+
+            # Try to get the height or number of levels
+            height = row.get('height')
+            levels = row.get('building:levels')
+
+            # Determine the height value
+            if height is None and levels is not None:
+                height = levels * 3  # Estimate height based on number of levels
+
+            # Append the building information
+            building_info.append({
+                'name': name,
+                'geometry': geometry,  # Keep the original geometry
+                'height': height
+            })
+
+        return gpd.GeoDataFrame(building_info)
+    @staticmethod
+    def filter_buildings_in_area(buildings_data, min_longitude, min_latitude, max_longitude, max_latitude):
+        """
+        Filter building features by a specified geographic area using a bounding box.
+
+        Parameters:
+        ----------
+        buildings_data : dict
+            A GeoJSON-like dictionary containing building features to filter.
+
+        min_longitude : float
+            Minimum longitude defining the bounding box.
+
+        min_latitude : float
+            Minimum latitude defining the bounding box.
+
+        max_longitude : float
+            Maximum longitude defining the bounding box.
+
+        max_latitude : float
+            Maximum latitude defining the bounding box.
+
+        Returns:
+        -------
+        gpd.GeoDataFrame
+            A GeoDataFrame containing buildings that are located within the specified area.
+        """
+        # Create a polygon from the bounding box
+        bbox_polygon = Polygon([(min_longitude, min_latitude),
+                                (max_longitude, min_latitude),
+                                (max_longitude, max_latitude),
+                                (min_longitude, max_latitude),
+                                (min_longitude, min_latitude)])  # Close the polygon
+
+        # List to hold filtered building data
+        filtered_buildings = []
+
+        for feature in buildings_data['features']:
+            geometry = feature['geometry']
+            properties = feature['properties']
+
+            # Create a geometry shape from the geometry data
+            geom = shape(geometry)  # Handles Point, Polygon, MultiPolygon, etc.
+
+            # Check if the geometry intersects with the bounding box polygon
+            if geom.intersects(bbox_polygon):
+                # Add all properties and the geometry
+                properties['geometry'] = geom
+                filtered_buildings.append(properties)
+
+        # Create a GeoDataFrame
+        gdf = gpd.GeoDataFrame(filtered_buildings)
+
+        return gdf
