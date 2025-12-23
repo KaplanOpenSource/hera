@@ -3,43 +3,47 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
+import { DocumentObj } from '../../objects/ProjectObj';
 
 export const DetailsViewDocument = ({
   doc,
   setDoc,
 }: {
-  doc: any,
-  setDoc: (newVal: any) => void,
+  doc: DocumentObj,
+  setDoc: (newDoc: DocumentObj) => void,
 }) => {
-  const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc)));
-  const name = doc?.desc?.datasourceName || doc?.type || doc._cls;
+  const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc.data)));
 
+  const isChanged = JSON.stringify(doc.data) === JSON.stringify(shownDoc);
   return (
     <SimpleTreeView
-      defaultExpandedItems={[keyForDetailsViewItem(name)]}
+      defaultExpandedItems={[keyForDetailsViewItem(doc.name)]}
     >
       <DetailsViewItem
-        itemKey={name}
+        itemKey={doc.name}
         itemValue={shownDoc}
         level={0}
         index={0}
         setItemValue={newVal => setShownDoc(newVal)}
-        labelAdditions={JSON.stringify(doc) === JSON.stringify(shownDoc) ? null : (
-          <>
-            <ButtonTooltip
-              title='Update Document'
-              onClick={() => setDoc(shownDoc)}
-            >
-              <Done />
-            </ButtonTooltip>
-            <ButtonTooltip
-              title='Revert Document'
-              onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc)))}
-            >
-              <Close />
-            </ButtonTooltip>
-          </>
-        )}
+        labelAdditions={isChanged
+          ? null
+          : (
+            <>
+              <ButtonTooltip
+                title='Update Document'
+                onClick={() => setDoc(new DocumentObj(shownDoc, doc.project))}
+              >
+                <Done />
+              </ButtonTooltip>
+              <ButtonTooltip
+                title='Revert Document'
+                onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc.data)))}
+              >
+                <Close />
+              </ButtonTooltip>
+            </>
+          )
+        }
       />
     </SimpleTreeView>
   )

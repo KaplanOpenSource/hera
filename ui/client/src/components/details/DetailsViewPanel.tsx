@@ -1,7 +1,7 @@
 import { Paper } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { fetchDocument, updateDocument } from '../../io/FetchDocument';
-import { ProjectObj } from '../../objects/ProjectObj';
+import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
 import { DetailsViewDocument } from './DetailsViewDocument';
 
@@ -48,8 +48,8 @@ export const DetailsViewPanel = ({
       {doc
         ? (
           <DetailsViewDocument
-            doc={doc}
-            setDoc={(newVal) => changeDocument(newVal)}
+            doc={new DocumentObj(doc, project)}
+            setDoc={(newDoc) => changeDocument(newDoc.data)}
           />
         )
         : null}
