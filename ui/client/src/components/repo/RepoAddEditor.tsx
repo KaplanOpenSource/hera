@@ -52,19 +52,23 @@ export const RepoAddEditor = ({
           multiline={true}
         />
         <Stack>
-          <Typography>
+          <Typography variant="h6">
             DataSources
           </Typography>
+          {dataSources.length === 0 && 'None'}
           {dataSources.map(d => (
-            <FormGroup key={d}>
-              <FormControlLabel
-                label={d}
-                control={<Checkbox
-                  checked={values.overwrite}
-                  onChange={(e) => setValues({ ...values, overwrite: e.target.checked })}
-                />}
-              />
-            </FormGroup>
+            // <FormGroup key={d}>
+            //   <FormControlLabel
+            //     label={d}
+            //     control={<Checkbox
+            //       checked={values.overwrite}
+            //       onChange={(e) => setValues({ ...values, overwrite: e.target.checked })}
+            //     />}
+            //   />
+            // </FormGroup>
+            <Typography key={d}>
+              {d}
+            </Typography>
           ))}
         </Stack>
       </Stack>
