@@ -74,7 +74,7 @@ export function useDialog<TValues extends Record<string, any>>() {
   };
 
   const DialogComponent = options ? (
-    <Dialog open={open} onClose={() => close(false)}>
+    <Dialog open={open} onClose={() => close(false)} fullWidth maxWidth={"xl"}>
       <DialogTitle>{options.title}</DialogTitle>
       <DialogContent>
         <Box sx={{ marginTop: 1 }}>

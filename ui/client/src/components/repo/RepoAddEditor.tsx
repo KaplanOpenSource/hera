@@ -43,6 +43,7 @@ export const RepoAddEditor = ({
     <Stack direction={'column'} spacing={2}>
       <Stack direction={'row'} spacing={2}>
         <TextField
+          fullWidth
           label="Repository Json (as string)"
           value={values.repositoryJson}
           onClick={e => e.stopPropagation()}
