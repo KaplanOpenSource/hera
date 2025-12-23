@@ -34,7 +34,7 @@ export const DetailsViewPanel = ({
       }
       setDoc(undefined);
     })()
-  }, [selectedItemsIds[0]])
+  }, [selectedItemsIds[0], project?.name])
 
   const changeDocument = async (shownDoc: any) => {
     const data = await updateDocument(shownDoc, doc);
