@@ -20,7 +20,7 @@ export const DetailsViewDocument = ({
     <>
       <Stack direction={'row'} alignItems={'center'}>
         <Typography variant='h6'>
-          {doc.name}
+          {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
         {isChanged
           ? (<>
