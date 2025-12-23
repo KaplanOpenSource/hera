@@ -24,21 +24,12 @@ export const DetailsViewProject = ({
         No config document
       </Typography>}
     <Typography>Documents: {project.documents?.length ?? 'N/A'}</Typography>
-    {project.allDocuments?.map(d => (
+    {project.documents.map(d => (
       <Stack key={d.docid} direction='row'>
-        {!d.isConfig
-          ? (<>
-            <Article />
-            <Typography>
-              {d.name}
-            </Typography>
-          </>)
-          : (<>
-            <ReceiptLong />
-            <Typography>
-              {d.name ?? 'N/A'}
-            </Typography>
-          </>)}
+        <Article />
+        <Typography>
+          {d.name}
+        </Typography>
       </Stack>
     ))}
     {/* <Typography>Cache Documents: {project.documents?.cache ?? 'N/A'}</Typography>

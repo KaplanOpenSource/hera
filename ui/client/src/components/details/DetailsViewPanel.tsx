@@ -4,7 +4,6 @@ import { fetchDocument, updateDocument } from '../../io/FetchDocument';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId } from '../../shared/idDocId';
 import { DetailsViewDocument } from './DetailsViewDocument';
-import { DetailsViewProject } from './DetailsViewProject';
 
 export const DetailsViewPanel = ({
   project,
@@ -13,21 +12,29 @@ export const DetailsViewPanel = ({
   project: ProjectObj,
   selectedItemsIds: string[],
 }) => {
-  const docid = idFromDocId(selectedItemsIds[0]);
   const [doc, setDoc] = useState<any>(undefined);
 
   useEffect(() => {
     (async () => {
+      const docid = idFromDocId(selectedItemsIds[0]);
       if (docid) {
         const data = await fetchDocument(docid);
-        if (data) (
-          setDoc(data)
-        )
-      } else {
-        setDoc(undefined);
+        if (data) {
+          setDoc(data);
+          return;
+        }
       }
+      const confid = project?.configDocument?.docid;
+      if (confid) {
+        const data = await fetchDocument(confid);
+        if (data) {
+          setDoc(data);
+          return;
+        }
+      }
+      setDoc(undefined);
     })()
-  }, [docid])
+  }, [selectedItemsIds[0]])
 
   const changeDocument = async (shownDoc: any) => {
     const data = await updateDocument(shownDoc, doc);
@@ -45,10 +52,7 @@ export const DetailsViewPanel = ({
             setDoc={(newVal) => changeDocument(newVal)}
           />
         )
-        : (
-          <DetailsViewProject
-            project={project}
-          />)}
+        : null}
     </Paper>
   );
 };
