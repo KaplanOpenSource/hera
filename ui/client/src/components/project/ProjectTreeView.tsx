@@ -1,5 +1,5 @@
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Paper, Stack, Typography } from '@mui/material';
+import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Box, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
@@ -48,6 +48,14 @@ export const ProjectTreeView = ({
             </Stack>
           )}
         >
+          <Tooltip title='Files directory where the project is located'>
+            <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
+              <Folder />
+              <Typography>
+                {project.documents.find(d => d.type === project.name + '__config__')?.desc.filesDirectory}
+              </Typography>
+            </Stack>
+          </Tooltip>
           {toolkits.map(toolkit => (
             <ToolkitTreeItem
               key={toolkit.toolkit}

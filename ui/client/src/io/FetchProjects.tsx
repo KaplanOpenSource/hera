@@ -39,7 +39,7 @@ export const fetchToolkits = async (projectName: string) => {
 from hera import toolkitHome
 import json
 table = toolkitHome.getToolkitTable('${projectName}')
-result = table.to_json(orient='records', indent=2)
+result = table.to_json(orient='records')
   `);
   if (!problem) {
     setToolKits(JSON.parse(data) as Toolkit[])
