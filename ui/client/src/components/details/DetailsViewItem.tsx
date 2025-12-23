@@ -13,14 +13,12 @@ export const DetailsViewItem = ({
   setItemValue,
   level = 0,
   index,
-  labelAdditions = null,
 }: {
   itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
   level: number,
   index: number,
-  labelAdditions?: ReactNode,
 }) => {
   const key = keyForDetailsViewItem(itemKey, level, index);
 
@@ -31,7 +29,6 @@ export const DetailsViewItem = ({
         itemId={key}
         label={<Stack direction={'row'} alignItems={'center'}>
           {itemKey}
-          {labelAdditions}
         </Stack>}
       >
         {Object.entries(itemValue).map(([k, v], i) => (
@@ -57,7 +54,6 @@ export const DetailsViewItem = ({
               itemValue={itemValue}
               setItemValue={newVal => setItemValue(newVal)}
             />
-            {labelAdditions}
           </Stack>
         )}
       />

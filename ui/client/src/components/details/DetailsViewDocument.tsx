@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 import { DocumentObj } from '../../objects/ProjectObj';
+import { Stack, Typography } from '@mui/material';
 
 export const DetailsViewDocument = ({
   doc,
@@ -14,37 +15,41 @@ export const DetailsViewDocument = ({
 }) => {
   const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc.data)));
 
-  const isChanged = JSON.stringify(doc.data) === JSON.stringify(shownDoc);
+  const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
-    <SimpleTreeView
-      defaultExpandedItems={[keyForDetailsViewItem(doc.name)]}
-    >
-      <DetailsViewItem
-        itemKey={doc.name}
-        itemValue={shownDoc}
-        level={0}
-        index={0}
-        setItemValue={newVal => setShownDoc(newVal)}
-        labelAdditions={isChanged
-          ? null
-          : (
-            <>
-              <ButtonTooltip
-                title='Update Document'
-                onClick={() => setDoc(new DocumentObj(shownDoc, doc.project))}
-              >
-                <Done />
-              </ButtonTooltip>
-              <ButtonTooltip
-                title='Revert Document'
-                onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc.data)))}
-              >
-                <Close />
-              </ButtonTooltip>
-            </>
-          )
-        }
-      />
-    </SimpleTreeView>
+    <>
+      <Stack direction={'row'} alignItems={'center'}>
+        <Typography variant='h6'>
+          {doc.name}
+        </Typography>
+        {isChanged
+          ? (<>
+            <ButtonTooltip
+              title='Update Document'
+              onClick={() => setDoc(new DocumentObj(shownDoc, doc.project))}
+            >
+              <Done />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title='Revert Document'
+              onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc.data)))}
+            >
+              <Close />
+            </ButtonTooltip>
+          </>)
+          : null}
+      </Stack>
+      <SimpleTreeView
+        defaultExpandedItems={[keyForDetailsViewItem(doc.name)]}
+      >
+        <DetailsViewItem
+          itemKey={doc.name}
+          itemValue={shownDoc}
+          level={0}
+          index={0}
+          setItemValue={newVal => setShownDoc(newVal)}
+        />
+      </SimpleTreeView>
+    </>
   )
 }
