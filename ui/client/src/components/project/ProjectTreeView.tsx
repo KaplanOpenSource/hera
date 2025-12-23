@@ -1,19 +1,19 @@
 import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
-import { Box, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import type { ProjectEntire } from '../../shared/types';
+import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { ToolkitTreeItem } from './ToolkitTreeItem';
 import { RepoAddButton } from '../repo/RepoAddButton';
+import { ToolkitTreeItem } from './ToolkitTreeItem';
 
 export const ProjectTreeView = ({
   project,
   setSelectedItemIds,
 }: {
-  project: ProjectEntire;
+  project: ProjectObj;
   setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
@@ -26,7 +26,7 @@ export const ProjectTreeView = ({
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
         defaultExpandedItems={['project-documents', 'no-toolkit']}
-        onSelectedItemsChange={(e, itemIds) => {
+        onSelectedItemsChange={(_e, itemIds) => {
           setSelectedItemIds(itemIds ? [itemIds] : [])
         }}
         multiSelect={false}
@@ -52,7 +52,7 @@ export const ProjectTreeView = ({
             <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
               <Folder />
               <Typography>
-                {project.documents.find(d => d.type === project.name + '__config__')?.desc.filesDirectory}
+                {project.configDocument?.data.desc.filesDirectory}
               </Typography>
             </Stack>
           </Tooltip>

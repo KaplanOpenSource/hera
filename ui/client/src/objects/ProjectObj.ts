@@ -40,6 +40,9 @@ export class DocumentObj {
 
   public get name(): string {
     return this.data.desc?.datasourceName || this.data.type || this.data._cls;
+  }
 
+  public get toolkit(): string | undefined {
+    return this.data.desc.toolkit;
   }
 }

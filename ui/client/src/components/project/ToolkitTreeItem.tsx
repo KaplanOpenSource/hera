@@ -6,6 +6,7 @@ import { Add } from "@mui/icons-material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Stack, Typography } from "@mui/material";
 import { AddDocumentButton } from "./AddDocumentButton";
+import { ProjectObj } from "../../objects/ProjectObj";
 
 export const ToolkitTreeItem = ({
   project,
@@ -13,18 +14,18 @@ export const ToolkitTreeItem = ({
   showEmpty = false,
 }: {
   toolkit: Toolkit | undefined,
-  project: ProjectEntire,
+  project: ProjectObj,
   showEmpty?: boolean,
 }) => {
   const { toolkits } = useProjectStore();
 
   const documentsForToolkit = (toolkitName: string) => {
-    return project?.documents.filter(d => d?.desc?.toolkit === toolkitName) || [];
+    return project?.documents.filter(d => d.toolkit === toolkitName) || [];
   }
 
   const documentsWithoutToolkit = () => {
     return project?.documents.filter(d => {
-      const found = toolkits.find(({ toolkit }) => toolkit === d?.desc?.toolkit);
+      const found = toolkits.find(({ toolkit }) => toolkit === d.toolkit);
       return found === undefined;
     });
   }
@@ -53,12 +54,12 @@ export const ToolkitTreeItem = ({
             {desc}
           </Typography>
         )} */}
-      {docs.map(d => {
+      {docs.map(document => {
         return (
           <ProjectDocumentItem
-            key={`proj${project.name}_doc${d._id.$oid}`}
-            project={project}
-            document={d}
+            key={`proj${project.name}_doc${document.docid}`}
+            project={project.data}
+            document={document.data}
           />
         )
       })}

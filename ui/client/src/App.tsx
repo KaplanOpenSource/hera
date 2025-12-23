@@ -39,7 +39,7 @@ export default function App() {
           {project
             ? (
               <ProjectTreeView
-                project={project.data} // TODO: send the project obj
+                project={project}
                 setSelectedItemIds={setSelectedItemIds}
               />
             )
