@@ -40,18 +40,23 @@ export const DetailsViewDocument = ({
           : null}
       </Stack>
       <SimpleTreeView
-        defaultExpandedItems={[keyForDetailsViewItem(doc.name)]}
+        defaultExpandedItems={[keyForDetailsViewItem('desc', 1, 3)]}
       >
-        {Object.entries(shownDoc).map(([k, v], i) => (
-          <DetailsViewItem
-            key={k}
-            itemKey={k}
-            itemValue={v}
-            level={1}
-            index={i}
-            setItemValue={newVal => setShownDoc({ ...shownDoc, [k]: newVal })}
-          />
-        ))}
+        {Object.entries(shownDoc).map(([k, v], i) => {
+          if (doc.isConfig && ['projectName', '_id'].includes(k)) {
+            return null;
+          }
+          return (
+            <DetailsViewItem
+              key={k}
+              itemKey={k}
+              itemValue={v}
+              level={1}
+              index={i}
+              setItemValue={newVal => setShownDoc({ ...shownDoc, [k]: newVal })}
+            />
+          )
+        })}
       </SimpleTreeView>
     </>
   )
