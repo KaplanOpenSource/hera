@@ -108,9 +108,20 @@ DEF_LOW="${JSON_DIR}/lowfreq_toolkit.json"
 DEF_DEM="${JSON_DIR}/demography_test_definitions.json"
 DEF_HF="${JSON_DIR}/test_definitions_highfreq.json"
 DEF_LC="${JSON_DIR}/test_definitions_landcover.json"
+DEF_DYN_TK="${JSON_DIR}/test_dynamic_toolkits.json"
+DEF_EXP="${JSON_DIR}/test_experiment_loading.json"
 
 # Assemble args without passing an empty extra-arg (bash-safe)
-ARGS=("${RUNNER}" "${DEF_TOP}" "${DEF_LOW}" "${DEF_DEM}" "${DEF_HF}" "${DEF_LC}")
+ARGS=(
+  "${RUNNER}"
+  "${DEF_TOP}"
+  "${DEF_LOW}"
+  "${DEF_DEM}"
+  "${DEF_HF}"
+  "${DEF_LC}"
+  "${DEF_DYN_TK}"
+  "${DEF_EXP}"
+)
 if ((${#EXTRA_ARGS[@]})); then
   ARGS+=("${EXTRA_ARGS[@]}")
 fi

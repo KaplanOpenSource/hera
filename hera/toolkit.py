@@ -440,6 +440,19 @@ class ToolkitHome(abstractToolkit):
              (type='ToolkitDataSource', toolkit='ToolkitHome').
           3) Experiment toolkits, via experimentHome.getExperiment(...).
         """
+
+        # ------------------------------------------------------------------
+        # IMPORTANT:
+        # Some callers pass projectName explicitly (e.g., DemographyToolkit -> BuildingsToolkit).
+        # The previous implementation popped projectName and always used self.projectName,
+        # which can be None or a different project, causing DB/cache writes to fail with:
+        #   "Field is required: ['projectName']"
+        # We therefore:
+        #   - Prefer caller's explicit projectName
+        #   - Fallback to ToolkitHome's own projectName
+        # ------------------------------------------------------------------
+        projectName = kwargs.pop("projectName", None) or self.projectName
+
         # 1) Static built-in toolkits
         if toolkitName in (self._toolkits or {}):
             info = self._toolkits[toolkitName]
@@ -448,9 +461,9 @@ class ToolkitHome(abstractToolkit):
             if toolkit_cls is None:
                 raise ImportError(f"Cannot locate class: {cls_path}")
 
-            # Static toolkits are also abstractToolkit derivatives
+            # Instantiate the toolkit in the resolved project context
             return toolkit_cls(
-                projectName=self.projectName,
+                projectName=projectName,
                 filesDirectory=filesDirectory,
                 **kwargs,
             )
@@ -459,15 +472,17 @@ class ToolkitHome(abstractToolkit):
         doc = self.getDataSourceDocument(datasourceName=toolkitName)
         if doc is not None:
             tk = doc.getData()
+
+            # Best-effort: enforce filesDirectory if the toolkit supports it
             if hasattr(tk, "setFilesDirectory") and filesDirectory is not None:
                 tk.setFilesDirectory(filesDirectory)
+
+            # Note: dynamic toolkits are returned as-is (they may already be bound to a project)
             return tk
 
         # 3) Experiment toolkits fallback (experimentHome)
-        # experimentTK is an experimentHome instance when available.
         if self.experimentTK is not None:
             try:
-                # Direct call to experimentHome.getExperiment(...)
                 return self.experimentTK.getExperiment(
                     experimentName=toolkitName,
                     filesDirectory=filesDirectory,
@@ -479,7 +494,7 @@ class ToolkitHome(abstractToolkit):
         # Nothing found in any registry
         raise ValueError(
             f"Toolkit '{toolkitName}' not found in static registry, ToolkitDataSource, "
-            f"or experiment toolkit in project '{self.projectName}'."
+            f"or experiment toolkit in project '{projectName}'."
         )
 
     # ------------------------------------------------------------------

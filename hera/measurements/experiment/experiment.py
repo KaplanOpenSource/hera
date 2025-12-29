@@ -101,23 +101,84 @@ class experimentHome(toolkit.abstractToolkit):
 
         if ds_doc:
             self.logger.info("Found experiment. Loading")
-            experimentPath = ds_doc.getData()
+            experimentPath_raw = ds_doc.getData()
+
+            # ---------------------------------------------------------------------
+            # Compatibility / robustness additions (do not change core logic):
+            #
+            # Problem we saw in tests:
+            #   ds_doc.getData() may return a *repo-relative* path like:
+            #       "hera/tests/dynamic_loading/dummy_experiment"
+            #   but our current working directory is often:
+            #       ".../hera/hera/tests"
+            #   so os.path.abspath() can produce:
+            #       ".../hera/hera/tests/hera/tests/..."  (WRONG)
+            #
+            # Solution:
+            #   Build a list of candidate experiment paths and choose the first one
+            #   that actually exists AND contains the expected "code/" directory.
+            # ---------------------------------------------------------------------
+
+            candidates = []
+
+            # 1) Raw value as-is (might already be absolute)
+            candidates.append(experimentPath_raw)
+
+            # 2) Absolute relative to current working directory (old behavior)
+            try:
+                candidates.append(os.path.abspath(experimentPath_raw))
+            except Exception:
+                pass
+
+            # 3) If a repo root is available, interpret raw path relative to it
+            repo_root = os.environ.get("HERA_REPO_ROOT")
+            if repo_root:
+                candidates.append(os.path.join(repo_root, experimentPath_raw))
+
+            # Pick the first candidate that looks valid (dir exists + has "code/" inside)
+            experimentPath = None
+            code_dir = None
+            for cand in candidates:
+                try:
+                    cand_abs = os.path.abspath(cand)
+                    cand_code_dir = os.path.join(cand_abs, self.CODE_DIRECTORY)
+
+                    # We consider it valid only if the experiment directory exists
+                    # and contains the expected "code" directory.
+                    if os.path.isdir(cand_abs) and os.path.isdir(cand_code_dir):
+                        experimentPath = cand_abs
+                        code_dir = cand_code_dir
+                        break
+                except Exception:
+                    continue
+
+            # If none matched, fall back to the previous "best effort" behavior
+            if experimentPath is None:
+                # This keeps backward compatibility: we still try something even if the
+                # path doesn't exist, so error messages remain informative.
+                experimentPath = os.path.abspath(experimentPath_raw)
+                code_dir = os.path.join(experimentPath, self.CODE_DIRECTORY)
 
             # Add experiment's 'code' directory to sys.path so we can import its toolkit.
-            sys.path.append(os.path.join(experimentPath, self.CODE_DIRECTORY))
-            self.logger.debug(
-                f"Adding path {os.path.join(experimentPath, self.CODE_DIRECTORY)} to sys.path"
-            )
+            # Use insert(0, ...) to prefer this experiment's code over other paths.
+            if code_dir in sys.path:
+                # Move to front to avoid importing an older module from a different path.
+                try:
+                    sys.path.remove(code_dir)
+                except ValueError:
+                    pass
+            sys.path.insert(0, code_dir)
+
+            self.logger.debug(f"Experiment path (raw): {experimentPath_raw}")
+            self.logger.debug(f"Experiment path (resolved): {experimentPath}")
+            self.logger.debug(f"Adding path {code_dir} to sys.path (priority)")
 
             toolkitName = f"{experimentName}.{experimentName}"
             self.logger.debug(f"Loading toolkit: {toolkitName}")
 
             toolkitCls = pydoc.locate(toolkitName)
             if toolkitCls is None:
-                err = (
-                    f"Cannot find toolkit {toolkitName} in "
-                    f"{os.path.join(experimentPath, self.CODE_DIRECTORY)}"
-                )
+                err = f"Cannot find toolkit {toolkitName} in {code_dir}"
                 self.logger.error(err)
                 raise ValueError(err)
 
