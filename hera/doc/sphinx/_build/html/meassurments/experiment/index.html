@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../../">
 <head>
@@ -5,19 +7,15 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Experiment ToolKit Documentation &mdash; Hera Documentation  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
   
-  <!--[if lt IE 9]>
-    <script src="../../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../_static/doctools.js?v=888ff710"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -42,51 +40,12 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Experiment ToolKit Documentation</a></li>
-<li><a class="reference internal" href="#experimenthome-class">experimentHome Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentHome"><code class="docutils literal notranslate"><span class="pre">experimentHome</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentHome.getExperiment"><code class="docutils literal notranslate"><span class="pre">experimentHome.getExperiment()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentHome.getExperimentsMap"><code class="docutils literal notranslate"><span class="pre">experimentHome.getExperimentsMap()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentHome.keys"><code class="docutils literal notranslate"><span class="pre">experimentHome.keys()</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Documentation Sections</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Documentation Sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../toolkit_api.html">Toolkit API</a></li>
 </ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#experimentsetupwithdata-class">experimentSetupWithData Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentSetupWithData"><code class="docutils literal notranslate"><span class="pre">experimentSetupWithData</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentSetupWithData.analysis"><code class="docutils literal notranslate"><span class="pre">experimentSetupWithData.analysis</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentSetupWithData.getExperimentData"><code class="docutils literal notranslate"><span class="pre">experimentSetupWithData.getExperimentData()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.experiment.experimentSetupWithData.presentation"><code class="docutils literal notranslate"><span class="pre">experimentSetupWithData.presentation</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#analysis-layer">Analysis Layer</a></li>
-<li><a class="reference internal" href="#experimentanalysis-class">experimentAnalysis Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.addMetadata"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.addMetadata()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.addTrialProperties"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.addTrialProperties()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceLocations"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getDeviceLocations()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceTypePlannedMessageCount"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getDeviceTypePlannedMessageCount()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceTypeTransmissionFrequencyOfTrial"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getDeviceTypeTransmissionFrequencyOfTrial()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.analysis.experimentAnalysis.getTurbulenceStatistics"><code class="docutils literal notranslate"><span class="pre">experimentAnalysis.getTurbulenceStatistics()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#data-layer">Data Layer</a></li>
-<li><a class="reference internal" href="#parquetdataenginehera-class">parquetDataEngineHera Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera"><code class="docutils literal notranslate"><span class="pre">parquetDataEngineHera</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getData"><code class="docutils literal notranslate"><span class="pre">parquetDataEngineHera.getData()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial"><code class="docutils literal notranslate"><span class="pre">parquetDataEngineHera.getDataFromTrial()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</div>
+
         </div>
       </div>
     </nav>
@@ -121,7 +80,7 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.experiment.experiment.experimentHome">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.experiment.experiment.</span></span><span class="sig-name descname"><span class="pre">experimentHome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/experiment.html#experimentHome"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.experiment.experimentHome" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></p>
+<dd><p>Bases: <a class="reference internal" href="../../toolkit_api.html#hera.toolkit.abstractToolkit" title="hera.toolkit.abstractToolkit"><code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></a></p>
 <p>This is the object that function as a factory/home to the other experiments.
 It is responsible for getting the right toolkit for the requested experiment.</p>
 <dl class="py method">
@@ -172,13 +131,12 @@ If None, use the [current directory]/experimentCache.</p></li>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.experiment.experiment.experimentSetupWithData">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.experiment.experiment.</span></span><span class="sig-name descname"><span class="pre">experimentSetupWithData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pathToExperiment</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataType</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'parquetDataEngingHera'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceConfiguration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaultTrialSetName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/experiment.html#experimentSetupWithData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.experiment.experimentSetupWithData" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ExperimentZipFile</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ExperimentZipFile</span></code>, <a class="reference internal" href="../../toolkit_api.html#hera.toolkit.abstractToolkit" title="hera.toolkit.abstractToolkit"><code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></a></p>
 <p>A class that unifies the argos.experiment setup with the data.</p>
 <dl class="py property">
 <dt class="sig sig-object py" id="hera.measurements.experiment.experiment.experimentSetupWithData.analysis">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">analysis</span></span><a class="headerlink" href="#hera.measurements.experiment.experiment.experimentSetupWithData.analysis" title="Link to this definition"></a></dt>
-<dd><p>Access to the datalayer layer
-:return:</p>
+<dd><p>Access to the datalayer layer.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -195,8 +153,7 @@ If None, use the [current directory]/experimentCache.</p></li>
 <dl class="py property">
 <dt class="sig sig-object py" id="hera.measurements.experiment.experiment.experimentSetupWithData.presentation">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">presentation</span></span><a class="headerlink" href="#hera.measurements.experiment.experiment.experimentSetupWithData.presentation" title="Link to this definition"></a></dt>
-<dd><p>Access to the presentation layer
-:return:</p>
+<dd><p>Access to the presentation layer.</p>
 </dd></dl>
 
 </dd></dl>
@@ -214,14 +171,13 @@ If None, use the [current directory]/experimentCache.</p></li>
 <p>A basic class for the analysis of the data.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.experiment.analysis.experimentAnalysis.addMetadata">
-<span class="sig-name descname"><span class="pre">addMetadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialState</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'deploy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSetName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/analysis.html#experimentAnalysis.addMetadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.analysis.experimentAnalysis.addMetadata" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">addMetadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSetName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/analysis.html#experimentAnalysis.addMetadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.analysis.experimentAnalysis.addMetadata" title="Link to this definition"></a></dt>
 <dd><p>Adds the trial metadata to the dataset by joining on the device name.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>dataset</strong> (<em>pandas/dask</em>) – The dataset to merge. Assumes there is a field deviceName</p></li>
 <li><p><strong>trialName</strong> (<em>str</em>) – The name of the trial to join</p></li>
-<li><p><strong>trialState</strong> (<em>str</em>) – The state of the trial (Design/Deploy).</p></li>
 <li><p><strong>trialSetName</strong> (<em>str</em><em> [</em><em>optional</em><em>, </em><em>default None</em><em>]</em>) – The name of hte trialset. If None, use the default trialset.</p></li>
 </ul>
 </dd>
@@ -254,7 +210,7 @@ Assume the time column is timestamp.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.experiment.analysis.experimentAnalysis.getDeviceLocations">
-<span class="sig-name descname"><span class="pre">getDeviceLocations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entityTypeName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSetName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialState</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'deploy'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/analysis.html#experimentAnalysis.getDeviceLocations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceLocations" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">getDeviceLocations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entityTypeName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSetName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/analysis.html#experimentAnalysis.getDeviceLocations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.analysis.experimentAnalysis.getDeviceLocations" title="Link to this definition"></a></dt>
 <dd><p>Returns a pandas with the device locations.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -262,7 +218,6 @@ Assume the time column is timestamp.</p>
 <li><p><strong>entityTypeName</strong> (<em>str</em>) – The entity type.</p></li>
 <li><p><strong>trialName</strong> (<em>str</em>) – The trial name.</p></li>
 <li><p><strong>trialSetName</strong> (<em>str</em>) – The trial set name.</p></li>
-<li><p><strong>trialState</strong> (<em>str</em>) – DEPLOY or DESIGN.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -346,7 +301,7 @@ default False.</p></li>
 <h1>parquetDataEngineHera Class<a class="headerlink" href="#parquetdataenginehera-class" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.experiment.dataEngine.parquetDataEngineHera">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.experiment.dataEngine.</span></span><span class="sig-name descname"><span class="pre">parquetDataEngineHera</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datasourceConfiguration</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.experiment.dataEngine.</span></span><span class="sig-name descname"><span class="pre">parquetDataEngineHera</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datasourceConfiguration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">experimentObj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Project</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.experiment.dataEngine.parquetDataEngineHera.getData">
@@ -371,7 +326,7 @@ default False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial">
-<span class="sig-name descname"><span class="pre">getDataFromTrial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">deviceType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSet</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deviceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">withMetadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialState</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'deploy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">query</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera.getDataFromTrial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">getDataFromTrial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">deviceType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trialSet</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deviceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">withMetadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endTime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">query</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/experiment/dataEngine.html#parquetDataEngineHera.getDataFromTrial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.experiment.dataEngine.parquetDataEngineHera.getDataFromTrial" title="Link to this definition"></a></dt>
 <dd><p>Return the device data from the set. Use the default trial set if it is None.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -392,7 +347,6 @@ default False.</p></li>
 </dd>
 </dl>
 </p></li>
-<li><p><strong>trialState</strong> (<em>str</em>) – ‘deploy’ or ‘design’.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

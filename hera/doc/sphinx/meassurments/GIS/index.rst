@@ -29,14 +29,10 @@ LandCover Presentation Layer
    :members:
    :show-inheritance:
    
-Landcover Presentation Layer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: hera.measurements.GIS.raster.landcover.presentation
-   :members:
-   :show-inheritance:
-   
+
 Tiles Toolkit 
 ^^^^^^^^^^^^^^^^^^^^^^
+
 TilesToolkit Class
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: hera.measurements.GIS.raster.tiles.TilesToolkit

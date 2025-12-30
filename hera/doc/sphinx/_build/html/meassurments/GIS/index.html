@@ -1,23 +1,21 @@
+
+
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GIS Documentation &mdash; Hera Documentation  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+  <title>Raster &mdash; Hera Documentation  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
   
-  <!--[if lt IE 9]>
-    <script src="../../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../_static/doctools.js?v=888ff710"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -42,59 +40,12 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">GIS Documentation</a></li>
-<li><a class="reference internal" href="#raster">Raster</a></li>
-<li><a class="reference internal" href="#landcover-toolkit">LandCover Toolkit</a></li>
-<li><a class="reference internal" href="#landcovertoolkit-class">LandCoverToolkit Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getCodingMap()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getLandCover()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCoverAtPoint"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getLandCoverAtPoint()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughness()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessAtPoint()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover"><code class="docutils literal notranslate"><span class="pre">LandCoverToolkit.getRoughnessFromLandcover()</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Documentation Sections</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Documentation Sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../toolkit_api.html">Toolkit API</a></li>
 </ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#tiles-toolkit">Tiles Toolkit</a></li>
-<li><a class="reference internal" href="#tilestoolkit-class">TilesToolkit Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit"><code class="docutils literal notranslate"><span class="pre">TilesToolkit</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners"><code class="docutils literal notranslate"><span class="pre">TilesToolkit.getImageFromCorners()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom"><code class="docutils literal notranslate"><span class="pre">TilesToolkit.tileScaleAtLatLonZoom()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#tilestoolkit-presentation-class">TilesToolkit Presentation Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.presentation"><code class="docutils literal notranslate"><span class="pre">presentation</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.raster.tiles.presentation.plot"><code class="docutils literal notranslate"><span class="pre">presentation.plot()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#vector">Vector</a></li>
-<li><a class="reference internal" href="#buildingstoolkit-class">BuildingsToolkit Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.buildingsGeopandasToSTLRasterTopography()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle"><code class="docutils literal notranslate"><span class="pre">BuildingsToolkit.getBuildingsFromRectangle()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#buildingstoolkit-analysis-class">BuildingsToolkit Analysis Class</a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a><ul>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.ConvexPolygons"><code class="docutils literal notranslate"><span class="pre">analysis.ConvexPolygons()</span></code></a></li>
-<li><a class="reference internal" href="#hera.measurements.GIS.vector.buildings.analysis.analysis.LambdaFromBuildingData"><code class="docutils literal notranslate"><span class="pre">analysis.LambdaFromBuildingData()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</div>
+
         </div>
       </div>
     </nav>
@@ -109,7 +60,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">GIS Documentation</li>
+      <li class="breadcrumb-item active">Raster</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../../_sources/meassurments/GIS/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -119,23 +70,19 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="gis-documentation">
-<h1>GIS Documentation<a class="headerlink" href="#gis-documentation" title="Link to this heading"></a></h1>
+  <p>GIS Documentation</p>
 <div class="toctree-wrapper compound">
 </div>
-</section>
 <section id="raster">
 <h1>Raster<a class="headerlink" href="#raster" title="Link to this heading"></a></h1>
-</section>
 <section id="landcover-toolkit">
-<h1>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h1>
-</section>
+<h2>LandCover Toolkit<a class="headerlink" href="#landcover-toolkit" title="Link to this heading"></a></h2>
 <section id="landcovertoolkit-class">
-<h1>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h1>
+<h3>LandCoverToolkit Class<a class="headerlink" href="#landcovertoolkit-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">LandCoverToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></p>
+<dd><p>Bases: <a class="reference internal" href="../../toolkit_api.html#hera.toolkit.abstractToolkit" title="hera.toolkit.abstractToolkit"><code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></a></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap">
 <span class="sig-name descname"><span class="pre">getCodingMap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasourceName</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getCodingMap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap" title="Link to this definition"></a></dt>
@@ -152,20 +99,18 @@
 
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover">
-<span class="sig-name descname"><span class="pre">getLandCover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getLandCover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">getLandCover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miny</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getLandCover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover" title="Link to this definition"></a></dt>
 <dd><p>Get Xarray LandCover map.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>minlon</strong> (<em>float</em>) – Minimum value of longitude coodinates.</p></li>
-<li><p><strong>minlat</strong> (<em>float</em>) – Minimum value of latitute coodinates.</p></li>
-<li><p><strong>maxlon</strong> (<em>float</em>) – Maximum value of longitude coodinates.</p></li>
-<li><p><strong>maxlat</strong> (<em>float</em>) – Maximum value of latitute coodinates.</p></li>
-<li><p><strong>dxdy</strong> (<em>int</em><em>, </em><em>default=30</em>) – Spatial resolution of the output land cover map. Defines the step size for the grid points
-in both the x (longitude) and y (latitude) directions within the specified bounding box.
-Smaller values result in finer resolution.</p></li>
-<li><p><strong>inputCRS</strong> (<em>int</em><em> , </em><em>default=WSG84</em>) – The ESPRG of the coordinates.</p></li>
-<li><p><strong>dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the data source to use.</p></li>
+<li><p><strong>minx</strong> (<em>float</em>) – Minimum value of X axis. If using WSG84 - the minimum Latitude coordinates.</p></li>
+<li><p><strong>miny</strong> (<em>float</em>) – Minimum value of Y axis. If using WSG84 - the minimum Longitude coordinates.</p></li>
+<li><p><strong>maxx</strong> (<em>float</em>) – Maximum value of X axis. If using WSG84 - the maximum Latitude coordinates.</p></li>
+<li><p><strong>maxy</strong> (<em>float</em>) – Maximum value of Y axis. If using WSG84 - the maximum Longitude coordinates.</p></li>
+<li><p><strong>dxdy</strong> (<em>int</em><em>, </em><em>default=30</em>) – Spatial resolution of the output land cover map.</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>, </em><em>default=WSG84</em>) – The EPSG of the coordinates.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em><em>, </em><em>default=None</em>) – The name of the data source to use.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -181,35 +126,39 @@ Smaller values result in finer resolution.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>lon</strong> (<em>float</em>) – The longitude coodinates.</p></li>
-<li><p><strong>lat</strong> (<em>float</em>) – The latitute coordinates.</p></li>
-<li><p><strong>inputCRS</strong> (<em>int</em><em> , </em><em>default=WSG84</em>) – The ESPRG of the coordinates.</p></li>
-<li><p><strong>dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the data source to use.</p></li>
+<li><p><strong>lon</strong> (<em>float</em>) – The longitude coordinate.</p></li>
+<li><p><strong>lat</strong> (<em>float</em>) – The latitude coordinate.</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>, </em><em>default=WSG84</em>) – The EPSG of the input coordinates.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em><em>, </em><em>default=None</em>) – The name or path of the data source to use.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>int</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Land cover integer value at the point.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness">
-<span class="sig-name descname"><span class="pre">getRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxlat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBuilding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">GIS_BUILDINGS_dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness" title="Link to this definition"></a></dt>
-<dd><p>Returns Xarray LandCover map with Roughness (zo) field. Just as applying getLandCover and getRoughnessFromLandcover at the same time.</p>
+<span class="sig-name descname"><span class="pre">getRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miny</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dxdy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isBuilding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">windMeteorologicalDirection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">GIS_BUILDINGS_dataSourceName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#LandCoverToolkit.getRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness" title="Link to this definition"></a></dt>
+<dd><p>Returns Xarray LandCover map with Roughness (zo) field.
+Just as applying getLandCover and getRoughnessFromLandcover at the same time.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>minlon</strong> (<em>float</em>) – Minimum value of longitude coodinates.</p></li>
-<li><p><strong>minlat</strong> (<em>float</em>) – Minimum value of latitute coodinates.</p></li>
-<li><p><strong>maxlon</strong> (<em>float</em>) – Maximum value of longitude coodinates.</p></li>
-<li><p><strong>maxlat</strong> (<em>float</em>) – Maximum value of latitute coodinates.</p></li>
-<li><p><strong>dxdy</strong> (<em>int</em><em>, </em><em>default=30</em>) – Spatial resolution of the output land cover map. Defines the step size for the grid points
-in both the x (longitude) and y (latitude) directions within the specified bounding box.
-Smaller values result in finer resolution.</p></li>
-<li><p><strong>inputCRS</strong> (<em>int</em><em> , </em><em>default=WSG84</em>) – The ESPRG of the coordinates.</p></li>
-<li><p><strong>dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the data source to use.</p></li>
-<li><p><strong>isBuilding</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the landcover containts building area.</p></li>
+<li><p><strong>minx</strong> (<em>float</em>) – Minimum value of X axis. If using WSG84 - the minimum Latitude coordinates.</p></li>
+<li><p><strong>miny</strong> (<em>float</em>) – Minimum value of Y axis. If using WSG84 - the minimum Longitude coordinates.</p></li>
+<li><p><strong>maxx</strong> (<em>float</em>) – Maximum value of X axis. If using WSG84 - the maximum Latitude coordinates.</p></li>
+<li><p><strong>maxy</strong> (<em>float</em>) – Maximum value of Y axis. If using WSG84 - the maximum Longitude coordinates.</p></li>
+<li><p><strong>dxdy</strong> (<em>int</em><em>, </em><em>default=30</em>) – Spatial resolution of the output land cover map.</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>, </em><em>default=WSG84</em>) – The EPSG of the coordinates.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em><em>, </em><em>default=None</em>) – The name of the data source to use.</p></li>
+<li><p><strong>isBuilding</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the landcover contains building area.</p></li>
+<li><p><strong>windMeteorologicalDirection</strong> (<em>double</em><em>, </em><em>default=None</em>) – The meteorological angle. Must be specified only if data includes urbanic area.</p></li>
+<li><p><strong>resolution</strong> (<em>double</em><em>, </em><em>default=None</em>) – The size of the squares. Must be specified only if data includes urbanic area.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -225,10 +174,10 @@ Smaller values result in finer resolution.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>lon</strong> (<em>float</em>) – The longitude coodinates.</p></li>
-<li><p><strong>lat</strong> (<em>float</em>) – The latitute coordinates.</p></li>
-<li><p><strong>inputCRS</strong> (<em>int</em><em> , </em><em>default=WSG84</em>) – The ESPRG of the coordinates.</p></li>
-<li><p><strong>dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the data source to use.</p></li>
+<li><p><strong>lon</strong> (<em>float</em>) – The longitude coordinates.</p></li>
+<li><p><strong>lat</strong> (<em>float</em>) – The latitude coordinates.</p></li>
+<li><p><strong>inputCRS</strong> (<em>int</em><em>, </em><em>default=WSG84</em>) – The EPSG of the coordinates.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em><em>, </em><em>default=None</em>) – The name of the data source to use.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -245,11 +194,11 @@ Smaller values result in finer resolution.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>landcover</strong> (<em>Xarray</em>) – Landcover Xarray map in which the Roughness field will be added to.</p></li>
-<li><p><strong>windMeteorologicalDirection</strong> (<em>double</em><em>,</em><em>default=None</em>) – The meteorological angle. Must be specified only if data includes urbanic area.</p></li>
-<li><p><strong>resolution</strong> (<em>double</em><em>,</em><em>default=None</em>) – The size of the squares. Must be specified only if data includes urbanic area.</p></li>
-<li><p><strong>isBuilding</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the landcover containts urbanic area.</p></li>
-<li><p><strong>dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the data source to use.</p></li>
-<li><p><strong>GIS_BUILDINGS_dataSourceName</strong> (<em>string</em><em> , </em><em>default=None</em>) – The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.</p></li>
+<li><p><strong>windMeteorologicalDirection</strong> (<em>double</em><em>, </em><em>default=None</em>) – The meteorological angle. Must be specified only if data includes urbanic area.</p></li>
+<li><p><strong>resolution</strong> (<em>double</em><em>, </em><em>default=None</em>) – The size of the squares. Must be specified only if data includes urbanic area.</p></li>
+<li><p><strong>isBuilding</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Is the landcover contains urbanic area.</p></li>
+<li><p><strong>dataSourceName</strong> (<em>string</em><em>, </em><em>default=None</em>) – The name of the data source to use.</p></li>
+<li><p><strong>GIS_BUILDINGS_dataSourceName</strong> (<em>string</em><em>, </em><em>default=None</em>) – The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -261,15 +210,74 @@ Smaller values result in finer resolution.</p></li>
 </dd></dl>
 
 </section>
-<section id="tiles-toolkit">
-<h1>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h1>
 </section>
+</section>
+<section id="landcover-presentation-layer">
+<h1>LandCover Presentation Layer<a class="headerlink" href="#landcover-presentation-layer" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.landcover.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Presentation Layer of LandCover toolkit.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLambdas">
+<span class="sig-name descname"><span class="pre">plotLambdas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLambdas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLambdas" title="Link to this definition"></a></dt>
+<dd><p>Plot Lmabda upon given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>field</strong> (<em>str</em>) – Name of desired lambda to be plotted.</p></li>
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotLandcover">
+<span class="sig-name descname"><span class="pre">plotLandcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotLandcover"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotLandcover" title="Link to this definition"></a></dt>
+<dd><p>Plot LandCover upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.raster.landcover.presentation.plotRoughness">
+<span class="sig-name descname"><span class="pre">plotRoughness</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landcover</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(28,</span> <span class="pre">28)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/landcover.html#presentation.plotRoughness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.landcover.presentation.plotRoughness" title="Link to this definition"></a></dt>
+<dd><p>Plot Roughness upon Given Axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) – Satile Image to plot Polygons on.</p></li>
+<li><p><strong>landcover</strong> (<em>xarray</em>) – Landcover xarray of plot area.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>default=0.2</em>) – Opaqueness level.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>, </em><em>default=</em><em>(</em><em>28</em><em>,</em><em>28</em><em>)</em>) – Figure size.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="tiles-toolkit">
+<h2>Tiles Toolkit<a class="headerlink" href="#tiles-toolkit" title="Link to this heading"></a></h2>
 <section id="tilestoolkit-class">
-<h1>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h1>
+<h3>TilesToolkit Class<a class="headerlink" href="#tilestoolkit-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.TilesToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">TilesToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/tiles.html#TilesToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.TilesToolkit" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></p>
+<dd><p>Bases: <a class="reference internal" href="../../toolkit_api.html#hera.toolkit.abstractToolkit" title="hera.toolkit.abstractToolkit"><code class="xref py py-class docutils literal notranslate"><span class="pre">abstractToolkit</span></code></a></p>
 <p>A class to handle an image that represents a location.
 Looks up the location in the public database in project ‘imageLocation’.</p>
 <dl class="py method">
@@ -318,7 +326,7 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 
 </section>
 <section id="tilestoolkit-presentation-class">
-<h1>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h1>
+<h3>TilesToolkit Presentation Class<a class="headerlink" href="#tilestoolkit-presentation-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.presentation">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.raster.tiles.</span></span><span class="sig-name descname"><span class="pre">presentation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/tiles.html#presentation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation" title="Link to this definition"></a></dt>
@@ -326,7 +334,7 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 <p>Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.raster.tiles.presentation.plot">
-<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imageNameOrData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2039</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extents</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">filters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/tiles.html#presentation.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation.plot" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imageNameOrData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputCRS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2039</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extents</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">display</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">filters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/raster/tiles.html#presentation.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.raster.tiles.presentation.plot" title="Link to this definition"></a></dt>
 <dd><p>Plot the image.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -347,11 +355,14 @@ The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in 
 </dd></dl>
 
 </section>
+</section>
+</section>
 <section id="vector">
 <h1>Vector<a class="headerlink" href="#vector" title="Link to this heading"></a></h1>
-</section>
+<section id="buildingstoolkit">
+<h2>BuildingsToolkit<a class="headerlink" href="#buildingstoolkit" title="Link to this heading"></a></h2>
 <section id="buildingstoolkit-class">
-<h1>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h1>
+<h3>BuildingsToolkit Class<a class="headerlink" href="#buildingstoolkit-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.toolkit.</span></span><span class="sig-name descname"><span class="pre">BuildingsToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projectName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filesDirectory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit" title="Link to this definition"></a></dt>
@@ -388,6 +399,34 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.filter_buildings_in_area">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">filter_buildings_in_area</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buildings_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_longitude</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_latitude</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_longitude</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_latitude</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.filter_buildings_in_area"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.filter_buildings_in_area" title="Link to this definition"></a></dt>
+<dd><p>Filter building features by a specified geographic area using a bounding box.</p>
+<section id="parameters">
+<h4>Parameters:<a class="headerlink" href="#parameters" title="Link to this heading"></a></h4>
+<dl class="simple">
+<dt>buildings_data<span class="classifier">dict</span></dt><dd><p>A GeoJSON-like dictionary containing building features to filter.</p>
+</dd>
+<dt>min_longitude<span class="classifier">float</span></dt><dd><p>Minimum longitude defining the bounding box.</p>
+</dd>
+<dt>min_latitude<span class="classifier">float</span></dt><dd><p>Minimum latitude defining the bounding box.</p>
+</dd>
+<dt>max_longitude<span class="classifier">float</span></dt><dd><p>Maximum longitude defining the bounding box.</p>
+</dd>
+<dt>max_latitude<span class="classifier">float</span></dt><dd><p>Maximum latitude defining the bounding box.</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h4>Returns:<a class="headerlink" href="#returns" title="Link to this heading"></a></h4>
+<dl class="simple">
+<dt>gpd.GeoDataFrame</dt><dd><p>A GeoDataFrame containing buildings that are located within the specified area.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">
 <span class="sig-name descname"><span class="pre">getBuildingHeightFromRasterTopographyToolkit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buildingData</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">topographyDataSource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit" title="Link to this definition"></a></dt>
 <dd><p>Get the topography height of each building (at its center) in the building data using the topography toolkit. Return data frame wtih ‘evaluation’ as a column.</p>
@@ -416,7 +455,7 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 <li><p><strong>maxx</strong> (<em>float</em>) – Maximum value of x-axis.</p></li>
 <li><p><strong>may</strong> (<em>float</em>) – Maximum value of y-axis.</p></li>
 <li><p><strong>dataSourceName</strong> (<em>str</em><em>,</em><em>default=None.</em>) – The datasource name. If none, will use the default datasource.</p></li>
-<li><p><strong>withElevation</strong> (<em>bool</em><em>,</em><em>default=False.</em>) – If True, use the topography (raster) toolkit to get the heghts.</p></li>
+<li><p><strong>withElevation</strong> (<em>bool</em><em>,</em><em>default=False.</em>) – If True, use the topography (raster) toolkit to get the heights.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -425,11 +464,26 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.get_buildings_height">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_buildings_height</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/vector/buildings/toolkit.html#BuildingsToolkit.get_buildings_height"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.get_buildings_height" title="Link to this definition"></a></dt>
+<dd><p>Extract building names, geometries(coordination), and height information from a GeoDataFrame.
+if there is no height available - it will calculate the number of levels in the building * 3/
+else: none</p>
+<p>Parameters:
+gdf (GeoDataFrame): A GeoPandas DataFrame containing building geometries</p>
+<blockquote>
+<div><p>and associated properties.</p>
+</div></blockquote>
+<p>Returns:
+geopandas.DataFrame</p>
+</dd></dl>
+
 </dd></dl>
 
 </section>
 <section id="buildingstoolkit-analysis-class">
-<h1>BuildingsToolkit Analysis Class<a class="headerlink" href="#buildingstoolkit-analysis-class" title="Link to this heading"></a></h1>
+<h3>BuildingsToolkit Analysis Class<a class="headerlink" href="#buildingstoolkit-analysis-class" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="hera.measurements.GIS.vector.buildings.analysis.analysis">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hera.measurements.GIS.vector.buildings.analysis.</span></span><span class="sig-name descname"><span class="pre">analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataLayer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hera/measurements/GIS/vector/buildings/analysis.html#analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hera.measurements.GIS.vector.buildings.analysis.analysis" title="Link to this definition"></a></dt>
@@ -443,7 +497,7 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>regionNameOrData</strong> (<em>str</em><em> or </em><em>geopandas DataFrame.</em>) – The data to get the convex of.</p></li>
-<li><p><strong>buffer</strong> (<em>int</em><em>,</em><em>default=100.</em>) – </p></li>
+<li><p><strong>buffer</strong> (<em>int</em><em>,</em><em>default=100.</em>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -471,6 +525,8 @@ We must save the file to the disk, as it is the current implementation of FreeCA
 
 </dd></dl>
 
+</section>
+</section>
 </section>
 
 

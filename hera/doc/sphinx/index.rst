@@ -1,7 +1,9 @@
 Welcome to Your Project's Documentation!
 ========================================
 
-Documentation Sections
-======================
+.. toctree::
+   :maxdepth: 2
+   :caption: Documentation Sections
 
-- `Measurements Documentation <../../meassurments/_build/html/index.html>`_
+   meassurments/index
+   toolkit_api
