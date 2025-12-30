@@ -1,5 +1,5 @@
 import { Add, CreateNewFolderOutlined, Delete } from '@mui/icons-material';
-import { Stack } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
@@ -24,6 +24,7 @@ export const DetailsViewItem = ({
   index: number,
 }) => {
   const key = keyForDetailsViewItem(itemKey, level, index);
+  const isTree = typeof itemValue === 'object';
 
   const addSubItem = () => {
     let name = '';
@@ -37,27 +38,44 @@ export const DetailsViewItem = ({
     setItemValue({ ...itemValue, [name]: '' })
   }
 
-  return typeof itemValue === 'object'
-    ? (
-      <TreeItem
-        key={key}
-        itemId={key}
-        label={<Stack direction={'row'} alignItems={'center'}>
+  return (
+    <TreeItem
+      key={key}
+      itemId={key}
+      label={<Stack direction='row' spacing={1} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 0 }}>
+
+        <Typography>
           {itemKey}
+        </Typography>
+
+        {isTree && (<>
           <ButtonTooltip
             title={'Add item'}
             onClick={addSubItem}
           >
             <Add />
           </ButtonTooltip>
-          {/* <ButtonTooltip
-            title={'Add substructure'}
-            onClick={() => { }}
+        </>)}
+
+        {!isTree && (<>
+          <DetailsViewItemSingle
+            itemKey={itemKey}
+            itemValue={itemValue}
+            setItemValue={newVal => setItemValue(newVal)}
+          />
+        </>)}
+
+        {setItemKey && (<>
+          <ButtonTooltip
+            title={'Delete ' + itemKey}
+            onClick={() => setItemKey(undefined)}
           >
-            <CreateNewFolderOutlined />
-          </ButtonTooltip> */}
-        </Stack>}
-      >
+            <Delete />
+          </ButtonTooltip>
+        </>)}
+      </Stack>}
+    >
+      {isTree && (<>
         {Object.entries(itemValue).map(([k, v], i) => {
           const isDir = level === 1 && itemKey === 'desc' && k === 'filesDirectory';
           const changeKey = (newKey: string | undefined) => {
@@ -80,29 +98,7 @@ export const DetailsViewItem = ({
             />
           )
         })}
-      </TreeItem>
-    )
-    : (
-      <TreeItem
-        key={key}
-        itemId={key}
-        label={(
-          <Stack direction={'row'} alignItems={'center'}>
-            <DetailsViewItemSingle
-              itemKey={itemKey}
-              itemValue={itemValue}
-              setItemValue={newVal => setItemValue(newVal)}
-            />
-            {setItemKey &&
-              <ButtonTooltip
-                title={'Delete ' + itemKey}
-                onClick={() => setItemKey(undefined)}
-              >
-                <Delete />
-              </ButtonTooltip>
-            }
-          </Stack>
-        )}
-      />
-    )
+      </>)}
+    </TreeItem>
+  )
 }
