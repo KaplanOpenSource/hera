@@ -1,4 +1,4 @@
-import { Add, Delete, Edit } from '@mui/icons-material';
+import { Add, CreateNewFolder, Delete, Edit } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { useState } from 'react';
@@ -30,7 +30,7 @@ export const DetailsViewItem = ({
   const key = keyForDetailsViewItem(itemKey, level, index);
   const isTree = typeof itemValue === 'object';
 
-  const addSubItem = () => {
+  const addSubItem = (initialValue: any) => {
     let name = '';
     for (let i = 1; i < 1e5; i++) {
       const key = 'newItem_' + i;
@@ -39,7 +39,7 @@ export const DetailsViewItem = ({
         break;
       }
     }
-    setItemValue({ ...itemValue, [name]: '' })
+    setItemValue({ ...itemValue, [name]: initialValue })
   }
 
   return (
@@ -69,9 +69,15 @@ export const DetailsViewItem = ({
         {isTree && (<>
           <ButtonTooltip
             title={'Add item'}
-            onClick={addSubItem}
+            onClick={() => addSubItem('')}
           >
             <Add />
+          </ButtonTooltip>
+          <ButtonTooltip
+            title={'Add sub structure'}
+            onClick={() => addSubItem({})}
+          >
+            <CreateNewFolder />
           </ButtonTooltip>
         </>)}
 
