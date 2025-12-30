@@ -4,29 +4,37 @@ import { useState } from 'react';
 
 export const CommitIdShower = () => {
   const [copied, setCopied] = useState(false);
+  const dev = import.meta.env.MODE === 'development';
+  const id = dev ? 'dev' : commitId;
   return (
     <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
       <Tooltip
-        title={<>
-          UI build commit id
-          <br />
-          {commitId}
-          <br />
-          {copied ? 'Copied!' : 'click to copy'}
-        </>}
+        title={dev
+          ? <>
+            UI is running in development
+          </>
+          : <>
+            UI build commit id
+            <br />
+            {id}
+            <br />
+            {copied ? 'Copied!' : 'click to copy'}
+          </>}
       >
         <Typography
           variant="caption"
           onClick={() => {
-            setCopied(true);
-            navigator.clipboard.writeText(commitId);
-            setTimeout(() => {
-              setCopied(false);
-            }, 2000);
+            if (!dev) {
+              setCopied(true);
+              navigator.clipboard.writeText(id);
+              setTimeout(() => {
+                setCopied(false);
+              }, 2000);
+            }
           }}
-          sx={{fontSize: '10px'}}
+          sx={{ fontSize: '10px' }}
         >
-          {commitId.substring(0, 6)}
+          {id.substring(0, 6)}
         </Typography>
       </Tooltip>
     </Box>
