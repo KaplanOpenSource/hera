@@ -58,26 +58,28 @@ export const DetailsViewItem = ({
           </ButtonTooltip> */}
         </Stack>}
       >
-        {Object.entries(itemValue).map(([k, v], i) => (
-          <DetailsViewItem
-            key={k}
-            itemKey={k}
-            itemValue={v}
-            level={level + 1}
-            index={i}
-            setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
-            setItemKey={level === 1 && itemKey === 'desc' && k === 'filesDirectory'
-              ? undefined
-              : newKey => {
-                const item = { ...itemValue };
-                delete item[k];
-                if (newKey !== undefined) {
-                  item[newKey] = v;
-                }
-                setItemValue(item);
-              }}
-          />
-        ))}
+        {Object.entries(itemValue).map(([k, v], i) => {
+          const isDir = level === 1 && itemKey === 'desc' && k === 'filesDirectory';
+          const changeKey = (newKey: string | undefined) => {
+            const item = { ...itemValue };
+            delete item[k];
+            if (newKey !== undefined) {
+              item[newKey] = v;
+            }
+            setItemValue(item);
+          };
+          return (
+            <DetailsViewItem
+              key={k}
+              itemKey={k}
+              itemValue={v}
+              level={level + 1}
+              index={i}
+              setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
+              setItemKey={isDir ? undefined : changeKey}
+            />
+          )
+        })}
       </TreeItem>
     )
     : (
