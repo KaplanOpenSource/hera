@@ -1,4 +1,4 @@
-import { Add, CreateNewFolderOutlined } from '@mui/icons-material';
+import { Add, CreateNewFolderOutlined, Delete } from '@mui/icons-material';
 import { Stack } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
@@ -12,12 +12,14 @@ export const DetailsViewItem = ({
   itemKey,
   itemValue,
   setItemValue,
+  setItemKey = undefined,
   level = 0,
   index,
 }: {
   itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
+  setItemKey?: (newKey: string | undefined) => void | undefined,
   level: number,
   index: number,
 }) => {
@@ -64,6 +66,14 @@ export const DetailsViewItem = ({
             level={level + 1}
             index={i}
             setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
+            setItemKey={newKey => {
+              const item = { ...itemValue };
+              delete item[k];
+              if (newKey !== undefined) {
+                item[newKey] = v;
+              }
+              setItemValue(item);
+            }}
           />
         ))}
       </TreeItem>
@@ -73,12 +83,20 @@ export const DetailsViewItem = ({
         key={key}
         itemId={key}
         label={(
-          <Stack direction={'row'}>
+          <Stack direction={'row'} alignItems={'center'}>
             <DetailsViewItemSingle
               itemKey={itemKey}
               itemValue={itemValue}
               setItemValue={newVal => setItemValue(newVal)}
             />
+            {setItemKey &&
+              <ButtonTooltip
+                title={'Delete ' + itemKey}
+                onClick={() => setItemKey(undefined)}
+              >
+                <Delete />
+              </ButtonTooltip>
+            }
           </Stack>
         )}
       />
