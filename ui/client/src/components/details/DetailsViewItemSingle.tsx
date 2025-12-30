@@ -26,9 +26,6 @@ export const DetailsViewItemSingle = ({
 
   return (
     <Stack direction='row' spacing={1} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 8 }}>
-      <Typography>
-        {itemKey}
-      </Typography>
       <SwitchCase test={itemKey}>
         <Case isDefault>
           <TextField
