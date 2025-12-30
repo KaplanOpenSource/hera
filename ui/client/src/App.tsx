@@ -8,6 +8,7 @@ import { ProjectTreeView } from './components/project/ProjectTreeView';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
+import { CommitIdShower } from './components/header/CommitIdShower';
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,7 @@ export default function App() {
       <Stack direction={'row'}>
         <PageTitle />
         <ProjectChooser />
+        <CommitIdShower />
       </Stack>
       {error && (
         <Box sx={{ mb: 2 }}>
