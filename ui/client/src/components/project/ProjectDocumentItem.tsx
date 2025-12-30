@@ -8,8 +8,6 @@ import { fetchProjectDetails } from "../../io/FetchProjects";
 import { execPython } from "../../io/execPython";
 import { idDocId } from "../../shared/idDocId";
 
-// TODO: accept ProjectObj and DocumentObj
-
 export const ProjectDocumentItem = ({
   project,
   document,
