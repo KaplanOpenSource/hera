@@ -1,5 +1,7 @@
+import { Add, CreateNewFolderOutlined } from '@mui/icons-material';
 import { Stack } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
@@ -21,6 +23,18 @@ export const DetailsViewItem = ({
 }) => {
   const key = keyForDetailsViewItem(itemKey, level, index);
 
+  const addSubItem = () => {
+    let name = '';
+    for (let i = 1; i < 1e5; i++) {
+      const key = 'newItem_' + i;
+      if (!(key in itemValue)) {
+        name = key;
+        break;
+      }
+    }
+    setItemValue({ ...itemValue, [name]: '' })
+  }
+
   return typeof itemValue === 'object'
     ? (
       <TreeItem
@@ -28,6 +42,18 @@ export const DetailsViewItem = ({
         itemId={key}
         label={<Stack direction={'row'} alignItems={'center'}>
           {itemKey}
+          <ButtonTooltip
+            title={'Add item'}
+            onClick={addSubItem}
+          >
+            <Add />
+          </ButtonTooltip>
+          {/* <ButtonTooltip
+            title={'Add substructure'}
+            onClick={() => { }}
+          >
+            <CreateNewFolderOutlined />
+          </ButtonTooltip> */}
         </Stack>}
       >
         {Object.entries(itemValue).map(([k, v], i) => (
