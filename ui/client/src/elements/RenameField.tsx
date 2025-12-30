@@ -1,7 +1,7 @@
 import { TextField } from "@mui/material";
 import { useEffect, useState } from "react";
 import { ButtonTooltip } from "./ButtonTooltip";
-import { Check } from "@mui/icons-material";
+import { Check, Close } from "@mui/icons-material";
 
 export const RenameField = ({
   value,
@@ -31,6 +31,12 @@ export const RenameField = ({
               onClick={() => setValue(internalValue)}
             >
               <Check />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Cancel Rename'}
+              onClick={() => setValue(value)}
+            >
+              <Close />
             </ButtonTooltip>
           </>)
         }

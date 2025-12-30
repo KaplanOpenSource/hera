@@ -1,10 +1,10 @@
-import { Add, CreateNewFolderOutlined, Delete, Edit } from '@mui/icons-material';
-import { Stack, TextField, Typography } from '@mui/material';
+import { Add, Delete, Edit } from '@mui/icons-material';
+import { Box, Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
-import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 import { useState } from 'react';
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { RenameField } from '../../elements/RenameField';
+import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
   return `___lvl${level}_idx${index}_${itemKey}`;
@@ -48,16 +48,23 @@ export const DetailsViewItem = ({
       itemId={key}
       label={<Stack direction='row' spacing={0} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 0 }}>
 
-        {(editing && setItemKey)
-          ? (<RenameField
-            value={itemKey}
-            setValue={val => setItemKey(val)}
-          />)
-          : (
-            <Typography sx={{ marginRight: 1 }}>
-              {itemKey}
-            </Typography>
-          )}
+        <Box sx={{ marginRight: 1 }}>
+          {(editing && setItemKey)
+            ? (
+              <RenameField
+                value={itemKey}
+                setValue={val => {
+                  setItemKey(val);
+                  setEditing(false);
+                }}
+              />
+            )
+            : (
+              <Typography>
+                {itemKey}
+              </Typography>
+            )}
+        </Box>
 
         {isTree && (<>
           <ButtonTooltip
