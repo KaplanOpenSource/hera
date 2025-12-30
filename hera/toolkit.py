@@ -190,7 +190,15 @@ class abstractToolkit(Project):
 
     def getDataSourceData(self, datasourceName=None, version=None, **filters):
         """
-        Returns the data from the datasource (or None if not found).
+            Return the data payload of a toolkit data source.
+
+            Args:
+                datasourceName (Optional[str]): Name of the datasource.
+                version (Optional[tuple]): Specific version to retrieve.
+                **filters: Additional query filters.
+
+            Returns:
+                Any: The loaded datasource data, or None if not found.
         """
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
@@ -434,23 +442,25 @@ class ToolkitHome(abstractToolkit):
         """
         Locate and instantiate a toolkit by name.
 
-        Resolution order:
-          1) Static registry (self._toolkits).
-          2) Dynamic ToolkitDataSource document registered via ToolkitHome
-             (type='ToolkitDataSource', toolkit='ToolkitHome').
-          3) Experiment toolkits, via experimentHome.getExperiment(...).
-        """
+        This is the main public entry point for accessing toolkits in Hera.
+        The method resolves the requested toolkit using the following order:
+          1. Static built-in toolkit registry.
+          2. Dynamically registered ToolkitDataSource documents (DB-backed).
+          3. Experiment toolkits exposed via the experiment toolkit.
 
-        # ------------------------------------------------------------------
-        # IMPORTANT:
-        # Some callers pass projectName explicitly (e.g., DemographyToolkit -> BuildingsToolkit).
-        # The previous implementation popped projectName and always used self.projectName,
-        # which can be None or a different project, causing DB/cache writes to fail with:
-        #   "Field is required: ['projectName']"
-        # We therefore:
-        #   - Prefer caller's explicit projectName
-        #   - Fallback to ToolkitHome's own projectName
-        # ------------------------------------------------------------------
+        Args:
+            toolkitName (str): Logical name of the toolkit to load.
+            filesDirectory (Optional[str]): Optional directory for toolkit file outputs.
+            **kwargs: Additional keyword arguments forwarded to the toolkit constructor.
+                      Commonly includes `projectName`.
+
+        Returns:
+            abstractToolkit: An initialized toolkit instance.
+
+        Raises:
+            ImportError: If the toolkit class cannot be imported.
+            ValueError: If the toolkit cannot be found in any registry.
+        """
         projectName = kwargs.pop("projectName", None) or self.projectName
 
         # 1) Static built-in toolkits
@@ -510,14 +520,26 @@ class ToolkitHome(abstractToolkit):
         version: tuple = (0, 0, 1),
     ):
         """
-        Attempts to auto-register a missing toolkit and return an instance.
+           Automatically register a toolkit (if missing) and return an instance.
 
-        1) Try to find a classpath hint in the repositoryJSON (if provided).
-        2) If not found, try the DB-backed Toolkit document (ToolkitRepository).
-        3) Import the class, choose a repository to register into
-           (explicit repositoryName or project's default).
-        4) Register via registerToolkit(...), then getToolkit(...) and return it.
-        """
+           This helper attempts to locate a toolkit class using repository metadata
+           or JSON configuration, registers it as a ToolkitDataSource, and then
+           returns an initialized toolkit instance.
+
+           Args:
+               toolkitName (str): Name of the toolkit to load.
+               repositoryJSON (Optional[dict]): Optional repository metadata.
+               repositoryName (Optional[str]): Target repository name.
+               params (Optional[dict]): Toolkit initialization parameters.
+               version (tuple): Toolkit version.
+
+           Returns:
+               abstractToolkit: An initialized toolkit instance.
+
+           Raises:
+               ValueError: If registration information is incomplete.
+               ImportError: If the toolkit class cannot be imported.
+           """
         from importlib import import_module
 
         params = params or {}
@@ -827,24 +849,34 @@ class ToolkitHome(abstractToolkit):
     # ------------------------------------------------------------------
 
     def registerToolkit(
-        self,
-        toolkitclass,
-        *,
-        repositoryName: str,
-        datasource_name: Optional[str] = None,
-        params: Optional[dict] = None,
-        version=(0, 0, 1),
-        overwrite: bool = False,
+            self,
+            toolkitclass,
+            *,
+            repositoryName: str,
+            datasource_name: Optional[str] = None,
+            params: Optional[dict] = None,
+            version=(0, 0, 1),
+            overwrite: bool = False,
     ):
         """
-        Register a toolkit class as a ToolkitDataSource *of ToolkitHome*.
+        Register a toolkit class as a dynamic ToolkitDataSource.
 
-        We use abstractToolkit.addDataSource so:
-          - type = TOOLKIT_DATASOURCE_TYPE
-          - toolkit field = "ToolkitHome"
-          - datasourceName = <toolkitName>
-          - extra metadata in desc:
-                'repository', 'classpath', 'parameters'
+        The toolkit is stored as a measurement document of type
+        TOOLKIT_DATASOURCE_TYPE under ToolkitHome.
+
+        Args:
+            toolkitclass: The toolkit class to register.
+            repositoryName (str): Repository in which the toolkit is stored.
+            datasource_name (Optional[str]): Logical name of the toolkit.
+            params (Optional[dict]): Initialization parameters for the toolkit.
+            version (tuple): Toolkit version.
+            overwrite (bool): Whether to overwrite an existing registration.
+
+        Returns:
+            MeasurementDocument: The created or updated datasource document.
+
+        Raises:
+            ValueError: If repositoryName is missing.
         """
         if not repositoryName:
             raise ValueError("registerToolkit: 'repositoryName' is required")
