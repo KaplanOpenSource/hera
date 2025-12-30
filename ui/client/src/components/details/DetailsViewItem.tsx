@@ -1,8 +1,10 @@
-import { Add, CreateNewFolderOutlined, Delete } from '@mui/icons-material';
-import { Stack, Typography } from '@mui/material';
+import { Add, CreateNewFolderOutlined, Delete, Edit } from '@mui/icons-material';
+import { Stack, TextField, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { useState } from 'react';
+import { RenameField } from '../../elements/RenameField';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
   return `___lvl${level}_idx${index}_${itemKey}`;
@@ -23,6 +25,8 @@ export const DetailsViewItem = ({
   level: number,
   index: number,
 }) => {
+  const [editing, setEditing] = useState(false);
+
   const key = keyForDetailsViewItem(itemKey, level, index);
   const isTree = typeof itemValue === 'object';
 
@@ -42,11 +46,18 @@ export const DetailsViewItem = ({
     <TreeItem
       key={key}
       itemId={key}
-      label={<Stack direction='row' spacing={1} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 0 }}>
+      label={<Stack direction='row' spacing={0} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 0 }}>
 
-        <Typography>
-          {itemKey}
-        </Typography>
+        {(editing && setItemKey)
+          ? (<RenameField
+            value={itemKey}
+            setValue={val => setItemKey(val)}
+          />)
+          : (
+            <Typography sx={{ marginRight: 1 }}>
+              {itemKey}
+            </Typography>
+          )}
 
         {isTree && (<>
           <ButtonTooltip
@@ -66,6 +77,12 @@ export const DetailsViewItem = ({
         </>)}
 
         {setItemKey && (<>
+          <ButtonTooltip
+            title={'Rename ' + itemKey}
+            onClick={() => setEditing(!editing)}
+          >
+            <Edit />
+          </ButtonTooltip>
           <ButtonTooltip
             title={'Delete ' + itemKey}
             onClick={() => setItemKey(undefined)}
