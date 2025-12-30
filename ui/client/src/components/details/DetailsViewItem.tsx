@@ -66,14 +66,16 @@ export const DetailsViewItem = ({
             level={level + 1}
             index={i}
             setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
-            setItemKey={newKey => {
-              const item = { ...itemValue };
-              delete item[k];
-              if (newKey !== undefined) {
-                item[newKey] = v;
-              }
-              setItemValue(item);
-            }}
+            setItemKey={level === 1 && itemKey === 'desc' && k === 'filesDirectory'
+              ? undefined
+              : newKey => {
+                const item = { ...itemValue };
+                delete item[k];
+                if (newKey !== undefined) {
+                  item[newKey] = v;
+                }
+                setItemValue(item);
+              }}
           />
         ))}
       </TreeItem>
