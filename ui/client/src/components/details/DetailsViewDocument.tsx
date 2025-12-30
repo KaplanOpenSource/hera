@@ -1,10 +1,10 @@
 import { Close, Done } from '@mui/icons-material';
-import { SimpleTreeView } from '@mui/x-tree-view';
+import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 import { DocumentObj } from '../../objects/ProjectObj';
-import { Stack, Typography } from '@mui/material';
+import { Grid, Stack, Typography } from '@mui/material';
 
 export const DetailsViewDocument = ({
   doc,
@@ -43,11 +43,33 @@ export const DetailsViewDocument = ({
           </>)
           : null}
       </Stack>
+      <Grid container spacing={1}>
+        <Grid size={1}>
+          <Typography sx={{ fontSize: 12 }}>
+            Id:
+          </Typography>
+        </Grid>
+        <Grid size={11}>
+          <Typography sx={{ fontSize: 12 }}>
+            {doc.docid}
+          </Typography>
+        </Grid>
+        <Grid size={1}>
+          <Typography sx={{ fontSize: 12 }}>
+            Cls:
+          </Typography>
+        </Grid>
+        <Grid size={11}>
+          <Typography sx={{ fontSize: 12 }}>
+            {doc.data._cls}
+          </Typography>
+        </Grid>
+      </Grid>
       <SimpleTreeView
         defaultExpandedItems={[keyForDetailsViewItem('desc', 1, 3)]}
       >
         {Object.entries(shownDoc).map(([k, v], i) => {
-          if (doc.isConfig && ['projectName', '_id'].includes(k)) {
+          if (['_id', '_cls', 'projectName'].includes(k)) {
             return null;
           }
           return (
