@@ -43,7 +43,9 @@ export const RepoAddEditor = ({
       <Box sx={{ maxHeight: '40vh', overflow: 'auto' }}>
         <JsonTreeView
           data={jsonobj}
-        // setData={val => setValues({ ...values, repositoryJson: val })}
+          setData={val => {
+            setValues({ ...values, repositoryJson: JSON.stringify(val, undefined, 2) })
+          }}
         />
       </Box>
       <Stack direction={'row'} spacing={2}>

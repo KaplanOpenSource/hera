@@ -1,6 +1,6 @@
-import { useMemo } from "react";
-import { RichTreeView, TreeViewBaseItem } from "@mui/x-tree-view";
-import { Box, Typography } from "@mui/material";
+import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
+import { IconButton, Stack, Typography, Box } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export type JsonValue =
   | string
@@ -10,81 +10,110 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-function buildTree(
-  value: JsonValue,
-  path: string = "root"
-): TreeViewBaseItem[] {
+export const JsonTreeNode = ({
+  label,
+  value,
+  setData,
+}: {
+  label: string;
+  value: JsonValue;
+  setData: (next: JsonValue | undefined) => void;
+}) => {
+  const onDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setData(undefined);
+  };
+
+  const labelNode = (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Typography variant="body2">{label}</Typography>
+      <IconButton size="small" onClick={onDelete}>
+        <DeleteIcon fontSize="inherit" />
+      </IconButton>
+    </Stack>
+  );
+
   if (Array.isArray(value)) {
-    return value.map((item, index) => {
-      const id = `${path}[${index}]`;
-
-      if (typeof item === "object" && item !== null) {
-        return {
-          id,
-          label: `[${index}]`,
-          children: buildTree(item, id),
-        };
-      }
-
-      return {
-        id,
-        label: `[${index}]: ${String(item)}`,
-      };
-    });
+    return (
+      <TreeItem itemId={label} label={labelNode}>
+        {value.map((item, index) => (
+          <JsonTreeNode
+            key={index}
+            label={`[${index}]`}
+            value={item}
+            setData={(next) =>
+              setData(
+                next === undefined
+                  ? value.filter((_, i) => i !== index)
+                  : value.map((v, i) => (i === index ? next : v))
+              )
+            }
+          />
+        ))}
+      </TreeItem>
+    );
   }
 
   if (typeof value === "object" && value !== null) {
-    return Object.entries(value).map(([key, val]) => {
-      const id = `${path}.${key}`;
-
-      if (typeof val === "object" && val !== null) {
-        return {
-          id,
-          label: key,
-          children: buildTree(val, id),
-        };
-      }
-
-      return {
-        id,
-        label: `${key}: ${String(val)}`,
-      };
-    });
+    return (
+      <TreeItem itemId={label} label={labelNode}>
+        {Object.entries(value).map(([key, val]) => (
+          <JsonTreeNode
+            key={key}
+            label={key}
+            value={val}
+            setData={(next) =>
+              setData(
+                next === undefined
+                  ? Object.fromEntries(
+                    Object.entries(value).filter(([k]) => k !== key)
+                  )
+                  : { ...value, [key]: next }
+              )
+            }
+          />
+        ))}
+      </TreeItem>
+    );
   }
 
-  return [
-    {
-      id: path,
-      label: String(value),
-    },
-  ];
-}
-
-export const JsonTreeView = ({ data }: { data: JsonValue }) => {
-  const items = useMemo<TreeViewBaseItem[]>(
-    () => [
-      {
-        id: "root",
-        label: "root",
-        children: buildTree(data),
-      },
-    ],
-    [data]
+  return (
+    <TreeItem
+      itemId={label}
+      label={
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="body2">
+            {label}: {String(value)}
+          </Typography>
+          <IconButton size="small" onClick={onDelete}>
+            <DeleteIcon fontSize="inherit" />
+          </IconButton>
+        </Stack>
+      }
+    />
   );
+};
 
+export const JsonTreeView = ({
+  data,
+  setData,
+}: {
+  data: JsonValue;
+  setData: (next: JsonValue) => void;
+}) => {
   return (
     <Box sx={{ width: "100%", height: "100%" }}>
-      {!data || Object.keys(data).length === 0
-        ? (
-          <Typography>
-            Json tree is empty
-          </Typography>
-        ) : (
-          <RichTreeView
-            items={items}
-            onClick={e => e.stopPropagation()}
-          />
-        )}
+      <SimpleTreeView
+        onClick={e => e.stopPropagation()}
+      >
+        <JsonTreeNode
+          label="root"
+          value={data}
+          setData={(next) => {
+            if (next !== undefined) setData(next);
+          }}
+        />
+      </SimpleTreeView>
     </Box>
   );
 };
