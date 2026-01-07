@@ -1,4 +1,4 @@
-import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Delete, Folder, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -18,6 +18,7 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
+  const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
 
   console.log(toolkits)
   console.log(project)
@@ -71,6 +72,28 @@ export const ProjectTreeView = ({
             toolkit={undefined}
             showEmpty={showEmptyToolkits}
           />
+        </TreeItem>
+        <TreeItem key={'*repos*'} itemId={'*repos*'}
+          label={'Repositories'}
+        >
+          {repositories.map(r => (
+            <TreeItem
+              key={'__repo_*_' + r}
+              itemId={'__repo_*_' + r}
+              label={(
+                <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
+                  {r}
+                  <ButtonTooltip
+                    title={'Remove repository'}
+                    onClick={() => setRepositories(repositories.filter(x => x !== r))}
+                  >
+                    <Delete />
+                  </ButtonTooltip>
+                </Stack>
+              )}
+            >
+            </TreeItem>
+          ))}
         </TreeItem>
       </SimpleTreeView>
     </Paper>
