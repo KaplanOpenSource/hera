@@ -1,9 +1,8 @@
-import { Add, CreateNewFolder, Delete, Edit } from '@mui/icons-material';
-import { Box, Stack, Typography } from '@mui/material';
+import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
+import { Stack } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
-import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { RenameField } from '../../elements/RenameField';
+import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
@@ -25,8 +24,6 @@ export const DetailsViewItem = ({
   level: number,
   index: number,
 }) => {
-  const [editing, setEditing] = useState(false);
-
   const key = keyForDetailsViewItem(itemKey, level, index);
   const isTree = typeof itemValue === 'object';
 
@@ -55,28 +52,10 @@ export const DetailsViewItem = ({
           style={{ marginTop: 7 }}
         >
 
-          <Box sx={{ marginRight: 1 }}>
-            {(editing && setItemKey)
-              ? (
-                <RenameField
-                  value={itemKey}
-                  setValue={val => {
-                    setItemKey(val);
-                    setEditing(false);
-                  }}
-                />
-              )
-              : (
-                <Typography
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    minWidth: '100px'
-                  }}
-                >
-                  {itemKey}
-                </Typography>
-              )}
-          </Box>
+          <DetailsViewItemName
+            itemKey={itemKey}
+            setItemKey={setItemKey}
+          />
 
           {isTree && (<>
             <ButtonTooltip
@@ -102,12 +81,6 @@ export const DetailsViewItem = ({
           </>)}
 
           {setItemKey && (<>
-            <ButtonTooltip
-              title={'Rename ' + itemKey}
-              onClick={() => setEditing(!editing)}
-            >
-              <Edit />
-            </ButtonTooltip>
             <ButtonTooltip
               title={'Delete ' + itemKey}
               onClick={() => setItemKey(undefined)}
