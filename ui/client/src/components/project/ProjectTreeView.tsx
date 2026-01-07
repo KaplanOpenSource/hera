@@ -1,4 +1,4 @@
-import { Delete, Folder, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, Delete, Folder, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -8,6 +8,7 @@ import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { RepoAddButton } from '../repo/RepoAddButton';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
+import { useConfirm } from '../../elements/useConfirm';
 
 export const ProjectTreeView = ({
   project,
@@ -19,6 +20,7 @@ export const ProjectTreeView = ({
   const { toolkits } = useProjectStore();
   const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
   const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
+  const { confirmOpen, ConfirmDialog } = useConfirm();
 
   console.log(toolkits)
   console.log(project)
@@ -74,7 +76,29 @@ export const ProjectTreeView = ({
           />
         </TreeItem>
         <TreeItem key={'*repos*'} itemId={'*repos*'}
-          label={'Repositories'}
+          label={(
+            <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
+              <Typography>
+                Repositories
+              </Typography>
+              <ButtonTooltip
+                title={'Add repository'}
+                onClick={async () => {
+                  const { confirmed, text } = await confirmOpen({
+                    title: `Add repository`,
+                    requireText: true,
+                    textLabel: 'Repository location',
+                  });
+                  if (confirmed && text) {
+                    setRepositories([...repositories, text]);
+                  }
+                }}
+              >
+                <Add />
+              </ButtonTooltip>
+              {ConfirmDialog}
+            </Stack>
+          )}
         >
           {repositories.map(r => (
             <TreeItem
