@@ -46,64 +46,77 @@ export const DetailsViewItem = ({
     <TreeItem
       key={key}
       itemId={key}
-      label={<Stack direction='row' spacing={0} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 0 }}>
+      label={(
+        <Stack
+          direction='row'
+          spacing={1}
+          justifyItems={'stretch'}
+          alignItems={'center'}
+          style={{ marginTop: 7 }}
+        >
 
-        <Box sx={{ marginRight: 1 }}>
-          {(editing && setItemKey)
-            ? (
-              <RenameField
-                value={itemKey}
-                setValue={val => {
-                  setItemKey(val);
-                  setEditing(false);
-                }}
-              />
-            )
-            : (
-              <Typography>
-                {itemKey}
-              </Typography>
-            )}
-        </Box>
+          <Box sx={{ marginRight: 1 }}>
+            {(editing && setItemKey)
+              ? (
+                <RenameField
+                  value={itemKey}
+                  setValue={val => {
+                    setItemKey(val);
+                    setEditing(false);
+                  }}
+                />
+              )
+              : (
+                <Typography
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    minWidth: '100px'
+                  }}
+                >
+                  {itemKey}
+                </Typography>
+              )}
+          </Box>
 
-        {isTree && (<>
-          <ButtonTooltip
-            title={'Add item'}
-            onClick={() => addSubItem('')}
-          >
-            <Add />
-          </ButtonTooltip>
-          <ButtonTooltip
-            title={'Add sub structure'}
-            onClick={() => addSubItem({})}
-          >
-            <CreateNewFolder />
-          </ButtonTooltip>
-        </>)}
+          {isTree && (<>
+            <ButtonTooltip
+              title={'Add item'}
+              onClick={() => addSubItem('')}
+            >
+              <Add />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Add sub structure'}
+              onClick={() => addSubItem({})}
+            >
+              <CreateNewFolder />
+            </ButtonTooltip>
+          </>)}
 
-        {!isTree && (<>
-          <DetailsViewItemSingle
-            itemKey={itemKey}
-            itemValue={itemValue}
-            setItemValue={newVal => setItemValue(newVal)}
-          />
-        </>)}
+          {!isTree && (<>
+            <DetailsViewItemSingle
+              itemKey={itemKey}
+              itemValue={itemValue}
+              setItemValue={newVal => setItemValue(newVal)}
+            />
+          </>)}
 
-        {setItemKey && (<>
-          <ButtonTooltip
-            title={'Rename ' + itemKey}
-            onClick={() => setEditing(!editing)}
-          >
-            <Edit />
-          </ButtonTooltip>
-          <ButtonTooltip
-            title={'Delete ' + itemKey}
-            onClick={() => setItemKey(undefined)}
-          >
-            <Delete />
-          </ButtonTooltip>
-        </>)}
-      </Stack>}
+          {setItemKey && (<>
+            <ButtonTooltip
+              title={'Rename ' + itemKey}
+              onClick={() => setEditing(!editing)}
+            >
+              <Edit />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Delete ' + itemKey}
+              onClick={() => setItemKey(undefined)}
+            >
+              <Delete />
+            </ButtonTooltip>
+          </>)}
+        </Stack>
+      )}
     >
       {isTree && (<>
         {Object.entries(itemValue).map(([k, v], i) => {
