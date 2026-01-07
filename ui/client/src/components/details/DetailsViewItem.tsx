@@ -92,7 +92,7 @@ export const DetailsViewItem = ({
       )}
     >
       {isTree && (<>
-        {Object.entries(itemValue).map(([k, v], i) => {
+        {Object.entries(itemValue).sort().map(([k, v], i) => {
           const isDir = level === 1 && itemKey === 'desc' && k === 'filesDirectory';
           const changeKey = (newKey: string | undefined) => {
             const item = { ...itemValue };
