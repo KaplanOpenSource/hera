@@ -722,7 +722,9 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         if len(docList) ==0 :
             logger.info(f"Simulation not found, trying to interpret as a directory on the disk")
             if os.path.exists(nameOrWorkflowFileOrJSONOrResourceorDirectory):
-                casePathList = [nameOrWorkflowFileOrJSONOrResourceorDirectory]
+                workflowFile = os.path.basename(nameOrWorkflowFileOrJSONOrResourceorDirectory)
+                workflowName = os.path.splitext(workflowFile)[0]
+                casePathList = [(workflowName, nameOrWorkflowFileOrJSONOrResourceorDirectory)]
             else:
                 err = f"Case {nameOrWorkflowFileOrJSONOrResourceorDirectory} not found in DB or on disk"
                 logger.error(err)
