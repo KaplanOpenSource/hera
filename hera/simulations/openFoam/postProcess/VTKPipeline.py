@@ -69,7 +69,7 @@ class VTKPipeLine:
         if params is None:
             params = []
         newFilter = VTKPipeLine.newVTKPipelineFilter(name=name, filterType=filterType, write=write, params=params)
-        self.filters[name] = newFilter
+        self[name] = newFilter
         return newFilter
 
     def addFilterFromObj(self,newFilter):
@@ -85,7 +85,7 @@ class VTKPipeLine:
         self.filters[newFilter.name] = newFilter
 
     @deprecated("Use addFilterFromObj")
-    def addExistingFilter(self, filter):
+    def addExistingFilter(self, newFilter):
         """
         Adds a filter to the pipeline using an already existent instance.
 
@@ -95,7 +95,7 @@ class VTKPipeLine:
                 an instance of a filter
 
         """
-        self.filters[newFilter.name] = newFilter
+        self[newFilter.name] = newFilter
 
     def __setitem__(self, key, value):
         self.filters[key] = value
@@ -155,7 +155,7 @@ class VTKPipeLine:
 
         """
         retDict = dict()
-        for filterName, filterData in self.filters.items():
+        for _, filterData in self.filters.items():
             retDict.update(filterData.toJSON())
 
         return dict(filters=retDict)
@@ -202,8 +202,9 @@ class registeredVTKPipeLine:
         self.vtkpipeline = vtkpipeline
         self.tsBlockNum = 50
 
-        simulationDocumentList = self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
-        if simulationDocumentList is not None:
+        simulationDocumentList = []
+        simulationDocumentList += self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
+        if len(simulationDocumentList) != 0:
             simulationDocument = simulationDocumentList[0]
             self.casePath = simulationDocument.resource
             self.simulationDocument = simulationDocument
@@ -260,7 +261,7 @@ class registeredVTKPipeLine:
                     else:
                         shutil.rmtree(outputFile)
 
-    def getData(self, regularMesh, filterName=None, timeList=None , fieldNames=None,overwrite=False):
+    def getData(self, regularMesh, filterName=None, timeList=None, latestTime=False, fieldNames=None,overwrite=False):
         """
             Returns the data of the vtkpipeline as a dict.
             The stuctucture is similar to that of a vtkpipline.
@@ -279,9 +280,9 @@ class registeredVTKPipeLine:
         -------
 
         """
-        logger = get_classMethod_logger(self, "execute")
+        logger = get_classMethod_logger(self, "getData")
         ret = dict()
-        filext = "zarr" if regularMesh else "parquet"
+        filext = self.getFilterOutputFileExt(regularMesh)
 
         # 1. Get the potential filters to process
         if filterName is None:
@@ -308,6 +309,9 @@ class registeredVTKPipeLine:
                 timeList = timeList
         else:
             timeList = CaseTimeList
+        
+        if latestTime:
+            timeList=[timeList[-1]]
 
         logger.debug(f"Getting timeList {timeList}")
 
@@ -319,6 +323,7 @@ class registeredVTKPipeLine:
             docList = self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
             # attempt to extract cached filter results
             if len(docList) > 0:
+                logger.info("Found existing filter output in cache")
                 # There should only be one filter result cached
                 cached_filter = docList[0]
                 filtersOutputFilename[filterName] = cached_filter.resource
@@ -329,9 +334,8 @@ class registeredVTKPipeLine:
                 DBDocumentsDict[filterName] = cached_filter
 
             else:
-                counter = self.datalayer.getCounterAndAdd("OpenFOAMData")
-                outputFileName = f"{filterName.replace('.','_')}_{counter}.{filext}"
-                filtersOutputFilename[filterName] = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
+                outputFilePath = self.getFilterOutputFilePath(filterName, filext)
+                filtersOutputFilename[filterName] = outputFilePath
 
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
@@ -360,7 +364,7 @@ class registeredVTKPipeLine:
 
             # Build the ourput file name.
             for filterName in filtersToProcess:
-                logger.debug(f"\t{filterName} will saved in {filtersOutputFilename[filterName]}")
+                logger.debug(f"\t{filterName} will be saved in {filtersOutputFilename[filterName]}")
                 filtersToComputeDict[filterName] = filtersOutputFilename[filterName]
 
             # Compute the values and save the parquet/zarr.
@@ -371,6 +375,7 @@ class registeredVTKPipeLine:
                                     overwrite=overwrite, regularMesh=regularMesh)
 
             for name, proxy in list(pvsimple.GetSources().items()):
+                logger.debug(f"Deleting source {name}")
                 pvsimple.Delete(proxy)
 
 
@@ -401,6 +406,18 @@ class registeredVTKPipeLine:
             ret[filterName] = DBDocumentsDict[filterName].getData()
 
         return ret
+
+    def getFilterOutputFileExt(self, regularMesh):
+        return "zarr" if regularMesh else "parquet"
+
+    def getFilterOutputFilePath(self, filterName, filext, generate_new=True):
+        workflow_name = self.simulationParams['workflowName']
+        counter_name = f"{workflow_name}_{filterName}_counter" # more consistent to have a counter per filter name
+        print(f"filter output path with counter {counter_name}")
+        counter = self.datalayer.getCounterAndAdd(counter_name) if generate_new else self.datalayer.getCounter(counter_name)-1
+        outputFileName = f"{filterName.replace('.','_')}_{counter}.{filext}"
+        outputFilePath = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
+        return outputFilePath
 
     def getRegularData(self, filterName=None, timeList=None,  fieldNames=None, overwrite=False):
         return self.getData(regularMesh=True, filterName=filterName, timeList=timeList,
@@ -678,7 +695,7 @@ class vtkFilter_ExtractBlock(VTKFilter):
         final_params =  [("Selectors",selectors)] + params
         super().__init__(name=name, filterType="ExtractBlock", write=write,params=final_params)
 
-    def setRegionsToExtract(self,patchList, internalMesh=True):
+    def setRegionsToExtract(self,patchList=[], internalMesh=True):
         selectors = [f'/Root/boundary/{patchName}' for patchName in patchList]
         if internalMesh:
             selectors += ['/Root/internalMesh']

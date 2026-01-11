@@ -16,7 +16,8 @@ from dask.diagnostics import ProgressBar
 
 #### import the simple module from the paraview
 try:
-    import paraview.vtk.numpy_interface.dataset_adapter as dsa
+    import vtkmodules.numpy_interface.dataset_adapter as dsa
+    from vtkmodules.vtkCommonDataModel import vtkMultiBlockDataSet
     import paraview.simple as pvsimple
     from paraview import servermanager
     #### disable automatic camera reset on 'Show'
@@ -195,21 +196,15 @@ class paraviewOpenFOAM:
                     ret[filterName] = rt
             yield ret
 
-    def _readTimeStep(self, datasource, timeslice, fieldnames=None, regularMesh=False):
-        # read the timestep.
-        logger = get_classMethod_logger(self, "_readTimeStep")
-
-        datasource.UpdatePipeline(timeslice)
-        rawData = servermanager.Fetch(datasource)
-        data = dsa.WrapDataObject(rawData)
-
-        if isinstance(data.Points, dsa.VTKNoneArray):
+    def _parsePointSet(self, pointSet, timeslice, fieldnames, regularMesh):
+        logger = get_classMethod_logger(self, "_parsePointSet")
+        if isinstance(pointSet.Points, dsa.VTKNoneArray):
             logger.debug("No data exists for filter... return with None")
             return None
-        elif isinstance(data.Points, dsa.VTKArray):
-            points = numpy.array(data.Points).squeeze()
+        elif isinstance(pointSet.Points, dsa.VTKArray):
+            points = numpy.array(pointSet.Points).squeeze()
         else:
-            points = numpy.concatenate([numpy.array(x) for x in data.Points.GetArrays()]).squeeze()
+            points = numpy.concatenate([numpy.array(x) for x in pointSet.Points.GetArrays()]).squeeze()
 
         logger.debug(f"Filter has {points.shape[0]} points. Building basic dataFrame. ")
 
@@ -227,14 +222,14 @@ class paraviewOpenFOAM:
         else:
             curstep = pandas.DataFrame([dict(time=timeslice)])
 
-        fieldlist = data.PointData.keys() if fieldnames is None else fieldnames
+        fieldlist = pointSet.PointData.keys() if fieldnames is None else fieldnames
         for field in fieldlist:
-            if isinstance(data.PointData[field], dsa.VTKNoneArray):
+            if isinstance(pointSet.PointData[field], dsa.VTKNoneArray):
                 continue
-            elif isinstance(data.PointData[field], dsa.VTKArray):
-                arry = numpy.array(data.PointData[field]).squeeze()
+            elif isinstance(pointSet.PointData[field], dsa.VTKArray):
+                arry = numpy.array(pointSet.PointData[field]).squeeze()
             else:
-                arry = numpy.concatenate([numpy.array(x) for x in data.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
+                arry = numpy.concatenate([numpy.array(x) for x in pointSet.PointData[field].GetArrays() if not isinstance(x,dsa.VTKNoneArray)]).squeeze()
 
             # Array shape length 0 - Integration - a scalar that is not a field.
             #                    1 - scalar.
@@ -258,10 +253,127 @@ class paraviewOpenFOAM:
             curstep = curstep.set_index(['time', 'x', 'y', 'z']).to_xarray() if regularMesh else curstep
         else:
             curstep = curstep.set_index(['time']).to_xarray() if regularMesh else curstep
-
+        
         return curstep
 
-    def writeCase(self, filtersDict, regularMesh, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False):
+    def _parseMultiBlockDataSet(self, multiBlock, timeslice, fieldnames, regularMesh):
+        num_blocks = multiBlock.GetNumberOfBlocks()
+        final_data = []
+        if num_blocks == 0:
+            return final_data
+        
+        # name doesn't matter and list doesn't have to be used
+        elif num_blocks == 1:
+            return self._parseVTKData(multiBlock.GetBlock(0), timeslice, fieldnames, regularMesh)
+
+        for i in range(num_blocks):
+            # Check if block exists and get its name
+            block = multiBlock.GetBlock(i)
+            if block:
+                blockName = self._getBlockName(multiBlock, i)
+                parsed_block = self._parseVTKData(block, timeslice, fieldnames, regularMesh)
+                if isinstance(parsed_block, list):
+                    # we assumee that list elements already have block names assigned to them or they are irrelevent
+                    final_data.extend(parsed_block)
+                else:
+                    parsed_block = self._assignBlockName(regularMesh, blockName, parsed_block)
+                    final_data.append(parsed_block)
+            else:
+                raise RuntimeError(f"Failed to get block number {i}, raw VTK object:\n{multiBlock}")
+        return final_data
+
+    def _assignBlockName(self, regularMesh, blockName, parsed_block):
+        if regularMesh:
+            assert isinstance(parsed_block, xarray.Dataset) or isinstance(parsed_block, xarray.DataArray), f"while processing regular mesh got produced {type(parsed_block)} instead of xarray"
+            blockNameMap=numpy.full(tuple(parsed_block.sizes.values()), fill_value=blockName)
+            if isinstance(parsed_block, xarray.DataArray):
+                parsed_block = parsed_block.to_dataset()
+            parsed_block['blockName'] = (tuple(parsed_block.sizes.keys()), blockNameMap)
+        else:
+            assert isinstance(parsed_block, pandas.DataFrame), f"while processing non regular mesh got {type(parsed_block)} instead of pandas.DataFrame"
+            parsed_block['blockName']=blockName
+        return parsed_block
+
+    def _getBlockName(self, multiBlock, i):
+        blockName = numpy.nan
+        if multiBlock.HasMetaData(i):
+            blockMetaData = multiBlock.GetMetaData(i)
+            blockMetaDataNameKey = multiBlock.NAME()
+            if blockMetaData.Has(blockMetaDataNameKey):
+                blockName = blockMetaData.Get(blockMetaDataNameKey)
+        return blockName
+
+    def _parseVTKData(self, data, timeslice, fieldnames, regularMesh):
+        """Recursively going over the vtk data and generating a final dataframe trying to keep the block name
+
+        :param data: vtk data,
+        :type data: Any
+        :param timeslice: timestep at which the data is calculated for
+        :type timeslice: int
+        :param fieldnames: names of the fields of interest
+        :type fieldnames: List[str]
+        :param regularMesh: decides whether to save the data with regular format(xarray) or generic table(parquet with pandas), notice all data gets processed as pandas initially
+        :type regularMesh: bool
+        :raises NotImplementedError: Some vtk data's parsing might not be implemented in which case raises
+        :return: final list/sole dataframe or xarray containing VTK data
+        :rtype: List[pandas.Dataframe] | List[xarray] | Dataframe | xarray
+        """
+        logger = get_classMethod_logger(self, "_parseVTKWrappedData")
+        logger.debug(f"Parsing VTK raw data of type {type(data)}")
+        
+        # composite data needs to be parsed as ktk objects to retain the block names
+        data = dsa.WrapDataObject(data) if not isinstance(data, vtkMultiBlockDataSet) else data
+        # make sure we bring back composite data to their vtkMultiBlockDataSet structure 
+        data = data.VTKObject if isinstance(data, dsa.CompositeDataSet) else data
+        logger.debug(f"Normalized raw data to type {type(data)}")
+        
+        # instead of using the wrapped data we iterate over it to get the name of the blocks
+        # required when block data has similar structure and the name is required to associate the values
+        if isinstance(data, vtkMultiBlockDataSet):
+            logger.debug("Parsing composite data, combining all blocks with their names...")
+            return self._parseMultiBlockDataSet(data, timeslice, fieldnames, regularMesh)
+        elif isinstance(data, dsa.PointSet) or isinstance(data, dsa.PolyData) or isinstance(data, dsa.UnstructuredGrid):
+            logger.info("Parsing point data")
+            #  the cases we encountered with dsa.PolyData just needed the PointSet data
+            # hence JUST FOR NOW they all get funneled to _pointSetParser
+            return self._parsePointSet(data, timeslice, fieldnames, regularMesh)
+        elif isinstance(data, dsa.Table):
+            logger.info("Parsing table data")
+            return self._parseTable(data, timeslice, regularMesh)
+        else:
+            raise NotImplementedError(f"Currently reading timestamp doesn't implement parsing of {type(data)}")
+
+    def _parseTable(self, table, timeslice, regularMesh):
+        df = pandas.DataFrame()
+        for columnName in table.RowData.keys():
+            df[columnName]=table.RowData[columnName]
+        df['time'] = timeslice
+        ret =  df.to_xarray() if regularMesh else df
+        return ret
+
+    def _readTimeStep(self, datasource, timeslice, fieldnames=None, regularMesh=False):
+        # read the timestep.
+        logger = get_classMethod_logger(self, "_readTimeStep")
+
+        datasource.UpdatePipeline(timeslice)
+        # parview works as a server always so we must request the data from the datasource using servermanager.Fetch
+        # pre and post processing algorithms may be applied by secifying arg1(pre) and arg2(post) and client port with idx
+        # it should return a vtk object(rawData)
+        rawData = servermanager.Fetch(datasource)
+        
+        # dsa is a utility that "provides classes that allow Numpy-type access to VTK datasets and arrays"
+        # https://docs.vtk.org/en/latest/api/python/vtkmodules/vtkmodules.numpy_interface.dataset_adapter.html
+        # dsa.WraoDataObject returns "a Numpy friendly wrapper of a vtkDataObject" which is dsa.DataObject
+        # 
+        # There are 8 classes that are polymorphic forms of dsa.DataObject and then multiple polymorphic forms of them(10 total) listed here:
+        #    dsa.DataObject(FieldData), dsa.Table(RowData), dsa.HyperGridTree(CellData(AMR)),
+        #    dsa.DataSet(base form for dsa.PointSet(Points, base for either dsa.PolyData(Polygons) or dsa.UnstructuredGrid(Cells, CellsType, CellsLocations)),
+        #    dsa.CompositeDataSet(composite here means seperated dsa.DataSet's that need to be iterated over),
+        #    dsa.Graph(vertices nd edeges), dsa.Molecule(Atoms and Bonds)
+
+        return self._parseVTKData(rawData, timeslice, fieldnames, regularMesh)
+
+    def writeCase(self, filtersDict, regularMesh, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, latestTimestamp=False):
         """
                 Writes the requested fileters as parquet files.
 
@@ -321,6 +433,8 @@ class paraviewOpenFOAM:
 
         readTimesList = self.reader.TimestepValues if timeList is None else timeList
         logger.info(f"Getting timelist {readTimesList}")
+        if latestTimestamp and len(readTimesList)!=0:
+            readTimesList = [readTimesList[-1]]
 
         blockID = 0
         tempList = []
@@ -330,7 +444,6 @@ class paraviewOpenFOAM:
                                               timelist=readTimesList,
                                               fieldnames=fieldnames,
                                               regularMesh=regularMesh)):
-
             tempList.append(filtersData)
             logger.debug(f"Current dataFrames in memory  {len(tempList)}")
             if len(tempList) == tsBlockNum:
@@ -398,11 +511,17 @@ class paraviewOpenFOAM:
 
             logger.info(f"\tWriting filter {filterName} in temporary file {outputFile} ")
 
+            concat_list = []
+            for item in theList:
+                if isinstance(item[filterName], list):
+                    concat_list.extend(item[filterName])
+                else:
+                    concat_list.append(item[filterName])
             if regularMesh:
-                ds_slice = xarray.concat([item[filterName] for item in theList], dim='time')
+                ds_slice = xarray.concat(concat_list, dim='time')
                 ds_slice.to_zarr(outputFile,mode='w')
             else:
-                block_data = pandas.concat([item[filterName] for item in theList], ignore_index=True,sort=True)
+                block_data = pandas.concat(concat_list, ignore_index=True,sort=True)
                 data = dd.from_pandas(block_data, npartitions=1)
                 data.sort_values("time").set_index("time").to_parquet(outputFile)
 
