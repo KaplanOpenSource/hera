@@ -1,5 +1,6 @@
 import json
 from enum import Enum, auto, unique
+import resource
 from typing import Union
 import pandas
 import shutil
@@ -161,18 +162,22 @@ class hermesWorkflowToolkit(abstractToolkit):
         -------
             hermes workflow object (or one of its derivatives).
         """
-        docList = documentList if isinstance(documentList, Iterable) else [documentList]
+        logger = get_classMethod_logger(self, "getHemresWorkflowFromDocument")
+        
+        docList = documentList if isinstance(documentList, list) else [documentList]
 
         if returnFirst:
+            if len(docList) == 0:
+                logger.error("can't get first hermes workflow since documentList is empty")
             doc = docList[0]
-            ret = self.getHermesWorkflowFromJSON(doc.desc['workflow'], name=doc.desc['workflowName'])
+            ret = self.getHermesWorkflowFromJSON(doc.desc['workflow'], name=doc.desc['workflowName'], resource=doc['resource'])
         else:
-            ret = [self.getHermesWorkflowFromJSON(doc.desc['workflow'], name=doc.desc['workflowName']) for doc in
+            ret = [self.getHermesWorkflowFromJSON(doc.desc['workflow'], name=doc.desc['workflowName'], resource=doc['resource']) for doc in
                    docList]
 
         return ret
 
-    def getHermesWorkflowFromJSON(self, workflow: Union[dict, str], name=None):
+    def getHermesWorkflowFromJSON(self, workflow: Union[dict, str], name=None, resource=None):
         """
             Creates a hermes workflow object from the JSON that is supplied.
 
@@ -205,10 +210,11 @@ class hermesWorkflowToolkit(abstractToolkit):
             logger.error(err)
             raise ValueError(err)
 
-        return hermesWFObj(workFlowJSON, name=name)
+        return hermesWFObj(workFlowJSON, name=name, Resource_path=resource)
 
-    def updateDocumentWorkflow(self, document, json):
-        document.desc['workflow'] = loadJSON(json)
+    def updateDocumentWorkflow(self, document, workflow):
+        document.desc['workflow'] = workflow.json
+        document.desc['parameters'] = workflow.parametersJSON
         document.save()
 
 
@@ -325,7 +331,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                         logger.info(f"... not found. Try to query as a json. ")
                         try:
                             jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
-                            wf = self.getHermesWorkflowFromJSON(jsn)
+                            wf = self.getHermesWorkflowFromJSON(jsn, resource=nameOrWorkflowFileOrJSONOrResource)
                             currentQuery = dictToMongoQuery(wf.parametersJSON, prefix="parameters")
                             currentQuery.update(mongo_crit)
                             docList = retrieve_func(type=self.DOCTYPE_WORKFLOW, **currentQuery)
@@ -551,18 +557,18 @@ class hermesWorkflowToolkit(abstractToolkit):
         if workflow is None:
             raise NotImplementedError("addWorkflowFileInGroup() requires the 'hermes' library, which is not installed")
 
-        workflowFile = os.path.basename(workflowFilePath)
-        workflowName = os.path.splitext(workflowFile)[0]
+        workflowFileName = os.path.basename(workflowFilePath)
+        workflowName = os.path.splitext(workflowFileName)[0]
         if not os.path.abspath(workflowFilePath).startswith(self.FilesDirectory):
             raise ValueError(f"{os.path.abspath(workflowFilePath)} is not in {self.FilesDirectory}")
         doc = self.getWorkflowDocumentByName(workflowName)
         
         if doc is None:
-            doc = self.addWorkflowToGroup(workflowName, self.splitWorkflowName(workflowName)[0], writeWorkflowToFile=write_file)
+            doc = self.addWorkflowToGroup(workflowFilePath, self.splitWorkflowName(workflowName)[0], writeWorkflowToFile=write_file, resource=workflowFilePath)
         return doc
 
 
-    def addWorkflowToGroup(self, workflowJSON: str, groupName: str, writeWorkflowToFile:bool=False):
+    def addWorkflowToGroup(self, workflowJSON: str, groupName: str, writeWorkflowToFile:bool=False, resource=None):
         """
             Adds the workflow to the database, or updates an existing document.
 
@@ -612,8 +618,9 @@ class hermesWorkflowToolkit(abstractToolkit):
             logger.info("...Not Found, adding the input to the DB")
             groupID = self.getCounterAndAdd(groupName)
             workflowName = self.getworkFlowName(groupName, groupID)
-            hermesWF = workflow(workflowData, self.FilesDirectory)
-            doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
+            resource = os.path.abspath(resource) if resource else (os.path.join(self.FilesDirectory, workflowName) + ".json")
+            hermesWF = workflow(workflowData, Resource_path=resource)
+            doc = self.addSimulationsDocument(resource=resource,
                                               dataFormat=datatypes.STRING,
                                               type=self.DOCTYPE_WORKFLOW,
                                               desc=dict(
@@ -627,8 +634,9 @@ class hermesWorkflowToolkit(abstractToolkit):
 
         if writeWorkflowToFile:
             workflowName = self.getworkFlowName(doc.desc['groupName'], doc.desc['groupID'])
-            hermesWF = workflow(doc.desc['workflow'], self.FilesDirectory)
-            with open(os.path.join(self.FilesDirectory, f"{workflowName}.json"), "w") as outFile:
+            resource = os.path.abspath(resource) if resource else (os.path.join(self.FilesDirectory, workflowName) + ".json")
+            hermesWF = workflow(doc.desc['workflow'], WD_path=self.FilesDirectory, Resource_path=resource)
+            with open(os.path.join(resource), "w") as outFile:
                 json.dump(hermesWF.json, outFile, indent=4)
 
 
@@ -670,13 +678,13 @@ class hermesWorkflowToolkit(abstractToolkit):
             workflowName = doc.desc['workflowName']
             logger.info(f"Processing {workflowName}")
 
-            hermesWF = self.getHermesWorkflowFromJSON(workflowJSON)
+            hermesWF = self.getHermesWorkflowFromJSON(workflowJSON, name=workflowName, resource=doc['resource'])
 
             logger.info(f"Building and executing the workflow {workflowName}")
             build = hermesWF.build(buildername=workflow.BUILDER_LUIGI)
 
             logger.info(f"Writing the workflow and the executer python {workflowName}")
-            wfFileName = os.path.join(self.FilesDirectory, f"{workflowName}.json")
+            wfFileName = hermesWF.Resource_path
             hermesWF.write(wfFileName)
 
             pythonFileName = os.path.join(self.FilesDirectory, f"{workflowName}.py")
@@ -754,7 +762,7 @@ class hermesWorkflowToolkit(abstractToolkit):
                     logger.error(err)
             else:
                 groupworkflowList = [workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
-                                              name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in
+                                              name=simulationDoc.desc[self.DESC_WORKFLOWNAME], resource=simulationDoc['resource']) for simulationDoc in
                                      simulationList]
                 workflowList += groupworkflowList
 
@@ -785,7 +793,7 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         simulationList = self.getWorkflowDocumentsInGroup(groupName=workflowGroup)
         workflowList = [workflow(simulationDoc['desc']['workflow'], WD_path=self.FilesDirectory,
-                                 name=simulationDoc.desc[self.DESC_WORKFLOWNAME]) for simulationDoc in simulationList]
+                                 name=simulationDoc.desc[self.DESC_WORKFLOWNAME], resource=simulationDoc['resource']) for simulationDoc in simulationList]
         if len(workflowList) == 0:
             ret = None
         else:

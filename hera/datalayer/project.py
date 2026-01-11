@@ -250,9 +250,9 @@ class Project:
 
         if savedFilesDirectory is None:
             if filesDirectory is None:
-                filesDirectory = os.path.abspath(os.getcwd())
+                filesDirectory = os.path.join(os.path.abspath(os.getcwd()), projectName)
             else:
-                filesDirectory= os.path.abspath(filesDirectory)
+                filesDirectory = os.path.abspath(filesDirectory)
 
             if self.projectName != self.DEFAULTPROJECT:
                 logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
@@ -313,9 +313,9 @@ class Project:
 
         """
         cnfg = self.getConfig().copy()
-        coutnerDict = cnfg.setdefault("counters",{}).copy()
-        coutnerDict[counterName] =defaultValue
-        cnfg["counters"] = coutnerDict
+        counterDict = cnfg.setdefault("counters",{}).copy()
+        counterDict[counterName] =defaultValue
+        cnfg["counters"] = counterDict
         self.setConfig(**cnfg)
         return cnfg
 
@@ -333,9 +333,9 @@ class Project:
 
         """
         cnfg = self.getConfig().copy()
-        coutnerDict = cnfg.get("counters", {}).copy()
-        coutnerDict.setdefault(counterName,defaultValue)
-        cnfg["counters"] = coutnerDict
+        counterDict = cnfg.get("counters", {}).copy()
+        counterDict.setdefault(counterName,defaultValue)
+        cnfg["counters"] = counterDict
         self.setConfig(**cnfg)
         return cnfg
 
@@ -356,8 +356,10 @@ class Project:
 
         """
         cnfg = self.getConfig().copy()
-        coutnerDict = cnfg.setdefault("counters", {})
-        ret = coutnerDict[counterName]
+        counterDict = cnfg.get("counters",{}).copy()
+        ret = counterDict.setdefault(counterName,0)
+        cnfg["counters"] =counterDict
+        self.setConfig(**cnfg)
         return ret
 
     def getCounterAndAdd(self, counterName, addition=1):

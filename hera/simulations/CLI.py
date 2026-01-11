@@ -78,7 +78,7 @@ def workflow_add(args):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=args.projectName)
 
     workflowFile = args.workflow
-    wftk.addUpdateWorkflowFileInGroup(workflowFile)
+    wftk.addWorkflowFileInGroup(workflowFile)
 
 
 def workflow_delete(arguments):
@@ -182,11 +182,11 @@ def workflow_compareToDisk(arguments):
     simulationList = wftk.getHermesWorkflowFromDB(list(arguments.workflows),returnFirst=False)
 
     for sim in simulationList:
-        outfileName = f"{sim.name}.json"
+        outfileName = sim.resource
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName} does not exist on the disk. use export to create it. ")
         else:
-            localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local")
+            localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             smName = sim.name
             sim.name = "DB"
             res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
@@ -229,11 +229,11 @@ def workflow_sync_to_db(arguments):
 
     for workflowDoc in workflowDocList:
         sim = wftk.getHemresWorkflowFromDocument(documentList=workflowDoc)
-        outfileName = f"{sim.name}.json"
+        outfileName = sim.Resource_path
         if not os.path.isfile(outfileName):
             print(f"Workflow {sim.name} (file {outfileName}) does not exist on the disk. use export to create it.")
         else:
-            localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local")
+            localWorkflow = wftk.getHermesWorkflowFromJSON(loadJSON(outfileName),name="Local", resource=outfileName)
             simName = sim.name
             sim.name = "DB"
             res = compareJSONS(DB=sim.parametersJSON,LocalFile=localWorkflow.parametersJSON)
@@ -246,7 +246,7 @@ def workflow_sync_to_db(arguments):
                 print("Disk and DB parameters are identical" if res.empty else f"Found Changes:\n{res}")
             if (not res.empty) or arguments.force:
                 logger.info(f"Updating DB with the changes for {sim.name}")
-                wftk.updateDocumentWorkflow(document=workflowDoc, json=outfileName)
+                wftk.updateDocumentWorkflow(document=workflowDoc, workflow=localWorkflow)
 
 def create_workflow_variations(arguments):
     """creates variations to the base workflow provided based on the variation json
@@ -274,7 +274,7 @@ def create_workflow_variations(arguments):
     wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=project_name)
     assert isinstance(wftk, hermesWorkflowToolkit)
     workflow_doc_list = wftk.getWorkflowListDocumentFromDB(workflow_name)
-
+    # print(f"using workflow {workflow_doc_list}")
     if len(workflow_doc_list) == 0:
         logger.error("workflow not found.")
     wokflow_doc = workflow_doc_list[0]
@@ -282,15 +282,17 @@ def create_workflow_variations(arguments):
     base_workflow_name = str(wokflow_doc['desc']['groupName'])
     base_workflow_path = str(wokflow_doc['resource'])
     
+    logger.info("checking variations file")
     if not os.path.exists(variation_json_path):
         logger.error(f"{variation_json_path} doesn't point to anything.")    
     elif not os.path.isfile(variation_json_path):
         logger.error(f"{variation_json_path} must be a file")
     
+    logger.info("Loading variations file")
     with open(variation_json_path) as varitation_json_file:
         variation_json = json.load(varitation_json_file)
     
-    if not dry_run and naming_scheme=="index":
+    if not dry_run and naming_scheme!="index":
         logger.error(f"Naming scheme must be index(not {naming_scheme}) on wet run, needs to align with groupid")
         return
     
@@ -304,6 +306,7 @@ def create_workflow_variations(arguments):
     workflow_folder = os.path.dirname(base_workflow_path)
     for variation_suffix, variation in variation_scheme:
         variation_path = os.path.join(workflow_folder, base_workflow_name+"_"+str(variation_suffix)+".json")
+        logger.info(f"Dealing with variation {variation_suffix} in path {variation_path}")
         if os.path.exists(variation_path) and not overwrite:
             logger.warning(f"skipping variation {variation_suffix} since it already exists")
         else:
@@ -484,7 +487,7 @@ def workflowNodes_list(arguments):
 
     if os.path.exists(arguments.workflowName) and not os.path.isdir(arguments.workflowName):
             json = loadJSON(arguments.workflowName)
-            hermesObject = workflow(json)
+            hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
         if arguments.projectName is None:
             raise ValueError("Must supply a project name for a non-file workflow")
@@ -529,7 +532,7 @@ def workflowNodes_listParameters(arguments):
 
     if os.path.isfile(arguments.workflowName):
             json = loadJSON(arguments.workflowName)
-            hermesObject = workflow(json)
+            hermesObject = workflow(json, Resource_path=arguments.workflowName)
     else:
         wftk = toolkitHome.getToolkit(toolkitName=toolkitHome.SIMULATIONS_WORKFLOWS, projectName=arguments.projectName)
 
@@ -637,7 +640,7 @@ def workflow_buildExecute(arguments):
     docList = wftk.getWorkflowListDocumentFromDB(workflowName)
     if len(docList) == 0:
         if os.path.isfile(arguments.workflowName):
-            wftk.addUpdateWorkflowFileInGroup(arguments.workflowName)
+            wftk.addWorkflowFileInGroup(arguments.workflowName)
         else:
             raise ValueError(f"The workflowName {arguments.workflowName} is not in the DB and not a file on the disk")
 
