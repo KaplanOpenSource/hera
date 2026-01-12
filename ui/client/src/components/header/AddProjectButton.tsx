@@ -1,0 +1,120 @@
+import { Add } from "@mui/icons-material";
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControlLabel,
+  FormGroup,
+  TextField,
+} from "@mui/material";
+import { useRef, useState } from "react";
+import { execPython } from "../../io/execPython";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
+import { ProjectEntire, ProjectName } from "@shared/types";
+
+export const AddProjectButton = ({ }) => {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [loadRepositories, setLoadRepositories] = useState(true);
+  const { selectProject, setProjectNames, setCurrentProject } = useProjectStore();
+  const inputRef = useRef();
+
+  const doAddProject = async () => {
+    const { problem, data } = await execPython(`
+import os
+import json
+from types import SimpleNamespace
+
+from hera.utils.data.CLI import project_create
+from hera.datalayer.project import getProjectList
+from hera.datalayer import All
+
+project_create(SimpleNamespace(
+  projectName='${name}',
+  directory=os.path.join(os.getcwd(), 'projects', '${name}'),
+  loadRepositories=${loadRepositories ? 'True' : 'False'},
+  overwrite=False))
+
+projectNames = [{"name": proj} for proj in getProjectList()]
+
+docs = All.getDocumentsAsDict('${name}', with_id=True)
+project = {"name": '${name}', "documents": docs['documents']}
+
+result = {"projectNames": projectNames, "project": project}
+    `)
+    if (problem) {
+      return;
+    }
+
+    // hera doesnt update new project immediately so we build names in front
+    // await fetchProjectsNames();
+    const details = (data?.project) as ProjectEntire;
+    const names = (data?.projectNames || []) as ProjectName[];
+    if (!names.find(x => x.name === name)) {
+      names.push({ name });
+    }
+    setProjectNames(names);
+    setCurrentProject(details);
+    selectProject(name);
+    setOpen(false);
+  }
+
+  return (<>
+    <ButtonTooltip
+      title='Add project'
+      onClick={() => {
+        setOpen(true);
+        setName('');
+        setTimeout(() => (inputRef.current as any)?.focus(), 0)
+      }}
+    >
+      <Add />
+    </ButtonTooltip>
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      onKeyDown={e => { if (e.code === 'Enter') doAddProject() }}
+    >
+      <DialogTitle>New Project</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Adding a new project, please fill initial details
+        </DialogContentText>
+        <TextField
+          inputRef={inputRef}
+          // autoFocus
+          required
+          margin="dense"
+          size="small"
+          label="Project Name"
+          fullWidth
+          variant="outlined"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <FormGroup>
+          <FormControlLabel
+            label="Load Repositories"
+            control={<Checkbox
+              checked={loadRepositories}
+              onChange={(e) => setLoadRepositories(e.target.checked)}
+            />}
+          />
+        </FormGroup>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button onClick={() => doAddProject()}>
+          Add Project
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </>)
+}

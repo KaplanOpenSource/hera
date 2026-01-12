@@ -422,7 +422,7 @@ def setJSONPath(base,valuesDict,inPlace=False):
     return base_local
 
 
-def JSONVariations(base,variationJSON):
+def JSONVariations(base,variationJSON,convetToBaseUnits=True):
     """The JSONVariations creates variations of the cartesian product of all the values between the variation groups.  Parameters within the variation group change together. Hence, all the members of one variation group must an identical number of values. 
     
     Parameters
@@ -434,7 +434,7 @@ def JSONVariations(base,variationJSON):
     -------
 
     """
-    variations = [[x for x in JSONvariationItem(dict(base),variation)] for variation in variationJSON]
+    variations = [[x for x in JSONvariationItem(dict(base),variation,convetToBaseUnits=convetToBaseUnits)] for variation in variationJSON]
     for var in product(*variations):
         params = {}
         for item in var:
@@ -463,7 +463,7 @@ class JSONvariationItem:
     _curIter = None # the ID of the
     _itemCount = None
 
-    def __init__(self,base,variationItem):
+    def __init__(self,base,variationItem,convetToBaseUnits=True):
         """
             The base is the json that will be changes.
 
@@ -472,6 +472,8 @@ class JSONvariationItem:
         ----------
         base
         variationItem
+        convetToBaseUnits: bool
+            If true, and the item is pint.Quantity, then convety to base (mks) units.
         """
         logger = get_classMethod_logger(self,name="init")
 
@@ -501,7 +503,7 @@ class JSONvariationItem:
 
         result = {}
         for key, value in self.variationItem.items():
-            result[key] = value[self._curIter]
+                result[key] = value[self._curIter]
         self._curIter += 1
         return result
 
