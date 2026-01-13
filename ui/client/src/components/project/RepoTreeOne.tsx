@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
+import { RepoTreeAddButton } from "./RepoTreeAddButton";
 
 export const RepoTreeOne = ({
   repoPath,
@@ -49,7 +50,9 @@ result = {"json": data}
           >
             <AccountTree />
           </ButtonTooltip>
-          {/* {JSON.stringify(tree)} */}
+          <RepoTreeAddButton
+            tree={tree}
+          />
         </Stack>
       )}
     >
