@@ -14,10 +14,12 @@ export const JsonTreeNode = ({
   label,
   value,
   setData,
+  parentKey,
 }: {
   label: string;
   value: JsonValue;
   setData: (next: JsonValue | undefined) => void;
+  parentKey: string,
 }) => {
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -33,6 +35,8 @@ export const JsonTreeNode = ({
     </Stack>
   );
 
+  console.log(label)
+
   if (Array.isArray(value)) {
     return (
       <TreeItem itemId={label} label={labelNode}>
@@ -40,6 +44,7 @@ export const JsonTreeNode = ({
           <JsonTreeNode
             key={index}
             label={`[${index}]`}
+            parentKey={`${parentKey}[${index}]`}
             value={item}
             setData={(next) =>
               setData(
@@ -56,11 +61,15 @@ export const JsonTreeNode = ({
 
   if (typeof value === "object" && value !== null) {
     return (
-      <TreeItem itemId={label} label={labelNode}>
+      <TreeItem
+        itemId={`${parentKey}.${label}`}
+        label={labelNode}
+      >
         {Object.entries(value).map(([key, val]) => (
           <JsonTreeNode
             key={key}
             label={key}
+            parentKey={`${parentKey}.${label}[${key}]`}
             value={val}
             setData={(next) =>
               setData(
@@ -79,7 +88,7 @@ export const JsonTreeNode = ({
 
   return (
     <TreeItem
-      itemId={label}
+      itemId={`${parentKey}.${label}`}
       label={
         <Stack direction="row" spacing={1} alignItems="center">
           <Typography variant="body2">
@@ -108,6 +117,7 @@ export const JsonTreeView = ({
       >
         <JsonTreeNode
           label="root"
+          parentKey="root"
           value={data}
           setData={(next) => {
             if (next !== undefined) setData(next);

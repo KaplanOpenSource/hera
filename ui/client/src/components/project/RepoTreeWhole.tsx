@@ -35,6 +35,14 @@ export const RepoTreeWhole = ({
           >
             <Add />
           </ButtonTooltip>
+          <Typography color='error'>
+            TODO:
+            show repo tree,
+            let user add it to project,
+            update it from json file,
+            remove it,
+            use repo trees instead of button RepoAddEditor
+          </Typography>
           {ConfirmDialog}
         </Stack>
       )}
