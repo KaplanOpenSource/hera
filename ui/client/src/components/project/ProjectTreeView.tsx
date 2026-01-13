@@ -1,4 +1,4 @@
-import { Add, Delete, Folder, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -7,8 +7,8 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { RepoAddButton } from '../repo/RepoAddButton';
+import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { useConfirm } from '../../elements/useConfirm';
 
 export const ProjectTreeView = ({
   project,
@@ -19,8 +19,6 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
-  const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
-  const { confirmOpen, ConfirmDialog } = useConfirm();
 
   console.log(toolkits)
   console.log(project)
@@ -28,7 +26,7 @@ export const ProjectTreeView = ({
   return (
     <Paper sx={{ p: 2 }}>
       <SimpleTreeView
-        defaultExpandedItems={['project-documents', 'no-toolkit']}
+        defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
         onSelectedItemsChange={(_e, itemIds) => {
           setSelectedItemIds(itemIds ? [itemIds] : [])
         }}
@@ -75,50 +73,8 @@ export const ProjectTreeView = ({
             showEmpty={showEmptyToolkits}
           />
         </TreeItem>
-        <TreeItem key={'*repos*'} itemId={'*repos*'}
-          label={(
-            <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
-              <Typography>
-                Repositories
-              </Typography>
-              <ButtonTooltip
-                title={'Add repository'}
-                onClick={async () => {
-                  const { confirmed, text } = await confirmOpen({
-                    title: `Add repository`,
-                    requireText: true,
-                    textLabel: 'Repository location',
-                  });
-                  if (confirmed && text) {
-                    setRepositories([...repositories, text]);
-                  }
-                }}
-              >
-                <Add />
-              </ButtonTooltip>
-              {ConfirmDialog}
-            </Stack>
-          )}
-        >
-          {repositories.map(r => (
-            <TreeItem
-              key={'__repo_*_' + r}
-              itemId={'__repo_*_' + r}
-              label={(
-                <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
-                  {r}
-                  <ButtonTooltip
-                    title={'Remove repository'}
-                    onClick={() => setRepositories(repositories.filter(x => x !== r))}
-                  >
-                    <Delete />
-                  </ButtonTooltip>
-                </Stack>
-              )}
-            >
-            </TreeItem>
-          ))}
-        </TreeItem>
+        <RepoTreeWhole
+        />
       </SimpleTreeView>
     </Paper>
   );
