@@ -35,8 +35,6 @@ export const JsonTreeNode = ({
     </Stack>
   );
 
-  console.log(label)
-
   if (Array.isArray(value)) {
     return (
       <TreeItem itemId={label} label={labelNode}>

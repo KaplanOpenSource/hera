@@ -1,11 +1,10 @@
-import { AccountTree, Add, Delete } from "@mui/icons-material";
-import { Stack, Typography } from "@mui/material";
+import { AccountTree, Delete } from "@mui/icons-material";
+import { Stack } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { useConfirm } from "../../elements/useConfirm";
+import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
-import { JsonTreeNode, JsonTreeView } from "../../elements/JsonTreeView";
 
 export const RepoTreeOne = ({
   repoPath,
@@ -58,9 +57,9 @@ result = {"json": data}
         <JsonTreeNode
           label="root"
           value={tree}
-          setData={val => { }}
-          //   setValues({ ...values, repositoryJson: JSON.stringify(val, undefined, 2) })
-          // }}
+          setData={val => {
+            setTree(val)
+          }}
           parentKey="root"
         />
       )}
