@@ -59,8 +59,9 @@ result = {"json": data}
           label="root"
           value={tree}
           setData={val => { }}
-        //   setValues({ ...values, repositoryJson: JSON.stringify(val, undefined, 2) })
-        // }}
+          //   setValues({ ...values, repositoryJson: JSON.stringify(val, undefined, 2) })
+          // }}
+          parentKey="root"
         />
       )}
     </TreeItem>
