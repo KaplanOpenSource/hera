@@ -1,5 +1,5 @@
 import { Publish } from "@mui/icons-material";
-import { Checkbox, FormControlLabel, FormGroup } from "@mui/material";
+import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
 import { execPython } from "../../io/execPython";
@@ -45,21 +45,18 @@ result = {"project": project}
   return (
     <ButtonTooltip
       title={'Add repository of data sources to project'}
+      disabled={tree === undefined}
       onClick={async () => {
         const result = await openDialog({
           title: 'Add Repository of Datasources To Project',
           initialValues: { overwrite: true },
           render:
             ({ values, setValues }) => (
-              <FormGroup>
-                <FormControlLabel
-                  label="Overwrite"
-                  control={<Checkbox
-                    checked={values.overwrite}
-                    onChange={(e) => setValues({ ...values, overwrite: e.target.checked })}
-                  />}
-                />
-              </FormGroup>
+              <BooleanProperty
+                label="Overwrite"
+                value={values.overwrite}
+                setValue={(v) => setValues({ ...values, overwrite: v })}
+              />
             )
         });
 
