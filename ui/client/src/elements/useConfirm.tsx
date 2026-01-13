@@ -95,6 +95,7 @@ export function useConfirm() {
             placeholder={options.textPlaceholder}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
             sx={{ marginTop: 1 }}
             size='small'
             error={!isValidated}
