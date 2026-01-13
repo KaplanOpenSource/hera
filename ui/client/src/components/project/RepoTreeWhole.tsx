@@ -4,6 +4,7 @@ import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
+import { RepoTreeOne } from "./RepoTreeOne";
 
 export const RepoTreeWhole = ({
 
@@ -21,7 +22,7 @@ export const RepoTreeWhole = ({
           </Typography>
           <ButtonTooltip
             title={'Add repository'}
-            onClick={async () => {
+            onClick={async (e) => {
               const { confirmed, text } = await confirmOpen({
                 title: `Add repository`,
                 requireText: true,
@@ -39,22 +40,17 @@ export const RepoTreeWhole = ({
       )}
     >
       {repositories.map(r => (
-        <TreeItem
+        <RepoTreeOne
           key={'__repo_*_' + r}
-          itemId={'__repo_*_' + r}
-          label={(
-            <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
-              {r}
-              <ButtonTooltip
-                title={'Remove repository'}
-                onClick={() => setRepositories(repositories.filter(x => x !== r))}
-              >
-                <Delete />
-              </ButtonTooltip>
-            </Stack>
-          )}
-        >
-        </TreeItem>
+          repoPath={r}
+          setRepoPath={v => {
+            if (v) {
+              setRepositories(repositories.map(x => x !== r ? x : v))
+            } else {
+              setRepositories(repositories.filter(x => x !== r))
+            }
+          }}
+        />
       ))}
     </TreeItem>
   )
