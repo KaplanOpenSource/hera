@@ -82,7 +82,7 @@ class VTKPipeLine:
                 an instance of a filter
 
         """
-        self.filters[newFilter.name] = newFilter
+        self[newFilter.name] = newFilter
 
     @deprecated("Use addFilterFromObj")
     def addExistingFilter(self, newFilter):
@@ -175,7 +175,6 @@ class VTKPipeLine:
 
         def recurseAllNames(fatherPath, filtersList):
             ret = []
-            nextList = []
             for filterName, filterObj in filtersList.items():
                 currentName = filterName if fatherPath is None else f"{fatherPath}.{filterName}"
                 if (writeOnly and filterObj.write) or not writeOnly:
@@ -702,6 +701,14 @@ class vtkFilter_ExtractBlock(VTKFilter):
 
         self.set_param("Selectors", selectors)
 
+
+class vtkFilter_DescriptiveStatistics(VTKFilter):
+    def __init__(self, name, write, **kwargs):
+        kwargs.setdefault("params",[])
+        super().__init__(name=name, filterType="DescriptiveStatistics", write=write, **kwargs)
+
+    def setVariablesOfInterest(self, variables=[]):
+        self.set_param("VariablesofInterest", variables)
 
 
 class vtkFilter_IntegrateVariables(VTKFilter):
