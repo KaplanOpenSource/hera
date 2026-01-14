@@ -483,7 +483,7 @@ class workflowToolkit(abstractToolkit):
 
         #   b. loading the workflow.
         self.logger.debug(f"Loading the workflow JSON {workflowJSON}")
-        hermesWF = workflow(loadJSON(workflowJSON), self.FilesDirectory)
+        hermesWF = workflow(loadJSON(workflowJSON), WD_path=self.FilesDirectory)
         hermesWF.updateNodes(parameters=parameters)
         theSolver = hermesWF.solver
 
