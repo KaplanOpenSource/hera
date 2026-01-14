@@ -521,47 +521,44 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         formatted_number = "{0:04d}".format(flowID)
         return f"{baseName}_{formatted_number}"
+    
+    @staticmethod
+    def splitWorkflowName(workflow_name:str):
+        """splits workflow name into base name and the flow id.
 
-    def addUpdateWorkflowFileInGroup(self,workflowFilePath):
+        Returns
+        -------
+        base name and the flow id, both as strings
+
         """
-            Updates the content of the filename in the database.
+        if "_" in workflow_name:
+            split_name = workflow_name.split("_")
+            return "".join(split_name[:-1]), split_name[-1]
+        return workflow_name, None
 
-            Use the file name as the simulation name.
-
+    def addWorkflowFileInGroup(self,workflowFilePath, write_file=False):
+        """
+            adds the workflow to the database and assigning group based on the name
         Parameters
         ----------
-        workflowFileName
-
-        addToGroup: bool
-            Add the workflow to the group if False.
-
+        workflowFilePath
+        
         Returns
         -------
 
         """
-        get_classMethod_logger(self, "updateWorkflowFileInGroup")
+        get_classMethod_logger(self, "addWorkflowFileInGroup")
         if workflow is None:
-            raise NotImplementedError("addUpdateWorkflowFileInGroup() requires the 'hermes' library, which is not installed")
+            raise NotImplementedError("addWorkflowFileInGroup() requires the 'hermes' library, which is not installed")
 
         workflowFile = os.path.basename(workflowFilePath)
         workflowName = os.path.splitext(workflowFile)[0]
-        doc = self.getWorkflowDocumentByName(workflowName)
         if not os.path.abspath(workflowFilePath).startswith(self.FilesDirectory):
             raise ValueError(f"{os.path.abspath(workflowFilePath)} is not in {self.FilesDirectory}")
+        doc = self.getWorkflowDocumentByName(workflowName)
+        
         if doc is None:
-            workflowJSON = loadJSON(workflowFilePath)
-            hermesWF = workflow(workflowJSON, self.FilesDirectory)
-            doc = self.addSimulationsDocument(resource=os.path.abspath(workflowFilePath),
-                                              dataFormat=datatypes.STRING,
-                                              type=self.DOCTYPE_WORKFLOW,
-                                              desc=dict(
-                                                  groupName=workflowName.split("_")[0],
-                                                  groupID=workflowName.split("_")[-1],
-                                                  workflowName=workflowName,
-                                                  solver=hermesWF.solver,
-                                                  workflow=hermesWF.json['workflow'],
-                                                  parameters=hermesWF.parametersJSON)
-                                              )
+            doc = self.addWorkflowToGroup(workflowName, self.splitWorkflowName(workflowName)[0], writeWorkflowToFile=write_file)
         return doc
 
 
@@ -606,14 +603,14 @@ class hermesWorkflowToolkit(abstractToolkit):
             raise NotImplementedError("addWorkflowToGroup() requires the 'hermes' library, which is nor installed")
 
         logger.debug(f"The name is a groupName, check if the workflow is in the DB and if not, generate a name and add it")
-        docList = self.getWorkflowDocumentFromDB(loadJSON(workflowJSON))
+        workflowData = loadJSON(workflowJSON)
+        docList = self.getWorkflowDocumentFromDB(workflowData)
         if len(docList) > 0:
             logger.info(f"...Found. Returning the document.")
             doc = docList[0]
         else:
             logger.info("...Not Found, adding the input to the DB")
             groupID = self.getCounterAndAdd(groupName)
-            workflowData = loadJSON(workflowJSON)
             workflowName = self.getworkFlowName(groupName, groupID)
             hermesWF = workflow(workflowData, self.FilesDirectory)
             doc = self.addSimulationsDocument(resource=os.path.join(self.FilesDirectory, workflowName),
