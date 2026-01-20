@@ -12,4 +12,4 @@ if ! pip show fastapi > /dev/null 2>&1; then
     exit 1
 fi
 
-python ui/server/server.py
+python ui/server/server.py $@
