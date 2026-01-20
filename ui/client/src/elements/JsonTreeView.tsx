@@ -1,6 +1,7 @@
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { IconButton, Stack, Typography, Box } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { ReactNode } from "react";
 
 export type JsonValue =
   | string
@@ -15,13 +16,13 @@ export const JsonTreeNode = ({
   value,
   setData,
   parentKey,
-  recursiveEdit = true,
+  rootLabelComponents = null,
 }: {
   label: string;
   value: JsonValue;
   setData?: (next: JsonValue | undefined) => void;
   parentKey: string,
-  recursiveEdit?: boolean,
+  rootLabelComponents?: ReactNode | null,
 }) => {
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -50,7 +51,7 @@ export const JsonTreeNode = ({
             label={`[${index}]`}
             parentKey={`${parentKey}[${index}]`}
             value={item}
-            setData={setData === undefined || !recursiveEdit ? undefined :
+            setData={setData === undefined ? undefined :
               (next) =>
                 setData(
                   next === undefined
@@ -68,7 +69,10 @@ export const JsonTreeNode = ({
     return (
       <TreeItem
         itemId={`${parentKey}.${label}`}
-        label={labelNode}
+        label={(<Stack direction={'row'}>
+          {labelNode}
+          {rootLabelComponents}
+        </Stack>)}
       >
         {Object.entries(value).map(([key, val]) => (
           <JsonTreeNode
@@ -76,7 +80,7 @@ export const JsonTreeNode = ({
             label={key}
             parentKey={`${parentKey}.${label}[${key}]`}
             value={val}
-            setData={setData === undefined || !recursiveEdit ? undefined :
+            setData={setData === undefined ? undefined :
               (next) =>
                 setData(
                   next === undefined

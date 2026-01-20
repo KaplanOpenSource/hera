@@ -1,4 +1,4 @@
-import { Edit } from "@mui/icons-material";
+import { Delete, Edit } from "@mui/icons-material";
 import { Stack } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useEffect, useState } from "react";
@@ -77,16 +77,14 @@ result = {"json": data}
                     label={key}
                     parentKey={`root.${key}`}
                     value={val as any}
-                    setData={(next) => {
-                      const newTree = { ...tree }
-                      if (next === undefined) {
-                        delete newTree[key]
-                      } else {
-                        newTree[key] = next;
-                      }
-                      setTree(newTree)
-                    }}
-                    recursiveEdit={false}
+                    rootLabelComponents={(
+                      <ButtonTooltip
+                        onClick={() => setTree(Object.fromEntries(Object.entries(tree).filter(([k, _]) => k !== key)))}
+                        title={'Remove Data Source from repository (locally, not affecting the file)'}
+                      >
+                        <Delete fontSize="inherit" />
+                      </ButtonTooltip>
+                    )}
                   />
                 ))}
               </>
