@@ -6,6 +6,7 @@ import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
+import { idRepoId } from "../../shared/idDocId";
 
 export const RepoTreeOne = ({
   repoPath,
@@ -33,8 +34,8 @@ result = {"json": data}
 
   return (
     <TreeItem
-      key={'__repo_*_' + repoPath}
-      itemId={'__repo_*_' + repoPath}
+      key={idRepoId(repoPath)}
+      itemId={idRepoId(repoPath)}
       label={(
         <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
           {repoPath}

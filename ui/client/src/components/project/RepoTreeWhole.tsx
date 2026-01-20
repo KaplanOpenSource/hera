@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
 import { RepoTreeOne } from "./RepoTreeOne";
+import { idRepoId } from "../../shared/idDocId";
 
 export const RepoTreeWhole = ({
 
@@ -41,7 +42,7 @@ export const RepoTreeWhole = ({
     >
       {repositories.map(r => (
         <RepoTreeOne
-          key={'__repo_*_' + r}
+          key={idRepoId(r)}
           repoPath={r}
           setRepoPath={v => {
             if (v) {
