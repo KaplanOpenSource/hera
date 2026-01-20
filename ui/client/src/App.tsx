@@ -65,12 +65,12 @@ export default function App() {
               <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
                 <DetailsViewPanel
                   project={project}
-                  selectedItemsIds={selectedItemsIds}
+                  showItemId={selectedItemsIds[0]}
                 />
               </Paper>
             </Box>
           </>)
-          
+
           : (
             <Paper sx={{ p: 2, height: '100%', overflow: 'auto', flex: 1, minWidth: 0 }}>
               <Typography>

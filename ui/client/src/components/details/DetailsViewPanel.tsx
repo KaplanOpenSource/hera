@@ -7,16 +7,47 @@ import { DetailsViewDocument } from './DetailsViewDocument';
 
 export const DetailsViewPanel = ({
   project,
-  selectedItemsIds,
+  showItemId,
 }: {
   project: ProjectObj,
-  selectedItemsIds: string[],
+  showItemId: string,
+}) => {
+  const [doc, setDoc] = useState<any>(undefined);
+
+  const docid = idFromDocId(showItemId);
+  if (docid) {
+    return (
+      <DetailsViewDocId
+        project={project}
+        docid={docid}
+      />
+    )
+  }
+
+  if (project?.configDocument?.docid) {
+    return (
+      <DetailsViewDocId
+        project={project}
+        docid={project?.configDocument?.docid}
+      />
+    )
+  } else {
+    return null;
+  }
+};
+
+
+export const DetailsViewDocId = ({
+  project,
+  docid,
+}: {
+  project: ProjectObj,
+  docid: string,
 }) => {
   const [doc, setDoc] = useState<any>(undefined);
 
   useEffect(() => {
     (async () => {
-      const docid = idFromDocId(selectedItemsIds[0]);
       if (docid) {
         const data = await fetchDocument(docid);
         if (data) {
@@ -24,17 +55,9 @@ export const DetailsViewPanel = ({
           return;
         }
       }
-      const confid = project?.configDocument?.docid;
-      if (confid) {
-        const data = await fetchDocument(confid);
-        if (data) {
-          setDoc(data);
-          return;
-        }
-      }
       setDoc(undefined);
     })()
-  }, [selectedItemsIds[0], project?.name])
+  }, [docid, project?.name])
 
   const changeDocument = async (shownDoc: any) => {
     const data = await updateDocument(shownDoc, doc);
