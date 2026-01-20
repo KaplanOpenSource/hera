@@ -1,12 +1,11 @@
 import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
-import { Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { RepoAddButton } from '../repo/RepoAddButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
 
@@ -44,8 +43,6 @@ export const ProjectTreeView = ({
             >
               {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
             </ButtonTooltip>
-            <RepoAddButton
-            />
           </Stack>
         )}
       >

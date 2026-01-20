@@ -14,23 +14,26 @@ export const DetailsViewRepo = ({
 }: {
   repoPath: string,
 }) => {
+  const isTempRepo = repoPath.includes(TEMP_REPO_NAME);
   const [tree, setTree] = useState<any>(undefined);
   const [repoStr, setRepoStr] = useState<string>('');
-  const [showStr, setShowStr] = useState<boolean>(repoPath.includes(TEMP_REPO_NAME));
+  const [showStr, setShowStr] = useState<boolean>(isTempRepo);
 
   useEffect(() => {
     (async () => {
-      const { data } = await execPython(`
+      if (!isTempRepo) {
+        const { data } = await execPython(`
 import json
 with open('${repoPath}', 'r') as fjson:
   data = json.load(fjson)
 result = {"json": data}
             `);
-      console.log(data)
-      if (data?.json) {
-        setTree(data.json);
-      } else {
-        setTree(undefined)
+        console.log(data)
+        if (data?.json) {
+          setTree(data.json);
+        } else {
+          setTree(undefined)
+        }
       }
     })()
   }, [repoPath])
