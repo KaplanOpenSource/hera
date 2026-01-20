@@ -4,14 +4,9 @@ import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
-import { RepoTreeOne } from "./RepoTreeOne";
 import { idRepoId } from "../../shared/idDocId";
 
-export const RepoTreeWhole = ({
-
-}: {
-
-  }) => {
+export const RepoTreeWhole = ({ }) => {
   const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);
   const { confirmOpen, ConfirmDialog } = useConfirm();
   return (
@@ -40,18 +35,25 @@ export const RepoTreeWhole = ({
         </Stack>
       )}
     >
-      {repositories.map(r => (
-        <RepoTreeOne
-          key={idRepoId(r)}
-          repoPath={r}
-          setRepoPath={v => {
-            if (v) {
-              setRepositories(repositories.map(x => x !== r ? x : v))
-            } else {
-              setRepositories(repositories.filter(x => x !== r))
-            }
-          }}
-        />
+      {repositories.map(repoPath => (
+        <TreeItem
+          key={idRepoId(repoPath)}
+          itemId={idRepoId(repoPath)}
+          label={(
+            <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
+              {repoPath}
+              <ButtonTooltip
+                title={'Remove repository'}
+                onClick={() => {
+                  setRepositories(repositories.filter(x => x !== repoPath))
+                }}
+              >
+                <Delete />
+              </ButtonTooltip>
+            </Stack>
+          )}
+        >
+        </TreeItem>
       ))}
     </TreeItem>
   )
