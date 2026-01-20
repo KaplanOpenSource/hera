@@ -24,58 +24,56 @@ export const ProjectTreeView = ({
   console.log(project)
 
   return (
-    <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-      <SimpleTreeView
-        defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
-        onSelectedItemsChange={(_e, itemIds) => {
-          setSelectedItemIds(itemIds ? [itemIds] : [])
-        }}
-        expansionTrigger={'iconContainer'}
-        multiSelect={false}
-      >
-        <TreeItem key={`project-documents`} itemId={`project-documents`}
-          label={(
-            <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
-              <Typography>
-                Project {project.name}
-              </Typography>
-              <ButtonTooltip
-                title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
-                onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
-              >
-                {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
-              </ButtonTooltip>
-              <RepoAddButton
-              />
-            </Stack>
-          )}
-        >
-          <Tooltip title='Files directory where the project is located'>
-            <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
-              <Folder />
-              <Typography>
-                {project.configDocument?.data.desc.filesDirectory}
-              </Typography>
-            </Stack>
-          </Tooltip>
-          {toolkits.map(toolkit => (
-            <ToolkitTreeItem
-              key={toolkit.toolkit}
-              project={project}
-              toolkit={toolkit}
-              showEmpty={showEmptyToolkits}
+    <SimpleTreeView
+      defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
+      onSelectedItemsChange={(_e, itemIds) => {
+        setSelectedItemIds(itemIds ? [itemIds] : [])
+      }}
+      expansionTrigger={'iconContainer'}
+      multiSelect={false}
+    >
+      <TreeItem key={`project-documents`} itemId={`project-documents`}
+        label={(
+          <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
+            <Typography>
+              Project {project.name}
+            </Typography>
+            <ButtonTooltip
+              title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
+              onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
+            >
+              {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
+            </ButtonTooltip>
+            <RepoAddButton
             />
-          ))}
+          </Stack>
+        )}
+      >
+        <Tooltip title='Files directory where the project is located'>
+          <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
+            <Folder />
+            <Typography>
+              {project.configDocument?.data.desc.filesDirectory}
+            </Typography>
+          </Stack>
+        </Tooltip>
+        {toolkits.map(toolkit => (
           <ToolkitTreeItem
-            key={'no_toolkit'}
+            key={toolkit.toolkit}
             project={project}
-            toolkit={undefined}
+            toolkit={toolkit}
             showEmpty={showEmptyToolkits}
           />
-        </TreeItem>
-        <RepoTreeWhole
+        ))}
+        <ToolkitTreeItem
+          key={'no_toolkit'}
+          project={project}
+          toolkit={undefined}
+          showEmpty={showEmptyToolkits}
         />
-      </SimpleTreeView>
-    </Paper>
+      </TreeItem>
+      <RepoTreeWhole
+      />
+    </SimpleTreeView>
   );
 };

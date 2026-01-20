@@ -44,7 +44,7 @@ export const DetailsViewPanel = ({
   }
 
   return (
-    <Paper sx={{ p: 2, height: '100%' }}>
+    <>
       {doc
         ? (
           <DetailsViewDocument
@@ -53,6 +53,6 @@ export const DetailsViewPanel = ({
           />
         )
         : null}
-    </Paper>
+    </>
   );
 };

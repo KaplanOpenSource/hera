@@ -1,4 +1,4 @@
-import { Alert, Box, Stack, Typography } from '@mui/material';
+import { Alert, AppBar, Box, Paper, Stack, Toolbar, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { CommandExecutor } from './components/CommandExecutor';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
@@ -11,8 +11,8 @@ import { ServerConstantReader } from './stores/useServerConstants';
 import { CommitIdShower } from './components/header/CommitIdShower';
 
 export default function App() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  // const [loading, setLoading] = useState(false);
+  // const [error, setError] = useState<string | undefined>(undefined);
   const { getProject } = useProjectStore();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
 
@@ -25,48 +25,57 @@ export default function App() {
   return (<>
     <ServerConstantReader />
     <FetchProjects />
-    <Stack spacing={2} margin={2}>
-      <Stack direction={'row'}>
-        <PageTitle />
-        <ProjectChooser />
-        <CommitIdShower />
-      </Stack>
-      {error && (
-        <Box sx={{ mb: 2 }}>
-          <Alert severity="error">{error}</Alert>
-        </Box>
-      )}
-      <Box sx={{ display: 'flex', gap: 2, height: '80vh' }}>
-        <Box sx={{ width: '50%' }}>
-          {project
-            ? (
+    <Box
+      sx={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <AppBar position="static">
+        <Toolbar>
+          <Stack direction="row" spacing={2}>
+            <PageTitle />
+            <ProjectChooser />
+            <CommitIdShower />
+          </Stack>
+        </Toolbar>
+      </AppBar>
+
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          gap: 1,
+          minHeight: 0, // important for scroll behavior
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+            {project ? (
               <ProjectTreeView
                 project={project}
                 setSelectedItemIds={setSelectedItemIds}
               />
-            )
-            : (
-              <Typography>
-                No project loaded
-              </Typography>
+            ) : (
+              <Typography>No project loaded</Typography>
             )}
+          </Paper>
         </Box>
-        <Box sx={{ width: '50%' }}>
-          {project
-            ? (
+
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+            {project ? (
               <DetailsViewPanel
                 project={project}
                 selectedItemsIds={selectedItemsIds}
               />
-            )
-            : (
-              <Typography>
-                Select a project to see more details
-              </Typography>
+            ) : (
+              <Typography>Select a project to see more details</Typography>
             )}
+          </Paper>
         </Box>
       </Box>
-      <CommandExecutor />
-    </Stack>
+    </Box>
   </>)
 }
