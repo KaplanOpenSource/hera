@@ -57,7 +57,7 @@ result = {"json": data}
                 tree={tree}
               />
               <ButtonTooltip
-                title={'Edit Repository as string Json'}
+                title={'Edit Repository as Json text'}
                 onClick={() => setShowStr(!showStr)}
               >
                 <Edit />
@@ -65,16 +65,30 @@ result = {"json": data}
             </Stack>
           )}
         >
-          {tree === undefined ? null : (
-            <JsonTreeNode
-              label="root"
-              value={tree}
-              setData={val => {
-                setTree(val)
-              }}
-              parentKey="root"
-            />
-          )}
+          {typeof tree === "object" && tree !== null
+            ? (
+              <>
+                {Object.entries(tree).map(([key, val]) => (
+                  <JsonTreeNode
+                    key={key}
+                    label={key}
+                    parentKey={`root.${key}`}
+                    value={val as any}
+                    setData={(next) => {
+                      const newTree = { ...tree }
+                      if (next === undefined) {
+                        delete newTree[key]
+                      } else {
+                        newTree[key] = next;
+                      }
+                      setTree(newTree)
+                    }}
+                    recursiveEdit={false}
+                  />
+                ))}
+              </>
+            )
+            : null}
         </TreeItem>
       </SimpleTreeView>
       {showStr
@@ -89,8 +103,8 @@ result = {"json": data}
               } catch {
               }
             }}
-            textTitle="Repository Json (as string)"
-            buttonTitle={'Apply string Json to tree'}
+            textTitle="Repository Json (as text)"
+            buttonTitle={'Apply Json text to tree (locally, not affecting the file)'}
           />
         )
         : null}

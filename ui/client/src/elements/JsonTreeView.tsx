@@ -15,11 +15,13 @@ export const JsonTreeNode = ({
   value,
   setData,
   parentKey,
+  recursiveEdit = true,
 }: {
   label: string;
   value: JsonValue;
   setData?: (next: JsonValue | undefined) => void;
   parentKey: string,
+  recursiveEdit?: boolean,
 }) => {
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,7 +50,7 @@ export const JsonTreeNode = ({
             label={`[${index}]`}
             parentKey={`${parentKey}[${index}]`}
             value={item}
-            setData={setData === undefined ? undefined :
+            setData={setData === undefined || !recursiveEdit ? undefined :
               (next) =>
                 setData(
                   next === undefined
@@ -74,7 +76,7 @@ export const JsonTreeNode = ({
             label={key}
             parentKey={`${parentKey}.${label}[${key}]`}
             value={val}
-            setData={setData === undefined ? undefined :
+            setData={setData === undefined || !recursiveEdit ? undefined :
               (next) =>
                 setData(
                   next === undefined
