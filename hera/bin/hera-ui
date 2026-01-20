@@ -5,5 +5,11 @@
 # The web UI will be in: http://localhost:8000
 
 cd "$(dirname "$0")/../.." # Go to hera repo root
-pip install -r ui/server/requirements-server.txt
+
+if ! pip show fastapi > /dev/null 2>&1; then
+    echo "Hera-UI is not installed, please inform admin or install using the cmd:"
+    echo "  pip install -r ui/server/requirements-server.txt"
+    exit 1
+fi
+
 python ui/server/server.py
