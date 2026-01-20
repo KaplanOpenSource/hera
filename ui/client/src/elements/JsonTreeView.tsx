@@ -18,20 +18,24 @@ export const JsonTreeNode = ({
 }: {
   label: string;
   value: JsonValue;
-  setData: (next: JsonValue | undefined) => void;
+  setData?: (next: JsonValue | undefined) => void;
   parentKey: string,
 }) => {
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setData(undefined);
+    if (setData) {
+      setData(undefined);
+    }
   };
 
   const labelNode = (
     <Stack direction="row" spacing={1} alignItems="center">
       <Typography variant="body2">{label}</Typography>
-      <IconButton size="small" onClick={onDelete}>
-        <DeleteIcon fontSize="inherit" />
-      </IconButton>
+      {setData === undefined ? null :
+        <IconButton size="small" onClick={onDelete}>
+          <DeleteIcon fontSize="inherit" />
+        </IconButton>
+      }
     </Stack>
   );
 
@@ -44,12 +48,13 @@ export const JsonTreeNode = ({
             label={`[${index}]`}
             parentKey={`${parentKey}[${index}]`}
             value={item}
-            setData={(next) =>
-              setData(
-                next === undefined
-                  ? value.filter((_, i) => i !== index)
-                  : value.map((v, i) => (i === index ? next : v))
-              )
+            setData={setData === undefined ? undefined :
+              (next) =>
+                setData(
+                  next === undefined
+                    ? value.filter((_, i) => i !== index)
+                    : value.map((v, i) => (i === index ? next : v))
+                )
             }
           />
         ))}
@@ -69,14 +74,15 @@ export const JsonTreeNode = ({
             label={key}
             parentKey={`${parentKey}.${label}[${key}]`}
             value={val}
-            setData={(next) =>
-              setData(
-                next === undefined
-                  ? Object.fromEntries(
-                    Object.entries(value).filter(([k]) => k !== key)
-                  )
-                  : { ...value, [key]: next }
-              )
+            setData={setData === undefined ? undefined :
+              (next) =>
+                setData(
+                  next === undefined
+                    ? Object.fromEntries(
+                      Object.entries(value).filter(([k]) => k !== key)
+                    )
+                    : { ...value, [key]: next }
+                )
             }
           />
         ))}
@@ -92,9 +98,11 @@ export const JsonTreeNode = ({
           <Typography variant="body2">
             {label}: {String(value)}
           </Typography>
-          <IconButton size="small" onClick={onDelete}>
-            <DeleteIcon fontSize="inherit" />
-          </IconButton>
+          {setData === undefined ? null :
+            <IconButton size="small" onClick={onDelete}>
+              <DeleteIcon fontSize="inherit" />
+            </IconButton>
+          }
         </Stack>
       }
     />

@@ -1,12 +1,12 @@
-import { Box, Stack, TextField } from "@mui/material";
+import { Edit } from "@mui/icons-material";
+import { Stack } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useEffect, useState } from "react";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
 import { idRepoId } from "../../shared/idDocId";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { Check, Edit } from "@mui/icons-material";
 import { TextFieldWithApply } from "./TextFieldWithApply";
 
 export const DetailsViewRepo = ({
