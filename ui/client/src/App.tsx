@@ -50,31 +50,34 @@ export default function App() {
           minHeight: 0, // important for scroll behavior
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-            {project ? (
-              <ProjectTreeView
-                project={project}
-                setSelectedItemIds={setSelectedItemIds}
-              />
-            ) : (
-              <Typography>No project loaded</Typography>
-            )}
-          </Paper>
-        </Box>
+        {project
+          ? (<>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                <ProjectTreeView
+                  project={project}
+                  setSelectedItemIds={setSelectedItemIds}
+                />
+              </Paper>
+            </Box>
 
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-            {project ? (
-              <DetailsViewPanel
-                project={project}
-                selectedItemsIds={selectedItemsIds}
-              />
-            ) : (
-              <Typography>Select a project to see more details</Typography>
-            )}
-          </Paper>
-        </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                <DetailsViewPanel
+                  project={project}
+                  selectedItemsIds={selectedItemsIds}
+                />
+              </Paper>
+            </Box>
+          </>)
+          
+          : (
+            <Paper sx={{ p: 2, height: '100%', overflow: 'auto', flex: 1, minWidth: 0 }}>
+              <Typography>
+                No project loaded
+              </Typography>
+            </Paper>
+          )}
       </Box>
     </Box>
   </>)
