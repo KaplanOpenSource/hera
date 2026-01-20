@@ -3,11 +3,11 @@ import { Stack } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useEffect, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
 import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
+import { JsonTreeNode } from "../../elements/JsonTreeNode";
 
 export const DetailsViewRepo = ({
   repoPath,
