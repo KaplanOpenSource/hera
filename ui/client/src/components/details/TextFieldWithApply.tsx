@@ -1,6 +1,7 @@
-import { Check } from "@mui/icons-material";
-import { Box, TextField } from "@mui/material";
+import { Check, UploadFile } from "@mui/icons-material";
+import { Box, Stack, TextField } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
+import { useRef } from "react";
 
 export const TextFieldWithApply = ({
   value,
@@ -15,6 +16,8 @@ export const TextFieldWithApply = ({
   textTitle: string,
   buttonTitle: string,
 }) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   return (
     <Box position={'relative'}>
       <TextField
@@ -29,18 +32,41 @@ export const TextFieldWithApply = ({
         rows={15}
         multiline={true}
       />
-      <ButtonTooltip
+      <Stack
+        direction={'row'}
         sx={{
           position: 'absolute',
           top: '8px',
           right: '20px',
           zIndex: 1
         }}
-        title={buttonTitle}
-        onClick={() => onApply()}
       >
-        <Check />
-      </ButtonTooltip>
+        <ButtonTooltip
+          title={'Load text file'}
+          onClick={() => inputRef.current?.click()}
+        >
+          <UploadFile />
+          <input
+            ref={inputRef}
+            type="file"
+            style={{ display: 'none' }}
+            accept=".txt,.json"
+            onChange={async (e) => {
+              const file = (e.target.files || [])[0];
+              if (file) {
+                const str = await file.text();
+                setValue(str);
+              }
+            }}
+          />
+        </ButtonTooltip>
+        <ButtonTooltip
+          title={buttonTitle}
+          onClick={() => onApply()}
+        >
+          <Check />
+        </ButtonTooltip>
+      </Stack>
     </Box>
   )
 }
