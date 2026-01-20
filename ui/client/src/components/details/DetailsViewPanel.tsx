@@ -1,6 +1,7 @@
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idFromDocId } from '../../shared/idDocId';
+import { idFromDocId, idFromRepoId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
+import { DetailsViewRepo } from './DetailsViewRepo';
 
 export const DetailsViewPanel = ({
   project,
@@ -15,6 +16,15 @@ export const DetailsViewPanel = ({
       <DetailsViewDocId
         project={project}
         docid={docid}
+      />
+    )
+  }
+
+  const repoid = idFromRepoId(showItemId);
+  if (repoid) {
+    return (
+      <DetailsViewRepo
+        repoPath={repoid}
       />
     )
   }
