@@ -7,6 +7,7 @@ import { idRepoId } from "../../shared/idDocId";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Check, Edit } from "@mui/icons-material";
+import { TextFieldWithApply } from "./TextFieldWithApply";
 
 export const DetailsViewRepo = ({
   repoPath,
@@ -78,38 +79,19 @@ result = {"json": data}
       </SimpleTreeView>
       {showStr
         ? (
-          <Box position={'relative'}>
-            <TextField
-              fullWidth
-              label="Repository Json (as string)"
-              value={repoStr}
-              onClick={e => e.stopPropagation()}
-              onChange={(e) => {
-                setRepoStr(e.target.value);
-              }}
-              size="small"
-              rows={15}
-              multiline={true}
-            />
-            <ButtonTooltip
-              sx={{
-                position: 'absolute',
-                top: '8px',
-                right: '20px',
-                zIndex: 1
-              }}
-              title={'Apply string Json to tree'}
-              onClick={() => {
-                try {
-                  const t = JSON.parse(repoStr);
-                  setTree(t);
-                } catch {
-                }
-              }}
-            >
-              <Check />
-            </ButtonTooltip>
-          </Box>
+          <TextFieldWithApply
+            value={repoStr}
+            setValue={v => setRepoStr(v)}
+            onApply={() => {
+              try {
+                const t = JSON.parse(repoStr);
+                setTree(t);
+              } catch {
+              }
+            }}
+            textTitle="Repository Json (as string)"
+            buttonTitle={'Apply string Json to tree'}
+          />
         )
         : null}
     </>
