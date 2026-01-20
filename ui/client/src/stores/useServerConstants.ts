@@ -25,7 +25,6 @@ result = {'datatypes': datatypes}
 }));
 
 export const ServerConstantReader = () => {
-  console.log(1)
   useEffect(() => {
     useServerConstants.getState().readAllConstants();
   }, [])
