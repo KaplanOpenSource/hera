@@ -1,10 +1,22 @@
 # Hera UI
 
 ## Using without docker
+#### Install
+```
+pip install -r ui/server/requirements-server.txt
+```
+
+#### Run
 Run this script, be sure to activate your `venv` or `heraenv` before
 ```sh
-sh hera/scripts/run_ui.sh
+hera-ui [--cors]
 ```
+This is a shell script on `hera/bin/` folder. [here](../hera/bin/hera-ui)  
+Args:  
+- `--cors`: not limiting serving the web page only to local browsing.  
+If the machine IP is `4.3.2.1` browse thru http://4.3.2.1:8000  
+
+- `--debug`: allowing you to run vscode debugging of hera [more info](https://code.visualstudio.com/docs/python/python-quick-start)  
 
 ## Using with docker
 #### Build
