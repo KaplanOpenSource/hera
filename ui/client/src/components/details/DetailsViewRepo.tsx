@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
-import { idRepoId } from "../../shared/idDocId";
+import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
 
@@ -16,7 +16,7 @@ export const DetailsViewRepo = ({
 }) => {
   const [tree, setTree] = useState<any>(undefined);
   const [repoStr, setRepoStr] = useState<string>('');
-  const [showStr, setShowStr] = useState<boolean>(false);
+  const [showStr, setShowStr] = useState<boolean>(repoPath.includes(TEMP_REPO_NAME));
 
   useEffect(() => {
     (async () => {

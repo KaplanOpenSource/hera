@@ -4,9 +4,7 @@ import { TreeItem } from "@mui/x-tree-view";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
-import { idRepoId } from "../../shared/idDocId";
-
-const TEMP_REPO_NAME = '*Temp Repository*';
+import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 
 export const RepoTreeWhole = ({ }) => {
   const [repositories, setRepositories] = useState<string[]>(['hera/doc/jupyter/Developer/Documentation_Repository.json']);

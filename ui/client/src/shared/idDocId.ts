@@ -1,5 +1,6 @@
 const ID_PREFIX_DOC = 'document_'
 const ID_PREFIX_REPO = '__repo_*_'
+export const TEMP_REPO_NAME = '*Temp Repository*';
 
 export const idDocId = (oid: string) => {
   return ID_PREFIX_DOC + oid;
@@ -15,4 +16,4 @@ export const idRepoId = (repoName: string) => {
 
 export const idFromRepoId = (repoid: string) => {
   return repoid && repoid.startsWith(ID_PREFIX_REPO) ? repoid.replace(ID_PREFIX_REPO, "") : undefined;
-}
+};
