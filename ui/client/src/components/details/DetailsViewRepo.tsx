@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { JsonTreeNode } from "../../elements/JsonTreeView";
 import { execPython } from "../../io/execPython";
 import { idRepoId } from "../../shared/idDocId";
-import { RepoTreeAddButton } from "../project/RepoTreeAddButton";
+import { RepoTreeAddButton } from "./RepoTreeAddButton";
 
 export const DetailsViewRepo = ({
   repoPath,
