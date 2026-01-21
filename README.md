@@ -242,7 +242,7 @@ Finally, create the following json file within `.pyhera` folder:
 ```
 where `<username>` should be replaced by your username on your system.
 
-# 3. Additional software for the  hera ecosystem
+# 3. Hera UI
 Refer to [README.md](https://github.com/KaplanOpenSource/hera/blob/master/ui/README.md)
 
 # 4. Additional software for the  hera ecosystem
