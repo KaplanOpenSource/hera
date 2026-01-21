@@ -41,6 +41,7 @@ export const RenameField = ({
           </>)
         }
       }}
+      fullWidth
     />
   )
 }

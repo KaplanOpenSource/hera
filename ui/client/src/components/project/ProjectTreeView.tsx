@@ -7,6 +7,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { RepoAddButton } from '../repo/RepoAddButton';
+import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
 
 export const ProjectTreeView = ({
@@ -23,9 +24,9 @@ export const ProjectTreeView = ({
   console.log(project)
 
   return (
-    <Paper sx={{ p: 2 }}>
+    <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
       <SimpleTreeView
-        defaultExpandedItems={['project-documents', 'no-toolkit']}
+        defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
         onSelectedItemsChange={(_e, itemIds) => {
           setSelectedItemIds(itemIds ? [itemIds] : [])
         }}
@@ -72,6 +73,8 @@ export const ProjectTreeView = ({
             showEmpty={showEmptyToolkits}
           />
         </TreeItem>
+        <RepoTreeWhole
+        />
       </SimpleTreeView>
     </Paper>
   );

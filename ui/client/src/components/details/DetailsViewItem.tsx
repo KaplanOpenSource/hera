@@ -1,9 +1,8 @@
-import { Add, CreateNewFolder, Delete, Edit } from '@mui/icons-material';
-import { Box, Stack, Typography } from '@mui/material';
+import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
+import { Stack } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
-import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { RenameField } from '../../elements/RenameField';
+import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
@@ -25,8 +24,6 @@ export const DetailsViewItem = ({
   level: number,
   index: number,
 }) => {
-  const [editing, setEditing] = useState(false);
-
   const key = keyForDetailsViewItem(itemKey, level, index);
   const isTree = typeof itemValue === 'object';
 
@@ -46,67 +43,56 @@ export const DetailsViewItem = ({
     <TreeItem
       key={key}
       itemId={key}
-      label={<Stack direction='row' spacing={0} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 0 }}>
+      label={(
+        <Stack
+          direction='row'
+          spacing={1}
+          justifyItems={'stretch'}
+          alignItems={'center'}
+          style={{ marginTop: 7 }}
+        >
 
-        <Box sx={{ marginRight: 1 }}>
-          {(editing && setItemKey)
-            ? (
-              <RenameField
-                value={itemKey}
-                setValue={val => {
-                  setItemKey(val);
-                  setEditing(false);
-                }}
-              />
-            )
-            : (
-              <Typography>
-                {itemKey}
-              </Typography>
-            )}
-        </Box>
-
-        {isTree && (<>
-          <ButtonTooltip
-            title={'Add item'}
-            onClick={() => addSubItem('')}
-          >
-            <Add />
-          </ButtonTooltip>
-          <ButtonTooltip
-            title={'Add sub structure'}
-            onClick={() => addSubItem({})}
-          >
-            <CreateNewFolder />
-          </ButtonTooltip>
-        </>)}
-
-        {!isTree && (<>
-          <DetailsViewItemSingle
+          <DetailsViewItemName
             itemKey={itemKey}
-            itemValue={itemValue}
-            setItemValue={newVal => setItemValue(newVal)}
+            setItemKey={setItemKey}
           />
-        </>)}
 
-        {setItemKey && (<>
-          <ButtonTooltip
-            title={'Rename ' + itemKey}
-            onClick={() => setEditing(!editing)}
-          >
-            <Edit />
-          </ButtonTooltip>
-          <ButtonTooltip
-            title={'Delete ' + itemKey}
-            onClick={() => setItemKey(undefined)}
-          >
-            <Delete />
-          </ButtonTooltip>
-        </>)}
-      </Stack>}
+          {isTree && (<>
+            <ButtonTooltip
+              title={'Add item'}
+              onClick={() => addSubItem('')}
+            >
+              <Add />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Add sub structure'}
+              onClick={() => addSubItem({})}
+            >
+              <CreateNewFolder />
+            </ButtonTooltip>
+          </>)}
+
+          {!isTree && (<>
+            <DetailsViewItemSingle
+              itemKey={itemKey}
+              itemValue={itemValue}
+              setItemValue={newVal => setItemValue(newVal)}
+            />
+          </>)}
+
+          {setItemKey && (<>
+            <ButtonTooltip
+              title={'Delete ' + itemKey}
+              onClick={() => setItemKey(undefined)}
+            >
+              <Delete />
+            </ButtonTooltip>
+          </>)}
+        </Stack>
+      )}
     >
       {isTree && (<>
-        {Object.entries(itemValue).map(([k, v], i) => {
+        {Object.entries(itemValue).sort().map(([k, v], i) => {
           const isDir = level === 1 && itemKey === 'desc' && k === 'filesDirectory';
           const changeKey = (newKey: string | undefined) => {
             const item = { ...itemValue };

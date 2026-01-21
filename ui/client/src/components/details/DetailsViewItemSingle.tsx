@@ -25,59 +25,58 @@ export const DetailsViewItemSingle = ({
   const [itemType, setItemType] = useState<ItemTypesEnum>((isnum(itemValue) ? 'number' : 'string') as ItemTypesEnum);
 
   return (
-    <Stack direction='row' spacing={1} justifyItems={'center'} alignItems={'center'} style={{ marginTop: 8 }}>
-      <SwitchCase test={itemKey}>
-        <Case isDefault>
-          <TextField
-            size='small'
-            value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
-            onChange={(e) => {
-              if (itemType === 'number') {
-                const num = parseFloat(e.target.value);
-                if (Number.isFinite(num)) {
-                  setItemValue(num)
-                }
-              } else {
-                setItemValue(e.target.value)
+    <SwitchCase test={itemKey}>
+      <Case isDefault>
+        <TextField
+          size='small'
+          value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
+          onChange={(e) => {
+            if (itemType === 'number') {
+              const num = parseFloat(e.target.value);
+              if (Number.isFinite(num)) {
+                setItemValue(num)
               }
-            }}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => e.stopPropagation()}
-          />
-          <FormControl style={{ minWidth: '100px' }}>
-            <InputLabel>
-              Type
-            </InputLabel>
-            <Select
-              value={itemType}
-              label="Type"
-              size='small'
-              onChange={e => setItemType(e.target.value)}
-            >
-              {Object.keys(ItemTypesEnum).filter(x => isNaN(x as any)).map(name => (
-                <MenuItem key={name} value={name}>{name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Case>
-        <Case value={'dataFormat'}>
-          <FormControl style={{ minWidth: '100px' }}>
-            <InputLabel>
-              {itemKey}
-            </InputLabel>
-            <Select
-              value={itemValue}
-              label="dataFormat"
-              size='small'
-              onChange={(e: SelectChangeEvent) => setItemValue(e.target.value as string)}
-            >
-              {Object.entries(dataTypes).map(([_upcasename, name]) => (
-                <MenuItem key={name} value={name}>{name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Case>
-      </SwitchCase>
-    </Stack>
+            } else {
+              setItemValue(e.target.value)
+            }
+          }}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+          fullWidth
+        />
+        <FormControl style={{ minWidth: '100px' }}>
+          <InputLabel>
+            Type
+          </InputLabel>
+          <Select
+            value={itemType}
+            label="Type"
+            size='small'
+            onChange={e => setItemType(e.target.value)}
+          >
+            {Object.keys(ItemTypesEnum).filter(x => isNaN(x as any)).map(name => (
+              <MenuItem key={name} value={name}>{name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Case>
+      <Case value={'dataFormat'}>
+        <FormControl style={{ minWidth: '100px' }}>
+          <InputLabel>
+            {itemKey}
+          </InputLabel>
+          <Select
+            value={itemValue}
+            label="dataFormat"
+            size='small'
+            onChange={(e: SelectChangeEvent) => setItemValue(e.target.value as string)}
+          >
+            {Object.entries(dataTypes).map(([_upcasename, name]) => (
+              <MenuItem key={name} value={name}>{name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Case>
+    </SwitchCase>
   )
 }

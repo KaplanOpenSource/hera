@@ -319,10 +319,6 @@ class Project:
         -------
 
         """
-        # counterDict = cnfg.setdefault("counters",{}).copy()
-        # counterDict[counterName] =defaultValue
-        # cnfg["counters"] = counterDict
-        # self.setConfig(**cnfg)
         counterName = self._nomralizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
         self.defineCounter(counterName,0)
@@ -371,7 +367,6 @@ class Project:
         """
         counterName = self._nomralizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
-        # self.defineCounter(counterName,0)
         self._enforce_counter_field(cnfg_doc)
         #if it doesn't exist there is nothing to get, returning None
         if cnfg_doc.filter(**{f"desc__counters__{counterName}__exists": True}).first() is None: 
@@ -400,13 +395,6 @@ class Project:
         -------
 
         """
-        # cnfg =self.getConfig()
-        # counterDict = cnfg.get("counters",{}).copy()
-        # ret = counterDict.setdefault(counterName,0)
-        # counterDict[counterName] += addition
-        # cnfg["counters"] =counterDict
-        # self.setConfig(**cnfg)
-
         counterName = self._nomralizeCounterName(counterName)
         isNew = self.defineCounter(counterName,0)
         if isNew:

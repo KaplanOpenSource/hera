@@ -16,6 +16,7 @@ import { execPython } from "../../io/execPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { ProjectEntire, ProjectName } from "@shared/types";
+import { BooleanProperty } from "../../elements/BooleanProperty";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
@@ -97,15 +98,11 @@ result = {"projectNames": projectNames, "project": project}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <FormGroup>
-          <FormControlLabel
-            label="Load Repositories"
-            control={<Checkbox
-              checked={loadRepositories}
-              onChange={(e) => setLoadRepositories(e.target.checked)}
-            />}
-          />
-        </FormGroup>
+        <BooleanProperty
+          label="Load Repositories"
+          value={loadRepositories}
+          setValue={v => setLoadRepositories(v)}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>

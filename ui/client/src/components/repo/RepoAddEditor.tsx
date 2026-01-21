@@ -1,4 +1,5 @@
 import {
+  Box,
   Checkbox,
   FormControlLabel,
   FormGroup,
@@ -7,6 +8,7 @@ import {
   Typography,
 } from "@mui/material"
 import { useState } from "react";
+import { JsonTreeView } from "../../elements/JsonTreeView";
 
 export type RepoAddParams = {
   repositoryJson: string;
@@ -38,6 +40,14 @@ export const RepoAddEditor = ({
   const dataSources = Object.keys(jsonobj);
   return (
     <Stack direction={'column'} spacing={2}>
+      <Box sx={{ maxHeight: '40vh', overflow: 'auto' }}>
+        <JsonTreeView
+          data={jsonobj}
+          setData={val => {
+            setValues({ ...values, repositoryJson: JSON.stringify(val, undefined, 2) })
+          }}
+        />
+      </Box>
       <Stack direction={'row'} spacing={2}>
         <TextField
           fullWidth
@@ -46,11 +56,11 @@ export const RepoAddEditor = ({
           onClick={e => e.stopPropagation()}
           onChange={(e) => setValues({ ...values, repositoryJson: e.target.value })}
           size="small"
-          rows={10}
+          rows={4}
           multiline={true}
         />
         <Stack>
-          <Typography variant="h6">
+          {/* <Typography variant="h6">
             DataSources
           </Typography>
           {dataSources.length === 0 && 'None'}
@@ -67,7 +77,7 @@ export const RepoAddEditor = ({
             <Typography key={d}>
               {d}
             </Typography>
-          ))}
+          ))} */}
         </Stack>
       </Stack>
       <TextField
