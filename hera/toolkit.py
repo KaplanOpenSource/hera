@@ -943,6 +943,21 @@ class abstractToolkit(Project):
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         return None if doc is None else doc.getData()
 
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
+        return super().addCacheDocument(resource, dataFormat, type, desc)
+    
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
+        return super().addMeasurementsDocument(resource, dataFormat, type, desc)
+
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
+        return super().addSimulationsDocument(resource, dataFormat, type, desc)
+
     def addDataSource(self, dataSourceName, resource, dataFormat, version=(0, 0, 1), overwrite=False, **kwargs):
         """
             Adds a resource to the toolkit.
