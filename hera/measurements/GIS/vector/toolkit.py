@@ -12,7 +12,7 @@ TOOLKIT_VECTOR_REGIONNAME = "regionName"
 class VectorToolkit(toolkit.abstractToolkit):
 
 
-    def __init__(self, projectName, toolkitName = 'VectorToolkit', filesDirectory=None):
+    def __init__(self, projectName, toolkitName = 'VectorToolkit', filesDirectory=None,connectionName=None):
         """
             Initializes vector data toolkit.
 
@@ -32,7 +32,7 @@ class VectorToolkit(toolkit.abstractToolkit):
                 exist, then use the current directory.
 
         """
-        super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName,toolkitName=toolkitName,filesDirectory=filesDirectory,connectionName=connectionName)
 
     @staticmethod
     def geopandasToGeoJson(geoData):

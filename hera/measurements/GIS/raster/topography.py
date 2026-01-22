@@ -35,7 +35,7 @@ WSG84 = 4326
 
 class TopographyToolkit(toolkit.abstractToolkit):
 
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
         """
         Initializes the TopographyToolkit.
 
@@ -56,7 +56,7 @@ class TopographyToolkit(toolkit.abstractToolkit):
         # we now pass only the project name (as a string).
         # This is necessary because MongoDB expects simple types like strings,
         # and cannot serialize full complex Python objects (like Project instances).
-        super().__init__(projectName=projectName, toolkitName='TopographyToolkit', filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName='TopographyToolkit', filesDirectory=filesDirectory,connectionName=connectionName)
 
         # Initialize the analysis module for topography calculations
         self._analysis = topographyAnalysis(self)

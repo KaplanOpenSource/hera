@@ -27,9 +27,9 @@ class BuildingsToolkit(VectorToolkit):
         - Building height column : the column name is in BuildingHeightColumn. Default value=BLDG_HT.
         - Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.
     """
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
 
-        super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory,connectionName=connectionName)
         self._analysis = analysis(dataLayer=self)
 
     def getBuildingHeightFromRasterTopographyToolkit(self, buildingData, topographyDataSource=None):

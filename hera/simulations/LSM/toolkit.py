@@ -70,7 +70,7 @@ class LSMToolkit(toolkit.abstractToolkit):
     def singleSimulation(self):
         return SingleSimulation
 
-    def __init__(self, projectName, filesDirectory=None, to_xarray=True, to_database=False, forceKeep=False):
+    def __init__(self, projectName, filesDirectory=None, to_xarray=True, to_database=False, forceKeep=False,connectionName=None):
         """
             Initializes the LSM.old toolkit
 
@@ -95,7 +95,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             if False, removes the Lagrnagian files.
 
         """
-        super().__init__(projectName=projectName, toolkitName="LSM.old", filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName="LSM.old", filesDirectory=filesDirectory,connectionName=connectionName)
 
         self.to_xarray = to_xarray
         self.to_database = to_database

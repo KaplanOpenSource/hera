@@ -8,7 +8,7 @@ class gaussianToolkit(abstractToolkit):
 
     _sigmaDict = None
 
-    def __init__(self, projectName: str, filesDirectory: str = None):
+    def __init__(self, projectName: str, filesDirectory: str = None, connectionName=None):
         """
             Initializes the toolkit
         Parameters
@@ -16,7 +16,7 @@ class gaussianToolkit(abstractToolkit):
         projectName
         filesDirectory
         """
-        super().__init__(projectName=projectName, toolkitName="gaussianToolkit", filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName="gaussianToolkit", filesDirectory=filesDirectory, connectionName=connectionName)
         self._sigmaDict = dict(briggsRural=BriggsRural)
 
     def getSigmaType(self,sigmaName):

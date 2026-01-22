@@ -50,7 +50,7 @@ class hermesWorkflowToolkit(abstractToolkit):
     DOCKIND_CACHE = "Cache"
     DOCKIND_SIMULATIONS = "Simulations"
 
-    def __init__(self, projectName: str, filesDirectory: str = None, toolkitName: str = "hermesWorkflowToolkit"):
+    def __init__(self, projectName: str, filesDirectory: str = None, toolkitName: str = "hermesWorkflowToolkit", connectionName=None):
         """
             Initializes the workflow toolkit.
 
@@ -64,7 +64,8 @@ class hermesWorkflowToolkit(abstractToolkit):
         """
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
-                         toolkitName=toolkitName)
+                         toolkitName=toolkitName,
+                         connectionName=connectionName)
 
         # ## Create the simulationType->object map
         # self._simulationTypeMap = {

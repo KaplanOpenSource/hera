@@ -24,9 +24,9 @@ class TopographyToolkit(VectorToolkit):
     def stlFactory(self):
         return self._stlFactory
 
-    def __init__(self, projectName, filesDirectory=""):
+    def __init__(self, projectName, filesDirectory="",connectionName=None):
         toolkitName = "Topography"
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName=toolkitName)
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName=toolkitName,connectionName=connectionName)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
         self._toolkitname = toolkitName
         self._stlFactory = stlFactory()

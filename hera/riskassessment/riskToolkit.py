@@ -32,8 +32,8 @@ class RiskToolkit(abstractToolkit):
     def presentation(self):
         return self._presentation
 
-    def __init__(self, projectName, filesDirectory=None):
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName="RiskAssessment")
+    def __init__(self, projectName, filesDirectory=None, connectionName=None):
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName="RiskAssessment", connectionName=connectionName)
         self._presentation = casualtiesPlot()
         self._protectionPolicy = ProtectionPolicy
         self._analysis = analysis(self)

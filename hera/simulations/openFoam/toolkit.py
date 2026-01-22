@@ -54,10 +54,11 @@ class OFToolkit(hermesWorkflowToolkit):
 
     buoyantReactingFoam = None
 
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None, connectionName=None):
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
-                         toolkitName="OFworkflowToolkit")
+                         toolkitName="OFworkflowToolkit", 
+                         connectionName=connectionName)
 
         self.OFObjectHome = OFObjectHome()
         self._analysis = Analysis(self)

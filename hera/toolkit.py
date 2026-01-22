@@ -738,7 +738,7 @@ class abstractToolkit(Project):
         """
         return self._projectName
 
-    def __init__(self, toolkitName, projectName, filesDirectory=None):
+    def __init__(self, toolkitName, projectName, connectionName=None, filesDirectory=None):
         """
             Initializes a new toolkit.
 
@@ -755,7 +755,7 @@ class abstractToolkit(Project):
             The directory to save datasource
 
         """
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory, connectionName=connectionName)
         logger = get_classMethod_logger(self, "init")
         self._toolkitname = toolkitName
 
