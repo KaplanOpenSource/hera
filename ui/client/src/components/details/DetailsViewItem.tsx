@@ -7,26 +7,24 @@ import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 import { SelectDataFormat } from './SelectDataFormat';
 
-export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
-  return `___lvl${level}_idx${index}_${itemKey}`;
-}
+export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
+  return parentKey ? `${parentKey}/${itemKey}` : itemKey;
+};
 
 export const DetailsViewItem = ({
   itemKey,
   itemValue,
   setItemValue,
   setItemKey = undefined,
-  level = 0,
-  index,
+  parentKey,
 }: {
   itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
   setItemKey?: (newKey: string | undefined) => void | undefined,
-  level: number,
-  index: number,
+  parentKey?: string,
 }) => {
-  const key = keyForDetailsViewItem(itemKey, level, index);
+  const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
   const { DialogComponent, openDialog } = useDialog();
 
@@ -141,8 +139,9 @@ export const DetailsViewItem = ({
       )}
     >
       {isTree && (<>
-        {Object.entries(itemValue).sort().map(([k, v], i) => {
-          const isDir = level === 1 && itemKey === 'desc' && k === 'filesDirectory';
+        {Object.entries(itemValue).sort().map(([k, v]) => {
+          const isDir = parentKey === undefined && itemKey === 'desc' && k === 'filesDirectory';
+
           const changeKey = (newKey: string | undefined) => {
             const item = { ...itemValue };
             delete item[k];
@@ -156,8 +155,7 @@ export const DetailsViewItem = ({
               key={k}
               itemKey={k}
               itemValue={v}
-              level={level + 1}
-              index={i}
+              parentKey={key}
               setItemValue={newVal => setItemValue({ ...itemValue, [k]: newVal })}
               setItemKey={isDir ? undefined : changeKey}
             />
