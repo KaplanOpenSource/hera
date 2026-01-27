@@ -6,6 +6,9 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
+import { copyWithout } from '../../utils/utils';
+
+const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 
 export const DetailsViewDocument = ({
   doc,
@@ -15,7 +18,7 @@ export const DetailsViewDocument = ({
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc.data)));
-  const [showRawStruct, setShowRawStruct] = useState(false);
+  const [showFormulated, setShowFormulated] = useState(false);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
@@ -29,10 +32,10 @@ export const DetailsViewDocument = ({
           {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
         <ButtonTooltip
-          title={'Show Raw Struct'}
-          onClick={() => setShowRawStruct(!showRawStruct)}
+          title={'Show Formulated'}
+          onClick={() => setShowFormulated(!showFormulated)}
         >
-          <DynamicForm color={showRawStruct ? 'primary' : 'inherit'} />
+          <DynamicForm color={showFormulated ? 'primary' : 'inherit'} />
         </ButtonTooltip>
         {isChanged
           ? (<>
@@ -84,7 +87,7 @@ export const DetailsViewDocument = ({
             <DetailsViewItem
               key={k}
               itemKey={k}
-              itemValue={v}
+              itemValue={showFormulated || k !== 'desc' ? v : copyWithout(v, HIDE_ON_DESC)}
               level={1}
               index={i}
               setItemValue={newVal => setShownDoc({ ...shownDoc, [k]: newVal })}
