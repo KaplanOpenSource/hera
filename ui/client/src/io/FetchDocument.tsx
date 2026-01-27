@@ -1,7 +1,6 @@
 import { ProjectDocument } from "@shared/types";
 import { execPython } from "./execPython";
-
-const FORBIDDEN_FIELDS = ['_id', '_cls', 'projectName'];
+import { FORBIDDEN_FIELDS } from "../shared/constants";
 
 export const fetchDocument = async (docid: string) => {
   const { data } = await execPython(`

@@ -1,10 +1,11 @@
-import { Close, Done } from '@mui/icons-material';
-import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
+import { Close, Done, DynamicForm } from '@mui/icons-material';
+import { Grid, Stack, Typography } from '@mui/material';
+import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 import { DocumentObj } from '../../objects/ProjectObj';
-import { Grid, Stack, Typography } from '@mui/material';
+import { FORBIDDEN_FIELDS } from '../../shared/constants';
+import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 
 export const DetailsViewDocument = ({
   doc,
@@ -14,6 +15,7 @@ export const DetailsViewDocument = ({
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc.data)));
+  const [showRawStruct, setShowRawStruct] = useState(false);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
@@ -22,10 +24,16 @@ export const DetailsViewDocument = ({
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
     <>
-      <Stack direction={'row'} alignItems={'center'}>
-        <Typography variant='h6'>
+      <Stack direction={'row'} alignItems={'center'} justifyItems={'center'}>
+        <Typography variant='h6' sx={{ marginRight: 1 }}>
           {doc.isConfig ? doc.project.name + ' config' : doc.name}
         </Typography>
+        <ButtonTooltip
+          title={'Show Raw Struct'}
+          onClick={() => setShowRawStruct(!showRawStruct)}
+        >
+          <DynamicForm color={showRawStruct ? 'primary' : 'inherit'} />
+        </ButtonTooltip>
         {isChanged
           ? (<>
             <ButtonTooltip
@@ -69,7 +77,7 @@ export const DetailsViewDocument = ({
         defaultExpandedItems={[keyForDetailsViewItem('desc', 1, 3)]}
       >
         {Object.entries(shownDoc).map(([k, v], i) => {
-          if (['_id', '_cls', 'projectName'].includes(k)) {
+          if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
           return (
