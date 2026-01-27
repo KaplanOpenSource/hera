@@ -109,14 +109,21 @@ export const DetailsViewDocument = ({
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
+          const hideOnDesc = showFormulated && k === 'desc';
           return (
             <DetailsViewItem
               key={k}
               itemKey={k}
-              itemValue={!showFormulated || k !== 'desc' ? v : copyWithout(v, HIDE_ON_DESC)}
+              itemValue={!hideOnDesc ? v : copyWithout(v, HIDE_ON_DESC)}
               level={1}
               index={i}
-              setItemValue={newVal => setShownDoc({ ...shownDoc, [k]: newVal })}
+              setItemValue={newVal => {
+                if (!hideOnDesc) {
+                  setShownDoc({ ...shownDoc, [k]: newVal });
+                } else {
+                  setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, ...newVal } });
+                }
+              }}
             />
           )
         })}
