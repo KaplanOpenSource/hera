@@ -1,5 +1,5 @@
 import { Close, Done, DynamicForm } from '@mui/icons-material';
-import { Grid, Stack, Typography } from '@mui/material';
+import { Grid, Stack, TextField, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
@@ -7,6 +7,7 @@ import { DocumentObj } from '../../objects/ProjectObj';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
 import { copyWithout, reorderEntries } from '../../utils/utils';
+import { ProjectDocument } from '../../shared/types';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 
@@ -86,16 +87,39 @@ export const DetailsViewDocument = ({
               {doc.data.desc.toolkit || 'None'}
             </Typography>
           </Grid>
-          <Grid size={1}>
-            <Typography sx={{ fontSize: 12 }}>
-              Version:
-            </Typography>
-          </Grid>
-          <Grid size={11}>
-            <Typography sx={{ fontSize: 12 }}>
-              {(doc.data.desc.version || []).join('.')}
-            </Typography>
-          </Grid>
+          {!doc.data.desc.version ? null : (<>
+            <Grid size={1}>
+              <Typography sx={{ fontSize: 12 }}>
+                Version:
+              </Typography>
+            </Grid>
+            <Grid size={11}>
+              {(shownDoc as ProjectDocument)!.desc.version?.map((vers, ivers) => (
+                <TextField key={ivers}
+                  size='small'
+                  sx={{
+                    width: 75, fontSize: 6, height: '20px',
+                    '& .MuiInputBase-input': {
+                      paddingRight: '4px',
+                    },
+                  }}
+                  slotProps={{
+                    input: {
+                      sx: { fontSize: 10, padding: '2px -50px', height: 24, margin: 0 },
+                    },
+                  }}
+                  type='number'
+                  value={vers}
+                  onChange={e => {
+                    const version = (shownDoc as ProjectDocument)!.desc.version?.slice() || [];
+                    version[ivers] = parseFloat(e.target.value);
+                    setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, version } })
+                  }}
+                />
+              ))
+              }
+            </Grid>
+          </>)}
         </>)}
       </Grid>
       <SimpleTreeView
