@@ -2,6 +2,7 @@ import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, Te
 import { Case, SwitchCase } from '../../elements/SwitchCase';
 import { useServerConstants } from '../../stores/useServerConstants';
 import { useState } from 'react';
+import { SelectProperty } from '../../elements/SelectProperty';
 
 enum ItemTypesEnum {
   number = 'number',
@@ -61,21 +62,12 @@ export const DetailsViewItemSingle = ({
         </FormControl>
       </Case>
       <Case value={'dataFormat'}>
-        <FormControl style={{ minWidth: '100px' }}>
-          <InputLabel>
-            {itemKey}
-          </InputLabel>
-          <Select
+        <SelectProperty
             value={itemValue}
             label="dataFormat"
-            size='small'
-            onChange={(e: SelectChangeEvent) => setItemValue(e.target.value as string)}
-          >
-            {Object.entries(dataTypes).map(([_upcasename, name]) => (
-              <MenuItem key={name} value={name}>{name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            setValue={v => setItemValue(v)}
+            menuItems={Object.entries(dataTypes).map(([_upcasename, name]) => ({name}))}
+        />
       </Case>
     </SwitchCase>
   )
