@@ -19,7 +19,7 @@ export const DetailsViewDocument = ({
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc.data)));
-  const [showFormulated, setShowFormulated] = useState(false);
+  const [showFormulated, setShowFormulated] = useState(true);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
