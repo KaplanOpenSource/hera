@@ -1,62 +1,62 @@
-import { FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
-import { useState } from 'react';
-import { Case, SwitchCase } from '../../elements/SwitchCase';
-import { SelectDataFormat } from './SelectDataFormat';
+import { TextField } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { SelectProperty } from '../../elements/SelectProperty';
 
 enum ItemTypesEnum {
   number = 'number',
   string = 'string',
+  null = 'null',
 }
 
-const isnum = (v: any) => {
-  return ['number', 'bigint'].includes(typeof v) && Number.isFinite(v);
+const calcItemType = (val: any) => {
+  if (val === null) {
+    return ItemTypesEnum.null;
+  } else if ((typeof val === 'number' || typeof val === 'bigint') && Number.isFinite(val)) {
+    return ItemTypesEnum.number;
+  } else {
+    return ItemTypesEnum.string;
+  }
 }
 
 export const DetailsViewItemSingle = ({
-  itemKey,
   itemValue,
   setItemValue,
 }: {
-  itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
 }) => {
-  const [itemType, setItemType] = useState<ItemTypesEnum>((isnum(itemValue) ? 'number' : 'string') as ItemTypesEnum);
+  const [itemType, setItemType] = useState<ItemTypesEnum>(() => calcItemType(itemValue));
+
+  useEffect(() => {
+    setItemType(calcItemType(itemValue));
+  }, [itemValue])
 
   return (
-    <SwitchCase test={itemKey}>
-      <Case isDefault>
-        <TextField
-          size='small'
-          value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
-          onChange={(e) => {
-            if (itemType === 'number') {
-              const num = parseFloat(e.target.value);
-              if (Number.isFinite(num)) {
-                setItemValue(num)
-              }
-            } else {
-              setItemValue(e.target.value)
+    <>
+      <TextField
+        size='small'
+        value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
+        onChange={(e) => {
+          if (itemType === 'number') {
+            const num = parseFloat(e.target.value);
+            if (Number.isFinite(num)) {
+              setItemValue(num)
             }
-          }}
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
-          fullWidth
-        />
-        <SelectProperty
-          label="Type"
-          value={itemType}
-          setValue={v => setItemType(v as ItemTypesEnum)}
-          menuItems={Object.keys(ItemTypesEnum).map((name) => ({ name }))}
-        />
-      </Case>
-      <Case value={'dataFormat'}>
-        <SelectDataFormat
-          value={itemValue}
-          setValue={v => setItemValue(v)}
-        />
-      </Case>
-    </SwitchCase>
+          } else {
+            setItemValue(e.target.value)
+          }
+        }}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        fullWidth
+        disabled={itemType === ItemTypesEnum.null}
+      />
+      <SelectProperty
+        label="Type"
+        value={itemType}
+        setValue={v => setItemType(v as ItemTypesEnum)}
+        menuItems={Object.keys(ItemTypesEnum).map((name) => ({ name }))}
+      />
+    </>
   )
 }

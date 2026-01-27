@@ -1,10 +1,11 @@
 import { Add, CreateNewFolder, Delete, Keyboard } from '@mui/icons-material';
-import { Stack, TextField, Typography } from '@mui/material';
+import { Stack, TextField } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { useDialog } from '../../elements/useDialog';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
+import { SelectDataFormat } from './SelectDataFormat';
 
 export const keyForDetailsViewItem = (itemKey: string, level: number = 0, index: number = 0) => {
   return `___lvl${level}_idx${index}_${itemKey}`;
@@ -110,13 +111,23 @@ export const DetailsViewItem = ({
             </ButtonTooltip>
           </>)}
 
-          {!isTree && (<>
-            <DetailsViewItemSingle
-              itemKey={itemKey}
-              itemValue={itemValue}
-              setItemValue={newVal => setItemValue(newVal)}
-            />
-          </>)}
+          {isTree
+            ? null
+            : (itemKey === 'dataFormat'
+              ? (
+                <SelectDataFormat
+                  value={itemValue}
+                  setValue={v => setItemValue(v)}
+                />
+              )
+              : (
+                <DetailsViewItemSingle
+                  itemValue={itemValue}
+                  setItemValue={newVal => setItemValue(newVal)}
+                />
+              )
+            )
+          }
 
           {setItemKey && (<>
             <ButtonTooltip
