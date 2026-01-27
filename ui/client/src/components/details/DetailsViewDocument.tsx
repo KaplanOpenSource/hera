@@ -6,7 +6,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
-import { copyWithout } from '../../utils/utils';
+import { copyWithout, reorderEntries } from '../../utils/utils';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 
@@ -101,7 +101,7 @@ export const DetailsViewDocument = ({
       <SimpleTreeView
         defaultExpandedItems={[keyForDetailsViewItem('desc', 1, 3)]}
       >
-        {Object.entries(shownDoc).map(([k, v], i) => {
+        {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v], i) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
