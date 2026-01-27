@@ -1,5 +1,5 @@
 import { Add, CreateNewFolder, Delete, Keyboard } from '@mui/icons-material';
-import { Stack, TextField } from '@mui/material';
+import { Stack, TextField, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { useDialog } from '../../elements/useDialog';
@@ -26,7 +26,7 @@ export const DetailsViewItem = ({
   index: number,
 }) => {
   const key = keyForDetailsViewItem(itemKey, level, index);
-  const isTree = typeof itemValue === 'object';
+  const isTree = typeof itemValue === 'object' && itemValue !== null;
   const { DialogComponent, openDialog } = useDialog();
 
   const addSubItem = (initialValue: any) => {
