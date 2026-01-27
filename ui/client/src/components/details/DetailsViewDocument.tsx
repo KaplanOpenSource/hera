@@ -103,9 +103,9 @@ export const DetailsViewDocument = ({
         </>)}
       </Grid>
       <SimpleTreeView
-        defaultExpandedItems={[keyForDetailsViewItem('desc', 1, 3)]}
+        defaultExpandedItems={[keyForDetailsViewItem('desc')]}
       >
-        {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v], i) => {
+        {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
@@ -115,8 +115,7 @@ export const DetailsViewDocument = ({
               key={k}
               itemKey={k}
               itemValue={!hideOnDesc ? v : copyWithout(v, HIDE_ON_DESC)}
-              level={1}
-              index={i}
+              parentKey={undefined}
               setItemValue={newVal => {
                 if (!hideOnDesc) {
                   setShownDoc({ ...shownDoc, [k]: newVal });
@@ -125,7 +124,7 @@ export const DetailsViewDocument = ({
                 }
               }}
             />
-          )
+          );
         })}
       </SimpleTreeView>
     </>
