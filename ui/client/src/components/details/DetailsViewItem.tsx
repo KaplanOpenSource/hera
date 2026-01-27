@@ -1,7 +1,8 @@
-import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
-import { Stack } from '@mui/material';
+import { Add, CreateNewFolder, Delete, Keyboard } from '@mui/icons-material';
+import { Stack, TextField } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { useDialog } from '../../elements/useDialog';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 
@@ -26,6 +27,7 @@ export const DetailsViewItem = ({
 }) => {
   const key = keyForDetailsViewItem(itemKey, level, index);
   const isTree = typeof itemValue === 'object';
+  const { DialogComponent, openDialog } = useDialog();
 
   const addSubItem = (initialValue: any) => {
     let name = '';
@@ -69,6 +71,42 @@ export const DetailsViewItem = ({
               onClick={() => addSubItem({})}
             >
               <CreateNewFolder />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Edit as Json Text'}
+              onClick={async () => {
+                const { confirmed, values } = await openDialog({
+                  title: 'Edit as Json Text',
+                  initialValues: { jsonText: JSON.stringify(itemValue, null, 2), ok: true },
+                  render: ({ values, setValues }) => (
+                    <TextField
+                      label="Json"
+                      fullWidth
+                      multiline
+                      minRows={4}
+                      maxRows={20}
+                      value={values.jsonText}
+                      onChange={e => {
+                        e.stopPropagation();
+                        let ok = true;
+                        try { JSON.parse(e.target.value) } catch { ok = false }
+                        setValues({ ...values, jsonText: e.target.value, ok });
+                      }}
+                      error={!values.ok}
+                      helperText={values.ok ? '' : 'Invalid Json'}
+                    />
+                  )
+                });
+                if (confirmed && values && values.ok) {
+                  try {
+                    const json = JSON.parse(values.jsonText);
+                    setItemValue(json);
+                  } catch { }
+                }
+              }}
+            >
+              <Keyboard />
+              {DialogComponent}
             </ButtonTooltip>
           </>)}
 
