@@ -37,7 +37,7 @@ export const DetailsViewItemSingle = ({
         size='small'
         value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
         onChange={(e) => {
-          if (itemType === 'number') {
+          if (itemType === ItemTypesEnum.number) {
             const num = parseFloat(e.target.value);
             if (Number.isFinite(num)) {
               setItemValue(num)
@@ -54,7 +54,17 @@ export const DetailsViewItemSingle = ({
       <SelectProperty
         label="Type"
         value={itemType}
-        setValue={v => setItemType(v as ItemTypesEnum)}
+        setValue={v => {
+          setItemType(v as ItemTypesEnum);
+          if (v === ItemTypesEnum.null) {
+            setItemValue(null);
+          } else if (v === ItemTypesEnum.number) {
+            const num = parseFloat(itemValue);
+            setItemValue(Number.isFinite(num) ? num : 0)
+          } else {
+            setItemValue(itemValue + '');
+          }
+        }}
         menuItems={Object.keys(ItemTypesEnum).map((name) => ({ name }))}
       />
     </>
