@@ -12,7 +12,7 @@ export const SelectProperty = ({
   menuItems: { name: string }[],
 }) => {
   return (
-    <FormControl style={{ minWidth: '100px' }}>
+    <FormControl style={{ minWidth: '110px' }}>
       <InputLabel>
         {label}
       </InputLabel>

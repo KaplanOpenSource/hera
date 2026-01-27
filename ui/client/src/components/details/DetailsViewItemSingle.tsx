@@ -2,6 +2,7 @@ import { FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/mater
 import { useState } from 'react';
 import { Case, SwitchCase } from '../../elements/SwitchCase';
 import { SelectDataFormat } from './SelectDataFormat';
+import { SelectProperty } from '../../elements/SelectProperty';
 
 enum ItemTypesEnum {
   number = 'number',
@@ -43,21 +44,12 @@ export const DetailsViewItemSingle = ({
           onKeyDown={e => e.stopPropagation()}
           fullWidth
         />
-        <FormControl style={{ minWidth: '100px' }}>
-          <InputLabel>
-            Type
-          </InputLabel>
-          <Select
-            value={itemType}
-            label="Type"
-            size='small'
-            onChange={e => setItemType(e.target.value)}
-          >
-            {Object.keys(ItemTypesEnum).filter(x => isNaN(x as any)).map(name => (
-              <MenuItem key={name} value={name}>{name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SelectProperty
+          label="Type"
+          value={itemType}
+          setValue={v => setItemType(v as ItemTypesEnum)}
+          menuItems={Object.keys(ItemTypesEnum).map((name) => ({ name }))}
+        />
       </Case>
       <Case value={'dataFormat'}>
         <SelectDataFormat
