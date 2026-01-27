@@ -75,6 +75,28 @@ export const DetailsViewDocument = ({
             {doc.data._cls}
           </Typography>
         </Grid>
+        {!showFormulated ? null : (<>
+          <Grid size={1}>
+            <Typography sx={{ fontSize: 12 }}>
+              Toolkit:
+            </Typography>
+          </Grid>
+          <Grid size={11}>
+            <Typography sx={{ fontSize: 12 }}>
+              {doc.data.desc.toolkit || 'None'}
+            </Typography>
+          </Grid>
+          <Grid size={1}>
+            <Typography sx={{ fontSize: 12 }}>
+              Version:
+            </Typography>
+          </Grid>
+          <Grid size={11}>
+            <Typography sx={{ fontSize: 12 }}>
+              {(doc.data.desc.version || []).join('.')}
+            </Typography>
+          </Grid>
+        </>)}
       </Grid>
       <SimpleTreeView
         defaultExpandedItems={[keyForDetailsViewItem('desc', 1, 3)]}
@@ -87,7 +109,7 @@ export const DetailsViewDocument = ({
             <DetailsViewItem
               key={k}
               itemKey={k}
-              itemValue={showFormulated || k !== 'desc' ? v : copyWithout(v, HIDE_ON_DESC)}
+              itemValue={!showFormulated || k !== 'desc' ? v : copyWithout(v, HIDE_ON_DESC)}
               level={1}
               index={i}
               setItemValue={newVal => setShownDoc({ ...shownDoc, [k]: newVal })}
