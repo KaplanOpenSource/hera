@@ -1,8 +1,7 @@
-import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, TextField, Typography } from '@mui/material';
-import { Case, SwitchCase } from '../../elements/SwitchCase';
-import { useServerConstants } from '../../stores/useServerConstants';
+import { FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 import { useState } from 'react';
-import { SelectProperty } from '../../elements/SelectProperty';
+import { Case, SwitchCase } from '../../elements/SwitchCase';
+import { SelectDataFormat } from './SelectDataFormat';
 
 enum ItemTypesEnum {
   number = 'number',
@@ -22,7 +21,6 @@ export const DetailsViewItemSingle = ({
   itemValue: any,
   setItemValue: (newVal: any) => void,
 }) => {
-  const { dataTypes } = useServerConstants();
   const [itemType, setItemType] = useState<ItemTypesEnum>((isnum(itemValue) ? 'number' : 'string') as ItemTypesEnum);
 
   return (
@@ -62,11 +60,9 @@ export const DetailsViewItemSingle = ({
         </FormControl>
       </Case>
       <Case value={'dataFormat'}>
-        <SelectProperty
-            value={itemValue}
-            label="dataFormat"
-            setValue={v => setItemValue(v)}
-            menuItems={Object.entries(dataTypes).map(([_upcasename, name]) => ({name}))}
+        <SelectDataFormat
+          value={itemValue}
+          setValue={v => setItemValue(v)}
         />
       </Case>
     </SwitchCase>
