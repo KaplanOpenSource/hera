@@ -6,7 +6,7 @@ import zipfile
 import pandas
 import inspect
 
-import tqdm
+from tqdm import tqdm
 from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
@@ -322,7 +322,7 @@ class Project:
                 i+=1
 
     @staticmethod
-    def _iter_pickled_docs(self, zf, return_batched):
+    def _iter_pickled_docs(zf, return_batched):
         """
             creates an iterator over the documents in an exported project,
             can either returned the batched data or single documents 
