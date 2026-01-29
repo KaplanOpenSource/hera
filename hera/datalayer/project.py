@@ -1,7 +1,12 @@
+import itertools
 import json
 import os
+import pickle
+import zipfile
 import pandas
 import inspect
+
+import tqdm
 from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
@@ -266,6 +271,123 @@ class Project:
 
         os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
         self._FilesDirectory = filesDirectory
+
+    @staticmethod
+    def _batched_cursor(cur, export_chunk_size):# -> Generator[list, Any, None]:
+        """
+            turns an iterator to an iterator that returns batches of the original.
+            if you cur is a documents list iterator and export_chunk_size=5 then each iteration of  
+            _batched_cursor will return a list with 5 documents
+
+        Parameters
+        ----------
+        cur: Iterator
+
+        export_chunk_size: int
+
+        """
+        while True:
+            batch = list(itertools.islice(cur, export_chunk_size))
+            if not batch:
+                break
+            else:
+                yield batch
+    
+    def export(self, path, export_chunk_size=1024, show_progressbar=True):
+        """
+            exports the project in chunks contained to one zip file
+
+        Parameters
+        ----------
+        path: str
+                the path to the zip file to be created, overrides file if already exists
+
+        export_chunk_size: int
+                the number of documents in each chunk
+
+        show_progressbar: bool
+        """
+        docs_cursor = self._all._metadataCol._get_collection().find({"projectName":self.projectName})
+        with zipfile.ZipFile(path, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+            i = 0
+            if show_progressbar:
+                docs_iterator= tqdm(self._batched_cursor(docs_cursor, export_chunk_size),
+                                    desc="Exporting documents", unit="batchedDocs", unit_scale=True) 
+            else:
+                docs_iterator = docs_cursor
+            for docs_batch in docs_iterator:
+                filename = f"chunk_{i}"
+                with zf.open(filename, 'w') as zf_archive:
+                    pickle.dump(docs_batch, zf_archive, protocol=pickle.HIGHEST_PROTOCOL)
+                i+=1
+
+    @staticmethod
+    def _iter_pickled_docs(self, zf, return_batched):
+        """
+            creates an iterator over the documents in an exported project,
+            can either returned the batched data or single documents 
+
+        Parameters
+        ----------
+        zf: zipfile.ZipFile
+                handler for the exported project
+
+        return_batched: str
+                should each iteration return an entire batch(with the size it was exported as)
+        """
+        for name in zf.namelist():
+            with zf.open(name) as f:
+                depickled_docs_batch=pickle.load(f)
+                if return_batched:
+                    yield depickled_docs_batch
+                else:
+                    for depickled_doc in depickled_docs_batch:
+                        yield depickled_doc 
+
+    def updateProjectNameOnDoc(self, doc_son):
+        """
+            updates the projectName field of a document to be assigned to this project 
+
+        Parameters
+        ----------
+        doc_son: str
+                the document to be updated
+        """
+        doc_son.update({"projectName": self.projectName})
+        return doc_son
+    
+    @staticmethod
+    def load(proj, exported_project_path, is_hard_import, show_progressbar=True):
+        """
+            loads an exported project's documents to a project, either hard import with the original ids or not 
+
+        Parameters
+        ----------
+        proj: str or Project
+                either name of the project to import or an existing Project instance,
+                creates a new project if it doesn't exist
+
+        is_hard_import: bool
+                should the original ids be used when importing or generate new ones per document(using original ids might fail due to duplicate ids)
+
+        show_progressbar: bool 
+        """
+        if isinstance(proj, str):
+            proj = Project(proj)
+        
+        with zipfile.ZipFile(exported_project_path, 'r') as zf:
+            if is_hard_import:
+                pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=True)
+                if show_progressbar:
+                    pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docsBatch", unit_scale=True)
+                for pickled_docs_batch in pickled_docs_iterator:
+                    proj._all._metadataCol._get_collection().insert_many([proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch])
+            else:
+                pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=False)
+                if show_progressbar:
+                    pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docs", unit_scale=True)
+                for pickled_doc in pickled_docs_iterator:
+                    proj._all._metadataCol.objects.insert(proj._all._metadataCol(**(proj.updateProjectNameOnDoc(pickled_doc))), load_bulk=False)
 
     @property
     def simulations(self) -> Simulations_Collection:
