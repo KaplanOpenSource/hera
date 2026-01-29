@@ -13,13 +13,15 @@ from mock_data import MOCK_PROJECTS
 
 app = FastAPI(title="Hera UI API")
 
+if '--cors' in sys.argv:
+    origins = ['*']
+else:
+    origins = [f'http://{h}:{p}' for h in ['localhost', '127.0.0.1', '0.0.0.0'] for p in [5173, 8000]]
+
 # Allow local Vite dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,82 +1,72 @@
-import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, TextField, Typography } from '@mui/material';
-import { Case, SwitchCase } from '../../elements/SwitchCase';
-import { useServerConstants } from '../../stores/useServerConstants';
-import { useState } from 'react';
+import { TextField } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { SelectProperty } from '../../elements/SelectProperty';
 
 enum ItemTypesEnum {
   number = 'number',
   string = 'string',
+  null = 'null',
 }
 
-const isnum = (v: any) => {
-  return ['number', 'bigint'].includes(typeof v) && Number.isFinite(v);
+const calcItemType = (val: any) => {
+  if (val === null) {
+    return ItemTypesEnum.null;
+  } else if ((typeof val === 'number' || typeof val === 'bigint') && Number.isFinite(val)) {
+    return ItemTypesEnum.number;
+  } else {
+    return ItemTypesEnum.string;
+  }
 }
 
 export const DetailsViewItemSingle = ({
-  itemKey,
   itemValue,
   setItemValue,
 }: {
-  itemKey: string,
   itemValue: any,
   setItemValue: (newVal: any) => void,
 }) => {
-  const { dataTypes } = useServerConstants();
-  const [itemType, setItemType] = useState<ItemTypesEnum>((isnum(itemValue) ? 'number' : 'string') as ItemTypesEnum);
+  const [itemType, setItemType] = useState<ItemTypesEnum>(() => calcItemType(itemValue));
+
+  useEffect(() => {
+    setItemType(calcItemType(itemValue));
+  }, [itemValue])
 
   return (
-    <SwitchCase test={itemKey}>
-      <Case isDefault>
-        <TextField
-          size='small'
-          value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
-          onChange={(e) => {
-            if (itemType === 'number') {
-              const num = parseFloat(e.target.value);
-              if (Number.isFinite(num)) {
-                setItemValue(num)
-              }
-            } else {
-              setItemValue(e.target.value)
+    <>
+      <TextField
+        size='small'
+        value={['object', 'function'].includes(typeof itemValue) ? JSON.stringify(itemValue) : itemValue}
+        onChange={(e) => {
+          if (itemType === ItemTypesEnum.number) {
+            const num = parseFloat(e.target.value);
+            if (Number.isFinite(num)) {
+              setItemValue(num)
             }
-          }}
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
-          fullWidth
-        />
-        <FormControl style={{ minWidth: '100px' }}>
-          <InputLabel>
-            Type
-          </InputLabel>
-          <Select
-            value={itemType}
-            label="Type"
-            size='small'
-            onChange={e => setItemType(e.target.value)}
-          >
-            {Object.keys(ItemTypesEnum).filter(x => isNaN(x as any)).map(name => (
-              <MenuItem key={name} value={name}>{name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Case>
-      <Case value={'dataFormat'}>
-        <FormControl style={{ minWidth: '100px' }}>
-          <InputLabel>
-            {itemKey}
-          </InputLabel>
-          <Select
-            value={itemValue}
-            label="dataFormat"
-            size='small'
-            onChange={(e: SelectChangeEvent) => setItemValue(e.target.value as string)}
-          >
-            {Object.entries(dataTypes).map(([_upcasename, name]) => (
-              <MenuItem key={name} value={name}>{name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Case>
-    </SwitchCase>
+          } else {
+            setItemValue(e.target.value)
+          }
+        }}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        fullWidth
+        disabled={itemType === ItemTypesEnum.null}
+      />
+      <SelectProperty
+        label="Type"
+        value={itemType}
+        setValue={v => {
+          setItemType(v as ItemTypesEnum);
+          if (v === ItemTypesEnum.null) {
+            setItemValue(null);
+          } else if (v === ItemTypesEnum.number) {
+            const num = parseFloat(itemValue);
+            setItemValue(Number.isFinite(num) ? num : 0)
+          } else {
+            setItemValue(itemValue + '');
+          }
+        }}
+        menuItems={Object.keys(ItemTypesEnum).map((name) => ({ name }))}
+      />
+    </>
   )
 }

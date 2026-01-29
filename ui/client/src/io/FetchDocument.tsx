@@ -1,7 +1,6 @@
 import { ProjectDocument } from "@shared/types";
 import { execPython } from "./execPython";
-
-const FORBIDDEN_FIELDS = ['_id', '_cls', 'projectName'];
+import { FORBIDDEN_FIELDS } from "../shared/constants";
 
 export const fetchDocument = async (docid: string) => {
   const { data } = await execPython(`
@@ -16,6 +15,16 @@ result = docs.asDict(with_id=True)
   return undefined;
 }
 
+const stringifyToPython = (obj: any) => {
+  const jsonString = JSON.stringify(obj, (key, value) => {
+    // Convert null to a unique placeholder for replacement
+    return value === null ? '=-=None=-=' : value;
+  });
+
+  // Replace the placeholder 'None' without quotes
+  return jsonString.replace(/"=-=None=-="/g, 'None');
+}
+
 export const updateDocument = async (newDoc: any, prevDoc: any) => {
   const docid = (prevDoc as ProjectDocument)._id.$oid;
   const lines = [`
@@ -24,7 +33,7 @@ doc = All.getDocumentByID('${docid}')
 `];
   for (const [field, prevVal] of Object.entries(prevDoc)) {
     if (!FORBIDDEN_FIELDS.includes(field) && JSON.stringify(prevVal) !== JSON.stringify(newDoc[field])) {
-      lines.push(`doc.${field} = ${JSON.stringify(newDoc[field])}`)
+      lines.push(`doc.${field} = ${stringifyToPython(newDoc[field])}`)
     }
   }
   lines.push(`

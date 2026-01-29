@@ -1,4 +1,4 @@
-import { Publish } from "@mui/icons-material";
+import { AddHomeWork } from "@mui/icons-material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
@@ -65,7 +65,7 @@ result = {"project": project}
         }
       }}
     >
-      <Publish />
+      <AddHomeWork />
       {DialogComponent}
     </ButtonTooltip>
   )
