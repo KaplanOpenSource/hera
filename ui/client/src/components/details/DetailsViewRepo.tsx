@@ -61,7 +61,7 @@ result = {"json": data}
                   {repoPath.split('/').slice(0, -1).join('/')}
                 </>}
               >
-                <Typography>
+                <Typography marginRight={1}>
                   {repoPath.split('/').pop()}
                 </Typography>
               </Tooltip>

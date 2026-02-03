@@ -1,4 +1,4 @@
-import { AddHomeWork } from "@mui/icons-material";
+import { DriveFolderUpload } from "@mui/icons-material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
@@ -66,7 +66,7 @@ result = {"project": project}
         }
       }}
     >
-      <AddHomeWork />
+      <DriveFolderUpload />
       {DialogComponent}
     </ButtonTooltip>
   )
