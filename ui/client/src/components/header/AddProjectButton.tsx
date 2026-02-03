@@ -1,31 +1,34 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
-  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControlLabel,
-  FormGroup,
-  TextField,
+  TextField
 } from "@mui/material";
+import { ProjectEntire, ProjectName } from "@shared/types";
 import { useRef, useState } from "react";
+import { BooleanProperty } from "../../elements/BooleanProperty";
+import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { execPython } from "../../io/execPython";
 import { useProjectStore } from "../../stores/useProjectStore";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { ProjectEntire, ProjectName } from "@shared/types";
-import { BooleanProperty } from "../../elements/BooleanProperty";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [filesDirectory, setFilesDirectory] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
   const { selectProject, setProjectNames, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
 
   const doAddProject = async () => {
+    let dirStr = `os.path.join(os.getcwd(), 'projects', '${name}')`;
+    if (filesDirectory !== '') {
+      dirStr = `'${filesDirectory}'`;
+    }
+
     const { problem, data } = await execPython(`
 import os
 import json
@@ -37,7 +40,7 @@ from hera.datalayer import All
 
 project_create(SimpleNamespace(
   projectName='${name}',
-  directory=os.path.join(os.getcwd(), 'projects', '${name}'),
+  directory=${dirStr},
   loadRepositories=${loadRepositories ? 'True' : 'False'},
   overwrite=False))
 
@@ -97,6 +100,15 @@ result = {"projectNames": projectNames, "project": project}
           variant="outlined"
           value={name}
           onChange={(e) => setName(e.target.value)}
+        />
+        <TextField
+          margin="dense"
+          size="small"
+          label={"Project Files Directory (leave empty for default)"}
+          fullWidth
+          variant="outlined"
+          value={filesDirectory}
+          onChange={(e) => setFilesDirectory(e.target.value)}
         />
         <BooleanProperty
           label="Load Repositories"
