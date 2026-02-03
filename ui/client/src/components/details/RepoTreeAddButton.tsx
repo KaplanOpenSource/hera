@@ -1,4 +1,4 @@
-import { AddHomeWork } from "@mui/icons-material";
+import { DriveFolderUpload } from "@mui/icons-material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
@@ -44,6 +44,7 @@ result = {"project": project}
 
   return (
     <ButtonTooltip
+      color="primary"
       title={'Add repository of data sources to project'}
       disabled={tree === undefined}
       onClick={async () => {
@@ -65,7 +66,7 @@ result = {"project": project}
         }
       }}
     >
-      <AddHomeWork />
+      <DriveFolderUpload />
       {DialogComponent}
     </ButtonTooltip>
   )

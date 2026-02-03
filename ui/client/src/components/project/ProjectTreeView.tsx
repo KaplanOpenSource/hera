@@ -1,4 +1,4 @@
-import { Folder, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Folder, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -8,6 +8,7 @@ import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
+import { fetchProjectDetails } from '../../io/FetchProjects';
 
 export const ProjectTreeView = ({
   project,
@@ -33,8 +34,8 @@ export const ProjectTreeView = ({
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
         label={(
-          <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
-            <Typography>
+          <Stack direction='row' justifyContent="start" alignItems='center'>
+            <Typography marginRight={1}>
               Project {project.name}
             </Typography>
             <ButtonTooltip
@@ -42,6 +43,12 @@ export const ProjectTreeView = ({
               onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
             >
               {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Reload documents'}
+              onClick={() => fetchProjectDetails(project.name)}
+            >
+              <Refresh />
             </ButtonTooltip>
           </Stack>
         )}
