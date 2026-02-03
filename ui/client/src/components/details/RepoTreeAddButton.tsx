@@ -44,6 +44,7 @@ result = {"project": project}
 
   return (
     <ButtonTooltip
+      color="primary"
       title={'Add repository of data sources to project'}
       disabled={tree === undefined}
       onClick={async () => {
