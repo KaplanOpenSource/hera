@@ -56,10 +56,10 @@ export const DetailsViewDocument = ({
           : null}
       </Stack>
       <DetailsViewDocumentHeader
-        doc={doc}
-        showFormulated={showFormulated}
+        docid={doc.docid}
         shownDoc={shownDoc}
         setShownDoc={setShownDoc}
+        showFormulated={showFormulated}
       />
       <SimpleTreeView
         defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}

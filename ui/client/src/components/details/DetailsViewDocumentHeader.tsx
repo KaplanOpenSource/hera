@@ -1,17 +1,17 @@
 import { Grid, Typography } from '@mui/material';
-import { DocumentObj } from '../../objects/ProjectObj';
+import { ProjectDocument } from '../../shared/types';
 import { VersionFields } from './VersionFields';
 
 export const DetailsViewDocumentHeader = ({
-  doc,
-  showFormulated,
+  docid,
   shownDoc,
-  setShownDoc
+  setShownDoc,
+  showFormulated,
 }: {
-  doc: DocumentObj,
+  docid: string,
+  shownDoc: ProjectDocument,
+  setShownDoc: (v: ProjectDocument) => void,
   showFormulated: boolean,
-  shownDoc: any,
-  setShownDoc: (v: any) => void,
 }) => {
   return (
     <Grid container spacing={1} alignItems={'center'}>
@@ -22,7 +22,7 @@ export const DetailsViewDocumentHeader = ({
       </Grid>
       <Grid size={11}>
         <Typography sx={{ fontSize: 12 }}>
-          {doc.docid}
+          {docid}
         </Typography>
       </Grid>
       <Grid size={1}>
@@ -32,7 +32,7 @@ export const DetailsViewDocumentHeader = ({
       </Grid>
       <Grid size={11}>
         <Typography sx={{ fontSize: 12 }}>
-          {doc.data._cls}
+          {shownDoc._cls}
         </Typography>
       </Grid>
       {!showFormulated ? null : (<>
@@ -43,10 +43,10 @@ export const DetailsViewDocumentHeader = ({
         </Grid>
         <Grid size={11}>
           <Typography sx={{ fontSize: 12 }}>
-            {doc.data.desc.toolkit || 'None'}
+            {shownDoc.desc.toolkit || 'None'}
           </Typography>
         </Grid>
-        {!doc.data.desc.version ? null : (<>
+        {!shownDoc.desc.version ? null : (<>
           <Grid size={1}>
             <Typography sx={{ fontSize: 12 }}>
               Version:
