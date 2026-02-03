@@ -1,13 +1,13 @@
 import { Close, Done, DynamicForm } from '@mui/icons-material';
-import { Grid, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { copyWithout, reorderEntries } from '../../utils/utils';
+import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
-import { VersionFields } from './VersionFields';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 
@@ -55,55 +55,14 @@ export const DetailsViewDocument = ({
           </>)
           : null}
       </Stack>
-      <Grid container spacing={1} alignItems={'center'}>
-        <Grid size={1}>
-          <Typography sx={{ fontSize: 12 }}>
-            Id:
-          </Typography>
-        </Grid>
-        <Grid size={11}>
-          <Typography sx={{ fontSize: 12 }}>
-            {doc.docid}
-          </Typography>
-        </Grid>
-        <Grid size={1}>
-          <Typography sx={{ fontSize: 12 }}>
-            Cls:
-          </Typography>
-        </Grid>
-        <Grid size={11}>
-          <Typography sx={{ fontSize: 12 }}>
-            {doc.data._cls}
-          </Typography>
-        </Grid>
-        {!showFormulated ? null : (<>
-          <Grid size={1}>
-            <Typography sx={{ fontSize: 12 }}>
-              Toolkit:
-            </Typography>
-          </Grid>
-          <Grid size={11}>
-            <Typography sx={{ fontSize: 12 }}>
-              {doc.data.desc.toolkit || 'None'}
-            </Typography>
-          </Grid>
-          {!doc.data.desc.version ? null : (<>
-            <Grid size={1}>
-              <Typography sx={{ fontSize: 12 }}>
-                Version:
-              </Typography>
-            </Grid>
-            <Grid size={11}>
-              <VersionFields
-                projectDoc={shownDoc}
-                setProjectDoc={setShownDoc}
-              />
-            </Grid>
-          </>)}
-        </>)}
-      </Grid>
+      <DetailsViewDocumentHeader
+        doc={doc}
+        showFormulated={showFormulated}
+        shownDoc={shownDoc}
+        setShownDoc={setShownDoc}
+      />
       <SimpleTreeView
-        defaultExpandedItems={[keyForDetailsViewItem('desc')]}
+        defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
       >
         {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
