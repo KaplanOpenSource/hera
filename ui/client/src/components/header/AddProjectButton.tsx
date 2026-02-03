@@ -37,6 +37,7 @@ from types import SimpleNamespace
 from hera.utils.data.CLI import project_create
 from hera.datalayer.project import getProjectList
 from hera.datalayer import All
+from hera import toolkitHome
 
 project_create(SimpleNamespace(
   projectName='${name}',
@@ -45,6 +46,8 @@ project_create(SimpleNamespace(
   overwrite=False))
 
 projectNames = [{"name": proj} for proj in getProjectList()]
+
+table = toolkitHome.getToolkitTable('${name}')
 
 docs = All.getDocumentsAsDict('${name}', with_id=True)
 project = {"name": '${name}', "documents": docs['documents']}
