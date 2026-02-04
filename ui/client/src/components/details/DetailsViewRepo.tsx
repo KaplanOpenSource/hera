@@ -1,5 +1,5 @@
 import { Delete, Edit } from "@mui/icons-material";
-import { Stack } from "@mui/material";
+import { Stack, Tooltip, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useEffect, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
@@ -55,7 +55,16 @@ result = {"json": data}
           itemId={idRepoId(repoPath)}
           label={(
             <Stack direction={'row'} justifyItems={'center'} alignItems={'center'}>
-              {repoPath}
+              <Tooltip
+                title={<>
+                  Json is in Folder:<br />
+                  {repoPath.split('/').slice(0, -1).join('/')}
+                </>}
+              >
+                <Typography marginRight={1}>
+                  {repoPath.split('/').pop()}
+                </Typography>
+              </Tooltip>
               <RepoTreeAddButton
                 tree={tree}
               />
