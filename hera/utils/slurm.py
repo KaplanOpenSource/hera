@@ -77,5 +77,6 @@ dir=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {jobDirListFilePath})
 
 {script}
 """
+    logger.info(f"Writing slurm execution submit file to {slurmExecutionFilePath}")
     with open(slurmExecutionFilePath,"w") as outputFile:
         outputFile.write(slurmBatchFile)

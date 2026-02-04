@@ -162,6 +162,11 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 {allRunPart if addAllRun else ""}
         """
         caseListFilePath = os.path.join(self.filesDirectory, caseListFileName)
+
+        logger.info(f"Writing case list file for group {workflow['desc']['groupName']}")
+        
+        with open(caseListFilePath,"w") as outputFile:
+            outputFile.write(caseList)
         slurm.prepareSlurmScriptExecution(script=script,
                                           slurmExecutionFilePath=os.path.join(self.filesDirectory,slurmExecutionFileName),
                                           jobDirListFilePath=caseListFilePath,
@@ -170,11 +175,6 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
                                           jobName=jobName,
                                           quiet=False,
                                           exclusive=exclusive)
-
-        logger.info(f"Writing case list file for group {workflow['desc']['groupName']}")
-        
-        with open(caseListFilePath,"w") as outputFile:
-            outputFile.write(caseList)
 
 
 
