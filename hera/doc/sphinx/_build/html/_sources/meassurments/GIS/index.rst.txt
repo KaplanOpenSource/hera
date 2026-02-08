@@ -1,64 +1,18 @@
-.. GIS documentation master file, created by
-   sphinx-quickstart on Wed Aug  7 12:51:56 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 GIS Documentation
+=================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-   
-   
-Raster
-====================================================
+   :caption: Contents
+   :titlesonly:
 
+   raster
+   vector
 
+Overview
+--------
 
-LandCover Toolkit
-^^^^^^^^^^^^^^^^^^^^^^
-LandCoverToolkit Class
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: hera.measurements.GIS.raster.landcover.LandCoverToolkit
-   :members:
-   :show-inheritance:
+This section contains GIS-related toolkits and their documentation.
 
-LandCover Presentation Layer
-===============================
-.. autoclass:: hera.measurements.GIS.raster.landcover.presentation
-   :members:
-   :show-inheritance:
-   
-
-Tiles Toolkit 
-^^^^^^^^^^^^^^^^^^^^^^
-
-TilesToolkit Class
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: hera.measurements.GIS.raster.tiles.TilesToolkit
-   :members:
-   :show-inheritance:
-
-TilesToolkit Presentation Class
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: hera.measurements.GIS.raster.tiles.presentation
-   :members:
-   :show-inheritance:
-
-
-Vector
-====================================================
-
-BuildingsToolkit
-^^^^^^^^^^^^^^^^^^^^^^^
-BuildingsToolkit Class
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit
-   :members:
-   :show-inheritance:
-
-BuildingsToolkit Analysis Class
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: hera.measurements.GIS.vector.buildings.analysis.analysis
-   :members:
-   :show-inheritance:
+- Raster toolkits: Topography, LandCover, Tiles
+- Vector toolkits: Buildings, Demography

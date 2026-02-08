@@ -5,16 +5,58 @@ from .Meteorology import MeteorologyFactory
 from ...utils import *
 
 class gaussianToolkit(abstractToolkit):
+    """
+    Toolkit for Gaussian plume dispersion modeling.
 
+    The gaussianToolkit implements Gaussian dispersion models for atmospheric
+    releases. It supports various sigma (dispersion coefficient) formulations
+    and can generate gas cloud objects for further analysis.
+
+    Key Features
+    ------------
+    - Multiple sigma type formulations (Briggs rural/urban)
+    - Meteorology factory for creating meteorological conditions
+    - Gas cloud generation for instantaneous and continuous releases
+    - Integration with unum units for dimensional consistency
+
+    Supported Sigma Types
+    --------------------
+    - briggsRural: Briggs rural dispersion coefficients
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> from unum.units import *
+    >>> 
+    >>> gauss_tk = toolkitHome.getToolkit("GaussianDispersion", projectName="my_project")
+    >>> 
+    >>> # Get meteorology
+    >>> meteo = gauss_tk.getMeteorologyFromU10(
+    ...     u10=5*m/s,
+    ...     inversion=100*m,
+    ...     stability="D"
+    ... )
+    >>> 
+    >>> # Create gas cloud
+    >>> cloud = gauss_tk.getGasCloud(
+    ...     sourceQ=100*kg/s,
+    ...     sourceHeight=10*m,
+    ...     initialCloudSize=(1*m, 1*m, 1*m),
+    ...     sigmaTypeName="briggsRural"
+    ... )
+    """
     _sigmaDict = None
 
     def __init__(self, projectName: str, filesDirectory: str = None):
         """
-            Initializes the toolkit
+        Initialize the Gaussian dispersion toolkit.
+
         Parameters
         ----------
-        projectName
-        filesDirectory
+        projectName : str
+            Name of the Hera project to work with.
+        filesDirectory : str, optional
+            Directory for storing output files. Default is None.
         """
         super().__init__(projectName=projectName, toolkitName="gaussianToolkit", filesDirectory=filesDirectory)
         self._sigmaDict = dict(briggsRural=BriggsRural)

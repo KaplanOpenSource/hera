@@ -16,7 +16,53 @@ from datetime import datetime, timedelta
 from hera.measurements.GIS.utils import create_xarray
 
 class WindProfileToolkit(toolkit.abstractToolkit):
+    """
+    Toolkit for wind profile calculations and spatial wind field generation.
+
+    The WindProfileToolkit calculates vertical wind profiles using logarithmic
+    and exponential wind profile laws, accounting for urban and rural terrain
+    characteristics. It can generate spatial wind fields by interpolating
+    measurements from multiple meteorological stations.
+
+    Key Features
+    ------------
+    - Vertical wind profile calculation (logarithmic law)
+    - Urban wind profile with displacement height
+    - Spatial wind field interpolation
+    - Integration with IMS meteorological stations
+    - Land cover-based roughness length estimation
+    - Wind direction visualization
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> wind_tk = toolkitHome.getToolkit("WindProfile", projectName="my_project")
+    >>> 
+    >>> # Calculate wind profile
+    >>> profile = wind_tk.getWindProfile(
+    ...     xarray=wind_data,
+    ...     height=100.0,
+    ...     dz=5.0
+    ... )
+    >>> 
+    >>> # Get spatial wind field
+    >>> xarray, stations = wind_tk.getSpatialWind(
+    ...     minlat=31.0, minlon=34.0,
+    ...     maxlat=32.0, maxlon=35.0,
+    ...     IMS_TOKEN=token
+    ... )
+    """
     def __init__(self, projectName, filesDirectory=None):
+        """
+        Initialize the WindProfile toolkit.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the Hera project to work with.
+        filesDirectory : str, optional
+            Directory for storing output files. Default is None.
+        """
         super().__init__(projectName=projectName, toolkitName='WindProfileToolkit', filesDirectory=filesDirectory)
         self._presentation = presentation(dataLayer=self)
 

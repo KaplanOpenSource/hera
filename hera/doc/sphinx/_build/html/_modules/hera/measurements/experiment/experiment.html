@@ -41,7 +41,14 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Documentation Sections</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../meassurments/index.html">Documentation Sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user/index.html">User Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../developer/index.html">Developer Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Legacy Sections</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../meassurments/index.html">Measurements Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simulations/index.html">Simulations Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../riskassessment/index.html">Risk Assessment Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../toolkit_api.html">Toolkit API</a></li>
 </ul>
 
@@ -70,147 +77,327 @@
            <div itemprop="articleBody">
              
   <h1>Source code for hera.measurements.experiment.experiment</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Experiment Toolkit (Measurements)</span>
+<span class="sd">=================================</span>
+
+<span class="sd">This module implements the experiment toolkit layer used under</span>
+<span class="sd">``hera.measurements``. It provides two main capabilities:</span>
+
+<span class="sd">1) **experimentHome** (factory/home)</span>
+<span class="sd">   A &quot;home&quot; object that lives under a project and acts as a factory for loading</span>
+<span class="sd">   specific experiment toolkits dynamically from experiment folders registered</span>
+<span class="sd">   as datasources in the project.</span>
+
+<span class="sd">2) **experimentSetupWithData** (experiment toolkit)</span>
+<span class="sd">   A toolkit that unifies an Argos experiment setup (metadata + trial structure)</span>
+<span class="sd">   with a Hera data engine for efficient data access (parquet / pandas / dask).</span>
+
+<span class="sd">Key Concepts</span>
+<span class="sd">------------</span>
+<span class="sd">- **Project**: The Hera project context (MongoDB + configuration + datasources).</span>
+<span class="sd">- **Experiment datasource**: A datasource entry in the project that points to a</span>
+<span class="sd">  folder on disk with an experiment structure (runtimeExperimentData, code, etc).</span>
+<span class="sd">- **Dynamic loading**: Each experiment typically contains a Python class with the</span>
+<span class="sd">  same name as the experiment, inside ``&lt;experimentPath&gt;/code``. We load it with</span>
+<span class="sd">  ``pydoc.locate()`` after adding that folder to ``sys.path``.</span>
+<span class="sd">- **Argos dependency**: Some classes inherit from Argos types. If Argos is not</span>
+<span class="sd">  installed, runtime usage may be limited, and Sphinx should mock-import it.</span>
+
+<span class="sd">Notes for Documentation (Sphinx)</span>
+<span class="sd">--------------------------------</span>
+<span class="sd">- If you build API docs with autodoc and Argos is not installed, configure:</span>
+<span class="sd">  ``autodoc_mock_imports = [&quot;argos&quot;]`` in the relevant ``conf.py``.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pydoc</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">hera</span><span class="w"> </span><span class="kn">import</span> <span class="n">toolkit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.presentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">experimentPresentation</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">experimentAnalysis</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">hera.measurements.GIS.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">WSG84</span><span class="p">,</span><span class="n">ITM</span><span class="p">,</span><span class="n">convertCRS</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">hera.measurements.GIS.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">WSG84</span><span class="p">,</span> <span class="n">ITM</span><span class="p">,</span> <span class="n">convertCRS</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">argos.experimentSetup</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataObjects</span> <span class="k">as</span> <span class="n">argosDataObjects</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="c1"># Argos is optional; if it is not installed, experiment toolkits cannot be used.</span>
+    <span class="c1"># For Sphinx docs, prefer mocking this import via autodoc_mock_imports.</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Must have argos installed and in the path. &quot;</span><span class="p">)</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">.dataEngine</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataEngineFactory</span><span class="p">,</span> <span class="n">PARQUETHERA</span><span class="p">,</span> <span class="n">PANDASDB</span><span class="p">,</span><span class="n">DASKDB</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">hera.utils</span><span class="w">  </span><span class="kn">import</span> <span class="n">loadJSON</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dataEngine</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataEngineFactory</span><span class="p">,</span> <span class="n">PARQUETHERA</span><span class="p">,</span> <span class="n">PANDASDB</span><span class="p">,</span> <span class="n">DASKDB</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">hera.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">loadJSON</span>
 
-<span class="c1"># The name of the property. This is has to be similar ot the  from the argosweb interface.</span>
-<span class="c1"># Dont change!</span>
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Argos trial time field names.</span>
+<span class="c1"># These names must match the properties in the Argos web interface.</span>
+<span class="c1"># Do not change unless the Argos schema changes.</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
 <span class="n">TRIALSTART</span> <span class="o">=</span> <span class="s1">&#39;TrialStart&#39;</span>
 <span class="n">TRIALEND</span> <span class="o">=</span> <span class="s1">&#39;TrialEnd&#39;</span>
 
 
 <div class="viewcode-block" id="experimentHome">
-<a class="viewcode-back" href="../../../../meassurments/experiment/index.html#hera.measurements.experiment.experiment.experimentHome">[docs]</a>
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_home.html#hera.measurements.experiment.experiment.experimentHome">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">experimentHome</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        This is the object that function as a factory/home to the other experiments.</span>
-<span class="sd">        It is responsible for getting the right toolkit for the requested experiment.</span>
+<span class="sd">    experimentHome</span>
+<span class="sd">    --------------</span>
 
+<span class="sd">    Factory / home object for experiment toolkits within a project.</span>
+
+<span class="sd">    This class does **not** represent a specific experiment. Instead, it manages</span>
+<span class="sd">    the *list of experiments registered as project datasources* and provides</span>
+<span class="sd">    ``getExperiment()`` to dynamically load the appropriate toolkit class for a</span>
+<span class="sd">    requested experiment.</span>
+
+<span class="sd">    Typical usage</span>
+<span class="sd">    -------------</span>
+<span class="sd">    &gt;&gt;&gt; from hera.measurements.experiment.experiment import experimentHome</span>
+<span class="sd">    &gt;&gt;&gt; eh = experimentHome(projectName=&quot;my_project&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; exp = eh.getExperiment(&quot;MyExperiment&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; df = exp.getDataFromDateRange(deviceType=&quot;IMS&quot;, startTime=..., endTime=...)</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    - Each experiment datasource is expected to expose a filesystem path.</span>
+<span class="sd">      The toolkit class is expected at: ``&lt;experimentPath&gt;/code/&lt;ExperimentName&gt;.py``</span>
+<span class="sd">      containing a class named ``&lt;ExperimentName&gt;``.</span>
+<span class="sd">    - This home object uses the Hera datasource APIs inherited from</span>
+<span class="sd">      ``abstractToolkit``: ``getDataSourceMap()``, ``getDataSourceTable()``,</span>
+<span class="sd">      ``getDataSourceDocument()``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">DOCTYPE_ENTITIES</span> <span class="o">=</span> <span class="s1">&#39;EntitiesData&#39;</span>
     <span class="n">CODE_DIRECTORY</span> <span class="o">=</span> <span class="s1">&#39;code&#39;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize experimentHome.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        projectName : str</span>
+<span class="sd">            The project name to work with.</span>
+<span class="sd">        filesDirectory : str, optional</span>
+<span class="sd">            Directory to store cache / intermediate files for the toolkit.</span>
+<span class="sd">            If None, uses the default behavior of ``abstractToolkit``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span> <span class="n">toolkitName</span><span class="o">=</span><span class="s2">&quot;experimentToolKit&quot;</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Init experiment toolkit&quot;</span><span class="p">)</span>
 
-
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">experimentMap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">experimentMap</span><span class="p">()</span>
-
-    <span class="c1">#</span>
-<div class="viewcode-block" id="experimentHome.getExperimentsMap">
-<a class="viewcode-back" href="../../../../meassurments/experiment/index.html#hera.measurements.experiment.experiment.experimentHome.getExperimentsMap">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">getExperimentsMap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get dictionary of experiments map of project.</span>
+<span class="sd">        Alias property for experiment map.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            dict</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">M</span><span class="o">=</span><span class="nb">dict</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceMap</span><span class="p">():</span>
-            <span class="n">experimentName</span><span class="o">=</span><span class="n">experiment</span><span class="p">[</span><span class="s1">&#39;datasourceName&#39;</span><span class="p">]</span>
-            <span class="n">M</span><span class="p">[</span><span class="n">experimentName</span><span class="p">]</span><span class="o">=</span><span class="n">experiment</span>
+<span class="sd">        dict</span>
+<span class="sd">            Mapping of experimentName -&gt; datasource metadata.</span>
 
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The implementation in this file returns ``self.experimentMap()``, which is</span>
+<span class="sd">        recursive. Prefer calling ``getExperimentsMap()`` directly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getExperimentsMap</span><span class="p">()</span>
+
+<div class="viewcode-block" id="experimentHome.getExperimentsMap">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_home.html#hera.measurements.experiment.experiment.experimentHome.getExperimentsMap">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getExperimentsMap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a dictionary mapping experiment names to datasource entries.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            A dict where keys are experiment datasource names and values are</span>
+<span class="sd">            datasource metadata dicts (as returned by ``getDataSourceMap()``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceMap</span><span class="p">():</span>
+            <span class="n">experimentName</span> <span class="o">=</span> <span class="n">experiment</span><span class="p">[</span><span class="s1">&#39;datasourceName&#39;</span><span class="p">]</span>
+            <span class="n">M</span><span class="p">[</span><span class="n">experimentName</span><span class="p">]</span> <span class="o">=</span> <span class="n">experiment</span>
         <span class="k">return</span> <span class="n">M</span></div>
 
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">experimentsTable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Table view of experiment datasources.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Datasource table for experiments (as returned by ``getDataSourceTable()``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceTable</span><span class="p">()</span>
 
+<div class="viewcode-block" id="experimentHome.getExperimentsTable">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_home.html#hera.measurements.experiment.experiment.experimentHome.getExperimentsTable">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getExperimentsTable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceTable</span><span class="p">()</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the experiment datasource table.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Datasource table for experiments.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceTable</span><span class="p">()</span></div>
+
 
 <div class="viewcode-block" id="experimentHome.getExperiment">
-<a class="viewcode-back" href="../../../../meassurments/experiment/index.html#hera.measurements.experiment.experiment.experimentHome.getExperiment">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">getExperiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">experimentName</span><span class="p">,</span><span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_home.html#hera.measurements.experiment.experiment.experimentHome.getExperiment">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getExperiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experimentName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the specific experiment class.</span>
+<span class="sd">        Load and instantiate a specific experiment toolkit class by name.</span>
+
+<span class="sd">        The loader:</span>
+<span class="sd">        1) looks up the experiment datasource document in the project</span>
+<span class="sd">        2) resolves its path on disk</span>
+<span class="sd">        3) appends ``&lt;experimentPath&gt;/code`` to ``sys.path``</span>
+<span class="sd">        4) loads the class ``&lt;experimentName&gt;.&lt;experimentName&gt;`` via ``pydoc.locate``</span>
+<span class="sd">        5) instantiates and returns it</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        experimentName : str</span>
-<span class="sd">                The name of the experimen</span>
-<span class="sd">        filesDirectory: str</span>
-<span class="sd">                The directory to save the cache/intermediate files.</span>
-<span class="sd">                If None, use the [current directory]/experimentCache.</span>
+<span class="sd">            The name of the experiment datasource/toolkit to load.</span>
+<span class="sd">        filesDirectory : str, optional</span>
+<span class="sd">            Directory to store cache / intermediate files for the experiment toolkit.</span>
+<span class="sd">            If None, experiment toolkit decides its default cache folder.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            experimentSetupWithData</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        experimentSetupWithData</span>
+<span class="sd">            An instantiated experiment toolkit (or a subclass), loaded dynamically.</span>
 
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the datasource exists but the toolkit class cannot be located, or</span>
+<span class="sd">            if the experiment is not registered in the project.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting experiment </span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
         <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDataSourceDocument</span><span class="p">(</span><span class="n">datasourceName</span><span class="o">=</span><span class="n">experimentName</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">L</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found experiment. Loading&quot;</span><span class="p">)</span>
-            <span class="n">experimentPath</span><span class="o">=</span><span class="n">L</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
-            <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">experimentPath</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">CODE_DIRECTORY</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding path </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">experimentPath</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">CODE_DIRECTORY</span><span class="p">)</span><span class="si">}</span><span class="s2"> to classpath&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found experiment. Loading&quot;</span><span class="p">)</span>
+            <span class="n">experimentPath</span> <span class="o">=</span> <span class="n">L</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
+
+            <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">experimentPath</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">CODE_DIRECTORY</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding path </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">experimentPath</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">CODE_DIRECTORY</span><span class="p">)</span><span class="si">}</span><span class="s2"> to classpath&quot;</span><span class="p">)</span>
+
             <span class="n">toolkitName</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading toolkits: </span><span class="si">{</span><span class="n">toolkitName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
             <span class="n">toolkitCls</span> <span class="o">=</span> <span class="n">pydoc</span><span class="o">.</span><span class="n">locate</span><span class="p">(</span><span class="n">toolkitName</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">toolkitCls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">err</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Cannot find toolkit </span><span class="si">{</span><span class="n">toolkitName</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">experimentPath</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">CODE_DIRECTORY</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Cannot find toolkit </span><span class="si">{</span><span class="n">toolkitName</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">experimentPath</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">CODE_DIRECTORY</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
 
-            <span class="k">return</span> <span class="n">toolkitCls</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="p">,</span>
-                              <span class="n">pathToExperiment</span><span class="o">=</span><span class="n">experimentPath</span><span class="p">,</span><span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">err</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Experiment </span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2"> not found in Project </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="si">}</span><span class="s2">. Please load the experiment to the project. &quot;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+            <span class="k">return</span> <span class="n">toolkitCls</span><span class="p">(</span>
+                <span class="n">projectName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="p">,</span>
+                <span class="n">pathToExperiment</span><span class="o">=</span><span class="n">experimentPath</span><span class="p">,</span>
+                <span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span>
+            <span class="p">)</span>
 
+        <span class="n">err</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Experiment </span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2"> not found in Project </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Please load the experiment to the project.&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="experimentHome.keys">
-<a class="viewcode-back" href="../../../../meassurments/experiment/index.html#hera.measurements.experiment.experiment.experimentHome.keys">[docs]</a>
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_home.html#hera.measurements.experiment.experiment.experimentHome.keys">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the experiments names of project.</span>
+<span class="sd">        List all experiment names registered in the project.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            list</span>
+<span class="sd">        list[str]</span>
+<span class="sd">            Experiment datasource names.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getExperimentsMap</span><span class="p">()]</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dictionary-like access to ``getExperiment(item)``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        item : str</span>
+<span class="sd">            Experiment name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        experimentSetupWithData</span>
+<span class="sd">            Loaded experiment toolkit.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getExperiment</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
 
+<div class="viewcode-block" id="experimentHome.experimentDataType">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_home.html#hera.measurements.experiment.experiment.experimentHome.experimentDataType">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">experimentDataType</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the configured experiment data type (if present).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Any</span>
+<span class="sd">            The attribute ``_experimentDataType`` if defined by a subclass.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        This base file does not define ``self._experimentDataType``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentDataType</span></div>
+</div>
+
 
 
 <div class="viewcode-block" id="experimentSetupWithData">
-<a class="viewcode-back" href="../../../../meassurments/experiment/index.html#hera.measurements.experiment.experiment.experimentSetupWithData">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">experimentSetupWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">ExperimentZipFile</span><span class="p">,</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_setup_with_data.html#hera.measurements.experiment.experiment.experimentSetupWithData">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">experimentSetupWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">ExperimentZipFile</span><span class="p">,</span> <span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        A class that unifies the argos.experiment setup with the data.</span>
+<span class="sd">    experimentSetupWithData</span>
+<span class="sd">    -----------------------</span>
+
+<span class="sd">    A toolkit that unifies:</span>
+<span class="sd">    - Argos experiment setup (trial sets, entities, metadata in a zip)</span>
+<span class="sd">    - Hera data engine (parquet/pandas/dask) for retrieving measurement data</span>
+
+<span class="sd">    This class is typically the main entry point after loading a specific experiment</span>
+<span class="sd">    (either directly or via ``experimentHome.getExperiment``).</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    configuration : dict</span>
+<span class="sd">        Experiment runtime configuration loaded from</span>
+<span class="sd">        ``runtimeExperimentData/Datasources_Configurations.json`` (and updated by overrides).</span>
+<span class="sd">    analysis : experimentAnalysis</span>
+<span class="sd">        Analysis layer attached to this experiment.</span>
+<span class="sd">    presentation : experimentPresentation</span>
+<span class="sd">        Presentation layer attached to this experiment.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    - Requires Argos classes to be importable at runtime (unless you mock them for docs).</span>
+<span class="sd">    - Builds a cache directory ``&lt;filesDirectory&gt;/experimentCache``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">_configuration</span> <span class="o">=</span> <span class="kc">None</span>
@@ -222,88 +409,176 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Analysis layer accessor.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        experimentAnalysis</span>
+<span class="sd">            Analysis layer instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">presentation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Presentation layer accessor.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        experimentPresentation</span>
+<span class="sd">            Presentation layer instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Experiment configuration accessor.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Runtime experiment configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configuration</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">configuration</span><span class="p">[</span><span class="s1">&#39;experimentName&#39;</span><span class="p">]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_initTrialSets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">experimentSetup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup</span>
-        <span class="k">for</span> <span class="n">trialset</span> <span class="ow">in</span> <span class="n">experimentSetup</span><span class="p">[</span><span class="s1">&#39;trialSets&#39;</span><span class="p">]:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">TrialSetWithData</span><span class="p">(</span><span class="n">experiment</span> <span class="o">=</span> <span class="bp">self</span><span class="p">,</span> <span class="n">TrialSetSetup</span><span class="o">=</span><span class="n">trialset</span><span class="p">,</span><span class="n">experimentData</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_initEntitiesTypes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">experimentSetup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup</span>
-        <span class="k">for</span> <span class="n">entityType</span> <span class="ow">in</span> <span class="n">experimentSetup</span><span class="p">[</span><span class="s1">&#39;entityTypes&#39;</span><span class="p">]:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">[</span><span class="n">entityType</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">EntityTypeWithData</span><span class="p">(</span><span class="n">experiment</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">entityType</span><span class="p">,</span> <span class="n">experimentData</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="p">)</span>
-
-<div class="viewcode-block" id="experimentSetupWithData.getExperimentData">
-<a class="viewcode-back" href="../../../../meassurments/experiment/index.html#hera.measurements.experiment.experiment.experimentSetupWithData.getExperimentData">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">getExperimentData</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the parquet Data Engine of experiment. Acessing data of experiment is through this class (using .getData()).</span>
+<span class="sd">        Experiment name accessor.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            parquetDataEngineHera , pandasDataEngineDB or daskDataEngineDB.</span>
+<span class="sd">        str</span>
+<span class="sd">            ``configuration[&quot;experimentName&quot;]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">configuration</span><span class="p">[</span><span class="s1">&#39;experimentName&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initTrialSets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize trial set objects with data access.</span>
+
+<span class="sd">        This populates ``self.trialSet`` with ``TrialSetWithData`` entries, keyed</span>
+<span class="sd">        by the trial set name, based on the Argos setup structure.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Expects Argos setup structure to include:</span>
+<span class="sd">        ``self.setup[&quot;trialSets&quot;]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">experimentSetup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup</span>
+        <span class="k">for</span> <span class="n">trialset</span> <span class="ow">in</span> <span class="n">experimentSetup</span><span class="p">[</span><span class="s1">&#39;trialSets&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">TrialSetWithData</span><span class="p">(</span>
+                <span class="n">experiment</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">TrialSetSetup</span><span class="o">=</span><span class="n">trialset</span><span class="p">,</span>
+                <span class="n">experimentData</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initEntitiesTypes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize entity type objects with data access.</span>
+
+<span class="sd">        This populates ``self.entityType`` with ``EntityTypeWithData`` entries, keyed</span>
+<span class="sd">        by the entity type name, based on the Argos setup structure.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Expects Argos setup structure to include:</span>
+<span class="sd">        ``self.setup[&quot;entityTypes&quot;]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">experimentSetup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup</span>
+        <span class="k">for</span> <span class="n">entityType</span> <span class="ow">in</span> <span class="n">experimentSetup</span><span class="p">[</span><span class="s1">&#39;entityTypes&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">[</span><span class="n">entityType</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">EntityTypeWithData</span><span class="p">(</span>
+                <span class="n">experiment</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">entityType</span><span class="p">,</span>
+                <span class="n">experimentData</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="experimentSetupWithData.getExperimentData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_setup_with_data.html#hera.measurements.experiment.experiment.experimentSetupWithData.getExperimentData">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getExperimentData</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the experiment data engine.</span>
+
+<span class="sd">        Accessing experiment data is typically done through this data engine using</span>
+<span class="sd">        ``.getData(...)``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        object</span>
+<span class="sd">            One of:</span>
+<span class="sd">            - parquetDataEngineHera</span>
+<span class="sd">            - pandasDataEngineDB</span>
+<span class="sd">            - daskDataEngineDB</span>
+<span class="sd">            (depending on the configured ``dataType``).</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The exact concrete engine class is created by ``dataEngineFactory()``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">pathToExperiment</span><span class="p">,</span> <span class="n">dataType</span><span class="o">=</span><span class="n">PARQUETHERA</span><span class="p">,</span> <span class="n">dataSourceConfiguration</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">defaultTrialSetName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">projectName</span><span class="p">,</span>
+        <span class="n">pathToExperiment</span><span class="p">,</span>
+        <span class="n">dataType</span><span class="o">=</span><span class="n">PARQUETHERA</span><span class="p">,</span>
+        <span class="n">dataSourceConfiguration</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
+        <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">defaultTrialSetName</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            Initializes the specific experiment toolkit.</span>
+<span class="sd">        Initialize the specific experiment toolkit.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        projectName: str</span>
-<span class="sd">                The project name to work with.</span>
+<span class="sd">        projectName : str</span>
+<span class="sd">            The project name to work with.</span>
+<span class="sd">        pathToExperiment : str</span>
+<span class="sd">            Absolute path to the experiment folder on disk.</span>
+<span class="sd">            Must include ``runtimeExperimentData`` and experiment setup zip.</span>
+<span class="sd">        dataType : str, optional</span>
+<span class="sd">            Define how the data is retrieved:</span>
+<span class="sd">            - PARQUETHERA (default)</span>
+<span class="sd">            - PANDASDB</span>
+<span class="sd">            - DASKDB</span>
+<span class="sd">        dataSourceConfiguration : dict, optional</span>
+<span class="sd">            Overrides/updates the experiment configuration loaded from</span>
+<span class="sd">            ``Datasources_Configurations.json``.</span>
+<span class="sd">        filesDirectory : str, optional</span>
+<span class="sd">            Directory to store cache/intermediate files.</span>
+<span class="sd">            If None, uses current working directory.</span>
+<span class="sd">        defaultTrialSetName : str, optional</span>
+<span class="sd">            Default trial set name to use when the user does not specify a trial set.</span>
 
-<span class="sd">        pathToExperiment:</span>
-<span class="sd">                The path to the experiment data.</span>
-
-<span class="sd">        dataType: str</span>
-<span class="sd">                Define how the data is retrieved: dask or pandas directly from the mongoDB, or through the</span>
-<span class="sd">                                                  parquet.</span>
-
-<span class="sd">        dataSourceConfiguration : dict</span>
-<span class="sd">                overwrite the datasources configuration of the experiment.</span>
-<span class="sd">                See ... for structure.</span>
-
-<span class="sd">        filesDirectory: str</span>
-<span class="sd">                The directory to save the cache/intermediate files.</span>
-<span class="sd">                If None, use the [current directory]/experimentCache.</span>
-
-<span class="sd">        defaultTrialSet: str</span>
-<span class="sd">                A default trialset to use if not supplied.</span>
-
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the configuration file or setup zip cannot be found.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># setup the configuration file name</span>
-        <span class="n">configurationFileName</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pathToExperiment</span><span class="p">,</span> <span class="s1">&#39;runtimeExperimentData&#39;</span><span class="p">,</span> <span class="s2">&quot;Datasources_Configurations.json&quot;</span><span class="p">)</span>
-
+        <span class="n">configurationFileName</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">pathToExperiment</span><span class="p">,</span> <span class="s1">&#39;runtimeExperimentData&#39;</span><span class="p">,</span> <span class="s2">&quot;Datasources_Configurations.json&quot;</span>
+        <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">configurationFileName</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; The configuration file doesn&#39;t exist. Looking for </span><span class="si">{</span><span class="n">configurationFileName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The configuration file doesn&#39;t exist. Looking for </span><span class="si">{</span><span class="n">configurationFileName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_configuration</span> <span class="o">=</span> <span class="n">loadJSON</span><span class="p">(</span><span class="n">configurationFileName</span><span class="p">)</span>
 
         <span class="n">dataSourceConfiguration</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">dataSourceConfiguration</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataSourceConfiguration</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_configuration</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dataSourceConfiguration</span><span class="p">)</span>
 
         <span class="n">experimentName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">configuration</span><span class="p">[</span><span class="s1">&#39;experimentName&#39;</span><span class="p">]</span>
-        <span class="n">setupFile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pathToExperiment</span><span class="p">,</span> <span class="s1">&#39;runtimeExperimentData&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">.zip&quot;</span> <span class="p">)</span>
+        <span class="n">setupFile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pathToExperiment</span><span class="p">,</span> <span class="s1">&#39;runtimeExperimentData&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">.zip&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">setupFile</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The experiment setup file doesn&#39;t exist. Looking for </span><span class="si">{</span><span class="n">setupFile</span><span class="si">}</span><span class="s2">  &quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The experiment setup file doesn&#39;t exist. Looking for </span><span class="si">{</span><span class="n">setupFile</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Now initialize the data engine.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">dataEngineFactory</span><span class="p">()</span><span class="o">.</span><span class="n">getDataEngine</span><span class="p">(</span><span class="n">projectName</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_configuration</span><span class="p">,</span><span class="n">experimentObj</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataType</span> <span class="o">=</span> <span class="n">dataType</span><span class="p">)</span>
+        <span class="c1"># Initialize the data engine.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">dataEngineFactory</span><span class="p">()</span><span class="o">.</span><span class="n">getDataEngine</span><span class="p">(</span>
+            <span class="n">projectName</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configuration</span><span class="p">,</span> <span class="n">experimentObj</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataType</span><span class="o">=</span><span class="n">dataType</span>
+        <span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">entityType</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">trialSet</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
 
@@ -311,48 +586,104 @@
             <span class="n">filesDirectory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
 
         <span class="n">cacheDir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filesDirectory</span><span class="p">,</span> <span class="s2">&quot;experimentCache&quot;</span><span class="p">)</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cacheDir</span><span class="p">,</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cacheDir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="n">argosDataObjects</span><span class="o">.</span><span class="n">ExperimentZipFile</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">setupFile</span><span class="p">)</span>
-        <span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span><span class="n">toolkitName</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">Toolkit&quot;</span><span class="p">,</span><span class="n">filesDirectory</span><span class="o">=</span><span class="n">cacheDir</span><span class="p">)</span>
+        <span class="c1"># Init Argos setup + Hera toolkit base</span>
+        <span class="n">argosDataObjects</span><span class="o">.</span><span class="n">ExperimentZipFile</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setupFile</span><span class="p">)</span>
+        <span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span>
+            <span class="n">toolkitName</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">experimentName</span><span class="si">}</span><span class="s2">Toolkit&quot;</span><span class="p">,</span>
+            <span class="n">filesDirectory</span><span class="o">=</span><span class="n">cacheDir</span>
+        <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_defaultTrialSetName</span> <span class="o">=</span> <span class="n">defaultTrialSetName</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span> <span class="o">=</span> <span class="n">experimentAnalysis</span><span class="p">(</span><span class="bp">self</span><span class="p">,)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">experimentPresentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">analysis</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">experimentPresentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">analysis</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">defaultTrialSet</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Default trial set name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str or None</span>
+<span class="sd">            Default trial set name if configured.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaultTrialSetName</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">trialsOfDefaultTrialSet</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">defaultTrialSet</span><span class="p">]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_initAnalysisAndPresentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">analysisCLS</span><span class="p">,</span><span class="n">presentationCLS</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            Initializes the analysis and the presentation classes</span>
-<span class="sd">            and sets the datalayer.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        analysisCLS :  class</span>
-<span class="sd">                The analysis class. It is recommended that it will inherit from</span>
-<span class="sd">                .analysis.experimentAnalysis</span>
-
-<span class="sd">        presentationCLS : class</span>
-<span class="sd">                The presentation class. It is recommended that it will inherit from</span>
-<span class="sd">                .presentation.experimentPresentation</span>
-
+<span class="sd">        Convenience accessor for trials in the default trial set.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
+<span class="sd">        TrialSetWithData</span>
+<span class="sd">            Trial set object corresponding to ``defaultTrialSet``.</span>
 
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If ``defaultTrialSet`` is None or not found in ``self.trialSet``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">defaultTrialSet</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initAnalysisAndPresentation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">analysisCLS</span><span class="p">,</span> <span class="n">presentationCLS</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize analysis and presentation layers using custom classes.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        analysisCLS : type</span>
+<span class="sd">            Analysis layer class. Recommended to inherit from ``experimentAnalysis``.</span>
+<span class="sd">        presentationCLS : type</span>
+<span class="sd">            Presentation layer class. Recommended to inherit from ``experimentPresentation``.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        This method replaces the current analysis and presentation objects.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span> <span class="o">=</span> <span class="n">analysisCLS</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">presentationCLS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">presentationCLS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">getDataFromDateRange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">deviceType</span><span class="p">,</span><span class="n">startTime</span> <span class="p">,</span> <span class="n">endTime</span> <span class="p">,</span><span class="n">deviceName</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span><span class="n">withMetadata</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">deviceType</span><span class="o">=</span><span class="n">deviceType</span><span class="p">,</span><span class="n">deviceName</span><span class="o">=</span><span class="n">deviceName</span><span class="p">,</span><span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span><span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">)</span>
+<div class="viewcode-block" id="experimentSetupWithData.getDataFromDateRange">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_setup_with_data.html#hera.measurements.experiment.experiment.experimentSetupWithData.getDataFromDateRange">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getDataFromDateRange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deviceType</span><span class="p">,</span> <span class="n">startTime</span><span class="p">,</span> <span class="n">endTime</span><span class="p">,</span> <span class="n">deviceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">withMetadata</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve device data within a date range, optionally enriched with metadata.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        deviceType : str</span>
+<span class="sd">            The device type (as defined by the experiment schema / Argos).</span>
+<span class="sd">        startTime : datetime-like</span>
+<span class="sd">            Range start time (inclusive). Passed to the data engine.</span>
+<span class="sd">        endTime : datetime-like</span>
+<span class="sd">            Range end time (inclusive/exclusive depending on engine implementation).</span>
+<span class="sd">        deviceName : str, optional</span>
+<span class="sd">            Optional device name filter.</span>
+<span class="sd">        withMetadata : bool, optional</span>
+<span class="sd">            If True, merges device metadata (entities table) into the returned data.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Data frame indexed by timestamp (after merge) containing measurement data,</span>
+<span class="sd">            possibly with metadata columns added.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If no data is found in the specified date range.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span>
+            <span class="n">deviceType</span><span class="o">=</span><span class="n">deviceType</span><span class="p">,</span>
+            <span class="n">deviceName</span><span class="o">=</span><span class="n">deviceName</span><span class="p">,</span>
+            <span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span>
+            <span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span>
+        <span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;There is no data for </span><span class="si">{</span><span class="n">deviceType</span><span class="si">}</span><span class="s2"> between the dates </span><span class="si">{</span><span class="n">startTime</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">endTime</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -360,62 +691,180 @@
         <span class="k">if</span> <span class="n">withMetadata</span><span class="p">:</span>
             <span class="n">devicemetadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">entitiesTable</span><span class="p">()</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s2">&quot;entityName&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span>
-                    <span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                    <span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s2">&quot;entityName&quot;</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="n">data</span></div>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_process_row</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">row</span><span class="p">):</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_row</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert a single row&#39;s WGS84 coordinates into ITM coordinates.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        row : pandas.Series</span>
+<span class="sd">            A row that contains ``row.Longitude`` and ``row.Latitude``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.Series</span>
+<span class="sd">            Two values: [ITM_x, ITM_y] (as returned by ``convertCRS``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">pp</span> <span class="o">=</span> <span class="n">convertCRS</span><span class="p">([[</span><span class="n">row</span><span class="o">.</span><span class="n">Longitude</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">Latitude</span><span class="p">]],</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">pp</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pp</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_devices_image_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">trialSetName</span><span class="p">,</span><span class="n">trialName</span><span class="p">,</span><span class="n">deviceType</span><span class="p">,</span><span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">):</span>
+<div class="viewcode-block" id="experimentSetupWithData.get_devices_image_coordinates">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_setup_with_data.html#hera.measurements.experiment.experiment.experimentSetupWithData.get_devices_image_coordinates">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_devices_image_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trialSetName</span><span class="p">,</span> <span class="n">trialName</span><span class="p">,</span> <span class="n">deviceType</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute a bounding box around device coordinates for a trial.</span>
+
+<span class="sd">        This is useful for requesting map tiles or images that include all devices.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        trialSetName : str</span>
+<span class="sd">            Trial set name.</span>
+<span class="sd">        trialName : str</span>
+<span class="sd">            Trial name inside the trial set.</span>
+<span class="sd">        deviceType : str</span>
+<span class="sd">            Device type name used for filtering entities metadata.</span>
+<span class="sd">        outputCRS : int, optional</span>
+<span class="sd">            Desired CRS for output coordinates.</span>
+<span class="sd">            - If ITM: converts lat/lon to ITM and returns bbox in meters.</span>
+<span class="sd">            - Else: returns bbox in original WGS84 values.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple</span>
+<span class="sd">            (min_latitude, min_longitude, max_latitude, max_longitude)</span>
+<span class="sd">            Note: &quot;latitude/longitude&quot; names remain for backward compatibility,</span>
+<span class="sd">            even when outputCRS is ITM (then values are ITM coordinates).</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - Uses ``entitiesTable`` for the given trial.</span>
+<span class="sd">        - For ITM conversion, creates columns: ``ITM_Latitude``, ``ITM_Longitude``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">devices_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span><span class="o">.</span><span class="n">entitiesTable</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;deviceTypeName==@deviceType&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">outputCRS</span><span class="o">==</span><span class="n">ITM</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">outputCRS</span> <span class="o">==</span> <span class="n">ITM</span><span class="p">:</span>
             <span class="n">devices_df</span><span class="p">[[</span><span class="s1">&#39;ITM_Latitude&#39;</span><span class="p">,</span> <span class="s1">&#39;ITM_Longitude&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">devices_df</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">latitudes</span> <span class="o">=</span> <span class="n">devices_df</span><span class="p">[</span><span class="s1">&#39;ITM_Latitude&#39;</span><span class="p">]</span>
             <span class="n">longitudes</span> <span class="o">=</span> <span class="n">devices_df</span><span class="p">[</span><span class="s1">&#39;ITM_Longitude&#39;</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">latitudes</span> <span class="o">=</span> <span class="n">devices_df</span><span class="p">[</span><span class="s1">&#39;Latitude&#39;</span><span class="p">]</span>
             <span class="n">longitudes</span> <span class="o">=</span> <span class="n">devices_df</span><span class="p">[</span><span class="s1">&#39;Longitude&#39;</span><span class="p">]</span>
+
         <span class="n">min_latitude</span><span class="p">,</span> <span class="n">max_latitude</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">latitudes</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">latitudes</span><span class="p">)</span>
         <span class="n">min_longitude</span><span class="p">,</span> <span class="n">max_longitude</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">longitudes</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">longitudes</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">min_latitude</span><span class="p">,</span><span class="n">min_longitude</span><span class="p">,</span><span class="n">max_latitude</span><span class="p">,</span><span class="n">max_longitude</span></div>
+        <span class="k">return</span> <span class="n">min_latitude</span><span class="p">,</span> <span class="n">min_longitude</span><span class="p">,</span> <span class="n">max_latitude</span><span class="p">,</span> <span class="n">max_longitude</span></div>
+</div>
 
 
+
+<div class="viewcode-block" id="TrialSetWithData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/trialset_and_trial.html#hera.measurements.experiment.experiment.TrialSetWithData">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">TrialSetWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">TrialSet</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    TrialSetWithData</span>
+<span class="sd">    ----------------</span>
+
+<span class="sd">    Argos TrialSet extended with a Hera data engine reference.</span>
+
+<span class="sd">    Each TrialSet holds multiple trials. This wrapper ensures each created trial</span>
+<span class="sd">    is a ``TrialWithdata`` that can fetch its measurement data using the engine.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_initTrials</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">trial</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="s1">&#39;trials&#39;</span><span class="p">]:</span>
-            <span class="bp">self</span><span class="p">[</span><span class="n">trial</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">TrialWithdata</span><span class="p">(</span><span class="n">trialSet</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span><span class="n">metadata</span><span class="o">=</span><span class="n">trial</span><span class="p">,</span> <span class="n">experimentData</span> <span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">:</span><span class="n">experimentSetupWithData</span><span class="p">,</span> <span class="n">TrialSetSetup</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">experimentData</span><span class="p">:</span> <span class="n">dataEngineFactory</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            The initialization of the experiment.</span>
+<span class="sd">        Initialize trials within this trial set as ``TrialWithdata`` objects.</span>
 
-<span class="sd">            The object that handles the retrieval of the data is different to support</span>
-<span class="sd">            access to db, and pandas in the different stages of the experiment.</span>
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Expects Argos metadata structure to include:</span>
+<span class="sd">        ``self._metadata[&quot;trials&quot;]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">trial</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="s1">&#39;trials&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="n">trial</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">TrialWithdata</span><span class="p">(</span>
+                <span class="n">trialSet</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">trial</span><span class="p">,</span>
+                <span class="n">experimentData</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">:</span> <span class="n">experimentSetupWithData</span><span class="p">,</span> <span class="n">TrialSetSetup</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">experimentData</span><span class="p">:</span> <span class="n">dataEngineFactory</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the trial set with access to the experiment&#39;s data engine.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        experiment : the data of the experiment.</span>
-<span class="sd">        TrialSetSetup : The data of the trials.</span>
-<span class="sd">        experimentData : a link to the object that handles the retrieval of the data.</span>
-
+<span class="sd">        experiment : experimentSetupWithData</span>
+<span class="sd">            Parent experiment toolkit instance.</span>
+<span class="sd">        TrialSetSetup : dict</span>
+<span class="sd">            Trial set setup metadata.</span>
+<span class="sd">        experimentData : object</span>
+<span class="sd">            Data engine instance responsible for retrieving data.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">experimentData</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiment</span><span class="p">,</span> <span class="n">TrialSetSetup</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiment</span><span class="p">,</span> <span class="n">TrialSetSetup</span><span class="p">)</span></div>
 
 
+
+<div class="viewcode-block" id="TrialWithdata">
+<a class="viewcode-back" href="../../../../meassurments/experiment/trialset_and_trial.html#hera.measurements.experiment.experiment.TrialWithdata">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">TrialWithdata</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">Trial</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    TrialWithdata</span>
+<span class="sd">    -------------</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">deviceType</span><span class="p">,</span><span class="n">deviceName</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span><span class="n">startTime</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">endTime</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span><span class="n">withMetadata</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="sd">    Argos Trial extended with a Hera data engine reference.</span>
 
+<span class="sd">    Adds ``getData(...)`` with sensible defaults for start/end time based on the</span>
+<span class="sd">    trial properties (TRIALSTART/TRIALEND).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TrialWithdata.getData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/trialset_and_trial.html#hera.measurements.experiment.experiment.TrialWithdata.getData">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deviceType</span><span class="p">,</span> <span class="n">deviceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">startTime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">endTime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">withMetadata</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve data for this trial.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        deviceType : str</span>
+<span class="sd">            Device type to query.</span>
+<span class="sd">        deviceName : str, optional</span>
+<span class="sd">            Specific device to query. If None, returns all devices of this type.</span>
+<span class="sd">        startTime : datetime-like, optional</span>
+<span class="sd">            If None, defaults to the trial&#39;s ``TRIALSTART`` property.</span>
+<span class="sd">        endTime : datetime-like, optional</span>
+<span class="sd">            If None, defaults to the trial&#39;s ``TRIALEND`` property.</span>
+<span class="sd">        withMetadata : bool, optional</span>
+<span class="sd">            If True, merges entities metadata into the returned data.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Data frame indexed by timestamp (after merge) containing trial data.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If no data exists for this trial in the requested interval.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">startTime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">TRIALSTART</span><span class="p">]</span> <span class="k">if</span> <span class="n">startTime</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">startTime</span>
         <span class="n">endTime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">TRIALEND</span><span class="p">]</span> <span class="k">if</span> <span class="n">endTime</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">endTime</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">deviceType</span><span class="o">=</span><span class="n">deviceType</span><span class="p">,</span><span class="n">deviceName</span><span class="o">=</span><span class="n">deviceName</span><span class="p">,</span><span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span><span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span>
+            <span class="n">deviceType</span><span class="o">=</span><span class="n">deviceType</span><span class="p">,</span>
+            <span class="n">deviceName</span><span class="o">=</span><span class="n">deviceName</span><span class="p">,</span>
+            <span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span>
+            <span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span>
+        <span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;There is no data for </span><span class="si">{</span><span class="n">deviceType</span><span class="si">}</span><span class="s2"> between the dates </span><span class="si">{</span><span class="n">startTime</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">endTime</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -423,77 +872,203 @@
         <span class="k">if</span> <span class="n">withMetadata</span><span class="p">:</span>
             <span class="n">devicemetadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">entitiesTable</span><span class="p">()</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s2">&quot;entityName&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                    <span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">devicemetadata</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s2">&quot;deviceName&quot;</span><span class="p">,</span> <span class="n">right_on</span><span class="o">=</span><span class="s2">&quot;entityName&quot;</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="n">data</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trialSet</span><span class="p">:</span> <span class="n">TrialSetWithData</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">experimentData</span><span class="p">:</span> <span class="n">dataEngineFactory</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">experimentData</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">trialSet</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">EntityTypeWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">EntityType</span><span class="p">):</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_initEntities</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="s1">&#39;entities&#39;</span><span class="p">]:</span>
-            <span class="bp">self</span><span class="p">[</span><span class="n">entity</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">EntityWithData</span><span class="p">(</span><span class="n">entityType</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">entity</span><span class="p">,</span><span class="n">experimentData</span> <span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">:</span><span class="n">experimentSetupWithData</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">experimentData</span><span class="p">:</span> <span class="n">dataEngineFactory</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            The iniitialization of the object with the data.</span>
+<span class="sd">        Initialize the trial wrapper.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        experiment : The data of the experiment.</span>
-<span class="sd">        metadata</span>
-<span class="sd">        experimentData</span>
+<span class="sd">        trialSet : TrialSetWithData</span>
+<span class="sd">            Parent trial set object.</span>
+<span class="sd">        metadata : dict</span>
+<span class="sd">            Trial metadata (Argos schema).</span>
+<span class="sd">        experimentData : object</span>
+<span class="sd">            Data engine instance used to fetch trial data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">experimentData</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">trialSet</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EntityTypeWithData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_api.html#hera.measurements.experiment.experiment.EntityTypeWithData">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">EntityTypeWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">EntityType</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    EntityTypeWithData</span>
+<span class="sd">    ------------------</span>
+
+<span class="sd">    Argos EntityType extended with a Hera data engine reference.</span>
+
+<span class="sd">    Each entity type contains multiple entities (devices). This wrapper ensures</span>
+<span class="sd">    each created entity is an ``EntityWithData`` that can query the data engine.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initEntities</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize entities of this entity type as ``EntityWithData`` objects.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Expects Argos metadata structure to include:</span>
+<span class="sd">        ``self._metadata[&quot;entities&quot;]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="s1">&#39;entities&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="n">entity</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">EntityWithData</span><span class="p">(</span>
+                <span class="n">entityType</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">entity</span><span class="p">,</span>
+                <span class="n">experimentData</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">:</span> <span class="n">experimentSetupWithData</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">experimentData</span><span class="p">:</span> <span class="n">dataEngineFactory</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize entity type wrapper with access to the data engine.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        experiment : experimentSetupWithData</span>
+<span class="sd">            Parent experiment toolkit instance.</span>
+<span class="sd">        metadata : dict</span>
+<span class="sd">            Entity type metadata (Argos schema).</span>
+<span class="sd">        experimentData : object</span>
+<span class="sd">            Data engine instance used to fetch device data.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">experimentData</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiment</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
 
+<div class="viewcode-block" id="EntityTypeWithData.getData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_api.html#hera.measurements.experiment.experiment.EntityTypeWithData.getData">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">startTime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">endTime</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="n">startTime</span> <span class="o">=</span> <span class="n">startTime</span><span class="p">,</span><span class="n">endTime</span> <span class="o">=</span> <span class="n">endTime</span> <span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">getDataTrial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">trialSetName</span><span class="p">,</span><span class="n">trialName</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            Returns the device data from the trial.</span>
+<span class="sd">        Retrieve data for this entity type (device type) over a time range.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        trialSetName  : str</span>
-<span class="sd">            The name of the trial set</span>
-
-<span class="sd">        trialName : str</span>
-<span class="sd">            The name of the trial.</span>
+<span class="sd">        startTime : datetime-like, optional</span>
+<span class="sd">            Start time for query.</span>
+<span class="sd">        endTime : datetime-like, optional</span>
+<span class="sd">            End time for query.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Data for this entity type from the data engine.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span> <span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">)</span></div>
 
+
+<div class="viewcode-block" id="EntityTypeWithData.getDataTrial">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_api.html#hera.measurements.experiment.experiment.EntityTypeWithData.getDataTrial">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getDataTrial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trialSetName</span><span class="p">,</span> <span class="n">trialName</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve data for a specific entity within a specific trial.</span>
+
+<span class="sd">        This method:</span>
+<span class="sd">        1) locates the trial object</span>
+<span class="sd">        2) uses trial start/end times (TRIALSTART/TRIALEND)</span>
+<span class="sd">        3) queries the data engine, optionally per-device depending on metadata</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        trialSetName : str</span>
+<span class="sd">            Trial set name.</span>
+<span class="sd">        trialName : str</span>
+<span class="sd">            Trial name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Retrieved measurement data for this entity within the trial time window.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Uses ``self.properties[&quot;StoreDataPerDevice&quot;]`` to choose per-device storage mode.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">trial</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">trialSet</span><span class="p">[</span><span class="n">trialSetName</span><span class="p">][</span><span class="n">trialName</span><span class="p">]</span>
         <span class="n">startTime</span> <span class="o">=</span> <span class="n">trial</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">TRIALSTART</span><span class="p">]</span>
         <span class="n">endTime</span> <span class="o">=</span> <span class="n">trial</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">TRIALEND</span><span class="p">]</span>
 
         <span class="n">StoreDataPerDevice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;StoreDataPerDevice&#39;</span><span class="p">]</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">deviceType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">,</span><span class="n">deviceName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span><span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">,</span>
-                                            <span class="n">perDevice</span><span class="o">=</span><span class="n">StoreDataPerDevice</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span>
+            <span class="n">deviceType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">,</span>
+            <span class="n">deviceName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span>
+            <span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">,</span>
+            <span class="n">perDevice</span><span class="o">=</span><span class="n">StoreDataPerDevice</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+</div>
 
 
+
+<div class="viewcode-block" id="EntityWithData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_api.html#hera.measurements.experiment.experiment.EntityWithData">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">EntityWithData</span><span class="p">(</span><span class="n">argosDataObjects</span><span class="o">.</span><span class="n">Entity</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    EntityWithData</span>
+<span class="sd">    --------------</span>
+
+<span class="sd">    Argos Entity extended with a Hera data engine reference.</span>
+
+<span class="sd">    Provides ``getData`` to retrieve this specific device/entity measurements.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entityType</span><span class="p">:</span> <span class="n">EntityTypeWithData</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">experimentData</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize entity wrapper.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entityType : EntityTypeWithData</span>
+<span class="sd">            Parent entity type object.</span>
+<span class="sd">        metadata : dict</span>
+<span class="sd">            Entity metadata (Argos schema).</span>
+<span class="sd">        experimentData : object</span>
+<span class="sd">            Data engine instance used to fetch device data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span> <span class="o">=</span> <span class="n">experimentData</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">entityType</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">startTime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">endTime</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="n">StoreDataPerDevice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;StoreDataPerDevice&#39;</span><span class="p">]</span>
+<div class="viewcode-block" id="EntityWithData.getData">
+<a class="viewcode-back" href="../../../../meassurments/experiment/experiment_api.html#hera.measurements.experiment.experiment.EntityWithData.getData">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">startTime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">endTime</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve data for this entity (device) over a time range.</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">deviceType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">,</span>
-                                            <span class="n">deviceName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                                            <span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span>
-                                            <span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">,</span>
-                                            <span class="n">perDevice</span><span class="o">=</span><span class="n">StoreDataPerDevice</span><span class="p">)</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        startTime : datetime-like, optional</span>
+<span class="sd">            Query start time.</span>
+<span class="sd">        endTime : datetime-like, optional</span>
+<span class="sd">            Query end time.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Retrieved data for this entity from the data engine.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Uses ``self.properties[&quot;StoreDataPerDevice&quot;]`` to choose per-device storage mode.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">StoreDataPerDevice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;StoreDataPerDevice&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experimentData</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span>
+            <span class="n">deviceType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">entityType</span><span class="p">,</span>
+            <span class="n">deviceName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">startTime</span><span class="o">=</span><span class="n">startTime</span><span class="p">,</span>
+            <span class="n">endTime</span><span class="o">=</span><span class="n">endTime</span><span class="p">,</span>
+            <span class="n">perDevice</span><span class="o">=</span><span class="n">StoreDataPerDevice</span>
+        <span class="p">)</span></div>
+</div>
+
 </pre></div>
 
            </div>

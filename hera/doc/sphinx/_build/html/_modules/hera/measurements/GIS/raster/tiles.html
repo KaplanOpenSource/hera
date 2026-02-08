@@ -41,7 +41,14 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Documentation Sections</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../meassurments/index.html">Documentation Sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user/index.html">User Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../developer/index.html">Developer Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Legacy Sections</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../meassurments/index.html">Measurements Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simulations/index.html">Simulations Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../riskassessment/index.html">Risk Assessment Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../toolkit_api.html">Toolkit API</a></li>
 </ul>
 
@@ -87,11 +94,57 @@
 <span class="c1"># ED50_ZONE36N = 23036</span>
 
 <div class="viewcode-block" id="TilesToolkit">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.tiles.TilesToolkit">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/tiles.html#hera.measurements.GIS.raster.tiles.TilesToolkit">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">TilesToolkit</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to handle an image that represents a location.</span>
-<span class="sd">    Looks up the location in the public database in project &#39;imageLocation&#39;.</span>
+<span class="sd">    Toolkit for managing map tile imagery and satellite/aerial imagery.</span>
+
+<span class="sd">    The TilesToolkit provides functionality for retrieving, processing, and managing</span>
+<span class="sd">    map tiles from various tile servers (OpenStreetMap, satellite imagery, etc.).</span>
+<span class="sd">    It supports coordinate system transformations and tile stitching.</span>
+
+<span class="sd">    Key Features</span>
+<span class="sd">    ------------</span>
+<span class="sd">    - Tile retrieval from configurable tile servers</span>
+<span class="sd">    - Coordinate system transformations (WGS84, ITM, ED50)</span>
+<span class="sd">    - Tile stitching for large area coverage</span>
+<span class="sd">    - Zoom level management and scale calculations</span>
+<span class="sd">    - Integration with public image location database</span>
+
+<span class="sd">    Tile Servers</span>
+<span class="sd">    ------------</span>
+<span class="sd">    Tile servers are configured as datasources. Common tile server URLs follow the</span>
+<span class="sd">    pattern: {server_url}/{z}/{x}/{y}.png where z is zoom level, x and y are tile</span>
+<span class="sd">    coordinates.</span>
+
+<span class="sd">    Coordinate Systems</span>
+<span class="sd">    ------------------</span>
+<span class="sd">    - WSG84 (EPSG:4326): WGS84 geographic coordinates</span>
+<span class="sd">    - ITM (EPSG:2039): Israeli Transverse Mercator</span>
+<span class="sd">    - ED50_ZONE36N (EPSG:23036): ED50 Zone 36N</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from hera import toolkitHome</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Get the Tiles toolkit</span>
+<span class="sd">    &gt;&gt;&gt; tiles_tk = toolkitHome.getToolkit(&quot;GIS_Tiles&quot;, projectName=&quot;my_project&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Get image for a bounding box</span>
+<span class="sd">    &gt;&gt;&gt; img, extent = tiles_tk.getImageFromCorners(</span>
+<span class="sd">    ...     minx=34.75, miny=31.75,</span>
+<span class="sd">    ...     maxx=34.85, maxy=31.85,</span>
+<span class="sd">    ...     zoomlevel=15,</span>
+<span class="sd">    ...     tileServer=&quot;default_tile_server&quot;</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Calculate tile scale at location</span>
+<span class="sd">    &gt;&gt;&gt; scale = tiles_tk.tileScaleAtLatLonZoom(</span>
+<span class="sd">    ...     latitude=31.8,</span>
+<span class="sd">    ...     longitude=34.8,</span>
+<span class="sd">    ...     zoomlevel=15</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; print(f&quot;Tile scale: {scale} meters per pixel&quot;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">WSG84</span> <span class="o">=</span> <span class="mi">4326</span>
     <span class="n">ITM</span>    <span class="o">=</span> <span class="mi">2039</span>
@@ -113,7 +166,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">presentation</span><span class="p">(</span><span class="n">dataLayer</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
 
 <div class="viewcode-block" id="TilesToolkit.tileScaleAtLatLonZoom">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/tiles.html#hera.measurements.GIS.raster.tiles.TilesToolkit.tileScaleAtLatLonZoom">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">tileScaleAtLatLonZoom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">latitude</span><span class="p">,</span><span class="n">longitude</span><span class="p">,</span><span class="n">zoomlevel</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the scale of a tile im meters at the location and zoom level</span>
@@ -137,41 +190,82 @@
 
 
 <div class="viewcode-block" id="TilesToolkit.getImageFromCorners">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/tiles.html#hera.measurements.GIS.raster.tiles.TilesToolkit.getImageFromCorners">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getImageFromCorners</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">zoomlevel</span><span class="p">,</span> <span class="n">tileServer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">outputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Gets the image from the lower left corner and upper right cornet - [left,right,bottom,top] in the coordinate system of the outputCRS.</span>
-<span class="sd">        The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in Israel 1993 / Israeli TM Grid.</span>
+<span class="sd">        Retrieve and stitch map tiles for a rectangular bounding box.</span>
+
+<span class="sd">        This method downloads tiles from the specified tile server, stitches them</span>
+<span class="sd">        together into a single image, and returns the image along with its geographic</span>
+<span class="sd">        extent. Supports coordinate system transformations for both input and output.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        minx: float</span>
-<span class="sd">            Minimux X coordinate value of the image.</span>
+<span class="sd">        minx : float</span>
+<span class="sd">            Minimum x-coordinate (left edge) of the bounding box.</span>
 
-<span class="sd">        miny: float</span>
-<span class="sd">            Minimux Y coordinate value of the image.</span>
+<span class="sd">        miny : float</span>
+<span class="sd">            Minimum y-coordinate (bottom edge) of the bounding box.</span>
 
-<span class="sd">        maxx: float</span>
-<span class="sd">            Maximum X coordinate value of the image.</span>
+<span class="sd">        maxx : float</span>
+<span class="sd">            Maximum x-coordinate (right edge) of the bounding box.</span>
 
-<span class="sd">        maxy: float</span>
-<span class="sd">            Maximum X coordinate value of the image.</span>
+<span class="sd">        maxy : float</span>
+<span class="sd">            Maximum y-coordinate (top edge) of the bounding box.</span>
 
 <span class="sd">        zoomlevel : int</span>
-<span class="sd">            The zoom to retrieve. usually up to ~19. (highest).</span>
+<span class="sd">            Zoom level for tile retrieval (typically 0-19). Higher values provide</span>
+<span class="sd">            more detailed imagery but require more tiles and processing time.</span>
 
-<span class="sd">        tileServer : string, default=None</span>
-<span class="sd">            The tile server. If None, get the default one (defaultTileServer in the config)</span>
+<span class="sd">        tileServer : str, optional</span>
+<span class="sd">            Name of the tile server datasource to use. If None, uses the default</span>
+<span class="sd">            tile server from project configuration (&#39;defaultTileServer&#39; key).</span>
+<span class="sd">            Default is None.</span>
 
-<span class="sd">        inputCRS : int,default=WSG84</span>
-<span class="sd">            The ESPG of the input coordinates.</span>
+<span class="sd">        inputCRS : int, optional</span>
+<span class="sd">            EPSG code of the input coordinate system for minx, miny, maxx, maxy.</span>
+<span class="sd">            Default is WSG84 (4326).</span>
 
-<span class="sd">        outputCRS: int.default=WSG84</span>
-<span class="sd">            The ESPG of the output coordinates.</span>
+<span class="sd">        outputCRS : int, optional</span>
+<span class="sd">            EPSG code for the output extent coordinates. The image itself is always</span>
+<span class="sd">            in Web Mercator projection, but the extent is reported in this CRS.</span>
+<span class="sd">            Default is WSG84 (4326).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            tuple</span>
+<span class="sd">        tuple</span>
+<span class="sd">            (image, extent) where:</span>
+<span class="sd">            - image: PIL.Image.Image object containing the stitched tiles</span>
+<span class="sd">            - extent: list [minx, maxx, miny, maxy] in outputCRS coordinates</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If tileServer is None and no default is configured in project.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Get image in WGS84 coordinates</span>
+<span class="sd">        &gt;&gt;&gt; img, extent = tiles_tk.getImageFromCorners(</span>
+<span class="sd">        ...     minx=34.75, miny=31.75,</span>
+<span class="sd">        ...     maxx=34.85, maxy=31.85,</span>
+<span class="sd">        ...     zoomlevel=15,</span>
+<span class="sd">        ...     tileServer=&quot;osm_tiles&quot;</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Get image in ITM coordinates</span>
+<span class="sd">        &gt;&gt;&gt; img, extent = tiles_tk.getImageFromCorners(</span>
+<span class="sd">        ...     minx=180000, miny=660000,</span>
+<span class="sd">        ...     maxx=190000, maxy=670000,</span>
+<span class="sd">        ...     zoomlevel=14,</span>
+<span class="sd">        ...     inputCRS=2039,  # ITM</span>
+<span class="sd">        ...     outputCRS=2039</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Display the image</span>
+<span class="sd">        &gt;&gt;&gt; import matplotlib.pyplot as plt</span>
+<span class="sd">        &gt;&gt;&gt; plt.imshow(img, extent=extent)</span>
+<span class="sd">        &gt;&gt;&gt; plt.show()</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;getImageFromTiles&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;------- Start : </span><span class="si">{</span><span class="n">logger</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -284,30 +378,42 @@
 
 
 
+<div class="viewcode-block" id="TilesToolkit.tile2deg">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/tiles/toolkit.html#hera.measurements.GIS.raster.tiles.TilesToolkit.tile2deg">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">tile2deg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xtile</span><span class="p">,</span> <span class="n">ytile</span><span class="p">,</span> <span class="n">zoom</span><span class="p">):</span>
         <span class="n">n</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="n">zoom</span>
         <span class="n">lon_deg</span> <span class="o">=</span> <span class="n">xtile</span> <span class="o">/</span> <span class="n">n</span> <span class="o">*</span> <span class="mf">360.0</span> <span class="o">-</span> <span class="mf">180.0</span>
         <span class="n">lat_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">atan</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sinh</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">ytile</span> <span class="o">/</span> <span class="n">n</span><span class="p">)))</span>
         <span class="n">lat_deg</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">lat_rad</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">lat_deg</span><span class="p">,</span> <span class="n">lon_deg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">lat_deg</span><span class="p">,</span> <span class="n">lon_deg</span><span class="p">)</span></div>
 
+
+<div class="viewcode-block" id="TilesToolkit.deg2tile">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/tiles/toolkit.html#hera.measurements.GIS.raster.tiles.TilesToolkit.deg2tile">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">deg2tile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lat_deg</span><span class="p">,</span> <span class="n">lon_deg</span><span class="p">,</span> <span class="n">zoom</span><span class="p">):</span>
         <span class="n">lat_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">lat_deg</span><span class="p">)</span>
         <span class="n">n</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="n">zoom</span>
         <span class="n">xtile</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">lon_deg</span> <span class="o">+</span> <span class="mf">180.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">360.0</span> <span class="o">*</span> <span class="n">n</span><span class="p">)</span>
         <span class="n">ytile</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">asinh</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">tan</span><span class="p">(</span><span class="n">lat_rad</span><span class="p">))</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">n</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">xtile</span><span class="p">,</span> <span class="n">ytile</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">xtile</span><span class="p">,</span> <span class="n">ytile</span><span class="p">)</span></div>
 
+
+<div class="viewcode-block" id="TilesToolkit.listImages">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/tiles/toolkit.html#hera.measurements.GIS.raster.tiles.TilesToolkit.listImages">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">listImages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">**</span><span class="n">filters</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getMeasurementsDocuments</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">doctype</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getMeasurementsDocuments</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">doctype</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">)</span></div>
 
+
+<div class="viewcode-block" id="TilesToolkit.setDefaultTileServer">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/tiles/toolkit.html#hera.measurements.GIS.raster.tiles.TilesToolkit.setDefaultTileServer">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">setDefaultTileServer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">server</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setConfig</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s2">&quot;defaultTileServer&quot;</span><span class="p">:</span> <span class="n">server</span><span class="p">})</span></div>
+</div>
 
 
 
 <div class="viewcode-block" id="presentation">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.tiles.presentation">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/tiles.html#hera.measurements.GIS.raster.tiles.presentation">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">presentation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Presentation Layer class of TilesToolKit. Acess this class using TilesToolkit.presentation.</span>
@@ -322,7 +428,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_datalayer</span> <span class="o">=</span> <span class="n">dataLayer</span>
 
 <div class="viewcode-block" id="presentation.plot">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.tiles.presentation.plot">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/tiles.html#hera.measurements.GIS.raster.tiles.presentation.plot">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageNameOrData</span><span class="p">,</span><span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span><span class="n">outputCRS</span><span class="o">=</span><span class="n">ITM</span><span class="p">,</span><span class="n">extents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">display</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="o">**</span><span class="n">filters</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot the image.</span>

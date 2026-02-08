@@ -14,17 +14,40 @@ from .presentationLayer import presenation
 
 class lowFreqToolKit(toolkit.abstractToolkit):
     """
-        Manages the loading and storing of low frequency meteorological data
+    Toolkit for managing low-frequency meteorological data.
 
-        The data can be in the formats:
+    The lowFreqToolKit handles loading, parsing, and storing low-frequency
+    meteorological measurements from various sources including IMS (Israel
+    Meteorological Service) and other standard formats.
 
-        - TOAA
-        - IMS_JSON
-        -
+    Key Features
+    ------------
+    - Support for IMS JSON format
+    - TOAA format support
+    - Station-based data organization
+    - Analysis and presentation layers
+    - Integration with public IMS database
 
-        TODO:
-            Complete the other parsers from the older versions.
+    Data Sources
+    ------------
+    Data sources are station measurement documents. Each station can have
+    multiple time series of meteorological parameters.
 
+    Supported Formats
+    ----------------
+    - IMS_JSON: JSON format from Israel Meteorological Service API
+    - TOAA: Standard meteorological ASCII format
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> meteo_tk = toolkitHome.getToolkit("MeteoLowFreq", projectName="my_project")
+    >>> 
+    >>> # Access analysis layer
+    >>> analysis = meteo_tk.analysis
+    >>> 
+    >>> # Access presentation layer
+    >>> plots = meteo_tk.presentation
     """
 
     _np_size = None

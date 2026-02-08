@@ -26,12 +26,41 @@ from hera.simulations.openFoam  import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FI
 
 class OFToolkit(hermesWorkflowToolkit):
     """
-        The goal of this toolkit is to provide the functions that are required to run workflows.
-        and to mange the workflows in the DB.
+    Toolkit for OpenFOAM computational fluid dynamics simulations.
 
-        This toolkit might relay on the hermes project in order to manipulate the nodes
-        of the workflow. (TBD).
+    The OFToolkit extends hermesWorkflowToolkit to provide specialized support
+    for OpenFOAM simulations. It manages mesh operations, field handling,
+    workflow execution, and post-processing.
 
+    Key Features
+    ------------
+    - OpenFOAM workflow execution
+    - Mesh reading and manipulation
+    - Field operations (scalar, vector, tensor)
+    - VTK pipeline for post-processing
+    - Parallel case support
+    - Lagrangian particle tracking
+    - Buoyant reacting flow support
+
+    Flow Types
+    ----------
+    - FLOWTYPE_COMPRESSIBLE: Compressible flow simulations
+    - FLOWTYPE_INCOMPRESSIBLE: Incompressible flow simulations
+    - FLOWTYPE_DISPERSION: Dispersion simulations
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> of_tk = toolkitHome.getToolkit("OpenFOAM", projectName="my_project")
+    >>> 
+    >>> # Run simulation
+    >>> of_tk.runOFSimulation("my_workflow")
+    >>> 
+    >>> # Get mesh
+    >>> mesh = of_tk.getMesh("/path/to/case", readParallel=True)
+    >>> 
+    >>> # Get VTK pipeline
+    >>> pipeline = of_tk.analysis.getVTKPipeline()
     """
     TIME_STEADYSTATE = "steadyState"
     TIME_DYNAMIC = "dynamic"

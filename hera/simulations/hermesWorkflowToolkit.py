@@ -31,13 +31,42 @@ class actionModes(Enum):
 
 class hermesWorkflowToolkit(abstractToolkit):
     """
-        Manages the hermes worflows:
+    Toolkit for managing Hermes simulation workflows.
 
-            1. Checks if they are in the DB.
-            2. create a new name to them
-            3. allows simple deletion
-            4. allows simple comparison.
-            5. retrieve by initial name.
+    The hermesWorkflowToolkit provides comprehensive workflow management for
+    simulation execution. It handles workflow storage, naming, execution,
+    comparison, and organization into groups.
+
+    Key Features
+    ------------
+    - Workflow storage and retrieval from database
+    - Automatic workflow naming and grouping
+    - Workflow comparison and parameter analysis
+    - Template management for flows and nodes
+    - Workflow execution and building
+    - Group-based organization
+
+    Workflow Organization
+    ---------------------
+    Workflows are organized into groups. Each workflow in a group has a unique
+    name following the pattern: <groupName>_<ID>, where ID is auto-incremented.
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> workflow_tk = toolkitHome.getToolkit("hermesWorkflows", projectName="my_project")
+    >>> 
+    >>> # Add workflow to group
+    >>> doc = workflow_tk.addWorkflowToGroup(
+    ...     workflowJSON="/path/to/workflow.json",
+    ...     groupName="dispersion_study"
+    ... )
+    >>> 
+    >>> # Get workflow from database
+    >>> workflow = workflow_tk.getHermesWorkflowFromDB("workflow_name")
+    >>> 
+    >>> # Compare workflows
+    >>> diff = workflow_tk.compareWorkflowInGroup("dispersion_study")
     """
     DESC_GROUPNAME = "groupName"
     DESC_GROUPID = "groupID"

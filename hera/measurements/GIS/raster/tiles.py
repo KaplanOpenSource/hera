@@ -16,8 +16,54 @@ from ..utils import stlFactory,convertCRS,ITM,WSG84,ED50_ZONE36N
 
 class TilesToolkit(toolkit.abstractToolkit):
     """
-    A class to handle an image that represents a location.
-    Looks up the location in the public database in project 'imageLocation'.
+    Toolkit for managing map tile imagery and satellite/aerial imagery.
+
+    The TilesToolkit provides functionality for retrieving, processing, and managing
+    map tiles from various tile servers (OpenStreetMap, satellite imagery, etc.).
+    It supports coordinate system transformations and tile stitching.
+
+    Key Features
+    ------------
+    - Tile retrieval from configurable tile servers
+    - Coordinate system transformations (WGS84, ITM, ED50)
+    - Tile stitching for large area coverage
+    - Zoom level management and scale calculations
+    - Integration with public image location database
+
+    Tile Servers
+    ------------
+    Tile servers are configured as datasources. Common tile server URLs follow the
+    pattern: {server_url}/{z}/{x}/{y}.png where z is zoom level, x and y are tile
+    coordinates.
+
+    Coordinate Systems
+    ------------------
+    - WSG84 (EPSG:4326): WGS84 geographic coordinates
+    - ITM (EPSG:2039): Israeli Transverse Mercator
+    - ED50_ZONE36N (EPSG:23036): ED50 Zone 36N
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> 
+    >>> # Get the Tiles toolkit
+    >>> tiles_tk = toolkitHome.getToolkit("GIS_Tiles", projectName="my_project")
+    >>> 
+    >>> # Get image for a bounding box
+    >>> img, extent = tiles_tk.getImageFromCorners(
+    ...     minx=34.75, miny=31.75,
+    ...     maxx=34.85, maxy=31.85,
+    ...     zoomlevel=15,
+    ...     tileServer="default_tile_server"
+    ... )
+    >>> 
+    >>> # Calculate tile scale at location
+    >>> scale = tiles_tk.tileScaleAtLatLonZoom(
+    ...     latitude=31.8,
+    ...     longitude=34.8,
+    ...     zoomlevel=15
+    ... )
+    >>> print(f"Tile scale: {scale} meters per pixel")
     """
     WSG84 = 4326
     ITM    = 2039
@@ -61,38 +107,79 @@ class TilesToolkit(toolkit.abstractToolkit):
 
     def getImageFromCorners(self, minx, miny, maxx, maxy, zoomlevel, tileServer=None, inputCRS=WSG84, outputCRS=WSG84):
         """
-        Gets the image from the lower left corner and upper right cornet - [left,right,bottom,top] in the coordinate system of the outputCRS.
-        The lowerLeft,upperRight are given in WGS84 (degrees) if dgrees are True and in Israel 1993 / Israeli TM Grid.
+        Retrieve and stitch map tiles for a rectangular bounding box.
+
+        This method downloads tiles from the specified tile server, stitches them
+        together into a single image, and returns the image along with its geographic
+        extent. Supports coordinate system transformations for both input and output.
 
         Parameters
         ----------
-        minx: float
-            Minimux X coordinate value of the image.
+        minx : float
+            Minimum x-coordinate (left edge) of the bounding box.
 
-        miny: float
-            Minimux Y coordinate value of the image.
+        miny : float
+            Minimum y-coordinate (bottom edge) of the bounding box.
 
-        maxx: float
-            Maximum X coordinate value of the image.
+        maxx : float
+            Maximum x-coordinate (right edge) of the bounding box.
 
-        maxy: float
-            Maximum X coordinate value of the image.
+        maxy : float
+            Maximum y-coordinate (top edge) of the bounding box.
 
         zoomlevel : int
-            The zoom to retrieve. usually up to ~19. (highest).
+            Zoom level for tile retrieval (typically 0-19). Higher values provide
+            more detailed imagery but require more tiles and processing time.
 
-        tileServer : string, default=None
-            The tile server. If None, get the default one (defaultTileServer in the config)
+        tileServer : str, optional
+            Name of the tile server datasource to use. If None, uses the default
+            tile server from project configuration ('defaultTileServer' key).
+            Default is None.
 
-        inputCRS : int,default=WSG84
-            The ESPG of the input coordinates.
+        inputCRS : int, optional
+            EPSG code of the input coordinate system for minx, miny, maxx, maxy.
+            Default is WSG84 (4326).
 
-        outputCRS: int.default=WSG84
-            The ESPG of the output coordinates.
+        outputCRS : int, optional
+            EPSG code for the output extent coordinates. The image itself is always
+            in Web Mercator projection, but the extent is reported in this CRS.
+            Default is WSG84 (4326).
 
         Returns
         -------
-            tuple
+        tuple
+            (image, extent) where:
+            - image: PIL.Image.Image object containing the stitched tiles
+            - extent: list [minx, maxx, miny, maxy] in outputCRS coordinates
+
+        Raises
+        ------
+        ValueError
+            If tileServer is None and no default is configured in project.
+
+        Examples
+        --------
+        >>> # Get image in WGS84 coordinates
+        >>> img, extent = tiles_tk.getImageFromCorners(
+        ...     minx=34.75, miny=31.75,
+        ...     maxx=34.85, maxy=31.85,
+        ...     zoomlevel=15,
+        ...     tileServer="osm_tiles"
+        ... )
+        >>> 
+        >>> # Get image in ITM coordinates
+        >>> img, extent = tiles_tk.getImageFromCorners(
+        ...     minx=180000, miny=660000,
+        ...     maxx=190000, maxy=670000,
+        ...     zoomlevel=14,
+        ...     inputCRS=2039,  # ITM
+        ...     outputCRS=2039
+        ... )
+        >>> 
+        >>> # Display the image
+        >>> import matplotlib.pyplot as plt
+        >>> plt.imshow(img, extent=extent)
+        >>> plt.show()
         """
         logger = get_classMethod_logger(self,name="getImageFromTiles")
         logger.info(f"------- Start : {logger.name}")

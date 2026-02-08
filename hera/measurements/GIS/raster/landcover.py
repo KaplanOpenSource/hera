@@ -28,10 +28,52 @@ warnings.filterwarnings("ignore",
 
 # ================== CLASS ================== #
 class LandCoverToolkit(toolkit.abstractToolkit):
-    # """
-    # We should use different roughness to buildings and to topo
-    #
-    #  MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
+    """
+    Toolkit for managing land cover classification data.
+
+    The LandCoverToolkit handles MODIS land cover data (MCD12Q1) and provides
+    functionality for querying land cover types, calculating roughness lengths,
+    and generating spatial land cover grids.
+
+    Key Features
+    ------------
+    - Point and area land cover queries
+    - Roughness length calculation from land cover types
+    - Spatial grid generation for land cover data
+    - Support for IGBP and UMD classification schemes
+    - Integration with wind profile calculations
+
+    Land Cover Classification
+    -------------------------
+    Supports MODIS MCD12Q1 land cover types (IGBP scheme):
+    - 0: Water
+    - 1: Evergreen needleleaf forest
+    - 2: Evergreen broadleaf forest
+    - 3: Deciduous needleleaf forest
+    - 4: Deciduous broadleaf forest
+    - 5: Mixed forests
+    - 6: Closed shrublands
+    - 7: Open shrublands
+    - 8: Woody savannas
+    - 9: Savannas
+    - 10: Grasslands
+    - 11: Permanent wetlands
+    - 12: Croplands
+    - 13: Urban and built-up
+    - 14: Cropland/natural vegetation mosaic
+    - 15: Snow and ice
+    - 16: Barren or sparsely vegetated
+
+    Data Sources
+    ------------
+    Land cover data sources point to directories containing MODIS land cover
+    raster files (typically GeoTIFF format). Data is available from:
+    https://zenodo.org/records/8367523
+
+    Notes
+    -----
+    We should use different roughness values for buildings and topography.
+    MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid
     #
     #   data is from https://zenodo.org/records/8367523
     #   type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1
@@ -197,34 +239,61 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
     def getLandCover(self, minx, miny, maxx, maxy, dxdy=30, inputCRS=WSG84, dataSourceName=None):
         """
-        Get Xarray LandCover map.
+        Generate a land cover grid (xarray) for a rectangular bounding box.
+
+        This method creates a regular grid of land cover values covering the specified
+        region. The grid is returned as an xarray DataArray with lat/lon coordinates,
+        suitable for spatial analysis and visualization.
 
         Parameters
         ----------
         minx : float
-            Minimum value of X axis. If using WSG84 - the minimum Latitude coordinates.
+            Minimum x-coordinate (left edge) of the bounding box. In WGS84, this is
+            the minimum longitude.
 
         miny : float
-            Minimum value of Y axis. If using WSG84 - the minimum Longitude coordinates.
+            Minimum y-coordinate (bottom edge) of the bounding box. In WGS84, this is
+            the minimum latitude.
 
-        maxx: float
-            Maximum value of X axis. If using WSG84 - the maximum Latitude coordinates.
+        maxx : float
+            Maximum x-coordinate (right edge) of the bounding box. In WGS84, this is
+            the maximum longitude.
 
-        maxy: float
-            Maximum value of Y axis. If using WSG84 - the maximum Longitude coordinates.
+        maxy : float
+            Maximum y-coordinate (top edge) of the bounding box. In WGS84, this is
+            the maximum latitude.
 
-        dxdy: int, default=30
-            Spatial resolution of the output land cover map.
+        dxdy : float, optional
+            Spatial resolution of the output grid in meters. Smaller values create
+            finer resolution grids but require more processing. Default is 30 meters.
 
-        inputCRS : int, default=WSG84
-            The EPSG of the coordinates.
+        inputCRS : int, optional
+            EPSG code of the input coordinate system. Default is WSG84 (4326).
 
-        dataSourceName : string, default=None
-            The name of the data source to use.
+        dataSourceName : str, optional
+            Name of the land cover datasource to use. If None, uses the default
+            datasource from project configuration. Default is None.
 
         Returns
         -------
         xarray.DataArray
+            DataArray with dimensions (lat, lon) containing land cover type codes.
+            Coordinates are in the inputCRS coordinate system.
+
+        Examples
+        --------
+        >>> # Get land cover grid for a region
+        >>> landcover_grid = landcover_tk.getLandCover(
+        ...     minx=34.75, miny=31.75,
+        ...     maxx=34.85, maxy=31.85,
+        ...     dxdy=30,  # 30 meter resolution
+        ...     dataSourceName="modis_2020"
+        ... )
+        >>> 
+        >>> # Visualize the grid
+        >>> import matplotlib.pyplot as plt
+        >>> landcover_grid.plot()
+        >>> plt.show()
         """
 
         def vectorizeLandCoverCalc(lat, lon, img, lonUpperLeft, lonResolution, latUpperLeft, latResolution):
@@ -267,25 +336,40 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
     def getRoughnessAtPoint(self, lon, lat, inputCRS=WSG84, dataSourceName=None):
         """
-        Get the roughness value of a specific point in the map.
+        Get the roughness length (z0) value at a specific geographic point.
+
+        This method queries the land cover type at the point and returns the
+        corresponding roughness length value based on IGBP classification.
 
         Parameters
         ----------
         lon : float
-            The longitude coordinates.
+            Longitude coordinate of the query point.
 
         lat : float
-            The latitude coordinates.
+            Latitude coordinate of the query point.
 
-        inputCRS : int, default=WSG84
-            The EPSG of the coordinates.
+        inputCRS : int, optional
+            EPSG code of the input coordinate system. Default is WSG84 (4326).
 
-        dataSourceName : string, default=None
-            The name of the data source to use.
+        dataSourceName : str, optional
+            Name of the land cover datasource to use. If None, uses the default
+            datasource from project configuration. Default is None.
 
         Returns
         -------
         float
+            Roughness length (z0) in meters. Typical values range from 0.01m
+            (water) to 1.4m (barren/sparsely vegetated).
+
+        Examples
+        --------
+        >>> # Get roughness at a point
+        >>> roughness = landcover_tk.getRoughnessAtPoint(
+        ...     lon=34.8,
+        ...     lat=31.8
+        ... )
+        >>> print(f"Roughness length: {roughness} meters")
         """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
 
@@ -335,31 +419,73 @@ class LandCoverToolkit(toolkit.abstractToolkit):
     def getRoughnessFromLandcover(self, landcover, windMeteorologicalDirection=None, resolution=None, isBuilding=False,
                                   dataSourceName=None, GIS_BUILDINGS_dataSourceName=None):
         """
-        Adds Roughness field (z0) to landcover Xarray.
+        Calculate roughness length (z0) field from land cover xarray data.
+
+        This method adds a roughness length field to a land cover xarray based on
+        land cover type classifications. For urban areas, it can integrate building
+        data for more accurate roughness calculations.
 
         Parameters
         ----------
-        landcover : Xarray
-            Landcover Xarray map in which the Roughness field will be added to.
+        landcover : xarray.DataArray or xarray.Dataset
+            Land cover xarray containing land cover type codes. Must have 'lat' and
+            'lon' coordinates.
 
-        windMeteorologicalDirection: double, default=None
-            The meteorological angle. Must be specified only if data includes urbanic area.
+        windMeteorologicalDirection : float, optional
+            Meteorological wind direction in degrees (0-360). Required only if
+            isBuilding=True and urban areas are present. Default is None.
 
-        resolution: double, default=None
-            The size of the squares. Must be specified only if data includes urbanic area.
+        resolution : float, optional
+            Spatial resolution of the grid in meters. Required only if isBuilding=True
+            and urban areas are present. Default is None.
 
-        isBuilding : bool, default=False
-            Is the landcover contains urbanic area.
+        isBuilding : bool, optional
+            If True, indicates that the land cover data contains urban/built-up areas
+            and building data should be integrated for roughness calculation.
+            Default is False.
 
-        dataSourceName : string, default=None
-            The name of the data source to use.
+        dataSourceName : str, optional
+            Name of the land cover datasource. Used to determine classification scheme
+            (IGBP vs UMD). If None, uses default from project configuration.
+            Default is None.
 
-        GIS_BUILDINGS_dataSourceName: string, default=None
-            The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.
+        GIS_BUILDINGS_dataSourceName : str, optional
+            Name of the buildings datasource to use for urban roughness calculation.
+            Required if isBuilding=True. Default is None.
 
         Returns
         -------
-        xarray.DataArray
+        xarray.DataArray or xarray.Dataset
+            Input xarray with an additional 'z0' (roughness length) coordinate or
+            variable containing roughness values in meters.
+
+        Notes
+        -----
+        - Roughness values are mapped from land cover types using standard
+          meteorological roughness length tables
+        - Urban areas may use building data for more accurate roughness if
+          isBuilding=True and building datasource is provided
+
+        Examples
+        --------
+        >>> # Calculate roughness for non-urban land cover
+        >>> landcover_grid = landcover_tk.getLandCover(
+        ...     minlat=31.0, minlon=34.0,
+        ...     maxlat=32.0, maxlon=35.0,
+        ...     dxdy=30
+        ... )
+        >>> landcover_with_roughness = landcover_tk.getRoughnessFromLandcover(
+        ...     landcover=landcover_grid
+        ... )
+        >>> 
+        >>> # Calculate roughness with building integration for urban areas
+        >>> landcover_with_roughness = landcover_tk.getRoughnessFromLandcover(
+        ...     landcover=landcover_grid,
+        ...     isBuilding=True,
+        ...     windMeteorologicalDirection=270.0,
+        ...     resolution=30.0,
+        ...     GIS_BUILDINGS_dataSourceName="city_buildings"
+        ... )
         """
         dataSourceName = self.getConfig()['defaultLandCover'] if dataSourceName is None else dataSourceName
 

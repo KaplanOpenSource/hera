@@ -41,7 +41,14 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Documentation Sections</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../meassurments/index.html">Documentation Sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user/index.html">User Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../developer/index.html">Developer Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Legacy Sections</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../meassurments/index.html">Measurements Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simulations/index.html">Simulations Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../riskassessment/index.html">Risk Assessment Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../toolkit_api.html">Toolkit API</a></li>
 </ul>
 
@@ -100,93 +107,135 @@
 
 <span class="c1"># ================== CLASS ================== #</span>
 <div class="viewcode-block" id="LandCoverToolkit">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">LandCoverToolkit</span><span class="p">(</span><span class="n">toolkit</span><span class="o">.</span><span class="n">abstractToolkit</span><span class="p">):</span>
-    <span class="c1"># &quot;&quot;&quot;</span>
-    <span class="c1"># We should use different roughness to buildings and to topo</span>
-    <span class="c1">#</span>
-    <span class="c1">#  MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid</span>
-    <span class="c1">#</span>
-    <span class="c1">#   data is from https://zenodo.org/records/8367523</span>
-    <span class="c1">#   type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1</span>
-    <span class="c1">#</span>
-    <span class="c1">#   Land Cover Type 1: IGBP global vegetation classification scheme</span>
-    <span class="c1">#   Land Cover Type 2: University of Maryland (UMD) scheme</span>
-    <span class="c1">#</span>
-    <span class="c1">#   DataField    Name                    Data      Dimensions</span>
-    <span class="c1">#                                        Type</span>
-    <span class="c1">#</span>
-    <span class="c1">#   DataField_1  Land_Cover_Type_1       UINT8     Dimension_1</span>
-    <span class="c1">#                                                  Dimension_2</span>
-    <span class="c1">#</span>
-    <span class="c1">#           Description:    land cover types (IGBP)</span>
-    <span class="c1">#           DataField_1 HDF Attributes:</span>
-    <span class="c1">#              long_name      STRING  1   PGE    &quot;Land_Cover_Type_1&quot;</span>
-    <span class="c1">#              units          STRING  1   PGE     &quot;class number&quot;</span>
-    <span class="c1">#              valid_range    uint8    2   PGE     0 16</span>
-    <span class="c1">#              _FillValue     uint8    1   PGE     255</span>
-    <span class="c1">#              Water          uint8    1   PGE     0</span>
-    <span class="c1">#              Evergreen needleleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     1</span>
-    <span class="c1">#              Evergreen broadleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     2</span>
-    <span class="c1">#              Deciduous needleleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     3</span>
-    <span class="c1">#              Deciduous broadleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     4</span>
-    <span class="c1">#              Mixed forests  unit8    1   PGE     5</span>
-    <span class="c1">#              Closed shrubland</span>
-    <span class="c1">#                             unit8    1   PGE     6</span>
-    <span class="c1">#              Open shrublands</span>
-    <span class="c1">#                             unit8    1   PGE     7</span>
-    <span class="c1">#              Woody savannas unit8    1   PGE     8</span>
-    <span class="c1">#              Savannas       unit8    1   PGE     9</span>
-    <span class="c1">#              Grasslands     unit8    1   PGE    10</span>
-    <span class="c1">#              Permanent wetlands</span>
-    <span class="c1">#                             unit8    1   PGE    11</span>
-    <span class="c1">#              Croplands      unit8    1   PGE    12</span>
-    <span class="c1">#              Urban and built-up</span>
-    <span class="c1">#                             unit8    1   PGE    13</span>
-    <span class="c1">#              Cropland/natural vegetation mosaic</span>
-    <span class="c1">#                             unit8    1   PGE    14</span>
-    <span class="c1">#              Snow and ice   unit8    1   PGE    15</span>
-    <span class="c1">#              Barren or sparsely vegetated</span>
-    <span class="c1">#                             unit8    1   PGE    16</span>
-    <span class="c1">#</span>
-    <span class="c1">#   DataField_2  Land_Cover_Type_2       UINT8     Dimension_1</span>
-    <span class="c1">#                                                  Dimension_2</span>
-    <span class="c1">#</span>
-    <span class="c1">#           Description:    land cover types (UMD)</span>
-    <span class="c1">#           DataField_2 HDF Attributes:</span>
-    <span class="c1">#              long_name      STRING   1   PGE    &quot;Land_Cover_Type_2&quot;</span>
-    <span class="c1">#              units          STRING   1   PGE     &quot;class number&quot;</span>
-    <span class="c1">#              valid_range    uint8    2   PGE     0 16</span>
-    <span class="c1">#              _FillValue     uint8    1   PGE     255</span>
-    <span class="c1">#              Water          uint8    1   PGE     0</span>
-    <span class="c1">#              Evergreen needleleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     1</span>
-    <span class="c1">#              Evergreen broadleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     2</span>
-    <span class="c1">#              Deciduous needleleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     3</span>
-    <span class="c1">#              Deciduous broadleaf forest</span>
-    <span class="c1">#                             uint8    1   PGE     4</span>
-    <span class="c1">#              Mixed forests  uint8    1   PGE     5</span>
-    <span class="c1">#              Closed shrublands</span>
-    <span class="c1">#                              unit8   1   PGE     6</span>
-    <span class="c1">#              Open shrubland  unit8   1   PGE     7</span>
-    <span class="c1">#              Woody savannas  unit8    1   PGE     8</span>
-    <span class="c1">#              Savannas       unit8    1   PGE     9</span>
-    <span class="c1">#              Grasslands     uint8    1   PGE    10</span>
-    <span class="c1">#              Croplands      uint8    1   PGE    12</span>
-    <span class="c1">#              Urban and built-up</span>
-    <span class="c1">#                             uint8    1   PGE    13</span>
-    <span class="c1">#              Barren or sparsely vegetated</span>
-    <span class="c1">#                             unit8    1   PGE    16</span>
-    <span class="c1">#</span>
-    <span class="c1">#   Land cover may change between winter and summer</span>
-    <span class="c1">#   urban area may change over the years</span>
-    <span class="c1"># &quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Toolkit for managing land cover classification data.</span>
+
+<span class="sd">    The LandCoverToolkit handles MODIS land cover data (MCD12Q1) and provides</span>
+<span class="sd">    functionality for querying land cover types, calculating roughness lengths,</span>
+<span class="sd">    and generating spatial land cover grids.</span>
+
+<span class="sd">    Key Features</span>
+<span class="sd">    ------------</span>
+<span class="sd">    - Point and area land cover queries</span>
+<span class="sd">    - Roughness length calculation from land cover types</span>
+<span class="sd">    - Spatial grid generation for land cover data</span>
+<span class="sd">    - Support for IGBP and UMD classification schemes</span>
+<span class="sd">    - Integration with wind profile calculations</span>
+
+<span class="sd">    Land Cover Classification</span>
+<span class="sd">    -------------------------</span>
+<span class="sd">    Supports MODIS MCD12Q1 land cover types (IGBP scheme):</span>
+<span class="sd">    - 0: Water</span>
+<span class="sd">    - 1: Evergreen needleleaf forest</span>
+<span class="sd">    - 2: Evergreen broadleaf forest</span>
+<span class="sd">    - 3: Deciduous needleleaf forest</span>
+<span class="sd">    - 4: Deciduous broadleaf forest</span>
+<span class="sd">    - 5: Mixed forests</span>
+<span class="sd">    - 6: Closed shrublands</span>
+<span class="sd">    - 7: Open shrublands</span>
+<span class="sd">    - 8: Woody savannas</span>
+<span class="sd">    - 9: Savannas</span>
+<span class="sd">    - 10: Grasslands</span>
+<span class="sd">    - 11: Permanent wetlands</span>
+<span class="sd">    - 12: Croplands</span>
+<span class="sd">    - 13: Urban and built-up</span>
+<span class="sd">    - 14: Cropland/natural vegetation mosaic</span>
+<span class="sd">    - 15: Snow and ice</span>
+<span class="sd">    - 16: Barren or sparsely vegetated</span>
+
+<span class="sd">    Data Sources</span>
+<span class="sd">    ------------</span>
+<span class="sd">    Land cover data sources point to directories containing MODIS land cover</span>
+<span class="sd">    raster files (typically GeoTIFF format). Data is available from:</span>
+<span class="sd">    https://zenodo.org/records/8367523</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    We should use different roughness values for buildings and topography.</span>
+<span class="sd">    MCD12Q1 - MODIS/Terra+Aqua Land Cover Type Yearly L3 Global 500m SIN Grid</span>
+<span class="sd">    #</span>
+<span class="sd">    #   data is from https://zenodo.org/records/8367523</span>
+<span class="sd">    #   type are in https://ladsweb.modaps.eosdis.nasa.gov/filespec/MODIS/6/MCD12Q1</span>
+<span class="sd">    #</span>
+<span class="sd">    #   Land Cover Type 1: IGBP global vegetation classification scheme</span>
+<span class="sd">    #   Land Cover Type 2: University of Maryland (UMD) scheme</span>
+<span class="sd">    #</span>
+<span class="sd">    #   DataField    Name                    Data      Dimensions</span>
+<span class="sd">    #                                        Type</span>
+<span class="sd">    #</span>
+<span class="sd">    #   DataField_1  Land_Cover_Type_1       UINT8     Dimension_1</span>
+<span class="sd">    #                                                  Dimension_2</span>
+<span class="sd">    #</span>
+<span class="sd">    #           Description:    land cover types (IGBP)</span>
+<span class="sd">    #           DataField_1 HDF Attributes:</span>
+<span class="sd">    #              long_name      STRING  1   PGE    &quot;Land_Cover_Type_1&quot;</span>
+<span class="sd">    #              units          STRING  1   PGE     &quot;class number&quot;</span>
+<span class="sd">    #              valid_range    uint8    2   PGE     0 16</span>
+<span class="sd">    #              _FillValue     uint8    1   PGE     255</span>
+<span class="sd">    #              Water          uint8    1   PGE     0</span>
+<span class="sd">    #              Evergreen needleleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     1</span>
+<span class="sd">    #              Evergreen broadleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     2</span>
+<span class="sd">    #              Deciduous needleleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     3</span>
+<span class="sd">    #              Deciduous broadleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     4</span>
+<span class="sd">    #              Mixed forests  unit8    1   PGE     5</span>
+<span class="sd">    #              Closed shrubland</span>
+<span class="sd">    #                             unit8    1   PGE     6</span>
+<span class="sd">    #              Open shrublands</span>
+<span class="sd">    #                             unit8    1   PGE     7</span>
+<span class="sd">    #              Woody savannas unit8    1   PGE     8</span>
+<span class="sd">    #              Savannas       unit8    1   PGE     9</span>
+<span class="sd">    #              Grasslands     unit8    1   PGE    10</span>
+<span class="sd">    #              Permanent wetlands</span>
+<span class="sd">    #                             unit8    1   PGE    11</span>
+<span class="sd">    #              Croplands      unit8    1   PGE    12</span>
+<span class="sd">    #              Urban and built-up</span>
+<span class="sd">    #                             unit8    1   PGE    13</span>
+<span class="sd">    #              Cropland/natural vegetation mosaic</span>
+<span class="sd">    #                             unit8    1   PGE    14</span>
+<span class="sd">    #              Snow and ice   unit8    1   PGE    15</span>
+<span class="sd">    #              Barren or sparsely vegetated</span>
+<span class="sd">    #                             unit8    1   PGE    16</span>
+<span class="sd">    #</span>
+<span class="sd">    #   DataField_2  Land_Cover_Type_2       UINT8     Dimension_1</span>
+<span class="sd">    #                                                  Dimension_2</span>
+<span class="sd">    #</span>
+<span class="sd">    #           Description:    land cover types (UMD)</span>
+<span class="sd">    #           DataField_2 HDF Attributes:</span>
+<span class="sd">    #              long_name      STRING   1   PGE    &quot;Land_Cover_Type_2&quot;</span>
+<span class="sd">    #              units          STRING   1   PGE     &quot;class number&quot;</span>
+<span class="sd">    #              valid_range    uint8    2   PGE     0 16</span>
+<span class="sd">    #              _FillValue     uint8    1   PGE     255</span>
+<span class="sd">    #              Water          uint8    1   PGE     0</span>
+<span class="sd">    #              Evergreen needleleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     1</span>
+<span class="sd">    #              Evergreen broadleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     2</span>
+<span class="sd">    #              Deciduous needleleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     3</span>
+<span class="sd">    #              Deciduous broadleaf forest</span>
+<span class="sd">    #                             uint8    1   PGE     4</span>
+<span class="sd">    #              Mixed forests  uint8    1   PGE     5</span>
+<span class="sd">    #              Closed shrublands</span>
+<span class="sd">    #                              unit8   1   PGE     6</span>
+<span class="sd">    #              Open shrubland  unit8   1   PGE     7</span>
+<span class="sd">    #              Woody savannas  unit8    1   PGE     8</span>
+<span class="sd">    #              Savannas       unit8    1   PGE     9</span>
+<span class="sd">    #              Grasslands     uint8    1   PGE    10</span>
+<span class="sd">    #              Croplands      uint8    1   PGE    12</span>
+<span class="sd">    #              Urban and built-up</span>
+<span class="sd">    #                             uint8    1   PGE    13</span>
+<span class="sd">    #              Barren or sparsely vegetated</span>
+<span class="sd">    #                             unit8    1   PGE    16</span>
+<span class="sd">    #</span>
+<span class="sd">    #   Land cover may change between winter and summer</span>
+<span class="sd">    #   urban area may change over the years</span>
+<span class="sd">    # &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -211,7 +260,7 @@
 
 
 <div class="viewcode-block" id="LandCoverToolkit.getLandCoverAtPoint">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCoverAtPoint">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCoverAtPoint">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getLandCoverAtPoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">lat</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the landcover type integer value in a specific point.</span>
@@ -273,37 +322,64 @@
 
 
 <div class="viewcode-block" id="LandCoverToolkit.getLandCover">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getLandCover">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getLandCover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">dxdy</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get Xarray LandCover map.</span>
+<span class="sd">        Generate a land cover grid (xarray) for a rectangular bounding box.</span>
+
+<span class="sd">        This method creates a regular grid of land cover values covering the specified</span>
+<span class="sd">        region. The grid is returned as an xarray DataArray with lat/lon coordinates,</span>
+<span class="sd">        suitable for spatial analysis and visualization.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        minx : float</span>
-<span class="sd">            Minimum value of X axis. If using WSG84 - the minimum Latitude coordinates.</span>
+<span class="sd">            Minimum x-coordinate (left edge) of the bounding box. In WGS84, this is</span>
+<span class="sd">            the minimum longitude.</span>
 
 <span class="sd">        miny : float</span>
-<span class="sd">            Minimum value of Y axis. If using WSG84 - the minimum Longitude coordinates.</span>
+<span class="sd">            Minimum y-coordinate (bottom edge) of the bounding box. In WGS84, this is</span>
+<span class="sd">            the minimum latitude.</span>
 
-<span class="sd">        maxx: float</span>
-<span class="sd">            Maximum value of X axis. If using WSG84 - the maximum Latitude coordinates.</span>
+<span class="sd">        maxx : float</span>
+<span class="sd">            Maximum x-coordinate (right edge) of the bounding box. In WGS84, this is</span>
+<span class="sd">            the maximum longitude.</span>
 
-<span class="sd">        maxy: float</span>
-<span class="sd">            Maximum value of Y axis. If using WSG84 - the maximum Longitude coordinates.</span>
+<span class="sd">        maxy : float</span>
+<span class="sd">            Maximum y-coordinate (top edge) of the bounding box. In WGS84, this is</span>
+<span class="sd">            the maximum latitude.</span>
 
-<span class="sd">        dxdy: int, default=30</span>
-<span class="sd">            Spatial resolution of the output land cover map.</span>
+<span class="sd">        dxdy : float, optional</span>
+<span class="sd">            Spatial resolution of the output grid in meters. Smaller values create</span>
+<span class="sd">            finer resolution grids but require more processing. Default is 30 meters.</span>
 
-<span class="sd">        inputCRS : int, default=WSG84</span>
-<span class="sd">            The EPSG of the coordinates.</span>
+<span class="sd">        inputCRS : int, optional</span>
+<span class="sd">            EPSG code of the input coordinate system. Default is WSG84 (4326).</span>
 
-<span class="sd">        dataSourceName : string, default=None</span>
-<span class="sd">            The name of the data source to use.</span>
+<span class="sd">        dataSourceName : str, optional</span>
+<span class="sd">            Name of the land cover datasource to use. If None, uses the default</span>
+<span class="sd">            datasource from project configuration. Default is None.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        xarray.DataArray</span>
+<span class="sd">            DataArray with dimensions (lat, lon) containing land cover type codes.</span>
+<span class="sd">            Coordinates are in the inputCRS coordinate system.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Get land cover grid for a region</span>
+<span class="sd">        &gt;&gt;&gt; landcover_grid = landcover_tk.getLandCover(</span>
+<span class="sd">        ...     minx=34.75, miny=31.75,</span>
+<span class="sd">        ...     maxx=34.85, maxy=31.85,</span>
+<span class="sd">        ...     dxdy=30,  # 30 meter resolution</span>
+<span class="sd">        ...     dataSourceName=&quot;modis_2020&quot;</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Visualize the grid</span>
+<span class="sd">        &gt;&gt;&gt; import matplotlib.pyplot as plt</span>
+<span class="sd">        &gt;&gt;&gt; landcover_grid.plot()</span>
+<span class="sd">        &gt;&gt;&gt; plt.show()</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">vectorizeLandCoverCalc</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">lonUpperLeft</span><span class="p">,</span> <span class="n">lonResolution</span><span class="p">,</span> <span class="n">latUpperLeft</span><span class="p">,</span> <span class="n">latResolution</span><span class="p">):</span>
@@ -346,28 +422,43 @@
 
 
 <div class="viewcode-block" id="LandCoverToolkit.getRoughnessAtPoint">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessAtPoint">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getRoughnessAtPoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">lat</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the roughness value of a specific point in the map.</span>
+<span class="sd">        Get the roughness length (z0) value at a specific geographic point.</span>
+
+<span class="sd">        This method queries the land cover type at the point and returns the</span>
+<span class="sd">        corresponding roughness length value based on IGBP classification.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        lon : float</span>
-<span class="sd">            The longitude coordinates.</span>
+<span class="sd">            Longitude coordinate of the query point.</span>
 
 <span class="sd">        lat : float</span>
-<span class="sd">            The latitude coordinates.</span>
+<span class="sd">            Latitude coordinate of the query point.</span>
 
-<span class="sd">        inputCRS : int, default=WSG84</span>
-<span class="sd">            The EPSG of the coordinates.</span>
+<span class="sd">        inputCRS : int, optional</span>
+<span class="sd">            EPSG code of the input coordinate system. Default is WSG84 (4326).</span>
 
-<span class="sd">        dataSourceName : string, default=None</span>
-<span class="sd">            The name of the data source to use.</span>
+<span class="sd">        dataSourceName : str, optional</span>
+<span class="sd">            Name of the land cover datasource to use. If None, uses the default</span>
+<span class="sd">            datasource from project configuration. Default is None.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        float</span>
+<span class="sd">            Roughness length (z0) in meters. Typical values range from 0.01m</span>
+<span class="sd">            (water) to 1.4m (barren/sparsely vegetated).</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Get roughness at a point</span>
+<span class="sd">        &gt;&gt;&gt; roughness = landcover_tk.getRoughnessAtPoint(</span>
+<span class="sd">        ...     lon=34.8,</span>
+<span class="sd">        ...     lat=31.8</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Roughness length: {roughness} meters&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultLandCover&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataSourceName</span>
 
@@ -416,35 +507,77 @@
 
 
 <div class="viewcode-block" id="LandCoverToolkit.getRoughnessFromLandcover">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughnessFromLandcover">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getRoughnessFromLandcover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">landcover</span><span class="p">,</span> <span class="n">windMeteorologicalDirection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">isBuilding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                                   <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">GIS_BUILDINGS_dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Adds Roughness field (z0) to landcover Xarray.</span>
+<span class="sd">        Calculate roughness length (z0) field from land cover xarray data.</span>
+
+<span class="sd">        This method adds a roughness length field to a land cover xarray based on</span>
+<span class="sd">        land cover type classifications. For urban areas, it can integrate building</span>
+<span class="sd">        data for more accurate roughness calculations.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        landcover : Xarray</span>
-<span class="sd">            Landcover Xarray map in which the Roughness field will be added to.</span>
+<span class="sd">        landcover : xarray.DataArray or xarray.Dataset</span>
+<span class="sd">            Land cover xarray containing land cover type codes. Must have &#39;lat&#39; and</span>
+<span class="sd">            &#39;lon&#39; coordinates.</span>
 
-<span class="sd">        windMeteorologicalDirection: double, default=None</span>
-<span class="sd">            The meteorological angle. Must be specified only if data includes urbanic area.</span>
+<span class="sd">        windMeteorologicalDirection : float, optional</span>
+<span class="sd">            Meteorological wind direction in degrees (0-360). Required only if</span>
+<span class="sd">            isBuilding=True and urban areas are present. Default is None.</span>
 
-<span class="sd">        resolution: double, default=None</span>
-<span class="sd">            The size of the squares. Must be specified only if data includes urbanic area.</span>
+<span class="sd">        resolution : float, optional</span>
+<span class="sd">            Spatial resolution of the grid in meters. Required only if isBuilding=True</span>
+<span class="sd">            and urban areas are present. Default is None.</span>
 
-<span class="sd">        isBuilding : bool, default=False</span>
-<span class="sd">            Is the landcover contains urbanic area.</span>
+<span class="sd">        isBuilding : bool, optional</span>
+<span class="sd">            If True, indicates that the land cover data contains urban/built-up areas</span>
+<span class="sd">            and building data should be integrated for roughness calculation.</span>
+<span class="sd">            Default is False.</span>
 
-<span class="sd">        dataSourceName : string, default=None</span>
-<span class="sd">            The name of the data source to use.</span>
+<span class="sd">        dataSourceName : str, optional</span>
+<span class="sd">            Name of the land cover datasource. Used to determine classification scheme</span>
+<span class="sd">            (IGBP vs UMD). If None, uses default from project configuration.</span>
+<span class="sd">            Default is None.</span>
 
-<span class="sd">        GIS_BUILDINGS_dataSourceName: string, default=None</span>
-<span class="sd">            The name of the GIS Buildings datasource name. Relevant if landcover contains Urban areas.</span>
+<span class="sd">        GIS_BUILDINGS_dataSourceName : str, optional</span>
+<span class="sd">            Name of the buildings datasource to use for urban roughness calculation.</span>
+<span class="sd">            Required if isBuilding=True. Default is None.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        xarray.DataArray</span>
+<span class="sd">        xarray.DataArray or xarray.Dataset</span>
+<span class="sd">            Input xarray with an additional &#39;z0&#39; (roughness length) coordinate or</span>
+<span class="sd">            variable containing roughness values in meters.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - Roughness values are mapped from land cover types using standard</span>
+<span class="sd">          meteorological roughness length tables</span>
+<span class="sd">        - Urban areas may use building data for more accurate roughness if</span>
+<span class="sd">          isBuilding=True and building datasource is provided</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Calculate roughness for non-urban land cover</span>
+<span class="sd">        &gt;&gt;&gt; landcover_grid = landcover_tk.getLandCover(</span>
+<span class="sd">        ...     minlat=31.0, minlon=34.0,</span>
+<span class="sd">        ...     maxlat=32.0, maxlon=35.0,</span>
+<span class="sd">        ...     dxdy=30</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; landcover_with_roughness = landcover_tk.getRoughnessFromLandcover(</span>
+<span class="sd">        ...     landcover=landcover_grid</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Calculate roughness with building integration for urban areas</span>
+<span class="sd">        &gt;&gt;&gt; landcover_with_roughness = landcover_tk.getRoughnessFromLandcover(</span>
+<span class="sd">        ...     landcover=landcover_grid,</span>
+<span class="sd">        ...     isBuilding=True,</span>
+<span class="sd">        ...     windMeteorologicalDirection=270.0,</span>
+<span class="sd">        ...     resolution=30.0,</span>
+<span class="sd">        ...     GIS_BUILDINGS_dataSourceName=&quot;city_buildings&quot;</span>
+<span class="sd">        ... )</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s1">&#39;defaultLandCover&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataSourceName</span>
 
@@ -496,7 +629,7 @@
 
 
 <div class="viewcode-block" id="LandCoverToolkit.getRoughness">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getRoughness">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getRoughness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">dxdy</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">isBuilding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                      <span class="n">windMeteorologicalDirection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">GIS_BUILDINGS_dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -590,7 +723,7 @@
         <span class="k">return</span> <span class="n">roughnessDict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">landcover</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)</span>
 
 <div class="viewcode-block" id="LandCoverToolkit.getCodingMap">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.getCodingMap">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getCodingMap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datasourceName</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns dictionary that maps landcover int value to string of landcover.</span>
@@ -771,6 +904,8 @@
 
 
     
+<div class="viewcode-block" id="LandCoverToolkit.roughnesslength2sandgrainroughness">
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/toolkit.html#hera.measurements.GIS.raster.landcover.LandCoverToolkit.roughnesslength2sandgrainroughness">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">roughnesslength2sandgrainroughness</span><span class="p">(</span><span class="n">rl</span><span class="p">):</span>
     <span class="c1">#Desmond, C. J., Watson, S. J., &amp; Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    </span>
     <span class="c1"># https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12</span>
@@ -780,11 +915,12 @@
     <span class="c1"># Cs value can be set as 0.5</span>
     
         <span class="k">return</span> <span class="n">rl</span><span class="o">*</span><span class="mf">30.0</span> <span class="c1"># return Ks value </span></div>
+</div>
 
 
 
 <div class="viewcode-block" id="presentation">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.presentation">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/presentation.html#hera.measurements.GIS.raster.landcover.presentation">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">presentation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Presentation Layer of LandCover toolkit.</span>
@@ -818,7 +954,7 @@
         <span class="p">}</span>
 
 <div class="viewcode-block" id="presentation.plotRoughness">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.presentation.plotRoughness">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/presentation.html#hera.measurements.GIS.raster.landcover.presentation.plotRoughness">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">plotRoughness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span><span class="mi">28</span><span class="p">)):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot Roughness upon Given Axes.</span>
@@ -856,7 +992,7 @@
 
 
 <div class="viewcode-block" id="presentation.plotLandcover">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.presentation.plotLandcover">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/presentation.html#hera.measurements.GIS.raster.landcover.presentation.plotLandcover">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">plotLandcover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span><span class="mi">28</span><span class="p">)):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot LandCover upon Given Axes.</span>
@@ -937,7 +1073,7 @@
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">rectangles</span><span class="p">))</span>
 
 <div class="viewcode-block" id="presentation.plotLambdas">
-<a class="viewcode-back" href="../../../../../meassurments/GIS/index.html#hera.measurements.GIS.raster.landcover.presentation.plotLambdas">[docs]</a>
+<a class="viewcode-back" href="../../../../../meassurments/GIS/raster/landcover/presentation.html#hera.measurements.GIS.raster.landcover.presentation.plotLambdas">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">plotLambdas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">field</span><span class="p">,</span><span class="n">plot</span><span class="p">,</span><span class="n">landcover</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span><span class="mi">28</span><span class="p">)):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot Lmabda upon given Axes.</span>

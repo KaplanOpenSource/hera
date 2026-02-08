@@ -1,22 +1,20 @@
+
+
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../../../../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>hera.measurements.GIS.vector.buildings.toolkit &mdash; Meassurments Documentation  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../../../../_static/pygments.css?v=80d5e7a1" />
-      <link rel="stylesheet" type="text/css" href="../../../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/css/theme.css?v=e59714d7" />
 
   
-  <!--[if lt IE 9]>
-    <script src="../../../../../../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-        <script src="../../../../../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../../../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../../../../_static/doctools.js?v=888ff710"></script>
-        <script src="../../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../../../search.html" /> 
@@ -68,31 +66,30 @@
            <div itemprop="articleBody">
              
   <h1>Source code for hera.measurements.GIS.vector.buildings.toolkit</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">geopandas</span>
-<span class="kn">from</span> <span class="nn">..toolkit</span> <span class="kn">import</span> <span class="n">VectorToolkit</span>
-<span class="kn">from</span> <span class="nn">.analysis</span> <span class="kn">import</span> <span class="n">analysis</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">VectorToolkit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">analysis</span>
 
 <span class="k">try</span><span class="p">:</span>
-<span class="c1">#    logger.execution(&quot;Trying to Load the FreeCAD module&quot;)</span>
-    <span class="kn">import</span> <span class="nn">FreeCAD</span>
-    <span class="kn">import</span> <span class="nn">Part</span>
-    <span class="kn">import</span> <span class="nn">Mesh</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">FreeCAD</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">Part</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">Mesh</span>
 <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<span class="c1">#    logger.error(f&quot;Loading the Building Toolkit. FreeCAD not Found, cannot convert to STL: {e}&quot;)</span>
-<span class="c1">#     raise ImportError(&quot;FreeCAD module is not installed in this environment. Cannot convert to STL&quot;)</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;FreeCAD module is not installed in this environment. Cannot convert to STL&quot;</span><span class="p">)</span>
 
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">from</span> <span class="nn">.....utils.logging</span> <span class="kn">import</span> <span class="n">get_classMethod_logger</span>
-<span class="kn">from</span> <span class="nn">...utils</span> <span class="kn">import</span> <span class="n">WSG84</span><span class="p">,</span> <span class="n">ITM</span><span class="p">,</span> <span class="n">ED50_ZONE36N</span>
-<span class="kn">from</span> <span class="nn">.....</span> <span class="kn">import</span> <span class="n">toolkitHome</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.....utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_classMethod_logger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">WGS84</span><span class="p">,</span> <span class="n">ITM</span><span class="p">,</span> <span class="n">ED50_ZONE36N</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.....</span><span class="w"> </span><span class="kn">import</span> <span class="n">toolkitHome</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shapely.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
 
 
 <div class="viewcode-block" id="BuildingsToolkit">
-<a class="viewcode-back" href="../../../../../../GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">[docs]</a>
-<span class="k">class</span> <span class="nc">BuildingsToolkit</span><span class="p">(</span><span class="n">VectorToolkit</span><span class="p">):</span>
+<a class="viewcode-back" href="../../../../../../GIS/buildings.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuildingsToolkit</span><span class="p">(</span><span class="n">VectorToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Toolkit to manage the buildings. Reading the shapefile with geoDataFrame will result in dataframe</span>
 <span class="sd">    with the following columns:</span>
@@ -100,14 +97,14 @@
 <span class="sd">        - Building height column : the column name is in BuildingHeightColumn. Default value=BLDG_HT.</span>
 <span class="sd">        - Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="n">projectName</span><span class="p">,</span> <span class="n">toolkitName</span><span class="o">=</span><span class="s2">&quot;Buildings&quot;</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="n">filesDirectory</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">(</span><span class="n">dataLayer</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
 
 <div class="viewcode-block" id="BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">
-<a class="viewcode-back" href="../../../../../../GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">[docs]</a>
-    <span class="k">def</span> <span class="nf">getBuildingHeightFromRasterTopographyToolkit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buildingData</span><span class="p">,</span> <span class="n">topographyDataSource</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<a class="viewcode-back" href="../../../../../../GIS/buildings.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getBuildingHeightFromRasterTopographyToolkit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buildingData</span><span class="p">,</span> <span class="n">topographyDataSource</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the topography height of each building (at its center) in the building data using the topography toolkit. Return data frame wtih &#39;evaluation&#39; as a column.</span>
 
@@ -124,13 +121,13 @@
 <span class="sd">            geopandas.DataFrame</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">topotk</span> <span class="o">=</span> <span class="n">toolkitHome</span><span class="o">.</span><span class="n">getToolkit</span><span class="p">(</span><span class="n">toolkitName</span><span class="o">=</span><span class="n">toolkitHome</span><span class="o">.</span><span class="n">GIS_RASTER_TOPOGRAPHY</span><span class="p">,</span> <span class="n">projectName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="p">)</span>
-        <span class="n">elevations</span> <span class="o">=</span> <span class="n">topotk</span><span class="o">.</span><span class="n">getPointListElevation</span><span class="p">(</span><span class="n">buildingData</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">WSG84</span><span class="p">))</span>
+        <span class="n">elevations</span> <span class="o">=</span> <span class="n">topotk</span><span class="o">.</span><span class="n">getPointListElevation</span><span class="p">(</span><span class="n">buildingData</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">WGS84</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">buildingData</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">elevations</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">
-<a class="viewcode-back" href="../../../../../../GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">[docs]</a>
-    <span class="k">def</span> <span class="nf">buildingsGeopandasToSTLRasterTopography</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<a class="viewcode-back" href="../../../../../../GIS/buildings.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">buildingsGeopandasToSTLRasterTopography</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                                 <span class="n">buildingData</span><span class="p">,</span>
                                                 <span class="n">buildingHeightColumn</span><span class="p">,</span>
                                                 <span class="n">buildingElevationColumn</span><span class="p">,</span>
@@ -189,7 +186,7 @@
                 <span class="k">continue</span>
 
             <span class="k">if</span> <span class="n">indx</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">execution</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">indx</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">buildingData</span><span class="p">)</span><span class="si">}</span><span class="s2"> shape file is executed&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">indx</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">buildingData</span><span class="p">)</span><span class="si">}</span><span class="s2"> shape file is executed&quot;</span><span class="p">)</span>
 
             <span class="n">wallsheight</span> <span class="o">=</span> <span class="n">building</span><span class="p">[</span><span class="n">buildingHeightColumn</span><span class="p">]</span>
             <span class="n">altitude</span> <span class="o">=</span> <span class="n">referenceTopography</span> <span class="k">if</span> <span class="n">flatTerrain</span> <span class="k">else</span> <span class="n">building</span><span class="p">[</span><span class="n">buildingElevationColumn</span><span class="p">]</span> <span class="o">-</span> <span class="n">nonFlatTopographyShift</span>
@@ -222,14 +219,14 @@
             <span class="n">newPad</span><span class="o">.</span><span class="n">Symmetric</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="n">FreeCADDOC</span><span class="o">.</span><span class="n">recompute</span><span class="p">()</span>
 
-        <span class="n">logger</span><span class="o">.</span><span class="n">execution</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing the STL </span><span class="si">{</span><span class="n">outputFileName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing the STL </span><span class="si">{</span><span class="n">outputFileName</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">Mesh</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="n">FreeCADDOC</span><span class="o">.</span><span class="n">Objects</span><span class="p">,</span> <span class="n">outputFileName</span><span class="p">)</span></div>
 
 
 
 <div class="viewcode-block" id="BuildingsToolkit.getBuildingsFromRectangle">
-<a class="viewcode-back" href="../../../../../../GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle">[docs]</a>
-    <span class="k">def</span> <span class="nf">getBuildingsFromRectangle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WSG84</span><span class="p">,</span><span class="n">withElevation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<a class="viewcode-back" href="../../../../../../GIS/buildings.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getBuildingsFromRectangle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WGS84</span><span class="p">,</span> <span class="n">withElevation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the buildings geopandas for the rectangle region.</span>
 
@@ -251,7 +248,7 @@
 <span class="sd">            The datasource name. If none, will use the default datasource.</span>
 
 <span class="sd">        withElevation : bool,default=False.</span>
-<span class="sd">            If True, use the topography (raster) toolkit to get the heghts.</span>
+<span class="sd">            If True, use the topography (raster) toolkit to get the heights.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -267,6 +264,105 @@
             <span class="n">buildings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getBuildingHeightFromRasterTopographyToolkit</span><span class="p">(</span><span class="n">buildings</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">buildings</span></div>
+
+<div class="viewcode-block" id="BuildingsToolkit.get_buildings_height">
+<a class="viewcode-back" href="../../../../../../GIS/buildings.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.get_buildings_height">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_buildings_height</span><span class="p">(</span><span class="n">gdf</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract building names, geometries(coordination), and height information from a GeoDataFrame.</span>
+<span class="sd">        if there is no height available - it will calculate the number of levels in the building * 3/</span>
+<span class="sd">        else: none</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        gdf (GeoDataFrame): A GeoPandas DataFrame containing building geometries</span>
+<span class="sd">                            and associated properties.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        geopandas.DataFrame</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">building_info</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;Unnamed&#39;</span><span class="p">)</span>  <span class="c1"># Extract the building name</span>
+
+            <span class="c1"># Retain the original geometry</span>
+            <span class="n">geometry</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">geometry</span>
+
+            <span class="c1"># Try to get the height or number of levels</span>
+            <span class="n">height</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;height&#39;</span><span class="p">)</span>
+            <span class="n">levels</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;building:levels&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Determine the height value</span>
+            <span class="k">if</span> <span class="n">height</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">levels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">height</span> <span class="o">=</span> <span class="n">levels</span> <span class="o">*</span> <span class="mi">3</span>  <span class="c1"># Estimate height based on number of levels</span>
+
+            <span class="c1"># Append the building information</span>
+            <span class="n">building_info</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s1">&#39;geometry&#39;</span><span class="p">:</span> <span class="n">geometry</span><span class="p">,</span>  <span class="c1"># Keep the original geometry</span>
+                <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="n">height</span>
+            <span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">building_info</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BuildingsToolkit.filter_buildings_in_area">
+<a class="viewcode-back" href="../../../../../../GIS/buildings.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.filter_buildings_in_area">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_buildings_in_area</span><span class="p">(</span><span class="n">buildings_data</span><span class="p">,</span> <span class="n">min_longitude</span><span class="p">,</span> <span class="n">min_latitude</span><span class="p">,</span> <span class="n">max_longitude</span><span class="p">,</span> <span class="n">max_latitude</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filter building features by a specified geographic area using a bounding box.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        buildings_data : dict</span>
+<span class="sd">            A GeoJSON-like dictionary containing building features to filter.</span>
+
+<span class="sd">        min_longitude : float</span>
+<span class="sd">            Minimum longitude defining the bounding box.</span>
+
+<span class="sd">        min_latitude : float</span>
+<span class="sd">            Minimum latitude defining the bounding box.</span>
+
+<span class="sd">        max_longitude : float</span>
+<span class="sd">            Maximum longitude defining the bounding box.</span>
+
+<span class="sd">        max_latitude : float</span>
+<span class="sd">            Maximum latitude defining the bounding box.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        -------</span>
+<span class="sd">        gpd.GeoDataFrame</span>
+<span class="sd">            A GeoDataFrame containing buildings that are located within the specified area.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create a polygon from the bounding box</span>
+        <span class="n">bbox_polygon</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">([(</span><span class="n">min_longitude</span><span class="p">,</span> <span class="n">min_latitude</span><span class="p">),</span>
+                                <span class="p">(</span><span class="n">max_longitude</span><span class="p">,</span> <span class="n">min_latitude</span><span class="p">),</span>
+                                <span class="p">(</span><span class="n">max_longitude</span><span class="p">,</span> <span class="n">max_latitude</span><span class="p">),</span>
+                                <span class="p">(</span><span class="n">min_longitude</span><span class="p">,</span> <span class="n">max_latitude</span><span class="p">),</span>
+                                <span class="p">(</span><span class="n">min_longitude</span><span class="p">,</span> <span class="n">min_latitude</span><span class="p">)])</span>  <span class="c1"># Close the polygon</span>
+
+        <span class="c1"># List to hold filtered building data</span>
+        <span class="n">filtered_buildings</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">buildings_data</span><span class="p">[</span><span class="s1">&#39;features&#39;</span><span class="p">]:</span>
+            <span class="n">geometry</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span>
+            <span class="n">properties</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;properties&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Create a geometry shape from the geometry data</span>
+            <span class="n">geom</span> <span class="o">=</span> <span class="n">shape</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>  <span class="c1"># Handles Point, Polygon, MultiPolygon, etc.</span>
+
+            <span class="c1"># Check if the geometry intersects with the bounding box polygon</span>
+            <span class="k">if</span> <span class="n">geom</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">bbox_polygon</span><span class="p">):</span>
+                <span class="c1"># Add all properties and the geometry</span>
+                <span class="n">properties</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">geom</span>
+                <span class="n">filtered_buildings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+
+        <span class="c1"># Create a GeoDataFrame</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">filtered_buildings</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">gdf</span></div>
 </div>
 
 </pre></div>

@@ -21,11 +21,65 @@ from shapely.geometry import *
 
 class BuildingsToolkit(VectorToolkit):
     """
-    Toolkit to manage the buildings. Reading the shapefile with geoDataFrame will result in dataframe
-    with the following columns:
-        - Geometry: the polygon of the building.
-        - Building height column : the column name is in BuildingHeightColumn. Default value=BLDG_HT.
-        - Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.
+    Toolkit for managing building geometry and height data.
+
+    The BuildingsToolkit handles vector building data in GeoPandas format, providing
+    capabilities for spatial queries, height extraction, STL conversion, and integration
+    with topography data.
+
+    Key Features
+    ------------
+    - Building geometry management (polygons, footprints)
+    - Height data extraction and processing
+    - Integration with raster topography for elevation data
+    - STL file generation for 3D visualization (requires FreeCAD)
+    - Spatial filtering and region extraction
+    - Building height estimation from number of levels
+
+    Data Structure
+    --------------
+    Building data is stored as GeoPandas GeoDataFrame with the following expected columns:
+    - **geometry**: Polygon geometry representing building footprint
+    - **Building height column**: Column name specified in BuildingHeightColumn.
+      Default column name is 'BLDG_HT' (height in meters)
+    - **Land height column**: Column name specified in LandHeightColumn.
+      Default column name is 'HT_LAND' (ground elevation in meters)
+
+    Data Sources
+    ------------
+    Building data sources are stored as GeoPandas GeoDataFrames. Each datasource
+    can contain multiple buildings with their geometric and attribute information.
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> from shapely.geometry import Polygon
+    >>> 
+    >>> # Get the Buildings toolkit
+    >>> buildings_tk = toolkitHome.getToolkit("GIS_Buildings", projectName="my_project")
+    >>> 
+    >>> # Get buildings from a rectangular region
+    >>> buildings = buildings_tk.getBuildingsFromRectangle(
+    ...     minx=34.0, miny=31.0,
+    ...     maxx=35.0, maxy=32.0,
+    ...     dataSourceName="city_buildings",
+    ...     withElevation=True
+    ... )
+    >>> 
+    >>> # Get building heights from topography
+    >>> buildings_with_elevation = buildings_tk.getBuildingHeightFromRasterTopographyToolkit(
+    ...     buildingData=buildings,
+    ...     topographyDataSource="srtm_data"
+    ... )
+    >>> 
+    >>> # Convert buildings to STL format (requires FreeCAD)
+    >>> buildings_tk.buildingsGeopandasToSTLRasterTopography(
+    ...     buildingData=buildings,
+    ...     buildingHeightColumn="BLDG_HT",
+    ...     buildingElevationColumn="HT_LAND",
+    ...     outputFileName="/path/to/output.stl",
+    ...     flatTerrain=False
+    ... )
     """
     def __init__(self, projectName, filesDirectory=None):
 
@@ -34,19 +88,45 @@ class BuildingsToolkit(VectorToolkit):
 
     def getBuildingHeightFromRasterTopographyToolkit(self, buildingData, topographyDataSource=None):
         """
-        Get the topography height of each building (at its center) in the building data using the topography toolkit. Return data frame wtih 'evaluation' as a column.
+        Extract topography elevation for each building's centroid from raster topography data.
+
+        This method uses the raster topography toolkit to query elevation values at the
+        centroid of each building polygon. The elevation is added as a new column to the
+        building GeoDataFrame.
 
         Parameters
         ----------
-        buildingData : geopandas.geoDataFrame.
-            The building.
+        buildingData : geopandas.GeoDataFrame
+            GeoDataFrame containing building polygons. Must have a 'geometry' column
+            with Polygon geometries. The geometries are converted to WGS84 for
+            elevation queries.
 
-        topographyDataSource : string,default=None.
-            The name of the datasource in the topography toolkit. If None, use the default datasource there.
+        topographyDataSource : str, optional
+            Name of the datasource in the raster topography toolkit to use for
+            elevation queries. If None, uses the default datasource configured in
+            the topography toolkit. Default is None.
 
         Returns
         -------
-            geopandas.DataFrame
+        geopandas.GeoDataFrame
+            Input GeoDataFrame with an additional 'evaluation' column containing
+            elevation values (meters above sea level) for each building's centroid.
+
+        Examples
+        --------
+        >>> # Get buildings
+        >>> buildings = buildings_tk.getBuildingsFromRectangle(
+        ...     minx=34.0, miny=31.0, maxx=35.0, maxy=32.0
+        ... )
+        >>> 
+        >>> # Add elevation data
+        >>> buildings_with_elevation = buildings_tk.getBuildingHeightFromRasterTopographyToolkit(
+        ...     buildingData=buildings,
+        ...     topographyDataSource="srtm_elevation"
+        ... )
+        >>> 
+        >>> # Check elevation values
+        >>> print(buildings_with_elevation['evaluation'].head())
         """
         topotk = toolkitHome.getToolkit(toolkitName=toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName=self.projectName)
         elevations = topotk.getPointListElevation(buildingData.centroid.to_crs(WGS84))
@@ -57,41 +137,88 @@ class BuildingsToolkit(VectorToolkit):
                                                 buildingHeightColumn,
                                                 buildingElevationColumn,
                                                 outputFileName,
-                                                flatTerrain = False,
-                                                referenceTopography = 0,
+                                                flatTerrain=False,
+                                                referenceTopography=0,
                                                 nonFlatTopographyShift=10):
         """
-        Converts a building data (in geopandas format) to STL using the FreeCAD module.
-        Using the raster topography to estimate the height of each building.
-        This is a low level procedure. It can be used, but the easier way to use the toolkit is to generate the buildings from an area using the regionToSTL procedure.
-        We must save the file to the disk, as it is the current implementation of FreeCAD.
+        Convert building polygons to STL 3D mesh format using FreeCAD.
+
+        This method creates 3D solid models of buildings by extruding their footprints
+        to their specified heights. Buildings are positioned according to topography
+        elevation data or a flat reference plane.
 
         Parameters
         ----------
-        buildingData : geopandas.DataFrame
-            The buildings data.
+        buildingData : geopandas.GeoDataFrame
+            GeoDataFrame containing building polygons with height and elevation columns.
+            Each building must have a valid Polygon geometry.
 
-        buildingHeightColumn : string
-            The name of the column that holds the height of the buildings in [m].
+        buildingHeightColumn : str
+            Name of the column containing building heights in meters. This value
+            determines the vertical extent of each building.
 
-        buildingElevationColumn: string
-            The name of the column that holds the elevation of the building.
+        buildingElevationColumn : str
+            Name of the column containing ground elevation values in meters. Used
+            to position buildings vertically when flatTerrain=False.
 
-        outputFileName : string
-            The absolute path of the output STL.
+        outputFileName : str
+            Absolute path to the output STL file. The directory must exist or be
+            writable. File will be overwritten if it exists.
 
-        flatTerrain : bool
-            If true, use a flat terrain.
+        flatTerrain : bool, optional
+            If True, all buildings are placed on a flat reference plane at
+            referenceTopography elevation. If False, uses buildingElevationColumn
+            for individual building placement. Default is False.
 
-        nonFlatTopographyShift : float
-            Shift the house with respect to its height in the topography.
+        referenceTopography : float, optional
+            Reference elevation in meters when flatTerrain=True. All buildings
+            are placed with their base at this elevation. Default is 0.
 
-        referenceTopography : float [default 0]
-            If flatTerrain, use this as the reference height for the buildings.
+        nonFlatTopographyShift : float, optional
+            Vertical offset in meters applied to building base elevation when
+            flatTerrain=False. Positive values shift buildings upward. Default is 10.
 
         Returns
         -------
+        None
+            The STL file is written to disk. No return value.
 
+        Raises
+        ------
+        ValueError
+            If FreeCAD is not installed or not found in PYTHONPATH.
+        KeyError
+            If required columns are missing from buildingData.
+
+        Notes
+        -----
+        - Requires FreeCAD to be installed and accessible via Python import
+        - This is a low-level procedure. For easier usage, consider using
+          regionToSTL methods from the analysis layer
+        - Large datasets may take significant time to process
+        - Progress is logged every 100 buildings
+
+        Examples
+        --------
+        >>> # Convert buildings with topography
+        >>> buildings_tk.buildingsGeopandasToSTLRasterTopography(
+        ...     buildingData=buildings,
+        ...     buildingHeightColumn="BLDG_HT",
+        ...     buildingElevationColumn="HT_LAND",
+        ...     outputFileName="/path/to/buildings.stl",
+        ...     flatTerrain=False,
+        ...     nonFlatTopographyShift=10
+        ... )
+        >>> 
+        >>> # Convert buildings on flat terrain
+        >>> buildings_tk.buildingsGeopandasToSTLRasterTopography(
+        ...     buildingData=buildings,
+        ...     buildingHeightColumn="height",
+        ...     buildingElevationColumn="elevation",
+        ...     outputFileName="/path/to/flat_buildings.stl",
+        ...     flatTerrain=True,
+        ...     referenceTopography=100.0
+        ... )
         """
         logger = get_classMethod_logger(self, "geoPandasToSTL")
         logger.info(f"Converting {len(buildingData)} to STL. Using {'flat' if flatTerrain else 'topography'} settings")
@@ -150,31 +277,69 @@ class BuildingsToolkit(VectorToolkit):
 
     def getBuildingsFromRectangle(self, minx, miny, maxx, maxy, dataSourceName=None, inputCRS=WGS84, withElevation=False):
         """
-        Return the buildings geopandas for the rectangle region.
+        Extract buildings within a rectangular bounding box.
+
+        This method queries the building datasource and returns all buildings whose
+        geometries intersect with or are contained within the specified rectangular
+        region. Optionally adds elevation data from raster topography.
 
         Parameters
         ----------
-        minx: float
-            Minimum value of x-axis.
+        minx : float
+            Minimum x-coordinate (longitude) of the bounding box.
 
-        miny: float
-            Minimum value of y-axis.
+        miny : float
+            Minimum y-coordinate (latitude) of the bounding box.
 
-        maxx: float
-            Maximum value of x-axis.
+        maxx : float
+            Maximum x-coordinate (longitude) of the bounding box.
 
-        may: float
-            Maximum value of y-axis.
+        maxy : float
+            Maximum y-coordinate (latitude) of the bounding box.
 
-        dataSourceName: str,default=None.
-            The datasource name. If none, will use the default datasource.
+        dataSourceName : str, optional
+            Name of the building datasource to query. If None, uses the default
+            datasource configured in the project (from 'defaultBuildingDataSource'
+            config key). Default is None.
 
-        withElevation : bool,default=False.
-            If True, use the topography (raster) toolkit to get the heights.
+        inputCRS : int, optional
+            EPSG code of the input coordinate system for minx, miny, maxx, maxy.
+            Default is WGS84 (4326).
+
+        withElevation : bool, optional
+            If True, automatically adds elevation data to each building's centroid
+            using the raster topography toolkit. The elevation is added as an
+            'evaluation' column. Default is False.
 
         Returns
         -------
-            geopandas.DataFrame
+        geopandas.GeoDataFrame
+            GeoDataFrame containing buildings within the specified region. Includes
+            all original columns from the datasource plus optionally an 'evaluation'
+            column if withElevation=True.
+
+        Examples
+        --------
+        >>> # Get buildings in a region (WGS84 coordinates)
+        >>> buildings = buildings_tk.getBuildingsFromRectangle(
+        ...     minx=34.75, miny=31.75,
+        ...     maxx=34.85, maxy=31.85,
+        ...     dataSourceName="tel_aviv_buildings"
+        ... )
+        >>> 
+        >>> # Get buildings with elevation data
+        >>> buildings_with_elevation = buildings_tk.getBuildingsFromRectangle(
+        ...     minx=34.75, miny=31.75,
+        ...     maxx=34.85, maxy=31.85,
+        ...     withElevation=True
+        ... )
+        >>> 
+        >>> # Get buildings in ITM coordinates
+        >>> buildings = buildings_tk.getBuildingsFromRectangle(
+        ...     minx=180000, miny=660000,
+        ...     maxx=190000, maxy=670000,
+        ...     inputCRS=2039  # ITM
+        ... )
         """
         if dataSourceName is None:
             dataSourceName = self.getConfig()["defaultBuildingDataSource"]
@@ -189,17 +354,54 @@ class BuildingsToolkit(VectorToolkit):
     @staticmethod
     def get_buildings_height(gdf):
         """
-        Extract building names, geometries(coordination), and height information from a GeoDataFrame.
-        if there is no height available - it will calculate the number of levels in the building * 3/
-        else: none
+        Extract building names, geometries, and height information from a GeoDataFrame.
 
-        Parameters:
-        gdf (GeoDataFrame): A GeoPandas DataFrame containing building geometries
-                            and associated properties.
+        This utility method processes a GeoDataFrame to extract building information,
+        including name, geometry, and height. If height is not directly available,
+        it estimates height from the number of building levels (levels * 3 meters).
 
-        Returns:
-        geopandas.DataFrame
+        Parameters
+        ----------
+        gdf : geopandas.GeoDataFrame
+            Input GeoDataFrame containing building geometries and properties. Expected
+            columns include:
+            - 'name': Building name or identifier
+            - 'height': Building height in meters (optional)
+            - 'building:levels': Number of building levels/floors (optional)
+            - 'geometry': Polygon geometry of building footprint
 
+        Returns
+        -------
+        geopandas.GeoDataFrame
+            GeoDataFrame with columns:
+            - 'name': Building name
+            - 'geometry': Building polygon geometry
+            - 'height': Building height in meters (from 'height' column or
+              estimated from 'building:levels' * 3)
+
+        Notes
+        -----
+        - Height estimation assumes 3 meters per floor/level
+        - If neither 'height' nor 'building:levels' is available, height will be None
+        - Original geometry is preserved
+
+        Examples
+        --------
+        >>> import geopandas as gpd
+        >>> from shapely.geometry import Polygon
+        >>> 
+        >>> # Create sample building data
+        >>> buildings = gpd.GeoDataFrame({
+        ...     'name': ['Building A', 'Building B'],
+        ...     'building:levels': [5, None],
+        ...     'height': [None, 20.0],
+        ...     'geometry': [Polygon([(0,0), (10,0), (10,10), (0,10)]),
+        ...                  Polygon([(20,20), (30,20), (30,30), (20,30)])]
+        ... })
+        >>> 
+        >>> # Extract height information
+        >>> result = BuildingsToolkit.get_buildings_height(buildings)
+        >>> print(result[['name', 'height']])
         """
         building_info = []
 
@@ -228,29 +430,58 @@ class BuildingsToolkit(VectorToolkit):
     @staticmethod
     def filter_buildings_in_area(buildings_data, min_longitude, min_latitude, max_longitude, max_latitude):
         """
-        Filter building features by a specified geographic area using a bounding box.
+        Filter building features within a geographic bounding box.
 
-        Parameters:
+        This static method filters building features from a GeoJSON-like dictionary
+        based on spatial intersection with a rectangular bounding box defined by
+        latitude/longitude coordinates.
+
+        Parameters
         ----------
         buildings_data : dict
-            A GeoJSON-like dictionary containing building features to filter.
+            GeoJSON-like dictionary containing building features. Must have a
+            'features' key containing a list of feature dictionaries, each with:
+            - 'geometry': GeoJSON geometry object (Point, Polygon, MultiPolygon, etc.)
+            - 'properties': Dictionary of feature attributes
 
         min_longitude : float
-            Minimum longitude defining the bounding box.
+            Minimum longitude (x-coordinate) of the bounding box in WGS84.
 
         min_latitude : float
-            Minimum latitude defining the bounding box.
+            Minimum latitude (y-coordinate) of the bounding box in WGS84.
 
         max_longitude : float
-            Maximum longitude defining the bounding box.
+            Maximum longitude (x-coordinate) of the bounding box in WGS84.
 
         max_latitude : float
-            Maximum latitude defining the bounding box.
+            Maximum latitude (y-coordinate) of the bounding box in WGS84.
 
-        Returns:
+        Returns
         -------
-        gpd.GeoDataFrame
-            A GeoDataFrame containing buildings that are located within the specified area.
+        geopandas.GeoDataFrame
+            GeoDataFrame containing only buildings whose geometries intersect with
+            or are contained within the specified bounding box. Includes all
+            properties from the original features plus a 'geometry' column with
+            Shapely geometry objects.
+
+        Examples
+        --------
+        >>> import json
+        >>> 
+        >>> # Load GeoJSON data
+        >>> with open('buildings.geojson') as f:
+        ...     buildings_geojson = json.load(f)
+        >>> 
+        >>> # Filter buildings in a region (Tel Aviv area)
+        >>> filtered = BuildingsToolkit.filter_buildings_in_area(
+        ...     buildings_data=buildings_geojson,
+        ...     min_longitude=34.75,
+        ...     min_latitude=31.75,
+        ...     max_longitude=34.85,
+        ...     max_latitude=31.85
+        ... )
+        >>> 
+        >>> print(f"Found {len(filtered)} buildings in the area")
         """
         # Create a polygon from the bounding box
         bbox_polygon = Polygon([(min_longitude, min_latitude),

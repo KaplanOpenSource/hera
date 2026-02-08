@@ -41,7 +41,14 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Documentation Sections</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../../meassurments/index.html">Documentation Sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../user/index.html">User Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../developer/index.html">Developer Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Legacy Sections</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../meassurments/index.html">Measurements Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../simulations/index.html">Simulations Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../riskassessment/index.html">Risk Assessment Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../../toolkit_api.html">Toolkit API</a></li>
 </ul>
 
@@ -92,14 +99,68 @@
 
 
 <div class="viewcode-block" id="BuildingsToolkit">
-<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">[docs]</a>
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/vector/buildings/toolkit.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">BuildingsToolkit</span><span class="p">(</span><span class="n">VectorToolkit</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Toolkit to manage the buildings. Reading the shapefile with geoDataFrame will result in dataframe</span>
-<span class="sd">    with the following columns:</span>
-<span class="sd">        - Geometry: the polygon of the building.</span>
-<span class="sd">        - Building height column : the column name is in BuildingHeightColumn. Default value=BLDG_HT.</span>
-<span class="sd">        - Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.</span>
+<span class="sd">    Toolkit for managing building geometry and height data.</span>
+
+<span class="sd">    The BuildingsToolkit handles vector building data in GeoPandas format, providing</span>
+<span class="sd">    capabilities for spatial queries, height extraction, STL conversion, and integration</span>
+<span class="sd">    with topography data.</span>
+
+<span class="sd">    Key Features</span>
+<span class="sd">    ------------</span>
+<span class="sd">    - Building geometry management (polygons, footprints)</span>
+<span class="sd">    - Height data extraction and processing</span>
+<span class="sd">    - Integration with raster topography for elevation data</span>
+<span class="sd">    - STL file generation for 3D visualization (requires FreeCAD)</span>
+<span class="sd">    - Spatial filtering and region extraction</span>
+<span class="sd">    - Building height estimation from number of levels</span>
+
+<span class="sd">    Data Structure</span>
+<span class="sd">    --------------</span>
+<span class="sd">    Building data is stored as GeoPandas GeoDataFrame with the following expected columns:</span>
+<span class="sd">    - **geometry**: Polygon geometry representing building footprint</span>
+<span class="sd">    - **Building height column**: Column name specified in BuildingHeightColumn.</span>
+<span class="sd">      Default column name is &#39;BLDG_HT&#39; (height in meters)</span>
+<span class="sd">    - **Land height column**: Column name specified in LandHeightColumn.</span>
+<span class="sd">      Default column name is &#39;HT_LAND&#39; (ground elevation in meters)</span>
+
+<span class="sd">    Data Sources</span>
+<span class="sd">    ------------</span>
+<span class="sd">    Building data sources are stored as GeoPandas GeoDataFrames. Each datasource</span>
+<span class="sd">    can contain multiple buildings with their geometric and attribute information.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from hera import toolkitHome</span>
+<span class="sd">    &gt;&gt;&gt; from shapely.geometry import Polygon</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Get the Buildings toolkit</span>
+<span class="sd">    &gt;&gt;&gt; buildings_tk = toolkitHome.getToolkit(&quot;GIS_Buildings&quot;, projectName=&quot;my_project&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Get buildings from a rectangular region</span>
+<span class="sd">    &gt;&gt;&gt; buildings = buildings_tk.getBuildingsFromRectangle(</span>
+<span class="sd">    ...     minx=34.0, miny=31.0,</span>
+<span class="sd">    ...     maxx=35.0, maxy=32.0,</span>
+<span class="sd">    ...     dataSourceName=&quot;city_buildings&quot;,</span>
+<span class="sd">    ...     withElevation=True</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Get building heights from topography</span>
+<span class="sd">    &gt;&gt;&gt; buildings_with_elevation = buildings_tk.getBuildingHeightFromRasterTopographyToolkit(</span>
+<span class="sd">    ...     buildingData=buildings,</span>
+<span class="sd">    ...     topographyDataSource=&quot;srtm_data&quot;</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Convert buildings to STL format (requires FreeCAD)</span>
+<span class="sd">    &gt;&gt;&gt; buildings_tk.buildingsGeopandasToSTLRasterTopography(</span>
+<span class="sd">    ...     buildingData=buildings,</span>
+<span class="sd">    ...     buildingHeightColumn=&quot;BLDG_HT&quot;,</span>
+<span class="sd">    ...     buildingElevationColumn=&quot;HT_LAND&quot;,</span>
+<span class="sd">    ...     outputFileName=&quot;/path/to/output.stl&quot;,</span>
+<span class="sd">    ...     flatTerrain=False</span>
+<span class="sd">    ... )</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">projectName</span><span class="p">,</span> <span class="n">filesDirectory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 
@@ -107,22 +168,48 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_analysis</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">(</span><span class="n">dataLayer</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
 
 <div class="viewcode-block" id="BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">
-<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">[docs]</a>
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/vector/buildings/toolkit.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingHeightFromRasterTopographyToolkit">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getBuildingHeightFromRasterTopographyToolkit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buildingData</span><span class="p">,</span> <span class="n">topographyDataSource</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Get the topography height of each building (at its center) in the building data using the topography toolkit. Return data frame wtih &#39;evaluation&#39; as a column.</span>
+<span class="sd">        Extract topography elevation for each building&#39;s centroid from raster topography data.</span>
+
+<span class="sd">        This method uses the raster topography toolkit to query elevation values at the</span>
+<span class="sd">        centroid of each building polygon. The elevation is added as a new column to the</span>
+<span class="sd">        building GeoDataFrame.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        buildingData : geopandas.geoDataFrame.</span>
-<span class="sd">            The building.</span>
+<span class="sd">        buildingData : geopandas.GeoDataFrame</span>
+<span class="sd">            GeoDataFrame containing building polygons. Must have a &#39;geometry&#39; column</span>
+<span class="sd">            with Polygon geometries. The geometries are converted to WGS84 for</span>
+<span class="sd">            elevation queries.</span>
 
-<span class="sd">        topographyDataSource : string,default=None.</span>
-<span class="sd">            The name of the datasource in the topography toolkit. If None, use the default datasource there.</span>
+<span class="sd">        topographyDataSource : str, optional</span>
+<span class="sd">            Name of the datasource in the raster topography toolkit to use for</span>
+<span class="sd">            elevation queries. If None, uses the default datasource configured in</span>
+<span class="sd">            the topography toolkit. Default is None.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            geopandas.DataFrame</span>
+<span class="sd">        geopandas.GeoDataFrame</span>
+<span class="sd">            Input GeoDataFrame with an additional &#39;evaluation&#39; column containing</span>
+<span class="sd">            elevation values (meters above sea level) for each building&#39;s centroid.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Get buildings</span>
+<span class="sd">        &gt;&gt;&gt; buildings = buildings_tk.getBuildingsFromRectangle(</span>
+<span class="sd">        ...     minx=34.0, miny=31.0, maxx=35.0, maxy=32.0</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Add elevation data</span>
+<span class="sd">        &gt;&gt;&gt; buildings_with_elevation = buildings_tk.getBuildingHeightFromRasterTopographyToolkit(</span>
+<span class="sd">        ...     buildingData=buildings,</span>
+<span class="sd">        ...     topographyDataSource=&quot;srtm_elevation&quot;</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Check elevation values</span>
+<span class="sd">        &gt;&gt;&gt; print(buildings_with_elevation[&#39;evaluation&#39;].head())</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">topotk</span> <span class="o">=</span> <span class="n">toolkitHome</span><span class="o">.</span><span class="n">getToolkit</span><span class="p">(</span><span class="n">toolkitName</span><span class="o">=</span><span class="n">toolkitHome</span><span class="o">.</span><span class="n">GIS_RASTER_TOPOGRAPHY</span><span class="p">,</span> <span class="n">projectName</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="p">)</span>
         <span class="n">elevations</span> <span class="o">=</span> <span class="n">topotk</span><span class="o">.</span><span class="n">getPointListElevation</span><span class="p">(</span><span class="n">buildingData</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">WGS84</span><span class="p">))</span>
@@ -130,47 +217,94 @@
 
 
 <div class="viewcode-block" id="BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">
-<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">[docs]</a>
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/vector/buildings/toolkit.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.buildingsGeopandasToSTLRasterTopography">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">buildingsGeopandasToSTLRasterTopography</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                                 <span class="n">buildingData</span><span class="p">,</span>
                                                 <span class="n">buildingHeightColumn</span><span class="p">,</span>
                                                 <span class="n">buildingElevationColumn</span><span class="p">,</span>
                                                 <span class="n">outputFileName</span><span class="p">,</span>
-                                                <span class="n">flatTerrain</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                                                <span class="n">referenceTopography</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+                                                <span class="n">flatTerrain</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                                <span class="n">referenceTopography</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                                                 <span class="n">nonFlatTopographyShift</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Converts a building data (in geopandas format) to STL using the FreeCAD module.</span>
-<span class="sd">        Using the raster topography to estimate the height of each building.</span>
-<span class="sd">        This is a low level procedure. It can be used, but the easier way to use the toolkit is to generate the buildings from an area using the regionToSTL procedure.</span>
-<span class="sd">        We must save the file to the disk, as it is the current implementation of FreeCAD.</span>
+<span class="sd">        Convert building polygons to STL 3D mesh format using FreeCAD.</span>
+
+<span class="sd">        This method creates 3D solid models of buildings by extruding their footprints</span>
+<span class="sd">        to their specified heights. Buildings are positioned according to topography</span>
+<span class="sd">        elevation data or a flat reference plane.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        buildingData : geopandas.DataFrame</span>
-<span class="sd">            The buildings data.</span>
+<span class="sd">        buildingData : geopandas.GeoDataFrame</span>
+<span class="sd">            GeoDataFrame containing building polygons with height and elevation columns.</span>
+<span class="sd">            Each building must have a valid Polygon geometry.</span>
 
-<span class="sd">        buildingHeightColumn : string</span>
-<span class="sd">            The name of the column that holds the height of the buildings in [m].</span>
+<span class="sd">        buildingHeightColumn : str</span>
+<span class="sd">            Name of the column containing building heights in meters. This value</span>
+<span class="sd">            determines the vertical extent of each building.</span>
 
-<span class="sd">        buildingElevationColumn: string</span>
-<span class="sd">            The name of the column that holds the elevation of the building.</span>
+<span class="sd">        buildingElevationColumn : str</span>
+<span class="sd">            Name of the column containing ground elevation values in meters. Used</span>
+<span class="sd">            to position buildings vertically when flatTerrain=False.</span>
 
-<span class="sd">        outputFileName : string</span>
-<span class="sd">            The absolute path of the output STL.</span>
+<span class="sd">        outputFileName : str</span>
+<span class="sd">            Absolute path to the output STL file. The directory must exist or be</span>
+<span class="sd">            writable. File will be overwritten if it exists.</span>
 
-<span class="sd">        flatTerrain : bool</span>
-<span class="sd">            If true, use a flat terrain.</span>
+<span class="sd">        flatTerrain : bool, optional</span>
+<span class="sd">            If True, all buildings are placed on a flat reference plane at</span>
+<span class="sd">            referenceTopography elevation. If False, uses buildingElevationColumn</span>
+<span class="sd">            for individual building placement. Default is False.</span>
 
-<span class="sd">        nonFlatTopographyShift : float</span>
-<span class="sd">            Shift the house with respect to its height in the topography.</span>
+<span class="sd">        referenceTopography : float, optional</span>
+<span class="sd">            Reference elevation in meters when flatTerrain=True. All buildings</span>
+<span class="sd">            are placed with their base at this elevation. Default is 0.</span>
 
-<span class="sd">        referenceTopography : float [default 0]</span>
-<span class="sd">            If flatTerrain, use this as the reference height for the buildings.</span>
+<span class="sd">        nonFlatTopographyShift : float, optional</span>
+<span class="sd">            Vertical offset in meters applied to building base elevation when</span>
+<span class="sd">            flatTerrain=False. Positive values shift buildings upward. Default is 10.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
+<span class="sd">        None</span>
+<span class="sd">            The STL file is written to disk. No return value.</span>
 
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If FreeCAD is not installed or not found in PYTHONPATH.</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If required columns are missing from buildingData.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - Requires FreeCAD to be installed and accessible via Python import</span>
+<span class="sd">        - This is a low-level procedure. For easier usage, consider using</span>
+<span class="sd">          regionToSTL methods from the analysis layer</span>
+<span class="sd">        - Large datasets may take significant time to process</span>
+<span class="sd">        - Progress is logged every 100 buildings</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Convert buildings with topography</span>
+<span class="sd">        &gt;&gt;&gt; buildings_tk.buildingsGeopandasToSTLRasterTopography(</span>
+<span class="sd">        ...     buildingData=buildings,</span>
+<span class="sd">        ...     buildingHeightColumn=&quot;BLDG_HT&quot;,</span>
+<span class="sd">        ...     buildingElevationColumn=&quot;HT_LAND&quot;,</span>
+<span class="sd">        ...     outputFileName=&quot;/path/to/buildings.stl&quot;,</span>
+<span class="sd">        ...     flatTerrain=False,</span>
+<span class="sd">        ...     nonFlatTopographyShift=10</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Convert buildings on flat terrain</span>
+<span class="sd">        &gt;&gt;&gt; buildings_tk.buildingsGeopandasToSTLRasterTopography(</span>
+<span class="sd">        ...     buildingData=buildings,</span>
+<span class="sd">        ...     buildingHeightColumn=&quot;height&quot;,</span>
+<span class="sd">        ...     buildingElevationColumn=&quot;elevation&quot;,</span>
+<span class="sd">        ...     outputFileName=&quot;/path/to/flat_buildings.stl&quot;,</span>
+<span class="sd">        ...     flatTerrain=True,</span>
+<span class="sd">        ...     referenceTopography=100.0</span>
+<span class="sd">        ... )</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">get_classMethod_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;geoPandasToSTL&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Converting </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">buildingData</span><span class="p">)</span><span class="si">}</span><span class="s2"> to STL. Using </span><span class="si">{</span><span class="s1">&#39;flat&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">flatTerrain</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;topography&#39;</span><span class="si">}</span><span class="s2"> settings&quot;</span><span class="p">)</span>
@@ -229,34 +363,72 @@
 
 
 <div class="viewcode-block" id="BuildingsToolkit.getBuildingsFromRectangle">
-<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle">[docs]</a>
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/vector/buildings/toolkit.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.getBuildingsFromRectangle">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">getBuildingsFromRectangle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">,</span> <span class="n">dataSourceName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputCRS</span><span class="o">=</span><span class="n">WGS84</span><span class="p">,</span> <span class="n">withElevation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Return the buildings geopandas for the rectangle region.</span>
+<span class="sd">        Extract buildings within a rectangular bounding box.</span>
+
+<span class="sd">        This method queries the building datasource and returns all buildings whose</span>
+<span class="sd">        geometries intersect with or are contained within the specified rectangular</span>
+<span class="sd">        region. Optionally adds elevation data from raster topography.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        minx: float</span>
-<span class="sd">            Minimum value of x-axis.</span>
+<span class="sd">        minx : float</span>
+<span class="sd">            Minimum x-coordinate (longitude) of the bounding box.</span>
 
-<span class="sd">        miny: float</span>
-<span class="sd">            Minimum value of y-axis.</span>
+<span class="sd">        miny : float</span>
+<span class="sd">            Minimum y-coordinate (latitude) of the bounding box.</span>
 
-<span class="sd">        maxx: float</span>
-<span class="sd">            Maximum value of x-axis.</span>
+<span class="sd">        maxx : float</span>
+<span class="sd">            Maximum x-coordinate (longitude) of the bounding box.</span>
 
-<span class="sd">        may: float</span>
-<span class="sd">            Maximum value of y-axis.</span>
+<span class="sd">        maxy : float</span>
+<span class="sd">            Maximum y-coordinate (latitude) of the bounding box.</span>
 
-<span class="sd">        dataSourceName: str,default=None.</span>
-<span class="sd">            The datasource name. If none, will use the default datasource.</span>
+<span class="sd">        dataSourceName : str, optional</span>
+<span class="sd">            Name of the building datasource to query. If None, uses the default</span>
+<span class="sd">            datasource configured in the project (from &#39;defaultBuildingDataSource&#39;</span>
+<span class="sd">            config key). Default is None.</span>
 
-<span class="sd">        withElevation : bool,default=False.</span>
-<span class="sd">            If True, use the topography (raster) toolkit to get the heights.</span>
+<span class="sd">        inputCRS : int, optional</span>
+<span class="sd">            EPSG code of the input coordinate system for minx, miny, maxx, maxy.</span>
+<span class="sd">            Default is WGS84 (4326).</span>
+
+<span class="sd">        withElevation : bool, optional</span>
+<span class="sd">            If True, automatically adds elevation data to each building&#39;s centroid</span>
+<span class="sd">            using the raster topography toolkit. The elevation is added as an</span>
+<span class="sd">            &#39;evaluation&#39; column. Default is False.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            geopandas.DataFrame</span>
+<span class="sd">        geopandas.GeoDataFrame</span>
+<span class="sd">            GeoDataFrame containing buildings within the specified region. Includes</span>
+<span class="sd">            all original columns from the datasource plus optionally an &#39;evaluation&#39;</span>
+<span class="sd">            column if withElevation=True.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # Get buildings in a region (WGS84 coordinates)</span>
+<span class="sd">        &gt;&gt;&gt; buildings = buildings_tk.getBuildingsFromRectangle(</span>
+<span class="sd">        ...     minx=34.75, miny=31.75,</span>
+<span class="sd">        ...     maxx=34.85, maxy=31.85,</span>
+<span class="sd">        ...     dataSourceName=&quot;tel_aviv_buildings&quot;</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Get buildings with elevation data</span>
+<span class="sd">        &gt;&gt;&gt; buildings_with_elevation = buildings_tk.getBuildingsFromRectangle(</span>
+<span class="sd">        ...     minx=34.75, miny=31.75,</span>
+<span class="sd">        ...     maxx=34.85, maxy=31.85,</span>
+<span class="sd">        ...     withElevation=True</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Get buildings in ITM coordinates</span>
+<span class="sd">        &gt;&gt;&gt; buildings = buildings_tk.getBuildingsFromRectangle(</span>
+<span class="sd">        ...     minx=180000, miny=660000,</span>
+<span class="sd">        ...     maxx=190000, maxy=670000,</span>
+<span class="sd">        ...     inputCRS=2039  # ITM</span>
+<span class="sd">        ... )</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">dataSourceName</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">dataSourceName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getConfig</span><span class="p">()[</span><span class="s2">&quot;defaultBuildingDataSource&quot;</span><span class="p">]</span>
@@ -270,21 +442,58 @@
         <span class="k">return</span> <span class="n">buildings</span></div>
 
 <div class="viewcode-block" id="BuildingsToolkit.get_buildings_height">
-<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.get_buildings_height">[docs]</a>
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/vector/buildings/toolkit.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.get_buildings_height">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_buildings_height</span><span class="p">(</span><span class="n">gdf</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Extract building names, geometries(coordination), and height information from a GeoDataFrame.</span>
-<span class="sd">        if there is no height available - it will calculate the number of levels in the building * 3/</span>
-<span class="sd">        else: none</span>
+<span class="sd">        Extract building names, geometries, and height information from a GeoDataFrame.</span>
 
-<span class="sd">        Parameters:</span>
-<span class="sd">        gdf (GeoDataFrame): A GeoPandas DataFrame containing building geometries</span>
-<span class="sd">                            and associated properties.</span>
+<span class="sd">        This utility method processes a GeoDataFrame to extract building information,</span>
+<span class="sd">        including name, geometry, and height. If height is not directly available,</span>
+<span class="sd">        it estimates height from the number of building levels (levels * 3 meters).</span>
 
-<span class="sd">        Returns:</span>
-<span class="sd">        geopandas.DataFrame</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        gdf : geopandas.GeoDataFrame</span>
+<span class="sd">            Input GeoDataFrame containing building geometries and properties. Expected</span>
+<span class="sd">            columns include:</span>
+<span class="sd">            - &#39;name&#39;: Building name or identifier</span>
+<span class="sd">            - &#39;height&#39;: Building height in meters (optional)</span>
+<span class="sd">            - &#39;building:levels&#39;: Number of building levels/floors (optional)</span>
+<span class="sd">            - &#39;geometry&#39;: Polygon geometry of building footprint</span>
 
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        geopandas.GeoDataFrame</span>
+<span class="sd">            GeoDataFrame with columns:</span>
+<span class="sd">            - &#39;name&#39;: Building name</span>
+<span class="sd">            - &#39;geometry&#39;: Building polygon geometry</span>
+<span class="sd">            - &#39;height&#39;: Building height in meters (from &#39;height&#39; column or</span>
+<span class="sd">              estimated from &#39;building:levels&#39; * 3)</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - Height estimation assumes 3 meters per floor/level</span>
+<span class="sd">        - If neither &#39;height&#39; nor &#39;building:levels&#39; is available, height will be None</span>
+<span class="sd">        - Original geometry is preserved</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; import geopandas as gpd</span>
+<span class="sd">        &gt;&gt;&gt; from shapely.geometry import Polygon</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Create sample building data</span>
+<span class="sd">        &gt;&gt;&gt; buildings = gpd.GeoDataFrame({</span>
+<span class="sd">        ...     &#39;name&#39;: [&#39;Building A&#39;, &#39;Building B&#39;],</span>
+<span class="sd">        ...     &#39;building:levels&#39;: [5, None],</span>
+<span class="sd">        ...     &#39;height&#39;: [None, 20.0],</span>
+<span class="sd">        ...     &#39;geometry&#39;: [Polygon([(0,0), (10,0), (10,10), (0,10)]),</span>
+<span class="sd">        ...                  Polygon([(20,20), (30,20), (30,30), (20,30)])]</span>
+<span class="sd">        ... })</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Extract height information</span>
+<span class="sd">        &gt;&gt;&gt; result = BuildingsToolkit.get_buildings_height(buildings)</span>
+<span class="sd">        &gt;&gt;&gt; print(result[[&#39;name&#39;, &#39;height&#39;]])</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">building_info</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -312,33 +521,62 @@
         <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">building_info</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="BuildingsToolkit.filter_buildings_in_area">
-<a class="viewcode-back" href="../../../../../../meassurments/GIS/index.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.filter_buildings_in_area">[docs]</a>
+<a class="viewcode-back" href="../../../../../../meassurments/GIS/vector/buildings/toolkit.html#hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit.filter_buildings_in_area">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">filter_buildings_in_area</span><span class="p">(</span><span class="n">buildings_data</span><span class="p">,</span> <span class="n">min_longitude</span><span class="p">,</span> <span class="n">min_latitude</span><span class="p">,</span> <span class="n">max_longitude</span><span class="p">,</span> <span class="n">max_latitude</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Filter building features by a specified geographic area using a bounding box.</span>
+<span class="sd">        Filter building features within a geographic bounding box.</span>
 
-<span class="sd">        Parameters:</span>
+<span class="sd">        This static method filters building features from a GeoJSON-like dictionary</span>
+<span class="sd">        based on spatial intersection with a rectangular bounding box defined by</span>
+<span class="sd">        latitude/longitude coordinates.</span>
+
+<span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        buildings_data : dict</span>
-<span class="sd">            A GeoJSON-like dictionary containing building features to filter.</span>
+<span class="sd">            GeoJSON-like dictionary containing building features. Must have a</span>
+<span class="sd">            &#39;features&#39; key containing a list of feature dictionaries, each with:</span>
+<span class="sd">            - &#39;geometry&#39;: GeoJSON geometry object (Point, Polygon, MultiPolygon, etc.)</span>
+<span class="sd">            - &#39;properties&#39;: Dictionary of feature attributes</span>
 
 <span class="sd">        min_longitude : float</span>
-<span class="sd">            Minimum longitude defining the bounding box.</span>
+<span class="sd">            Minimum longitude (x-coordinate) of the bounding box in WGS84.</span>
 
 <span class="sd">        min_latitude : float</span>
-<span class="sd">            Minimum latitude defining the bounding box.</span>
+<span class="sd">            Minimum latitude (y-coordinate) of the bounding box in WGS84.</span>
 
 <span class="sd">        max_longitude : float</span>
-<span class="sd">            Maximum longitude defining the bounding box.</span>
+<span class="sd">            Maximum longitude (x-coordinate) of the bounding box in WGS84.</span>
 
 <span class="sd">        max_latitude : float</span>
-<span class="sd">            Maximum latitude defining the bounding box.</span>
+<span class="sd">            Maximum latitude (y-coordinate) of the bounding box in WGS84.</span>
 
-<span class="sd">        Returns:</span>
+<span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        gpd.GeoDataFrame</span>
-<span class="sd">            A GeoDataFrame containing buildings that are located within the specified area.</span>
+<span class="sd">        geopandas.GeoDataFrame</span>
+<span class="sd">            GeoDataFrame containing only buildings whose geometries intersect with</span>
+<span class="sd">            or are contained within the specified bounding box. Includes all</span>
+<span class="sd">            properties from the original features plus a &#39;geometry&#39; column with</span>
+<span class="sd">            Shapely geometry objects.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; import json</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Load GeoJSON data</span>
+<span class="sd">        &gt;&gt;&gt; with open(&#39;buildings.geojson&#39;) as f:</span>
+<span class="sd">        ...     buildings_geojson = json.load(f)</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; # Filter buildings in a region (Tel Aviv area)</span>
+<span class="sd">        &gt;&gt;&gt; filtered = BuildingsToolkit.filter_buildings_in_area(</span>
+<span class="sd">        ...     buildings_data=buildings_geojson,</span>
+<span class="sd">        ...     min_longitude=34.75,</span>
+<span class="sd">        ...     min_latitude=31.75,</span>
+<span class="sd">        ...     max_longitude=34.85,</span>
+<span class="sd">        ...     max_latitude=31.85</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;Found {len(filtered)} buildings in the area&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Create a polygon from the bounding box</span>
         <span class="n">bbox_polygon</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">([(</span><span class="n">min_longitude</span><span class="p">,</span> <span class="n">min_latitude</span><span class="p">),</span>

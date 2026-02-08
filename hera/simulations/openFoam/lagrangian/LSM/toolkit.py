@@ -19,6 +19,43 @@ from evtk.hl import pointsToVTK, structuredToVTK
 
 
 class OFLSMToolkit(toolkit.abstractToolkit):
+    """
+    Toolkit for OpenFOAM Lagrangian Stochastic Model (LSM) particle tracking.
+
+    The OFLSMToolkit provides access to Lagrangian particle data from OpenFOAM
+    simulations. It handles reading particle positions, velocities, and properties
+    from OpenFOAM case directories, supporting both serial and parallel cases.
+
+    Key Features
+    ------------
+    - Particle data extraction from OpenFOAM cases
+    - Support for serial and parallel (decomposed) cases
+    - Particle property queries (position, velocity, mass, age)
+    - Integration with topography data
+    - Source factory for particle release configuration
+    - VTK export for visualization
+
+    Data Sources
+    ------------
+    The toolkit works with OpenFOAM case directories containing Lagrangian cloud
+    data. Particle data is stored in time directories under processor subdirectories
+    for parallel cases.
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> 
+    >>> # Get the OF_LSM toolkit
+    >>> oflsm_tk = toolkitHome.getToolkit("OF_LSM", projectName="my_project")
+    >>> 
+    >>> # Initialize with case path
+    >>> oflsm_tk.casePath = "/path/to/openfoam/case"
+    >>> oflsm_tk.cloudName = "kinematicCloud"
+    >>> oflsm_tk.parallelCase = True
+    >>> 
+    >>> # Access analysis layer
+    >>> analysis = oflsm_tk.analysis
+    """
     _casePath = None
     _cloudName = None
     _sources = None
@@ -29,49 +66,82 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
     @property
     def analysis(self):
+        """Analysis layer for OFLSM operations."""
         return self._analysis
 
     @property
     def sourcesFactory(self):
+        """Source factory for particle release configuration."""
         return self._sourcesFactory
 
     @property
     def casePath(self):
+        """Path to the OpenFOAM case directory."""
         return self._casePath
 
     @casePath.setter
     def casePath(self, newPath):
+        """Set the OpenFOAM case directory path."""
         self._casePath = newPath
 
     @property
     def topography(self):
+        """Topography toolkit instance for elevation queries."""
         return self._topography
 
     @property
     def cloudName(self):
+        """Name of the Lagrangian cloud in the OpenFOAM case."""
         return self._cloudName
 
     @cloudName.setter
     def cloudName(self, value):
+        """Set the Lagrangian cloud name."""
         self._cloudName = str(value)
 
     @property
     def parallelCase(self):
+        """Whether the case is decomposed (parallel) or serial."""
         return self._parallelCase
 
     @parallelCase.setter
     def parallelCase(self, value):
+        """Set whether the case is parallel."""
         self._parallelCase = value
 
     def __init__(self, projectName, casePath=None, cloudName="kinematicCloud", filesDirectory=None, parallelCase=False):
         """
+        Initialize the OFLSM toolkit.
+
         Parameters
         ----------
-        casePath: str
-            The path of the case
+        projectName : str
+            Name of the Hera project to work with.
 
-        cloudName: str,
-            The name of the cloud, in which the particles' properties are saved.
+        casePath : str, optional
+            Path to the OpenFOAM case directory. If None, uses current working
+            directory. Default is None.
+
+        cloudName : str, optional
+            Name of the Lagrangian cloud in the OpenFOAM case. This is the name
+            of the cloud dictionary in the case. Default is "kinematicCloud".
+
+        filesDirectory : str, optional
+            Directory for storing output files. Default is None.
+
+        parallelCase : bool, optional
+            Whether the OpenFOAM case is decomposed (parallel). If True, particle
+            data is read from processor subdirectories. Default is False.
+
+        Examples
+        --------
+        >>> # Initialize with case path
+        >>> oflsm_tk = OFLSMToolkit(
+        ...     projectName="my_project",
+        ...     casePath="/path/to/case",
+        ...     cloudName="myCloud",
+        ...     parallelCase=True
+        ... )
         """
         super().__init__(projectName=projectName, toolkitName="OF_LSM", filesDirectory=filesDirectory)
         self._casePath = os.getcwd() if casePath is None else os.path.abspath(casePath)

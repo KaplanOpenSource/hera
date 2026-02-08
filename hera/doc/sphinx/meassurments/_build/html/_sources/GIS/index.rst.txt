@@ -4,51 +4,43 @@
    contain the root `toctree` directive.
 
 GIS Documentation
-====================================================
+=================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-   
-   
+
+   topography_raster
+   topography_raster_api
+   landcover
+   tiles
+   buildings
+
+
 Raster
-========================================
+======
+
+Topography Toolkit
+^^^^^^^^^^^^^^^^^^
+See: :doc:`topography_raster`
+
+Topography Toolkit API
+^^^^^^^^^^^^^^^^^^^^^^
+See: :doc:`topography_raster_api`
 
 LandCover Toolkit
-=================================
-LandCoverToolkit Class
-===============================
+^^^^^^^^^^^^^^^^^
+See: :doc:`landcover`
 
-.. autoclass:: hera.measurements.GIS.raster.landcover.LandCoverToolkit
-   :members:
-   :show-inheritance:
-   
-Tiles Toolkit 
-=================================
-TilesToolkit Class
-===============================
+Tiles Toolkit
+^^^^^^^^^^^^^
+See: :doc:`tiles`
 
-.. autoclass:: hera.measurements.GIS.raster.tiles.TilesToolkit
-   :members:
-   :show-inheritance:
-
-TilesToolkit Presentation Class
-===============================
-.. autoclass:: hera.measurements.GIS.raster.tiles.presentation
-   :members:
-   :show-inheritance:
 
 
 Vector
-========================================
-BuildingsToolkit Class
-===============================
-.. autoclass:: hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit
-   :members:
-   :show-inheritance:
+======
 
-BuildingsToolkit Analysis Class
-===============================
-.. autoclass:: hera.measurements.GIS.vector.buildings.analysis.analysis
-   :members:
-   :show-inheritance:
+BuildingsToolkit
+^^^^^^^^^^^^^^^^
+See: :doc:`buildings`

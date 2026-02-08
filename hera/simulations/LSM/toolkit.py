@@ -72,28 +72,39 @@ class LSMToolkit(toolkit.abstractToolkit):
 
     def __init__(self, projectName, filesDirectory=None, to_xarray=True, to_database=False, forceKeep=False):
         """
-            Initializes the LSM.old toolkit
+        Initialize the LSM toolkit.
 
         Parameters
         ----------
+        projectName : str
+            The name of the project that contains the simulation templates and results.
+            The project must exist in the Hera database.
 
-        projectName: str
-            The name of the project that contains the
+        filesDirectory : str, optional
+            The directory to save simulation output files. If None, uses the project's
+            default files directory. Default is None.
 
-        filesDirectory: str
-            The directory to save the simulations.old.
+        to_xarray : bool, optional
+            If True, automatically convert simulation results to xarray format.
+            This enables easier data analysis and visualization. Default is True.
 
+        to_database : bool, optional
+            If True, save simulation run metadata to the database. This allows
+            querying and tracking of simulation runs. Default is False.
 
-        to_xarray: bool
-            Save the simulation results into xarray or not
+        forceKeep : bool, optional
+            If True and to_xarray is True, keep the original Lagrangian particle
+            files after conversion. If False, removes them to save disk space.
+            Default is False.
 
-        to_database: bool
-            Save the simulation run in the database or not
-
-        forceKeep: bool
-            If to_xarray is true, determine wehter to keep the original files.
-            if False, removes the Lagrnagian files.
-
+        Examples
+        --------
+        >>> lsm_tk = LSMToolkit(
+        ...     projectName="urban_dispersion",
+        ...     filesDirectory="/path/to/simulations",
+        ...     to_xarray=True,
+        ...     to_database=True
+        ... )
         """
         super().__init__(projectName=projectName, toolkitName="LSM.old", filesDirectory=filesDirectory)
 
@@ -104,53 +115,107 @@ class LSMToolkit(toolkit.abstractToolkit):
 
     def getTemplates(self, **query):
         """
-            Get a list of Template objects that fulfill the query
+        Get a list of template objects that match the query criteria.
+
+        This method queries the datasource documents and returns LSMTemplate
+        objects for each matching template.
+
+        Parameters
+        ----------
+        **query : dict
+            Query filters to apply when searching for templates. These are passed
+            directly to `getDataSourceDocumentsList()`. Common filters include:
+            - datasourceName: Filter by template name
+            - version: Filter by template version
+            - Any other fields stored in the template document description
 
         Returns
         -------
-            List of LSMTemplates
+        list of LSMTemplate
+            List of LSMTemplate objects matching the query criteria.
 
+        Examples
+        --------
+        >>> # Get all templates
+        >>> templates = lsm_tk.getTemplates()
+        >>> 
+        >>> # Get templates with specific name
+        >>> templates = lsm_tk.getTemplates(datasourceName="urban_release")
+        >>> 
+        >>> # Get templates with specific version
+        >>> templates = lsm_tk.getTemplates(version=(1, 0, 0))
         """
         docList = self.getDataSourceDocumentsList(**query)
         return [LSMTemplate(doc,self) for doc in docList]
 
-    def getTemplateByName(self,templateName,templateVersion=None):
+    def getTemplateByName(self, templateName, templateVersion=None):
         """
-            Retrieve the template by its name.
+        Retrieve a template by its name and optional version.
+
+        This method looks up a template document from the datasources and returns
+        an LSMTemplate object. If version is not specified, the default version
+        (or latest version) is used.
 
         Parameters
         ----------
+        templateName : str
+            The name of the template to retrieve. This must match a datasource
+            name registered in the project.
 
-        templateName: str
-                The name of the template.
-
-        to_xarray: bool
-                Convert the simulations.old to xarray
-                default: True
-
-        to_database: bool
-                Save simulation results to the database
-                default: False
-
-        forceKeep: bool
-                If to_xarray is true,
-                Determine wehter to keep the original files.
-
-                If False, removes the Lagrangian files.
-                defaultL False
+        templateVersion : tuple, optional
+            Specific version of the template to retrieve (e.g., (1, 0, 0)).
+            If None, uses the default version configured in the project, or the
+            latest version if no default is set. Default is None.
 
         Returns
         -------
-            The template by the name
+        LSMTemplate
+            The template object corresponding to the requested name and version.
+
+        Raises
+        ------
+        ValueError
+            If the template is not found in the project.
+
+        Examples
+        --------
+        >>> # Get default version of a template
+        >>> template = lsm_tk.getTemplateByName("v4-general")
+        >>> 
+        >>> # Get specific version
+        >>> template = lsm_tk.getTemplateByName("v4-general", templateVersion=(1, 2, 0))
         """
         doc = self.getDataSourceDocument(datasourceName=templateName, version=templateVersion)
         return LSMTemplate(doc,self)
 
     def getTemplatesTable(self, **query):
         """
-            :list the template parameters that fulfil the query
-        :param query:
-        :return:
+        Get a pandas DataFrame listing template parameters that match the query.
+
+        This method returns a normalized table combining template metadata and
+        parameter values. Useful for comparing templates or finding templates
+        with specific parameter values.
+
+        Parameters
+        ----------
+        **query : dict
+            Query filters to apply when searching for templates. Same as
+            `getTemplates()`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with columns for template metadata (id, projectName, etc.)
+            and parameter values. Each row represents one template with its
+            parameters flattened.
+
+        Examples
+        --------
+        >>> # Get table of all templates
+        >>> df = lsm_tk.getTemplatesTable()
+        >>> 
+        >>> # Filter templates by name
+        >>> df = lsm_tk.getTemplatesTable(datasourceName="urban_release")
         """
         docList = self.getDataSourceDocumentsList(**query)
         if len(docList) > 0:
@@ -235,11 +300,51 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         return LSMTemplate(doc,self)
 
-    def getSimulations(self,simulationName=None,unitsTemplateVersion="v4-general", **query):
+    def getSimulations(self, simulationName=None, unitsTemplateVersion="v4-general", **query):
         """
-        get a list of SingleSimulation objects that fulfill the query
-        :param query:
-        :return:
+        Get a list of SingleSimulation objects matching the query criteria.
+
+        This method retrieves simulation runs from the database. Parameters in the
+        query are automatically converted to the correct units based on the template's
+        unit definitions.
+
+        Parameters
+        ----------
+        simulationName : str, optional
+            Specific simulation name to retrieve. If provided, only simulations
+            with this exact name are returned. Default is None.
+
+        unitsTemplateVersion : str, optional
+            Template version to use for unit conversion. The template's unit
+            definitions are used to convert query parameters. Default is "v4-general".
+
+        **query : dict
+            Query parameters to filter simulations. These can include:
+            - Any simulation parameter (e.g., releaseHeight, releaseLocation)
+            - Parameters are automatically converted to internal units
+            - Use unum units objects for unit-aware queries
+
+        Returns
+        -------
+        list of SingleSimulation
+            List of SingleSimulation objects matching the query criteria.
+
+        Examples
+        --------
+        >>> from unum.units import *
+        >>> 
+        >>> # Get simulations with specific release height
+        >>> sims = lsm_tk.getSimulations(releaseHeight=10*m)
+        >>> 
+        >>> # Get simulations by name
+        >>> sims = lsm_tk.getSimulations(simulationName="run_001")
+        >>> 
+        >>> # Multiple query parameters
+        >>> sims = lsm_tk.getSimulations(
+        ...     releaseHeight=10*m,
+        ...     releaseLocation=(1000, 2000),
+        ...     unitsTemplateVersion="v4-general"
+        ... )
         """
         template = self.getTemplateByName(unitsTemplateVersion)
 
@@ -265,9 +370,44 @@ class LSMToolkit(toolkit.abstractToolkit):
 
     def getSimulationsList(self, wideFormat=False, **query):
         """
-            List the Simulation parameters that fulfil the query
-        :param query:
-        :return:
+        List simulation parameters in a tabular format.
+
+        Returns a DataFrame containing simulation metadata and parameters. Can be
+        returned in wide format (one column per parameter) or long format
+        (parameter-value pairs).
+
+        Parameters
+        ----------
+        wideFormat : bool, optional
+            If True, returns a wide-format DataFrame with one column per parameter.
+            If False, returns a long-format DataFrame with variable-value pairs.
+            Default is False.
+
+        **query : dict
+            Query filters to apply when searching for simulations. Same as
+            `getSimulations()`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            DataFrame containing simulation parameters. Format depends on
+            wideFormat parameter.
+
+        Raises
+        ------
+        FileNotFoundError
+            If no simulations match the query criteria.
+
+        Examples
+        --------
+        >>> # Get long format list
+        >>> df = lsm_tk.getSimulationsList()
+        >>> 
+        >>> # Get wide format list
+        >>> df = lsm_tk.getSimulationsList(wideFormat=True)
+        >>> 
+        >>> # Filter by query
+        >>> df = lsm_tk.getSimulationsList(releaseHeight=10*m)
         """
         docList = self.getSimulationsDocuments(type=LSMTemplate("",self).doctype_simulation, **query)
         descList = [doc.desc.copy() for doc in docList]
@@ -294,7 +434,22 @@ class LSMToolkit(toolkit.abstractToolkit):
 
 class analysis:
     """
-        Analysis of the demography toolkit.
+    Analysis layer for the LSM toolkit.
+
+    Provides analysis and post-processing capabilities for LSM simulation results.
+    This includes coordinate handling and spatial analysis utilities.
+
+    Parameters
+    ----------
+    dataLayer : LSMToolkit
+        The LSM toolkit instance to provide analysis for.
+
+    Attributes
+    ----------
+    datalayer : LSMToolkit
+        Reference to the toolkit instance.
+    coordinateHandler : coordinateHandler
+        Handler for coordinate system conversions and transformations.
     """
 
     _datalayer = None

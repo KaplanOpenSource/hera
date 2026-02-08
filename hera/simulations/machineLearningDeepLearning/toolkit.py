@@ -34,15 +34,51 @@ except ImportError:
 
 class machineLearningDeepLearningToolkit(abstractToolkit):
     """
-        The class handles machine/deep learning models.
+    Toolkit for managing machine learning and deep learning models.
 
-        It helps saving hyper parameters and it provide simple
-        tools (like batch/train splitting).
+    The machineLearningDeepLearningToolkit provides comprehensive support for
+    PyTorch model management, training, versioning, and sensitivity analysis.
+    It integrates with the Hera datalayer for model storage and metadata tracking.
 
-        Notes:
-            * Torch models it requires pytorch installed.
-            * SkiLearn requires scikitlearn installed.
+    Key Features
+    ------------
+    - PyTorch Lightning model container management
+    - Model versioning and storage
+    - Model packing and portability
+    - Sensitivity analysis (Morris method)
+    - Model comparison and listing
+    - Hyperparameter tracking
 
+    Model Storage
+    -------------
+    Models are stored as simulation documents with type "TorchModel". Each model
+    includes:
+    - Model architecture and hyperparameters
+    - Training configuration
+    - Dataset information
+    - Checkpoint paths
+
+    Notes
+    -----
+    - PyTorch models require PyTorch and PyTorch Lightning installed
+    - Sensitivity analysis requires SALib library
+    - Parallel execution requires joblib
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> ml_tk = toolkitHome.getToolkit("machine_deep_learning", projectName="my_project")
+    >>> 
+    >>> # Create model container
+    >>> model = ml_tk.getEmptyTorchModelContainer()
+    >>> model.modelJSON = model_config_dict
+    >>> model.fit(maxEpoch=100)
+    >>> 
+    >>> # List models
+    >>> models = ml_tk.listTorchModels(longFormat=True)
+    >>> 
+    >>> # Pack model for sharing
+    >>> ml_tk.packTorchModelByID(modelID=123, packFileName="model.zip")
     """
 
     def __init__(self, projectName: str, filesDirectory: str = None):

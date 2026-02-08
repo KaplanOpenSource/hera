@@ -10,8 +10,57 @@ from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE,TOOLKIT_SAVEMODE_ONLYFILE,TOOLK
 
 class DemographyToolkit(toolkit.VectorToolkit):
     """
-        A toolkit to manage demography data
+    Toolkit for managing demographic and population data.
 
+    The DemographyToolkit handles population data in vector format (polygons),
+    providing capabilities for calculating population within areas, creating
+    new demographic regions, and analyzing population distributions by age groups.
+
+    Key Features
+    ------------
+    - Population calculation in polygons
+    - Age group analysis (Children, Youth, Adults, Elderly)
+    - Integration with Buildings toolkit
+    - Region creation and management
+    - Data source versioning
+
+    Population Types
+    ----------------
+    The toolkit supports the following population categories:
+    - All: Total population
+    - Children: Age 0-14
+    - Youth: Age 15-19
+    - YoungAdults: Age 20-29
+    - Adults: Age 30-64
+    - Elderly: Age 65+
+
+    Data Sources
+    ------------
+    Demographic data sources are stored as GeoPandas GeoDataFrames with
+    population attributes. Each source can be versioned.
+
+    Examples
+    --------
+    >>> from hera import toolkitHome
+    >>> from shapely.geometry import Polygon
+    >>> 
+    >>> demo_tk = toolkitHome.getToolkit("GIS_Demography", projectName="my_project")
+    >>> 
+    >>> # Calculate population in a polygon
+    >>> polygon = Polygon([(0, 0), (1000, 0), (1000, 1000), (0, 1000)])
+    >>> pop_data = demo_tk.analysis.calculatePopulationInPolygon(
+    ...     shapelyPolygon=polygon,
+    ...     dataSourceOrData="population_data",
+    ...     populationTypes=["All", "Children"]
+    ... )
+    >>> 
+    >>> # Create new area with population
+    >>> new_area = demo_tk.analysis.createNewArea(
+    ...     shapeNameOrData=polygon,
+    ...     dataSourceOrData="population_data",
+    ...     regionName="study_area",
+    ...     saveMode=demo_tk.TOOLKIT_SAVEMODE_FILEANDDB
+    ... )
     """
 
     _populationTypes = None # A dictionary with the names of the population types.
