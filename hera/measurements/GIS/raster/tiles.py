@@ -30,11 +30,12 @@ class TilesToolkit(toolkit.abstractToolkit):
         return f"{self.toolkitName}_PNG"
 
 
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
 
         super().__init__(projectName=projectName,
                          toolkitName="Tiles",
-                         filesDirectory=filesDirectory)
+                         filesDirectory=filesDirectory,
+                         connectionName=connectionName)
 
         self._presentation = presentation(dataLayer=self)
 

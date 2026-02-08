@@ -738,7 +738,7 @@ class abstractToolkit(Project):
         """
         return self._projectName
 
-    def __init__(self, toolkitName, projectName, filesDirectory=None):
+    def __init__(self, toolkitName, projectName, connectionName=None, filesDirectory=None):
         """
             Initializes a new toolkit.
 
@@ -755,7 +755,7 @@ class abstractToolkit(Project):
             The directory to save datasource
 
         """
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory, connectionName=connectionName)
         logger = get_classMethod_logger(self, "init")
         self._toolkitname = toolkitName
 
@@ -942,6 +942,21 @@ class abstractToolkit(Project):
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         return None if doc is None else doc.getData()
+
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
+        return super().addCacheDocument(resource, dataFormat, type, desc)
+    
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
+        return super().addMeasurementsDocument(resource, dataFormat, type, desc)
+
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
+        return super().addSimulationsDocument(resource, dataFormat, type, desc)
 
     def addDataSource(self, dataSourceName, resource, dataFormat, version=(0, 0, 1), overwrite=False, **kwargs):
         """

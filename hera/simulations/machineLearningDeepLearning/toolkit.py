@@ -45,7 +45,7 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
 
     """
 
-    def __init__(self, projectName: str, filesDirectory: str = None):
+    def __init__(self, projectName: str, filesDirectory: str = None, connectionName=None):
         """
             Initializes the machineLearning/deepLearning toolkit.
 
@@ -59,7 +59,8 @@ class machineLearningDeepLearningToolkit(abstractToolkit):
         """
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
-                         toolkitName= "machineLearningDeepLearningToolkit")
+                         toolkitName= "machineLearningDeepLearningToolkit",
+                         connectionName=connectionName)
 
     def getEmptyTorchModelContainer(self):
         return torchLightingModelContainer(self)

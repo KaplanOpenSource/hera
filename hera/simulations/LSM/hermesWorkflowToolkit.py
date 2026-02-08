@@ -46,7 +46,7 @@ class workflowToolkit(abstractToolkit):
 
     DOCTYPE_WORKFLOW = "hermesWorkflow"
 
-    def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit"):
+    def __init__(self, projectName: str, filesDirectory: str = None,toolkitName : str="hermesWorkflowToolkit", connectionName=None):
         """
             Initializes the workflow toolkit.
 
@@ -60,7 +60,8 @@ class workflowToolkit(abstractToolkit):
         """
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
-                         toolkitName =toolkitName)
+                         toolkitName =toolkitName,
+                        connectionName=connectionName)
 
         # ## Create the simulationType->object map
         # self._simulationTypeMap = {

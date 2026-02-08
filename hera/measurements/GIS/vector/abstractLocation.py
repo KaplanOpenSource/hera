@@ -6,6 +6,7 @@ import geopandas
 from .shapes import ShapesToolKit
 import pandas
 import geojson
+from utils.logging import get_classMethod_logger
 
 
 
@@ -26,7 +27,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
 
 
 
-    def __init__(self, projectName, toolkitName, filesDirectory=None):
+    def __init__(self, projectName, toolkitName, filesDirectory=None,connectionName=None):
         """
             Initializes an abstract location toolkit.
 
@@ -54,7 +55,7 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
                 if None, and dataSourceOrData is a datasource name (i.e a str) then use the latest version.
         """
         #self.logger.info(f"Toolkit {toolkitName} in project {projectName} - Initializing")
-        super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName=toolkitName, filesDirectory=filesDirectory,connectionName=connectionName)
         logger = get_classMethod_logger(self, "init")
         if filesDirectory is None:
             self.logger.debug("Directory is not given, tries to load from default or using the current directory")

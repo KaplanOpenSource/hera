@@ -16,8 +16,8 @@ from datetime import datetime, timedelta
 from hera.measurements.GIS.utils import create_xarray
 
 class WindProfileToolkit(toolkit.abstractToolkit):
-    def __init__(self, projectName, filesDirectory=None):
-        super().__init__(projectName=projectName, toolkitName='WindProfileToolkit', filesDirectory=filesDirectory)
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
+        super().__init__(projectName=projectName, toolkitName='WindProfileToolkit', filesDirectory=filesDirectory,connectionName=connectionName)
         self._presentation = presentation(dataLayer=self)
 
     def getWindProfile(self,xarray:xarray.DataArray, height:float, dz:float):
