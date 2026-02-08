@@ -226,7 +226,7 @@ prometheus_client==0.21.1
 promise==2.3
 prompt_toolkit==3.0.50
 propcache==0.3.0
-protobuf==6.31.1
+protobuf==6.33.5
 psutil==7.0.0
 ptyprocess==0.7.0
 PuLP==3.0.2
