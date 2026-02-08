@@ -8,3 +8,4 @@ Measurements Documentation
 
    GIS/index
    experiment/index
+   meteorology/index
