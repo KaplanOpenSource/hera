@@ -196,7 +196,7 @@ class registeredVTKPipeLine:
 
     def __init__(self, datalayer, vtkpipeline, nameOrWorkflowFileOrJSONOrResource, serverName=None,
                  caseType=CASETYPE_DECOMPOSED):
-
+        logger = get_classMethod_logger(self, "__init__")
         self.datalayer = datalayer
         self.vtkpipeline = vtkpipeline
         self.tsBlockNum = 50
@@ -204,6 +204,7 @@ class registeredVTKPipeLine:
         simulationDocumentList = []
         simulationDocumentList += self.datalayer.getWorkflowDocumentFromDB(nameOrWorkflowFileOrJSONOrResource)
         if len(simulationDocumentList) != 0:
+            logger.info(f"found {nameOrWorkflowFileOrJSONOrResource} in database")
             simulationDocument = simulationDocumentList[0]
             self.casePath = simulationDocument.resource
             self.simulationDocument = simulationDocument
@@ -214,6 +215,7 @@ class registeredVTKPipeLine:
                 "workflowParameters": simulationProperties['parameters']
             }
         elif os.path.isdir(nameOrWorkflowFileOrJSONOrResource):
+            logger.info(f"{nameOrWorkflowFileOrJSONOrResource} is a directory, creating a psuedo document")
             self.casePath = nameOrWorkflowFileOrJSONOrResource
             self.simulationDocument = None
             simName = os.path.basename(self.casePath)
@@ -333,7 +335,7 @@ class registeredVTKPipeLine:
                 DBDocumentsDict[filterName] = cached_filter
 
             else:
-                outputFilePath = self.getFilterOutputFilePath(filterName, filext)
+                outputFilePath = self.getFilterOutputFilePath(filterName, filext, generate_new=True)
                 filtersOutputFilename[filterName] = outputFilePath
 
             logger.debug(
@@ -412,8 +414,10 @@ class registeredVTKPipeLine:
     def getFilterOutputFilePath(self, filterName, filext, generate_new=True):
         workflow_name = self.simulationParams['workflowName']
         counter_name = f"{workflow_name}_{filterName}_counter" # more consistent to have a counter per filter name
-        print(f"filter output path with counter {counter_name}")
-        counter = self.datalayer.getCounterAndAdd(counter_name) if generate_new else self.datalayer.getCounter(counter_name)-1
+        curr_number = self.datalayer.getCounter(counter_name)
+        if curr_number is None and not generate_new: # means there are none
+            return None
+        counter = self.datalayer.getCounterAndAdd(counter_name) if generate_new else curr_number
         outputFileName = f"{filterName.replace('.','_')}_{counter}.{filext}"
         outputFilePath = os.path.join(os.path.abspath(self.casePath), "vtkpipelinedata", outputFileName)
         return outputFilePath

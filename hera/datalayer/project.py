@@ -177,10 +177,14 @@ class Project:
 
         doc = self._getConfigDocument()
         if keep_old_values:
-            doc.desc.update(kwargs)
+            update_kwargs = {
+                f"set__desc__{k}": v
+                for k, v in kwargs.items()
+            }
+            doc.update(**update_kwargs)
         else:
-            doc['desc'] = kwargs
-        doc.save()
+            doc.update(set__desc=kwargs)
+        
 
     def __init__(self, projectName=None, connectionName=None, configurationPath=None,filesDirectory=None):
         """
@@ -275,10 +279,15 @@ class Project:
         """
         return self._simulations
 
-    def _getConfigDocument(self):
+    def _getConfigDocument(self, evaluate=False):
         """
         Returns the document of the config.
         If there is no config document, return empty dictionary.
+
+        Parameters
+        -------
+        evaluate :  bool
+            if False returns a QuerySet otherwise evaluates to a document
 
         Returns
         -------
@@ -288,18 +297,16 @@ class Project:
         """
         config_type = f"{self.projectName}__config__"
         documents = self.getCacheDocuments(type=config_type)
-        if len(documents) == 0:
-            documents = self.addCacheDocument(type=config_type,
+        # keeping lazy so we just return documents which is a QuerySet
+        if documents.first() is None:
+            self.addCacheDocument(type=config_type,
                                   resource="",
                                   dataFormat=datatypes.STRING,
                                   desc={})
-            ret = documents
-        else:
-            ret =documents[0]
 
-        return ret
+        return documents[0] if evaluate else documents
 
-    def setCounter(self,counterName,defaultValue=0):
+    def setCounter(self,counterName:str,defaultValue=0):
         """
             Defines a counter in the config of the project.
             The counter is specific to this project.
@@ -312,14 +319,19 @@ class Project:
         -------
 
         """
-        cnfg = self.getConfig().copy()
-        counterDict = cnfg.setdefault("counters",{}).copy()
-        counterDict[counterName] =defaultValue
-        cnfg["counters"] = counterDict
-        self.setConfig(**cnfg)
-        return cnfg
+        counterName = self._nomralizeCounterName(counterName)
+        cnfg_doc = self._getConfigDocument()
+        self.defineCounter(counterName,0)
+        cnfg_doc.update_one(**{f"set__desc__counter__{counterName}":defaultValue})
 
-    def defineCounter(self,counterName,defaultValue=0):
+    def _nomralizeCounterName(self, counterName):
+        counterName=counterName.replace('.','_')
+        # avoiding conflicts with mongodb
+        if '__' in counterName:
+            raise RuntimeError("a counter's name cannot contain either of __ / ._ / _. / ..")
+        return counterName
+
+    def defineCounter(self,counterName,defaultValue=0) -> None:
         """
             Defines a counter in the config of the project, if it does not exist
             The counter is specific to this project.
@@ -332,17 +344,45 @@ class Project:
         -------
 
         """
-        cnfg = self.getConfig().copy()
-        counterDict = cnfg.get("counters", {}).copy()
-        counterDict.setdefault(counterName,defaultValue)
-        cnfg["counters"] = counterDict
-        self.setConfig(**cnfg)
-        return cnfg
+        counterName = self._nomralizeCounterName(counterName)
+        cnfg_doc = self._getConfigDocument()
+        self._enforce_counter_field(cnfg_doc)
+        if cnfg_doc.filter(**{f"desc__counters__{counterName}__exists": True}).first() is None: 
+            cnfg_doc.update(**{f"set__desc__counters__{counterName}": defaultValue})
+            return True
+        return False
 
 
     def getCounter(self,counterName):
         """
+            Return the value of the counter if doesn't exist returning None
+        Parameters
+        ----------
+        counterName :  str
+            The name of the counter.
+
+        Returns
+        -------
+
+        """
+        counterName = self._nomralizeCounterName(counterName)
+        cnfg_doc = self._getConfigDocument()
+        self._enforce_counter_field(cnfg_doc)
+        #if it doesn't exist there is nothing to get, returning None
+        if cnfg_doc.filter(**{f"desc__counters__{counterName}__exists": True}).first() is None: 
+            return None
+        doc = cnfg_doc[0]
+        return doc['desc']['counters'][counterName]
+
+    def _enforce_counter_field(self, cnfg_doc):
+        if cnfg_doc.filter(desc__counters__exists=True).first() is None:
+            cnfg_doc.update(**{f"set__desc__counters": {}})
+
+
+    def getCounterAndAdd(self, counterName, addition=1):
+        """
             Return the value of the counter and add [addition].
+            If the counter is not defined it is initialized to 0.
         Parameters
         ----------
         counterName :  str
@@ -355,36 +395,19 @@ class Project:
         -------
 
         """
-        cnfg = self.getConfig().copy()
-        counterDict = cnfg.get("counters",{}).copy()
-        ret = counterDict.setdefault(counterName,0)
-        cnfg["counters"] =counterDict
-        self.setConfig(**cnfg)
-        return ret
+        counterName = self._nomralizeCounterName(counterName)
+        isNew = self.defineCounter(counterName,0)
+        if isNew:
+            return 0
 
-    def getCounterAndAdd(self, counterName, addition=1):
-            """
-                Return the value of the counter and add [addition].
-                If the counter is not defined it is initialized to 0.
-            Parameters
-            ----------
-            counterName :  str
-                The name of the counter.
-
-            addition : int
-                The amount to add to the counter. The default is 1
-
-            Returns
-            -------
-
-            """
-            cnfg =self.getConfig()
-            counterDict = cnfg.get("counters",{}).copy()
-            ret = counterDict.setdefault(counterName,0)
-            counterDict[counterName] += addition
-            cnfg["counters"] =counterDict
-            self.setConfig(**cnfg)
-            return ret
+        cnfg_doc = self._getConfigDocument()
+        doc = cnfg_doc.modify(
+            upsert=True,
+            new=True,
+            **{
+                f"inc__desc__counters__{counterName}":addition
+            })
+        return doc['desc']['counters'][counterName]
 
     @deprecated(reason="Use getCounterAndAdd instead")
     def addCounter(self, counterName, addition=1):
@@ -402,7 +425,7 @@ class Project:
         """
         if self._projectName == self.DEFAULTPROJECT:
             raise ValueError("Default project cannot use configuration")
-        doc = self._getConfigDocument()
+        doc = self._getConfigDocument(evaluate=True)
         return dict(doc["desc"])
 
 
@@ -421,9 +444,8 @@ class Project:
             raise ValueError("Default project cannot use configuration")
 
         doc = self._getConfigDocument()
-        for key,value in doc['desc'].items():
-            doc['desc'].setdefault(key,value)
-        doc.save()
+        for key in kwargs.keys():
+            doc.filter(**{f"desc__{key}__exists":False}).update(**{f"set__desc__{key}":kwargs[key]})
 
 
 

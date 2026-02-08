@@ -543,11 +543,12 @@ class hermesWorkflowToolkit(abstractToolkit):
         return workflow_name, None
 
     def addWorkflowFileInGroup(self,workflowFilePath, write_file=False):
-        """
-            adds the workflow to the database and assigning group based on the name
+        """adds the workflow to the database and assigning group based on the name
+        
         Parameters
         ----------
-        workflowFilePath
+        workflowFilePath : str
+        write_file : bool
         
         Returns
         -------
@@ -700,6 +701,7 @@ class hermesWorkflowToolkit(abstractToolkit):
             executionStr = f"python3 -m luigi --module {os.path.basename(pythonPath)} finalnode_xx_0 --local-scheduler"
             logger.debug(executionStr)
             os.system(executionStr)
+            logger.info(f"Cleaning the executer python for {workflowName}")
             os.remove(pythonFileName)
 
 
