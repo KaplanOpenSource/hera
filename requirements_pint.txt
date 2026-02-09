@@ -181,7 +181,7 @@ namex==0.0.8
 narwhals==1.30.0
 nbclassic==1.2.0
 nbclient==0.10.2
-nbconvert==7.16.6
+nbconvert==7.17.0
 nbdime==4.0.2
 nbformat==5.10.4
 nbsphinx==0.9.7
