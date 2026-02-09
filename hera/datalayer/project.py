@@ -606,7 +606,7 @@ class Project:
         """
         return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
-    def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+    def getMeasurementsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         """
             Query measurements.old documents.
 
@@ -630,6 +630,34 @@ class Project:
         """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
+    def getAllDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Runs getXDocuments for measurements, cache and simulations aggregating all to one list
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        -------
+            List of documents.
+        """
+        docs = []
+        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        return docs
+    
     def addDocumentFromDict(self,documentDict):
         """
             Load the document to the project.
