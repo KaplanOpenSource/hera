@@ -13,6 +13,7 @@ import { execPython } from "../../io/execPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
+import { BooleanProperty } from "../../elements/BooleanProperty";
 
 export const AddDocumentButton = ({
   toolkit = undefined,
@@ -22,6 +23,7 @@ export const AddDocumentButton = ({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
+  const [asAgent, setAsAgent] = useState(false);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
 
@@ -30,10 +32,19 @@ export const AddDocumentButton = ({
     if (toolkit?.toolkit) {
       desc.toolkit = toolkit.toolkit;
     }
+    const addcmd = asAgent
+      ? `
+All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stringify(desc)},
+    dataFormat=datatypes.JSON_DICT,
+    type='ToolkitDataSource')
+      `
+      : `
+All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
+    `;
     const { problem, data } = await execPython(`
 import json
-from hera.datalayer import All
-All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
+from hera.datalayer import All, datatypes
+${addcmd}
 
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 result = {"name": '${currProjectName}', "documents": docs['documents']}
@@ -87,6 +98,12 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
           variant="outlined"
           value={resource}
           onChange={(e) => setResource(e.target.value)}
+          disabled={asAgent}
+        />
+        <BooleanProperty
+          label="Agent"
+          value={asAgent}
+          setValue={v => setAsAgent(v)}
         />
       </DialogContent>
       <DialogActions>

@@ -15,15 +15,14 @@ import {
   MenuItem,
   Select,
   Stack,
-  TextField,
-  Typography,
+  TextField
 } from "@mui/material";
 import { SectionHeader } from "../../elements/SectionHeader";
 import { AgentEffect, Calculator } from "../../shared/AgentConfig";
+import { DetailsViewItemName } from "../details/DetailsViewItemName";
 import { CalculatorEditor, getCalculatorType } from "./CalculatorEditor";
 import { InjuryLevelsEditor } from "./InjuryLevelsEditor";
 import { EFFECT_TO_LEVEL_TYPE, EFFECT_TYPES, EffectType } from "./LevelParamsEditor";
-import { DetailsViewItemName } from "../details/DetailsViewItemName";
 
 export const EffectEditor = ({
   name,
