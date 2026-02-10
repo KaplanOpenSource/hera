@@ -1,7 +1,86 @@
 import { Stack, Typography, Paper, Chip, Tooltip, IconButton, TextField, Button } from "@mui/material";
 import { useState } from "react";
 import { InjuryLevelType, makeDefaultLevelParams, LevelParamsEditor } from "./LevelParamsEditor";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Delete, DragIndicator } from "@mui/icons-material";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+
+const SortableLevelItem = ({
+  name,
+  index,
+  levelType,
+  parameters,
+  removeLevel,
+  updateLevelParams,
+}: {
+  name: string;
+  index: number;
+  levelType: InjuryLevelType;
+  parameters: { [key: string]: any };
+  removeLevel: (name: string) => void;
+  updateLevelParams: (name: string, params: any) => void;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: name,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ p: 1.5 }}>
+      <Stack spacing={1.5}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <IconButton
+              size="small"
+              sx={{ cursor: "grab", touchAction: "none" }}
+              {...attributes}
+              {...listeners}
+            >
+              <DragIndicator fontSize="small" />
+            </IconButton>
+            <Chip label={name} size="small" color="primary" variant="outlined" />
+            <Typography variant="caption" color="text.secondary">
+              #{index + 1}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="Remove level">
+              <IconButton size="small" onClick={() => removeLevel(name)}>
+                <Delete fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
+        <LevelParamsEditor
+          levelType={levelType}
+          params={parameters[name] ?? makeDefaultLevelParams(levelType)}
+          onChange={(p) => updateLevelParams(name, p)}
+        />
+      </Stack>
+    </Paper>
+  );
+};
 
 export const InjuryLevelsEditor = ({
   levelType,
@@ -15,6 +94,11 @@ export const InjuryLevelsEditor = ({
   onChange: (levels: string[], parameters: { [key: string]: any }) => void;
 }) => {
   const [newLevelName, setNewLevelName] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const addLevel = () => {
     const name = newLevelName.trim();
@@ -31,12 +115,13 @@ export const InjuryLevelsEditor = ({
     );
   };
 
-  const reorderLevel = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= levels.length) return;
-    const next = [...levels];
-    [next[index], next[target]] = [next[target], next[index]];
-    onChange(next, parameters);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = levels.indexOf(active.id as string);
+      const newIndex = levels.indexOf(over.id as string);
+      onChange(arrayMove(levels, oldIndex, newIndex), parameters);
+    }
   };
 
   const updateLevelParams = (name: string, params: any) => {
@@ -46,57 +131,28 @@ export const InjuryLevelsEditor = ({
   return (
     <Stack spacing={1}>
       <Typography variant="caption" color="text.secondary">
-        Levels are ordered highest severity first
+        Levels are ordered highest severity first — drag to reorder
       </Typography>
-
-      {levels.map((name, i) => (
-        <Paper key={name} variant="outlined" sx={{ p: 1.5 }}>
-          <Stack spacing={1.5}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Chip label={name} size="small" color="primary" variant="outlined" />
-                <Typography variant="caption" color="text.secondary">
-                  #{i + 1}
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={0.5}>
-                <Tooltip title="Move up (higher severity)">
-                  <span>
-                    <IconButton size="small" disabled={i === 0} onClick={() => reorderLevel(i, -1)}>
-                      ▲
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title="Move down (lower severity)">
-                  <span>
-                    <IconButton
-                      size="small"
-                      disabled={i === levels.length - 1}
-                      onClick={() => reorderLevel(i, 1)}
-                    >
-                      ▼
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title="Remove level">
-                  <IconButton
-                    size="small"
-                    onClick={() => removeLevel(name)}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Stack>
-            <LevelParamsEditor
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+      >
+        <SortableContext items={levels} strategy={verticalListSortingStrategy}>
+          {levels.map((name, i) => (
+            <SortableLevelItem
+              key={name}
+              name={name}
+              index={i}
               levelType={levelType}
-              params={parameters[name] ?? makeDefaultLevelParams(levelType)}
-              onChange={(p) => updateLevelParams(name, p)}
+              parameters={parameters}
+              removeLevel={removeLevel}
+              updateLevelParams={updateLevelParams}
             />
-          </Stack>
-        </Paper>
-      ))}
-
+          ))}
+        </SortableContext>
+      </DndContext>
       <Stack direction="row" spacing={1} alignItems="center">
         <TextField
           label="New level name"
