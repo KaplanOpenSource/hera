@@ -28,15 +28,11 @@ import { EFFECT_TO_LEVEL_TYPE, EFFECT_TYPES, EffectType } from "./LevelParamsEdi
 export const EffectEditor = ({
   name,
   effect,
-  onChange,
-  onRename,
-  onDelete,
+  onUpdate,
 }: {
   name: string;
   effect: AgentEffect;
-  onChange: (effect: AgentEffect) => void;
-  onRename: (oldName: string, newName: string) => void;
-  onDelete: () => void;
+  onUpdate: (newName?: string, newEffect?: AgentEffect) => void;
 }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(name);
@@ -44,7 +40,7 @@ export const EffectEditor = ({
   const commitRename = () => {
     const trimmed = nameValue.trim();
     if (trimmed && trimmed !== name) {
-      onRename(name, trimmed);
+      onUpdate(trimmed, effect);
     } else {
       setNameValue(name);
     }
@@ -53,7 +49,7 @@ export const EffectEditor = ({
 
   const handleTypeChange = (newType: EffectType) => {
     const newLevelType = EFFECT_TO_LEVEL_TYPE[newType];
-    onChange({
+    onUpdate(name, {
       ...effect,
       type: newType,
       parameters: {
@@ -65,7 +61,7 @@ export const EffectEditor = ({
   };
 
   const updateLevels = (levels: string[], parameters: { [key: string]: any }) => {
-    onChange({
+    onUpdate(name, {
       ...effect,
       parameters: { ...effect.parameters, levels, parameters },
     } as AgentEffect);
@@ -113,7 +109,7 @@ export const EffectEditor = ({
           color="error"
           onClick={(e) => {
             e.stopPropagation();
-            onDelete();
+            onUpdate();
           }}
         >
           <Delete fontSize="small" />
@@ -140,7 +136,7 @@ export const EffectEditor = ({
               label="Units"
               size="small"
               value={effect.units ?? ""}
-              onChange={(e) => onChange({ ...effect, units: e.target.value || undefined } as AgentEffect)}
+              onChange={(e) => onUpdate(name, { ...effect, units: e.target.value || undefined } as AgentEffect)}
             />
           </Stack>
 
@@ -149,7 +145,7 @@ export const EffectEditor = ({
           <CalculatorEditor
             calculator={effect.calculator}
             setCalculator={(calc: Calculator) => {
-              onChange({ ...effect, calculator: calc } as AgentEffect);
+              onUpdate(name, { ...effect, calculator: calc } as AgentEffect);
             }}
           />
 
