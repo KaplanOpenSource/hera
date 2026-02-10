@@ -9,10 +9,6 @@ import type { AgentConfig } from "../../shared/AgentConfig";
 import { EffectsListEditor } from "./EffectsListEditor";
 import { PhysicalPropertiesEditor } from "./PhysicalPropertiesEditor";
 
-// =============================================================================
-// Main Editor
-// =============================================================================
-
 export const AgentConfigEditor = ({
   agentResource,
   setAgentResource,

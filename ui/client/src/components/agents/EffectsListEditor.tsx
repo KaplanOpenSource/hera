@@ -7,12 +7,11 @@ import { EffectEditor } from "./EffectEditor";
 import { EFFECT_TO_LEVEL_TYPE, EffectType } from "./LevelParamsEditor";
 
 function makeDefaultEffect(type: EffectType): AgentEffect {
-  const levelType = EFFECT_TO_LEVEL_TYPE[type];
   return {
     type,
     calculator: makeDefaultCalculator("Haber"),
     parameters: {
-      type: levelType,
+      type: EFFECT_TO_LEVEL_TYPE[type],
       levels: [],
       parameters: {},
     },
@@ -30,7 +29,9 @@ export const EffectsListEditor = ({
 
   const addEffect = () => {
     const name = newEffectName.trim();
-    if (!name || effects[name]) return;
+    if (!name || effects[name]) {
+      return;
+    }
     onChange({ ...effects, [name]: makeDefaultEffect("Threshold") });
     setNewEffectName("");
   };
