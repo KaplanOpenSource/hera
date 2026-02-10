@@ -1,4 +1,4 @@
-import { Close, Done, DynamicForm } from '@mui/icons-material';
+import { Close, Done, DynamicForm, Science } from '@mui/icons-material';
 import { Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
@@ -13,6 +13,9 @@ import { ProjectDocument } from '../../shared/types';
 import { AgentConfig } from '../../shared/AgentConfig';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
+const isAgentConfigDoc = (doc: ProjectDocument) => {
+  return doc && typeof doc?.resource === 'object' && doc?.resource.effects !== undefined;
+}
 
 export const DetailsViewDocument = ({
   doc,
@@ -21,8 +24,21 @@ export const DetailsViewDocument = ({
   doc: DocumentObj,
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
-  const [shownDoc, setShownDoc] = useState<any>(JSON.parse(JSON.stringify(doc.data)));
+  const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
   const [showFormulated, setShowFormulated] = useState(true);
+  const [showAgentConfig, setShowAgentConfig] = useState(isAgentConfigDoc(doc.data));
+
+  const isAgent = isAgentConfigDoc(shownDoc);
+
+  useEffect(() => {
+    if (!isAgent) {
+      setShowAgentConfig(false);
+    }
+  }, [isAgent]);
+
+  useEffect(() => {
+    setShowAgentConfig(isAgentConfigDoc(doc.data));
+  }, [doc.docid]);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
@@ -40,6 +56,13 @@ export const DetailsViewDocument = ({
           onClick={() => setShowFormulated(!showFormulated)}
         >
           <DynamicForm color={showFormulated ? 'primary' : 'inherit'} />
+        </ButtonTooltip>
+        <ButtonTooltip
+          title={'Show Agent Config'}
+          onClick={() => setShowAgentConfig(!showAgentConfig)}
+          disabled={!isAgent}
+        >
+          <Science color={showAgentConfig ? 'primary' : 'inherit'} />
         </ButtonTooltip>
         {isChanged
           ? (<>
@@ -89,11 +112,14 @@ export const DetailsViewDocument = ({
           );
         })}
       </SimpleTreeView>
-      {typeof ((shownDoc as ProjectDocument).resource) !== 'object' ? null :
-        <AgentConfigEditor
-          agentResource={(shownDoc as ProjectDocument).resource as AgentConfig}
-          setAgentResource={() => { }}
-        />
+      {isAgent && showAgentConfig
+        ? (
+          <AgentConfigEditor
+            agentResource={shownDoc.resource as AgentConfig}
+            setAgentResource={newVal => setShownDoc({ ...shownDoc, resource: newVal })}
+          />
+        )
+        : null
       }
     </>
   )
