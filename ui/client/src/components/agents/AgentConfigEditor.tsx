@@ -21,9 +21,10 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import React, { useCallback, useState } from "react";
-import type { AgentConfig, AgentEffect, Calculator, VaporPressure } from "../../shared/AgentConfig";
+import { useCallback, useState } from "react";
 import { SectionHeader } from "../../elements/SectionHeader";
+import type { AgentConfig, AgentEffect, Calculator } from "../../shared/AgentConfig";
+import { CalculatorEditor, getCalculatorType, makeDefaultCalculator } from "./CalculatorEditor";
 import { PhysicalPropertiesEditor } from "./PhysicalPropertiesEditor";
 
 // =============================================================================
@@ -31,40 +32,15 @@ import { PhysicalPropertiesEditor } from "./PhysicalPropertiesEditor";
 // =============================================================================
 
 type EffectType = AgentEffect["type"];
-type CalculatorType = "Haber" | "TenBerge" | "MaxConcentration";
 type InjuryLevelType = "Threshold" | "Lognormal10DoseResponse" | "Exponential";
 
 const EFFECT_TYPES: EffectType[] = ["Threshold", "Lognormal10", "Exponential"];
-const CALCULATOR_TYPES: CalculatorType[] = ["Haber", "TenBerge", "MaxConcentration"];
 
 const EFFECT_TO_LEVEL_TYPE: { [key in EffectType]: InjuryLevelType } = {
   Threshold: "Threshold",
   Lognormal10: "Lognormal10DoseResponse",
   Exponential: "Exponential",
 };
-
-function getCalculatorType(calc: Calculator): CalculatorType {
-  if ("Haber" in calc) return "Haber";
-  if ("TenBerge" in calc) return "TenBerge";
-  return "MaxConcentration";
-}
-
-function getCalculatorParams(calc: Calculator) {
-  if ("Haber" in calc) return calc.Haber;
-  if ("TenBerge" in calc) return calc.TenBerge;
-  return calc.MaxConcentration;
-}
-
-function makeDefaultCalculator(type: CalculatorType): Calculator {
-  switch (type) {
-    case "Haber":
-      return { Haber: { breathingRate: 10 } };
-    case "TenBerge":
-      return { TenBerge: { breathingRate: 10 } };
-    case "MaxConcentration":
-      return { MaxConcentration: { sampling: "10min", breathingRate: 10 } };
-  }
-}
 
 function makeDefaultLevelParams(levelType: InjuryLevelType) {
   switch (levelType) {
@@ -93,75 +69,6 @@ function makeDefaultEffect(type: EffectType): AgentEffect {
 // =============================================================================
 // Sub-editors
 // =============================================================================
-
-// -- Calculator editor --------------------------------------------------------
-
-const CalculatorEditor = ({
-  calculator,
-  onChange,
-}: {
-  calculator: Calculator;
-  onChange: (calc: Calculator) => void;
-}) => {
-  const type = getCalculatorType(calculator);
-  const params = getCalculatorParams(calculator);
-
-  const handleTypeChange = (newType: CalculatorType) => {
-    onChange(makeDefaultCalculator(newType));
-  };
-
-  const updateParam = (key: string, value: any) => {
-    const newParams = { ...params, [key]: value };
-    switch (type) {
-      case "Haber":
-        onChange({ Haber: newParams as any });
-        break;
-      case "TenBerge":
-        onChange({ TenBerge: newParams as any });
-        break;
-      case "MaxConcentration":
-        onChange({ MaxConcentration: newParams as any });
-        break;
-    }
-  };
-
-  return (
-    <Stack spacing={2}>
-      <FormControl size="small" fullWidth>
-        <InputLabel>Calculator</InputLabel>
-        <Select
-          value={type}
-          label="Calculator"
-          onChange={(e) => handleTypeChange(e.target.value as CalculatorType)}
-        >
-          {CALCULATOR_TYPES.map((t) => (
-            <MenuItem key={t} value={t}>
-              {t}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      <TextField
-        label="Breathing Rate (L/min)"
-        type="number"
-        size="small"
-        value={params.breathingRate ?? 10}
-        onChange={(e) => updateParam("breathingRate", parseFloat(e.target.value) || 0)}
-      />
-
-      {type === "MaxConcentration" && "sampling" in params && (
-        <TextField
-          label="Sampling Window"
-          size="small"
-          helperText='e.g. "10min", "30min", "1h", "8h"'
-          value={(params as any).sampling ?? ""}
-          onChange={(e) => updateParam("sampling", e.target.value)}
-        />
-      )}
-    </Stack>
-  );
-};
 
 // -- Injury level params editor -----------------------------------------------
 
