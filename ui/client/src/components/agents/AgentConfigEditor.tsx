@@ -582,17 +582,16 @@ export const AgentConfigEditor = ({
         label="Ten Berge Coefficient"
         type="number"
         size="small"
-        inputProps={{ step: 0.1 }}
+        slotProps={{ htmlInput: { step: 0.1 } }}
         helperText="Global exponent n used by TenBerge calculators"
         value={agentResource.effectParameters?.tenbergeCoefficient ?? ""}
-        onChange={(e) =>
-          update({
-            effectParameters: {
-              ...agentResource.effectParameters,
-              tenbergeCoefficient: e.target.value ? parseFloat(e.target.value) : undefined,
-            },
+        onChange={(e) => {
+          const tenbergeCoefficient = e.target.value ? parseFloat(e.target.value) : undefined;
+          setAgentResource({
+            ...agentResource,
+            effectParameters: { ...agentResource.effectParameters, tenbergeCoefficient },
           })
-        }
+        }}
       />
 
       <Divider sx={{ mb: 2 }} />
