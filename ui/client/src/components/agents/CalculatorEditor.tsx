@@ -82,7 +82,7 @@ export const CalculatorEditor = ({
         onChange={(e) => updateParam("breathingRate", parseFloat(e.target.value) || 0)}
       />
 
-      {type === "MaxConcentration" && "sampling" in params && (
+      {type === "MaxConcentration" && (
         <TextField
           label="Sampling Window"
           size="small"
