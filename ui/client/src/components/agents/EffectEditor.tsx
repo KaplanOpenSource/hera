@@ -18,12 +18,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
 import { SectionHeader } from "../../elements/SectionHeader";
 import { AgentEffect, Calculator } from "../../shared/AgentConfig";
 import { CalculatorEditor, getCalculatorType } from "./CalculatorEditor";
 import { InjuryLevelsEditor } from "./InjuryLevelsEditor";
 import { EFFECT_TO_LEVEL_TYPE, EFFECT_TYPES, EffectType } from "./LevelParamsEditor";
+import { DetailsViewItemName } from "../details/DetailsViewItemName";
 
 export const EffectEditor = ({
   name,
@@ -34,19 +34,6 @@ export const EffectEditor = ({
   effect: AgentEffect;
   onUpdate: (newName?: string, newEffect?: AgentEffect) => void;
 }) => {
-  const [editingName, setEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(name);
-
-  const commitRename = () => {
-    const trimmed = nameValue.trim();
-    if (trimmed && trimmed !== name) {
-      onUpdate(trimmed, effect);
-    } else {
-      setNameValue(name);
-    }
-    setEditingName(false);
-  };
-
   const handleTypeChange = (newType: EffectType) => {
     const newLevelType = EFFECT_TO_LEVEL_TYPE[newType];
     onUpdate(name, {
@@ -72,35 +59,14 @@ export const EffectEditor = ({
       <AccordionSummary expandIcon={<ExpandMore />}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, mr: 1 }}>
           <Science fontSize="small" color="action" />
-          {editingName ? (
-            <TextField
-              size="small"
-              variant="standard"
-              value={nameValue}
-              autoFocus
-              onChange={(e) => setNameValue(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") {
-                  setNameValue(name);
-                  setEditingName(false);
-                }
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <Typography
-              variant="subtitle2"
-              sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingName(true);
-              }}
-            >
-              {name}
-            </Typography>
-          )}
+          <DetailsViewItemName
+            itemKey={name}
+            setItemKey={(newName) => {
+              if (newName && newName !== name) {
+                onUpdate(newName, effect);
+              }
+            }}
+          />
           <Chip label={effect.type} size="small" />
           <Chip label={getCalculatorType(effect.calculator)} size="small" variant="outlined" />
         </Stack>
