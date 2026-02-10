@@ -30,13 +30,13 @@ export const RenameField = ({
               title={'Rename'}
               onClick={() => setValue(internalValue)}
             >
-              <Check />
+              <Check fontSize="small" />
             </ButtonTooltip>
             <ButtonTooltip
               title={'Cancel Rename'}
               onClick={() => setValue(value)}
             >
-              <Close />
+              <Close fontSize="small" />
             </ButtonTooltip>
           </>)
         }

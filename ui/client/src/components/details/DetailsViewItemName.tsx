@@ -45,7 +45,7 @@ export const DetailsViewItemName = ({
               title={'Rename ' + itemKey}
               onClick={() => setEditing(!editing)}
             >
-              <Edit />
+              <Edit fontSize="small" />
             </ButtonTooltip>
           </>)}
         </>)}
