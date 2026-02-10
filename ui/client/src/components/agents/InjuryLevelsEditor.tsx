@@ -79,7 +79,10 @@ export const InjuryLevelsEditor = ({
                   </span>
                 </Tooltip>
                 <Tooltip title="Remove level">
-                  <IconButton size="small" color="error" onClick={() => removeLevel(name)}>
+                  <IconButton
+                    size="small"
+                    onClick={() => removeLevel(name)}
+                  >
                     <Delete fontSize="small" />
                   </IconButton>
                 </Tooltip>

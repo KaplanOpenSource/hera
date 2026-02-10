@@ -1,4 +1,4 @@
-import AddIcon from "@mui/icons-material/Add";
+import { Add } from "@mui/icons-material";
 import { Button, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import type { AgentEffect } from "../../shared/AgentConfig";
@@ -82,7 +82,7 @@ export const EffectsListEditor = ({
         />
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={<Add />}
           onClick={addEffect}
           disabled={!newEffectName.trim() || !!effects[newEffectName.trim()]}
         >

@@ -106,7 +106,6 @@ export const EffectEditor = ({
         </Stack>
         <IconButton
           size="small"
-          color="error"
           onClick={(e) => {
             e.stopPropagation();
             onUpdate();
