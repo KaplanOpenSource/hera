@@ -44,6 +44,12 @@ export const DetailsViewDocument = ({
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
   }, [doc.data])
 
+  useEffect(() => {
+    if (!showFormulated) {
+      setShowAgentConfig(false);
+    }
+  }, [showFormulated])
+
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
     <>
@@ -86,6 +92,13 @@ export const DetailsViewDocument = ({
         shownDoc={shownDoc}
         setShownDoc={setShownDoc}
         showFormulated={showFormulated}
+        extraFields={!showAgentConfig
+          ? []
+          : [
+            { name: 'type', value: shownDoc.type },
+            { name: 'dataFormat', value: shownDoc.dataFormat },
+          ]
+        }
       />
       <SimpleTreeView
         defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
@@ -94,7 +107,7 @@ export const DetailsViewDocument = ({
           if (FORBIDDEN_FIELDS.includes(k)) {
             return null;
           }
-          if (isAgent && showAgentConfig && k === 'resource') {
+          if (showAgentConfig && ['resource', 'type', 'dataFormat'].includes(k)) {
             return null;
           }
           const hideOnDesc = showFormulated && k === 'desc';
@@ -115,7 +128,7 @@ export const DetailsViewDocument = ({
           );
         })}
       </SimpleTreeView>
-      {isAgent && showAgentConfig
+      {showAgentConfig
         ? (
           <AgentConfigEditor
             agentResource={shownDoc.resource as AgentConfig}
