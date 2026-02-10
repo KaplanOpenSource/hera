@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { DetailsViewItemName } from "../details/DetailsViewItemName";
+import { SectionHeader } from "../../elements/SectionHeader";
 
 const SortableLevelItem = ({
   name,
@@ -53,7 +54,7 @@ const SortableLevelItem = ({
     <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ p: 1.5 }}>
       <Stack spacing={1.5}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" alignItems="center" spacing={0} sx={{ flex: 1, minWidth: 0 }}>
             <IconButton
               size="small"
               sx={{ cursor: "grab", touchAction: "none" }}
@@ -70,15 +71,15 @@ const SortableLevelItem = ({
                 }
               }}
             />
-            <Typography variant="caption" color="text.secondary">
-              #{index + 1}
-            </Typography>
+            <Tooltip title="Remove level">
+              <IconButton size="small" onClick={() => removeLevel(name)}>
+                <Delete fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Stack>
-          <Tooltip title="Remove level">
-            <IconButton size="small" onClick={() => removeLevel(name)}>
-              <Delete fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {/* <Typography variant="caption" color="text.secondary">
+            #{index + 1}
+          </Typography> */}
         </Stack>
         <LevelParamsEditor
           levelType={levelType}
@@ -146,6 +147,7 @@ export const InjuryLevelsEditor = ({
 
   return (
     <Stack spacing={1}>
+      <SectionHeader>Injury Levels</SectionHeader>
       <Typography variant="caption" color="text.secondary">
         Levels are ordered highest severity first — drag to reorder
       </Typography>

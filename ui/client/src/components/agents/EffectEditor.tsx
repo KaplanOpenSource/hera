@@ -149,7 +149,6 @@ export const EffectEditor = ({
           />
 
           <Divider />
-          <SectionHeader>Injury Levels</SectionHeader>
           <InjuryLevelsEditor
             levelType={EFFECT_TO_LEVEL_TYPE[effect.type]}
             levels={effect.parameters.levels}
