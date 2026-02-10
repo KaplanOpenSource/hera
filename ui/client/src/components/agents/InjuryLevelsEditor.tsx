@@ -1,4 +1,4 @@
-import { Stack, Typography, Paper, Chip, Tooltip, IconButton, TextField, Button } from "@mui/material";
+import { Stack, Typography, Paper, Tooltip, IconButton, TextField, Button } from "@mui/material";
 import { useState } from "react";
 import { InjuryLevelType, makeDefaultLevelParams, LevelParamsEditor } from "./LevelParamsEditor";
 import { Add, Delete, DragIndicator } from "@mui/icons-material";
@@ -20,6 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import { DetailsViewItemName } from "../details/DetailsViewItemName";
 
 const SortableLevelItem = ({
   name,
@@ -28,6 +29,7 @@ const SortableLevelItem = ({
   parameters,
   removeLevel,
   updateLevelParams,
+  renameLevel,
 }: {
   name: string;
   index: number;
@@ -35,6 +37,7 @@ const SortableLevelItem = ({
   parameters: { [key: string]: any };
   removeLevel: (name: string) => void;
   updateLevelParams: (name: string, params: any) => void;
+  renameLevel: (oldName: string, newName: string) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: name,
@@ -50,7 +53,7 @@ const SortableLevelItem = ({
     <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ p: 1.5 }}>
       <Stack spacing={1.5}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
             <IconButton
               size="small"
               sx={{ cursor: "grab", touchAction: "none" }}
@@ -59,18 +62,23 @@ const SortableLevelItem = ({
             >
               <DragIndicator fontSize="small" />
             </IconButton>
-            <Chip label={name} size="small" color="primary" variant="outlined" />
+            <DetailsViewItemName
+              itemKey={name}
+              setItemKey={(newName) => {
+                if (newName && newName !== name) {
+                  renameLevel(name, newName);
+                }
+              }}
+            />
             <Typography variant="caption" color="text.secondary">
               #{index + 1}
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Remove level">
-              <IconButton size="small" onClick={() => removeLevel(name)}>
-                <Delete fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
+          <Tooltip title="Remove level">
+            <IconButton size="small" onClick={() => removeLevel(name)}>
+              <Delete fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Stack>
         <LevelParamsEditor
           levelType={levelType}
@@ -115,6 +123,14 @@ export const InjuryLevelsEditor = ({
     );
   };
 
+  const renameLevel = (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || (trimmed !== oldName && levels.includes(trimmed))) return;
+    const newLevels = levels.map((l) => (l === oldName ? trimmed : l));
+    const { [oldName]: params, ...rest } = parameters;
+    onChange(newLevels, { ...rest, [trimmed]: params });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -149,6 +165,7 @@ export const InjuryLevelsEditor = ({
               parameters={parameters}
               removeLevel={removeLevel}
               updateLevelParams={updateLevelParams}
+              renameLevel={renameLevel}
             />
           ))}
         </SortableContext>
