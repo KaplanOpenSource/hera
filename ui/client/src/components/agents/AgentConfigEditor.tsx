@@ -533,10 +533,6 @@ export const AgentConfigEditor = ({
     update({ effects: Object.fromEntries(entries) });
   };
 
-  // -- Physical properties toggle --
-
-  const hasPhysProps = !!agentResource.physicalProperties;
-
   return (
     <Box sx={{ maxWidth: 800 }}>
       {/* Effects */}
@@ -601,12 +597,10 @@ export const AgentConfigEditor = ({
         <Typography variant="h6">Physical Properties</Typography>
       </Stack>
 
-      {hasPhysProps && (
-        <PhysicalPropertiesEditor
-          properties={agentResource.physicalProperties || {}}
-          onChange={(p) => setAgentResource({ ...agentResource, physicalProperties: p })}
-        />
-      )}
+      <PhysicalPropertiesEditor
+        properties={agentResource.physicalProperties || {}}
+        onChange={(p) => setAgentResource({ ...agentResource, physicalProperties: p })}
+      />
     </Box>
   );
 };
