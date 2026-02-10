@@ -1,3 +1,5 @@
+import { AgentConfig } from "./AgentConfig";
+
 export interface ProjectName {
   name: string;
 }
@@ -27,45 +29,13 @@ export interface DocumentDesc {
   // docid?: string;
 }
 
-export interface AgentEffect {
-  "type": "Threshold",
-  "calculator": {
-    "MaxConcentration": {
-      "sampling": string, // "{NUM}min"
-    }
-  },
-  "parameters": {
-    "type": "Threshold",
-    "levels": [number, number, number], // integers
-    "parameters": {
-      [num_int: number]: {
-        "threshold": string, // "{FLOAT}*mg/m**3"
-      },
-    }
-  }
-}
-
-export interface AgentResource {
-  "effectParameters": {
-    "tenbergeCoefficient": number
-  },
-  "effects": { [name: string]: AgentEffect, },
-  "physicalProperties": {
-    "molecularWeight": string, // "{FLOAT}*g/mol",
-    "sorptionCoefficient": string, // "{FLOAT}*cm/s",
-    "spreadFactor": number,
-    "volatilityConstants": [number, number, number, number],
-    "densityConstants": [number, number, number]
-  }
-}
-
 export interface ProjectDocument {
   _cls: string;
   _id: { '$oid': string };
   projectName: string;
   desc: DocumentDesc,
   type: string;
-  resource: string | AgentResource;
+  resource: string | AgentConfig;
   dataFormat: string;
 }
 
