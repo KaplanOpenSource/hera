@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import React, { useCallback, useState } from "react";
 import type { AgentConfig, AgentEffect, Calculator, VaporPressure } from "../../shared/AgentConfig";
+import { SectionHeader } from "../../elements/SectionHeader";
 
 // =============================================================================
 // Helpers
@@ -91,18 +92,6 @@ function makeDefaultEffect(type: EffectType): AgentEffect {
 // =============================================================================
 // Sub-editors
 // =============================================================================
-
-// -- Section header -----------------------------------------------------------
-
-const SectionHeader = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => (
-  <Typography variant="overline" color="text.secondary" sx={{ mt: 2, mb: 1, display: "block" }}>
-    {children}
-  </Typography>
-);
 
 // -- Calculator editor --------------------------------------------------------
 
