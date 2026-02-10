@@ -8,6 +8,9 @@ import { FORBIDDEN_FIELDS } from '../../shared/constants';
 import { copyWithout, reorderEntries } from '../../utils/utils';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
+import { AgentConfigEditor } from '../agents/AgentConfigEditor';
+import { ProjectDocument } from '../../shared/types';
+import { AgentConfig } from '../../shared/AgentConfig';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 
@@ -86,6 +89,12 @@ export const DetailsViewDocument = ({
           );
         })}
       </SimpleTreeView>
+      {typeof ((shownDoc as ProjectDocument).resource) !== 'object' ? null :
+        <AgentConfigEditor
+          agentResource={(shownDoc as ProjectDocument).resource as AgentConfig}
+          setAgentResource={() => { }}
+        />
+      }
     </>
   )
 }
