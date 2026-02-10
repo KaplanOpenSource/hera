@@ -30,29 +30,29 @@ export function makeDefaultCalculator(type: CalculatorType): Calculator {
 
 export const CalculatorEditor = ({
   calculator,
-  onChange,
+  setCalculator,
 }: {
   calculator: Calculator;
-  onChange: (calc: Calculator) => void;
+  setCalculator: (newCalc: Calculator) => void;
 }) => {
   const type = getCalculatorType(calculator);
   const params = getCalculatorParams(calculator);
 
   const handleTypeChange = (newType: CalculatorType) => {
-    onChange(makeDefaultCalculator(newType));
+    setCalculator(makeDefaultCalculator(newType));
   };
 
   const updateParam = (key: string, value: any) => {
     const newParams = { ...params, [key]: value };
     switch (type) {
       case "Haber":
-        onChange({ Haber: newParams as any });
+        setCalculator({ Haber: newParams as any });
         break;
       case "TenBerge":
-        onChange({ TenBerge: newParams as any });
+        setCalculator({ TenBerge: newParams as any });
         break;
       case "MaxConcentration":
-        onChange({ MaxConcentration: newParams as any });
+        setCalculator({ MaxConcentration: newParams as any });
         break;
     }
   };

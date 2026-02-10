@@ -290,10 +290,6 @@ const EffectEditor = ({
     } as AgentEffect);
   };
 
-  const updateCalculator = (calc: Calculator) => {
-    onChange({ ...effect, calculator: calc } as AgentEffect);
-  };
-
   const updateLevels = (levels: string[], parameters: { [key: string]: any }) => {
     onChange({
       ...effect,
@@ -376,7 +372,12 @@ const EffectEditor = ({
 
           <Divider />
           <SectionHeader>Calculator</SectionHeader>
-          <CalculatorEditor calculator={effect.calculator} onChange={updateCalculator} />
+          <CalculatorEditor
+            calculator={effect.calculator}
+            setCalculator={(calc: Calculator) => {
+              onChange({ ...effect, calculator: calc } as AgentEffect);
+            }}
+          />
 
           <Divider />
           <SectionHeader>Injury Levels</SectionHeader>
