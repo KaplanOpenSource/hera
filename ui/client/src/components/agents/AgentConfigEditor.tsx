@@ -1,27 +1,27 @@
-import React, { useState, useCallback } from "react";
-import {
-  Box,
-  Typography,
-  TextField,
-  Select,
-  MenuItem,
-  IconButton,
-  Button,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Divider,
-  Stack,
-  Chip,
-  Paper,
-  FormControl,
-  InputLabel,
-  Tooltip,
-} from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ScienceIcon from "@mui/icons-material/Science";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import React, { useCallback, useState } from "react";
 import type { AgentConfig, AgentEffect, Calculator, VaporPressure } from "../../shared/AgentConfig";
 
 // =============================================================================
@@ -666,34 +666,6 @@ export const AgentConfigEditor = ({
 
   return (
     <Box sx={{ maxWidth: 800 }}>
-      {/* Agent name + tenberge */}
-      <Stack spacing={2} sx={{ mb: 3 }}>
-        <TextField
-          label="Agent Name"
-          fullWidth
-          value={agentResource.name}
-          onChange={(e) => update({ name: e.target.value })}
-        />
-        <TextField
-          label="Ten Berge Coefficient"
-          type="number"
-          size="small"
-          inputProps={{ step: 0.1 }}
-          helperText="Global exponent n used by TenBerge calculators"
-          value={agentResource.effectParameters?.tenbergeCoefficient ?? ""}
-          onChange={(e) =>
-            update({
-              effectParameters: {
-                ...agentResource.effectParameters,
-                tenbergeCoefficient: e.target.value ? parseFloat(e.target.value) : undefined,
-              },
-            })
-          }
-        />
-      </Stack>
-
-      <Divider sx={{ mb: 2 }} />
-
       {/* Effects */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Typography variant="h6">Effects</Typography>
@@ -730,6 +702,25 @@ export const AgentConfigEditor = ({
           Add Effect
         </Button>
       </Stack>
+
+      <Divider sx={{ mb: 2 }} />
+
+      <TextField
+        label="Ten Berge Coefficient"
+        type="number"
+        size="small"
+        inputProps={{ step: 0.1 }}
+        helperText="Global exponent n used by TenBerge calculators"
+        value={agentResource.effectParameters?.tenbergeCoefficient ?? ""}
+        onChange={(e) =>
+          update({
+            effectParameters: {
+              ...agentResource.effectParameters,
+              tenbergeCoefficient: e.target.value ? parseFloat(e.target.value) : undefined,
+            },
+          })
+        }
+      />
 
       <Divider sx={{ mb: 2 }} />
 

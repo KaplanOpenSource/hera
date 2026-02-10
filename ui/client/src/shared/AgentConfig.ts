@@ -128,9 +128,6 @@ export interface VaporPressure {
 // -----------------------------------------------------------------------------
 
 export interface AgentConfig {
-  /** Display name of the agent */
-  name: string;
-
   /** Global parameters shared across all effects */
   effectParameters?: {
     /** Ten Berge exponent n (used by CalculatorTenBerge) */
