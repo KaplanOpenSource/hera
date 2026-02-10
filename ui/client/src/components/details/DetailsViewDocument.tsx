@@ -50,6 +50,12 @@ export const DetailsViewDocument = ({
     }
   }, [showFormulated])
 
+  useEffect(() => {
+    if (showAgentConfig) {
+      setShowFormulated(true);
+    }
+  }, [showAgentConfig])
+
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   return (
     <>
