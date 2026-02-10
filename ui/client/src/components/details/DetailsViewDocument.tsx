@@ -4,13 +4,13 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
+import { AgentConfig } from '../../shared/AgentConfig';
 import { FORBIDDEN_FIELDS } from '../../shared/constants';
+import { ProjectDocument } from '../../shared/types';
 import { copyWithout, reorderEntries } from '../../utils/utils';
+import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
-import { AgentConfigEditor } from '../agents/AgentConfigEditor';
-import { ProjectDocument } from '../../shared/types';
-import { AgentConfig } from '../../shared/AgentConfig';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
@@ -92,6 +92,9 @@ export const DetailsViewDocument = ({
       >
         {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
           if (FORBIDDEN_FIELDS.includes(k)) {
+            return null;
+          }
+          if (isAgent && showAgentConfig && k === 'resource') {
             return null;
           }
           const hideOnDesc = showFormulated && k === 'desc';
