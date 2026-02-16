@@ -1,52 +1,116 @@
 import { Keyboard } from "@mui/icons-material";
-import { TextField } from "@mui/material";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from "@mui/material";
+import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { useDialog } from "../../elements/useDialog";
 
 export const EditAsJsonButton = ({
   data,
   setData,
 }: {
-  data: any,
-  setData: (newVal: any) => void,
+  data: any;
+  setData: (newVal: any) => void;
 }) => {
-  const { DialogComponent, openDialog } = useDialog();
+  const [open, setOpen] = useState(false);
+  const [jsonText, setJsonText] = useState("");
+  const [isValid, setIsValid] = useState(true);
+  const [isDirty, setIsDirty] = useState(false);
+  const [confirmingExit, setConfirmingExit] = useState(false);
+
+  const handleOpen = () => {
+    const text = JSON.stringify(data, null, 2);
+    setJsonText(text);
+    setIsValid(true);
+    setIsDirty(false);
+    setConfirmingExit(false);
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    e.stopPropagation();
+    const text = e.target.value;
+    setJsonText(text);
+    setConfirmingExit(false);
+
+    let valid = true;
+    try {
+      JSON.parse(text);
+    } catch {
+      valid = false;
+    }
+    setIsValid(valid);
+    setIsDirty(text !== JSON.stringify(data, null, 2));
+  };
+
+  const handleConfirm = () => {
+    try {
+      setData(JSON.parse(jsonText));
+    } catch { }
+    handleClose();
+  };
+
+  const handleCancel = () => {
+    if (isDirty && !confirmingExit) {
+      setConfirmingExit(true);
+      return;
+    }
+    handleClose();
+  };
+
   return (
-    <ButtonTooltip
-      title={'Edit as Json Text'}
-      onClick={async () => {
-        const { confirmed, values } = await openDialog({
-          title: 'Edit as Json Text',
-          initialValues: { jsonText: JSON.stringify(data, null, 2), ok: true },
-          render: ({ values, setValues }) => (
+    <>
+      <ButtonTooltip title="Edit as Json Text" onClick={handleOpen}>
+        <Keyboard />
+      </ButtonTooltip>
+
+      <Dialog
+        open={open}
+        onClose={handleCancel}
+        fullWidth
+        maxWidth="xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <DialogTitle>Edit as Json Text</DialogTitle>
+        <DialogContent>
+          <Box sx={{ marginTop: 1 }}>
             <TextField
               label="Json"
               fullWidth
               multiline
               minRows={4}
               maxRows={20}
-              value={values.jsonText}
-              onChange={e => {
-                e.stopPropagation();
-                let ok = true;
-                try { JSON.parse(e.target.value) } catch { ok = false }
-                setValues({ ...values, jsonText: e.target.value, ok });
-              }}
-              error={!values.ok}
-              helperText={values.ok ? '' : 'Invalid Json'}
+              value={jsonText}
+              onChange={handleChange}
+              error={!isValid}
+              helperText={isValid ? "" : "Invalid Json"}
+              onClick={e => e.stopPropagation()}
             />
-          )
-        });
-        if (confirmed && values && values.ok) {
-          try {
-            const json = JSON.parse(values.jsonText);
-            setData(json);
-          } catch { }
-        }
-      }}
-    >
-      <Keyboard />
-      {DialogComponent}
-    </ButtonTooltip>
-  )
-}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancel}>
+            {confirmingExit ? "Are you sure?" : "No"}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!isValid}
+            onClick={handleConfirm}
+          >
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+};
