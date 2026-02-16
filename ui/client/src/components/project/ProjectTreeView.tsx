@@ -69,6 +69,7 @@ export const ProjectTreeView = ({
                 const result = await openDialog({
                   title: 'Change tree settings',
                   initialValues: { maxDepth, minGroupSize },
+                  maxWidth: 'sm',
                   render:
                     ({ values, setValues }) => (
                       <Stack direction={'column'} spacing={1}>
