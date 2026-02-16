@@ -34,14 +34,14 @@ const DocumentSplitTree = ({
   project,
   showDocumentPreview,
   depth,
-  k,
+  minGroupSize,
   compared,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
   showDocumentPreview: boolean;
   depth: number;
-  k: number;
+  minGroupSize: number;
   compared: CompareResult[];
 }) => {
   const bestPath = compared[0].path;
@@ -59,7 +59,7 @@ const DocumentSplitTree = ({
   for (const doc of docs) {
     const val = getValueAtPath(doc.data.desc as any, bestPath);
     const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
-    if (valueCounts.get(key)! < k) {
+    if (valueCounts.get(key)! < minGroupSize) {
       restDocs.push(doc);
     } else {
       if (!groups.has(key)) groups.set(key, []);
@@ -99,7 +99,7 @@ const DocumentSplitTree = ({
               docs={groupDocs}
               project={project}
               showDocumentPreview={showDocumentPreview}
-              k={k}
+              minGroupSize={minGroupSize}
               depth={depth - 1}
             />
           </TreeItem>
@@ -114,18 +114,18 @@ export const DocumentSplitGroup = ({
   project,
   showDocumentPreview,
   depth,
-  k,
+  minGroupSize,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
   showDocumentPreview: boolean;
   depth: number;
-  k: number;
+  minGroupSize: number;
 }) => {
   let compared: CompareResult[] = [];
   if (depth > 0 && docs.length > 1) {
     const descs = docs.map((d) => d.data.desc);
-    compared = filterAndSortByGroups(compareJsons(descs, true), k);
+    compared = filterAndSortByGroups(compareJsons(descs, true), minGroupSize);
   }
 
   return compared.length
@@ -135,7 +135,7 @@ export const DocumentSplitGroup = ({
         project={project}
         showDocumentPreview={showDocumentPreview}
         depth={depth}
-        k={k}
+        minGroupSize={minGroupSize}
         compared={compared}
       />
     )

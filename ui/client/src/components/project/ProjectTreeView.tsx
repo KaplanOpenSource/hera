@@ -77,6 +77,8 @@ export const ProjectTreeView = ({
             toolkit={toolkit}
             showEmpty={showEmptyToolkits}
             showDocumentPreview={showDocumentPreview}
+            minGroupSize={2}
+            maxDepth={5}
           />
         ))}
         <ToolkitTreeItem

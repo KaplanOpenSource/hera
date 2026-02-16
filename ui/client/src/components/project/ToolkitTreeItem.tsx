@@ -12,14 +12,14 @@ export const ToolkitTreeItem = ({
   showEmpty = false,
   showDocumentPreview = true,
   maxDepth = 3,
-  k = 2,
+  minGroupSize = 2,
 }: {
   toolkit: Toolkit | undefined;
   project: ProjectObj;
   showEmpty?: boolean;
   showDocumentPreview?: boolean;
   maxDepth?: number;
-  k?: number;
+  minGroupSize?: number;
 }) => {
   const { toolkits } = useProjectStore();
 
@@ -49,7 +49,7 @@ export const ToolkitTreeItem = ({
         project={project}
         showDocumentPreview={showDocumentPreview}
         depth={maxDepth}
-        k={k}
+        minGroupSize={minGroupSize}
       />
     </TreeItem>
   );
