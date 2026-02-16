@@ -433,7 +433,7 @@ class DailyPlots(Plots):
             dailydata = curdata.query(qstring)
 
         # ax= seaborn.lineplot(dailydata['houronly'], dailydata[plotField], ax=ax, **line_props)
-        line = plt.plot(dailydata['houronly'], dailydata[plotField], label=f"{plotField}", **line_props)
+        line = plt.plot(dailydata['houronly'].values, dailydata[plotField].values, label=f"{plotField}", **line_props)
         if legend==True:
             ax.legend()
 
