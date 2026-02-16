@@ -2,12 +2,15 @@ from hera.datalayer import Project
 from hera.datalayer.datahandler import datatypes  # for datatypes.CLASS
 
 import os
+import sys
+import logging
 import inspect
 import pydoc
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from hera.utils.logging import get_classMethod_logger
+from sympy.physics.units import second
 
 # ---------------------------------------------------------------------------
 # Constants for Toolkit data sources
@@ -180,6 +183,43 @@ class abstractToolkit(Project):
             docList = [doc for doc in docList if doc["desc"]["version"] == latestVersion]
             ret = docList[0]
         return ret
+
+    def getToolkitDocument(self, toolkit_name: str):
+        """
+        Find a dynamic toolkit document by name (either desc.datasourceName or desc.toolkit).
+        Returns the mongoengine document or None.
+        """
+        # First: direct filter on datasourceName (works on most implementations)
+        try:
+            q = self.getMeasurementsDocuments(
+                type="ToolkitDataSource", datasourceName=toolkit_name
+            )
+            if q and len(q) > 0:
+                return q[0]
+        except Exception:
+            # fall through to broader search below
+            pass
+
+        # Second: scan all ToolkitDataSource docs and match by desc fields
+        try:
+            q = self.getMeasurementsDocuments(type="ToolkitDataSource")
+            for d in q:
+                desc = d.desc or {}
+                if desc.get("datasourceName") == toolkit_name or desc.get("toolkit") == toolkit_name:
+                    return d
+        except Exception:
+            pass
+
+        # Optional: also look in DataSource collection if your project uses it
+        try:
+            q = self.getDataSourceDocuments(datasourceName=toolkit_name)
+            if q and len(q) > 0:
+                return q[0]
+        except Exception:
+            pass
+
+        return None
+
 
     def getDataSourceDocuments(self, datasourceName, version=None, **filters):
         """
@@ -461,6 +501,8 @@ class ToolkitHome(abstractToolkit):
             ImportError: If the toolkit class cannot be imported.
             ValueError: If the toolkit cannot be found in any registry.
         """
+        from hera.utils.data.toolkit import dataToolkit
+
         projectName = kwargs.pop("projectName", None) or self.projectName
 
         # 1) Static built-in toolkits
@@ -479,17 +521,85 @@ class ToolkitHome(abstractToolkit):
             )
 
         # 2) Dynamic toolkits registered as ToolkitDataSource of ToolkitHome
-        doc = self.getDataSourceDocument(datasourceName=toolkitName)
+        dtk = dataToolkit()
+        doc = dtk.getDataSourceDocument(datasourceName=toolkitName)
         if doc is not None:
-            tk = doc.getData()
+            # self.logger.info(f"Found dynamic toolkit {toolkitName}. Loading")
 
-            # Best-effort: enforce filesDirectory if the toolkit supports it
-            if hasattr(tk, "setFilesDirectory") and filesDirectory is not None:
-                tk.setFilesDirectory(filesDirectory)
+            toolkitPath_raw = doc.getData()
 
-            # Note: dynamic toolkits are returned as-is (they may already be bound to a project)
-            return tk
+            # ------------------------------------------------------------
+            # Robust path resolution (same spirit as getExperiment)
+            # ------------------------------------------------------------
+            candidates = []
 
+            # 1) Raw value
+            candidates.append(toolkitPath_raw)
+
+            # 2) Absolute relative to CWD
+            try:
+                candidates.append(os.path.abspath(toolkitPath_raw))
+            except Exception:
+                pass
+
+            # 3) Relative to repo root if provided
+            repo_root = os.environ.get("HERA_REPO_ROOT")
+            if repo_root:
+                candidates.append(os.path.join(repo_root, toolkitPath_raw))
+
+            toolkitPath = None
+            for cand in candidates:
+                try:
+                    cand_abs = os.path.abspath(cand)
+
+                    # Valid if directory exists
+                    if os.path.isdir(cand_abs):
+                        toolkitPath = cand_abs
+                        break
+
+                    # Or if a single-file toolkit exists: <toolkitName>.py
+                    py_file = os.path.join(cand_abs, f"{toolkitName}.py")
+                    if os.path.isfile(py_file):
+                        toolkitPath = cand_abs
+                        break
+                except Exception:
+                    continue
+
+            # Best-effort fallback (keeps error messages informative)
+            if toolkitPath is None:
+                toolkitPath = os.path.abspath(toolkitPath_raw)
+
+            # ------------------------------------------------------------
+            # Add toolkit path to sys.path (highest priority)
+            # ------------------------------------------------------------
+            if toolkitPath in sys.path:
+                try:
+                    sys.path.remove(toolkitPath)
+                except ValueError:
+                    pass
+            sys.path.insert(0, toolkitPath)
+
+            # self.logger.debug(f"Toolkit path (raw): {toolkitPath_raw}")
+            # self.logger.debug(f"Toolkit path (resolved): {toolkitPath}")
+            # self.logger.debug(f"Adding path {toolkitPath} to sys.path (priority)")
+
+            # ------------------------------------------------------------
+            # Import convention: <toolkitName>.<toolkitName>
+            # ------------------------------------------------------------
+            import_path = f"{toolkitName}.{toolkitName}"
+            # self.logger.debug(f"Loading toolkit class: {import_path}")
+
+            toolkit_cls = pydoc.locate(import_path)
+            if toolkit_cls is None:
+                raise ImportError(
+                    f"Cannot find toolkit class {import_path} in {toolkitPath}"
+                )
+
+            return toolkit_cls(
+                projectName=projectName,
+                filesDirectory=filesDirectory,
+                **kwargs,
+            )
         # 3) Experiment toolkits fallback (experimentHome)
         if self.experimentTK is not None:
             try:
@@ -605,7 +715,7 @@ class ToolkitHome(abstractToolkit):
 
     from typing import Optional, List, Dict
 
-    def getToolkitDocuments(self, name: Optional[str] = None, projectName: Optional[str] = None) -> List[Dict]:
+    def getToolkitDocuments(self, name: Optional[str] = None) -> List[Dict]:
         """
         Single source of truth for listing toolkits.
 
@@ -627,6 +737,8 @@ class ToolkitHome(abstractToolkit):
                 }
             }
         """
+        from hera.utils.data.toolkit import dataToolkit
+
         docs: List[Dict] = []
 
         # ------------------------------------------------------------------
@@ -653,49 +765,45 @@ class ToolkitHome(abstractToolkit):
                     },
                 }
             )
-
         # ------------------------------------------------------------------
         # 2) Dynamic toolkits stored in the DB as ToolkitDataSource documents
         # ------------------------------------------------------------------
-        if projectName:
-            try:
-                # The dataToolkit is used as a generic interface to measurements
-                # and to the underlying MongoDB-backed documents.
-                dt = self._get_data_toolkit(projectName=projectName)
-                dyn_docs = dt.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE) or []
-
-                for d in dyn_docs:
-                    try:
-                        desc = getattr(d, "desc", {}) or {}
-                        tk_name = desc.get("datasourceName") or getattr(d, "datasourceName", None)
-                        if not tk_name:
-                            continue
-                        if name and tk_name != name:
-                            continue
-
-                        docs.append(
-                            {
-                                "toolkit": tk_name,
-                                "desc": {
-                                    # Dynamic entries may carry a classpath for dynamic import
-                                    "classpath": desc.get("classpath", ""),
-                                    # Toolkit logical type; default to 'measurements' if missing
-                                    "type": desc.get("type", "") or "measurements",
-                                    # DB-backed entries are marked as coming from the DB
-                                    "source": desc.get("source", "") or "db",
-                                    # Repository is taken from the desc or from the document itself
-                                    "repositoryName": desc.get("repository", "") or getattr(d, "repository", ""),
-                                    # Version may be saved as a list or any other structure
-                                    "version": tuple(desc.get("version", ())) or getattr(d, "version", ""),
-                                },
-                            }
-                        )
-                    except Exception:
-                        # Be forgiving in case some records are partially formed
+        dtk = dataToolkit()
+        try:
+            # The dataToolkit is used as a generic interface to measurements
+            # and to the underlying MongoDB-backed documents.
+            dyn_docs = dtk.getMeasurementsDocuments(type="ToolkitDataSource") or []
+            for d in dyn_docs:
+                try:
+                    desc = getattr(d, "desc", {}) or {}
+                    tk_name = desc.get("datasourceName") or getattr(d, "datasourceName", None)
+                    if not tk_name:
                         continue
-            except Exception:
-                # If the project or DB is not available, we still return the static list.
-                pass
+                    if name and tk_name != name:
+                        continue
+                    docs.append(
+                        {
+                            "toolkit": tk_name,
+                            "desc": {
+                                # Dynamic entries may carry a classpath for dynamic import
+                                "classpath": getattr(d, "resource", ""),
+                                # Toolkit logical type; default to 'measurements' if missing
+                                "type": desc.get("type", "") or "measurements",
+                                # DB-backed entries are marked as coming from the DB
+                                "source": desc.get("source", "") or "db",
+                                # Repository is taken from the desc or from the document itself
+                                "repositoryName": desc.get("repository", "") or getattr(d, "repository", ""),
+                                # Version may be saved as a list or any other structure
+                                "version": tuple(desc.get("version", ())) or getattr(d, "version", ""),
+                            },
+                        }
+                    )
+                except Exception:
+                    # Be forgiving in case some records are partially formed
+                    continue
+        except Exception:
+            # If the project or DB is not available, we still return the static list.
+            pass
 
         # ------------------------------------------------------------------
         # 3) Experiments exposed as toolkits (via the 'experiment' toolkit)
@@ -850,61 +958,37 @@ class ToolkitHome(abstractToolkit):
 
     def registerToolkit(
             self,
-            toolkitclass,
-            *,
-            repositoryName: str,
-            datasource_name: Optional[str] = None,
+            toolkit_name: str,
+            toolkit_path: str,
             params: Optional[dict] = None,
-            version=(0, 0, 1),
+            version = (0, 0, 1),
             overwrite: bool = False,
+            **kwargs
     ):
-        """
-        Register a toolkit class as a dynamic ToolkitDataSource.
+        from hera.utils.data.toolkit import dataToolkit
 
-        The toolkit is stored as a measurement document of type
-        TOOLKIT_DATASOURCE_TYPE under ToolkitHome.
+        if not toolkit_name:
+            raise ValueError("toolkit_name must be provided")
 
-        Args:
-            toolkitclass: The toolkit class to register.
-            repositoryName (str): Repository in which the toolkit is stored.
-            datasource_name (Optional[str]): Logical name of the toolkit.
-            params (Optional[dict]): Initialization parameters for the toolkit.
-            version (tuple): Toolkit version.
-            overwrite (bool): Whether to overwrite an existing registration.
+        if not toolkit_path:
+            raise ValueError("toolkit_path must be provided")
 
-        Returns:
-            MeasurementDocument: The created or updated datasource document.
+        # If a file is given, store its parent directory
+        toolkit_path = os.path.abspath(toolkit_path)
+        if os.path.isfile(toolkit_path):
+            toolkit_path = os.path.dirname(toolkit_path)
 
-        Raises:
-            ValueError: If repositoryName is missing.
-        """
-        if not repositoryName:
-            raise ValueError("registerToolkit: 'repositoryName' is required")
-
-        module_path = inspect.getfile(toolkitclass)
-        resource_dir = os.path.dirname(os.path.abspath(module_path))
-        classpath = f"{toolkitclass.__module__}.{toolkitclass.__qualname__}"
-
-        ds_name = datasource_name or toolkitclass.__name__
         params = params or {}
-
-        extra_desc = {
-            "repository": repositoryName,
-            "classpath": classpath,
-            "parameters": params,
-            "type": "ToolkitDataSource",
-            "source": "db",
-        }
-
-        return self.addDataSource(
-            dataSourceName=ds_name,
-            resource=resource_dir,
-            dataFormat=datatypes.CLASS,
-            version=tuple(version),
-            overwrite=overwrite,
-            **extra_desc,
+        dtk = dataToolkit()
+        dtk._allowWritingToDefaultProject = True
+        return dtk.addDataSource(
+            dataSourceName=toolkit_name,
+            resource = toolkit_path,  # directory only
+            dataFormat = "string",
+            version=version,
+            overwrite = overwrite,
+            params = params
         )
-
     # ------------------------------------------------------------------
     # JSON import helpers (unchanged, still valid עם הממשק החדש)
     # ------------------------------------------------------------------

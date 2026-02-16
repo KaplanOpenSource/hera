@@ -120,6 +120,43 @@ class dataToolkit(abstractToolkit):
     # Load all datasources from a repository JSON into a project.
     # If a toolkit is missing, try to auto-register it using classpath hints.
     # -----------------------------------------------------------------------------
+    def getToolkitDocument(self, toolkit_name: str):
+        """
+        Find a dynamic toolkit document by name (either desc.datasourceName or desc.toolkit).
+        Returns the mongoengine document or None.
+        """
+        # First: direct filter on datasourceName (works on most implementations)
+        try:
+            q = self.getMeasurementsDocuments(
+                type="ToolkitDataSource", datasourceName=toolkit_name
+            )
+            if q and len(q) > 0:
+                return q[0]
+        except Exception:
+            # fall through to broader search below
+            pass
+
+        # Second: scan all ToolkitDataSource docs and match by desc fields
+        try:
+            q = self.getMeasurementsDocuments(type="ToolkitDataSource")
+            for d in q:
+                desc = d.desc or {}
+                if desc.get("datasourceName") == toolkit_name or desc.get("toolkit") == toolkit_name:
+                    return d
+        except Exception:
+            pass
+
+        # Optional: also look in DataSource collection if your project uses it
+        try:
+            q = self.getDataSourceDocuments(datasourceName=toolkit_name)
+            if q and len(q) > 0:
+                return q[0]
+        except Exception:
+            pass
+
+        return None
+
+
     def loadAllDatasourcesInRepositoryJSONToProject(self,
                                                     projectName: str,
                                                     repositoryJSON: dict,
@@ -134,7 +171,21 @@ class dataToolkit(abstractToolkit):
         - After we have a valid instance, dispatch to the appropriate handler per section.
         """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
-
+        if isinstance(repositoryJSON, str):
+            if  repositoryJSON.startswith('/'): # if there is no data
+                logger.info("skipping dynamic toolkit")
+                return
+            try:
+                repositoryJSON = json.loads(repositoryJSON)
+            except json.JSONDecodeError:
+                logger.error("repositoryJSON is a string but not a valid JSON format.")
+                return
+        if not isinstance(repositoryJSON, dict):
+            logger.warning(f"Expected dict for repositoryJSON, got {type(repositoryJSON)}. Skipping.")
+            return
+        if not repositoryJSON:
+            logger.info("repositoryJSON is empty. Nothing to load.")
+            return
         handlerDict = dict(
             Config=self._handle_Config,
             Datasource=self._handle_DataSource,
@@ -156,46 +207,12 @@ class dataToolkit(abstractToolkit):
             # 1) Try static/dynamic resolution via ToolkitHome.getToolkit
             try:
                 toolkit = tk_home.getToolkit(toolkitName=toolkitName)
+
             except Exception as e:
                 logger.info(f"Toolkit '{toolkitName}' not found via getToolkit: {e}")
                 toolkit = None
 
-            # 2) Optional auto-registration, but only if there is a clear classpath hint
-            if toolkit is None and auto_register_missing:
-                registry = {}
-                classpath_hint = None
 
-                if isinstance(toolkitDict, dict):
-                    registry = toolkitDict.get("Registry", {}) or {}
-                    if isinstance(registry, dict):
-                        classpath_hint = registry.get("classpath") or registry.get("cls")
-
-                if not classpath_hint:
-                    # No classpath -> do not attempt auto-registration for this key
-                    logger.info(
-                        f"No classpath hint (Registry.classpath/cls) for key '{toolkitName}' in repository JSON; "
-                        f"skipping auto-registration."
-                    )
-                else:
-                    auto = getattr(tk_home, "auto_register_and_get", None)
-                    if callable(auto):
-                        try:
-                            toolkit = auto(
-                                toolkitName=toolkitName,
-                                repositoryJSON=repositoryJSON,
-                                repositoryName=None,
-                            )
-                            logger.info(
-                                f"Auto-registered toolkit '{toolkitName}' via auto_register_and_get "
-                                f"using classpath '{classpath_hint}'"
-                            )
-                        except Exception as e:
-                            logger.error(f"Failed to auto-register toolkit '{toolkitName}': {e}")
-                            # Skip this key but continue with others
-                            continue
-                    else:
-                        logger.error("auto_register_and_get is not available on ToolkitHome")
-                        continue
 
             # 3) If we still do not have a toolkit instance, skip this key quietly
             if toolkit is None:
@@ -414,4 +431,3 @@ class dataToolkit(abstractToolkit):
                 f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
 
         return os.path.join(basedir, theItem["resource"]) if isRelativePath else theItem["resource"]
-

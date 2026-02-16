@@ -204,6 +204,54 @@ def repository_load(arguments):
                                                     basedir=os.path.dirname(os.path.abspath(arguments.repositoryName)),
                                                     overwrite=arguments.overwrite)
 
+def add_toolkit(arguments):
+    """
+    CLI entry point for:
+        hera-project addToolkit <toolkit_name> <toolkit_path>
+            [--params JSON]
+            [--version d,d,d]
+            [--overwrite]
+    """
+    logger = logging.getLogger("hera.bin.hera_projects")
+    logger.debug(f"Adding toolkit with args: {arguments}")
+    # -------- Parse version --------
+    try:
+        version_tuple = tuple(int(x.strip()) for x in arguments.version.split(","))
+        if len(version_tuple) != 3:
+            raise ValueError
+    except Exception:
+        raise ValueError(
+            f"Invalid version format '{arguments.version}'. "
+            "Expected format: d,d,d (example: 0,0,1)"
+        )
+    # -------- Parse params --------
+    params_dict = None
+    if arguments.params:
+        try:
+            params_dict = json.loads(arguments.params)
+            if not isinstance(params_dict, dict):
+                raise ValueError("Params must be a JSON object.")
+        except Exception as e:
+            raise ValueError(
+                f"Invalid JSON passed to --params: {arguments.params}"
+            ) from e
+    # -------- Call registerToolkit --------
+    try:
+        tkh = ToolkitHome()
+        tkh.registerToolkit(
+            toolkit_name=arguments.toolkit_name,
+            toolkit_path=arguments.toolkit_path,
+            params=params_dict,
+            version=version_tuple,
+            overwrite=arguments.overwrite,
+        )
+        logger.info(
+            f"Toolkit '{arguments.toolkit_name}' registered successfully "
+            f"(version={version_tuple}, overwrite={arguments.overwrite})"
+        )
+    except Exception as e:
+        logger.error(f"Failed to register toolkit '{arguments.toolkit_name}': {e}")
+        raise
 
 def display_datasource_versions(arguments):
     proj = Project(projectName=arguments.projectName)
@@ -390,18 +438,36 @@ def toolkit_register(arguments):
         if toolkit_cls is None:
             raise ImportError(f"Cannot locate class by classpath: {cls_path}")
 
-        # Call registerToolkit with a class object (no projectName – ToolkitHome כבר יודע)
+        # Call registerToolkit
         th.registerToolkit(
-            toolkitclass=toolkit_cls,
-            repositoryName=repository,
-            datasource_name=name,
-            version=version,
-            overwrite=True,
+            toolkit_name = toolkit_name,
+            toolkit_path = toolkit_path,
+            params = None,
+            version = version,
+            overwrite = False,
         )
         print(f"Toolkit '{name}' registered (cls={cls_path}, repo={repository}, version={version}).")
     except Exception as e:
         logger.exception(e)
         print(f"[ERROR] {e}")
+
+def load_project_name(config_file: str = "caseConfiguration.json") -> str:
+    """
+    Load projectName from caseConfiguration.json.
+    """
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(
+            f"Could not find '{config_file}' in {os.getcwd()}"
+        )
+
+    with open(config_file, "r") as f:
+        data = json.load(f)
+
+    project_name = data.get("projectName")
+    if not project_name:
+        raise ValueError("caseConfiguration.json does not contain 'projectName'")
+
+    return project_name
 
 
 def toolkit_load(arguments):
