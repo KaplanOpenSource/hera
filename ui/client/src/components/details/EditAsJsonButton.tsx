@@ -1,9 +1,7 @@
-import { Keyboard } from "@mui/icons-material";
+import { Check, Close, Keyboard } from "@mui/icons-material";
 import {
   Box,
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   TextField,
@@ -56,7 +54,7 @@ export const EditAsJsonButton = ({
   const handleConfirm = () => {
     try {
       setData(JSON.parse(jsonText));
-    } catch { }
+    } catch {}
     handleClose();
   };
 
@@ -81,7 +79,32 @@ export const EditAsJsonButton = ({
         maxWidth="xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <DialogTitle>Edit as Json Text</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Edit as Json Text
+          <Box sx={{ display: "flex", gap: 0.5 }}>
+            <ButtonTooltip
+              title={confirmingExit ? "Are you sure?" : "Cancel"}
+              onClick={handleCancel}
+              color={confirmingExit ? "error" : "default"}
+            >
+              <Close />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title="Confirm"
+              onClick={handleConfirm}
+              color="primary"
+              disabled={!isValid || !isDirty}
+            >
+              <Check />
+            </ButtonTooltip>
+          </Box>
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ marginTop: 1 }}>
             <TextField
@@ -98,22 +121,6 @@ export const EditAsJsonButton = ({
             />
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={handleCancel}
-            color={confirmingExit ? "error" : "inherit"}
-          >
-            {confirmingExit ? "Are you sure?" : "No"}
-          </Button>
-          <Button
-            variant="contained"
-            disabled={!isValid || !isDirty}
-            onClick={handleConfirm}
-          >
-            Yes
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );
