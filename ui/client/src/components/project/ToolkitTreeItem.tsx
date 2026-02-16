@@ -5,6 +5,7 @@ import { ProjectObj } from "../../objects/ProjectObj";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { AddDocumentButton } from "./AddDocumentButton";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
+import { compareJsons, filterAndSortByGroups, sortByDistinctValues } from "../../utils/compareJsons";
 
 export const ToolkitTreeItem = ({
   project,
@@ -33,6 +34,8 @@ export const ToolkitTreeItem = ({
   const toolkitName = toolkit ? toolkit.toolkit : 'no-toolkit';
   const toolkitLabel = toolkit ? toolkit.toolkit : 'No Toolkit Documents';
   const docs = toolkit ? documentsForToolkit(toolkitName) : documentsWithoutToolkit();
+
+  console.log('compareJsons:\n', filterAndSortByGroups(compareJsons(docs.map(x => x.data.desc as any), true)));
   return (!docs.length && !showEmpty) ? null : (
     <TreeItem key={toolkitName} itemId={toolkitName}
       label={
@@ -46,14 +49,6 @@ export const ToolkitTreeItem = ({
         </Stack>
       }
     >
-      {/* <Typography>
-          {cls}
-        </Typography>
-        {desc ?? (
-          <Typography>
-            {desc}
-          </Typography>
-        )} */}
       {docs.map(document => {
         return (
           <ProjectDocumentItem
