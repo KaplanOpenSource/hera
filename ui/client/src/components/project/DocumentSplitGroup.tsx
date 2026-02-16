@@ -4,6 +4,9 @@ import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 
+const VALUE_GROUP_REST = "__rest__";
+const VALUE_GROUP_UNDEFINED = "__undefined__";
+
 const DocumentItems = ({
   docs,
   project,
@@ -46,7 +49,7 @@ const DocumentSplitTree = ({
   const valueCounts = new Map<string, number>();
   for (const doc of docs) {
     const val = getValueAtPath(doc.data.desc as any, bestPath);
-    const key = val === undefined ? "__undefined__" : String(val);
+    const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
     valueCounts.set(key, (valueCounts.get(key) || 0) + 1);
   }
 
@@ -54,7 +57,7 @@ const DocumentSplitTree = ({
   const restDocs: DocumentObj[] = [];
   for (const doc of docs) {
     const val = getValueAtPath(doc.data.desc as any, bestPath);
-    const key = val === undefined ? "__undefined__" : String(val);
+    const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
     if (valueCounts.get(key)! < k) {
       restDocs.push(doc);
     } else {
@@ -64,16 +67,23 @@ const DocumentSplitTree = ({
   }
 
   if (restDocs.length > 0) {
-    groups.set("__rest__", restDocs);
+    groups.set(VALUE_GROUP_REST, restDocs);
+  }
+
+  function getGroupLabel(value: string, fieldLabel: string): string {
+    if (value === VALUE_GROUP_REST) {
+      return `Documents with other ${fieldLabel} values`;
+    }
+    if (value === VALUE_GROUP_UNDEFINED) {
+      return `Documents without ${fieldLabel}`;
+    }
+    return `Documents with ${fieldLabel} == ${value}`;
   }
 
   return (
     <>
       {[...groups.entries()].map(([value, groupDocs]) => {
-        const isRest = value === "__rest__";
-        const displayValue = isRest
-          ? `Documents with other ${fieldLabel} values`
-          : `Documents with ${fieldLabel} == ${value === "__undefined__" ? "—" : value}`;
+        const displayValue = getGroupLabel(value, fieldLabel);
         const itemKey = `split_${fieldLabel}=${value}`;
         return (
           <TreeItem
