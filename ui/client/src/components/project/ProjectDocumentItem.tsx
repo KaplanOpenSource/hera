@@ -11,9 +11,11 @@ import { idDocId } from "../../shared/idDocId";
 export const ProjectDocumentItem = ({
   project,
   document,
+  showDocumentPreview = true,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
+  showDocumentPreview?: boolean,
 }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm()
 
@@ -55,8 +57,8 @@ All.deleteDocumentByID('${document?._id.$oid}')
               {ConfirmDialog}
             </ButtonTooltip>
           </Stack>
-          {document?.resource && typeof (document?.resource) == 'string' && (
-            <Typography sx={{fontSize: 10}}>
+          {showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
+            <Typography sx={{ fontSize: 10 }}>
               resource: {document.resource.substring(0, 80)}
             </Typography>
           )}

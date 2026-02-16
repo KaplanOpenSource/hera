@@ -1,4 +1,4 @@
-import { Folder, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Folder, Preview, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -19,6 +19,7 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
+  const [showDocumentPreview, setShowDocumentPreview] = useState(true);
 
   console.log(toolkits)
   console.log(project)
@@ -41,8 +42,16 @@ export const ProjectTreeView = ({
             <ButtonTooltip
               title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
               onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
+              color={showEmptyToolkits ? 'primary' : 'default'}
             >
-              {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
+              <Visibility />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={showDocumentPreview ? 'Showing document preview, click to hide' : 'Hiding document preview, click to show'}
+              onClick={() => setShowDocumentPreview(!showDocumentPreview)}
+              color={showDocumentPreview ? 'primary' : 'default'}
+            >
+              <Preview />
             </ButtonTooltip>
             <ButtonTooltip
               title={'Reload documents'}
@@ -67,6 +76,7 @@ export const ProjectTreeView = ({
             project={project}
             toolkit={toolkit}
             showEmpty={showEmptyToolkits}
+            showDocumentPreview={showDocumentPreview}
           />
         ))}
         <ToolkitTreeItem
@@ -74,6 +84,7 @@ export const ProjectTreeView = ({
           project={project}
           toolkit={undefined}
           showEmpty={showEmptyToolkits}
+          showDocumentPreview={showDocumentPreview}
         />
       </TreeItem>
       <RepoTreeWhole

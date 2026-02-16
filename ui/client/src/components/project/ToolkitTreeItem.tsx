@@ -1,21 +1,21 @@
-import { TreeItem } from "@mui/x-tree-view";
-import { ProjectDocumentItem } from "./ProjectDocumentItem";
-import { ProjectEntire, Toolkit } from "@shared/types";
-import { useProjectStore } from "../../stores/useProjectStore";
-import { Add } from "@mui/icons-material";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Stack, Typography } from "@mui/material";
-import { AddDocumentButton } from "./AddDocumentButton";
+import { TreeItem } from "@mui/x-tree-view";
+import { Toolkit } from "@shared/types";
 import { ProjectObj } from "../../objects/ProjectObj";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { AddDocumentButton } from "./AddDocumentButton";
+import { ProjectDocumentItem } from "./ProjectDocumentItem";
 
 export const ToolkitTreeItem = ({
   project,
   toolkit,
   showEmpty = false,
+  showDocumentPreview = true,
 }: {
   toolkit: Toolkit | undefined,
   project: ProjectObj,
   showEmpty?: boolean,
+  showDocumentPreview?: boolean,
 }) => {
   const { toolkits } = useProjectStore();
 
@@ -60,6 +60,7 @@ export const ToolkitTreeItem = ({
             key={`proj${project.name}_doc${document.docid}`}
             project={project.data}
             document={document.data}
+            showDocumentPreview={showDocumentPreview}
           />
         )
       })}
