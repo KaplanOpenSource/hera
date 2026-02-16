@@ -1,3 +1,5 @@
+import { AgentConfig } from "./AgentConfig";
+
 export interface ProjectName {
   name: string;
 }
@@ -65,7 +67,7 @@ export interface ProjectDocument {
   projectName: string;
   desc: DocumentDesc,
   type: string;
-  resource: string | AgentResource;
+  resource: string | AgentConfig;
   dataFormat: string;
 }
 

@@ -7,58 +7,74 @@ export const DetailsViewDocumentHeader = ({
   shownDoc,
   setShownDoc,
   showFormulated,
+  extraFields = [],
 }: {
   docid: string,
   shownDoc: ProjectDocument,
   setShownDoc: (v: ProjectDocument) => void,
   showFormulated: boolean,
+  extraFields?: { name: string, value: string }[],
 }) => {
   return (
     <Grid container spacing={1} alignItems={'center'}>
-      <Grid size={1}>
+      <Grid size={2}>
         <Typography sx={{ fontSize: 12 }}>
           Id:
         </Typography>
       </Grid>
-      <Grid size={11}>
+      <Grid size={10}>
         <Typography sx={{ fontSize: 12 }}>
           {docid}
         </Typography>
       </Grid>
-      <Grid size={1}>
+      <Grid size={2}>
         <Typography sx={{ fontSize: 12 }}>
           Cls:
         </Typography>
       </Grid>
-      <Grid size={11}>
+      <Grid size={10}>
         <Typography sx={{ fontSize: 12 }}>
           {shownDoc._cls}
         </Typography>
       </Grid>
       {!showFormulated ? null : (<>
-        <Grid size={1}>
+        <Grid size={2}>
           <Typography sx={{ fontSize: 12 }}>
             Toolkit:
           </Typography>
         </Grid>
-        <Grid size={11}>
+        <Grid size={10}>
           <Typography sx={{ fontSize: 12 }}>
             {shownDoc.desc.toolkit || 'None'}
           </Typography>
         </Grid>
         {!shownDoc.desc.version ? null : (<>
-          <Grid size={1}>
+          <Grid size={2}>
             <Typography sx={{ fontSize: 12 }}>
               Version:
             </Typography>
           </Grid>
-          <Grid size={11}>
+          <Grid size={10}>
             <VersionFields
               projectDoc={shownDoc}
               setProjectDoc={setShownDoc} />
           </Grid>
         </>)}
       </>)}
+      {extraFields.map(({ name, value }) => (
+        <>
+          <Grid size={2}>
+            <Typography sx={{ fontSize: 12 }}>
+              {name}
+            </Typography>
+          </Grid>
+          <Grid size={10}>
+            <Typography sx={{ fontSize: 12 }}>
+              {value}
+            </Typography>
+          </Grid>
+        </>
+      ))}
     </Grid>
   )
 }
