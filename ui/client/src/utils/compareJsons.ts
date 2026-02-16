@@ -37,7 +37,8 @@ function getValueAtPath(obj: JsonValue, path: string): JsonValue | undefined {
   return current;
 }
 
-export function compareJsons(jsons: JsonValue[], omitEqual = false): CompareResult[] {
+export function compareJsons(jsonsRaw: any[], omitEqual = false): CompareResult[] {
+  const jsons: JsonValue[] = jsonsRaw;
   const allPaths = new Set<string>();
   for (const json of jsons) {
     for (const p of getAllPaths(json)) allPaths.add(p);
@@ -65,15 +66,21 @@ export function sortByDistinctValues(results: CompareResult[]): CompareResult[] 
   });
 }
 
-export function filterAndSortByGroups(results: CompareResult[]): CompareResult[] {
-  const withGroups = results.map((r) => {
-    const nonUndef = r.values.filter((v) => v !== undefined);
-    const groups = new Set(nonUndef).size;
-    return { result: r, groups };
-  });
+export function filterAndSortByGroups(results: CompareResult[], k: number): CompareResult[] {
+  const withGroups: { result: CompareResult; distinctValues: number }[] = [];
 
-  const filtered = withGroups.filter(({ groups }) => groups >= 2);
-  const sorted = filtered.sort((a, b) => a.groups - b.groups);
+  for (const r of results) {
+    const valueCounts = new Map<JsonValue, number>();
+    for (const v of r.values) {
+      if (v === undefined) continue;
+      valueCounts.set(v, (valueCounts.get(v) || 0) + 1);
+    }
+    const maxCount = Math.max(0, ...valueCounts.values());
+    if (valueCounts.size >= 2 && maxCount >= k) {
+      withGroups.push({ result: r, distinctValues: valueCounts.size });
+    }
+  }
 
+  const sorted = withGroups.sort((a, b) => a.distinctValues - b.distinctValues);
   return sorted.map(({ result }) => result);
 }

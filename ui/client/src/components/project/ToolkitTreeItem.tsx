@@ -20,22 +20,16 @@ export const ToolkitTreeItem = ({
 }) => {
   const { toolkits } = useProjectStore();
 
-  const documentsForToolkit = (toolkitName: string) => {
-    return project?.documents.filter(d => d.toolkit === toolkitName) || [];
-  }
-
-  const documentsWithoutToolkit = () => {
-    return project?.documents.filter(d => {
-      const found = toolkits.find(({ toolkit }) => toolkit === d.toolkit);
-      return found === undefined;
-    });
-  }
-
   const toolkitName = toolkit ? toolkit.toolkit : 'no-toolkit';
   const toolkitLabel = toolkit ? toolkit.toolkit : 'No Toolkit Documents';
-  const docs = toolkit ? documentsForToolkit(toolkitName) : documentsWithoutToolkit();
+  const docs = project?.documents.filter(d => {
+    if (toolkit) {
+      return d.toolkit === toolkitName;
+    }
+    return !toolkits.some(t => t.toolkit === d.toolkit);
+  }) || [];
 
-  console.log('compareJsons:\n', filterAndSortByGroups(compareJsons(docs.map(x => x.data.desc as any), true)));
+  console.log('compareJsons:\n', filterAndSortByGroups(compareJsons(docs.map(x => x.data.desc)), 2));
   return (!docs.length && !showEmpty) ? null : (
     <TreeItem key={toolkitName} itemId={toolkitName}
       label={
