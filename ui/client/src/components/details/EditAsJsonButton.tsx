@@ -5,9 +5,15 @@ import {
   DialogContent,
   DialogTitle,
   TextField,
+  keyframes,
 } from "@mui/material";
 import { useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
+
+const blink = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+`;
 
 export const EditAsJsonButton = ({
   data,
@@ -74,7 +80,9 @@ export const EditAsJsonButton = ({
 
       <Dialog
         open={open}
-        onClose={confirmingExit ? undefined : handleCancel}
+        onClose={() => {
+          if (!confirmingExit) handleCancel();
+        }}
         fullWidth
         maxWidth="xl"
         onClick={(e) => e.stopPropagation()}
@@ -92,6 +100,11 @@ export const EditAsJsonButton = ({
               title={confirmingExit ? "Are you sure?" : "Cancel"}
               onClick={handleCancel}
               color={confirmingExit ? "error" : "default"}
+              sx={
+                confirmingExit
+                  ? { animation: `${blink} 1s ease-in-out infinite` }
+                  : undefined
+              }
             >
               <Close />
             </ButtonTooltip>
