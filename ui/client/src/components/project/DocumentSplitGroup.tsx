@@ -3,6 +3,7 @@ import { TreeItem } from "@mui/x-tree-view";
 import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
+import { Case, SwitchCase } from "../../elements/SwitchCase";
 
 const VALUE_GROUP_REST = "__rest__";
 const VALUE_GROUP_UNDEFINED = "__undefined__";
@@ -70,20 +71,9 @@ const DocumentSplitTree = ({
     groups.set(VALUE_GROUP_REST, restDocs);
   }
 
-  function getGroupLabel(value: string, fieldLabel: string): string {
-    if (value === VALUE_GROUP_REST) {
-      return `Documents with other ${fieldLabel} values`;
-    }
-    if (value === VALUE_GROUP_UNDEFINED) {
-      return `Documents without ${fieldLabel}`;
-    }
-    return `Documents with ${fieldLabel} == ${value}`;
-  }
-
   return (
     <>
       {[...groups.entries()].map(([value, groupDocs]) => {
-        const displayValue = getGroupLabel(value, fieldLabel);
         const itemKey = `split_${fieldLabel}=${value}`;
         return (
           <TreeItem
@@ -91,7 +81,17 @@ const DocumentSplitTree = ({
             itemId={itemKey}
             label={
               <Typography>
-                {displayValue}
+                <SwitchCase test={value}>
+                  <Case value={VALUE_GROUP_REST}>
+                    Documents with other <b>{fieldLabel}</b> values
+                  </Case>
+                  <Case value={VALUE_GROUP_UNDEFINED}>
+                    Documents without <b>{fieldLabel}</b>
+                  </Case>
+                  <Case isDefault={true}>
+                    Documents with <b>{fieldLabel}</b> == <b>{value}</b>
+                  </Case>
+                </SwitchCase>
               </Typography>
             }
           >
