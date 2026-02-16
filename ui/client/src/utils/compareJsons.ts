@@ -26,7 +26,7 @@ function getAllPaths(obj: JsonValue, prefix = ""): string[] {
   return paths;
 }
 
-function getValueAtPath(obj: JsonValue, path: string): JsonValue | undefined {
+export function getValueAtPath(obj: JsonValue, path: string): JsonValue | undefined {
   if (path === "/") return obj;
   const parts = path.split("/").filter(Boolean);
   let current: JsonValue = obj;
