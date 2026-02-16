@@ -67,21 +67,31 @@ const DocumentSplitTree = ({
     groups.set("__rest__", restDocs);
   }
 
-  const childProps = { project, showDocumentPreview, depth: depth - 1, k };
-
   return (
     <>
       {[...groups.entries()].map(([value, groupDocs]) => {
         const isRest = value === "__rest__";
         const displayValue = isRest
-          ? `other ${fieldLabel} values`
-          : `filter by ${fieldLabel} == ${value === "__undefined__" ? "—" : value}`;
+          ? `Documents with other ${fieldLabel} values`
+          : `Documents with ${fieldLabel} == ${value === "__undefined__" ? "—" : value}`;
         const itemKey = `split_${fieldLabel}=${value}`;
         return (
-          <TreeItem key={itemKey} itemId={itemKey}
-            label={<Typography variant="body2">{displayValue}</Typography>}
+          <TreeItem
+            key={itemKey}
+            itemId={itemKey}
+            label={
+              <Typography>
+                {displayValue}
+              </Typography>
+            }
           >
-            <DocumentSplitGroup docs={groupDocs} {...childProps} />
+            <DocumentSplitGroup
+              docs={groupDocs}
+              project={project}
+              showDocumentPreview={showDocumentPreview}
+              k={k}
+              depth={depth - 1}
+            />
           </TreeItem>
         );
       })}
@@ -102,13 +112,28 @@ export const DocumentSplitGroup = ({
   depth: number;
   k: number;
 }) => {
-  const compared = depth > 0 && docs.length > 1
-    ? filterAndSortByGroups(compareJsons(docs.map((d) => d.data.desc), true), k)
-    : [];
-
-  const sharedProps = { docs, project, showDocumentPreview };
+  let compared: CompareResult[] = [];
+  if (depth > 0 && docs.length > 1) {
+    const descs = docs.map((d) => d.data.desc);
+    compared = filterAndSortByGroups(compareJsons(descs, true), k);
+  }
 
   return compared.length
-    ? <DocumentSplitTree {...sharedProps} depth={depth} k={k} compared={compared} />
-    : <DocumentItems {...sharedProps} />;
+    ? (
+      <DocumentSplitTree
+        docs={docs}
+        project={project}
+        showDocumentPreview={showDocumentPreview}
+        depth={depth}
+        k={k}
+        compared={compared}
+      />
+    )
+    : (
+      <DocumentItems
+        docs={docs}
+        project={project}
+        showDocumentPreview={showDocumentPreview}
+      />
+    );
 };
