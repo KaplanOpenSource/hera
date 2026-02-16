@@ -1,3 +1,5 @@
+cd "$(dirname "$0")/../.."
+
 docker run --name hera-mongo \
   -v ./mongo-db-datadir:/data/db \
   -v ./mongo-init.d:/docker-entrypoint-initdb.d \
