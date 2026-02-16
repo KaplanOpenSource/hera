@@ -1,68 +1,56 @@
-import { TreeItem } from "@mui/x-tree-view";
-import { ProjectDocumentItem } from "./ProjectDocumentItem";
-import { ProjectEntire, Toolkit } from "@shared/types";
-import { useProjectStore } from "../../stores/useProjectStore";
-import { Add } from "@mui/icons-material";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { Stack, Typography } from "@mui/material";
-import { AddDocumentButton } from "./AddDocumentButton";
+import { TreeItem } from "@mui/x-tree-view";
+import { Toolkit } from "@shared/types";
 import { ProjectObj } from "../../objects/ProjectObj";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { AddDocumentButton } from "./AddDocumentButton";
+import { DocumentSplitGroup } from "./DocumentSplitGroup";
 
 export const ToolkitTreeItem = ({
   project,
   toolkit,
   showEmpty = false,
+  showDocumentPreview = true,
+  maxDepth = 3,
+  minGroupSize = 2,
 }: {
-  toolkit: Toolkit | undefined,
-  project: ProjectObj,
-  showEmpty?: boolean,
+  toolkit: Toolkit | undefined;
+  project: ProjectObj;
+  showEmpty?: boolean;
+  showDocumentPreview?: boolean;
+  maxDepth?: number;
+  minGroupSize?: number;
 }) => {
   const { toolkits } = useProjectStore();
 
-  const documentsForToolkit = (toolkitName: string) => {
-    return project?.documents.filter(d => d.toolkit === toolkitName) || [];
-  }
+  const toolkitName = toolkit ? toolkit.toolkit : "no-toolkit";
+  const toolkitLabel = toolkit ? toolkit.toolkit : "No Toolkit Documents";
+  const docs =
+    project?.documents.filter((d) => {
+      if (toolkit) {
+        return d.toolkit === toolkitName;
+      }
+      return !toolkits.some((t) => t.toolkit === d.toolkit);
+    }) || [];
 
-  const documentsWithoutToolkit = () => {
-    return project?.documents.filter(d => {
-      const found = toolkits.find(({ toolkit }) => toolkit === d.toolkit);
-      return found === undefined;
-    });
-  }
-
-  const toolkitName = toolkit ? toolkit.toolkit : 'no-toolkit';
-  const toolkitLabel = toolkit ? toolkit.toolkit : 'No Toolkit Documents';
-  const docs = toolkit ? documentsForToolkit(toolkitName) : documentsWithoutToolkit();
-  return (!docs.length && !showEmpty) ? null : (
-    <TreeItem key={toolkitName} itemId={toolkitName}
+  return !docs.length && !showEmpty ? null : (
+    <TreeItem
+      key={toolkitName}
+      itemId={toolkitName}
       label={
-        <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
-          <Typography>
-            {toolkitLabel}
-          </Typography>
-          <AddDocumentButton
-            toolkit={toolkit}
-          />
+        <Stack direction="row" spacing={1} justifyContent="start" alignItems="center">
+          <Typography>{toolkitLabel}</Typography>
+          <AddDocumentButton toolkit={toolkit} />
         </Stack>
       }
     >
-      {/* <Typography>
-          {cls}
-        </Typography>
-        {desc ?? (
-          <Typography>
-            {desc}
-          </Typography>
-        )} */}
-      {docs.map(document => {
-        return (
-          <ProjectDocumentItem
-            key={`proj${project.name}_doc${document.docid}`}
-            project={project.data}
-            document={document.data}
-          />
-        )
-      })}
+      <DocumentSplitGroup
+        docs={docs}
+        project={project}
+        showDocumentPreview={showDocumentPreview}
+        depth={maxDepth}
+        minGroupSize={minGroupSize}
+      />
     </TreeItem>
-  )
-}
+  );
+};

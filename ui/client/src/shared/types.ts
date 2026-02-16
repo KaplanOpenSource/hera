@@ -23,7 +23,7 @@ export interface ProjectEntire {
 export interface DocumentDesc {
   toolkit?: string;
   datasourceName?: string;
-  version?: number[];
+  version?: number[] | string;
   filesDirectory?: string;
   analysis_CacheCounter?: number;
   // docid?: string;

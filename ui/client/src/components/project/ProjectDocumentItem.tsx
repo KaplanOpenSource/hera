@@ -11,9 +11,11 @@ import { idDocId } from "../../shared/idDocId";
 export const ProjectDocumentItem = ({
   project,
   document,
+  showDocumentPreview = true,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
+  showDocumentPreview?: boolean,
 }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm()
 
@@ -37,50 +39,32 @@ All.deleteDocumentByID('${document?._id.$oid}')
     <TreeItem
       key={id} itemId={id}
       label={
-        <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
-          <Typography>
-            {name}
-          </Typography>
-          <ButtonTooltip
-            title={isProjectConfig ? 'Project Config is deleted only with project' : 'Delete Document'}
-            disabled={isProjectConfig}
-            onClick={async () => {
-              if ((await confirmOpen({ title: `Are you sure you want to delete ${name}?` })).confirmed) {
-                deleteDocument()
-              }
-            }}
-          >
-            <Delete />
-            {ConfirmDialog}
-          </ButtonTooltip>
+        <Stack direction='column' justifyContent="start" alignItems=''>
+          <Stack direction='row' spacing={1} justifyContent="start" alignItems='center'>
+            <Typography>
+              {name}
+            </Typography>
+            <ButtonTooltip
+              title={isProjectConfig ? 'Project Config is deleted only with project' : 'Delete Document'}
+              disabled={isProjectConfig}
+              onClick={async () => {
+                if ((await confirmOpen({ title: `Are you sure you want to delete ${name}?` })).confirmed) {
+                  deleteDocument()
+                }
+              }}
+            >
+              <Delete />
+              {ConfirmDialog}
+            </ButtonTooltip>
+          </Stack>
+          {showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
+            <Typography sx={{ fontSize: 10 }}>
+              resource: {document.resource.substring(0, 80)}
+            </Typography>
+          )}
         </Stack>
       }
     >
-      <TreeItem
-        key={id + '-details'} itemId={id + '-details'} label={
-          <Box>
-            {document.desc?.version && (
-              <Typography>
-                Version: {(document.desc?.version || []).join('.')}
-              </Typography>
-            )}
-            <Typography>
-              Type: {document.type}
-            </Typography>
-            {document?.resource && typeof (document?.resource) == 'string' && (
-              <Typography>
-                resource: {document.resource}
-              </Typography>
-            )}
-            {document.desc.toolkit && (
-              <Typography>
-                toolkit: {document.desc.toolkit}
-              </Typography>
-            )}
-          </Box>
-        }
-      >
-      </TreeItem>
     </TreeItem>
   )
 }
