@@ -76,10 +76,10 @@ export const EditAsJsonButton = ({
 
       <Dialog
         open={open}
-        onClose={handleCancel}
+        onClose={confirmingExit ? undefined : handleCancel}
         fullWidth
         maxWidth="xl"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <DialogTitle>Edit as Json Text</DialogTitle>
         <DialogContent>
@@ -94,17 +94,21 @@ export const EditAsJsonButton = ({
               onChange={handleChange}
               error={!isValid}
               helperText={isValid ? "" : "Invalid Json"}
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancel}>
+          <Button
+            variant="outlined"
+            onClick={handleCancel}
+            color={confirmingExit ? "error" : "inherit"}
+          >
             {confirmingExit ? "Are you sure?" : "No"}
           </Button>
           <Button
             variant="contained"
-            disabled={!isValid}
+            disabled={!isValid || !isDirty}
             onClick={handleConfirm}
           >
             Yes
