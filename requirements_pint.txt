@@ -148,7 +148,7 @@ jupyterlab_server==2.27.3
 jupyterlab_widgets==3.0.13
 kafka-python==2.0.6
 kaleido==0.2.1
-keras==3.12.0
+keras==3.13.1
 kiwisolver==1.4.7
 ksql==0.10.2
 libclang==18.1.1
@@ -226,14 +226,14 @@ prometheus_client==0.21.1
 promise==2.3
 prompt_toolkit==3.0.50
 propcache==0.3.0
-protobuf==6.31.1
+protobuf==6.33.5
 psutil==7.0.0
 ptyprocess==0.7.0
 PuLP==3.0.2
 pure_eval==0.2.3
 py-staticmaps==0.4.0
 pyarrow==19.0.1
-pyasn1==0.6.1
+pyasn1==0.6.2
 pyasn1_modules==0.4.1
 pycparser==2.22
 pyevtk==1.6.0

@@ -1,14 +1,15 @@
-import { Folder, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
-import { Stack, Tooltip, Typography } from '@mui/material';
+import { Folder, Preview, Refresh, Settings, Visibility } from '@mui/icons-material';
+import { Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { useDialog } from '../../elements/useDialog';
+import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { fetchProjectDetails } from '../../io/FetchProjects';
 
 export const ProjectTreeView = ({
   project,
@@ -19,6 +20,10 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
+  const [showDocumentPreview, setShowDocumentPreview] = useState(true);
+  const [minGroupSize, setMinGroupSize] = useState(2);
+  const [maxDepth, setMaxDepth] = useState(5);
+  const { DialogComponent, openDialog } = useDialog();
 
   console.log(toolkits)
   console.log(project)
@@ -41,14 +46,65 @@ export const ProjectTreeView = ({
             <ButtonTooltip
               title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
               onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
+              color={showEmptyToolkits ? 'primary' : 'default'}
             >
-              {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
+              <Visibility />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={showDocumentPreview ? 'Showing document preview, click to hide' : 'Hiding document preview, click to show'}
+              onClick={() => setShowDocumentPreview(!showDocumentPreview)}
+              color={showDocumentPreview ? 'primary' : 'default'}
+            >
+              <Preview />
             </ButtonTooltip>
             <ButtonTooltip
               title={'Reload documents'}
               onClick={() => fetchProjectDetails(project.name)}
             >
               <Refresh />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title={'Change tree settings'}
+              onClick={async () => {
+                const result = await openDialog({
+                  title: 'Change tree settings',
+                  initialValues: { maxDepth, minGroupSize },
+                  maxWidth: 'sm',
+                  render:
+                    ({ values, setValues }) => (
+                      <Stack direction={'column'} spacing={1}>
+                        <TextField
+                          label="Max Depth"
+                          value={values.maxDepth}
+                          type='number'
+                          variant='outlined'
+                          slotProps={{ htmlInput: { min: 0, max: 25 } }}
+                          size='small'
+                          onChange={(e) => setValues({ ...values, maxDepth: e.target.value })}
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <TextField
+                          label="Min Group Size"
+                          value={values.minGroupSize}
+                          type='number'
+                          variant='outlined'
+                          slotProps={{ htmlInput: { min: 1 } }}
+                          size='small'
+                          onChange={(e) => setValues({ ...values, minGroupSize: e.target.value })}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </Stack>
+                    )
+                });
+
+                if (result.confirmed && result.values) {
+                  setMaxDepth(result.values.maxDepth)
+                  setMinGroupSize(result.values.minGroupSize)
+                }
+              }}
+            >
+              <Settings />
+              {DialogComponent}
             </ButtonTooltip>
           </Stack>
         )}
@@ -67,6 +123,9 @@ export const ProjectTreeView = ({
             project={project}
             toolkit={toolkit}
             showEmpty={showEmptyToolkits}
+            showDocumentPreview={showDocumentPreview}
+            minGroupSize={minGroupSize}
+            maxDepth={maxDepth}
           />
         ))}
         <ToolkitTreeItem
@@ -74,6 +133,9 @@ export const ProjectTreeView = ({
           project={project}
           toolkit={undefined}
           showEmpty={showEmptyToolkits}
+          showDocumentPreview={showDocumentPreview}
+          minGroupSize={minGroupSize}
+          maxDepth={maxDepth}
         />
       </TreeItem>
       <RepoTreeWhole

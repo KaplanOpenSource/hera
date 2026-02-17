@@ -6,6 +6,7 @@ import { useDialog } from '../../elements/useDialog';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
 import { SelectDataFormat } from './SelectDataFormat';
+import { EditAsJsonButton } from './EditAsJsonButton';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
   return parentKey ? `${parentKey}/${itemKey}` : itemKey;
@@ -71,42 +72,10 @@ export const DetailsViewItem = ({
             >
               <CreateNewFolder />
             </ButtonTooltip>
-            <ButtonTooltip
-              title={'Edit as Json Text'}
-              onClick={async () => {
-                const { confirmed, values } = await openDialog({
-                  title: 'Edit as Json Text',
-                  initialValues: { jsonText: JSON.stringify(itemValue, null, 2), ok: true },
-                  render: ({ values, setValues }) => (
-                    <TextField
-                      label="Json"
-                      fullWidth
-                      multiline
-                      minRows={4}
-                      maxRows={20}
-                      value={values.jsonText}
-                      onChange={e => {
-                        e.stopPropagation();
-                        let ok = true;
-                        try { JSON.parse(e.target.value) } catch { ok = false }
-                        setValues({ ...values, jsonText: e.target.value, ok });
-                      }}
-                      error={!values.ok}
-                      helperText={values.ok ? '' : 'Invalid Json'}
-                    />
-                  )
-                });
-                if (confirmed && values && values.ok) {
-                  try {
-                    const json = JSON.parse(values.jsonText);
-                    setItemValue(json);
-                  } catch { }
-                }
-              }}
-            >
-              <Keyboard />
-              {DialogComponent}
-            </ButtonTooltip>
+            <EditAsJsonButton
+              data={itemValue}
+              setData={setItemValue}
+            />
           </>)}
 
           {isTree
