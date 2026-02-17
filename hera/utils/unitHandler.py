@@ -256,6 +256,8 @@ if unumSupport:
             pint.Quantity: A pint quantity with the same unit.
         """
         # Get the string representation of the unum object
+        if isinstance(unum_obj, Quantity):
+            return unum_obj
         unit_str = str(unum_obj)
         pint_str = convert_unum_units_to_eval_str(unit_str)
         return value * ureg.parse_expression(pint_str)

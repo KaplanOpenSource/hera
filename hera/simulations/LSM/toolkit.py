@@ -2,6 +2,8 @@ import pandas
 import json
 import os
 
+from hera.utils import ConfigurationToJSON, Quantity
+
 from .template import LSMTemplate
 from itertools import product
 from ... import datalayer
@@ -123,28 +125,14 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         templateName: str
                 The name of the template.
-
-        to_xarray: bool
-                Convert the simulations.old to xarray
-                default: True
-
-        to_database: bool
-                Save simulation results to the database
-                default: False
-
-        forceKeep: bool
-                If to_xarray is true,
-                Determine wehter to keep the original files.
-
-                If False, removes the Lagrangian files.
-                defaultL False
-
+        templateVersion: str
+                The name of the template.
         Returns
         -------
             The template by the name
         """
         doc = self.getDataSourceDocument(datasourceName=templateName, version=templateVersion)
-        return LSMTemplate(doc,self)
+        return LSMTemplate(doc,self) if doc is not None else None
 
     def getTemplatesTable(self, **query):
         """
@@ -243,9 +231,19 @@ class LSMToolkit(toolkit.abstractToolkit):
         """
         template = self.getTemplateByName(unitsTemplateVersion)
 
-        for key in template._document['desc']["units"].keys():
-            if key in query.keys():
-                query[key] = query[key].asNumber(eval(template._document['desc']["units"][key]))
+        if 'units' in template._document['desc']:
+            for key in template._document['desc']["units"].keys():
+                if key in query.keys():
+                    query_item= query[key]
+                    if isinstance(query_item, Unum):
+                        query[key] = query_item.asNumber(eval(template._document['desc']["units"][key]))
+                    elif isinstance(query_item, Quantity):
+                        query[key] = query_item.m_as(template._document['desc']["units"][key])
+                    else:
+                        raise ValueError(f"query must use either pint or unum to specify units, currently type({query[key]})={type(query[key])}")
+        else:
+            query = ConfigurationToJSON(query)
+        print(query)
         queryWithParams = {}
         for key in query.keys():
             queryWithParams[f"params__{key}"] = query[key]

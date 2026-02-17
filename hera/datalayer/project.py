@@ -175,7 +175,7 @@ class Project:
                       run  
                         >> hera-project project create <the directory name>
                       in the parent directory 
-                    - Create manually the file caseConfigutation.json in the directory with the key 'projectName' that holds 
+                    - Create manually the file caseConfiguration.json in the directory with the key 'projectName' that holds 
                       the name of the project as a string.     
             """
             raise ValueError(err)
@@ -229,7 +229,7 @@ class Project:
                 configuration = loadJSON(confFile)
                 if 'projectName' not in configuration:
                     err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
-                    err += """conifguration should be :
+                    err += """configuration should be :
 {
     'projectName' : [project name]
 }                                        
@@ -441,12 +441,12 @@ class Project:
         -------
 
         """
-        counterName = self._nomralizeCounterName(counterName)
+        counterName = self._normalizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
         self.defineCounter(counterName,0)
         cnfg_doc.update_one(**{f"set__desc__counter__{counterName}":defaultValue})
 
-    def _nomralizeCounterName(self, counterName):
+    def _normalizeCounterName(self, counterName):
         counterName=counterName.replace('.','_')
         # avoiding conflicts with mongodb
         if '__' in counterName:
@@ -466,7 +466,7 @@ class Project:
         -------
 
         """
-        counterName = self._nomralizeCounterName(counterName)
+        counterName = self._normalizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
         self._enforce_counter_field(cnfg_doc)
         if cnfg_doc.filter(**{f"desc__counters__{counterName}__exists": True}).first() is None: 
@@ -487,7 +487,7 @@ class Project:
         -------
 
         """
-        counterName = self._nomralizeCounterName(counterName)
+        counterName = self._normalizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
         self._enforce_counter_field(cnfg_doc)
         #if it doesn't exist there is nothing to get, returning None
@@ -517,7 +517,7 @@ class Project:
         -------
 
         """
-        counterName = self._nomralizeCounterName(counterName)
+        counterName = self._normalizeCounterName(counterName)
         isNew = self.defineCounter(counterName,0)
         if isNew:
             return 0
@@ -606,7 +606,7 @@ class Project:
         """
         return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
-    def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+    def getMeasurementsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         """
             Query measurements.old documents.
 
@@ -630,6 +630,34 @@ class Project:
         """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
+    def getAllDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Runs getXDocuments for measurements, cache and simulations aggregating all to one list
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        -------
+            List of documents.
+        """
+        docs = []
+        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        return docs
+    
     def addDocumentFromDict(self,documentDict):
         """
             Load the document to the project.
@@ -665,7 +693,7 @@ class Project:
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
-            Adds a new measurment document.
+            Adds a new measurement document.
 
         Parameters
         ----------
@@ -894,7 +922,7 @@ class Project:
         data : a data that can be dataframe, xarray, numpy ....
 
         desc : dict
-            A dict with the meatadata to save
+            A dict with the metadata to save
         type : str
             If None, then set the type to be the name of the function that called this method.
 
