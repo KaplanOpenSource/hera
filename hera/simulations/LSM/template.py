@@ -10,8 +10,8 @@ from hera.simulations.LSM.singleSimulation import SingleSimulation
 from hera.datalayer import datatypes
 from hera.utils.unitHandler import  *
 from hera import toolkit
-from hera.utils.jsonutils import ConfigurationToJSON
-from hera.utils import dictToMongoQuery
+from hera.utils.jsonutils import JSONToConfiguration, stripConfigurationUnits
+from hera.utils import dictToMongoQuery, get_classMethod_logger
 
 
 class LSMTemplate:
@@ -108,19 +108,29 @@ class LSMTemplate:
         """
         fileDict = {".true.":"OUTD3d03_3_",".TRUE.":"OUTD3d03_3_",".false.":"OUTD2d03_3_",".FALSE.":"OUTD2d03_3_"}
         saveDir = os.path.abspath(self.Toolkit.filesDirectory)
+        logger = get_classMethod_logger(self)
 
         # create the input file.
         updated_params = dict(self._document['desc']['params'])
         updated_params.update(params)
         updated_params.update(descriptor)
-        updated_params = ConfigurationToJSON(updated_params)
-        for key in self._document['desc']["units"].keys():
-            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
-
+        updated_params = JSONToConfiguration(updated_params)
+        if 'units' in self._document['desc']:
+            for key in self._document['desc']["units"].keys():
+                param_item= updated_params[key]
+                if isinstance(param_item, Unum):
+                    updated_params[key] = param_item.asNumber(eval(self._document['desc']["units"][key]))
+                elif isinstance(param_item, Quantity):
+                    updated_params[key] = param_item.m_as(self._document['desc']["units"][key])
+                else:
+                    raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
+        if 'duration' in updated_params and isinstance(updated_params['duration'], Quantity):
+            updated_params['duration'] = updated_params['duration'].to(ureg.minutes)
+        updated_params = stripConfigurationUnits(updated_params)
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
             if stations is None:
-                print("setting homogeneous wind")
+                logger.info("setting homogeneous wind")
         else:
             updated_params.update(TopoFile="'TOPO'",flat=".FALSE.")
 
@@ -140,18 +150,20 @@ class LSMTemplate:
 
         yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
 
+        logger.info(f"Set input for model creator as {self.dirPath}")
         ifmc = InputForModelsCreator(self.dirPath) # was os.path.dupdated_paramsirname(__file__)
         ifmc.setParamsMap(updated_params)
+        logger.info(f"Searching for LSM_{self.version}")
         ifmc.setTemplate('LSM_%s' % (self.version))
         docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                                        templateName=self.templateName,
                                                        version=self.version,params=updated_params)
 
-        print(f"Found {docList}")
+        logger.info(f"Found {docList}")
         if saveMode in [toolkit.TOOLKIT_SAVEMODE_FILEANDDB,toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE]:
             if len(docList) > 0:
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB:
-                    raise ValueError(f"A run with requested parameters already exists in the databse; you may choose "
+                    raise ValueError(f"A run with requested parameters already exists in the database; you may choose "
                                      f"{toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE} in order to replace it.")
                 if saveMode == toolkit.TOOLKIT_SAVEMODE_FILEANDDB_REPLACE:
                     docList.delete()
@@ -177,7 +189,7 @@ class LSMTemplate:
         else:
             if simulationName is not None:
                 saveDir = os.path.join(saveDir, simulationName)
-        print(f"The saveDir is {saveDir}")
+        logger.info(f"The saveDir is {saveDir}")
 
         if os.path.exists(os.path.join(saveDir,"netcdf")):
             if saveMode == toolkit.TOOLKIT_SAVEMODE_ONLYFILE:
@@ -258,7 +270,7 @@ class LSMTemplate:
                     with open("h_stations.txt", "w") as newStationFile:
                         newStationFile.write(hStations)
 
-        print("Running the model")
+        logger.info("Running the model")
         # run the model.
         os.system('./a.out')
         os.chdir(cur_dir)
@@ -286,7 +298,7 @@ class LSMTemplate:
             new_coords = dict(x=finalxarray.x-xshift,y=finalxarray.y-yshift)
             finalxarray= finalxarray.assign_coords(coords=new_coords)
 
-            print("saved xarray in ",netcdf_output)
+            logger.info("saved xarray in ",netcdf_output)
             if not self.forceKeep:
                 machsanPath = os.path.dirname(results_full_path)
                 allfiles = os.path.join(machsanPath ,"*")
@@ -313,6 +325,7 @@ class LSMTemplate:
                 if true, adds a 0 file at the begining of the files (with time shift 0)
 
         """
+        logger = get_classMethod_logger(self)
 
         # outfilename = name
         filenameList = []
@@ -321,16 +334,16 @@ class LSMTemplate:
             filenameList.append(infilename)
             times.append(float(infilename.split("_")[-1]))
 
-        print("Processing the files")
-        print(basefiles)
-        print([x for x in glob.glob(os.path.join("%s*" % basefiles))])
+        logger.info("Processing the files")
+        logger.info(basefiles)
+        logger.info([x for x in glob.glob(os.path.join("%s*" % basefiles))])
         # Sort according to time.
         combined = sorted([x for x in zip(filenameList, times)], key=lambda x: x[1])
         dt = None
 
         for (i, curData) in enumerate(combined):
-            print("\t... reading %s" % curData[0])
-            cur = pandas.read_csv(curData[0], delim_whitespace=True,
+            logger.info("\t... reading %s" % curData[0])
+            cur = pandas.read_csv(curData[0], sep="\s+",
                                   names=["y", "x", "z", "Dosage"])  # ,dtype={'x':int,'y':int,'z':int,'Dosage':float})
 
             cur['time'] = curData[1]
@@ -382,17 +395,27 @@ class LSMTemplate:
             Simulation object
         """
 
-        updated_params = ConfigurationToJSON(query)
-        for key in updated_params.keys():
-            unt = self._document['desc']["units"].get(key,None)
-            if unt is not None:
-                updated_params[key] = updated_params[key].asNumber(eval(unt))
+        query = JSONToConfiguration(query)
+        if 'units' in self._document['desc']:
+            for key in query.keys():
+                if key in self._document['desc']["units"]:
+                    units_key = self._document['desc']["units"][key]
+                    param_item= query[key]
+                    if isinstance(param_item, Unum):
+                        query[key] = param_item.asNumber(eval(units_key))
+                    elif isinstance(param_item, Quantity):
+                        query[key] = param_item.m_as(units_key)
+                    else:
+                        raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
+        if 'duration' in query and isinstance(query['duration'], Quantity):
+            query['duration'] = query['duration'].to(ureg.minutes)
+        query = stripConfigurationUnits(query)
 
-        newqery = dictToMongoQuery(updated_params,prefix="params")
+        new_query = dictToMongoQuery(query,prefix="params")
 
         docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                     templateName=self.templateName,
-                                    **newqery)
+                                    **new_query)
         return [SingleSimulation(doc) for doc in docList]
 
     def getSimulationByID(self,id):
@@ -411,16 +434,28 @@ class LSMTemplate:
         :return:
         """
 
-        updated_params = ConfigurationToJSON(query)
-        for key in updated_params.keys():
-            updated_params[key] = updated_params[key].asNumber(eval(self._document['desc']["units"][key]))
+        updated_params = JSONToConfiguration(query)
+        if 'units' in self._document['desc']:
+            for key in query.keys():
+                units_key = self._document['desc']["units"][key]
+                query_item = query[key]
 
-        newqery = dictToMongoQuery(updated_params,prefix="params")
+                if isinstance(query_item, Unum):
+                    query[key] = query_item.asNumber(eval(units_key))
+                elif isinstance(query_item, Quantity):
+                    query[key] = query_item.m_as(units_key)
+                else:
+                    raise ValueError(f"query must use either pint or unum to specify units, currently type({query_item})={type(query_item)}")
+        if 'duration' in query and isinstance(query['duration'], Quantity):
+            query['duration'] = query['duration'].to(ureg.minutes)
+        updated_params = stripConfigurationUnits(updated_params)
+
+        new_query = dictToMongoQuery(updated_params,prefix="params")
 
 
         docList = self.Toolkit.getSimulationsDocuments(type=self.doctype_simulation,
                                     templateName=self.templateName,
-                                    **newqery)
+                                    **new_query)
         descList = [doc.desc.copy() for doc in docList]
 
         for (i, desc) in enumerate(descList):
