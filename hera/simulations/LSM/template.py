@@ -79,16 +79,19 @@ class LSMTemplate:
 
     @property
     def modelFolder(self):
-        return self._document['desc']['modelFolder']
+        dir_path= self._document['desc']['modelFolder']
+        if not os.path.isabs(dir_path):
+            dir_path = self.Toolkit.filesDirectory + dir_path
+        return dir_path
 
-    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,simulationName=None,**descriptor):
+    def run(self,topography=None, stations=None,canopy=None,params=dict(),depositionRates=None, saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,simulationName=None, saveDir=None,**descriptor):
         """
         Execute the LSM.old simulation
 
         Parameters
         ----------
         saveDir: str
-            Path of the directory to put in the model run
+            Path of the directory to put in the model run, deprecated parameter
 
         overwrite: bool
             False: execute the simulation event if it is in DB (the to_database is True).
@@ -200,14 +203,16 @@ class LSMTemplate:
         ## If overwrite, or document does not exist in DB, or running without DB.
         os.makedirs(saveDir, exist_ok=True)
 
+        print([x for x in os.listdir(self.modelFolder)])
         os.system('cp -rf %s %s' % (os.path.join(self.modelFolder, '*'), saveDir))
+        logger.info(f"copied contents from {self.modelFolder} to {saveDir}")
         # write to file.
         ifmc.render(os.path.join(saveDir, 'INPUT'))
 
         cur_dir = os.getcwd()
-    
-
         os.chdir(saveDir)
+        logger.info(f"temporarily moving context from {cur_dir} to {os.getcwd()}")
+
         if topography is not None:
             with open("TOPO","w") as topofile:
                 topofile.write(topography)
@@ -272,8 +277,14 @@ class LSMTemplate:
 
         logger.info("Running the model")
         # run the model.
-        os.system('./a.out')
+        print([x for x in os.listdir(".")])
+        lsm_return = os.system('./a.out')
+        logger.info(f"returning context back to {cur_dir}")
         os.chdir(cur_dir)
+        if lsm_return != 0:
+            logger.error("simulation failed, aborting...")
+            return
+        
         if self.to_xarray:
             results_full_path = os.path.join(saveDir, "tozaot", "machsan", fileDict[updated_params["particles3D"]])
             netcdf_output = os.path.join(saveDir, "netcdf")
