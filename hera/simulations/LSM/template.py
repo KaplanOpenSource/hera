@@ -1,5 +1,6 @@
 import os
 import glob
+from hera.utils.logging.helpers import get_logger
 import xarray
 import pandas
 import numpy
@@ -118,18 +119,8 @@ class LSMTemplate:
         updated_params.update(params)
         updated_params.update(descriptor)
         updated_params = JSONToConfiguration(updated_params)
-        if 'units' in self._document['desc']:
-            for key in self._document['desc']["units"].keys():
-                param_item= updated_params[key]
-                if isinstance(param_item, Unum):
-                    updated_params[key] = param_item.asNumber(eval(self._document['desc']["units"][key]))
-                elif isinstance(param_item, Quantity):
-                    updated_params[key] = param_item.m_as(self._document['desc']["units"][key])
-                else:
-                    raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
-        if 'duration' in updated_params and isinstance(updated_params['duration'], Quantity):
-            updated_params['duration'] = updated_params['duration'].to(ureg.minutes)
-        updated_params = stripConfigurationUnits(updated_params)
+        updated_params = self.prepareParams(desc=self._document['desc'], paramsToPrepare=updated_params)
+        logger.info(f"Running simulation with the following parameters:\n{updated_params}")
         if topography is None:
             updated_params.update(homogeneousWind=".TRUE.")
             if stations is None:
@@ -180,8 +171,8 @@ class LSMTemplate:
                           simulationName=simulationName,
                           params=updated_params)
             )
-
-            saveDir = os.path.join(saveDir, str(doc.id))
+            curr_counter = self.Toolkit.getCounterAndAdd(f"LSM_SIMULATION_{self.Toolkit.projectName}")
+            saveDir = os.path.join(saveDir, str(curr_counter))
             if self.to_xarray:
                 doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
                 doc['dataFormat'] = datatypes.NETCDF_XARRAY
@@ -309,7 +300,7 @@ class LSMTemplate:
             new_coords = dict(x=finalxarray.x-xshift,y=finalxarray.y-yshift)
             finalxarray= finalxarray.assign_coords(coords=new_coords)
 
-            logger.info("saved xarray in ",netcdf_output)
+            logger.info(f"saved xarray in {netcdf_output}")
             if not self.forceKeep:
                 machsanPath = os.path.dirname(results_full_path)
                 allfiles = os.path.join(machsanPath ,"*")
@@ -320,6 +311,27 @@ class LSMTemplate:
             return SingleSimulation(netcdf_output)
         else:
             return None
+
+    @staticmethod
+    def prepareParams(desc, paramsToPrepare):
+        logger = get_logger(instance=None, name="hera.simulations.LSM.prepareParams")
+        if desc is not None and 'units' in desc:
+            for key in desc["units"].keys():
+                param_item= paramsToPrepare[key]
+                if isinstance(param_item, Unum):
+                    paramsToPrepare[key] = param_item.asNumber(eval(desc["units"][key]))
+                elif isinstance(param_item, Quantity):
+                    paramsToPrepare[key] = param_item.m_as(desc["units"][key])
+                else:
+                    raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
+        if 'duration' in paramsToPrepare and isinstance(paramsToPrepare['duration'], Quantity):
+            paramsToPrepare['duration'] = paramsToPrepare['duration'].to(ureg.minutes)
+        paramsToPrepare = stripConfigurationUnits(paramsToPrepare, returnStandardize=True, ignoreStandardization=["duration"])
+        for integer_field in ["TopoXn", "TopoYn"]:
+            if not isinstance(paramsToPrepare[integer_field], int):
+                logger.warning(f"field {integer_field} must be an integer, will cast the current value {paramsToPrepare[integer_field]} to int")
+                paramsToPrepare[integer_field] = int(paramsToPrepare[integer_field])
+        return paramsToPrepare
 
 
     def _toNetcdf(self, basefiles, addzero=True, datetimeFormat="timestamp"):
@@ -407,20 +419,7 @@ class LSMTemplate:
         """
 
         query = JSONToConfiguration(query)
-        if 'units' in self._document['desc']:
-            for key in query.keys():
-                if key in self._document['desc']["units"]:
-                    units_key = self._document['desc']["units"][key]
-                    param_item= query[key]
-                    if isinstance(param_item, Unum):
-                        query[key] = param_item.asNumber(eval(units_key))
-                    elif isinstance(param_item, Quantity):
-                        query[key] = param_item.m_as(units_key)
-                    else:
-                        raise ValueError(f"parameters must use either pint or unum to specify units, currently type({param_item})={type(param_item)}")
-        if 'duration' in query and isinstance(query['duration'], Quantity):
-            query['duration'] = query['duration'].to(ureg.minutes)
-        query = stripConfigurationUnits(query)
+        query = self.prepareParams(self._document['desc'], query)
 
         new_query = dictToMongoQuery(query,prefix="params")
 
@@ -446,20 +445,7 @@ class LSMTemplate:
         """
 
         updated_params = JSONToConfiguration(query)
-        if 'units' in self._document['desc']:
-            for key in query.keys():
-                units_key = self._document['desc']["units"][key]
-                query_item = query[key]
-
-                if isinstance(query_item, Unum):
-                    query[key] = query_item.asNumber(eval(units_key))
-                elif isinstance(query_item, Quantity):
-                    query[key] = query_item.m_as(units_key)
-                else:
-                    raise ValueError(f"query must use either pint or unum to specify units, currently type({query_item})={type(query_item)}")
-        if 'duration' in query and isinstance(query['duration'], Quantity):
-            query['duration'] = query['duration'].to(ureg.minutes)
-        updated_params = stripConfigurationUnits(updated_params)
+        updated_params = self.prepareParams(self._document['desc'], updated_params)
 
         new_query = dictToMongoQuery(updated_params,prefix="params")
 

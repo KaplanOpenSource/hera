@@ -167,25 +167,20 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
 
     return ret
 
-def stripConfigurationUnits(valueToProcess,returnStandardize=False):
-    """Converts a dictionary (all the values are string) to a JSON where all the values are string.
-    Convert the JSON back to configuration object using  the ConfigurationToJSON function.
-
+def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStandardization=[]):
+    """Converts a dictionary to a JSON where all the values with Unum or Pint units get converted to their magnitude
+    
     Parameters
     ----------
     JSON : dict
-        A key-value where all the values are strings.
-        The unum objects has the format '1*<unit>' (for exampe '1*m/s')
-
-    returnUnum : bool [Default True]
-        If true convert a quantity to Unum.
-
+        The JSON to strip the units from
+    
     returnStandardize: bool [Default False]
         If true, return the  units in MKS. If False return the original units.
 
     Returns
     -------
-        A dict with the values convected to unum.
+        Same json with all units stripped leaving just magnitudes
 
     """
     logger = logging.getLogger("hera.utils.stripConfigurationUnits")
@@ -194,14 +189,16 @@ def stripConfigurationUnits(valueToProcess,returnStandardize=False):
     if isinstance(valueToProcess,dict):
         for key, value in valueToProcess.items():
             logger.debug("\t dictionary, calling recursively")
-            ret[key] = stripConfigurationUnits(value,returnStandardize=False)
+            ret[key] = stripConfigurationUnits(value,returnStandardize=(returnStandardize and key not in ignoreStandardization),
+                                               ignoreStandardization=ignoreStandardization)
     elif isinstance(valueToProcess,list):
         logger.debug("\t list, transforming to str every item")
-        ret = [stripConfigurationUnits(x,returnStandardize=False) for x in valueToProcess]
+        ret = [stripConfigurationUnits(x,returnStandardize=returnStandardize,
+                                       ignoreStandardization=ignoreStandardization) for x in valueToProcess]
     elif isinstance(valueToProcess,Unum):
         logger.debug(f"\t Try to convert *{valueToProcess}* to string")
         origPintObj = unumToPint(valueToProcess)
-        pintObj = origPintObj.to_base_units() if returnStandardize else origPintObj
+        pintObj = origPintObj.to_base_units() if (returnStandardize) else origPintObj
         ret = pintObj.magnitude
     elif isinstance(valueToProcess,Quantity):
         origPintObj = valueToProcess

@@ -3,7 +3,7 @@ import json
 import os
 
 from hera.utils import ConfigurationToJSON, Quantity, slurm
-from hera.utils.jsonutils import JSONVariations
+from hera.utils.jsonutils import JSONToConfiguration, JSONVariations
 from hera.utils.logging.helpers import get_classMethod_logger
 
 from .template import LSMTemplate
@@ -297,11 +297,11 @@ class LSMToolkit(toolkit.abstractToolkit):
     def prepareSlurmLSMExecution(self,baseParameters,
                               jsonVariations,
                               templateName,
-                              stations,
-                              topography,
-                              depositionRates,
-                              canopy,
-                              saveMode,
+                              stations=None,
+                              topography=None,
+                              depositionRates=None,
+                              canopy=None,
+                              saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
                               slurmExecutionFileName="submit_all.sh",
                               caseListFileName="cases.txt",
                               allocateProcessorsPerRun=None,
@@ -333,7 +333,6 @@ class LSMToolkit(toolkit.abstractToolkit):
         -------
 
         """
-
         logger = get_classMethod_logger(self,"prepareSlurmWorkflowExecution")
         simList = ""
         if not isinstance(baseParameters, dict):
@@ -351,14 +350,16 @@ class LSMToolkit(toolkit.abstractToolkit):
         RUN_SIM_FILE_NAME = "run_sim.py"
 
         simulations_scripts_dir = Path(self.filesDirectory,SIMULATIONS_SCRIPT_DIR_NAME)
-        os.makedirs(simulations_scripts_dir, exists_ok=True)
+        os.makedirs(simulations_scripts_dir, exist_ok=True)
         if stations is not None:
             stations.to_parquet(simulations_scripts_dir / STATIONS_PATH)
         for i, jsonConfig in enumerate(JSONVariations(baseParameters, jsonVariations)):
+            jsonConfig = JSONToConfiguration(jsonConfig)
+            jsonConfig = LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)
             simName = f"LSM_Simulation_{i}"
             simSavePath = simulations_scripts_dir/ simName/ RUN_SIM_FILE_NAME
 
-            os.makedirs(simulations_scripts_dir / simName, exists_ok=True)
+            os.makedirs(simulations_scripts_dir / simName, exist_ok=True)
             if isinstance(topography, str):
                 topography = f'"{topography}"'
             if isinstance(canopy, str):
@@ -376,7 +377,7 @@ old_lsm_toolkit = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectNam
 lsm_template = old_lsm_toolkit.getTemplates(template="{templateName}")[0]
 params={jsonConfig}
 {read_stations_line if stations is not None else ""}
-lsm_template.run(topography={topography}, stations={None if stations is None else "stations"},canopy={canopy},depositionRates={depositionRates}, saveMode="{saveMode}",simulationName="{simName}",**params)
+lsm_template.run(topography={topography}, stations={"None" if stations is None else "stations"},canopy={"None" if canopy is None else canopy},depositionRates={"None" if depositionRates is None else depositionRates}, saveMode="{saveMode}",simulationName="{simName}",**params)
 """
             with open(simSavePath, "w") as f:
                 f.write(sim_script)
