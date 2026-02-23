@@ -16,6 +16,8 @@ export type ViewSettingsType = {
   minGroupSize: number;
   maxDepth: number;
   maxBranches: number;
+  showEmptyToolkits: boolean;
+  showDocumentPreview: boolean;
 };
 
 export const ProjectTreeView = ({
@@ -26,12 +28,12 @@ export const ProjectTreeView = ({
   setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
-  const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
-  const [showDocumentPreview, setShowDocumentPreview] = useState(true);
   const [viewSettings, setViewSettings] = useState<ViewSettingsType>({
     minGroupSize: 2,
     maxDepth: 5,
     maxBranches: 50,
+    showEmptyToolkits: false,
+    showDocumentPreview: true,
   })
 
   console.log(toolkits)
@@ -52,20 +54,6 @@ export const ProjectTreeView = ({
             <Typography marginRight={1}>
               Project {project.name}
             </Typography>
-            <ButtonTooltip
-              title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
-              onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
-              color={showEmptyToolkits ? 'primary' : 'default'}
-            >
-              <Visibility />
-            </ButtonTooltip>
-            <ButtonTooltip
-              title={showDocumentPreview ? 'Showing document preview, click to hide' : 'Hiding document preview, click to show'}
-              onClick={() => setShowDocumentPreview(!showDocumentPreview)}
-              color={showDocumentPreview ? 'primary' : 'default'}
-            >
-              <Preview />
-            </ButtonTooltip>
             <ButtonTooltip
               title={'Reload documents'}
               onClick={() => fetchProjectDetails(project.name)}
@@ -95,8 +83,8 @@ export const ProjectTreeView = ({
             key={toolkit.toolkit}
             project={project}
             toolkit={toolkit}
-            showEmpty={showEmptyToolkits}
-            showDocumentPreview={showDocumentPreview}
+            showEmpty={viewSettings.showEmptyToolkits}
+            showDocumentPreview={viewSettings.showDocumentPreview}
             minGroupSize={viewSettings.minGroupSize}
             maxDepth={viewSettings.maxDepth}
           />
@@ -105,8 +93,8 @@ export const ProjectTreeView = ({
           key={'no_toolkit'}
           project={project}
           toolkit={undefined}
-          showEmpty={showEmptyToolkits}
-          showDocumentPreview={showDocumentPreview}
+          showEmpty={viewSettings.showEmptyToolkits}
+          showDocumentPreview={viewSettings.showDocumentPreview}
           minGroupSize={viewSettings.minGroupSize}
           maxDepth={viewSettings.maxDepth}
         />

@@ -3,6 +3,7 @@ import { Button, DialogActions, DialogContent, DialogTitle, Stack } from "@mui/m
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { NumberProperty } from "../../elements/NumberProperty";
 import { ViewSettingsType } from "./ProjectTreeView";
+import { BooleanProperty } from "../../elements/BooleanProperty";
 
 export const ProjectViewSettingsButton = ({
   viewSettings,
@@ -35,6 +36,16 @@ export const ProjectViewSettingsButton = ({
               value={viewSettings.maxBranches}
               min={1}
               setValue={(v) => setViewSettings({ ...viewSettings, maxBranches: v })}
+            />
+            <BooleanProperty
+              label="Show Empty Toolkits"
+              value={viewSettings.showEmptyToolkits}
+              setValue={v => setViewSettings({ ...viewSettings, showEmptyToolkits: v })}
+            />
+            <BooleanProperty
+              label="Show Document Preview"
+              value={viewSettings.showDocumentPreview}
+              setValue={v => setViewSettings({ ...viewSettings, showDocumentPreview: v })}
             />
           </Stack>
         </DialogContent>
