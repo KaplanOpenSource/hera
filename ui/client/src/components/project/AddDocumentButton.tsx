@@ -15,6 +15,8 @@ import { execPython } from "../../io/execPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { SelectProperty } from "../../elements/SelectProperty";
 
+const NO_TOOLKIT = '* No Toolkit *';
+
 export const AddDocumentButton = ({
   toolkit = undefined,
 }: {
@@ -110,9 +112,9 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
             />
             <SelectProperty
               label="Toolkit"
-              value={chosenToolkit || '* No Toolkit *'}
-              setValue={(v) => setChosenToolkit(v === '* No Toolkit *' ? undefined : v)}
-              menuItems={[{ name: '* No Toolkit *' }, ...toolkits.map(t => ({ name: t.toolkit }))]}
+              value={chosenToolkit || NO_TOOLKIT}
+              setValue={(v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+              menuItems={[{ name: NO_TOOLKIT }, ...toolkits.map(t => ({ name: t.toolkit }))]}
             />
           </DialogContent>
           <DialogActions>

@@ -9,6 +9,7 @@ import { Handyman } from "@mui/icons-material";
 
 const VALUE_GROUP_REST = "__rest__";
 const VALUE_GROUP_UNDEFINED = "__undefined__";
+const TOOLKIT_DESC_PATH = "/toolkit";
 
 const DocumentSplitTree = ({
   docs,
@@ -23,7 +24,9 @@ const DocumentSplitTree = ({
 }) => {
   const { viewSettings } = useViewSettingsStore();
   const bestPath = compared[0].path;
-  const isToolkit = bestPath === '/toolkit';
+  const isToolkit = bestPath === TOOLKIT_DESC_PATH;
+
+  // replacing '/item1/subitem2' to 'item1.subitem2'
   const fieldLabel = bestPath.replace(/^\//, "").replace(/\//g, ".");
 
   const valueCounts = new Map<string, number>();
@@ -117,7 +120,7 @@ export const DocumentSplitGroup = ({
     const paths = compareJsons(descs, true);
     compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
     if (viewSettings.firstBranchByToolkits) {
-      const i = compared.findIndex(x => x.path === "/toolkit");
+      const i = compared.findIndex(x => x.path === TOOLKIT_DESC_PATH);
       if (i > 0) {
         compared = [compared[i], ...compared.filter((_, j) => i !== j)];
       }
