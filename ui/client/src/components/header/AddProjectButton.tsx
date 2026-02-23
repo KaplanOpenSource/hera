@@ -47,13 +47,12 @@ project_create(SimpleNamespace(
 
 projectNames = [{"name": proj} for proj in getProjectList()]
 
-table = toolkitHome.getToolkitTable('${name}')
-
 docs = All.getDocumentsAsDict('${name}', with_id=True)
 project = {"name": '${name}', "documents": docs['documents']}
 
 result = {"projectNames": projectNames, "project": project}
-    `)
+`)
+    // table = toolkitHome.getToolkitTable('${name}')
     if (problem) {
       return;
     }

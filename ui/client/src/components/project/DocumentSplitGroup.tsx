@@ -1,51 +1,30 @@
-import { Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
+import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
+import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
-import { Case, SwitchCase } from "../../elements/SwitchCase";
+import { reorderByKeys } from "../../utils/utils";
 
-const VALUE_GROUP_REST = "__rest__";
-const VALUE_GROUP_UNDEFINED = "__undefined__";
-
-const DocumentItems = ({
-  docs,
-  project,
-  showDocumentPreview,
-}: {
-  docs: DocumentObj[];
-  project: ProjectObj;
-  showDocumentPreview: boolean;
-}) => (
-  <>
-    {docs.map((doc) => (
-      <ProjectDocumentItem
-        key={`proj${project.name}_doc${doc.docid}`}
-        project={project.data}
-        document={doc.data}
-        showDocumentPreview={showDocumentPreview}
-      />
-    ))}
-  </>
-);
+export const VALUE_GROUP_REST = "__rest__";
+export const VALUE_GROUP_UNDEFINED = "__undefined__";
+export const DESC_PATH_TOOLKIT = "/toolkit";
+export const DESC_PATH_TYPE = "/type";
 
 const DocumentSplitTree = ({
   docs,
   project,
-  showDocumentPreview,
   depth,
-  minGroupSize,
   compared,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
-  showDocumentPreview: boolean;
   depth: number;
-  minGroupSize: number;
   compared: CompareResult[];
 }) => {
+  const { viewSettings } = useViewSettingsStore();
   const bestPath = compared[0].path;
-  const fieldLabel = bestPath.replace(/^\//, "").replace(/\//g, ".");
+  const isToolkit = bestPath === DESC_PATH_TOOLKIT;
 
   const valueCounts = new Map<string, number>();
   for (const doc of docs) {
@@ -57,12 +36,14 @@ const DocumentSplitTree = ({
   const groups = new Map<string, DocumentObj[]>();
   const restDocs: DocumentObj[] = [];
   for (const doc of docs) {
-    const val = getValueAtPath(doc.data.desc as any, bestPath);
+    const val = getValueAtPath(doc.extDesc, bestPath);
     const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
-    if (valueCounts.get(key)! < minGroupSize) {
+    if (!isToolkit && valueCounts.get(key)! < viewSettings.minGroupSize) {
       restDocs.push(doc);
     } else {
-      if (!groups.has(key)) groups.set(key, []);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
       groups.get(key)!.push(doc);
     }
   }
@@ -71,35 +52,26 @@ const DocumentSplitTree = ({
     groups.set(VALUE_GROUP_REST, restDocs);
   }
 
+  const entries = [...groups.entries()].sort((a, b) => (a[0].localeCompare(b[0])));
+
   return (
     <>
-      {[...groups.entries()].map(([value, groupDocs]) => {
-        const itemKey = `split_${fieldLabel}=${value}`;
+      {entries.map(([value, groupDocs]) => {
+        const itemKey = `split_${bestPath}=${value}`;
         return (
           <TreeItem
             key={itemKey}
             itemId={itemKey}
             label={
-              <Typography>
-                <SwitchCase test={value}>
-                  <Case value={VALUE_GROUP_REST}>
-                    Documents with other <b>{fieldLabel}</b> values
-                  </Case>
-                  <Case value={VALUE_GROUP_UNDEFINED}>
-                    Documents without <b>{fieldLabel}</b>
-                  </Case>
-                  <Case isDefault={true}>
-                    Documents with <b>{fieldLabel}</b> == <b>{value}</b>
-                  </Case>
-                </SwitchCase>
-              </Typography>
+              <DocumentSplitTreeLabel
+                path={bestPath}
+                value={value}
+              />
             }
           >
             <DocumentSplitGroup
               docs={groupDocs}
               project={project}
-              showDocumentPreview={showDocumentPreview}
-              minGroupSize={minGroupSize}
               depth={depth - 1}
             />
           </TreeItem>
@@ -112,20 +84,21 @@ const DocumentSplitTree = ({
 export const DocumentSplitGroup = ({
   docs,
   project,
-  showDocumentPreview,
   depth,
-  minGroupSize,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
-  showDocumentPreview: boolean;
   depth: number;
-  minGroupSize: number;
 }) => {
+  const { viewSettings } = useViewSettingsStore();
   let compared: CompareResult[] = [];
   if (depth > 0 && docs.length > 1) {
-    const descs = docs.map((d) => d.data.desc);
-    compared = filterAndSortByGroups(compareJsons(descs, true), minGroupSize);
+    const descs = docs.map((d) => ({ ...d.extDesc }));
+    const paths = compareJsons(descs, true);
+    compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
+    if (viewSettings.firstBranchHeadFields) {
+      compared = reorderByKeys(compared, x => x.path, [DESC_PATH_TOOLKIT, DESC_PATH_TYPE]);
+    }
   }
 
   return compared.length
@@ -133,17 +106,19 @@ export const DocumentSplitGroup = ({
       <DocumentSplitTree
         docs={docs}
         project={project}
-        showDocumentPreview={showDocumentPreview}
         depth={depth}
-        minGroupSize={minGroupSize}
         compared={compared}
       />
     )
     : (
-      <DocumentItems
-        docs={docs}
-        project={project}
-        showDocumentPreview={showDocumentPreview}
-      />
+      <>
+        {docs.map((doc) => (
+          <ProjectDocumentItem
+            key={`proj${project.name}_doc${doc.docid}`}
+            project={project.data}
+            document={doc.data}
+          />
+        ))}
+      </>
     );
 };

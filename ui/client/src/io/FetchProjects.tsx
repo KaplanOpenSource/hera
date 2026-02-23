@@ -39,11 +39,30 @@ export const fetchToolkits = async (projectName: string) => {
   const { data, problem } = await execPython(`
 from hera import toolkitHome
 import json
-table = toolkitHome.getToolkitTable('${projectName}')
-result = table.to_json(orient='records')
-  `);
+result = toolkitHome.getToolkitDocuments()
+`);
+  // table = toolkitHome.getToolkitTable('${name}')
+  // result = table.to_json(orient='records')
   if (!problem) {
-    setToolKits(JSON.parse(data) as Toolkit[])
+    const newToolkits = data.map((d: any) => {
+      const desc = d.desc;
+      const t = {
+        toolkit: d.toolkit,
+        cls: desc.classpath,
+      } as Toolkit;
+      for (const field of [
+        'description',
+        'source',
+        'type',
+        'repositoryName',
+        'version',
+      ] as const) {
+        if (desc[field]) t[field] = desc[field];
+      }
+      return t;
+    });
+    // setToolKits(JSON.parse(data) as Toolkit[])
+    setToolKits(newToolkits)
   }
 }
 

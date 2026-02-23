@@ -5,6 +5,11 @@ export interface CompareResult {
   values: (JsonValue | undefined)[];
 }
 
+/**
+ * Recursively collects all leaf paths in a JSON value using slash-delimited format (e.g., "/foo/bar/0").
+ * For primitives, returns ["/"]. For arrays, includes the array path itself plus its children.
+ * For objects, only includes paths to leaf (non-object) values.
+ */
 function getAllPaths(obj: JsonValue, prefix = ""): string[] {
   if (obj === null || obj === undefined || typeof obj !== "object") {
     return [prefix || "/"];
@@ -26,6 +31,11 @@ function getAllPaths(obj: JsonValue, prefix = ""): string[] {
   return paths;
 }
 
+/**
+ * Retrieves the value at a slash-delimited path (e.g., "/foo/0/bar").
+ * Handles both object keys and array indices. Returns undefined if
+ * the path doesn't exist or traverses through a primitive.
+ */
 export function getValueAtPath(obj: JsonValue, path: string): JsonValue | undefined {
   if (path === "/") return obj;
   const parts = path.split("/").filter(Boolean);
@@ -37,6 +47,26 @@ export function getValueAtPath(obj: JsonValue, path: string): JsonValue | undefi
   return current;
 }
 
+/**
+ * Compares multiple JSON values by collecting all unique paths across them
+ * and returning each path with its corresponding value from every input.
+ * If omitEqual is true, paths where all values are identical are excluded.
+ *
+ * @example
+ * compareJsons(
+ *   [
+ *     { name: "alice", age: 30, city: "NYC" },
+ *     { name: "bob",   age: 30, city: "LA" },
+ *     { name: "carol", age: 30, city: "NYC" },
+ *   ],
+ *   true
+ * )
+ * // => [
+ * //   { path: "/name", values: ["alice", "bob", "carol"] },
+ * //   { path: "/city", values: ["NYC", "LA", "NYC"] },
+ * // ]
+ * // "/age" is omitted because all three values are 30
+ */
 export function compareJsons(jsonsRaw: any[], omitEqual = false): CompareResult[] {
   const jsons: JsonValue[] = jsonsRaw;
   const allPaths = new Set<string>();
@@ -58,6 +88,11 @@ export function compareJsons(jsonsRaw: any[], omitEqual = false): CompareResult[
   return results;
 }
 
+/**
+ * Sorts comparison results by the number of distinct values ascending,
+ * surfacing paths with the most agreement first.
+ * Note: uses reference equality via Set, so objects/arrays won't deduplicate as expected.
+ */
 export function sortByDistinctValues(results: CompareResult[]): CompareResult[] {
   return [...results].sort((a, b) => {
     const distinctA = new Set(a.values).size;
@@ -66,7 +101,31 @@ export function sortByDistinctValues(results: CompareResult[]): CompareResult[] 
   });
 }
 
-export function filterAndSortByGroups(results: CompareResult[], k: number): CompareResult[] {
+/**
+ * Filters results to paths that have at least 2 distinct defined values where
+ * the most common value appears at least minGroupSize times and there are
+ * no more than maxBranches distinct values, then sorts by number of distinct
+ * values ascending. Useful for finding paths that cleanly partition the inputs
+ * into a small number of groups.
+ *
+ * @example
+ * filterAndSortByGroups(
+ *   [
+ *     { path: "/name", values: ["alice", "bob", "carol", "dave"] },  // 4 distinct, max group size 1
+ *     { path: "/city", values: ["NYC", "NYC", "LA", "LA"] },         // 2 distinct, max group size 2
+ *     { path: "/role", values: ["admin", "admin", "admin", "user"] }, // 2 distinct, max group size 3
+ *   ],
+ *   2,
+ *   3
+ * )
+ * // => [
+ * //   { path: "/city", values: ["NYC", "NYC", "LA", "LA"] },
+ * //   { path: "/role", values: ["admin", "admin", "admin", "user"] },
+ * // ]
+ * // "/name" is excluded because its largest group has size 1 (< minGroupSize 2)
+ * // and it has 4 distinct values (> maxBranches 3)
+ */
+export function filterAndSortByGroups(results: CompareResult[], minGroupSize: number, maxBranches?: number): CompareResult[] {
   const withGroups: { result: CompareResult; distinctValues: number }[] = [];
 
   for (const r of results) {
@@ -76,7 +135,8 @@ export function filterAndSortByGroups(results: CompareResult[], k: number): Comp
       valueCounts.set(v, (valueCounts.get(v) || 0) + 1);
     }
     const maxCount = Math.max(0, ...valueCounts.values());
-    if (valueCounts.size >= 2 && maxCount >= k) {
+    if (valueCounts.size >= 2 && maxCount >= minGroupSize) {
+      if (maxBranches !== undefined && valueCounts.size > maxBranches) continue;
       withGroups.push({ result: r, distinctValues: valueCounts.size });
     }
   }

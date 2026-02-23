@@ -45,4 +45,8 @@ export class DocumentObj {
   public get toolkit(): string | undefined {
     return this.data.desc.toolkit;
   }
+
+  public get extDesc(): Record<string, any> {
+    return { ...(this.data.desc || {}), type: this.data.type }
+  }
 }

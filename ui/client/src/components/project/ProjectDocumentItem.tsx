@@ -1,5 +1,5 @@
 import { Delete } from "@mui/icons-material";
-import { Box, Stack, Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ProjectDocument, ProjectEntire } from "@shared/types";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
@@ -7,17 +7,17 @@ import { useConfirm } from "../../elements/useConfirm";
 import { fetchProjectDetails } from "../../io/FetchProjects";
 import { execPython } from "../../io/execPython";
 import { idDocId } from "../../shared/idDocId";
+import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 
 export const ProjectDocumentItem = ({
   project,
   document,
-  showDocumentPreview = true,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
-  showDocumentPreview?: boolean,
 }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm()
+  const { viewSettings } = useViewSettingsStore();
 
   const id = idDocId(document?._id.$oid);
   const name = document?.desc?.datasourceName || document?.type || document._cls;
@@ -57,7 +57,7 @@ All.deleteDocumentByID('${document?._id.$oid}')
               {ConfirmDialog}
             </ButtonTooltip>
           </Stack>
-          {showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
+          {viewSettings.showDocumentPreview && document?.resource && typeof (document?.resource) == 'string' && (
             <Typography sx={{ fontSize: 10 }}>
               resource: {document.resource.substring(0, 80)}
             </Typography>
