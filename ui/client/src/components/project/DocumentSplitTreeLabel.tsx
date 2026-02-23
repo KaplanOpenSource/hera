@@ -14,31 +14,31 @@ export const DocumentSplitTreeLabel = ({
   const fieldLabel = path.replace(/^\//, "").replace(/\//g, ".");
 
   return (
-    <Typography>
-      <SwitchCase test={path}>
-        <Case value={DESC_PATH_TOOLKIT}>
-          <Stack direction={'row'} spacing={1}>
-            <Handyman color="action" fontSize="small" />
-            <b>
-              {[VALUE_GROUP_UNDEFINED, ''].includes(value)
-                ? 'No toolkit'
-                : value
-              }
-            </b>
-          </Stack>
-        </Case>
-        <Case value={DESC_PATH_TYPE}>
-          <Stack direction={'row'} spacing={1}>
-            <HotelClass color="action" fontSize="small" />
-            <b>
-              {[VALUE_GROUP_UNDEFINED, ''].includes(value)
-                ? 'No type'
-                : value
-              }
-            </b>
-          </Stack>
-        </Case>
-        <Case isDefault={true}>
+    <SwitchCase test={path}>
+      <Case value={DESC_PATH_TOOLKIT}>
+        <Stack direction={'row'} spacing={1}>
+          <Handyman color="action" fontSize="small" />
+          <b>
+            {[VALUE_GROUP_UNDEFINED, ''].includes(value)
+              ? 'No toolkit'
+              : value
+            }
+          </b>
+        </Stack>
+      </Case>
+      <Case value={DESC_PATH_TYPE}>
+        <Stack direction={'row'} spacing={1}>
+          <HotelClass color="action" fontSize="small" />
+          <b>
+            {[VALUE_GROUP_UNDEFINED, ''].includes(value)
+              ? 'No type'
+              : value
+            }
+          </b>
+        </Stack>
+      </Case>
+      <Case isDefault={true}>
+        <Typography>
           <SwitchCase test={value}>
             <Case value={VALUE_GROUP_REST}>
               {fieldLabel} other values
@@ -50,8 +50,8 @@ export const DocumentSplitTreeLabel = ({
               {fieldLabel} == <b>{value === '' ? '\'\'' : value}</b>
             </Case>
           </SwitchCase>
-        </Case>
-      </SwitchCase>
-    </Typography>
+        </Typography>
+      </Case>
+    </SwitchCase>
   )
 }
