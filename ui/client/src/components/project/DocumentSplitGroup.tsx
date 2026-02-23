@@ -52,9 +52,11 @@ const DocumentSplitTree = ({
     groups.set(VALUE_GROUP_REST, restDocs);
   }
 
+  const entries = [...groups.entries()].sort((a, b) => (a[0].localeCompare(b[0])));
+
   return (
     <>
-      {[...groups.entries()].map(([value, groupDocs]) => {
+      {entries.map(([value, groupDocs]) => {
         const itemKey = `split_${fieldLabel}=${value}`;
         return (
           <TreeItem
