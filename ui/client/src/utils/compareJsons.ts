@@ -103,9 +103,10 @@ export function sortByDistinctValues(results: CompareResult[]): CompareResult[] 
 
 /**
  * Filters results to paths that have at least 2 distinct defined values where
- * the most common value appears at least minGroupSize times, then sorts by
- * number of distinct values ascending. Useful for finding paths that cleanly
- * partition the inputs into a small number of groups.
+ * the most common value appears at least minGroupSize times and there are
+ * no more than maxBranches distinct values, then sorts by number of distinct
+ * values ascending. Useful for finding paths that cleanly partition the inputs
+ * into a small number of groups.
  *
  * @example
  * filterAndSortByGroups(
@@ -114,16 +115,17 @@ export function sortByDistinctValues(results: CompareResult[]): CompareResult[] 
  *     { path: "/city", values: ["NYC", "NYC", "LA", "LA"] },         // 2 distinct, max group size 2
  *     { path: "/role", values: ["admin", "admin", "admin", "user"] }, // 2 distinct, max group size 3
  *   ],
- *   2
+ *   2,
+ *   3
  * )
  * // => [
  * //   { path: "/city", values: ["NYC", "NYC", "LA", "LA"] },
  * //   { path: "/role", values: ["admin", "admin", "admin", "user"] },
  * // ]
  * // "/name" is excluded because its largest group has size 1 (< minGroupSize 2)
- * // "/city" and "/role" both have 2 distinct values, but max group sizes of 2 and 3 (both >= 2)
+ * // and it has 4 distinct values (> maxBranches 3)
  */
-export function filterAndSortByGroups(results: CompareResult[], minGroupSize: number): CompareResult[] {
+export function filterAndSortByGroups(results: CompareResult[], minGroupSize: number, maxBranches?: number): CompareResult[] {
   const withGroups: { result: CompareResult; distinctValues: number }[] = [];
 
   for (const r of results) {
@@ -134,6 +136,7 @@ export function filterAndSortByGroups(results: CompareResult[], minGroupSize: nu
     }
     const maxCount = Math.max(0, ...valueCounts.values());
     if (valueCounts.size >= 2 && maxCount >= minGroupSize) {
+      if (maxBranches !== undefined && valueCounts.size > maxBranches) continue;
       withGroups.push({ result: r, distinctValues: valueCounts.size });
     }
   }

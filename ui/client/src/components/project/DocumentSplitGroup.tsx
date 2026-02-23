@@ -96,8 +96,9 @@ export const DocumentSplitGroup = ({
   const { viewSettings } = useViewSettingsStore();
   let compared: CompareResult[] = [];
   if (depth > 0 && docs.length > 1) {
-    const descs = docs.map((d) => d.data.desc);
-    compared = filterAndSortByGroups(compareJsons(descs, true), viewSettings.minGroupSize);
+    const descs = docs.map((d) => ({ ...d.data.desc }));
+    const paths = compareJsons(descs, true);
+    compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
   }
 
   return compared.length
