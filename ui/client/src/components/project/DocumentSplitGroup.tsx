@@ -96,7 +96,7 @@ export const DocumentSplitGroup = ({
     const descs = docs.map((d) => ({ ...d.extDesc }));
     const paths = compareJsons(descs, true);
     compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
-    if (viewSettings.firstBranchByToolkits) {
+    if (viewSettings.firstBranchHeadFields) {
       compared = reorderByKeys(compared, x => x.path, [DESC_PATH_TOOLKIT, DESC_PATH_TYPE]);
     }
   }

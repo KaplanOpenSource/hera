@@ -35,7 +35,7 @@ export const DocumentSplitTreeLabel = ({
               <b>{fieldLabel}</b> not existing
             </Case>
             <Case isDefault={true}>
-              <b>{fieldLabel}</b> == <b>{value}</b>
+              <b>{fieldLabel}</b> == <b>{value === '' ? '\'\'' : value}</b>
             </Case>
           </SwitchCase>
         )}

@@ -4,7 +4,7 @@ export type ViewSettingsType = {
   minGroupSize: number;
   maxDepth: number;
   maxBranches: number;
-  firstBranchByToolkits: boolean;
+  firstBranchHeadFields: boolean;
   showDocumentPreview: boolean;
 };
 
@@ -18,7 +18,7 @@ const defaultSettings: ViewSettingsType = {
   minGroupSize: 2,
   maxDepth: 5,
   maxBranches: 50,
-  firstBranchByToolkits: true,
+  firstBranchHeadFields: true,
   showDocumentPreview: true,
 };
 

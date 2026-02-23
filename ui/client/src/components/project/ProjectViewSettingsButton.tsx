@@ -15,31 +15,31 @@ export const ProjectViewSettingsButton = ({ }) => {
           <DialogContent>
             <Stack direction="column" spacing={1} sx={{ mt: 1 }}>
               <NumberProperty
-                label="Max Depth"
+                label="Max depth"
                 value={viewSettings.maxDepth}
                 min={0}
                 max={25}
                 setValue={(v) => setViewSettings({ ...viewSettings, maxDepth: v })}
               />
               <NumberProperty
-                label="Min Group Size"
+                label="Min group size"
                 value={viewSettings.minGroupSize}
                 min={1}
                 setValue={(v) => setViewSettings({ ...viewSettings, minGroupSize: v })}
               />
               <NumberProperty
-                label="Max Branches"
+                label="Max branches"
                 value={viewSettings.maxBranches}
                 min={1}
                 setValue={(v) => setViewSettings({ ...viewSettings, maxBranches: v })}
               />
               <BooleanProperty
-                label="First Branch by Toolkits"
-                value={viewSettings.firstBranchByToolkits}
-                setValue={v => setViewSettings({ ...viewSettings, firstBranchByToolkits: v })}
+                label="First branch by header fields (toolkit, type, etc...)"
+                value={viewSettings.firstBranchHeadFields}
+                setValue={v => setViewSettings({ ...viewSettings, firstBranchHeadFields: v })}
               />
               <BooleanProperty
-                label="Show Document Preview"
+                label="Show document preview"
                 value={viewSettings.showDocumentPreview}
                 setValue={v => setViewSettings({ ...viewSettings, showDocumentPreview: v })}
               />
