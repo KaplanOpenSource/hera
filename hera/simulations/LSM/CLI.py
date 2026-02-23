@@ -36,8 +36,7 @@ def setup_template(arguments):
     _confirm_project_name(arguments, logger)
     lsm = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectName=arguments.projectName)
     template = lsm.getTemplateByName(arguments.templateName,templateVersion=arguments.templateVersion)
-    print(template)
-    if len(template) == 0:
+    if template is None:
         raise RuntimeError(f"The template {arguments.templateName} is not in the project. You must load the appropriate repository that contains the template and then do `hera-project project updateRepositories`")
     
     logger.info(f"Found template {arguments.templateName}")
