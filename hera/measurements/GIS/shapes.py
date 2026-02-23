@@ -19,11 +19,12 @@ class ShapesToolKit(toolkit.abstractToolkit):
 
 
 
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
 
         super().__init__(projectName=projectName,
                          toolkitName="Shapes",
-                         filesDirectory=filesDirectory)
+                         filesDirectory=filesDirectory,
+                         connectionName=connectionName)
 
         self._presentation = presentation(dataLayer=self)
 

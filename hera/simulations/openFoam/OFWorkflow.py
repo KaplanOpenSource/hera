@@ -28,7 +28,7 @@ class abstractWorkflow(hermes.workflow):
 
     _requiredNodeList = None
 
-    def __init__(self, workflowJSON, workflowHeraDocument=None,name=None):
+    def __init__(self, workflowJSON, workflowHeraDocument=None,name=None, **kwargs):
         """
             Initializes the abstract workflow.
 
@@ -40,7 +40,7 @@ class abstractWorkflow(hermes.workflow):
         workflowDoc : hera document.
                 Holds the data of the database (optional).
         """
-        super().__init__(workflowJSON=workflowJSON,name=name)
+        super().__init__(workflowJSON=workflowJSON,name=name, **kwargs)
         self.workflowHeraDocument = workflowHeraDocument
 
         self._requiredNodeList = ['controlDict', 'fvSolution', 'fvSchemes', 'fileWriter','Parameters']
@@ -168,7 +168,7 @@ class workflow_Eulerian(abstractWorkflow):
         in parallel (for example the decompose par).
 
     """
-    def __init__(self,workflowJSON,workflowHeraDocument=None,name=None):
+    def __init__(self,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
         """
             Initializes a hermes workflow for openflow flow simulations.
 
@@ -183,7 +183,7 @@ class workflow_Eulerian(abstractWorkflow):
             A name of node, or a list of nodes in the workflow that are required to build the case in parallel.
             Will be removed if the workflow is executed as a unified case.
         """
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
         #self._requiredNodeList.append("blockMesh")
 
         # examine here that all the nodes exist, if not - it is not a flow
@@ -321,8 +321,8 @@ class workflow_Eulerian(abstractWorkflow):
 
 class workflow_Lagrangian(abstractWorkflow):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
 ##############################################################################
@@ -330,8 +330,8 @@ class workflow_Lagrangian(abstractWorkflow):
 ##############################################################################
 class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
         logger = get_classMethod_logger(self,"init")
         # Make sure that the
         # dispersionFlowField exists
@@ -366,21 +366,21 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
 ##########################################################
 class workflow_simpleFoam(workflow_Eulerian):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 ##########################################################
 ##                          workflow_buoyantReactingFoam
 ##########################################################
 class workflow_buoyantReactingFoam(workflow_Eulerian):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
 class workflow_scalarTransportFoam(workflow_Eulerian):
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
 ##########################################################
@@ -388,16 +388,16 @@ class workflow_scalarTransportFoam(workflow_Eulerian):
 ##########################################################
 class workflow_indoorFOAMBoussinesq(workflow_Eulerian):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 ##########################################################
 ##                          Workflow_indoorFOAMBoussinesq
 ##########################################################
 class workflow_homogenousWindLogProfile(workflow_Eulerian):
 
-    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None):
-        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name)
+    def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
 

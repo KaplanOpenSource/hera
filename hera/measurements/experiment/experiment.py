@@ -33,12 +33,8 @@ class experimentHome(toolkit.abstractToolkit):
     DOCTYPE_ENTITIES = "EntitiesData"
     CODE_DIRECTORY = "code"
 
-    def __init__(self, projectName, filesDirectory=None):
-        super().__init__(
-            projectName=projectName,
-            toolkitName="experimentToolKit",
-            filesDirectory=filesDirectory,
-        )
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
+        super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory,connectionName=connectionName)
         self.logger = logging.getLogger()
         self.logger.info("Init experiment toolkit")
 

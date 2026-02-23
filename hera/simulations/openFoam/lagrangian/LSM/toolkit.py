@@ -63,7 +63,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def parallelCase(self, value):
         self._parallelCase = value
 
-    def __init__(self, projectName, casePath=None, cloudName="kinematicCloud", filesDirectory=None, parallelCase=False):
+    def __init__(self, projectName, casePath=None, cloudName="kinematicCloud", filesDirectory=None, parallelCase=False,connectionName=None):
         """
         Parameters
         ----------
@@ -73,7 +73,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         cloudName: str,
             The name of the cloud, in which the particles' properties are saved.
         """
-        super().__init__(projectName=projectName, toolkitName="OF_LSM", filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName="OF_LSM", filesDirectory=filesDirectory,connectionName=connectionName)
         self._casePath = os.getcwd() if casePath is None else os.path.abspath(casePath)
         self._sourcesFactory = sourcesFactoryTool()
         self._cloudName = cloudName

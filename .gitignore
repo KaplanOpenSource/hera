@@ -13,8 +13,11 @@ build
 dist
 pyhera.egg-info/
 venv
-.vscode/
 heraenv
 .venv
 .python-version
 hera/tests/env.template
+node_modules/
+projects/
+mongo-db-datadir/
+ui/client/data/

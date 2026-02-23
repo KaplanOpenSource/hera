@@ -42,12 +42,8 @@ class dataToolkit(abstractToolkit):
         }
     """
 
-    def __init__(self):
-        # DEFAULTPROJECT comes from the base Project class (inherited via abstractToolkit)
-        super().__init__(toolkitName="heradata",
-                         projectName=self.DEFAULTPROJECT,
-                         filesDirectory=None)
-
+    def __init__(self,connectionName=None):
+        super().__init__(toolkitName="heradata", projectName=self.DEFAULTPROJECT, filesDirectory=None,connectionName=connectionName)
 
     def addRepository(self, repositoryName, repositoryPath, overwrite=False):
         """

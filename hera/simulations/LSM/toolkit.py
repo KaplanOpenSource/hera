@@ -2,6 +2,10 @@ import pandas
 import json
 import os
 
+from hera.utils import ConfigurationToJSON, Quantity, slurm
+from hera.utils.jsonutils import JSONToConfiguration, JSONVariations
+from hera.utils.logging.helpers import get_classMethod_logger
+
 from .template import LSMTemplate
 from itertools import product
 from ... import datalayer
@@ -9,6 +13,7 @@ from ... import toolkit
 from .singleSimulation import SingleSimulation
 from unum.units import *
 from ..utils.coordinateHandler import coordinateHandler
+from pathlib import Path
 
 
 class LSMToolkit(toolkit.abstractToolkit):
@@ -70,7 +75,7 @@ class LSMToolkit(toolkit.abstractToolkit):
     def singleSimulation(self):
         return SingleSimulation
 
-    def __init__(self, projectName, filesDirectory=None, to_xarray=True, to_database=False, forceKeep=False):
+    def __init__(self, projectName, filesDirectory=None, to_xarray=True, to_database=False, forceKeep=False,connectionName=None):
         """
             Initializes the LSM.old toolkit
 
@@ -95,7 +100,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             if False, removes the Lagrnagian files.
 
         """
-        super().__init__(projectName=projectName, toolkitName="LSM.old", filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName="LSM.old", filesDirectory=filesDirectory,connectionName=connectionName)
 
         self.to_xarray = to_xarray
         self.to_database = to_database
@@ -123,28 +128,14 @@ class LSMToolkit(toolkit.abstractToolkit):
 
         templateName: str
                 The name of the template.
-
-        to_xarray: bool
-                Convert the simulations.old to xarray
-                default: True
-
-        to_database: bool
-                Save simulation results to the database
-                default: False
-
-        forceKeep: bool
-                If to_xarray is true,
-                Determine wehter to keep the original files.
-
-                If False, removes the Lagrangian files.
-                defaultL False
-
+        templateVersion: str
+                The name of the template.
         Returns
         -------
             The template by the name
         """
         doc = self.getDataSourceDocument(datasourceName=templateName, version=templateVersion)
-        return LSMTemplate(doc,self)
+        return LSMTemplate(doc,self) if doc is not None else None
 
     def getTemplatesTable(self, **query):
         """
@@ -243,9 +234,19 @@ class LSMToolkit(toolkit.abstractToolkit):
         """
         template = self.getTemplateByName(unitsTemplateVersion)
 
-        for key in template._document['desc']["units"].keys():
-            if key in query.keys():
-                query[key] = query[key].asNumber(eval(template._document['desc']["units"][key]))
+        if 'units' in template._document['desc']:
+            for key in template._document['desc']["units"].keys():
+                if key in query.keys():
+                    query_item= query[key]
+                    if isinstance(query_item, Unum):
+                        query[key] = query_item.asNumber(eval(template._document['desc']["units"][key]))
+                    elif isinstance(query_item, Quantity):
+                        query[key] = query_item.m_as(template._document['desc']["units"][key])
+                    else:
+                        raise ValueError(f"query must use either pint or unum to specify units, currently type({query[key]})={type(query[key])}")
+        else:
+            query = ConfigurationToJSON(query)
+        print(query)
         queryWithParams = {}
         for key in query.keys():
             queryWithParams[f"params__{key}"] = query[key]
@@ -291,6 +292,119 @@ class LSMToolkit(toolkit.abstractToolkit):
                 return df
         except ValueError:
             raise FileNotFoundError('No simulations.old found')
+        
+
+    def prepareSlurmLSMExecution(self,baseParameters,
+                              jsonVariations,
+                              templateName,
+                              stations=None,
+                              topography=None,
+                              depositionRates=None,
+                              canopy=None,
+                              saveMode=toolkit.TOOLKIT_SAVEMODE_FILEANDDB,
+                              slurmExecutionFileName="submit_all.sh",
+                              caseListFileName="cases.txt",
+                              allocateProcessorsPerRun=None,
+                              memoryInGB=None,
+                              jobName="lsm_cases",
+                              exclusive=False):
+        """
+            Creates a slurm setup to run many LSM simulations against specific variation
+
+        Parameters
+        ----------
+        baseParameters : dict
+                base parameters
+        jsonVariations :
+                Variation file (using the jsonutils variations) format to apply on the base paramaters
+        slurmExecutionFileName: str
+                The name of the bash file to create with the slurm batch run
+        caseListFileName:
+                The batchfile uses case file name, so add it.
+        allocateProcessorsPerRun : int | None
+                How many nodes(currently just threads) are used per job, in slurm documentation they describe "This option advises ... that job steps run ... will launch a maximum of number tasks and to provide for sufficient resources."
+        memoryInGB : str | int | none
+                Should memory be limited, affect depends on configuration(might kill if memory use is exceeded)
+        jobName : bool
+                name for slurm job
+        exclusive : bool
+                Should slurm run one job at a time on a GRES(Generic RESource in our case CPUs)
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self,"prepareSlurmWorkflowExecution")
+        simList = ""
+        if not isinstance(baseParameters, dict):
+            logger.error("Slurm preparation can only handle dictionary of parameters to run variations")
+
+        if isinstance(jsonVariations, str):
+            logger.info(f"Assuming {jsonVariations} is path to variations file")
+            with open(jsonVariations, 'r') as variationsFile:
+                jsonVariations = json.load(variationsFile)
+        elif not isinstance(jsonVariations, dict):
+            logger.error("Slurm preparation only supports json variation input as path or dict")
+
+        SIMULATIONS_SCRIPT_DIR_NAME= "simulationsScripts"
+        STATIONS_PATH = "stations.parquet"
+        RUN_SIM_FILE_NAME = "run_sim.py"
+
+        simulations_scripts_dir = Path(self.filesDirectory,SIMULATIONS_SCRIPT_DIR_NAME)
+        os.makedirs(simulations_scripts_dir, exist_ok=True)
+        if stations is not None:
+            stations.to_parquet(simulations_scripts_dir / STATIONS_PATH)
+        for i, jsonConfig in enumerate(JSONVariations(baseParameters, jsonVariations)):
+            jsonConfig = JSONToConfiguration(jsonConfig)
+            jsonConfig = LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)
+            simName = f"LSM_Simulation_{i}"
+            simSavePath = simulations_scripts_dir/ simName/ RUN_SIM_FILE_NAME
+
+            os.makedirs(simulations_scripts_dir / simName, exist_ok=True)
+            if isinstance(topography, str):
+                topography = f'"{topography}"'
+            if isinstance(canopy, str):
+                canopy = f'"{canopy}"'
+            if isinstance(topography, str):
+                topography = f'"{topography}"'
+            read_stations_line = f'stations = pandas.read_parquet("'+STATIONS_PATH+'")'
+
+            sim_script = f"""
+from hera import toolkitHome, ToolkitHome
+from hera.simulations.LSM.toolkit import LSMToolkit
+import pandas
+old_lsm_toolkit = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectName="{self.projectName}")
+
+lsm_template = old_lsm_toolkit.getTemplates(template="{templateName}")[0]
+params={jsonConfig}
+{read_stations_line if stations is not None else ""}
+lsm_template.run(topography={topography}, stations={"None" if stations is None else "stations"},canopy={"None" if canopy is None else canopy},depositionRates={"None" if depositionRates is None else depositionRates}, saveMode="{saveMode}",simulationName="{simName}",**params)
+"""
+            with open(simSavePath, "w") as f:
+                f.write(sim_script)
+                
+            simList += f"{simName}\n"
+
+
+        script =f"""
+cd "$dir"
+python {RUN_SIM_FILE_NAME}
+        """
+        caseListFilePath = simulations_scripts_dir/ caseListFileName
+
+        logger.info(f"Writing simulation list file")
+        
+        with open(caseListFilePath,"w") as outputFile:
+            outputFile.write(simList)
+        slurm.prepareSlurmScriptExecution(script=script,
+                                          slurmExecutionFilePath=simulations_scripts_dir/slurmExecutionFileName,
+                                          jobDirListFilePath=caseListFilePath,
+                                          allocateProcessorsPerRun=allocateProcessorsPerRun,
+                                          memoryInGB=memoryInGB,
+                                          jobName=jobName,
+                                          quiet=False,
+                                          exclusive=exclusive)
+
+
 
 class analysis:
     """

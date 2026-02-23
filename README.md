@@ -242,11 +242,14 @@ Finally, create the following json file within `.pyhera` folder:
 ```
 where `<username>` should be replaced by your username on your system.
 
-# 3. Additional software for the  hera ecosystem
+# 3. Hera UI
+Refer to [README.md](https://github.com/KaplanOpenSource/hera/blob/master/ui/README.md)
+
+# 4. Additional software for the  hera ecosystem
 
 All the instructions are for Ubuntu OS.
 
-### 3.1 Paraview
+### 4.1 Paraview
 
 Paraview may be use to view the results in a convenient GUI. Paraview my be downloaded from [paraview.org](https://www.paraview.org/download/) and includes python libraries. To prevent conflicts between your python version and Paraview pythons version. make sure to use Paraview with you python. If specific paraview is required, it is recommended to manually download and compile the same python version and install hera in it.
 
@@ -256,7 +259,7 @@ export PYTHONPATH=/raid/software/ParaView-5.11.0-MPI-Linux-Python3.9-x86_64/lib/
 
 ```
 
-### 3.2 FreeCad
+### 4.2 FreeCad
 
 Freecad is an open source CAD software. FreeCad can be embedded in python. 
 
@@ -273,7 +276,7 @@ sys.path.append(FREECADPATH)
 ```
 [more information on embedding freecad in freecad sitep](https://wiki.freecad.org/Embedding_FreeCAD)
 
-### 3.3 OPENFOAM.ORG
+### 4.3 OPENFOAM.ORG
 ```
 sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key > /etc/apt/trusted.gpg.d/openfoam.asc"
 sudo add-apt-repository http://dl.openfoam.org/ubuntu

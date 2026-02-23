@@ -114,7 +114,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
     #   urban area may change over the years
     # """
 
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None,connectionName=None):
         """
         Initializes land cover data toolkit.
 
@@ -131,7 +131,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
             if None, then tries to get the default path of the project from the config. if it does not
             exist, then use the current directory.
         """
-        super().__init__(projectName=projectName, toolkitName='LandCoverToolkit', filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, toolkitName='LandCoverToolkit', filesDirectory=filesDirectory,connectionName=connectionName)
         self._presentation = presentation(dataLayer=self)
 
 

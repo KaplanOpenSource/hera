@@ -11,7 +11,7 @@ from itertools import chain
 from itertools import product
 from collections.abc import Iterable
 from dask.delayed import delayed
-from hera.utils import dictToMongoQuery
+from hera.utils import dictToMongoQuery, slurm
 from hera.simulations.openFoam.OFWorkflow import workflow_Eulerian
 from hera.simulations.openFoam.preprocessOFObjects import OFObjectHome
 from hera.simulations.hermesWorkflowToolkit import hermesWorkflowToolkit
@@ -23,6 +23,7 @@ from hera.simulations.openFoam.eulerian.buoyantReactingFoam import buoyantReacti
 from hera.simulations.openFoam  import TYPE_VTK_FILTER
 from hera.simulations.openFoam  import FLOWTYPE_DISPERSION, FIELDTYPE_SCALAR, FIELDTYPE_TENSOR, \
     FIELDTYPE_VECTOR, CASETYPE_DECOMPOSED, CASETYPE_RECONSTRUCTED,FLOWTYPE_COMPRESSIBLE, FLOWTYPE_INCOMPRESSIBLE
+from hera.simulations.openFoam.lagrangian.abstractLagrangianSolver import readLagrangianRecord
 
 class OFToolkit(hermesWorkflowToolkit):
     """
@@ -53,10 +54,11 @@ class OFToolkit(hermesWorkflowToolkit):
 
     buoyantReactingFoam = None
 
-    def __init__(self, projectName, filesDirectory=None):
+    def __init__(self, projectName, filesDirectory=None, connectionName=None):
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
-                         toolkitName="OFworkflowToolkit")
+                         toolkitName="OFworkflowToolkit", 
+                         connectionName=connectionName)
 
         self.OFObjectHome = OFObjectHome()
         self._analysis = Analysis(self)
@@ -88,7 +90,15 @@ class OFToolkit(hermesWorkflowToolkit):
             os.chdir(doc.resource)
             os.system("./Allrun")
 
-    def prepareSlurmExecution(self,baseConfiguration,jsonVariations,decomposeProcessors,slurmExecutionFileName="submit_all.sh",caseListFileName="cases.txt",overwrite=False):
+    def prepareSlurmWorkflowExecution(self,baseConfiguration,
+                              jsonVariations,
+                              slurmExecutionFileName="submit_all.sh",
+                              caseListFileName="cases.txt",
+                              allocateProcessorsPerRun=None,
+                              memoryInGB=None,
+                              jobName="foam_cases",
+                              exclusive=False,
+                              addAllRun=True):
         """
             Adds the different configurations to the workgroup,
 
@@ -100,48 +110,71 @@ class OFToolkit(hermesWorkflowToolkit):
                 Variation file (using the jsonutils variations) format.
         slurmExecutionFileName: str
                 The name of the bash file to create with the slurm batch run
-
         caseListFileName:
                 The batchfile uses case file name, so add it.
-        overwrite : bool
-
+        allocateProcessorsPerRun : int | None
+                How many nodes(currently just threads) are used per job, in slurm documentation they describe "This option advises ... that job steps run ... will launch a maximum of number tasks and to provide for sufficient resources."
+        memoryInGB : str | int | none
+                Should memory be limited, affect depends on configuration(might kill if memory use is exceeded)
+        jobName : bool
+                name for slurm job
+        exclusive : bool
+                Should slurm run one job at a time on a GRES(Generic RESource in our case CPUs)
+        addAllRun: bool
+                Should slurm do Allrun
         Returns
         -------
 
         """
 
-        logger = get_classMethod_logger(self,"prepareSlurmExecution")
+        logger = get_classMethod_logger(self,"prepareSlurmWorkflowExecution")
         caseList = ""
-        for counter, jsonConfig in enumerate(JSONVariations(baseConfiguration, jsonVariations)):
+        if isinstance(baseConfiguration,str):
+            logger.info(f"Assuming {baseConfiguration} is workflow name")
+            workflow=self.getWorkflowDocumentByName(baseConfiguration)
+            baseConfiguration = workflow['desc']['workflow']
+        elif not isinstance(baseConfiguration, dict):
+            logger.error("Slurm preparation can only handle base workflow contents or workflow name")
+
+        if isinstance(jsonVariations, str):
+            logger.info(f"Assuming {jsonVariations} is path to variations file")
+            with open(jsonVariations, 'r') as variationsFile:
+                jsonVariations = json.load(variationsFile)
+        elif not isinstance(jsonVariations, dict):
+            logger.error("Slurm preparation only supports json variation input as path or dict")
+
+
+        for jsonConfig in JSONVariations(baseConfiguration, jsonVariations):
             doc = self.addWorkflowToGroup(workflowJSON=jsonConfig,
-                                          groupName="effectiveArea",
+                                          groupName=workflow['desc']['groupName'],
                                           writeWorkflowToFile=True)
             caseList += f"{doc.desc['workflowName']}\n"
             logger.info(f"Adding {doc.desc['workflowName']}")
 
-        slurmBatchFile = f"""#!/bin/bash
-#SBATCH --job-name=foam_cases
-#SBATCH --array=1-{counter}     # number of jobs = number of lines in cases.txt
-#SBATCH -n {decomposeProcessors} # number of CPUs per job
-#SBATCH --output=slurm_%A_%a.out
-
-# Read the directory for this array task
-dir=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {caseListFileName})
-
-echo "Running case in directory: $dir"
-
-hera-openFoam buildExecute "$dir" --overwrite
-
-cd "$dir" || {{ echo "Directory $dir not found"; exit 1; }}
+        allRunPart = """cd "$dir" || {{ echo "Directory $dir not found"; exit 1; }}
 
 # Run the Allrun script
 bash Allrun"""
 
-        with open(slurmExecutionFileName,"w") as outputFile:
-            outputFile.write(slurmBatchFile)
+        script =f"""
+hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
-        with open(caseListFileName,"w") as outputFile:
+{allRunPart if addAllRun else ""}
+        """
+        caseListFilePath = os.path.join(self.filesDirectory, caseListFileName)
+
+        logger.info(f"Writing case list file for group {workflow['desc']['groupName']}")
+        
+        with open(caseListFilePath,"w") as outputFile:
             outputFile.write(caseList)
+        slurm.prepareSlurmScriptExecution(script=script,
+                                          slurmExecutionFilePath=os.path.join(self.filesDirectory,slurmExecutionFileName),
+                                          jobDirListFilePath=caseListFilePath,
+                                          allocateProcessorsPerRun=allocateProcessorsPerRun,
+                                          memoryInGB=memoryInGB,
+                                          jobName=jobName,
+                                          quiet=False,
+                                          exclusive=exclusive)
 
 
 
@@ -690,7 +723,9 @@ bash Allrun"""
         if len(docList) ==0 :
             logger.info(f"Simulation not found, trying to interpret as a directory on the disk")
             if os.path.exists(nameOrWorkflowFileOrJSONOrResourceorDirectory):
-                casePathList = [nameOrWorkflowFileOrJSONOrResourceorDirectory]
+                workflowFile = os.path.basename(nameOrWorkflowFileOrJSONOrResourceorDirectory)
+                workflowName = os.path.splitext(workflowFile)[0]
+                casePathList = [(workflowName, nameOrWorkflowFileOrJSONOrResourceorDirectory)]
             else:
                 err = f"Case {nameOrWorkflowFileOrJSONOrResourceorDirectory} not found in DB or on disk"
                 logger.error(err)

@@ -58,10 +58,10 @@ class torchLightingModelContainer(Project):
     def modelName(self):
         return self.modelJSON['model']['classpath'].replace(".", "_")
 
-    def __init__(self,mldlModels):
+    def __init__(self,mldlModels, connectionName=None):
 
         self.machineLearningDeepLearning = mldlModels
-        super().__init__(projectName=mldlModels.projectName,filesDirectory=mldlModels.filesDirectory)
+        super().__init__(projectName=mldlModels.projectName,filesDirectory=mldlModels.filesDirectory, connectionName=connectionName)
         self.state_other_models = []
         self.initModel()
 
@@ -295,7 +295,7 @@ class torchLightingModelContainer(Project):
         trainer    = self.getClass(trainerJSON)
         params     = trainerJSON['parameters']
         params['enable_model_summary'] = True
-        params['limit_val_batches']= 1.0
+        params['model_summary'] = "full"
         params.update(**kwargs)
         params['logger'] = logger
         params['callbacks'] = [checkpoint_callback]

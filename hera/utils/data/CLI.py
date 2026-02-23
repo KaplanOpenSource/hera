@@ -39,7 +39,9 @@ def project_list(arguments):
 
         projList.append(projDesct)
 
-    df = pandas.DataFrame(projList).sort_values("Project Name")
+    df = pandas.DataFrame(projList)
+    if df.size > 0:
+        df = df.sort_values("Project Name")
 
     with pandas.option_context('display.max_rows', None,
                                'display.max_columns', None,

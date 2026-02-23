@@ -1,7 +1,12 @@
+import itertools
 import json
 import os
+import pickle
+import zipfile
 import pandas
 import inspect
+
+from tqdm import tqdm
 from deprecated import deprecated
 
 from hera.datalayer.datahandler import datatypes
@@ -170,17 +175,21 @@ class Project:
                       run  
                         >> hera-project project create <the directory name>
                       in the parent directory 
-                    - Create manually the file caseConfigutation.json in the directory with the key 'projectName' that holds 
+                    - Create manually the file caseConfiguration.json in the directory with the key 'projectName' that holds 
                       the name of the project as a string.     
             """
             raise ValueError(err)
 
         doc = self._getConfigDocument()
         if keep_old_values:
-            doc.desc.update(kwargs)
+            update_kwargs = {
+                f"set__desc__{k}": v
+                for k, v in kwargs.items()
+            }
+            doc.update(**update_kwargs)
         else:
-            doc['desc'] = kwargs
-        doc.save()
+            doc.update(set__desc=kwargs)
+        
 
     def __init__(self, projectName=None, connectionName=None, configurationPath=None,filesDirectory=None):
         """
@@ -220,7 +229,7 @@ class Project:
                 configuration = loadJSON(confFile)
                 if 'projectName' not in configuration:
                     err = f"Got projectName=None and the key 'projectName' does not exist in the JSON. "
-                    err += """conifguration should be :
+                    err += """configuration should be :
 {
     'projectName' : [project name]
 }                                        
@@ -250,9 +259,9 @@ class Project:
 
         if savedFilesDirectory is None:
             if filesDirectory is None:
-                filesDirectory = os.path.abspath(os.getcwd())
+                filesDirectory = os.path.join(os.path.abspath(os.getcwd()), projectName)
             else:
-                filesDirectory= os.path.abspath(filesDirectory)
+                filesDirectory = os.path.abspath(filesDirectory)
 
             if self.projectName != self.DEFAULTPROJECT:
                 logger.info(f"Files directory is not saved for the project, using {filesDirectory}")
@@ -262,6 +271,123 @@ class Project:
 
         os.makedirs(os.path.abspath(filesDirectory),exist_ok=True)
         self._FilesDirectory = filesDirectory
+
+    @staticmethod
+    def _batched_cursor(cur, export_chunk_size):# -> Generator[list, Any, None]:
+        """
+            turns an iterator to an iterator that returns batches of the original.
+            if you cur is a documents list iterator and export_chunk_size=5 then each iteration of  
+            _batched_cursor will return a list with 5 documents
+
+        Parameters
+        ----------
+        cur: Iterator
+
+        export_chunk_size: int
+
+        """
+        while True:
+            batch = list(itertools.islice(cur, export_chunk_size))
+            if not batch:
+                break
+            else:
+                yield batch
+    
+    def export(self, path, export_chunk_size=1024, show_progressbar=True):
+        """
+            exports the project in chunks contained to one zip file
+
+        Parameters
+        ----------
+        path: str
+                the path to the zip file to be created, overrides file if already exists
+
+        export_chunk_size: int
+                the number of documents in each chunk
+
+        show_progressbar: bool
+        """
+        docs_cursor = self._all._metadataCol._get_collection().find({"projectName":self.projectName})
+        with zipfile.ZipFile(path, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+            i = 0
+            if show_progressbar:
+                docs_iterator= tqdm(self._batched_cursor(docs_cursor, export_chunk_size),
+                                    desc="Exporting documents", unit="batchedDocs", unit_scale=True) 
+            else:
+                docs_iterator = docs_cursor
+            for docs_batch in docs_iterator:
+                filename = f"chunk_{i}"
+                with zf.open(filename, 'w') as zf_archive:
+                    pickle.dump(docs_batch, zf_archive, protocol=pickle.HIGHEST_PROTOCOL)
+                i+=1
+
+    @staticmethod
+    def _iter_pickled_docs(zf, return_batched):
+        """
+            creates an iterator over the documents in an exported project,
+            can either returned the batched data or single documents 
+
+        Parameters
+        ----------
+        zf: zipfile.ZipFile
+                handler for the exported project
+
+        return_batched: str
+                should each iteration return an entire batch(with the size it was exported as)
+        """
+        for name in zf.namelist():
+            with zf.open(name) as f:
+                depickled_docs_batch=pickle.load(f)
+                if return_batched:
+                    yield depickled_docs_batch
+                else:
+                    for depickled_doc in depickled_docs_batch:
+                        yield depickled_doc 
+
+    def updateProjectNameOnDoc(self, doc_son):
+        """
+            updates the projectName field of a document to be assigned to this project 
+
+        Parameters
+        ----------
+        doc_son: str
+                the document to be updated
+        """
+        doc_son.update({"projectName": self.projectName})
+        return doc_son
+    
+    @staticmethod
+    def load(proj, exported_project_path, is_hard_import, show_progressbar=True):
+        """
+            loads an exported project's documents to a project, either hard import with the original ids or not 
+
+        Parameters
+        ----------
+        proj: str or Project
+                either name of the project to import or an existing Project instance,
+                creates a new project if it doesn't exist
+
+        is_hard_import: bool
+                should the original ids be used when importing or generate new ones per document(using original ids might fail due to duplicate ids)
+
+        show_progressbar: bool 
+        """
+        if isinstance(proj, str):
+            proj = Project(proj)
+        
+        with zipfile.ZipFile(exported_project_path, 'r') as zf:
+            if is_hard_import:
+                pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=True)
+                if show_progressbar:
+                    pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docsBatch", unit_scale=True)
+                for pickled_docs_batch in pickled_docs_iterator:
+                    proj._all._metadataCol._get_collection().insert_many([proj.updateProjectNameOnDoc(doc_son) for doc_son in pickled_docs_batch])
+            else:
+                pickled_docs_iterator = Project._iter_pickled_docs(zf, return_batched=False)
+                if show_progressbar:
+                    pickled_docs_iterator = tqdm(pickled_docs_iterator, desc="Loading documents", unit="docs", unit_scale=True)
+                for pickled_doc in pickled_docs_iterator:
+                    proj._all._metadataCol.objects.insert(proj._all._metadataCol(**(proj.updateProjectNameOnDoc(pickled_doc))), load_bulk=False)
 
     @property
     def simulations(self) -> Simulations_Collection:
@@ -275,10 +401,15 @@ class Project:
         """
         return self._simulations
 
-    def _getConfigDocument(self):
+    def _getConfigDocument(self, evaluate=False):
         """
         Returns the document of the config.
         If there is no config document, return empty dictionary.
+
+        Parameters
+        -------
+        evaluate :  bool
+            if False returns a QuerySet otherwise evaluates to a document
 
         Returns
         -------
@@ -288,18 +419,16 @@ class Project:
         """
         config_type = f"{self.projectName}__config__"
         documents = self.getCacheDocuments(type=config_type)
-        if len(documents) == 0:
-            documents = self.addCacheDocument(type=config_type,
+        # keeping lazy so we just return documents which is a QuerySet
+        if documents.first() is None:
+            self.addCacheDocument(type=config_type,
                                   resource="",
                                   dataFormat=datatypes.STRING,
                                   desc={})
-            ret = documents
-        else:
-            ret =documents[0]
 
-        return ret
+        return documents[0] if evaluate else documents
 
-    def setCounter(self,counterName,defaultValue=0):
+    def setCounter(self,counterName:str,defaultValue=0):
         """
             Defines a counter in the config of the project.
             The counter is specific to this project.
@@ -312,14 +441,19 @@ class Project:
         -------
 
         """
-        cnfg = self.getConfig().copy()
-        coutnerDict = cnfg.setdefault("counters",{}).copy()
-        coutnerDict[counterName] =defaultValue
-        cnfg["counters"] = coutnerDict
-        self.setConfig(**cnfg)
-        return cnfg
+        counterName = self._normalizeCounterName(counterName)
+        cnfg_doc = self._getConfigDocument()
+        self.defineCounter(counterName,0)
+        cnfg_doc.update_one(**{f"set__desc__counter__{counterName}":defaultValue})
 
-    def defineCounter(self,counterName,defaultValue=0):
+    def _normalizeCounterName(self, counterName):
+        counterName=counterName.replace('.','_')
+        # avoiding conflicts with mongodb
+        if '__' in counterName:
+            raise RuntimeError("a counter's name cannot contain either of __ / ._ / _. / ..")
+        return counterName
+
+    def defineCounter(self,counterName,defaultValue=0) -> None:
         """
             Defines a counter in the config of the project, if it does not exist
             The counter is specific to this project.
@@ -332,17 +466,45 @@ class Project:
         -------
 
         """
-        cnfg = self.getConfig().copy()
-        coutnerDict = cnfg.get("counters", {}).copy()
-        coutnerDict.setdefault(counterName,defaultValue)
-        cnfg["counters"] = coutnerDict
-        self.setConfig(**cnfg)
-        return cnfg
+        counterName = self._normalizeCounterName(counterName)
+        cnfg_doc = self._getConfigDocument()
+        self._enforce_counter_field(cnfg_doc)
+        if cnfg_doc.filter(**{f"desc__counters__{counterName}__exists": True}).first() is None: 
+            cnfg_doc.update(**{f"set__desc__counters__{counterName}": defaultValue})
+            return True
+        return False
 
 
     def getCounter(self,counterName):
         """
+            Return the value of the counter if doesn't exist returning None
+        Parameters
+        ----------
+        counterName :  str
+            The name of the counter.
+
+        Returns
+        -------
+
+        """
+        counterName = self._normalizeCounterName(counterName)
+        cnfg_doc = self._getConfigDocument()
+        self._enforce_counter_field(cnfg_doc)
+        #if it doesn't exist there is nothing to get, returning None
+        if cnfg_doc.filter(**{f"desc__counters__{counterName}__exists": True}).first() is None: 
+            return None
+        doc = cnfg_doc[0]
+        return doc['desc']['counters'][counterName]
+
+    def _enforce_counter_field(self, cnfg_doc):
+        if cnfg_doc.filter(desc__counters__exists=True).first() is None:
+            cnfg_doc.update(**{f"set__desc__counters": {}})
+
+
+    def getCounterAndAdd(self, counterName, addition=1):
+        """
             Return the value of the counter and add [addition].
+            If the counter is not defined it is initialized to 0.
         Parameters
         ----------
         counterName :  str
@@ -355,34 +517,19 @@ class Project:
         -------
 
         """
-        cnfg = self.getConfig().copy()
-        coutnerDict = cnfg.setdefault("counters", {})
-        ret = coutnerDict[counterName]
-        return ret
+        counterName = self._normalizeCounterName(counterName)
+        isNew = self.defineCounter(counterName,0)
+        if isNew:
+            return 0
 
-    def getCounterAndAdd(self, counterName, addition=1):
-            """
-                Return the value of the counter and add [addition].
-                If the counter is not defined it is initialized to 0.
-            Parameters
-            ----------
-            counterName :  str
-                The name of the counter.
-
-            addition : int
-                The amount to add to the counter. The default is 1
-
-            Returns
-            -------
-
-            """
-            cnfg =self.getConfig()
-            counterDict = cnfg.get("counters",{}).copy()
-            ret = counterDict.setdefault(counterName,0)
-            counterDict[counterName] += addition
-            cnfg["counters"] =counterDict
-            self.setConfig(**cnfg)
-            return ret
+        cnfg_doc = self._getConfigDocument()
+        doc = cnfg_doc.modify(
+            upsert=True,
+            new=True,
+            **{
+                f"inc__desc__counters__{counterName}":addition
+            })
+        return doc['desc']['counters'][counterName]
 
     @deprecated(reason="Use getCounterAndAdd instead")
     def addCounter(self, counterName, addition=1):
@@ -400,7 +547,7 @@ class Project:
         """
         if self._projectName == self.DEFAULTPROJECT:
             raise ValueError("Default project cannot use configuration")
-        doc = self._getConfigDocument()
+        doc = self._getConfigDocument(evaluate=True)
         return dict(doc["desc"])
 
 
@@ -419,9 +566,8 @@ class Project:
             raise ValueError("Default project cannot use configuration")
 
         doc = self._getConfigDocument()
-        for key,value in doc['desc'].items():
-            doc['desc'].setdefault(key,value)
-        doc.save()
+        for key in kwargs.keys():
+            doc.filter(**{f"desc__{key}__exists":False}).update(**{f"set__desc__{key}":kwargs[key]})
 
 
 
@@ -460,7 +606,7 @@ class Project:
         """
         return self.measurements.getDocumentsAsDict(projectName=self._projectName, with_id=with_id, **kwargs)
 
-    def getMeasurementsDocuments(self,  resource=None, dataFormat=None, type=None, **desc):
+    def getMeasurementsDocuments(self, resource=None, dataFormat=None, type=None, **desc):
         """
             Query measurements.old documents.
 
@@ -484,6 +630,34 @@ class Project:
         """
         return self.measurements.getDocuments(projectName=self._projectName, resource=resource, dataFormat=dataFormat, type=type, **desc)
 
+    def getAllDocuments(self, resource=None, dataFormat=None, type=None, **desc):
+        """
+            Runs getXDocuments for measurements, cache and simulations aggregating all to one list
+
+        Parameters
+        ----------
+        resource: str
+            query by resource, optional.
+
+        dataFormat: str
+            query by data format, optional.
+
+        type: str
+            query by type
+
+        desc: dict
+            query by the measurement document
+
+        Returns
+        -------
+            List of documents.
+        """
+        docs = []
+        docs.extend(self.getSimulationsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getMeasurementsDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        docs.extend(self.getCacheDocuments(resource=resource, dataFormat=dataFormat, type=type, desc=desc))
+        return docs
+    
     def addDocumentFromDict(self,documentDict):
         """
             Load the document to the project.
@@ -519,7 +693,7 @@ class Project:
 
     def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
         """
-            Adds a new measurment document.
+            Adds a new measurement document.
 
         Parameters
         ----------
@@ -748,7 +922,7 @@ class Project:
         data : a data that can be dataframe, xarray, numpy ....
 
         desc : dict
-            A dict with the meatadata to save
+            A dict with the metadata to save
         type : str
             If None, then set the type to be the name of the function that called this method.
 
