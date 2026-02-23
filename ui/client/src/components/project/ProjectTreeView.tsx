@@ -8,9 +8,9 @@ import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { AddDocumentButton } from './AddDocumentButton';
+import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
-import { ToolkitTreeItem } from './ToolkitTreeItem';
 
 export type ViewSettingsType = {
   minGroupSize: number;
@@ -78,19 +78,12 @@ export const ProjectTreeView = ({
             </Typography>
           </Stack>
         </Tooltip>
-        {toolkits.map(toolkit => (
-          <ToolkitTreeItem
-            key={toolkit.toolkit}
-            project={project}
-            toolkit={toolkit}
-            viewSettings={viewSettings}
-          />
-        ))}
-        <ToolkitTreeItem
-          key={'no_toolkit'}
+        <DocumentSplitGroup
+          docs={project?.documents}
           project={project}
-          toolkit={undefined}
-          viewSettings={viewSettings}
+          showDocumentPreview={viewSettings.showDocumentPreview}
+          depth={viewSettings.maxDepth}
+          minGroupSize={viewSettings.minGroupSize}
         />
       </TreeItem>
       <RepoTreeWhole
