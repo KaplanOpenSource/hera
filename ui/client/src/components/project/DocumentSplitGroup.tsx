@@ -4,6 +4,7 @@ import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 import { Case, SwitchCase } from "../../elements/SwitchCase";
+import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 
 const VALUE_GROUP_REST = "__rest__";
 const VALUE_GROUP_UNDEFINED = "__undefined__";
@@ -11,11 +12,9 @@ const VALUE_GROUP_UNDEFINED = "__undefined__";
 const DocumentItems = ({
   docs,
   project,
-  showDocumentPreview,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
-  showDocumentPreview: boolean;
 }) => (
   <>
     {docs.map((doc) => (
@@ -23,7 +22,6 @@ const DocumentItems = ({
         key={`proj${project.name}_doc${doc.docid}`}
         project={project.data}
         document={doc.data}
-        showDocumentPreview={showDocumentPreview}
       />
     ))}
   </>
@@ -32,18 +30,15 @@ const DocumentItems = ({
 const DocumentSplitTree = ({
   docs,
   project,
-  showDocumentPreview,
   depth,
-  minGroupSize,
   compared,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
-  showDocumentPreview: boolean;
   depth: number;
-  minGroupSize: number;
   compared: CompareResult[];
 }) => {
+  const { viewSettings } = useViewSettingsStore();
   const bestPath = compared[0].path;
   const fieldLabel = bestPath.replace(/^\//, "").replace(/\//g, ".");
 
@@ -59,7 +54,7 @@ const DocumentSplitTree = ({
   for (const doc of docs) {
     const val = getValueAtPath(doc.data.desc as any, bestPath);
     const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
-    if (valueCounts.get(key)! < minGroupSize) {
+    if (valueCounts.get(key)! < viewSettings.minGroupSize) {
       restDocs.push(doc);
     } else {
       if (!groups.has(key)) groups.set(key, []);
@@ -98,8 +93,6 @@ const DocumentSplitTree = ({
             <DocumentSplitGroup
               docs={groupDocs}
               project={project}
-              showDocumentPreview={showDocumentPreview}
-              minGroupSize={minGroupSize}
               depth={depth - 1}
             />
           </TreeItem>
@@ -112,20 +105,17 @@ const DocumentSplitTree = ({
 export const DocumentSplitGroup = ({
   docs,
   project,
-  showDocumentPreview,
   depth,
-  minGroupSize,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
-  showDocumentPreview: boolean;
   depth: number;
-  minGroupSize: number;
 }) => {
+  const { viewSettings } = useViewSettingsStore();
   let compared: CompareResult[] = [];
   if (depth > 0 && docs.length > 1) {
     const descs = docs.map((d) => d.data.desc);
-    compared = filterAndSortByGroups(compareJsons(descs, true), minGroupSize);
+    compared = filterAndSortByGroups(compareJsons(descs, true), viewSettings.minGroupSize);
   }
 
   return compared.length
@@ -133,9 +123,7 @@ export const DocumentSplitGroup = ({
       <DocumentSplitTree
         docs={docs}
         project={project}
-        showDocumentPreview={showDocumentPreview}
         depth={depth}
-        minGroupSize={minGroupSize}
         compared={compared}
       />
     )
@@ -143,7 +131,6 @@ export const DocumentSplitGroup = ({
       <DocumentItems
         docs={docs}
         project={project}
-        showDocumentPreview={showDocumentPreview}
       />
     );
 };

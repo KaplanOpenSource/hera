@@ -11,6 +11,7 @@ import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
+import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
 export type ViewSettingsType = {
   minGroupSize: number;
@@ -28,13 +29,7 @@ export const ProjectTreeView = ({
   setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
-  const [viewSettings, setViewSettings] = useState<ViewSettingsType>({
-    minGroupSize: 2,
-    maxDepth: 5,
-    maxBranches: 50,
-    showEmptyToolkits: false,
-    showDocumentPreview: true,
-  })
+  const { viewSettings } = useViewSettingsStore();
 
   console.log(toolkits)
   console.log(project)
@@ -61,8 +56,6 @@ export const ProjectTreeView = ({
               <Refresh />
             </ButtonTooltip>
             <ProjectViewSettingsButton
-              viewSettings={viewSettings}
-              setViewSettings={setViewSettings}
             />
             <AddDocumentButton
               toolkit={undefined}
@@ -81,9 +74,7 @@ export const ProjectTreeView = ({
         <DocumentSplitGroup
           docs={project?.documents}
           project={project}
-          showDocumentPreview={viewSettings.showDocumentPreview}
           depth={viewSettings.maxDepth}
-          minGroupSize={viewSettings.minGroupSize}
         />
       </TreeItem>
       <RepoTreeWhole
