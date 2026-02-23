@@ -7,6 +7,7 @@ export const ButtonDialog = ({
   children,
   dialogProps,
   onOpen,
+  closeRef,
   ...props
 }: Omit<IconButtonProps, 'children'> & {
   icon: ReactNode;
@@ -14,9 +15,17 @@ export const ButtonDialog = ({
   children: ReactNode | ((close: () => void) => ReactNode);
   dialogProps?: Omit<DialogProps, 'open' | 'onClose' | 'children'>;
   onOpen?: () => void;
+  closeRef?: React.MutableRefObject<(() => void) | undefined>;
 }) => {
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+
+  const close = () => {
+    setTimeout(() => {
+      setOpen(false);
+    }, 0);
+  }
+
+  if (closeRef) closeRef.current = close;
 
   return (
     <>

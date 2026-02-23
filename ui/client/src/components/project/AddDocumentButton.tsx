@@ -27,6 +27,7 @@ export const AddDocumentButton = ({
   const [asAgent, setAsAgent] = useState(false);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
+  const closeRef = useRef<() => void>();
 
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
@@ -72,9 +73,11 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
         onKeyDown: (e) => {
           if (e.code === 'Enter') {
             doAddDoc();
+            closeRef.current?.();
           }
         },
       }}
+      closeRef={closeRef}
     >
       {(close) => (
         <>
