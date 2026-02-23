@@ -1,27 +1,24 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle,
-  TextField,
+  DialogTitle
 } from "@mui/material";
-import { useRef, useState } from "react";
-import { execPython } from "../../io/execPython";
-import { useProjectStore } from "../../stores/useProjectStore";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
+import { useRef, useState } from "react";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
+import { TextProperty } from "../../elements/TextProperty";
+import { execPython } from "../../io/execPython";
+import { useProjectStore } from "../../stores/useProjectStore";
 
 export const AddDocumentButton = ({
   toolkit = undefined,
 }: {
   toolkit?: Toolkit | undefined,
 }) => {
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
@@ -66,7 +63,6 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
         setResource('');
         setAsAgent(false);
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
-
       }}
       dialogProps={{
         onClick: (e) => e.stopPropagation(),
@@ -86,26 +82,22 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
             <DialogContentText>
               Adding a document
             </DialogContentText>
-            <TextField
+            <TextProperty
               inputRef={inputRef}
               autoFocus
               required
               margin="dense"
-              size="small"
               label="Name"
               fullWidth
-              variant="outlined"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              setValue={v => setName(v)}
             />
-            <TextField
+            <TextProperty
               margin="dense"
-              size="small"
               label="Resource"
               fullWidth
-              variant="outlined"
               value={resource}
-              onChange={(e) => setResource(e.target.value)}
+              setValue={v => setResource(v)}
               disabled={asAgent}
             />
             <BooleanProperty
