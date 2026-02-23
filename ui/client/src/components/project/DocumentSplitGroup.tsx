@@ -1,15 +1,13 @@
-import { Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
-import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
-import { ProjectDocumentItem } from "./ProjectDocumentItem";
-import { Case, SwitchCase } from "../../elements/SwitchCase";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
-import { Handyman } from "@mui/icons-material";
+import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
+import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
+import { ProjectDocumentItem } from "./ProjectDocumentItem";
 
-const VALUE_GROUP_REST = "__rest__";
-const VALUE_GROUP_UNDEFINED = "__undefined__";
-const TOOLKIT_DESC_PATH = "/toolkit";
+export const VALUE_GROUP_REST = "__rest__";
+export const VALUE_GROUP_UNDEFINED = "__undefined__";
+export const TOOLKIT_DESC_PATH = "/toolkit";
 
 const DocumentSplitTree = ({
   docs,
@@ -25,9 +23,6 @@ const DocumentSplitTree = ({
   const { viewSettings } = useViewSettingsStore();
   const bestPath = compared[0].path;
   const isToolkit = bestPath === TOOLKIT_DESC_PATH;
-
-  // replacing '/item1/subitem2' to 'item1.subitem2'
-  const fieldLabel = bestPath.replace(/^\//, "").replace(/\//g, ".");
 
   const valueCounts = new Map<string, number>();
   for (const doc of docs) {
@@ -60,36 +55,16 @@ const DocumentSplitTree = ({
   return (
     <>
       {entries.map(([value, groupDocs]) => {
-        const itemKey = `split_${fieldLabel}=${value}`;
+        const itemKey = `split_${bestPath}=${value}`;
         return (
           <TreeItem
             key={itemKey}
             itemId={itemKey}
             label={
-              <Typography>
-                {isToolkit
-                  ? (
-                    <Stack direction={'row'} spacing={1}>
-                      <Handyman />
-                      <b>
-                        {value === VALUE_GROUP_UNDEFINED ? 'No toolkit' : value}
-                      </b>
-                    </Stack>
-                  )
-                  : (
-                    <SwitchCase test={value}>
-                      <Case value={VALUE_GROUP_REST}>
-                        <b>{fieldLabel}</b> other values
-                      </Case>
-                      <Case value={VALUE_GROUP_UNDEFINED}>
-                        <b>{fieldLabel}</b> not existing
-                      </Case>
-                      <Case isDefault={true}>
-                        <b>{fieldLabel}</b> == <b>{value}</b>
-                      </Case>
-                    </SwitchCase>
-                  )}
-              </Typography>
+              <DocumentSplitTreeLabel
+                path={bestPath}
+                value={value}
+              />
             }
           >
             <DocumentSplitGroup
