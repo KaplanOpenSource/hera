@@ -14,6 +14,7 @@ import { ToolkitTreeItem } from './ToolkitTreeItem';
 export type ViewSettingsType = {
   minGroupSize: number;
   maxDepth: number;
+  maxBranches: number;
 };
 
 export const ProjectTreeView = ({
@@ -29,6 +30,7 @@ export const ProjectTreeView = ({
   const [viewSettings, setViewSettings] = useState<ViewSettingsType>({
     minGroupSize: 2,
     maxDepth: 5,
+    maxBranches: 50,
   })
 
   console.log(toolkits)

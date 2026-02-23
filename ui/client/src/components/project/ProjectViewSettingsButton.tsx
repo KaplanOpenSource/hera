@@ -3,6 +3,7 @@ import { Stack, TextField } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
 import { ViewSettingsType } from "./ProjectTreeView";
+import { NumberProperty } from "../../elements/NumberProperty";
 
 export const ProjectViewSettingsButton = ({
   viewSettings,
@@ -23,25 +24,24 @@ export const ProjectViewSettingsButton = ({
           render:
             ({ values, setValues }) => (
               <Stack direction={'column'} spacing={1}>
-                <TextField
+                <NumberProperty
                   label="Max Depth"
                   value={values.maxDepth}
-                  type='number'
-                  variant='outlined'
-                  slotProps={{ htmlInput: { min: 0, max: 25 } }}
-                  size='small'
-                  onChange={(e) => setValues({ ...values, maxDepth: e.target.value })}
-                  onClick={e => e.stopPropagation()}
+                  min={0}
+                  max={25}
+                  setValue={v => setValues({ ...values, maxDepth: v })}
                 />
-                <TextField
+                <NumberProperty
                   label="Min Group Size"
                   value={values.minGroupSize}
-                  type='number'
-                  variant='outlined'
-                  slotProps={{ htmlInput: { min: 1 } }}
-                  size='small'
-                  onChange={(e) => setValues({ ...values, minGroupSize: e.target.value })}
-                  onClick={e => e.stopPropagation()}
+                  min={1}
+                  setValue={v => setValues({ ...values, minGroupSize: v })}
+                />
+                <NumberProperty
+                  label="Max Branches"
+                  value={values.maxBranches}
+                  min={1}
+                  setValue={v => setValues({ ...values, maxBranches: v })}
                 />
               </Stack>
             )
