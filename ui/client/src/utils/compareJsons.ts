@@ -66,7 +66,7 @@ export function sortByDistinctValues(results: CompareResult[]): CompareResult[] 
   });
 }
 
-export function filterAndSortByGroups(results: CompareResult[], k: number): CompareResult[] {
+export function filterAndSortByGroups(results: CompareResult[], minGroupSize: number): CompareResult[] {
   const withGroups: { result: CompareResult; distinctValues: number }[] = [];
 
   for (const r of results) {
@@ -76,7 +76,7 @@ export function filterAndSortByGroups(results: CompareResult[], k: number): Comp
       valueCounts.set(v, (valueCounts.get(v) || 0) + 1);
     }
     const maxCount = Math.max(0, ...valueCounts.values());
-    if (valueCounts.size >= 2 && maxCount >= k) {
+    if (valueCounts.size >= 2 && maxCount >= minGroupSize) {
       withGroups.push({ result: r, distinctValues: valueCounts.size });
     }
   }
