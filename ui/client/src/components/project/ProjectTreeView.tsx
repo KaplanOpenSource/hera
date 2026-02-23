@@ -83,20 +83,14 @@ export const ProjectTreeView = ({
             key={toolkit.toolkit}
             project={project}
             toolkit={toolkit}
-            showEmpty={viewSettings.showEmptyToolkits}
-            showDocumentPreview={viewSettings.showDocumentPreview}
-            minGroupSize={viewSettings.minGroupSize}
-            maxDepth={viewSettings.maxDepth}
+            viewSettings={viewSettings}
           />
         ))}
         <ToolkitTreeItem
           key={'no_toolkit'}
           project={project}
           toolkit={undefined}
-          showEmpty={viewSettings.showEmptyToolkits}
-          showDocumentPreview={viewSettings.showDocumentPreview}
-          minGroupSize={viewSettings.minGroupSize}
-          maxDepth={viewSettings.maxDepth}
+          viewSettings={viewSettings}
         />
       </TreeItem>
       <RepoTreeWhole

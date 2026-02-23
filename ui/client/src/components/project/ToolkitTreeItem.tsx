@@ -5,21 +5,16 @@ import { ProjectObj } from "../../objects/ProjectObj";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { AddDocumentButton } from "./AddDocumentButton";
 import { DocumentSplitGroup } from "./DocumentSplitGroup";
+import { ViewSettingsType } from "./ProjectTreeView";
 
 export const ToolkitTreeItem = ({
   project,
   toolkit,
-  showEmpty = false,
-  showDocumentPreview = true,
-  maxDepth = 3,
-  minGroupSize = 2,
+  viewSettings,
 }: {
   toolkit: Toolkit | undefined;
   project: ProjectObj;
-  showEmpty?: boolean;
-  showDocumentPreview?: boolean;
-  maxDepth?: number;
-  minGroupSize?: number;
+  viewSettings: ViewSettingsType;
 }) => {
   const { toolkits } = useProjectStore();
 
@@ -33,7 +28,11 @@ export const ToolkitTreeItem = ({
       return !toolkits.some((t) => t.toolkit === d.toolkit);
     }) || [];
 
-  return !docs.length && !showEmpty ? null : (
+  if (docs.length === 0 && !viewSettings.showEmptyToolkits) {
+    return null;
+  }
+
+  return (
     <TreeItem
       key={toolkitName}
       itemId={toolkitName}
@@ -47,9 +46,9 @@ export const ToolkitTreeItem = ({
       <DocumentSplitGroup
         docs={docs}
         project={project}
-        showDocumentPreview={showDocumentPreview}
-        depth={maxDepth}
-        minGroupSize={minGroupSize}
+        showDocumentPreview={viewSettings.showDocumentPreview}
+        depth={viewSettings.maxDepth}
+        minGroupSize={viewSettings.minGroupSize}
       />
     </TreeItem>
   );
