@@ -34,7 +34,7 @@ const DocumentSplitTree = ({
   const groups = new Map<string, DocumentObj[]>();
   const restDocs: DocumentObj[] = [];
   for (const doc of docs) {
-    const val = getValueAtPath(doc.data.desc as any, bestPath);
+    const val = getValueAtPath(doc.extDesc, bestPath);
     const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
     if (!isToolkit && valueCounts.get(key)! < viewSettings.minGroupSize) {
       restDocs.push(doc);
@@ -91,7 +91,7 @@ export const DocumentSplitGroup = ({
   const { viewSettings } = useViewSettingsStore();
   let compared: CompareResult[] = [];
   if (depth > 0 && docs.length > 1) {
-    const descs = docs.map((d) => ({ ...d.data.desc }));
+    const descs = docs.map((d) => ({ ...d.extDesc }));
     const paths = compareJsons(descs, true);
     compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
     if (viewSettings.firstBranchByToolkits) {
