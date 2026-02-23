@@ -10,6 +10,7 @@ import { useProjectStore } from '../../stores/useProjectStore';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
+import { AddDocumentButton } from './AddDocumentButton';
 
 export type ViewSettingsType = {
   minGroupSize: number;
@@ -74,6 +75,9 @@ export const ProjectTreeView = ({
             <ProjectViewSettingsButton
               viewSettings={viewSettings}
               setViewSettings={setViewSettings}
+            />
+            <AddDocumentButton
+              toolkit={undefined}
             />
           </Stack>
         )}
