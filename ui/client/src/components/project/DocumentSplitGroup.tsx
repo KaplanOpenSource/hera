@@ -1,10 +1,11 @@
-import { Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 import { Case, SwitchCase } from "../../elements/SwitchCase";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
+import { Handyman } from "@mui/icons-material";
 
 const VALUE_GROUP_REST = "__rest__";
 const VALUE_GROUP_UNDEFINED = "__undefined__";
@@ -22,6 +23,7 @@ const DocumentSplitTree = ({
 }) => {
   const { viewSettings } = useViewSettingsStore();
   const bestPath = compared[0].path;
+  const isToolkit = bestPath === '/toolkit';
   const fieldLabel = bestPath.replace(/^\//, "").replace(/\//g, ".");
 
   const valueCounts = new Map<string, number>();
@@ -36,10 +38,12 @@ const DocumentSplitTree = ({
   for (const doc of docs) {
     const val = getValueAtPath(doc.data.desc as any, bestPath);
     const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
-    if (valueCounts.get(key)! < viewSettings.minGroupSize) {
+    if (!isToolkit && valueCounts.get(key)! < viewSettings.minGroupSize) {
       restDocs.push(doc);
     } else {
-      if (!groups.has(key)) groups.set(key, []);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
       groups.get(key)!.push(doc);
     }
   }
@@ -58,17 +62,28 @@ const DocumentSplitTree = ({
             itemId={itemKey}
             label={
               <Typography>
-                <SwitchCase test={value}>
-                  <Case value={VALUE_GROUP_REST}>
-                    <b>{fieldLabel}</b> other values
-                  </Case>
-                  <Case value={VALUE_GROUP_UNDEFINED}>
-                    <b>{fieldLabel}</b> not existing
-                  </Case>
-                  <Case isDefault={true}>
-                    <b>{fieldLabel}</b> == <b>{value}</b>
-                  </Case>
-                </SwitchCase>
+                {isToolkit
+                  ? (
+                    <Stack direction={'row'} spacing={1}>
+                      <Handyman />
+                      <b>
+                        {value === VALUE_GROUP_UNDEFINED ? 'No toolkit' : value}
+                      </b>
+                    </Stack>
+                  )
+                  : (
+                    <SwitchCase test={value}>
+                      <Case value={VALUE_GROUP_REST}>
+                        <b>{fieldLabel}</b> other values
+                      </Case>
+                      <Case value={VALUE_GROUP_UNDEFINED}>
+                        <b>{fieldLabel}</b> not existing
+                      </Case>
+                      <Case isDefault={true}>
+                        <b>{fieldLabel}</b> == <b>{value}</b>
+                      </Case>
+                    </SwitchCase>
+                  )}
               </Typography>
             }
           >
