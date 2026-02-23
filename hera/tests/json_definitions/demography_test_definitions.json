@@ -7,7 +7,14 @@
     "method_name": "analysis.calculatePopulationInPolygon",
     "parameters": {
       "shapelyPolygon": {
-        "fromFunction": "testPolygon_basic"
+        "type": "Polygon",
+        "coordinates": [
+          [35.49, 33.75],
+          [35.52, 33.75],
+          [35.52, 33.78],
+          [35.49, 33.78],
+          [35.49, 33.75]
+        ]
       },
       "dataSourceOrData": {
         "fromEnv": "HERA_UNITTEST_DATA",

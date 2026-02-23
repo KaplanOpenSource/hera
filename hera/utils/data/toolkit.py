@@ -1,35 +1,45 @@
 import json
 import argparse
-from hera import toolkitHome,toolkit
-from hera.utils import loadJSON, dictToMongoQuery
-from hera.utils.logging import get_classMethod_logger
 import pathlib
 import os
 
+from hera.utils import loadJSON, dictToMongoQuery
+from hera.utils.logging import get_classMethod_logger
+from hera.toolkit import abstractToolkit, ToolkitHome
 
-class dataToolkit(toolkit.abstractToolkit):
+
+
+import json
+import argparse
+import pathlib
+import os
+
+from hera.utils import loadJSON, dictToMongoQuery
+from hera.utils.logging import get_classMethod_logger
+from hera.toolkit import abstractToolkit, ToolkitHome
+
+
+class dataToolkit(abstractToolkit):
     """
-        A toolkit to handle the data (replacing the function of hera-data).
+    Toolkit for managing data repositories (replacing the old hera-data).
 
-        It is initialized only with the DEFAULT project.
+    It is initialized only with the DEFAULT project.
 
-        The structure of a datasource file is:
+    The structure of a datasource file is:
+
         {
-            <toolkit name>: {
-              <datasource name>: {
-                "resource": <location of datasource>,
-                "dataFormat": <type of data source>,
-                "desc": {
-                  < any other parameters/ metadata descriptions of the datasource>
+            "<toolkit name>": {
+                "<datasource name>": {
+                    "resource": "<location of datasource>",
+                    "dataFormat": "<type of data source>",
+                    "desc": {
+                        ... metadata ...
+                    }
                 },
-                .
-                .
-
+                ...
             },
-            .
-            .
-
-       }
+            ...
+        }
     """
 
     def __init__(self,connectionName=None):
@@ -106,6 +116,43 @@ class dataToolkit(toolkit.abstractToolkit):
     # Load all datasources from a repository JSON into a project.
     # If a toolkit is missing, try to auto-register it using classpath hints.
     # -----------------------------------------------------------------------------
+    def getToolkitDocument(self, toolkit_name: str):
+        """
+        Find a dynamic toolkit document by name (either desc.datasourceName or desc.toolkit).
+        Returns the mongoengine document or None.
+        """
+        # First: direct filter on datasourceName (works on most implementations)
+        try:
+            q = self.getMeasurementsDocuments(
+                type="ToolkitDataSource", datasourceName=toolkit_name
+            )
+            if q and len(q) > 0:
+                return q[0]
+        except Exception:
+            # fall through to broader search below
+            pass
+
+        # Second: scan all ToolkitDataSource docs and match by desc fields
+        try:
+            q = self.getMeasurementsDocuments(type="ToolkitDataSource")
+            for d in q:
+                desc = d.desc or {}
+                if desc.get("datasourceName") == toolkit_name or desc.get("toolkit") == toolkit_name:
+                    return d
+        except Exception:
+            pass
+
+        # Optional: also look in DataSource collection if your project uses it
+        try:
+            q = self.getDataSourceDocuments(datasourceName=toolkit_name)
+            if q and len(q) > 0:
+                return q[0]
+        except Exception:
+            pass
+
+        return None
+
+
     def loadAllDatasourcesInRepositoryJSONToProject(self,
                                                     projectName: str,
                                                     repositoryJSON: dict,
@@ -114,37 +161,88 @@ class dataToolkit(toolkit.abstractToolkit):
                                                     auto_register_missing: bool = True):
         """
         Iterate through the repository JSON and for each toolkit:
-        - Ensure we can instantiate it (ToolkitHome.getToolkit).
-        - If missing and auto_register_missing=True, attempt auto-register using:
-            * Registry.classpath or Registry.cls in the JSON, or
-            * Toolkit document from DB.
-        - After we have the instance, proceed with per-toolkit loading logic.
+        - Try to get an instance via ToolkitHome.getToolkit.
+        - If missing and auto_register_missing=True, attempt auto-register ONLY if there is
+          a clear classpath hint in the JSON (Registry.classpath or Registry.cls).
+        - After we have a valid instance, dispatch to the appropriate handler per section.
         """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryJSONToProject")
+        if isinstance(repositoryJSON, str):
+            if  repositoryJSON.startswith('/'): # if there is no data
+                logger.info("skipping dynamic toolkit")
+                return
+            try:
+                repositoryJSON = json.loads(repositoryJSON)
+            except json.JSONDecodeError:
+                logger.error("repositoryJSON is a string but not a valid JSON format.")
+                return
+        if not isinstance(repositoryJSON, dict):
+            logger.warning(f"Expected dict for repositoryJSON, got {type(repositoryJSON)}. Skipping.")
+            return
+        if not repositoryJSON:
+            logger.info("repositoryJSON is empty. Nothing to load.")
+            return
+        handlerDict = dict(
+            Config=self._handle_Config,
+            Datasource=self._handle_DataSource,
+            Measurements=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, docTypeDict, overwrite, "Measurements", basedir
+            ),
+            Simulations=lambda toolkit, itemName, docTypeDict, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, docTypeDict, overwrite, "Simulations", basedir
+            ),
+            Cache=lambda toolkit, itemName, itemDesc, overwrite, basedir: self._DocumentHandler(
+                toolkit, itemName, itemDesc, overwrite, "Cache", basedir
+            ),
+            Function=self._handle_Function,
+        )
 
-        handlerDict = dict(Config = self._handle_Config,
-                           Datasource = self._handle_DataSource,
-                           Measurements = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Measurements",basedir),
-                           Simulations = lambda toolkit, itemName, docTypeDict, overwrite,basedir: self._DocumentHandler(toolkit, itemName, docTypeDict, overwrite,"Simulations",basedir),
-                           Cache = lambda toolkit, itemName, itemDesc, overwrite,basedir: self._DocumentHandler(toolkit, itemName, itemDesc, overwrite,"Cache",basedir),
-                           Function = self._handle_Function)
+        tk_home = ToolkitHome(projectName=projectName)
 
-        # repositoryJSON is expected to be a dict mapping: toolkitName -> section
         for toolkitName, toolkitDict in (repositoryJSON or {}).items():
-            toolkit = toolkitHome.getToolkit(toolkitName=toolkitName, projectName=projectName)
+            # 1) Try static/dynamic resolution via ToolkitHome.getToolkit
+            try:
+                toolkit = tk_home.getToolkit(toolkitName=toolkitName)
 
+            except Exception as e:
+                logger.info(f"Toolkit '{toolkitName}' not found via getToolkit: {e}")
+                toolkit = None
+
+
+
+            # 3) If we still do not have a toolkit instance, skip this key quietly
+            if toolkit is None:
+                logger.info(
+                    f"Skipping key '{toolkitName}' in repository JSON – "
+                    f"no matching toolkit and no auto-registration performed."
+                )
+                continue
+
+            # 4) Dispatch sections (Config, Datasource, Measurements, Simulations, Cache, Function)
             for key, docTypeDict in toolkitDict.items():
                 logger.info(f"Loading document type {key} to toolkit {toolkitName}")
-                handler = handlerDict.get(key.title(),None)
+                handler = handlerDict.get(key.title(), None)
 
                 if handler is None:
-                    err = f"Unkonw Handler {key.title()}. The handler must be {','.join(handlerDict.keys())}. "
+                    err = (
+                        f"Unkonw Handler {key.title()}. "
+                        f"The handler must be {', '.join(handlerDict.keys())}. "
+                    )
                     logger.error(err)
                     raise ValueError(err)
+
                 try:
-                    handler(toolkit=toolkit, itemName=key, docTypeDict=docTypeDict, overwrite=overwrite,basedir=basedir)
+                    handler(
+                        toolkit=toolkit,
+                        itemName=key,
+                        docTypeDict=docTypeDict,
+                        overwrite=overwrite,
+                        basedir=basedir,
+                    )
                 except Exception as e:
-                    err = f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                    err = (
+                        f"The error {e} occured while adding *{key}* to toolkit {toolkitName}... skipping!!!"
+                    )
                     logger.error(err)
 
 
@@ -329,4 +427,3 @@ class dataToolkit(toolkit.abstractToolkit):
                 f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
 
         return os.path.join(basedir, theItem["resource"]) if isRelativePath else theItem["resource"]
-

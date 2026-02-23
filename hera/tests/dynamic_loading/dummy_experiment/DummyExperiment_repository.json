@@ -1,0 +1,30 @@
+{
+  "experiment": {
+    "DataSource": {
+      "DummyExperiment": {
+        "isRelativePath": "False",
+        "item": {
+          "dataSourceName": "DummyExperiment",
+          "resource": "hera/tests/dynamic_loading/dummy_experiment",
+          "dataFormat": "string",
+          "overwrite": "True"
+        }
+      }
+    },
+    "Measurements": {
+      "Sonic": {
+        "isRelativePath": "True",
+        "item": {
+          "type": "Experiment_rawData",
+          "resource": "data/Sonic.parquet",
+          "dataFormat": "parquet",
+          "desc": {
+            "deviceType": "Sonic",
+            "experimentName": "DummyExperiment",
+            "deviceName": "Sonic_1"
+          }
+        }
+      }
+    }
+  }
+}

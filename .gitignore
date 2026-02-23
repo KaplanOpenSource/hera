@@ -16,6 +16,7 @@ venv
 heraenv
 .venv
 .python-version
+hera/tests/env.template
 node_modules/
 projects/
 mongo-db-datadir/
