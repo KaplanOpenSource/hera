@@ -1,4 +1,4 @@
-import { Folder, Preview, Refresh, Visibility } from '@mui/icons-material';
+import { Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -7,10 +7,10 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { AddDocumentButton } from './AddDocumentButton';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { AddDocumentButton } from './AddDocumentButton';
 
 export type ViewSettingsType = {
   minGroupSize: number;

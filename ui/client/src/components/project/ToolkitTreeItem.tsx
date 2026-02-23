@@ -20,13 +20,12 @@ export const ToolkitTreeItem = ({
 
   const toolkitName = toolkit ? toolkit.toolkit : "no-toolkit";
   const toolkitLabel = toolkit ? toolkit.toolkit : "No Toolkit Documents";
-  const docs =
-    project?.documents.filter((d) => {
-      if (toolkit) {
-        return d.toolkit === toolkitName;
-      }
-      return !toolkits.some((t) => t.toolkit === d.toolkit);
-    }) || [];
+  const docs = (project?.documents || []).filter((d) => {
+    if (toolkit) {
+      return d.toolkit === toolkitName;
+    }
+    return !toolkits.some((t) => t.toolkit === d.toolkit);
+  });
 
   if (docs.length === 0 && !viewSettings.showEmptyToolkits) {
     return null;
