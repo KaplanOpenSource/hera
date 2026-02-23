@@ -9,24 +9,6 @@ import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 const VALUE_GROUP_REST = "__rest__";
 const VALUE_GROUP_UNDEFINED = "__undefined__";
 
-const DocumentItems = ({
-  docs,
-  project,
-}: {
-  docs: DocumentObj[];
-  project: ProjectObj;
-}) => (
-  <>
-    {docs.map((doc) => (
-      <ProjectDocumentItem
-        key={`proj${project.name}_doc${doc.docid}`}
-        project={project.data}
-        document={doc.data}
-      />
-    ))}
-  </>
-);
-
 const DocumentSplitTree = ({
   docs,
   project,
@@ -128,9 +110,14 @@ export const DocumentSplitGroup = ({
       />
     )
     : (
-      <DocumentItems
-        docs={docs}
-        project={project}
-      />
+      <>
+        {docs.map((doc) => (
+          <ProjectDocumentItem
+            key={`proj${project.name}_doc${doc.docid}`}
+            project={project.data}
+            document={doc.data}
+          />
+        ))}
+      </>
     );
 };

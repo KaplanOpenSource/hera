@@ -1,5 +1,5 @@
 import { Delete } from "@mui/icons-material";
-import { Box, Stack, Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
 import { ProjectDocument, ProjectEntire } from "@shared/types";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
