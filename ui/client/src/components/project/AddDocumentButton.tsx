@@ -13,23 +13,26 @@ import { ButtonDialog } from "../../elements/ButtonDialog";
 import { TextProperty } from "../../elements/TextProperty";
 import { execPython } from "../../io/execPython";
 import { useProjectStore } from "../../stores/useProjectStore";
+import { SelectProperty } from "../../elements/SelectProperty";
 
 export const AddDocumentButton = ({
   toolkit = undefined,
 }: {
   toolkit?: Toolkit | undefined,
 }) => {
+  const { toolkits } = useProjectStore();
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
+  const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
   const closeRef = useRef<() => void>();
 
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
-    if (toolkit?.toolkit) {
-      desc.toolkit = toolkit.toolkit;
+    if (chosenToolkit) {
+      desc.toolkit = chosenToolkit;
     }
     const addcmd = asAgent
       ? `
@@ -104,6 +107,12 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
               label="Agent"
               value={asAgent}
               setValue={v => setAsAgent(v)}
+            />
+            <SelectProperty
+              label="Toolkit"
+              value={chosenToolkit || '* No Toolkit *'}
+              setValue={(v) => setChosenToolkit(v === '* No Toolkit *' ? undefined : v)}
+              menuItems={[{ name: '* No Toolkit *' }, ...toolkits.map(t => ({ name: t.toolkit }))]}
             />
           </DialogContent>
           <DialogActions>
