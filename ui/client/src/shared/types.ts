@@ -50,4 +50,6 @@ export interface Toolkit {
   description?: string;
   source?: string;
   type?: string;
+  repositoryName?: string;
+  version?: string;
 }
