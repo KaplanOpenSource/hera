@@ -6,29 +6,35 @@ export const ButtonDialog = ({
   icon,
   children,
   dialogProps,
+  onOpen,
   ...props
 }: Omit<IconButtonProps, 'children'> & {
   icon: ReactNode;
   title?: ReactNode;
-  children: ReactNode;
+  children: ReactNode | ((close: () => void) => ReactNode);
   dialogProps?: Omit<DialogProps, 'open' | 'onClose' | 'children'>;
+  onOpen?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
 
   return (
     <>
       <ButtonTooltip
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          onOpen?.();
+          setOpen(true);
+        }}
         {...props}
       >
         {icon}
       </ButtonTooltip>
       <Dialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={close}
         {...dialogProps}
       >
-        {children}
+        {typeof children === 'function' ? children(close) : children}
       </Dialog>
     </>
   );

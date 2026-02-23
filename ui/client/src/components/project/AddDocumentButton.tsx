@@ -14,6 +14,7 @@ import { useProjectStore } from "../../stores/useProjectStore";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
 import { BooleanProperty } from "../../elements/BooleanProperty";
+import { ButtonDialog } from "../../elements/ButtonDialog";
 
 export const AddDocumentButton = ({
   toolkit = undefined,
@@ -53,69 +54,76 @@ result = {"name": '${currProjectName}', "documents": docs['documents']}
       return;
     }
     setCurrentProject((data as ProjectEntire));
-    setOpen(false);
   }
 
-  return (<>
-    <ButtonTooltip
-      title='Add Document'
-      onClick={() => {
-        setOpen(true)
+  return (
+    <ButtonDialog
+      icon={<Add />}
+      title="Add Document"
+      onOpen={() => {
         setName('');
+        setResource('');
+        setAsAgent(false);
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
+
+      }}
+      dialogProps={{
+        onClick: (e) => e.stopPropagation(),
+        onKeyDown: (e) => {
+          if (e.code === 'Enter') {
+            doAddDoc();
+          }
+        },
       }}
     >
-      <Add />
-    </ButtonTooltip>
-    <Dialog
-      open={open}
-      onClose={() => setOpen(false)}
-      onClick={e => e.stopPropagation()}
-      onKeyDown={e => { if (e.code === 'Enter') doAddDoc() }}
-    >
-      <DialogTitle>Add Document</DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          Adding a document
-        </DialogContentText>
-        <TextField
-          inputRef={inputRef}
-          autoFocus
-          required
-          margin="dense"
-          size="small"
-          label="Name"
-          fullWidth
-          variant="outlined"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <TextField
-          margin="dense"
-          size="small"
-          label="Resource"
-          fullWidth
-          variant="outlined"
-          value={resource}
-          onChange={(e) => setResource(e.target.value)}
-          disabled={asAgent}
-        />
-        <BooleanProperty
-          label="Agent"
-          value={asAgent}
-          setValue={v => setAsAgent(v)}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-        <Button onClick={() => {
-          doAddDoc();
-        }}>
-          Add Document
-        </Button>
-      </DialogActions>
-    </Dialog>
-  </>)
+      {(close) => (
+        <>
+          <DialogTitle>Add Document</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Adding a document
+            </DialogContentText>
+            <TextField
+              inputRef={inputRef}
+              autoFocus
+              required
+              margin="dense"
+              size="small"
+              label="Name"
+              fullWidth
+              variant="outlined"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <TextField
+              margin="dense"
+              size="small"
+              label="Resource"
+              fullWidth
+              variant="outlined"
+              value={resource}
+              onChange={(e) => setResource(e.target.value)}
+              disabled={asAgent}
+            />
+            <BooleanProperty
+              label="Agent"
+              value={asAgent}
+              setValue={v => setAsAgent(v)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={close}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              doAddDoc();
+              close();
+            }}>
+              Add Document
+            </Button>
+          </DialogActions>
+        </>
+      )}
+    </ButtonDialog>
+  )
 }
