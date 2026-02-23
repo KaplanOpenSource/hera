@@ -83,13 +83,13 @@ const DocumentSplitTree = ({
               <Typography>
                 <SwitchCase test={value}>
                   <Case value={VALUE_GROUP_REST}>
-                    Documents with other <b>{fieldLabel}</b> values
+                    <b>{fieldLabel}</b> other values
                   </Case>
                   <Case value={VALUE_GROUP_UNDEFINED}>
-                    Documents without <b>{fieldLabel}</b>
+                    <b>{fieldLabel}</b> not existing
                   </Case>
                   <Case isDefault={true}>
-                    Documents with <b>{fieldLabel}</b> == <b>{value}</b>
+                    <b>{fieldLabel}</b> == <b>{value}</b>
                   </Case>
                 </SwitchCase>
               </Typography>
