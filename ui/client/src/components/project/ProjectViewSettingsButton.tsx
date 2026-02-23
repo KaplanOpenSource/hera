@@ -34,9 +34,9 @@ export const ProjectViewSettingsButton = ({ }) => {
                 setValue={(v) => setViewSettings({ ...viewSettings, maxBranches: v })}
               />
               <BooleanProperty
-                label="Show Empty Toolkits"
-                value={viewSettings.showEmptyToolkits}
-                setValue={v => setViewSettings({ ...viewSettings, showEmptyToolkits: v })}
+                label="First Branch by Toolkits"
+                value={viewSettings.firstBranchByToolkits}
+                setValue={v => setViewSettings({ ...viewSettings, firstBranchByToolkits: v })}
               />
               <BooleanProperty
                 label="Show Document Preview"

@@ -99,6 +99,12 @@ export const DocumentSplitGroup = ({
     const descs = docs.map((d) => ({ ...d.data.desc }));
     const paths = compareJsons(descs, true);
     compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
+    if (viewSettings.firstBranchByToolkits) {
+      const i = compared.findIndex(x => x.path === "/toolkit");
+      if (i > 0) {
+        compared = [compared[i], ...compared.filter((_, j) => i !== j)];
+      }
+    }
   }
 
   return compared.length
