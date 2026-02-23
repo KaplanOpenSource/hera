@@ -1,7 +1,7 @@
 import { Handyman } from "@mui/icons-material";
 import { Typography, Stack } from "@mui/material";
 import { SwitchCase, Case } from "../../elements/SwitchCase";
-import { TOOLKIT_DESC_PATH, VALUE_GROUP_REST, VALUE_GROUP_UNDEFINED } from "./DocumentSplitGroup";
+import { DESC_PATH_TOOLKIT, VALUE_GROUP_REST, VALUE_GROUP_UNDEFINED } from "./DocumentSplitGroup";
 
 export const DocumentSplitTreeLabel = ({
   path,
@@ -10,7 +10,7 @@ export const DocumentSplitTreeLabel = ({
   path: string,
   value: string,
 }) => {
-  const isToolkit = path === TOOLKIT_DESC_PATH;
+  const isToolkit = path === DESC_PATH_TOOLKIT;
 
   // replacing '/item1/subitem2' to 'item1.subitem2'
   const fieldLabel = path.replace(/^\//, "").replace(/\//g, ".");

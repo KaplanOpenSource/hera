@@ -4,10 +4,12 @@ import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
 import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
+import { reorderByKeys } from "../../utils/utils";
 
 export const VALUE_GROUP_REST = "__rest__";
 export const VALUE_GROUP_UNDEFINED = "__undefined__";
-export const TOOLKIT_DESC_PATH = "/toolkit";
+export const DESC_PATH_TOOLKIT = "/toolkit";
+export const DESC_PATH_TYPE = "/type";
 
 const DocumentSplitTree = ({
   docs,
@@ -22,7 +24,7 @@ const DocumentSplitTree = ({
 }) => {
   const { viewSettings } = useViewSettingsStore();
   const bestPath = compared[0].path;
-  const isToolkit = bestPath === TOOLKIT_DESC_PATH;
+  const isToolkit = bestPath === DESC_PATH_TOOLKIT;
 
   const valueCounts = new Map<string, number>();
   for (const doc of docs) {
@@ -95,10 +97,7 @@ export const DocumentSplitGroup = ({
     const paths = compareJsons(descs, true);
     compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
     if (viewSettings.firstBranchByToolkits) {
-      const i = compared.findIndex(x => x.path === TOOLKIT_DESC_PATH);
-      if (i > 0) {
-        compared = [compared[i], ...compared.filter((_, j) => i !== j)];
-      }
+      compared = reorderByKeys(compared, x => x.path, [DESC_PATH_TOOLKIT, DESC_PATH_TYPE]);
     }
   }
 
