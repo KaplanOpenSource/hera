@@ -10,23 +10,24 @@ export const DocumentSplitTreeLabel = ({
   path: string,
   value: string,
 }) => {
-  const isToolkit = path === DESC_PATH_TOOLKIT;
-
   // replacing '/item1/subitem2' to 'item1.subitem2'
   const fieldLabel = path.replace(/^\//, "").replace(/\//g, ".");
 
   return (
     <Typography>
-      {isToolkit
-        ? (
+      <SwitchCase test={path}>
+        <Case value={DESC_PATH_TOOLKIT}>
           <Stack direction={'row'} spacing={1}>
             <Handyman />
             <b>
-              {value === VALUE_GROUP_UNDEFINED ? 'No toolkit' : value}
+              {[VALUE_GROUP_UNDEFINED].includes(value)
+                ? 'No toolkit'
+                : value
+              }
             </b>
           </Stack>
-        )
-        : (
+        </Case>
+        <Case isDefault={true}>
           <SwitchCase test={value}>
             <Case value={VALUE_GROUP_REST}>
               <b>{fieldLabel}</b> other values
@@ -38,7 +39,8 @@ export const DocumentSplitTreeLabel = ({
               <b>{fieldLabel}</b> == <b>{value === '' ? '\'\'' : value}</b>
             </Case>
           </SwitchCase>
-        )}
+        </Case>
+      </SwitchCase>
     </Typography>
   )
 }
