@@ -169,12 +169,12 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
 
 def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStandardization=[]):
     """Converts a dictionary to a JSON where all the values with Unum or Pint units get converted to their magnitude
-    
+
     Parameters
     ----------
     JSON : dict
         The JSON to strip the units from
-    
+
     returnStandardize: bool [Default False]
         If true, return the  units in MKS. If False return the original units.
 
@@ -545,7 +545,8 @@ class JSONvariationItem:
 
         result = {}
         for key, value in self.variationItem.items():
-                result[key] = value[self._curIter]
+            isinstance(quantity, pint.Quantity):
+            result[key] = value[self._curIter]
         self._curIter += 1
         return result
 
