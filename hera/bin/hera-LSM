@@ -1,84 +1,46 @@
 #! /usr/bin/env python
 import argparse
-from hera import datalayer
-import json
-from hera import LSM
 
-parser = argparse.ArgumentParser()
-parser.add_argument('command', nargs=1, type=str)
-parser.add_argument('args', nargs='*', type=str)
-
-args = parser.parse_args()
+from hera.simulations.LSM import CLI
+from hera.utils import logging
+from hera.utils.logging.helpers import initialize_logging, with_logger
 
 
-def load_handler(arguments):
-    with open(arguments[4], 'r') as myFile:
-        params = json.load(myFile)
+if __name__ == "__main__":
+    # Console logging setup
+    initialize_logging(
+        with_logger("hera.bin", handlers=['console'], level='DEBUG', propagate=False),
+        with_logger("hera.utils", handlers=['console'], level='DEBUG', propagate=False)
+    )
 
-    doc = dict(projectName=arguments[0],
-               resource=arguments[1],
-               dataFormat=datalayer.datatypes.STRING,
-               type=LSM.DOCTYPE_TEMPLATE,
-               desc=dict(params=params,
-                         modelFolder=arguments[2],
-                         version=arguments[3]
-                         )
-               )
-    datalayer.Simulations.addDocument(**doc)
+    logger = logging.getLogger("hera.bin.hera_projects")
 
-def help_load_handler():
-    #wrapper = textwrap.TextWrapper(width=80)
-    help = ["\033[1mNAME\033[0m",
-            "\tlist - List documents\n",
-            "\033[1mSYNOPSYS\033[0m",
-            "\t\033[4mhera-datalayer\033[0m \033[4mlist\033[0m [<query>]\n",
-            "\033[1mDESCRIPTION\033[0m",
-            "\tPrint all the documents that fulfill the given query.",
-            "\tThe query is given in the [<query>] arguments.\n",
-            "\033[1mQUERY\033[0m",
-            "\tThe query is a set of conditions used to search documents over the database.\n",
-            "\tA query argument should be in the following format:",
-            '''\t    variable="'value'"\n''',
-            "\033[1mEXAMPLE\033[0m",
-            '''\t\033[1mhera-datalayer list projectName="'example'"\033[0m''',
-            "\t    This example should print all the documents of a project called 'example'"
-            ]
-    print('\n'.join(help))
-    # print("list the documents in the project")
-    # print("\thera-datalyer list projectName [mongodb query]")
+    parser = argparse.ArgumentParser()
+    lsm_subparsers = parser.add_subparsers(help='LSM runs')
+
+    # setup
+    setup_template = lsm_subparsers.add_parser('setup', help='setup template after loading its repository, creates symbolic links as necessary')
+    setup_template.add_argument('templateName', type=str, default=None,
+                            help='name of the template to setup')
+    setup_template.add_argument('codeDir', type=str, default=None,
+                            help="the directory with the template's code")
+    setup_template.add_argument('--templateVersion', type=str, default="1",
+                            help='version of the template, defaults to 1')
+    setup_template.add_argument('--projectName', type=str, default=None,
+                            help='name of the project that holds the template')
+    setup_template.set_defaults(func=CLI.setup_template)
+    
+    # list
+    list_templates = lsm_subparsers.add_parser(name='list', help='list all templates under the project')
+    list_templates.add_argument('--projectName', type=str, default=None,
+                            help='name of the project to be inspected, if not specified taken from caseConfiguration.json')
+    list_templates.set_defaults(func=CLI.list_templates)
 
 
-def help_handler(arguments):
-    if not arguments:
-        help = ["usage: hera-datalayer <command> [<args>]\n",
-                "These are the available commands:\n",
-                "    listTemplates\tList all templates",
-                "    load\tLoad a template with its params file",
-                "For more information about each command:",
-                "   hera-datalayer help <command>"
-                ]
-        print("\n".join(help))
+    parsed = parser.parse_args()
+    logger.debug(f"Got {parsed} in the command line")
+    if 'func' not in parsed:
+        parser.print_help()
     else:
-        try:
-            globals()['help_%s_handler' % arguments[0]]()
-        except KeyError:
-            msg = ["'%s' is not an available command\n" % arguments[0],
-                   "These are the available commands:\n",
-                   "    listTemplates",
-                   "    load",
-                   "    delete",
-                   ]
-            print("\n".join(msg))
+        parsed.func(parsed)
 
-def listTemplates_handler(arguments):
-    projectName = None if len(arguments)==0 else arguments[0]
-    print(LSM.listTemplates(projectName=projectName , wideFormat=True))
-
-
-funcName = '%s_handler' % args.command[0]
-if funcName not in globals():
-    print(f"{funcName} is not a valid operation")
-    validops = [x.split("_")[0] for x in globals() if "_handler" in x]
-    print(f"Valid operations are: {','.join(validops)}")
-
-globals()[funcName](args.args)

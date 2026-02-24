@@ -23,3 +23,36 @@ export const reorderEntries = (entries: [string, unknown][], firstFields: string
   ];
 };
 
+/**
+ * Returns a new array reordered so that items matching orderedKeys (by keySelector)
+ * appear first in the specified order, followed by all remaining items in their
+ * original order.
+ *
+ * @example
+ * reorderByKeys(
+ *   [{ id: "c" }, { id: "a" }, { id: "b" }, { id: "d" }],
+ *   (x) => x.id,
+ *   ["b", "a"]
+ * )
+ * // => [{ id: "b" }, { id: "a" }, { id: "c" }, { id: "d" }]
+ */
+export function reorderByKeys<T, K>(
+  array: T[],
+  keySelector: (item: T) => K,
+  orderedKeys: K[]
+): T[] {
+  const keyIndex = new Map(orderedKeys.map((k, i) => [k, i]));
+  const front: T[][] = orderedKeys.map(() => []);
+  const rest: T[] = [];
+
+  for (const item of array) {
+    const idx = keyIndex.get(keySelector(item));
+    if (idx !== undefined) {
+      front[idx].push(item);
+    } else {
+      rest.push(item);
+    }
+  }
+
+  return front.flat().concat(rest);
+}

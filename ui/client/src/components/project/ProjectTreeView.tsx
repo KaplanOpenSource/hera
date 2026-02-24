@@ -1,14 +1,25 @@
-import { Folder, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
+import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { AddDocumentButton } from './AddDocumentButton';
+import { DocumentSplitGroup } from './DocumentSplitGroup';
+import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RepoTreeWhole } from './RepoTreeWhole';
-import { ToolkitTreeItem } from './ToolkitTreeItem';
-import { fetchProjectDetails } from '../../io/FetchProjects';
+import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
+
+export type ViewSettingsType = {
+  minGroupSize: number;
+  maxDepth: number;
+  maxBranches: number;
+  showEmptyToolkits: boolean;
+  showDocumentPreview: boolean;
+};
 
 export const ProjectTreeView = ({
   project,
@@ -18,7 +29,7 @@ export const ProjectTreeView = ({
   setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
-  const [showEmptyToolkits, setShowEmptyToolkits] = useState(false);
+  const { viewSettings } = useViewSettingsStore();
 
   console.log(toolkits)
   console.log(project)
@@ -39,17 +50,16 @@ export const ProjectTreeView = ({
               Project {project.name}
             </Typography>
             <ButtonTooltip
-              title={showEmptyToolkits ? 'Showing empty toolkits, click to hide' : 'Hiding empty toolkits, click to show'}
-              onClick={() => setShowEmptyToolkits(!showEmptyToolkits)}
-            >
-              {showEmptyToolkits ? <Visibility /> : <VisibilityOff />}
-            </ButtonTooltip>
-            <ButtonTooltip
               title={'Reload documents'}
               onClick={() => fetchProjectDetails(project.name)}
             >
               <Refresh />
             </ButtonTooltip>
+            <ProjectViewSettingsButton
+            />
+            <AddDocumentButton
+              toolkit={undefined}
+            />
           </Stack>
         )}
       >
@@ -61,19 +71,10 @@ export const ProjectTreeView = ({
             </Typography>
           </Stack>
         </Tooltip>
-        {toolkits.map(toolkit => (
-          <ToolkitTreeItem
-            key={toolkit.toolkit}
-            project={project}
-            toolkit={toolkit}
-            showEmpty={showEmptyToolkits}
-          />
-        ))}
-        <ToolkitTreeItem
-          key={'no_toolkit'}
+        <DocumentSplitGroup
+          docs={project?.documents}
           project={project}
-          toolkit={undefined}
-          showEmpty={showEmptyToolkits}
+          depth={viewSettings.maxDepth}
         />
       </TreeItem>
       <RepoTreeWhole

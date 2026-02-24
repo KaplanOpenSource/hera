@@ -1,0 +1,11 @@
+{
+  "repository": "DummyToolkitRepo",
+  "toolkits": [
+    {
+      "name": "DummyToolkit",
+      "classpath": "hera.tests.dynamic_loading.dummy_toolkit.DummyToolkit",
+      "version": [0, 0, 1],
+      "parameters": {}
+    }
+  ]
+}

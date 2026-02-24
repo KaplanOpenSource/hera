@@ -167,6 +167,48 @@ def JSONToConfiguration(valueToProcess,returnUnum=False,returnStandardize=False)
 
     return ret
 
+def stripConfigurationUnits(valueToProcess,returnStandardize=False, ignoreStandardization=[]):
+    """Converts a dictionary to a JSON where all the values with Unum or Pint units get converted to their magnitude
+    
+    Parameters
+    ----------
+    JSON : dict
+        The JSON to strip the units from
+    
+    returnStandardize: bool [Default False]
+        If true, return the  units in MKS. If False return the original units.
+
+    Returns
+    -------
+        Same json with all units stripped leaving just magnitudes
+
+    """
+    logger = logging.getLogger("hera.utils.stripConfigurationUnits")
+    ret = {}
+    logger.debug(f"Processing {valueToProcess}")
+    if isinstance(valueToProcess,dict):
+        for key, value in valueToProcess.items():
+            logger.debug("\t dictionary, calling recursively")
+            ret[key] = stripConfigurationUnits(value,returnStandardize=(returnStandardize and key not in ignoreStandardization),
+                                               ignoreStandardization=ignoreStandardization)
+    elif isinstance(valueToProcess,list):
+        logger.debug("\t list, transforming to str every item")
+        ret = [stripConfigurationUnits(x,returnStandardize=returnStandardize,
+                                       ignoreStandardization=ignoreStandardization) for x in valueToProcess]
+    elif isinstance(valueToProcess,Unum):
+        logger.debug(f"\t Try to convert *{valueToProcess}* to string")
+        origPintObj = unumToPint(valueToProcess)
+        pintObj = origPintObj.to_base_units() if (returnStandardize) else origPintObj
+        ret = pintObj.magnitude
+    elif isinstance(valueToProcess,Quantity):
+        origPintObj = valueToProcess
+        pintObj = origPintObj.to_base_units() if returnStandardize else origPintObj
+        ret = pintObj.magnitude
+    else:
+        ret = valueToProcess
+
+    return ret
+
 def loadJSON(jsonData):
     """Reads the json object to the memory.
     Could be:

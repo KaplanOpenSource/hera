@@ -136,26 +136,144 @@ if __name__ == "__main__":
     repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
                                  help='overwrite the existing workflow with the same name')
     repository_load.set_defaults(func=CLI.repository_load)
+    # -----------------  Toolkit
+    # toolkit add
+    add_toolkit_parser = subparsers.add_parser('addToolkit',help='Register a toolkit into the project')
+    add_toolkit_parser.add_argument('toolkit_name',type=str,help='Name of the toolkit to register')
+    add_toolkit_parser.add_argument('toolkit_path',type=str,help='Path to the toolkit class or descriptor')
+    add_toolkit_parser.add_argument('--params',type=str,required=False,help='Optional parameters as JSON string (e.g. \'{"a":1}\')')
+    add_toolkit_parser.add_argument('--version',type=str,required=False,default="0,0,1",help='Version in format "d,d,d" (default: 0,0,1)')
+    add_toolkit_parser.add_argument( '--overwrite', action='store_true', default=False, help='Overwrite existing toolkit if already registered')
 
-    # ----------------- NEW: Project Measurements (display helper)
-    # Adds: hera-project project measurements list [--project ...] [--type ...] [--contains ...]
-    measurements_parser = project_subparsers.add_parser('measurements', help='Measurements commands')
+    add_toolkit_parser.set_defaults(func=CLI.add_toolkit)
+
+    # ----------------- Project Measurements (display helper) -----------------
+    # Adds:
+    #   hera-project project measurements list --project ... [--type ...] [--contains ...]
+    #   hera-project project measurements list --project ... --shortcut ds|exp|sim|cache|all
+    measurements_parser = project_subparsers.add_parser(
+        'measurements',
+        help='Measurements commands (inspect measurement documents in a project)'
+    )
     measurements_sub = measurements_parser.add_subparsers(help='Measurements sub-commands')
 
     # project measurements list
-    meas_list = measurements_sub.add_parser('list', help='List project measurements')
-    # --project is optional: if your Project() can infer from CWD; otherwise pass it explicitly
-    meas_list.add_argument('--project', required=False, help='Project name (optional if auto-detected)')
-    # Filter by 'type' (e.g., ToolkitDataSource, Experiment_rawData)
-    meas_list.add_argument('--type', required=False, help="Filter by 'type' field")
-    # Substring filter on datasourceName/resource
-    meas_list.add_argument('--contains', required=False, help='Substring filter on datasourceName or resource')
+    meas_list = measurements_sub.add_parser(
+        'list',
+        help='List project measurements (with filters or shortcut groups)'
+    )
+
+    # --project is optional if your Project() can infer from CWD
+    meas_list.add_argument(
+        '--project',
+        required=False,
+        help='Project name (optional if auto-detected)'
+    )
+
+    # Explicit filter by type (kept for backwards compatibility)
+    meas_list.add_argument(
+        '--type',
+        required=False,
+        help="Filter by 'type' field (e.g. ToolkitDataSource, Experiment_rawData, Simulations, Cache)"
+    )
+
+    # New: shortcut between common groups: ds/exp/sim/cache/all
+    meas_list.add_argument(
+        '--shortcut',
+        required=False,
+        choices=['ds', 'exp', 'sim', 'cache', 'all'],
+        help=(
+            "Shortcut for common groups:\n"
+            "  ds    = ToolkitDataSource (dynamic toolkits)\n"
+            "  exp   = Experiment_rawData (experiments)\n"
+            "  sim   = Simulations (Simulation_* types)\n"
+            "  cache = Cache (Cache_* types)\n"
+            "  all   = all of the above"
+        )
+    )
+
+    # Optional substring filter on datasourceName/resource
+    meas_list.add_argument(
+        '--contains',
+        required=False,
+        help='Substring filter on datasourceName or resource'
+    )
+
     meas_list.set_defaults(func=CLI.project_measurements_list)
 
-    # ----------------- Exec
+    # ----------------- Convenience alias: project simulations -----------------
+    # hera-project project simulations list --project ... [--contains ...]
+    sims_parser = project_subparsers.add_parser(
+        'simulations',
+        help='Simulation documents (alias of "measurements list --shortcut sim")'
+    )
+    sims_sub = sims_parser.add_subparsers(help='Simulations sub-commands')
+
+    sims_list = sims_sub.add_parser(
+        'list',
+        help='List simulation documents in the project'
+    )
+    sims_list.add_argument(
+        '--project',
+        required=False,
+        help='Project name (optional if auto-detected)'
+    )
+    sims_list.add_argument(
+        '--contains',
+        required=False,
+        help='Substring filter on datasourceName or resource'
+    )
+    # Reuse the same handler, pre-setting shortcut="sim"
+    sims_list.set_defaults(
+        func=CLI.project_measurements_list,
+        shortcut='sim',
+        type=None,
+    )
+
+    # ----------------- Convenience alias: project cache -----------------
+    # hera-project project cache list --project ... [--contains ...]
+    cache_parser = project_subparsers.add_parser(
+        'cache',
+        help='Cache documents (alias of "measurements list --shortcut cache")'
+    )
+    cache_sub = cache_parser.add_subparsers(help='Cache sub-commands')
+
+    cache_list = cache_sub.add_parser(
+        'list',
+        help='List cache documents in the project'
+    )
+    cache_list.add_argument(
+        '--project',
+        required=False,
+        help='Project name (optional if auto-detected)'
+    )
+    cache_list.add_argument(
+        '--contains',
+        required=False,
+        help='Substring filter on datasourceName or resource'
+    )
+    # Reuse the same handler, pre-setting shortcut="cache"
+    cache_list.set_defaults(
+        func=CLI.project_measurements_list,
+        shortcut='cache',
+        type=None,
+    )
+
+
+    # ----------------- Exec -----------------
     parsed = parser.parse_args()
     logger.debug(f"Got {parsed} in the command line")
-    if 'func' not in parsed:
+
+    # If no sub-command was selected – print help and exit
+    func = getattr(parsed, "func", None)
+    if func is None:
         parser.print_help()
     else:
-        parsed.func(parsed)
+        # argparse stored whatever we passed in set_defaults(...).
+        # In some setups this might be a `staticmethod` object,
+        # so we unwrap it before calling.
+        if isinstance(func, staticmethod):
+            func = func.__func__
+
+        # Now call the underlying function with `parsed` namespace
+        func(parsed)
