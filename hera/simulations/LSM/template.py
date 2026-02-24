@@ -141,7 +141,6 @@ class LSMTemplate:
             updated_params.update(canopy=".TRUE.")
 
         xshift = (updated_params["TopoXmax"] - updated_params["TopoXmin"]) * updated_params["sourceRatioX"]
-
         yshift = (updated_params["TopoYmax"] - updated_params["TopoYmin"]) * updated_params["sourceRatioY"]
 
         logger.info(f"Set input for model creator as {self.dirPath}")

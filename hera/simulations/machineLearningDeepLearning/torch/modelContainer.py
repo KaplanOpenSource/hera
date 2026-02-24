@@ -189,12 +189,15 @@ class torchLightingModelContainer(Project):
         self.load()
         logger.info(f"Loaded  model ID {self.modelID}")
 
-        # 1. Initialize the dataloaders .
 
+        # 1. Initialize the dataloaders .
+        logger.info("Getting validation dataset")
         validateDatasetLoader = self.getValidateDatasetLoader()
 
+        logger.info("Initializing model")
         model = self.initClass(self.modelJSON['model'])
 
+        logger.info("Registering model container if necessary")
         if isinstance(model,LightningModuleHera):
             model.setModelContainer(self)
 
@@ -231,6 +234,63 @@ class torchLightingModelContainer(Project):
 
         logger.info("Starting to train")
         trainer.fit(model,val_dataloaders=validateDatasetLoader,train_dataloaders=trainDatasetLoader,**ckpt_path_param)
+
+    def only_validate(self,continueTraining=True):
+        """
+            Initializes all the object and returns the trainer.
+        Returns
+        -------
+
+        """
+        logger = get_classMethod_logger(self, "fit")
+        logger.info("Loading the model ")
+        self.load()
+        logger.info(f"Loaded  model ID {self.modelID}")
+
+        # 1. Initialize the dataloaders .
+
+        logger.info("Getting validation dataset")
+        validateDatasetLoader = self.getValidateDatasetLoader()
+
+        logger.info("Initializing model")
+        model = self.initClass(self.modelJSON['model'])
+
+        if isinstance(model,LightningModuleHera):
+            model.setModelContainer(self)
+
+        # if hasattr(model,"train_dataloader"):
+        #     trainDatasetLoader = None
+        # else:
+        #     trainDatasetLoader = self.getTrainDatasetLoader()
+
+        trainer = self.getTrainer(max_epochs=1)
+
+        ckpt_path_param = dict()
+        ckpt_path = None
+
+        if len(self.state_other_models) == 0:
+            if continueTraining:
+                ckpt_path = self.checkpoint_path
+                if not os.path.exists(ckpt_path):
+                    ckpt_path = None
+            elif os.path.exists(ckpt_path):
+                    os.remove(ckpt_path)
+
+            ckpt_path_param['ckpt_path'] = ckpt_path
+
+        else:
+            # load the weights from another model.
+            for otherState in self.state_other_models:
+                if otherState['componentName'] == self.MODEL:
+                    component = model
+                else:
+                    component = getattr(model,otherState['componentName'])
+                prefix   = otherState['nameOnOtherModel']
+                otherChkpnt = self.machineLearningDeepLearning.getTorchModelContainerByID(otherState['otherModelID']).checkpoint_path
+                self.load_submodule_from_ckpt(component,otherChkpnt,prefix)
+
+        logger.info("Starting to train")
+        trainer.validate(model, dataloaders=validateDatasetLoader)
 
     def getStatistics(self):
         if self.modelJSON is None:
@@ -295,7 +355,6 @@ class torchLightingModelContainer(Project):
         trainer    = self.getClass(trainerJSON)
         params     = trainerJSON['parameters']
         params['enable_model_summary'] = True
-        params['model_summary'] = "full"
         params.update(**kwargs)
         params['logger'] = logger
         params['callbacks'] = [checkpoint_callback]
