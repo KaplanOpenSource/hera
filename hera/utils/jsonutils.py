@@ -545,7 +545,6 @@ class JSONvariationItem:
 
         result = {}
         for key, value in self.variationItem.items():
-            isinstance(quantity, pint.Quantity):
             result[key] = value[self._curIter]
         self._curIter += 1
         return result
