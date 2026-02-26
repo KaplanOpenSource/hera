@@ -1,7 +1,7 @@
 import json
 import pandas
+from hera.utils import ureg
 import xarray
-from hera.utils.unitHandler import  *
 
 class AbstractCalculator(object): 
 	"""
@@ -14,7 +14,7 @@ class AbstractCalculator(object):
 	def injuryBreathingRate(self): 
 		return self._injury_breathingRate
 
-	def __init__(self,breathingRate=10*L/min): 
+	def __init__(self,breathingRate=10*ureg.L/ureg.min): 
 		self._injury_breathingRate=breathingRate
 
 
@@ -29,7 +29,7 @@ class CalculatorHaber(AbstractCalculator):
 		Implements the haber law (simple integral) on the concentrations. 
 	"""
 
-	def __init__(self,breathingRate=10*L/min,**kwargs): 
+	def __init__(self,breathingRate=10*ureg.L/ureg.min,**kwargs): 
 		"""
 			Calculates the Haber dosage. The integration is performed on the time axis. 
 
@@ -37,7 +37,7 @@ class CalculatorHaber(AbstractCalculator):
 		"""
 		super().__init__(breathingRate=breathingRate)
 
-	def calculate(self,concentrationField,breathingRate=10*L/min,time="datetime",field=None,inUnits=None):
+	def calculate(self,concentrationField,breathingRate=10*ureg.L/ureg.min,time="datetime",field=None,inUnits=None):
 		"""
 			Calculates the dosage from a concentration field.
 
@@ -73,16 +73,16 @@ class CalculatorHaber(AbstractCalculator):
 
 
 		"""
-		breathingRatio = (breathingRate/self.injuryBreathingRate).asNumber()
+		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 		if inUnits is None:
 			if hasattr(concentrationField, "attrs"):
 				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = concentrationField.attrs[field] if attrs_units is not None  else mg / m ** 3
+			inUnits = concentrationField.attrs[field] if attrs_units is not None  else ureg.mg / ureg.m ** 3
 
-		CunitConversion = inUnits.asNumber(mg / m ** 3)
+		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField,xarray.Dataset):
-			return concentrationField[field].cumsum(dim=time)*concentrationField.dt.asNumber(min)*breathingRatio*CunitConversion
+			return concentrationField[field].cumsum(dim=time)*concentrationField.dt.m_as(ureg.min)*breathingRatio*CunitConversion
 		elif isinstance(concentrationField,pandas.DataFrame):
 			dt_min = concentrationField.reset_index()[time].diff().apply(lambda x: x.seconds)/60.
 			return (concentrationField[:-1].fillna(0)*dt_min[1:]).cumsum()*breathingRatio * CunitConversion
@@ -102,7 +102,7 @@ class CalculatorTenBerge(AbstractCalculator):
 
 	n = None
 
-	def __init__(self,tenbergeCoefficient,breathingRate=10*L/min,**kwargs): 
+	def __init__(self,tenbergeCoefficient,breathingRate=10*ureg.L/ureg.min,**kwargs): 
 		"""
 			:param: n: the ten-berge coefficient. 
 			:param: time: the time variable. 
@@ -110,7 +110,7 @@ class CalculatorTenBerge(AbstractCalculator):
 		super().__init__(breathingRate=breathingRate)
 		self.n 	   = tenbergeCoefficient
 
-	def calculate(self,concentrationField,field,breathingRate=10*L/min,time="datetime",inUnits=None):
+	def calculate(self,concentrationField,field,breathingRate=10*ureg.L/ureg.min,time="datetime",inUnits=None):
 		"""
             Calculates the toxic load  from a concentration field.
             \begin{equation}
@@ -149,16 +149,16 @@ class CalculatorTenBerge(AbstractCalculator):
 
 
         """
-		breathingRatio = (breathingRate/self.injuryBreathingRate).asNumber()
+		breathingRatio = (breathingRate/self.injuryBreathingRate).magnitude
 
 		if inUnits is None:
 			if hasattr(concentrationField, "attrs"):
 				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = concentrationField.attrs[field] if attrs_units is not None  else mg / m ** 3
-		CunitConversion = inUnits.asNumber(mg / m ** 3)
+			inUnits = concentrationField.attrs[field] if attrs_units is not None  else ureg.mg / ureg.m ** 3
+		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):
-			return ((concentrationField[field]*CunitConversion)**self.n).cumsum(dim=time)*concentrationField.dt.asNumber(min)*breathingRatio
+			return ((concentrationField[field]*CunitConversion)**self.n).cumsum(dim=time)*concentrationField.dt.m_as(ureg.min)*breathingRatio
 		elif isinstance(concentrationField,pandas.DataFrame):
 			dt_min = concentrationField.reset_index()[time].diff().apply(lambda x: x.seconds) / 60.
 			C_to_n = ((concentrationField[:-1].fillna(0)* CunitConversion )**self.n)
@@ -175,14 +175,14 @@ class CalculatorTenBerge(AbstractCalculator):
 
 class CalculatorMaxConcentration(AbstractCalculator): 
 	
-	def __init__(self,sampling,breathingRate=10*L/min,**kwargs): 
+	def __init__(self,sampling,breathingRate=10*ureg.L/ureg.min,**kwargs): 
 		"""
 			Implements the maximal concentration on the time axis.
 		"""
 		super().__init__(breathingRate=breathingRate)
 		self._sampling = sampling
 
-	def calculate(self,concentrationField,field,breathingRate=10*L/min,time="datetime",inUnits=None):
+	def calculate(self,concentrationField,field,breathingRate=10*ureg.L/ureg.min,time="datetime",inUnits=None):
 		"""
             Calculate the maximal concentrations
 
@@ -218,13 +218,13 @@ class CalculatorMaxConcentration(AbstractCalculator):
 
 
         """
-		breathingRatio = (breathingRate / self.injuryBreathingRate).asNumber()
+		breathingRatio = (breathingRate / self.injuryBreathingRate).magnitude
 
 		if inUnits is None:
 			if hasattr(concentrationField, "attrs"):
 				attrs_units = concentrationField.attrs.get("field", None)
-			inUnits = attrs_units[field] if attrs_units is not None  else mg / m ** 3
-		CunitConversion = inUnits.asNumber(mg / m ** 3)
+			inUnits = attrs_units[field] if attrs_units is not None  else ureg.mg / ureg.m ** 3
+		CunitConversion = inUnits.m_as(ureg.mg / ureg.m ** 3)
 
 		if isinstance(concentrationField, xarray.Dataset):
 			itemstep = pandas.to_timedelta(self._sampling) / pandas.to_timedelta(

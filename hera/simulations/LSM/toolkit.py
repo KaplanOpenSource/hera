@@ -297,6 +297,11 @@ class LSMToolkit(toolkit.abstractToolkit):
     def prepareSlurmLSMExecution(self,baseParameters,
                               jsonVariations,
                               templateName,
+                              filesDirectory=None,
+                              to_xarray=True,
+                              to_database=False,
+                              forceKeep=False,
+                              connectionName=None,
                               stations=None,
                               topography=None,
                               depositionRates=None,
@@ -357,7 +362,7 @@ class LSMToolkit(toolkit.abstractToolkit):
             jsonConfig = JSONToConfiguration(jsonConfig)
             jsonConfig = LSMTemplate.prepareParams(desc=None, paramsToPrepare=jsonConfig)
             simName = f"LSM_Simulation_{i}"
-            simSavePath = simulations_scripts_dir/ simName/ RUN_SIM_FILE_NAME
+            simSavePath = simulations_scripts_dir/ (simName+".py")
 
             os.makedirs(simulations_scripts_dir / simName, exist_ok=True)
             if isinstance(topography, str):
@@ -367,12 +372,13 @@ class LSMToolkit(toolkit.abstractToolkit):
             if isinstance(topography, str):
                 topography = f'"{topography}"'
             read_stations_line = f'stations = pandas.read_parquet("'+STATIONS_PATH+'")'
+            connectionNameParam = f'"{connectionName}"' if connectionName is not None else "None" 
 
             sim_script = f"""
 from hera import toolkitHome, ToolkitHome
 from hera.simulations.LSM.toolkit import LSMToolkit
 import pandas
-old_lsm_toolkit = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectName="{self.projectName}")
+old_lsm_toolkit = toolkitHome.getToolkit(toolkitName=ToolkitHome.LSM, projectName="{self.projectName}", filesDirectory={"None" if filesDirectory is None else filesDirectory}, to_xarray={to_xarray}, to_database={to_database}, forceKeep={forceKeep}, connectionName={connectionNameParam})
 
 lsm_template = old_lsm_toolkit.getTemplates(template="{templateName}")[0]
 params={jsonConfig}

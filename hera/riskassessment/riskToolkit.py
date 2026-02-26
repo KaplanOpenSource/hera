@@ -1,5 +1,8 @@
 import json
 import os
+
+from hera import get_classMethod_logger
+from hera.utils import ureg
 from ..toolkit import abstractToolkit,TOOLKIT_SAVEMODE_FILEANDDB,TOOLKIT_SAVEMODE_FILEANDDB_REPLACE,TOOLKIT_SAVEMODE_NOSAVE
 from ..datalayer import datatypes, nonDBMetadataFrame
 from .agents.Agents import Agent
@@ -7,7 +10,6 @@ from .presentation.casualtiesFigs import casualtiesPlot
 from .protectionpolicy.ProtectionPolicy import ProtectionPolicy
 from ..simulations.LSM.toolkit import LSMToolkit
 import geopandas
-from unum.units import *
 
 class RiskToolkit(abstractToolkit):
     """
@@ -63,10 +65,19 @@ class RiskToolkit(abstractToolkit):
                 The name of the project in the local DB that will be searched for the agent.
         :return:
         """
+        logger = get_classMethod_logger(self, "getAgent")
         if isinstance(nameOrDesc, str):
             descriptor = self.getDataSourceData(nameOrDesc, version=version)
             if descriptor is None:
                 raise ValueError(f"Agent {nameOrDesc} is not found. Load it with hera-risk-agent load")
+
+            agentDataSource = self.getDataSourceDocument(nameOrDesc, version=version)
+            if 'name' not in descriptor:
+                logger.warning("name not specified in the agent descriptor, using the datasource name as a default")
+                descriptor['name'] = agentDataSource.desc['datasourceName']
+            if 'version' not in descriptor:
+                logger.warning("version not specified in the agent descriptor, using the datasource version as a default")
+                descriptor['version'] = agentDataSource.desc['version']
 
         elif isinstance(nameOrDesc, dict):
             descriptor = nameOrDesc
@@ -175,7 +186,7 @@ class analysis():
         self._datalayer = dataLayer
         self._LSM = LSMToolkit(projectName=self.datalayer.projectName)
 
-    def getRiskAreas(self, tenbergeCoefficient, levels,Q=1*kg,protectionPolicy=None,LSMfile=None, **LSMparams):
+    def getRiskAreas(self, tenbergeCoefficient, levels,Q=1*ureg.kg,protectionPolicy=None,LSMfile=None, **LSMparams):
         """
         returns the bounds and polygons of risk areas from dispersion of agents with different Ten Berge
         coefficients and hazardous levels.

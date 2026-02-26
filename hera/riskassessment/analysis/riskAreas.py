@@ -128,7 +128,7 @@ class riskAreaAlgorithm_Sweep(object):
 		"""	
 			Calculates the number of casualties for each point in the find bounding box. 
 		"""
-		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMatematicalAngle(meteorological_angle)
+		rotate_angle 	= mathematical_angle if meteorological_angle is None else toMathematicalAngle(meteorological_angle)
 		severity_effectIsopleths = effectIsopleths
 		pointsList = self._findBoundingBox(severity_effectIsopleths,demog,
 										   mathematical_angle=rotate_angle,

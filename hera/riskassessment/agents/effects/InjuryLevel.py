@@ -1,18 +1,19 @@
 import geopandas
 import pandas
+from hera.utils import tounit, ureg
 import numpy
 import json
 
 from hera.utils.matplotlibCountour import toGeopandas
-from ....utils import tounit
+# from ....utils import tounit
 
-from unum.units import *
-from unum import Unum
+# from unum.units import *
+# from unum import Unum
 
 import matplotlib.pyplot as plt 
 from scipy.stats import lognorm
 
-dosage = mg/m**3
+dosage = ureg.mg/ureg.m**3
 
 class InjuryLevel(object): 
 	"""
@@ -195,13 +196,13 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 
 		"""
 		a = numpy.log10(numpy.e)
-		prob = lognorm.cdf(ToxicLoad/a,self.sigma/a,scale=self.TL_50.asNumber(dosage)/a)
+		prob = lognorm.cdf(ToxicLoad/a,self.sigma/a,scale=self.TL_50.m_as(dosage)/a)
 		return prob
 
 
 	def getToxicLoad(self,Percent): 
 		a = numpy.log10(numpy.e)
-		percent = lognorm.ppf(Percent,self.sigma/a,scale=self.TL_50.asNumber(dosage)/a)*a
+		percent = lognorm.ppf(Percent,self.sigma/a,scale=self.TL_50.m_as(dosage)/a)*a
 		return percent
 
 	def _getGeopandas(self,concentrationField,x,y,**parameters):
@@ -250,13 +251,13 @@ class InjuryLevelThreshold(InjuryLevel):
 
 	def __init__(self,name,units=None,**parameters):
 
-		actualunit = mg/m**3 if units is None else units
+		actualunit = ureg.mg/ureg.m**3 if units is None else units
 		if "threshold" not in parameters: 
 			raise ValueError("Cannot find the threshold")
 
-		thr = eval(parameters["threshold"])
+		thr = ureg(parameters["threshold"])
 
-		parameters["threshold"] = thr if isinstance(thr,Unum) else tounit(eval(parameters["threshold"]),actualunit)
+		parameters["threshold"] = ureg(parameters["threshold"]).to(actualunit)
 
 		super(InjuryLevelThreshold,self).__init__(name,units=actualunit,**parameters)
 

@@ -171,7 +171,7 @@ class LSMTemplate:
                           params=updated_params)
             )
             curr_counter = self.Toolkit.getCounterAndAdd(f"LSM_SIMULATION_{self.Toolkit.projectName}")
-            saveDir = os.path.join(saveDir, str(curr_counter))
+            saveDir = os.path.join(saveDir, f"LSM_Simulation_{curr_counter}")
             if self.to_xarray:
                 doc['resource'] = os.path.join(saveDir, 'netcdf', '*')
                 doc['dataFormat'] = datatypes.NETCDF_XARRAY
@@ -265,10 +265,10 @@ class LSMTemplate:
                     with open("h_stations.txt", "w") as newStationFile:
                         newStationFile.write(hStations)
 
-        logger.info("Running the model")
+        logger.info("running the model")
         # run the model.
-        print([x for x in os.listdir(".")])
         lsm_return = os.system('./a.out')
+        logger.info("simulation finished running")
         logger.info(f"returning context back to {cur_dir}")
         os.chdir(cur_dir)
         if lsm_return != 0:
@@ -307,6 +307,7 @@ class LSMTemplate:
             if saveMode != toolkit.TOOLKIT_SAVEMODE_NOSAVE:
                 finalxarray.to_netcdf(os.path.join(netcdf_output, "data%s.nc" % i))
 
+            logger.info("Finished processing simulation")
             return SingleSimulation(netcdf_output)
         else:
             return None

@@ -1,10 +1,10 @@
+import os
+from hera.utils import ureg
 import numpy 
 import json
 import xarray 
 import pandas
 import pydoc 
-from unum.units import * 
-from ...utils import tounit,tonumber
 
 class ProtectionPolicy(object): 
 	"""
@@ -257,9 +257,9 @@ class ActionIndoor(abstractAction):
 		"""
 		super().__init__(actionID,"indoor",policy,**kwargs) 
 		if "turnover" in kwargs: 
-			self._alpha = tounit(1/kwargs["turnover"],1/h)
+			self._alpha = (1/kwargs["turnover"]).to(1/ureg.h)
 		elif "alpha" in kwargs: 
-			self._alpha = tounit(kwargs["alpha"],1/h)
+			self._alpha = (kwargs["alpha"]).ureg(1/ureg.h)
 		else: 
 			raise ValueError("Must supply either alpha or turnover rate to indoor calculation (ID %s) " % self.actionid)
 		
@@ -271,7 +271,7 @@ class ActionIndoor(abstractAction):
 		"""
 		data     = self.policy.data
 		Cin      = xarray.zeros_like(data[self.policy.finalname]).squeeze().compute()
-		alphanum = tonumber(self.alpha,1/s)
+		alphanum = self.alpha.m_as(1/ureg.s)
 		Cout     = data[self.policy.finalname].squeeze() 
 		
 		for I in range(1, len(self.policy.data[self.policy.datetimename])):
@@ -310,7 +310,7 @@ class ActionIndoor(abstractAction):
 
 	@property
 	def hdfkey(self):
-		return "indoorT%dmin%s" % (tonumber(self.turnover,min),self._timekey())
+		return "indoorT%dmin%s" % (self.turnover.m_as(ureg.min),self._timekey())
 
 	def _timekey(self):
 		data = self.policy.data
