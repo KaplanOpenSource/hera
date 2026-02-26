@@ -283,11 +283,34 @@ class dataToolkit(abstractToolkit):
 
             isRelativePath = itemDesc.get("isRelativePath")
             assert (isRelativePath=='True' or isRelativePath=='False') or isinstance(isRelativePath,bool), "isRelativePath must be defined as 'True' or 'False'. "
-            # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
-            if isRelativePath=='True' or isRelativePath is True:
-                logger.debug(
-                    f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
-                theItem["resource"] = os.path.join(basedir, theItem["resource"])
+
+
+            if 'resource' in theItem and "resourceFilePath" in theItem:
+                logger.warning(f"both resource and resourceFilePath are defined for datasource {itemName}, using just resource")
+                theItem.pop("resourceFilePath")
+
+            if 'resource' not in theItem and "resourceFilePath" in theItem:
+                if isRelativePath=='True' or isRelativePath is True:
+                    logger.debug(
+                        f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resourceFilePath']}")
+                    theItem["resourceFilePath"] = os.path.join(basedir, theItem["resourceFilePath"])
+                
+                logger.info("detected dataSource resource specified using file's contents")
+                try:
+                    with open(theItem.pop("resourceFilePath")) as dataSourceResourceFile:
+                        theItem['resource'] = json.load(dataSourceResourceFile)
+                        logger.info("extracted resource from file successfully")
+                except Exception as e:
+                    logger.error(f"failed reading resource from file, {e}")
+            else:
+                # logger.debug(f"Checking if {itemName} resource is a path {isRelativePath}, is it absolute? {isAbsolute}")
+                if isRelativePath=='True' or isRelativePath is True:
+                    logger.debug(
+                        f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
+                    theItem["resource"] = os.path.join(basedir, theItem["resource"])
+
+
+
 
             logger.debug(f"Checking if the data item {itemName} is already in project {toolkit.projectName}")
             datasource = toolkit.getDataSourceDocuments(datasourceName=itemName)
@@ -388,7 +411,7 @@ class dataToolkit(abstractToolkit):
                 retrieveFunc(**itemDesc,overwrite=overwrite)
             elif isinstance(itemDesc,list):
                 for imt in itemDesc:
-                    if isintance(imt,dict):
+                    if isinstance(imt,dict):
                         retrieveFunc(**imt, overwrite=overwrite)
                     else:
                         err = f"{itemName} has a non dict item in the list : {imt}... ignoring."
