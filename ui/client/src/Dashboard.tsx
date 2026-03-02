@@ -1,5 +1,6 @@
 import { AppBar, Box, Paper, Stack, Toolbar, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router-dom';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
 import { PageTitle } from './components/header/PageTitle';
@@ -50,25 +51,35 @@ export const Dashboard = () => {
         }}
       >
         {project
-          ? (<>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-                <ProjectTreeView
-                  project={project}
-                  setSelectedItemIds={setSelectedItemIds}
-                />
-              </Paper>
-            </Box>
+          ? (
+            <PanelGroup direction="horizontal">
+              <Panel defaultSize={50} minSize={20}>
+                <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                  <ProjectTreeView
+                    project={project}
+                    setSelectedItemIds={setSelectedItemIds}
+                  />
+                </Paper>
+              </Panel>
 
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-                <DetailsViewPanel
-                  project={project}
-                  showItemId={selectedItemsIds[0]}
-                />
-              </Paper>
-            </Box>
-          </>)
+              <PanelResizeHandle
+                style={{
+                  width: 4,
+                  cursor: 'col-resize',
+                  backgroundColor: '#e0e0e0',
+                }}
+              />
+
+              <Panel defaultSize={50} minSize={20}>
+                <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                  <DetailsViewPanel
+                    project={project}
+                    showItemId={selectedItemsIds[0]}
+                  />
+                </Paper>
+              </Panel>
+            </PanelGroup>
+          )
 
           : (
             <Paper sx={{ p: 2, height: '100%', overflow: 'auto', flex: 1, minWidth: 0 }}>
