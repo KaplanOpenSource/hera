@@ -67,6 +67,7 @@ export const Dashboard = () => {
                   width: 4,
                   cursor: 'col-resize',
                   backgroundColor: '#e0e0e0',
+                  outline: 'none',
                 }}
               />
 
