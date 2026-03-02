@@ -3,9 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "vite --config vite.config.ts",
-    "build": "echo \"export const commitId = '$(git rev-parse HEAD)';\" > src/commitId.ts && vite build --config vite.config.ts",
-    "preview": "vite preview --config vite.config.ts"
+    "dev": "vite",
+    "prebuild": "echo \"export const commitId = '$(git rev-parse HEAD)';\" > src/commitId.ts",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
