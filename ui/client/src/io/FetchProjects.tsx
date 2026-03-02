@@ -67,7 +67,7 @@ result = toolkitHome.getToolkitDocuments()
   }
 }
 
-const resolveProjectFromUrl = (urlProjectName: string | undefined, projectNames: ProjectName[]): string | undefined => {
+export const resolveProjectFromUrl = (urlProjectName: string | undefined, projectNames: ProjectName[]): string | undefined => {
   if (!urlProjectName) return undefined;
   const decodedName = decodeURIComponent(urlProjectName);
   return projectNames.find(p => p.name === decodedName)?.name;
