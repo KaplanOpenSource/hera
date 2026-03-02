@@ -1,12 +1,26 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { useState } from 'react';
 import { DetailsViewDocId } from '../src/components/details/DetailsViewDocId';
+import { DetailsViewPanel } from '../src/components/details/DetailsViewPanel';
+import { ProjectTreeView } from '../src/components/project/ProjectTreeView';
 import { ProjectObj } from '../src/objects/ProjectObj';
+import { useProjectStore } from '../src/stores/useProjectStore';
 import { ProjectDocument, ProjectEntire } from '../src/shared/types';
 import * as FetchDocument from '../src/io/FetchDocument';
+import * as FetchProjects from '../src/io/FetchProjects';
 
 vi.mock('../src/components/agents/AgentConfigEditor', () => ({
   AgentConfigEditor: () => null,
+}));
+vi.mock('../src/components/project/AddDocumentButton', () => ({
+  AddDocumentButton: () => null,
+}));
+vi.mock('../src/components/project/ProjectViewSettingsButton', () => ({
+  ProjectViewSettingsButton: () => null,
+}));
+vi.mock('../src/components/project/RepoTreeWhole', () => ({
+  RepoTreeWhole: () => null,
 }));
 
 const DOC_ID = 'abc123';
@@ -157,6 +171,78 @@ describe('Two UI sync', () => {
     // After refresh, UI-2 should now show the new value
     await waitFor(() => {
       expect(within(ui2Refreshed.container).getByDisplayValue('new-value')).toBeDefined();
+    });
+  });
+
+  it('clicking the refresh button in the tree updates the details panel', async () => {
+    const oldDoc = makeDoc('old-value');
+    const updatedDoc = makeDoc('new-value');
+
+    // Initial document fetch returns old data
+    fetchDocumentSpy.mockResolvedValue(oldDoc);
+
+    const projectData = makeProjectData();
+
+    // Set up the store with the project (like Dashboard does)
+    useProjectStore.setState({ currProject: projectData });
+
+    // A mini wrapper that wires the tree and details panel via the store,
+    // mimicking Dashboard's behavior
+    const DashboardLike = () => {
+      const { getProject } = useProjectStore();
+      const [selectedItemId, setSelectedItemId] = useState<string>('');
+      const project = getProject()!;
+      return (
+        <div>
+          <div data-testid="tree-panel">
+            <ProjectTreeView
+              project={project}
+              setSelectedItemIds={(ids) => setSelectedItemId(ids[0] || '')}
+            />
+          </div>
+          <div data-testid="details-panel">
+            <DetailsViewPanel
+              project={project}
+              showItemId={selectedItemId}
+            />
+          </div>
+        </div>
+      );
+    };
+
+    render(<DashboardLike />);
+
+    const treePanel = screen.getByTestId('tree-panel');
+    const detailsPanel = screen.getByTestId('details-panel');
+
+    // Click on the document in the tree to select it
+    const docItem = await waitFor(() => within(treePanel).getByText('MyDoc'));
+    fireEvent.click(docItem);
+
+    // Wait for the details panel to load and show the old value
+    await waitFor(() => {
+      expect(within(detailsPanel).getByDisplayValue('old-value')).toBeDefined();
+    });
+
+    // Now the backend has updated data — mock fetchDocument to return new value
+    fetchDocumentSpy.mockResolvedValue(updatedDoc);
+
+    // Also mock fetchProjectDetails to update the store (this is what the
+    // refresh button triggers). It re-fetches the project and calls setCurrentProject.
+    const fetchProjectDetailsSpy = vi.spyOn(FetchProjects, 'fetchProjectDetails');
+    fetchProjectDetailsSpy.mockImplementation(async () => {
+      useProjectStore.getState().setCurrentProject(projectData);
+    });
+
+    // Click the refresh button
+    const refreshButton = within(treePanel).getByLabelText('Reload documents');
+    await act(async () => {
+      fireEvent.click(refreshButton);
+    });
+
+    // After refresh, the details panel should show the new value
+    await waitFor(() => {
+      expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
     });
   });
 });
