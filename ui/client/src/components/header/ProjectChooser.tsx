@@ -8,7 +8,7 @@ const displayName = (name: string) => name || EMPTY_NAME_PROJECT;
 const storeName = (name: string) => name === EMPTY_NAME_PROJECT ? "" : name;
 
 export const ProjectChooser = () => {
-  const { projectNames, currProjectName, selectProject } = useProjectStore();
+  const { projectNames, currProjectName } = useProjectStore();
   const navigate = useNavigate();
 
   const options = projectNames.map(({ name }) => displayName(name));
@@ -21,9 +21,7 @@ export const ProjectChooser = () => {
         options={options}
         onChange={(_, value) => {
           if (value) {
-            const name = storeName(value);
-            selectProject(name);
-            navigate('/' + encodeURIComponent(name));
+            navigate('/' + encodeURIComponent(storeName(value)));
           }
         }}
         renderInput={(params) => <TextField {...params} label="Project" />}
