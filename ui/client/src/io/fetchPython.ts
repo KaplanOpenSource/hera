@@ -22,5 +22,5 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
   }
 
   const { data, problem } = await execPython(lines.join('\n'));
-  return { data, problem };
+  return { data: problem ? undefined : data, problem };
 };
