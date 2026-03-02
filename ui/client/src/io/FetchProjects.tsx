@@ -3,20 +3,18 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DEFAULT_PROJECT, NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { execPython } from "./execPython";
+import { fetchPython } from "./fetchPython";
+import { ProjectCommands } from "./ProjectCommands";
 
 export const fetchProjectsNames = async () => {
-  const { data, problem } = await execPython(`
-from hera.datalayer.project import getProjectList
-result = [{"name": proj} for proj in getProjectList()]
-  `);
+  const { data, problem } = await fetchPython(ProjectCommands.projectNames());
 
   if (!problem) {
-    const projects = (data || []) as ProjectName[];
+    const projects = (data.projects || []) as ProjectName[];
     const first = projects.filter(({ name }) => name === DEFAULT_PROJECT);
     const rest = projects.filter(({ name }) => name !== DEFAULT_PROJECT);
     rest.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     useProjectStore.getState().setProjectNames([...first, ...rest])
-    // console.log('inside:', useProjectStore.getState().projectNames, data)
   }
 }
 
