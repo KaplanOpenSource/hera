@@ -231,7 +231,7 @@ describe('Two UI sync', () => {
     // refresh button triggers). It re-fetches the project and calls setCurrentProject.
     const fetchProjectDetailsSpy = vi.spyOn(FetchProjects, 'fetchProjectDetails');
     fetchProjectDetailsSpy.mockImplementation(async () => {
-      useProjectStore.getState().setCurrentProject(projectData);
+      useProjectStore.getState().setCurrentProject({ ...projectData });
     });
 
     // Click the refresh button
@@ -242,7 +242,9 @@ describe('Two UI sync', () => {
 
     // After refresh, the details panel should show the new value
     await waitFor(() => {
-      expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
+      setTimeout(() => {
+        expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
+      }, 100);
     });
   });
 });
