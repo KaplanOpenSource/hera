@@ -23,9 +23,11 @@ export type ViewSettingsType = {
 
 export const ProjectTreeView = ({
   project,
+  selectedItemsIds = [],
   setSelectedItemIds,
 }: {
   project: ProjectObj;
+  selectedItemsIds?: string[];
   setSelectedItemIds: (v: string[]) => void,
 }) => {
   const { toolkits } = useProjectStore();
@@ -37,6 +39,7 @@ export const ProjectTreeView = ({
   return (
     <SimpleTreeView
       defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
+      selectedItems={selectedItemsIds[0] ?? null}
       onSelectedItemsChange={(_e, itemIds) => {
         setSelectedItemIds(itemIds ? [itemIds] : [])
       }}

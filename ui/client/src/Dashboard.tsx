@@ -52,11 +52,12 @@ export const Dashboard = () => {
       >
         {project
           ? (
-            <PanelGroup direction="horizontal">
+            <PanelGroup orientation="horizontal">
               <Panel defaultSize={50} minSize={20}>
                 <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
                   <ProjectTreeView
                     project={project}
+                    selectedItemsIds={selectedItemsIds}
                     setSelectedItemIds={setSelectedItemIds}
                   />
                 </Paper>
