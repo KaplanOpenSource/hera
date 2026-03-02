@@ -1,6 +1,6 @@
-import { Alert, AppBar, Box, Paper, Stack, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, Paper, Stack, Toolbar, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { CommandExecutor } from './components/CommandExecutor';
+import { Routes, Route, useParams } from 'react-router-dom';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
 import { PageTitle } from './components/header/PageTitle';
 import { ProjectChooser } from './components/header/ProjectChooser';
@@ -10,9 +10,8 @@ import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
 import { CommitIdShower } from './components/header/CommitIdShower';
 
-export default function App() {
-  // const [loading, setLoading] = useState(false);
-  // const [error, setError] = useState<string | undefined>(undefined);
+function AppContent() {
+  const { projectName } = useParams<{ projectName: string }>();
   const { getProject } = useProjectStore();
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>([]);
 
@@ -24,7 +23,7 @@ export default function App() {
 
   return (<>
     <ServerConstantReader />
-    <FetchProjects />
+    <FetchProjects urlProjectName={projectName} />
     <Box
       sx={{
         height: '100vh',
@@ -81,4 +80,13 @@ export default function App() {
       </Box>
     </Box>
   </>)
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/:projectName" element={<AppContent />} />
+      <Route path="/" element={<AppContent />} />
+    </Routes>
+  );
 }

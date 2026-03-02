@@ -1,5 +1,6 @@
 import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DEFAULT_PROJECT, NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
 import { execPython } from "./execPython";
 
@@ -66,27 +67,51 @@ result = toolkitHome.getToolkitDocuments()
   }
 }
 
-export const FetchProjects = ({ }) => {
+const resolveProjectFromUrl = (urlProjectName: string | undefined, projectNames: ProjectName[]): string | undefined => {
+  if (!urlProjectName) return undefined;
+  const decodedName = decodeURIComponent(urlProjectName);
+  return projectNames.find(p => p.name === decodedName)?.name;
+};
+
+export const FetchProjects = ({
+  urlProjectName,
+}: {
+  urlProjectName?: string,
+}) => {
   const {
     projectNames,
     currProjectName,
     selectProject,
   } = useProjectStore();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjectsNames();
   }, [])
 
-  // console.log('outside:', useProjectStore.getState().projectNames)
-
+  // Sync project selection with URL and fetch project data
   useEffect(() => {
-    if (currProjectName === NO_PROJECT && projectNames.length > 0) {
-      selectProject(projectNames[0].name);
-    } else if (currProjectName !== NO_PROJECT) {
+    if (projectNames.length === 0) return;
+
+    const urlProject = resolveProjectFromUrl(urlProjectName, projectNames);
+
+    // URL changed to a different valid project → switch to it
+    if (urlProject && urlProject !== currProjectName) {
+      selectProject(urlProject);
+      return;
+    }
+
+    if (currProjectName === NO_PROJECT) {
+      selectProject(urlProject ?? projectNames[0].name);
+    } else {
       fetchToolkits(currProjectName);
       fetchProjectDetails(currProjectName);
+      const expectedPath = '/' + encodeURIComponent(currProjectName);
+      if (location.pathname !== expectedPath) {
+        navigate(expectedPath, { replace: true });
+      }
     }
-  }, [currProjectName, projectNames]);
+  }, [currProjectName, projectNames, urlProjectName, navigate]);
 
   return null;
 }

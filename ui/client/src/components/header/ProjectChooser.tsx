@@ -1,4 +1,5 @@
 import { Autocomplete, TextField, Stack } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { AddProjectButton } from "./AddProjectButton";
 import { DeleteProjectButton } from "./DeleteProjectButton";
@@ -8,6 +9,7 @@ const storeName = (name: string) => name === EMPTY_NAME_PROJECT ? "" : name;
 
 export const ProjectChooser = () => {
   const { projectNames, currProjectName, selectProject } = useProjectStore();
+  const navigate = useNavigate();
 
   const options = projectNames.map(({ name }) => displayName(name));
 
@@ -18,7 +20,11 @@ export const ProjectChooser = () => {
         value={displayName(currProjectName)}
         options={options}
         onChange={(_, value) => {
-          if (value) selectProject(storeName(value));
+          if (value) {
+            const name = storeName(value);
+            selectProject(name);
+            navigate('/' + encodeURIComponent(name));
+          }
         }}
         renderInput={(params) => <TextField {...params} label="Project" />}
         disableClearable
