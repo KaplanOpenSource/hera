@@ -1,12 +1,15 @@
 """
 Native pytest tests for the TopographyToolkit.
 
+Data is loaded into the test project via ``conftest.hera_test_project``.
+The ``topo_toolkit`` fixture (session-scoped, from conftest) provides
+a real ``TopographyToolkit`` backed by MongoDB – no monkey-patching.
+
 Replaces:
   - hera/measurements/GIS/raster/test_unit_test_gis_raster_topography.py
   - hera/tests/json_definitions/topography_toolkit_definitions_extended.json
 """
 
-import glob
 import math
 import os
 import struct
@@ -16,8 +19,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from hera.datalayer.project import Project
-from hera.measurements.GIS.raster.topography import TopographyToolkit, WSG84
+from hera.measurements.GIS.raster.topography import WSG84
 
 
 # ---------------------------------------------------------------------------
@@ -56,41 +58,14 @@ def read_raw_elevation(lat, lon, hgt_folders):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def topo_toolkit(gis_raster_path):
-    """TopographyToolkit with custom config pointing to test HGT files."""
-    toolkit = TopographyToolkit(projectName="MY_PROJECT")
-
-    hgt_files = glob.glob(str(gis_raster_path / "**" / "*.hgt"), recursive=True)
-    resource_dirs = sorted(set(os.path.dirname(f) for f in hgt_files))
-
-    if not resource_dirs:
-        pytest.skip(f"No .hgt files found under {gis_raster_path}")
-
-    custom_config = {
-        "defaultSRTM": "SRTMGL1",
-        "DataSources": {
-            "SRTMGL1": {
-                "item": {
-                    "resource": resource_dirs[0],
-                    "resource_folders": resource_dirs,
-                    "dataFormat": "SRTM",
-                    "valueType": "Elevation",
-                    "desc": {},
-                }
-            }
-        },
-    }
-    toolkit.getConfig = lambda: custom_config
-    toolkit.getDataSourceData = lambda name: custom_config["DataSources"][name]["item"]["resource_folders"]
-    return toolkit
-
-
-@pytest.fixture(scope="module")
 def resource_folders(topo_toolkit):
-    folders = topo_toolkit.getDataSourceData("SRTMGL1")
-    if isinstance(folders, str):
-        return [folders]
-    return folders
+    """Get the HGT folder(s) from the project's datasource."""
+    resources = topo_toolkit.getDataSourceData("SRTMGL1")
+    if resources is None:
+        pytest.skip("SRTMGL1 datasource not loaded in project")
+    if isinstance(resources, str):
+        return [resources]
+    return resources
 
 
 # ---------------------------------------------------------------------------

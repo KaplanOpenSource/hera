@@ -1,11 +1,21 @@
 """
 Pytest configuration and shared fixtures for the hera test suite.
 
+Architecture
+------------
+A single **session-scoped** Hera ``Project`` is created at the start of the
+test session.  The test repository JSON (``test_repository.json`` located next
+to ``data_config.json`` inside ``TEST_HERA``) is loaded into this project via
+``dataToolkit.loadAllDatasourcesInRepositoryJSONToProject``.  Each toolkit test
+module receives a **real toolkit instance** backed by this project – no
+monkey-patching of ``getConfig`` / ``getDataSourceData`` is needed.
+
 Environment
 -----------
 TEST_HERA : str (env var)
     Path to the test data repository root (default: ~/hera_unittest_data).
-    Must contain ``data_config.json`` and the ``measurements/`` + ``expected/`` trees.
+    Must contain ``data_config.json``, ``test_repository.json``, and the
+    ``measurements/`` + ``expected/`` trees.
 
 RESULT_SET : str (env var or --result-set CLI)
     Name of the expected-output result set under ``expected/`` (default: BASELINE).
@@ -24,6 +34,9 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+
+# Project name used for ALL toolkit tests in this session
+PYTEST_PROJECT_NAME = "PYTEST_HERA_PROJECT"
 
 
 # ---------------------------------------------------------------------------
@@ -82,44 +95,105 @@ def expected_dir(test_hera_root, result_set):
 
 
 # ---------------------------------------------------------------------------
-# Path fixtures (all session-scoped)
+# Session-scoped Project fixture  (THE source of truth for toolkit tests)
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
-def gis_raster_path(test_hera_root, data_config):
-    p = test_hera_root / data_config["paths"]["gis_raster"]
-    assert p.is_dir(), f"GIS raster path missing: {p}"
-    return p
+def hera_test_project(test_hera_root):
+    """
+    Create a Hera Project and load the test repository into it.
+
+    The project is populated once for the entire test session via
+    ``dataToolkit.loadAllDatasourcesInRepositoryJSONToProject``.
+    Every toolkit test receives its data from this project.
+    """
+    from hera.datalayer.project import Project
+    from hera.utils.data.toolkit import dataToolkit
+
+    repo_json_path = test_hera_root / "test_repository.json"
+    if not repo_json_path.is_file():
+        pytest.skip(f"test_repository.json not found at {repo_json_path}")
+
+    # Read the repository JSON
+    with open(repo_json_path, encoding="utf-8") as fh:
+        repo_json = json.load(fh)
+
+    basedir = str(test_hera_root)
+
+    # Create the project
+    proj = Project(projectName=PYTEST_PROJECT_NAME)
+
+    # Load all datasources + configs into the project
+    dt = dataToolkit()
+    dt.loadAllDatasourcesInRepositoryJSONToProject(
+        projectName=PYTEST_PROJECT_NAME,
+        repositoryJSON=repo_json,
+        basedir=basedir,
+        overwrite=True,
+    )
+
+    yield proj
+
+    # Teardown: remove all documents created during the session
+    try:
+        for doc in proj.getMeasurementsDocuments():
+            doc.delete()
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session")
-def gis_vector_path(test_hera_root, data_config):
-    p = test_hera_root / data_config["paths"]["gis_vector"]
-    assert p.is_dir(), f"GIS vector path missing: {p}"
-    return p
-
-
-@pytest.fixture(scope="session")
-def lowfreq_path(test_hera_root, data_config):
-    p = test_hera_root / data_config["paths"]["meteorology_lowfreq"]
-    assert p.is_dir(), f"Low-freq path missing: {p}"
-    return p
-
-
-@pytest.fixture(scope="session")
-def highfreq_path(test_hera_root, data_config):
-    p = test_hera_root / data_config["paths"]["meteorology_highfreq"]
-    assert p.is_dir(), f"High-freq path missing: {p}"
-    return p
+def hera_project_name():
+    """The project name string for toolkit constructors."""
+    return PYTEST_PROJECT_NAME
 
 
 # ---------------------------------------------------------------------------
-# Project / DataToolkit fixtures
+# Per-toolkit session-scoped fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def topo_toolkit(hera_test_project):
+    """Session-scoped TopographyToolkit backed by the test project."""
+    from hera.measurements.GIS.raster.topography import TopographyToolkit
+    return TopographyToolkit(projectName=PYTEST_PROJECT_NAME)
+
+
+@pytest.fixture(scope="session")
+def lc_toolkit(hera_test_project):
+    """Session-scoped LandCoverToolkit backed by the test project."""
+    from hera.measurements.GIS.raster.landcover import LandCoverToolkit
+    return LandCoverToolkit(projectName=PYTEST_PROJECT_NAME)
+
+
+@pytest.fixture(scope="session")
+def demo_toolkit(hera_test_project):
+    """Session-scoped DemographyToolkit backed by the test project."""
+    from hera.measurements.GIS.vector.demography import DemographyToolkit
+    return DemographyToolkit(projectName=PYTEST_PROJECT_NAME)
+
+
+@pytest.fixture(scope="session")
+def lf_toolkit(hera_test_project):
+    """Session-scoped lowFreqToolKit backed by the test project."""
+    from hera.measurements.meteorology.lowfreqdata.toolkit import lowFreqToolKit
+    return lowFreqToolKit(projectName=PYTEST_PROJECT_NAME)
+
+
+@pytest.fixture(scope="session")
+def hf_toolkit(hera_test_project):
+    """Session-scoped HighFreqToolKit backed by the test project."""
+    from hera.measurements.meteorology.highfreqdata.toolkit import HighFreqToolKit
+    return HighFreqToolKit(projectName=PYTEST_PROJECT_NAME)
+
+
+# ---------------------------------------------------------------------------
+# Lightweight fixtures (function-scoped) for DB-specific tests
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="function")
 def project_fixture():
-    """Create a temporary Project and clean up on teardown."""
+    """Create a temporary Project and clean up on teardown (for test_datalayer)."""
     from hera.datalayer.project import Project
 
     project_name = "pytest_temp_project"

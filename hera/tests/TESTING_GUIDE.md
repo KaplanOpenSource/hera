@@ -2,8 +2,12 @@
 
 ## Overview
 
-The Hera test infrastructure was migrated from a legacy system (custom JSON runner + unittest) to **native Pytest**.  
-All tests now live under `hera/tests/` and can be executed with a single `pytest` command.
+The Hera test infrastructure uses **native Pytest** with a **Project-based data access** pattern.
+All tests live under `hera/tests/` and can be executed with a single `pytest` command.
+
+Data is loaded once per session into a shared Hera **Project** via `test_repository.json`,
+and each toolkit test module receives a real toolkit instance backed by MongoDB —
+no monkey-patching of `getConfig` / `getDataSourceData` is needed.
 
 ---
 
@@ -15,7 +19,7 @@ hera/
 ├── hera/
 │   ├── utils/data/toolkit.py           # dataToolkit (enhanced with direct-load methods)
 │   └── tests/
-│       ├── conftest.py                 # Shared fixtures, comparison helpers, CLI options
+│       ├── conftest.py                 # Session-scoped project, per-toolkit fixtures, helpers
 │       ├── test_datalayer.py           # Project CRUD tests
 │       ├── test_repository.py          # Repository add/get/load, path resolution
 │       ├── test_topography.py          # TopographyToolkit tests
@@ -23,20 +27,60 @@ hera/
 │       ├── test_lowfreq.py             # lowFreqToolKit + analysis + presentation
 │       ├── test_highfreq.py            # HighFreqToolKit + calculators + turbulence
 │       ├── test_demography.py          # DemographyToolkit tests
-│       ├── UNIT_TEST_DYNAMIC_TOOLKITS/ # Dynamic toolkit tests (kept as-is)
 │       ├── repository/testCases/       # Test JSON data for repository tests
 │       └── datalayer/testCases/        # Test JSON data for datalayer tests
 └── ~/hera_unittest_data/               # External test data repository
     ├── data_config.json                # Data configuration metadata
+    ├── test_repository.json            # Hera-format repository mapping all test data
     ├── measurements/                   # Raw test data files
-    │   ├── GIS/raster/                 # HGT, TIF, CSV, NC files
-    │   ├── GIS/vector/                 # SHP, GeoJSON files
+    │   ├── GIS/raster/                 # HGT, TIF files
+    │   ├── GIS/vector/                 # SHP files
     │   └── meteorology/               # Parquet files (low/high freq)
     └── expected/                       # Expected output result sets
         ├── BASELINE/
         ├── REGRESSION_20251113_1556/
         └── demo/
 ```
+
+### Data Flow
+
+```
+┌──────────────────────────────────────────────────┐
+│  Session Setup (conftest.py)                     │
+│                                                  │
+│  1. Read TEST_HERA env var                       │
+│  2. Open test_repository.json                    │
+│  3. Create Project("PYTEST_HERA_PROJECT")        │
+│  4. loadAllDatasourcesInRepositoryJSONToProject() │
+│     └─ For each toolkit in JSON:                 │
+│        ├─ getToolkit(name, projectName)           │
+│        ├─ setConfig(...)                          │
+│        └─ addDataSource(...)                      │
+└──────────────┬───────────────────────────────────┘
+               │
+    ┌──────────┴──────────┐
+    │  Per-Toolkit Fixtures │
+    │  (session-scoped)     │
+    │                       │
+    │  topo_toolkit ← TopographyToolkit(PYTEST_HERA_PROJECT)
+    │  lc_toolkit   ← LandCoverToolkit(PYTEST_HERA_PROJECT)
+    │  demo_toolkit ← DemographyToolkit(PYTEST_HERA_PROJECT)
+    │  lf_toolkit   ← lowFreqToolKit(PYTEST_HERA_PROJECT)
+    │  hf_toolkit   ← HighFreqToolKit(PYTEST_HERA_PROJECT)
+    └──────────┬──────────┘
+               │
+    ┌──────────┴──────────┐
+    │  Test Modules         │
+    │                       │
+    │  toolkit.getConfig()          → reads from MongoDB
+    │  toolkit.getDataSourceData()  → reads from MongoDB
+    │  toolkit.analysis.*()         → uses standard APIs
+    │  toolkit.presentation.*()     → uses standard APIs
+    └───────────────────────┘
+```
+
+**Key principle:** Tests do NOT know where files are stored on disk.
+They interact only with the Project and Toolkit APIs, exactly as production code does.
 
 ---
 
@@ -52,14 +96,20 @@ pip install pytest   # if not already installed
 
 ### 2. Test Data Repository
 
-The tests rely on external data files stored in `~/hera_unittest_data/`.  
+The tests rely on external data files stored in `~/hera_unittest_data/`.
 This directory must contain:
 
 - `data_config.json` — metadata about paths, assets, and result sets
+- `test_repository.json` — Hera-format repository mapping all test datasources to their toolkits
 - `measurements/` — raw data files (HGT, TIF, SHP, Parquet, etc.)
 - `expected/` — expected output files organized by result set
 
-### 3. Environment Variables
+### 3. MongoDB
+
+All toolkit tests require a running MongoDB instance.
+The session-scoped project fixture loads data into MongoDB at startup and cleans up on teardown.
+
+### 4. Environment Variables
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -75,6 +125,7 @@ This directory must contain:
 
 ```bash
 cd /home/ilay/hera
+source heraenv/bin/activate
 export TEST_HERA=~/hera_unittest_data
 pytest hera/tests/ -v
 ```
@@ -133,6 +184,23 @@ pytest hera/tests/ -v -n auto
 
 ---
 
+## `test_repository.json` — Test Data Mapping
+
+The file `~/hera_unittest_data/test_repository.json` maps test data files to Hera toolkit datasources
+using the standard Hera repository JSON format. All paths are relative to the JSON file's directory.
+
+| Toolkit Key | Config | DataSources |
+|---|---|---|
+| `GIS_Raster_Topography` | `defaultSRTM: SRTMGL1` | `SRTMGL1` → `measurements/GIS/raster` (directory, format: string) |
+| `GIS_LandCover` | `defaultLandCover: lc_mcd12q1` | `lc_mcd12q1` → `measurements/GIS/raster/lc_mcd12q1.tif` (format: string) |
+| `GIS_Demography` | — | `lamas_population` → `measurements/GIS/vector/population_lamas.shp` (format: geopandas) |
+| `MeteoLowFreq` | — | `YAVNEEL` → `measurements/meteorology/lowfreqdata/YAVNEEL.parquet` (format: parquet) |
+| `MeteoHighFreq` | — | `slicedYamim_sonic` + `slicedYamim_TRH` → `measurements/meteorology/highfreqdata/` (format: parquet) |
+
+To add new test data, add entries to this JSON and they will automatically be loaded into the test project.
+
+---
+
 ## Test Modules — Detailed Description
 
 ### `test_datalayer.py`
@@ -172,6 +240,7 @@ Tests for `hera.utils.data.toolkit.dataToolkit` (repository management).
 ### `test_topography.py`
 
 Tests for `hera.measurements.GIS.raster.topography.TopographyToolkit`.
+Uses the `topo_toolkit` fixture from conftest (backed by project datasource `SRTMGL1`).
 
 | Test | Description |
 |---|---|
@@ -189,13 +258,14 @@ Tests for `hera.measurements.GIS.raster.topography.TopographyToolkit`.
 | `test_basic` (getElevationSTL) | STL from existing Dataset |
 | `test_basic` (calculateStatistics) | Mean, min, max statistics |
 
-**Requires:** HGT files in `~/hera_unittest_data/measurements/GIS/raster/`
+**Data source:** `SRTMGL1` (HGT directory path via `getDataSourceData`)
 
 ---
 
 ### `test_landcover.py`
 
 Tests for `hera.measurements.GIS.raster.landcover.LandCoverToolkit`.
+Uses the `lc_toolkit` fixture from conftest (backed by project datasource `lc_mcd12q1`).
 
 | Test | Description |
 |---|---|
@@ -211,13 +281,14 @@ Tests for `hera.measurements.GIS.raster.landcover.LandCoverToolkit`.
 | `test_out_of_bounds` | IndexError for out-of-bounds coordinates |
 | `test_get_coding_map` | Coding map structure and values |
 
-**Requires:** Landcover TIF in `~/hera_unittest_data/measurements/GIS/raster/`
+**Data source:** `lc_mcd12q1` (file path via `getDataSourceData`, opened with rasterio by toolkit)
 
 ---
 
 ### `test_lowfreq.py`
 
-Tests for `hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit`, analysis, and presentation layers.
+Tests for `hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit`.
+Uses the `lf_toolkit` fixture from conftest (backed by project datasource `YAVNEEL`).
 
 | Category | Tests |
 |---|---|
@@ -229,18 +300,19 @@ Tests for `hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit`, an
 | Distribution | `test_contourf_distribution_ranges` |
 | Save | `test_scatter_creates_non_empty_image` |
 
-**Requires:** `YAVNEEL.parquet` in `~/hera_unittest_data/measurements/meteorology/lowfreqdata/`
+**Data source:** `YAVNEEL` (parquet via `getDataSourceData`, returns dask DataFrame → `.compute()`)
 
 ---
 
 ### `test_highfreq.py`
 
 Tests for `hera.measurements.meteorology.highfreqdata` toolkit, analysis calculators, and turbulence statistics.
+Uses the `hf_toolkit` fixture from conftest (backed by datasources `slicedYamim_sonic` and `slicedYamim_TRH`).
 
 | Category | Tests |
 |---|---|
 | Toolkit | `test_docType_property` |
-| Data Reading | `test_read_sonic_data`, `test_read_trh_data`, `test_read_nonexistent_file` |
+| Data Reading | `test_read_sonic_data`, `test_read_trh_data`, `test_read_nonexistent_datasource` |
 | Time Range | `test_sonic_time_range`, `test_trh_time_range` |
 | Specific Points | `test_sonic_first_row`, `test_trh_first_row` |
 | Error Paths | `test_campbelToParquet_nonexistent`, `test_asciiToParquet_nonexistent` |
@@ -250,13 +322,14 @@ Tests for `hera.measurements.meteorology.highfreqdata` toolkit, analysis calcula
 | RawdataAnalysis | `test_singlePointTurbulenceStatistics_returns_instance`, `test_raises_on_invalid`, `test_AveragingCalculator`, `test_AveragingCalculator_raises_on_invalid` |
 | Turbulence Stats | `test_instantiation`, `test_invalid_input_type`, `test_fluctuations`, `test_secondMoments`, `test_sigma`, `test_horizontalSpeed`, `test_Ustar`, `test_TKE`, `test_MOLength_Sonic` |
 
-**Requires:** Sonic/TRH parquet files in `~/hera_unittest_data/measurements/meteorology/highfreqdata/`
+**Data sources:** `slicedYamim_sonic`, `slicedYamim_TRH` (parquet via `getDataSourceData`)
 
 ---
 
 ### `test_demography.py`
 
 Tests for `hera.measurements.GIS.vector.demography.DemographyToolkit`.
+Uses the `demo_toolkit` fixture from conftest (backed by project datasource `lamas_population`).
 
 | Test | Description |
 |---|---|
@@ -268,24 +341,39 @@ Tests for `hera.measurements.GIS.vector.demography.DemographyToolkit`.
 | `test_simple` (createNewArea) | Create new area and verify total population |
 | `test_creates_and_sets_path` (setDefaultDirectory) | Directory creation and path assignment |
 
-**Requires:** `population_lamas.shp` in `~/hera_unittest_data/measurements/GIS/vector/`
+**Data source:** `lamas_population` (geopandas via `getDataSourceData`)
 
 ---
 
 ## Shared Fixtures (conftest.py)
 
-| Fixture | Scope | Description |
+### Session-Scoped Project Fixtures
+
+| Fixture | Description |
+|---|---|
+| `test_hera_root` | Validated path to `~/hera_unittest_data` |
+| `data_config` | Parsed `data_config.json` dict |
+| `result_set` | Active result-set name |
+| `expected_dir` | Path to `expected/<result_set>/` |
+| `hera_test_project` | **The shared Hera Project** with all test data loaded from `test_repository.json` |
+| `hera_project_name` | The string `"PYTEST_HERA_PROJECT"` |
+
+### Per-Toolkit Fixtures (session-scoped)
+
+| Fixture | Toolkit Class | Data Sources |
 |---|---|---|
-| `test_hera_root` | session | Validated path to `~/hera_unittest_data` |
-| `data_config` | session | Parsed `data_config.json` dict |
-| `result_set` | session | Active result-set name |
-| `expected_dir` | session | Path to `expected/<result_set>/` |
-| `gis_raster_path` | session | Path to GIS raster data |
-| `gis_vector_path` | session | Path to GIS vector data |
-| `lowfreq_path` | session | Path to low-frequency meteorology data |
-| `highfreq_path` | session | Path to high-frequency meteorology data |
-| `project_fixture` | function | Temporary Project with cleanup |
-| `data_toolkit_fixture` | session | dataToolkit instance |
+| `topo_toolkit` | `TopographyToolkit` | SRTMGL1 (HGT directory) |
+| `lc_toolkit` | `LandCoverToolkit` | lc_mcd12q1 (TIF path) |
+| `demo_toolkit` | `DemographyToolkit` | lamas_population (SHP → GeoDataFrame) |
+| `lf_toolkit` | `lowFreqToolKit` | YAVNEEL (parquet → dask/pandas) |
+| `hf_toolkit` | `HighFreqToolKit` | slicedYamim_sonic, slicedYamim_TRH (parquet) |
+
+### Function-Scoped Fixtures
+
+| Fixture | Description |
+|---|---|
+| `project_fixture` | Temporary Project with cleanup (for `test_datalayer.py`) |
+| `data_toolkit_fixture` | dataToolkit instance |
 
 ---
 
@@ -308,9 +396,9 @@ assert compare_outputs(result, expected, "dataframe")
 
 ---
 
-## New dataToolkit Methods
+## `dataToolkit` Helper Methods
 
-Two methods were added to `hera.utils.data.toolkit.dataToolkit` to support direct loading without MongoDB:
+Two static methods on `hera.utils.data.toolkit.dataToolkit` support direct loading without MongoDB:
 
 ### `loadRepositoryFromPath(json_path)` (static)
 
@@ -335,13 +423,13 @@ resolved = dataToolkit.resolveDataSourcePaths(repo_dict, basedir="/data/root")
 ### Tests are skipped
 
 - **"TEST_HERA directory not found"** — Set `TEST_HERA` env var or create `~/hera_unittest_data/`
-- **"No .hgt files found"** — Ensure HGT files exist under `measurements/GIS/raster/`
-- **"YAVNEEL.parquet not found"** — Ensure parquet files exist under `measurements/meteorology/lowfreqdata/`
+- **"test_repository.json not found"** — Create the repository JSON (see `test_repository.json` section above)
+- **"datasource not loaded in project"** — Verify MongoDB is running and the repository JSON is valid
 
 ### MongoDB connection errors
 
-Tests in `test_datalayer.py` and `test_repository.py` require an active MongoDB instance.  
-Ensure MongoDB is running and accessible before running those tests.
+All toolkit tests (topography, landcover, demography, lowfreq, highfreq) require an active MongoDB instance.
+The session-scoped `hera_test_project` fixture loads data into MongoDB at startup and cleans it up on teardown.
 
 ### Matplotlib backend issues
 
@@ -354,23 +442,9 @@ pytest hera/tests/test_lowfreq.py -v
 
 ---
 
-## Migration Summary
+## Adding New Test Data
 
-### What was removed
-
-| File/Directory | Replaced by |
-|---|---|
-| `hera/tests/run_all_definitions.py` | Native pytest modules |
-| `hera/tests/run_all_json_tests.sh` | `pytest` CLI |
-| `hera/tests/env.template` | `conftest.py` fixtures |
-| `hera/tests/json_definitions/` (8 files) | Individual `test_*.py` modules |
-| `hera/tests/datalayer/project.py` | `test_datalayer.py` |
-| `hera/tests/repository/repository.py` | `test_repository.py` |
-| `hera/measurements/**/test_unit_*.py` (5 files) | `test_topography.py`, `test_landcover.py`, `test_lowfreq.py`, `test_highfreq.py`, `test_demography.py` |
-
-### What was kept
-
-- `hera/tests/UNIT_TEST_DYNAMIC_TOOLKITS/` — already native pytest, kept as-is
-- `hera/tests/repository/testCases/` — test data JSONs used by `test_repository.py`
-- `hera/tests/datalayer/testCases/` — test data JSONs used by `test_datalayer.py`
-- `hera/tests/DEMO/` — demo data and repositories
+1. Place the data file under `~/hera_unittest_data/measurements/<appropriate_subdir>/`
+2. Add an entry to `~/hera_unittest_data/test_repository.json` under the appropriate toolkit key
+3. The data will be automatically loaded into the test project on the next test run
+4. In your test module, access the data via `toolkit.getDataSourceData("your_datasource_name")`

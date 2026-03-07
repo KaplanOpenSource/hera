@@ -1,21 +1,18 @@
 """
 Native pytest tests for the LandCoverToolkit.
 
+Data is loaded into the test project via ``conftest.hera_test_project``.
+The ``lc_toolkit`` fixture (session-scoped, from conftest) provides
+a real ``LandCoverToolkit`` backed by MongoDB – no monkey-patching.
+
 Replaces:
   - hera/measurements/GIS/raster/test_unit_test_gis_raster_landcover.py
   - hera/tests/json_definitions/test_definitions_landcover.json
 """
 
-import glob
-import os
-
-import geopandas as gpd
 import numpy as np
 import pytest
 import rasterio
-import shapely.geometry
-
-from hera.measurements.GIS.raster.landcover import LandCoverToolkit
 
 
 # ---------------------------------------------------------------------------
@@ -23,40 +20,16 @@ from hera.measurements.GIS.raster.landcover import LandCoverToolkit
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def landcover_file(gis_raster_path):
-    """Find the landcover TIF under the test data GIS raster directory."""
-    pattern = str(gis_raster_path / "lc_mcd12q1*.tif")
-    matching = glob.glob(pattern)
-    if not matching:
-        # Also try the simpler name
-        pattern2 = str(gis_raster_path / "*.tif")
-        matching = glob.glob(pattern2)
-    if not matching:
-        pytest.skip(f"No landcover .tif file found under {gis_raster_path}")
-    return matching[0]
+def landcover_file(lc_toolkit):
+    """Get the landcover file path from the project's datasource.
 
-
-@pytest.fixture(scope="module")
-def lc_toolkit(landcover_file, gis_raster_path):
-    """LandCoverToolkit with custom config pointing to test data."""
-    toolkit = LandCoverToolkit(projectName="unittest_project")
-
-    basename = os.path.basename(landcover_file)
-    custom_config = {
-        "defaultLandCover": basename,
-        "DataSources": {
-            basename: {
-                "relativePath": "measurements/GIS/raster/" + basename,
-            }
-        },
-    }
-    toolkit.getConfig = lambda: custom_config
-    toolkit.getDataSourceData = lambda name: rasterio.open(
-        os.path.join(str(gis_raster_path), name)
-    )
-    toolkit.getDataSourceDocument = lambda name: {"desc": {"type": 1}}
-    toolkit.roughnesslength2sandgrainroughness = lambda rl: rl * 30
-    return toolkit
+    Since the datasource uses dataFormat="string", ``getDataSourceData``
+    returns the absolute file path directly.
+    """
+    path = lc_toolkit.getDataSourceData("lc_mcd12q1")
+    if path is None or not isinstance(path, str):
+        pytest.skip("lc_mcd12q1 datasource not loaded or not a string path")
+    return path
 
 
 @pytest.fixture(scope="module")

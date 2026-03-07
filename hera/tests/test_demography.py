@@ -1,6 +1,11 @@
 """
 Native pytest tests for the DemographyToolkit.
 
+Data is loaded into the test project via ``conftest.hera_test_project``.
+The ``demo_toolkit`` fixture (session-scoped, from conftest) provides
+a real ``DemographyToolkit`` backed by MongoDB – no monkey-patching
+or direct file-path access.
+
 Replaces:
   - hera/measurements/GIS/vector/test_unit_demography_toolkit.py
   - hera/tests/json_definitions/demography_test_definitions.json
@@ -13,7 +18,6 @@ import geopandas as gpd
 import pytest
 from shapely.geometry import Polygon
 
-from hera.measurements.GIS.vector.demography import DemographyToolkit
 from hera.toolkit import TOOLKIT_SAVEMODE_NOSAVE
 from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
 
@@ -23,21 +27,12 @@ from hera.datalayer.document.metadataDocument import nonDBMetadataFrame
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def population_gdf(gis_vector_path):
-    """Load the population shapefile."""
-    pop_path = gis_vector_path / "population_lamas.shp"
-    if not pop_path.is_file():
-        pytest.skip(f"population_lamas.shp not found at {pop_path}")
-    return gpd.read_file(str(pop_path))
-
-
-@pytest.fixture(scope="module")
-def demo_toolkit(gis_vector_path, population_gdf):
-    """DemographyToolkit with loaded test data."""
-    pop_path = str(gis_vector_path / "population_lamas.shp")
-    toolkit = DemographyToolkit(projectName="UNIT_TEST_DEMOGRAPHY")
-    toolkit.loadData("lamas_population", pop_path, overwrite=True)
-    return toolkit
+def population_gdf(demo_toolkit):
+    """Load the population GeoDataFrame through the project's datasource."""
+    gdf = demo_toolkit.getDataSourceData("lamas_population")
+    if gdf is None:
+        pytest.skip("lamas_population datasource not loaded in project")
+    return gdf
 
 
 # ---------------------------------------------------------------------------

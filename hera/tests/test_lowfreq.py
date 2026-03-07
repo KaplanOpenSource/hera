@@ -1,6 +1,10 @@
 """
 Native pytest tests for the lowFreqToolKit and its analysis/presentation layers.
 
+Data is loaded into the test project via ``conftest.hera_test_project``.
+The ``lf_toolkit`` fixture (session-scoped, from conftest) provides
+a real ``lowFreqToolKit`` backed by MongoDB – no direct file-path access.
+
 Replaces:
   - hera/measurements/meteorology/lowfreqdata/test_unit_lowfreq_toolkit.py
   - hera/tests/json_definitions/lowfreq_toolkit.json
@@ -13,7 +17,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from hera.measurements.meteorology.lowfreqdata.toolkit import lowFreqToolKit
 from hera.measurements.meteorology.lowfreqdata.presentationLayer import presenation
 from hera.utils.statistics import calcDist2d
 
@@ -23,22 +26,23 @@ from hera.utils.statistics import calcDist2d
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def lowfreq_df(lowfreq_path):
-    """Load the YAVNEEL parquet file and fix datetime column."""
-    file_path = lowfreq_path / "YAVNEEL.parquet"
-    if not file_path.is_file():
-        pytest.skip(f"YAVNEEL.parquet not found at {file_path}")
-    df = pd.read_parquet(str(file_path))
+def lowfreq_df(lf_toolkit):
+    """Load the YAVNEEL dataframe through the project's datasource.
+
+    The ``parquet`` data handler returns a dask DataFrame; we ``.compute()``
+    to get a pandas DataFrame and fix the datetime column.
+    """
+    ds = lf_toolkit.getDataSourceData("YAVNEEL")
+    if ds is None:
+        pytest.skip("YAVNEEL datasource not loaded in project")
+
+    # dask → pandas
+    df = ds.compute() if hasattr(ds, "compute") else ds
+
     if "datetime" not in df.columns:
         pytest.fail("'datetime' column missing in dataframe")
     df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
     return df
-
-
-@pytest.fixture(scope="module")
-def lf_toolkit():
-    """lowFreqToolKit instance for testing."""
-    return lowFreqToolKit(projectName="UNIT_TEST_LOWFREQ")
 
 
 # ---------------------------------------------------------------------------

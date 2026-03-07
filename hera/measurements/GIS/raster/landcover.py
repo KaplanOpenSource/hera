@@ -166,8 +166,10 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         # נסה להשיג את ה-DataSource דרך הפונקציה הקיימת
         ds = self.getDataSourceData(dataSourceName)
 
-        # אם נכשל, ננסה לפתוח את הקובץ ידנית (כמו ביוניט־טסט)
-        if ds is None:
+        # If the datasource stores a file path (dataFormat="string"), open it with rasterio
+        if isinstance(ds, str) and os.path.isfile(ds):
+            ds = rasterio.open(ds)
+        elif ds is None:
             if isinstance(dataSourceName, str) and os.path.isfile(dataSourceName):
                 ds = rasterio.open(dataSourceName)
             else:
@@ -243,7 +245,13 @@ class LandCoverToolkit(toolkit.abstractToolkit):
                 lonResolution, latResolution = src.transform[0], src.transform[4]
         else:
             ds = self.getDataSourceData(dataSourceName)
-            if hasattr(ds, "GetRasterBand"):
+            if isinstance(ds, str) and os.path.isfile(ds):
+                # dataFormat="string" returns the file path; open with rasterio
+                with rasterio.open(ds) as src:
+                    img = src.read(1)
+                    lonUpperLeft, latUpperLeft = src.transform[2], src.transform[5]
+                    lonResolution, latResolution = src.transform[0], src.transform[4]
+            elif hasattr(ds, "GetRasterBand"):
                 img = ds.GetRasterBand(1).ReadAsArray()
                 lonUpperLeft, lonResolution, lonRotation, latUpperLeft, latRotation, latResolution = ds.GetGeoTransform()
             else:
@@ -679,6 +687,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
     
+    @staticmethod
     def roughnesslength2sandgrainroughness(rl):
     #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
     # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12

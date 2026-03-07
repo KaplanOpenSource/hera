@@ -1,6 +1,10 @@
 """
 Native pytest tests for the HighFreqToolKit, analysis calculators, and turbulence statistics.
 
+Data is loaded into the test project via ``conftest.hera_test_project``.
+The ``hf_toolkit`` fixture (session-scoped, from conftest) provides
+a real ``HighFreqToolKit`` backed by MongoDB – no direct file-path access.
+
 Replaces:
   - hera/measurements/meteorology/highfreqdata/test_unit_highfreq_toolkit.py
   - hera/tests/json_definitions/test_definitions_highfreq.json
@@ -12,7 +16,6 @@ import dask.dataframe as dd
 import pandas as pd
 import pytest
 
-from hera.measurements.meteorology.highfreqdata.toolkit import HighFreqToolKit
 from hera.measurements.meteorology.highfreqdata.analysis.abstractcalculator import AbstractCalculator
 from hera.measurements.meteorology.highfreqdata.analysis.meandatacalculator import MeanDataCalculator, AveragingCalculator
 from hera.measurements.meteorology.highfreqdata.analysis.analysislayer import RawdataAnalysis
@@ -20,45 +23,26 @@ from hera.measurements.meteorology.highfreqdata.analysis.turbulencestatistics im
 
 
 # ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _find_file(base_path, filename):
-    for root, _dirs, files in os.walk(str(base_path)):
-        if filename in files:
-            return os.path.join(root, filename)
-    raise FileNotFoundError(f"{filename} not found under {base_path}")
-
-
-# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def hf_toolkit():
-    return HighFreqToolKit(projectName="unittest_project")
+def sonic_df(hf_toolkit):
+    """Computed Pandas DataFrame from the sonic datasource in the project."""
+    ds = hf_toolkit.getDataSourceData("slicedYamim_sonic")
+    if ds is None:
+        pytest.skip("slicedYamim_sonic datasource not loaded in project")
+    # dask → pandas
+    return ds.compute() if hasattr(ds, "compute") else ds
 
 
 @pytest.fixture(scope="module")
-def sonic_file(test_hera_root):
-    try:
-        return _find_file(test_hera_root, "slicedYamim_sonic.parquet")
-    except FileNotFoundError:
-        pytest.skip("slicedYamim_sonic.parquet not found")
-
-
-@pytest.fixture(scope="module")
-def trh_file(test_hera_root):
-    try:
-        return _find_file(test_hera_root, "slicedYamim_TRH.parquet")
-    except FileNotFoundError:
-        pytest.skip("slicedYamim_TRH.parquet not found")
-
-
-@pytest.fixture(scope="module")
-def sonic_df(sonic_file):
-    """Computed Pandas DataFrame from the sonic parquet."""
-    return dd.read_parquet(sonic_file).compute()
+def trh_df(hf_toolkit):
+    """Computed Pandas DataFrame from the TRH datasource in the project."""
+    ds = hf_toolkit.getDataSourceData("slicedYamim_TRH")
+    if ds is None:
+        pytest.skip("slicedYamim_TRH datasource not loaded in project")
+    return ds.compute() if hasattr(ds, "compute") else ds
 
 
 @pytest.fixture(scope="module")
@@ -95,20 +79,17 @@ class TestHighFreqToolkitInit:
 # ---------------------------------------------------------------------------
 
 class TestReadData:
-    def test_read_sonic_data(self, sonic_file):
-        df = dd.read_parquet(sonic_file)
-        assert isinstance(df, dd.DataFrame)
-        assert not df.columns.empty
+    def test_read_sonic_data(self, sonic_df):
+        assert isinstance(sonic_df, pd.DataFrame)
+        assert not sonic_df.columns.empty
 
-    def test_read_trh_data(self, trh_file):
-        df = dd.read_parquet(trh_file)
-        assert isinstance(df, dd.DataFrame)
-        assert not df.columns.empty
+    def test_read_trh_data(self, trh_df):
+        assert isinstance(trh_df, pd.DataFrame)
+        assert not trh_df.columns.empty
 
-    def test_read_nonexistent_file(self, test_hera_root):
-        fake = os.path.join(str(test_hera_root), "nonexistent.parquet")
-        with pytest.raises((FileNotFoundError, AttributeError, OSError)):
-            dd.read_parquet(fake)
+    def test_read_nonexistent_datasource(self, hf_toolkit):
+        result = hf_toolkit.getDataSourceData("totally_nonexistent_source")
+        assert result is None
 
 
 class TestTimeRange:
@@ -126,9 +107,8 @@ class TestTimeRange:
         assert ts is not None, "No time column or datetime index found in sonic data"
         assert ts.min() < ts.max()
 
-    def test_trh_time_range(self, trh_file):
-        df = dd.read_parquet(trh_file).compute()
-        ts = self._get_time_series(df)
+    def test_trh_time_range(self, trh_df):
+        ts = self._get_time_series(trh_df)
         assert ts is not None, "No time column or datetime index found in TRH data"
         assert ts.min() < ts.max()
 
@@ -141,9 +121,8 @@ class TestSpecificPoints:
         assert abs(first["w"] - 1.96) < 0.01
         assert abs(first["T"] - 24.93) < 0.01
 
-    def test_trh_first_row(self, trh_file):
-        df = dd.read_parquet(trh_file).compute()
-        first = df.iloc[0]
+    def test_trh_first_row(self, trh_df):
+        first = trh_df.iloc[0]
         assert abs(first["TC_T"] - 24.71) < 0.01
         assert abs(first["RH"] - 70.2) < 0.01
 
