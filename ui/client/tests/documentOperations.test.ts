@@ -28,6 +28,19 @@ describe('fetchDocument', () => {
     const result = await fetchDocument('abc');
     expect(result).toBeUndefined();
   });
+
+  it('works with delayed response', async () => {
+    const doc = { _id: { $oid: 'abc' }, type: 'T', desc: {} };
+    mockFetch.mockImplementationOnce(() =>
+      new Promise(resolve => setTimeout(() =>
+        resolve({ json: () => Promise.resolve(doc) }), 50
+      ))
+    );
+
+    const result = await fetchDocument('abc');
+
+    expect(result).toEqual(doc);
+  });
 });
 
 describe('updateDocument', () => {
@@ -103,5 +116,18 @@ describe('updateDocument', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.code).toContain('doc.save()');
     expect(body.code).toContain("All.getDocumentByID('doc1')");
+  });
+
+  it('works with delayed response', async () => {
+    const newDoc = { ...prevDoc, resource: 'delayed' };
+    mockFetch.mockImplementationOnce(() =>
+      new Promise(resolve => setTimeout(() =>
+        resolve({ json: () => Promise.resolve(newDoc) }), 50
+      ))
+    );
+
+    const result = await updateDocument(newDoc, prevDoc);
+
+    expect(result).toEqual(newDoc);
   });
 });

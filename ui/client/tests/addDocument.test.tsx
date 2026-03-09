@@ -155,6 +155,44 @@ describe('AddDocumentButton', () => {
     expect(useProjectStore.getState().currProject?.documents).toEqual([]);
   });
 
+  it('handles delayed execPython response', async () => {
+    let resolveExec!: (v: any) => void;
+    mockExecPython.mockImplementationOnce(() =>
+      new Promise(r => { resolveExec = r; })
+    );
+
+    render(<AddDocumentButton />);
+    await act(async () => {
+      const w = screen.getByLabelText('Add Document');
+      fireEvent.click(within(w).getByRole('button'));
+    });
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^name$/i }), { target: { value: 'Delayed' } });
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: /add document/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockExecPython).toHaveBeenCalledTimes(1);
+    });
+    // Store not yet updated
+    expect(useProjectStore.getState().currProject?.documents).toEqual([]);
+
+    const updatedProject = {
+      name: 'TestProject',
+      documents: [{ _id: { $oid: 'd1' }, desc: { datasourceName: 'Delayed' }, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' }],
+    };
+    await act(async () => {
+      resolveExec({ data: updatedProject, problem: undefined });
+    });
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().currProject?.documents).toHaveLength(1);
+    });
+  });
+
   it('includes toolkit in desc when selected', async () => {
     mockExecPython.mockResolvedValueOnce({
       data: { name: 'TestProject', documents: [] },

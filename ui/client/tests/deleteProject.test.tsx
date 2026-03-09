@@ -95,6 +95,45 @@ describe('DeleteProjectButton', () => {
     });
   });
 
+  it('handles delayed execPython response', async () => {
+    let resolveExec!: (v: any) => void;
+    mockExecPython.mockImplementationOnce(() =>
+      new Promise(r => { resolveExec = r; })
+    );
+
+    render(<Wrapper />);
+    const wrapper = screen.getByLabelText('Delete project');
+    const btn = within(wrapper).getByRole('button');
+    await act(async () => { fireEvent.click(btn); });
+
+    const input = await screen.findByRole('textbox');
+    fireEvent.change(input, { target: { value: 'Alpha' } });
+
+    const yesBtn = screen.getByRole('button', { name: /yes/i });
+    await act(async () => { fireEvent.click(yesBtn); });
+
+    await waitFor(() => {
+      expect(mockExecPython).toHaveBeenCalledTimes(1);
+    });
+    // Store not yet updated while response pending
+    expect(useProjectStore.getState().currProjectName).toBe('Alpha');
+
+    const remainingProject = {
+      name: 'Beta',
+      documents: [{ _id: { $oid: 'x' }, type: 'Beta__config__', desc: {}, _cls: 'M', resource: '', dataFormat: 'string', projectName: 'Beta' }],
+    };
+    await act(async () => {
+      resolveExec({
+        data: { projectNames: [{ name: 'Beta' }], project: remainingProject },
+        problem: undefined,
+      });
+    });
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().currProject?.name).toBe('Beta');
+    });
+  });
+
   it('sends delete code that sorts config document last', async () => {
     mockExecPython.mockResolvedValueOnce({
       data: { projectNames: [], project: { name: '', documents: [] } },
