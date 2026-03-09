@@ -8,8 +8,9 @@ import {
   DialogTitle,
   TextField
 } from "@mui/material";
-import { ProjectEntire, ProjectName } from "@shared/types";
+import { ProjectName } from "@shared/types";
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { execPython } from "../../io/execPython";
@@ -20,7 +21,8 @@ export const AddProjectButton = ({ }) => {
   const [name, setName] = useState('');
   const [filesDirectory, setFilesDirectory] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const { selectProject, setProjectNames, setCurrentProject } = useProjectStore();
+  const { setProjectNames } = useProjectStore();
+  const navigate = useNavigate();
   const inputRef = useRef();
 
   const doAddProject = async () => {
@@ -31,13 +33,10 @@ export const AddProjectButton = ({ }) => {
 
     const { problem, data } = await execPython(`
 import os
-import json
 from types import SimpleNamespace
 
 from hera.utils.data.CLI import project_create
-from hera.datalayer.project import getProjectList
-from hera.datalayer import All
-from hera import toolkitHome
+from hera.datalayer.project import getProjectList, Project
 
 project_create(SimpleNamespace(
   projectName='${name}',
@@ -45,28 +44,22 @@ project_create(SimpleNamespace(
   loadRepositories=${loadRepositories ? 'True' : 'False'},
   overwrite=False))
 
-projectNames = [{"name": proj} for proj in getProjectList()]
+# Creates a config document in MongoDB so the project appears in getProjectList()
+Project(projectName='${name}', filesDirectory=${dirStr})
 
-docs = All.getDocumentsAsDict('${name}', with_id=True)
-project = {"name": '${name}', "documents": docs['documents']}
-
-result = {"projectNames": projectNames, "project": project}
+projectNames = [{"name": p} for p in getProjectList()]
+result = {"projectNames": projectNames}
 `)
-    // table = toolkitHome.getToolkitTable('${name}')
     if (problem) {
       return;
     }
 
-    // hera doesnt update new project immediately so we build names in front
-    // await fetchProjectsNames();
-    const details = (data?.project) as ProjectEntire;
     const names = (data?.projectNames || []) as ProjectName[];
     if (!names.find(x => x.name === name)) {
       names.push({ name });
     }
     setProjectNames(names);
-    setCurrentProject(details);
-    selectProject(name);
+    navigate('/' + encodeURIComponent(name));
     setOpen(false);
   }
 
