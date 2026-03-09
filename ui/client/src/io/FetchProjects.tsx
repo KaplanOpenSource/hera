@@ -30,8 +30,27 @@ project = {"name": '${projectName}', "documents": docs['documents']}
   }
 }
 
+const parseToolkits = (toolkitDocs: any[]): Toolkit[] =>
+  toolkitDocs.map((d: any) => {
+    const desc = d.desc;
+    const t = {
+      toolkit: d.toolkit,
+      cls: desc.classpath,
+    } as Toolkit;
+    for (const field of [
+      'description',
+      'source',
+      'type',
+      'repositoryName',
+      'version',
+    ] as const) {
+      if (desc[field]) t[field] = desc[field];
+    }
+    return t;
+  });
+
 export const fetchToolkits = async (projectName: string) => {
-  const { setToolkits: setToolKits } = useProjectStore.getState();
+  const { setToolkits } = useProjectStore.getState();
   const { data, problem } = await fetchPython({
     results: ['toolkitDocs'],
     code: `
@@ -40,25 +59,34 @@ toolkitDocs = toolkitHome.getToolkitDocuments()
 `,
   });
   if (!problem) {
-    const newToolkits = data.toolkitDocs.map((d: any) => {
-      const desc = d.desc;
-      const t = {
-        toolkit: d.toolkit,
-        cls: desc.classpath,
-      } as Toolkit;
-      for (const field of [
-        'description',
-        'source',
-        'type',
-        'repositoryName',
-        'version',
-      ] as const) {
-        if (desc[field]) t[field] = desc[field];
-      }
-      return t;
-    });
-    // setToolKits(JSON.parse(data) as Toolkit[])
-    setToolKits(newToolkits)
+    setToolkits(parseToolkits(data.toolkitDocs));
+  }
+}
+
+const fetchProjectData = async (projectName: string) => {
+  const { data, problem } = await fetchPython(
+    {
+      results: ['toolkitDocs'],
+      code: `
+from hera import toolkitHome
+toolkitDocs = toolkitHome.getToolkitDocuments()
+`,
+    },
+    {
+      results: ['project'],
+      code: `
+from hera.datalayer import All
+docs = All.getDocumentsAsDict('${projectName}', with_id=True)
+project = {"name": '${projectName}', "documents": docs['documents']}
+`,
+    },
+  );
+  if (!problem) {
+    const { currProjectName, setCurrentProject, setToolkits } = useProjectStore.getState();
+    setToolkits(parseToolkits(data.toolkitDocs));
+    if (currProjectName === projectName) {
+      setCurrentProject(data.project as ProjectEntire);
+    }
   }
 }
 
@@ -104,8 +132,7 @@ export const FetchProjects = ({
     if (currProjectName === NO_PROJECT) {
       selectProject(urlProject ?? projectNames[0].name);
     } else {
-      fetchToolkits(currProjectName);
-      fetchProjectDetails(currProjectName);
+      fetchProjectData(currProjectName);
       const expectedPath = '/' + encodeURIComponent(currProjectName);
       if (location.pathname !== expectedPath) {
         navigate(expectedPath, { replace: true });
