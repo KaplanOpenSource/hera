@@ -4,9 +4,9 @@ import { SimpleTreeView } from '@mui/x-tree-view';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockExecPython = vi.fn();
-vi.mock('../src/io/execPython', () => ({
-  execPython: (...args: any[]) => mockExecPython(...args),
+const mockFetchPython = vi.fn();
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: (...args: any[]) => mockFetchPython(...args),
 }));
 
 const mockFetchProjectDetails = vi.fn();
@@ -49,20 +49,20 @@ const clickDeleteAndConfirm = async () => {
 
 describe('ProjectDocumentItem', () => {
   it('calls execPython to delete document on confirm', async () => {
-    mockExecPython.mockResolvedValueOnce({ data: undefined, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: undefined });
     renderItem();
 
     await clickDeleteAndConfirm();
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
-      const code = mockExecPython.mock.calls[0][0];
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain("All.deleteDocumentByID('doc1')");
     });
   });
 
   it('calls fetchProjectDetails after successful delete', async () => {
-    mockExecPython.mockResolvedValueOnce({ data: undefined, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: undefined });
     renderItem();
 
     await clickDeleteAndConfirm();
@@ -73,20 +73,20 @@ describe('ProjectDocumentItem', () => {
   });
 
   it('does not call fetchProjectDetails when delete fails', async () => {
-    mockExecPython.mockResolvedValueOnce({ data: undefined, problem: 'error' });
+    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: 'error' });
     renderItem();
 
     await clickDeleteAndConfirm();
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
     expect(mockFetchProjectDetails).not.toHaveBeenCalled();
   });
 
   it('handles delayed response', async () => {
     let resolveExec!: (v: any) => void;
-    mockExecPython.mockImplementationOnce(() =>
+    mockFetchPython.mockImplementationOnce(() =>
       new Promise(r => { resolveExec = r; })
     );
     renderItem();
@@ -94,7 +94,7 @@ describe('ProjectDocumentItem', () => {
     await clickDeleteAndConfirm();
 
     // execPython called but not yet resolved
-    expect(mockExecPython).toHaveBeenCalledTimes(1);
+    expect(mockFetchPython).toHaveBeenCalledTimes(1);
     expect(mockFetchProjectDetails).not.toHaveBeenCalled();
 
     // Resolve after delay

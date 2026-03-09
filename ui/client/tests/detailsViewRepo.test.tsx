@@ -3,9 +3,9 @@ import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockExecPython = vi.fn();
-vi.mock('../src/io/execPython', () => ({
-  execPython: (...args: any[]) => mockExecPython(...args),
+const mockFetchPython = vi.fn();
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: (...args: any[]) => mockFetchPython(...args),
 }));
 
 vi.mock('../src/components/details/RepoTreeAddButton', () => ({
@@ -19,7 +19,7 @@ beforeEach(() => { vi.clearAllMocks(); });
 
 describe('DetailsViewRepo', () => {
   it('calls execPython with repo path on mount', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { jsonData: { key1: 'value1' } },
       problem: undefined,
     });
@@ -29,8 +29,8 @@ describe('DetailsViewRepo', () => {
     });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
-      const code = mockExecPython.mock.calls[0][0];
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain("open('/path/to/repo.json'");
     });
   });
@@ -40,11 +40,11 @@ describe('DetailsViewRepo', () => {
       render(<DetailsViewRepo repoPath="/path/*Temp Repository*/repo.json" />);
     });
 
-    expect(mockExecPython).not.toHaveBeenCalled();
+    expect(mockFetchPython).not.toHaveBeenCalled();
   });
 
   it('handles null json response', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { jsonData: null },
       problem: undefined,
     });
@@ -54,14 +54,14 @@ describe('DetailsViewRepo', () => {
     });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
     // Should not crash
   });
 
   it('handles delayed response', async () => {
     let resolveExec!: (v: any) => void;
-    mockExecPython.mockImplementationOnce(() =>
+    mockFetchPython.mockImplementationOnce(() =>
       new Promise(r => { resolveExec = r; })
     );
 
@@ -69,7 +69,7 @@ describe('DetailsViewRepo', () => {
       render(<DetailsViewRepo repoPath="/path/to/repo.json" />);
     });
 
-    expect(mockExecPython).toHaveBeenCalledTimes(1);
+    expect(mockFetchPython).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveExec({ data: { jsonData: { key1: 'value1' } }, problem: undefined });
@@ -82,7 +82,7 @@ describe('DetailsViewRepo', () => {
   });
 
   it('displays tree keys after loading', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { jsonData: { myDataSource: { path: '/data/file.csv' } } },
       problem: undefined,
     });

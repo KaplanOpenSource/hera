@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockExecPython = vi.fn();
-vi.mock('../src/io/execPython', () => ({
-  execPython: (...args: any[]) => mockExecPython(...args),
+const mockFetchPython = vi.fn();
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: (...args: any[]) => mockFetchPython(...args),
 }));
 
 const { useServerConstants } = await import('../src/stores/useServerConstants');
@@ -17,7 +17,7 @@ beforeEach(() => {
 describe('readAllConstants', () => {
   it('sets dataTypes in store on success', async () => {
     const datatypes = { STRING: 'string', INTEGER: 'integer' };
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { datatypes },
       problem: undefined,
     });
@@ -28,7 +28,7 @@ describe('readAllConstants', () => {
   });
 
   it('does not update store when data is falsy', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: undefined,
       problem: 'error',
     });
@@ -39,11 +39,11 @@ describe('readAllConstants', () => {
   });
 
   it('sends correct Python code', async () => {
-    mockExecPython.mockResolvedValueOnce({ data: { datatypes: {} }, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: { datatypes: {} }, problem: undefined });
 
     await useServerConstants.getState().readAllConstants();
 
-    const code = mockExecPython.mock.calls[0][0];
+    const code = mockFetchPython.mock.calls[0][0].code;
     expect(code).toContain('from hera import datalayer');
     expect(code).toContain('datatypes');
   });
@@ -51,7 +51,7 @@ describe('readAllConstants', () => {
   it('store not updated while response is in flight', async () => {
     const datatypes = { FLOAT: 'float' };
     let resolve!: (v: any) => void;
-    mockExecPython.mockImplementationOnce(() =>
+    mockFetchPython.mockImplementationOnce(() =>
       new Promise(r => { resolve = r; })
     );
 

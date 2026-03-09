@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockExecPython = vi.fn();
-vi.mock('../src/io/execPython', () => ({
-  execPython: (...args: any[]) => mockExecPython(...args),
+const mockFetchPython = vi.fn();
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: (...args: any[]) => mockFetchPython(...args),
 }));
 
 const { RepoTreeAddButton } = await import('../src/components/details/RepoTreeAddButton');
@@ -52,7 +52,7 @@ describe('RepoTreeAddButton', () => {
   });
 
   it('calls execPython with repo data on confirm', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { project: { name: 'TestProject', documents: [] } },
       problem: undefined,
     });
@@ -61,8 +61,8 @@ describe('RepoTreeAddButton', () => {
     await clickAddAndConfirm();
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
-      const code = mockExecPython.mock.calls[0][0];
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain('loadAllDatasourcesInRepositoryJSONToProject');
       expect(code).toContain("'TestProject'");
     });
@@ -75,7 +75,7 @@ describe('RepoTreeAddButton', () => {
         { _id: { $oid: 'new1' }, desc: {}, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' },
       ],
     };
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { project: updatedProject },
       problem: undefined,
     });
@@ -90,14 +90,14 @@ describe('RepoTreeAddButton', () => {
 
   it('handles delayed response', async () => {
     let resolveExec!: (v: any) => void;
-    mockExecPython.mockImplementationOnce(() =>
+    mockFetchPython.mockImplementationOnce(() =>
       new Promise(r => { resolveExec = r; })
     );
 
     render(<RepoTreeAddButton tree={tree} />);
     await clickAddAndConfirm();
 
-    expect(mockExecPython).toHaveBeenCalledTimes(1);
+    expect(mockFetchPython).toHaveBeenCalledTimes(1);
 
     const updatedProject = { name: 'TestProject', documents: [] };
     await act(async () => {

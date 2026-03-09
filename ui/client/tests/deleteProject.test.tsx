@@ -4,9 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockExecPython = vi.fn();
-vi.mock('../src/io/execPython', () => ({
-  execPython: (...args: any[]) => mockExecPython(...args),
+const mockFetchPython = vi.fn();
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: (...args: any[]) => mockFetchPython(...args),
 }));
 
 const { DeleteProjectButton } = await import('../src/components/header/DeleteProjectButton');
@@ -61,7 +61,7 @@ describe('DeleteProjectButton', () => {
       documents: [{ _id: { $oid: 'x' }, type: 'Beta__config__', desc: {}, _cls: 'M', resource: '', dataFormat: 'string', projectName: 'Beta' }],
     };
 
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: {
         projectNames: [{ name: 'Beta' }],
         project: remainingProject,
@@ -81,10 +81,10 @@ describe('DeleteProjectButton', () => {
     await act(async () => { fireEvent.click(yesBtn); });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
 
-    const code = mockExecPython.mock.calls[0][0];
+    const code = mockFetchPython.mock.calls[0][0].code;
     expect(code).toContain("All.getDocumentsAsDict('Alpha'");
     expect(code).toContain('deleteDocumentByID');
 
@@ -97,7 +97,7 @@ describe('DeleteProjectButton', () => {
 
   it('handles delayed execPython response', async () => {
     let resolveExec!: (v: any) => void;
-    mockExecPython.mockImplementationOnce(() =>
+    mockFetchPython.mockImplementationOnce(() =>
       new Promise(r => { resolveExec = r; })
     );
 
@@ -113,7 +113,7 @@ describe('DeleteProjectButton', () => {
     await act(async () => { fireEvent.click(yesBtn); });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
     // Store not yet updated while response pending
     expect(useProjectStore.getState().currProjectName).toBe('Alpha');
@@ -135,7 +135,7 @@ describe('DeleteProjectButton', () => {
   });
 
   it('sends delete code that sorts config document last', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { projectNames: [], project: { name: '', documents: [] } },
     });
 
@@ -152,7 +152,7 @@ describe('DeleteProjectButton', () => {
     });
 
     await waitFor(() => {
-      const code = mockExecPython.mock.calls[0][0];
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain("sorted(docs, key=lambda d: d['type'] == 'Alpha__config__')");
     });
   });

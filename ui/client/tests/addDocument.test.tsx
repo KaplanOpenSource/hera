@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 
 vi.mock('../src/shared/baseurl', () => ({ BASEURL: 'http://test' }));
 
-const mockExecPython = vi.fn();
-vi.mock('../src/io/execPython', () => ({
-  execPython: (...args: any[]) => mockExecPython(...args),
+const mockFetchPython = vi.fn();
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: (...args: any[]) => mockFetchPython(...args),
 }));
 
 const { AddDocumentButton } = await import('../src/components/project/AddDocumentButton');
@@ -42,7 +42,7 @@ describe('AddDocumentButton', () => {
       name: 'TestProject',
       documents: [{ _id: { $oid: 'new1' }, desc: { datasourceName: 'MyDoc' }, type: 'T', _cls: 'M', resource: 'myres', dataFormat: 'string', projectName: 'TestProject' }],
     };
-    mockExecPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -62,8 +62,8 @@ describe('AddDocumentButton', () => {
     });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
-      const code = mockExecPython.mock.calls[0][0];
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain("All.addDocument('TestProject'");
       expect(code).toContain("resource='myres'");
       expect(code).toContain('"datasourceName":"MyDoc"');
@@ -75,7 +75,7 @@ describe('AddDocumentButton', () => {
       name: 'TestProject',
       documents: [{ _id: { $oid: 'ag1' }, desc: { datasourceName: 'Agent1' }, type: 'ToolkitDataSource', _cls: 'M', resource: { effects: {} }, dataFormat: 'JSON_DICT', projectName: 'TestProject' }],
     };
-    mockExecPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -96,7 +96,7 @@ describe('AddDocumentButton', () => {
     });
 
     await waitFor(() => {
-      const code = mockExecPython.mock.calls[0][0];
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain('resource={"effects": {}}');
       expect(code).toContain("type='ToolkitDataSource'");
     });
@@ -109,7 +109,7 @@ describe('AddDocumentButton', () => {
         { _id: { $oid: 'n1' }, desc: { datasourceName: 'NewDoc' }, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' },
       ],
     };
-    mockExecPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
+    mockFetchPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -132,7 +132,7 @@ describe('AddDocumentButton', () => {
   });
 
   it('does not update store on error', async () => {
-    mockExecPython.mockResolvedValueOnce({ data: undefined, problem: 'exec failed' });
+    mockFetchPython.mockResolvedValueOnce({ data: undefined, problem: 'exec failed' });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -148,7 +148,7 @@ describe('AddDocumentButton', () => {
     });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
 
     // Store should still have empty documents
@@ -157,7 +157,7 @@ describe('AddDocumentButton', () => {
 
   it('handles delayed execPython response', async () => {
     let resolveExec!: (v: any) => void;
-    mockExecPython.mockImplementationOnce(() =>
+    mockFetchPython.mockImplementationOnce(() =>
       new Promise(r => { resolveExec = r; })
     );
 
@@ -175,7 +175,7 @@ describe('AddDocumentButton', () => {
     });
 
     await waitFor(() => {
-      expect(mockExecPython).toHaveBeenCalledTimes(1);
+      expect(mockFetchPython).toHaveBeenCalledTimes(1);
     });
     // Store not yet updated
     expect(useProjectStore.getState().currProject?.documents).toEqual([]);
@@ -194,7 +194,7 @@ describe('AddDocumentButton', () => {
   });
 
   it('includes toolkit in desc when selected', async () => {
-    mockExecPython.mockResolvedValueOnce({
+    mockFetchPython.mockResolvedValueOnce({
       data: { project: { name: 'TestProject', documents: [] } },
       problem: undefined,
     });
@@ -213,7 +213,7 @@ describe('AddDocumentButton', () => {
     });
 
     await waitFor(() => {
-      const code = mockExecPython.mock.calls[0][0];
+      const code = mockFetchPython.mock.calls[0][0].code;
       expect(code).toContain('"toolkit":"LSM"');
     });
   });

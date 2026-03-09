@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveProjectFromUrl, fetchProjectsNames, fetchProjectDetails, fetchToolkits } from '../src/io/FetchProjects';
 import { useProjectStore, NO_PROJECT } from '../src/stores/useProjectStore';
 
-vi.mock('../src/io/execPython', () => ({
-  execPython: vi.fn(),
+vi.mock('../src/io/fetchPython', () => ({
+  fetchPython: vi.fn(),
 }));
 
-import { execPython } from '../src/io/execPython';
+import { fetchPython } from '../src/io/fetchPython';
 
 const projects = [
   { name: 'Alpha' },
@@ -27,11 +27,11 @@ describe('resolveProjectFromUrl', () => {
 describe('fetchProjectsNames', () => {
   beforeEach(() => {
     useProjectStore.getState().setProjectNames([]);
-    vi.mocked(execPython).mockReset();
+    vi.mocked(fetchPython).mockReset();
   });
 
   it('sets project names in store on success', async () => {
-    vi.mocked(execPython).mockResolvedValue({
+    vi.mocked(fetchPython).mockResolvedValue({
       data: { projects: [{ name: 'Alpha' }, { name: 'Beta' }] },
       problem: undefined,
     });
@@ -43,7 +43,7 @@ describe('fetchProjectsNames', () => {
   });
 
   it('does not update store when there is a problem', async () => {
-    vi.mocked(execPython).mockResolvedValue({
+    vi.mocked(fetchPython).mockResolvedValue({
       data: undefined,
       problem: 'connection failed',
     });
@@ -56,7 +56,7 @@ describe('fetchProjectsNames', () => {
 
   it('store not updated while response is in flight', async () => {
     let resolve!: (v: any) => void;
-    vi.mocked(execPython).mockImplementationOnce(() =>
+    vi.mocked(fetchPython).mockImplementationOnce(() =>
       new Promise(r => { resolve = r; })
     );
 
@@ -76,12 +76,12 @@ describe('fetchProjectDetails', () => {
       currProjectName: 'TestProject',
       currProject: null,
     });
-    vi.mocked(execPython).mockReset();
+    vi.mocked(fetchPython).mockReset();
   });
 
   it('sets current project in store on success', async () => {
     const project = { name: 'TestProject', documents: [] };
-    vi.mocked(execPython).mockResolvedValueOnce({
+    vi.mocked(fetchPython).mockResolvedValueOnce({
       data: { project },
       problem: undefined,
     });
@@ -92,7 +92,7 @@ describe('fetchProjectDetails', () => {
   });
 
   it('does not update store when there is a problem', async () => {
-    vi.mocked(execPython).mockResolvedValueOnce({
+    vi.mocked(fetchPython).mockResolvedValueOnce({
       data: undefined,
       problem: 'error',
     });
@@ -104,7 +104,7 @@ describe('fetchProjectDetails', () => {
 
   it('skips update if project name changed during fetch', async () => {
     const project = { name: 'TestProject', documents: [] };
-    vi.mocked(execPython).mockImplementationOnce(async () => {
+    vi.mocked(fetchPython).mockImplementationOnce(async () => {
       useProjectStore.setState({ currProjectName: 'OtherProject' });
       return { data: { project }, problem: undefined };
     });
@@ -117,7 +117,7 @@ describe('fetchProjectDetails', () => {
   it('stale response discarded when user switches projects during fetch', async () => {
     let resolveAlpha!: (v: any) => void;
     let resolveBeta!: (v: any) => void;
-    vi.mocked(execPython)
+    vi.mocked(fetchPython)
       .mockImplementationOnce(() => new Promise(r => { resolveAlpha = r; }))
       .mockImplementationOnce(() => new Promise(r => { resolveBeta = r; }));
 
@@ -138,21 +138,21 @@ describe('fetchProjectDetails', () => {
   });
 
   it('sends correct Python code', async () => {
-    vi.mocked(execPython).mockResolvedValueOnce({
+    vi.mocked(fetchPython).mockResolvedValueOnce({
       data: { project: { name: 'TestProject', documents: [] } },
       problem: undefined,
     });
 
     await fetchProjectDetails('TestProject');
 
-    const code = vi.mocked(execPython).mock.calls[0][0];
+    const code = vi.mocked(fetchPython).mock.calls[0][0].code;
     expect(code).toContain("All.getDocumentsAsDict('TestProject'");
   });
 
   it('store not updated while response is in flight', async () => {
     const project = { name: 'TestProject', documents: [] };
     let resolve!: (v: any) => void;
-    vi.mocked(execPython).mockImplementationOnce(() =>
+    vi.mocked(fetchPython).mockImplementationOnce(() =>
       new Promise(r => { resolve = r; })
     );
 
@@ -169,11 +169,11 @@ describe('fetchProjectDetails', () => {
 describe('fetchToolkits', () => {
   beforeEach(() => {
     useProjectStore.setState({ toolkits: [] });
-    vi.mocked(execPython).mockReset();
+    vi.mocked(fetchPython).mockReset();
   });
 
   it('sets toolkits in store on success', async () => {
-    vi.mocked(execPython).mockResolvedValueOnce({
+    vi.mocked(fetchPython).mockResolvedValueOnce({
       data: {
         toolkitDocs: [
           { toolkit: 'LSM', desc: { classpath: 'lsm.cls', description: 'Linear' } },
@@ -193,7 +193,7 @@ describe('fetchToolkits', () => {
   });
 
   it('does not update store when there is a problem', async () => {
-    vi.mocked(execPython).mockResolvedValueOnce({
+    vi.mocked(fetchPython).mockResolvedValueOnce({
       data: undefined,
       problem: 'error',
     });
@@ -205,7 +205,7 @@ describe('fetchToolkits', () => {
 
   it('store not updated while response is in flight', async () => {
     let resolve!: (v: any) => void;
-    vi.mocked(execPython).mockImplementationOnce(() =>
+    vi.mocked(fetchPython).mockImplementationOnce(() =>
       new Promise(r => { resolve = r; })
     );
 
