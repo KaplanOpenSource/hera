@@ -5,15 +5,8 @@ import { startDockerEnv, type DockerEnv } from './dockerSetup';
 import { createProjectViaUI, renderApp, resetStore } from './integHelpers';
 import type { ProjectDocument } from '../../src/shared/types';
 
-vi.mock('../../src/shared/baseurl', () => ({
-  BASEURL: 'http://localhost:8003',
-}));
-
-vi.mock('../../src/stores/useServerConstants', () => {
-  const state = { dataTypes: {}, readAllConstants: async () => {} };
-  const useServerConstants = Object.assign(() => state, { getState: () => state });
-  return { useServerConstants, ServerConstantReader: () => null };
-});
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8003));
+vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
 
 import { useProjectStore } from '../../src/stores/useProjectStore';
 

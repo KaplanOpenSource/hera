@@ -4,17 +4,8 @@ import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testi
 import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import { startDockerEnv, type DockerEnv } from './dockerSetup';
 
-const TEST_SERVER_PORT = 8002;
-
-// Point BASEURL to the test server
-vi.mock('../../src/shared/baseurl', () => ({
-  BASEURL: `http://localhost:${TEST_SERVER_PORT}`,
-}));
-
-// Mock components that aren't needed for this test
-vi.mock('../../src/components/header/DeleteProjectButton', () => ({
-  DeleteProjectButton: () => null,
-}));
+vi.mock('../../src/shared/baseurl', async () => (await import('./mockFactories')).createBaseurlMock(8002));
+vi.mock('../../src/stores/useServerConstants', async () => (await import('./mockFactories')).createServerConstantsMock());
 
 let env: DockerEnv;
 
@@ -36,7 +27,7 @@ describe('Add Project UI integration', () => {
       network: 'hera-test-ui-net',
       mongoContainer: 'hera-test-ui-mongo',
       serverContainer: 'hera-test-ui-server',
-      serverPort: TEST_SERVER_PORT,
+      serverPort: 8002,
       dbName: 'hera_test_ui',
     });
 
