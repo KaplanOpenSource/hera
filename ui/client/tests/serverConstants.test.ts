@@ -48,16 +48,18 @@ describe('readAllConstants', () => {
     expect(code).toContain('datatypes');
   });
 
-  it('works with delayed response', async () => {
+  it('store not updated while response is in flight', async () => {
     const datatypes = { FLOAT: 'float' };
+    let resolve!: (v: any) => void;
     mockExecPython.mockImplementationOnce(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        data: { datatypes },
-        problem: undefined,
-      }), 50))
+      new Promise(r => { resolve = r; })
     );
 
-    await useServerConstants.getState().readAllConstants();
+    const promise = useServerConstants.getState().readAllConstants();
+    expect(useServerConstants.getState().dataTypes).toEqual({});
+
+    resolve({ data: { datatypes }, problem: undefined });
+    await promise;
 
     expect(useServerConstants.getState().dataTypes).toEqual(datatypes);
   });

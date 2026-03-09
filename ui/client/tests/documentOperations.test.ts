@@ -29,15 +29,19 @@ describe('fetchDocument', () => {
     expect(result).toBeUndefined();
   });
 
-  it('works with delayed response', async () => {
+  it('result not available while response is in flight', async () => {
     const doc = { _id: { $oid: 'abc' }, type: 'T', desc: {} };
+    let resolve!: (v: any) => void;
     mockFetch.mockImplementationOnce(() =>
-      new Promise(resolve => setTimeout(() =>
-        resolve({ json: () => Promise.resolve(doc) }), 50
-      ))
+      new Promise(r => { resolve = r; })
     );
 
-    const result = await fetchDocument('abc');
+    let result: any;
+    const promise = fetchDocument('abc').then(r => { result = r; });
+    expect(result).toBeUndefined();
+
+    resolve({ json: () => Promise.resolve(doc) });
+    await promise;
 
     expect(result).toEqual(doc);
   });
@@ -118,15 +122,19 @@ describe('updateDocument', () => {
     expect(body.code).toContain("All.getDocumentByID('doc1')");
   });
 
-  it('works with delayed response', async () => {
+  it('result not available while response is in flight', async () => {
     const newDoc = { ...prevDoc, resource: 'delayed' };
+    let resolve!: (v: any) => void;
     mockFetch.mockImplementationOnce(() =>
-      new Promise(resolve => setTimeout(() =>
-        resolve({ json: () => Promise.resolve(newDoc) }), 50
-      ))
+      new Promise(r => { resolve = r; })
     );
 
-    const result = await updateDocument(newDoc, prevDoc);
+    let result: any;
+    const promise = updateDocument(newDoc, prevDoc).then(r => { result = r; });
+    expect(result).toBeUndefined();
+
+    resolve({ json: () => Promise.resolve(newDoc) });
+    await promise;
 
     expect(result).toEqual(newDoc);
   });

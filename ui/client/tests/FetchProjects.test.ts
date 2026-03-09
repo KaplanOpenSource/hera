@@ -60,15 +60,17 @@ describe('fetchProjectsNames', () => {
     expect(names).toEqual([]);
   });
 
-  it('works with delayed response', async () => {
+  it('store not updated while response is in flight', async () => {
+    let resolve!: (v: any) => void;
     vi.mocked(fetchPython).mockImplementationOnce(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        data: { projects: [{ name: 'Gamma' }] },
-        problem: undefined,
-      }), 50))
+      new Promise(r => { resolve = r; })
     );
 
-    await fetchProjectsNames();
+    const promise = fetchProjectsNames();
+    expect(useProjectStore.getState().projectNames).toEqual([]);
+
+    resolve({ data: { projects: [{ name: 'Gamma' }] }, problem: undefined });
+    await promise;
 
     expect(useProjectStore.getState().projectNames).toEqual([{ name: 'Gamma' }]);
   });
@@ -118,6 +120,29 @@ describe('fetchProjectDetails', () => {
     expect(useProjectStore.getState().currProject).toBeNull();
   });
 
+  it('stale response discarded when user switches projects during fetch', async () => {
+    let resolveAlpha!: (v: any) => void;
+    let resolveBeta!: (v: any) => void;
+    vi.mocked(execPython)
+      .mockImplementationOnce(() => new Promise(r => { resolveAlpha = r; }))
+      .mockImplementationOnce(() => new Promise(r => { resolveBeta = r; }));
+
+    // User loads Alpha, then quickly switches to Beta
+    const alphaPromise = fetchProjectDetails('Alpha');
+    useProjectStore.setState({ currProjectName: 'Beta' });
+    const betaPromise = fetchProjectDetails('Beta');
+
+    // Beta responds first
+    resolveBeta({ data: JSON.stringify({ name: 'Beta', documents: [{ x: 1 }] }), problem: undefined });
+    await betaPromise;
+    expect(useProjectStore.getState().currProject).toEqual({ name: 'Beta', documents: [{ x: 1 }] });
+
+    // Alpha responds late — should be discarded since currProjectName is now Beta
+    resolveAlpha({ data: JSON.stringify({ name: 'Alpha', documents: [] }), problem: undefined });
+    await alphaPromise;
+    expect(useProjectStore.getState().currProject).toEqual({ name: 'Beta', documents: [{ x: 1 }] });
+  });
+
   it('sends correct Python code', async () => {
     vi.mocked(execPython).mockResolvedValueOnce({
       data: JSON.stringify({ name: 'TestProject', documents: [] }),
@@ -131,16 +156,18 @@ describe('fetchProjectDetails', () => {
     expect(code).toContain('json.dumps');
   });
 
-  it('works with delayed response', async () => {
+  it('store not updated while response is in flight', async () => {
     const project = { name: 'TestProject', documents: [] };
+    let resolve!: (v: any) => void;
     vi.mocked(execPython).mockImplementationOnce(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        data: JSON.stringify(project),
-        problem: undefined,
-      }), 50))
+      new Promise(r => { resolve = r; })
     );
 
-    await fetchProjectDetails('TestProject');
+    const promise = fetchProjectDetails('TestProject');
+    expect(useProjectStore.getState().currProject).toBeNull();
+
+    resolve({ data: JSON.stringify(project), problem: undefined });
+    await promise;
 
     expect(useProjectStore.getState().currProject).toEqual(project);
   });
@@ -181,15 +208,17 @@ describe('fetchToolkits', () => {
     expect(useProjectStore.getState().toolkits).toEqual([]);
   });
 
-  it('works with delayed response', async () => {
+  it('store not updated while response is in flight', async () => {
+    let resolve!: (v: any) => void;
     vi.mocked(execPython).mockImplementationOnce(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        data: [{ toolkit: 'T1', desc: { classpath: 't1.cls' } }],
-        problem: undefined,
-      }), 50))
+      new Promise(r => { resolve = r; })
     );
 
-    await fetchToolkits('TestProject');
+    const promise = fetchToolkits('TestProject');
+    expect(useProjectStore.getState().toolkits).toEqual([]);
+
+    resolve({ data: [{ toolkit: 'T1', desc: { classpath: 't1.cls' } }], problem: undefined });
+    await promise;
 
     expect(useProjectStore.getState().toolkits).toEqual([
       { toolkit: 'T1', cls: 't1.cls' },
