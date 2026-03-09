@@ -6,6 +6,7 @@ import { DetailsViewPanel } from '../src/components/details/DetailsViewPanel';
 import { ProjectTreeView } from '../src/components/project/ProjectTreeView';
 import { ProjectObj } from '../src/objects/ProjectObj';
 import { useProjectStore } from '../src/stores/useProjectStore';
+import { useServerConstants } from '../src/stores/useServerConstants';
 import { ProjectDocument, ProjectEntire } from '../src/shared/types';
 import * as FetchDocument from '../src/io/FetchDocument';
 import * as FetchProjects from '../src/io/FetchProjects';
@@ -57,6 +58,7 @@ describe('Two UI sync', () => {
   beforeEach(() => {
     fetchDocumentSpy = vi.spyOn(FetchDocument, 'fetchDocument');
     updateDocumentSpy = vi.spyOn(FetchDocument, 'updateDocument');
+    useServerConstants.setState({ dataTypes: { JSON: 'json' } });
   });
 
   afterEach(() => {
