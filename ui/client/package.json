@@ -7,7 +7,7 @@
     "prebuild": "echo \"export const commitId = '$(git rev-parse HEAD)';\" > src/commitId.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run --exclude tests/integration/**",
+    "test": "vitest run --exclude 'tests/integration/**'",
     "test:integ": "vitest run tests/integration",
     "test:all": "vitest run"
   },
