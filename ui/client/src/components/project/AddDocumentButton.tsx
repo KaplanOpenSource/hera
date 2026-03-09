@@ -11,7 +11,7 @@ import { useRef, useState } from "react";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
 import { TextProperty } from "../../elements/TextProperty";
-import { execPython } from "../../io/execPython";
+import { fetchPython } from "../../io/fetchPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { SelectProperty } from "../../elements/SelectProperty";
 
@@ -45,18 +45,19 @@ All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stri
       : `
 All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
     `;
-    const { problem, data } = await execPython(`
-import json
+    const { problem, data } = await fetchPython({
+      results: ['project'],
+      code: `
 from hera.datalayer import All, datatypes
 ${addcmd}
-
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
-result = {"name": '${currProjectName}', "documents": docs['documents']}
-      `)
+project = {"name": '${currProjectName}', "documents": docs['documents']}
+`,
+    })
     if (problem) {
       return;
     }
-    setCurrentProject((data as ProjectEntire));
+    setCurrentProject(data.project as ProjectEntire);
   }
 
   return (

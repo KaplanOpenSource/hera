@@ -1,12 +1,11 @@
-import { Add, CreateNewFolder, Delete, Keyboard } from '@mui/icons-material';
-import { Stack, TextField } from '@mui/material';
+import { Add, CreateNewFolder, Delete } from '@mui/icons-material';
+import { Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
-import { useDialog } from '../../elements/useDialog';
 import { DetailsViewItemName } from './DetailsViewItemName';
 import { DetailsViewItemSingle } from './DetailsViewItemSingle';
-import { SelectDataFormat } from './SelectDataFormat';
 import { EditAsJsonButton } from './EditAsJsonButton';
+import { SelectDataFormat } from './SelectDataFormat';
 
 export const keyForDetailsViewItem = (itemKey: string, parentKey?: string) => {
   return parentKey ? `${parentKey}/${itemKey}` : itemKey;
@@ -27,7 +26,7 @@ export const DetailsViewItem = ({
 }) => {
   const key = keyForDetailsViewItem(itemKey, parentKey);
   const isTree = typeof itemValue === 'object' && itemValue !== null;
-  const { DialogComponent, openDialog } = useDialog();
+  const level = parentKey?.split('/').length || 0;
 
   const addSubItem = (initialValue: any) => {
     let name = '';
@@ -107,6 +106,18 @@ export const DetailsViewItem = ({
         </Stack>
       )}
     >
+      {isTree && Object.keys(itemValue).length === 0 && (
+        <Typography
+          variant="body2"
+          sx={{
+            fontStyle: 'italic',
+            color: 'text.secondary',
+            ml: `${30 + (12 * level)}px`,
+          }}
+        >
+          (empty)
+        </Typography>
+      )}
       {isTree && (<>
         {Object.entries(itemValue).sort().map(([k, v]) => {
           const isDir = parentKey === undefined && itemKey === 'desc' && k === 'filesDirectory';

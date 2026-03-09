@@ -22,7 +22,7 @@ export const DetailsViewDocId = ({
       }
       setDoc(undefined);
     })();
-  }, [docid, project?.name]);
+  }, [docid, project]);
 
   const changeDocument = async (shownDoc: any) => {
     const data = await updateDocument(shownDoc, doc);

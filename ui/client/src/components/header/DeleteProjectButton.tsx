@@ -1,7 +1,7 @@
 import { Delete } from "@mui/icons-material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
-import { execPython } from "../../io/execPython";
+import { fetchPython } from "../../io/fetchPython";
 import { ProjectEntire, ProjectName } from "../../shared/types";
 import { useProjectStore } from "../../stores/useProjectStore";
 
@@ -10,8 +10,9 @@ export const DeleteProjectButton = ({ }) => {
   const { currProjectName, selectProject, setProjectNames, setCurrentProject } = useProjectStore();
 
   const deleteProject = async () => {
-    const { data } = await execPython(`
-import json
+    const { data } = await fetchPython({
+      results: ['projectNames', 'project'],
+      code: `
 from hera.datalayer import All
 from hera.datalayer.project import getProjectList
 
@@ -23,9 +24,8 @@ projectNames = [{"name": proj} for proj in getProjectList() if proj != '${currPr
 
 docs = All.getDocumentsAsDict(projectNames[0]['name'], with_id=True)
 project = {"name": projectNames[0]['name'], "documents": docs['documents']}
-
-result = {"projectNames": projectNames, "project": project}
-            `);
+`,
+    });
     const details = (data?.project) as ProjectEntire;
     const names = (data?.projectNames || []) as ProjectName[];
     setProjectNames(names);
