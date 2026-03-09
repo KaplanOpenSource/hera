@@ -6,7 +6,7 @@ export type PythonCommand = {
   code: string;
 };
 
-const execRaw = async (code: string): Promise<{ data: any; problem: undefined | string }> => {
+const fetchPythonDirect = async (code: string): Promise<{ data: any; problem: undefined | string }> => {
   try {
     console.log('executing', code);
     const payload: ExecRequest = {
@@ -43,6 +43,6 @@ export const fetchPython = async (...commands: PythonCommand[]): Promise<{ data:
     }
   }
 
-  const { data, problem } = await execRaw(lines.join('\n'));
+  const { data, problem } = await fetchPythonDirect(lines.join('\n'));
   return { data: problem ? undefined : data, problem };
 };
