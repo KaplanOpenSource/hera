@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolveProjectFromUrl, fetchProjectsNames, fetchProjectDetails, fetchToolkits } from '../src/io/FetchProjects';
+import { resolveProjectFromUrl, fetchProjectsNames, fetchProjectDetails, fetchProjectData } from '../src/io/FetchProjects';
 import { useProjectStore, NO_PROJECT } from '../src/stores/useProjectStore';
 
 vi.mock('../src/io/fetchPython', () => ({
@@ -166,30 +166,36 @@ describe('fetchProjectDetails', () => {
   });
 });
 
-describe('fetchToolkits', () => {
+describe('fetchProjectData', () => {
   beforeEach(() => {
-    useProjectStore.setState({ toolkits: [] });
+    useProjectStore.setState({
+      currProjectName: 'TestProject',
+      currProject: null,
+      toolkits: [],
+    });
     vi.mocked(fetchPython).mockReset();
   });
 
-  it('sets toolkits in store on success', async () => {
+  it('sets toolkits and project in store on success', async () => {
+    const project = { name: 'TestProject', documents: [] };
     vi.mocked(fetchPython).mockResolvedValueOnce({
       data: {
         toolkitDocs: [
           { toolkit: 'LSM', desc: { classpath: 'lsm.cls', description: 'Linear' } },
           { toolkit: 'GIS', desc: { classpath: 'gis.cls' } },
         ],
+        project,
       },
       problem: undefined,
     });
 
-    await fetchToolkits('TestProject');
+    await fetchProjectData('TestProject');
 
-    const toolkits = useProjectStore.getState().toolkits;
-    expect(toolkits).toEqual([
+    expect(useProjectStore.getState().toolkits).toEqual([
       { toolkit: 'LSM', cls: 'lsm.cls', description: 'Linear' },
       { toolkit: 'GIS', cls: 'gis.cls' },
     ]);
+    expect(useProjectStore.getState().currProject).toEqual(project);
   });
 
   it('does not update store when there is a problem', async () => {
@@ -198,9 +204,10 @@ describe('fetchToolkits', () => {
       problem: 'error',
     });
 
-    await fetchToolkits('TestProject');
+    await fetchProjectData('TestProject');
 
     expect(useProjectStore.getState().toolkits).toEqual([]);
+    expect(useProjectStore.getState().currProject).toBeNull();
   });
 
   it('store not updated while response is in flight', async () => {
@@ -209,14 +216,39 @@ describe('fetchToolkits', () => {
       new Promise(r => { resolve = r; })
     );
 
-    const promise = fetchToolkits('TestProject');
+    const promise = fetchProjectData('TestProject');
     expect(useProjectStore.getState().toolkits).toEqual([]);
+    expect(useProjectStore.getState().currProject).toBeNull();
 
-    resolve({ data: { toolkitDocs: [{ toolkit: 'T1', desc: { classpath: 't1.cls' } }] }, problem: undefined });
+    resolve({
+      data: {
+        toolkitDocs: [{ toolkit: 'T1', desc: { classpath: 't1.cls' } }],
+        project: { name: 'TestProject', documents: [] },
+      },
+      problem: undefined,
+    });
     await promise;
 
     expect(useProjectStore.getState().toolkits).toEqual([
       { toolkit: 'T1', cls: 't1.cls' },
     ]);
+    expect(useProjectStore.getState().currProject).toEqual({ name: 'TestProject', documents: [] });
+  });
+
+  it('sends single fetchPython call with both commands', async () => {
+    vi.mocked(fetchPython).mockResolvedValueOnce({
+      data: {
+        toolkitDocs: [],
+        project: { name: 'TestProject', documents: [] },
+      },
+      problem: undefined,
+    });
+
+    await fetchProjectData('TestProject');
+
+    expect(vi.mocked(fetchPython)).toHaveBeenCalledTimes(1);
+    const calls = vi.mocked(fetchPython).mock.calls[0];
+    expect(calls[0].code).toContain('toolkitHome.getToolkitDocuments()');
+    expect(calls[1].code).toContain("All.getDocumentsAsDict('TestProject'");
   });
 });

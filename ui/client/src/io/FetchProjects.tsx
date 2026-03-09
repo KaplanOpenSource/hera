@@ -49,21 +49,7 @@ const parseToolkits = (toolkitDocs: any[]): Toolkit[] =>
     return t;
   });
 
-export const fetchToolkits = async (projectName: string) => {
-  const { setToolkits } = useProjectStore.getState();
-  const { data, problem } = await fetchPython({
-    results: ['toolkitDocs'],
-    code: `
-from hera import toolkitHome
-toolkitDocs = toolkitHome.getToolkitDocuments()
-`,
-  });
-  if (!problem) {
-    setToolkits(parseToolkits(data.toolkitDocs));
-  }
-}
-
-const fetchProjectData = async (projectName: string) => {
+export const fetchProjectData = async (projectName: string) => {
   const { data, problem } = await fetchPython(
     {
       results: ['toolkitDocs'],
