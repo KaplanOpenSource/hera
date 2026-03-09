@@ -70,6 +70,7 @@ export const EffectEditor = ({
           <Chip label={getCalculatorType(effect.calculator)} size="small" variant="outlined" />
         </Stack>
         <IconButton
+          component="div"
           size="small"
           onClick={(e) => {
             e.stopPropagation();
