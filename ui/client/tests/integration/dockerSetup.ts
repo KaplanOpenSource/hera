@@ -6,6 +6,18 @@ import * as path from 'path';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../../../');
 
+const assertDockerImagesExist = () => {
+  try {
+    execSync('docker image inspect hera-server', { stdio: ['pipe', 'pipe', 'pipe'] });
+  } catch {
+    throw new Error(
+      'Required Docker image "hera-server" not found.\n'
+      + 'Build it from the project root with:\n'
+      + '  sh hera/scripts/docker_build.sh',
+    );
+  }
+};
+
 export type DockerEnv = {
   serverUrl: string;
   tmpDir: string;
@@ -25,6 +37,8 @@ export const startDockerEnv = async ({
   serverPort: number;
   dbName: string;
 }): Promise<DockerEnv> => {
+  assertDockerImagesExist();
+
   const docker = (cmd: string) => execSync(`docker ${cmd}`, { encoding: 'utf-8' }).trim();
 
   const cleanupDocker = () => {
