@@ -3,7 +3,7 @@
  */
 
 export const createServerConstantsMock = () => {
-  const state = { dataTypes: {}, readAllConstants: async () => {} };
+  const state = { dataTypes: { STRING: 'string', JSON: 'json', JSON_DICT: 'JSON_DICT' }, readAllConstants: async () => {} };
   const useServerConstants = Object.assign(() => state, { getState: () => state });
   return { useServerConstants, ServerConstantReader: () => null };
 };
