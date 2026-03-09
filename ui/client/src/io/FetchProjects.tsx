@@ -14,7 +14,6 @@ export const fetchProjectsNames = async () => {
 }
 
 export const fetchProjectDetails = async (projectName: string) => {
-  const { setCurrentProject } = useProjectStore.getState();
   const { data, problem } = await execPython(`
 import json
 from hera.datalayer import All
@@ -23,8 +22,12 @@ project = {"name": '${projectName}', "documents": docs['documents']}
 result = json.dumps(project,indent=4)
   `);
   if (!problem) {
-    const project = JSON.parse(data) as ProjectEntire;
-    setCurrentProject(project);
+    // Skip if the user switched projects while this fetch was in flight
+    const { currProjectName, setCurrentProject } = useProjectStore.getState();
+    if (currProjectName === projectName) {
+      const project = JSON.parse(data) as ProjectEntire;
+      setCurrentProject(project);
+    }
   }
 }
 
@@ -80,7 +83,7 @@ export const FetchProjects = ({
 
   useEffect(() => {
     fetchProjectsNames();
-  }, [])
+  }, [urlProjectName])
 
   // Sync project selection with URL and fetch project data
   useEffect(() => {
@@ -91,6 +94,11 @@ export const FetchProjects = ({
     // URL changed to a different valid project → switch to it
     if (urlProject && urlProject !== currProjectName) {
       selectProject(urlProject);
+      return;
+    }
+
+    // URL points to a project not yet in the list — wait for list to update
+    if (urlProjectName && !urlProject) {
       return;
     }
 

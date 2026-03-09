@@ -8,20 +8,17 @@ import {
   DialogTitle,
   TextField
 } from "@mui/material";
-import { ProjectName } from "@shared/types";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { execPython } from "../../io/execPython";
-import { useProjectStore } from "../../stores/useProjectStore";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [filesDirectory, setFilesDirectory] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const { setProjectNames } = useProjectStore();
   const navigate = useNavigate();
   const inputRef = useRef();
 
@@ -31,12 +28,12 @@ export const AddProjectButton = ({ }) => {
       dirStr = `'${filesDirectory}'`;
     }
 
-    const { problem, data } = await execPython(`
+    const { problem } = await execPython(`
 import os
 from types import SimpleNamespace
 
 from hera.utils.data.CLI import project_create
-from hera.datalayer.project import getProjectList, Project
+from hera.datalayer.project import Project
 
 project_create(SimpleNamespace(
   projectName='${name}',
@@ -46,19 +43,11 @@ project_create(SimpleNamespace(
 
 # Creates a config document in MongoDB so the project appears in getProjectList()
 Project(projectName='${name}', filesDirectory=${dirStr})
-
-projectNames = [{"name": p} for p in getProjectList()]
-result = {"projectNames": projectNames}
 `)
     if (problem) {
       return;
     }
 
-    const names = (data?.projectNames || []) as ProjectName[];
-    if (!names.find(x => x.name === name)) {
-      names.push({ name });
-    }
-    setProjectNames(names);
     navigate('/' + encodeURIComponent(name));
     setOpen(false);
   }
