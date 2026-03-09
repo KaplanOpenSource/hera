@@ -14,7 +14,7 @@ beforeEach(() => {
 describe('fetchDocument', () => {
   it('returns document data on success', async () => {
     const doc = { _id: { $oid: 'abc' }, type: 'T', desc: {} };
-    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve(doc) });
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: doc }) });
 
     const result = await fetchDocument('abc');
 
@@ -40,7 +40,7 @@ describe('fetchDocument', () => {
     const promise = fetchDocument('abc').then(r => { result = r; });
     expect(result).toBeUndefined();
 
-    resolve({ json: () => Promise.resolve(doc) });
+    resolve({ json: () => Promise.resolve({ docData: doc }) });
     await promise;
 
     expect(result).toEqual(doc);
@@ -60,8 +60,7 @@ describe('updateDocument', () => {
 
   it('sends only changed fields', async () => {
     const newDoc = { ...prevDoc, resource: 'res2' };
-    const updated = { ...newDoc };
-    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve(updated) });
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });
 
     await updateDocument(newDoc, prevDoc);
 
@@ -79,7 +78,7 @@ describe('updateDocument', () => {
       projectName: 'Changed',
       resource: 'new',
     };
-    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve(newDoc) });
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });
 
     await updateDocument(newDoc, prevDoc);
 
@@ -92,7 +91,7 @@ describe('updateDocument', () => {
 
   it('converts null to Python None', async () => {
     const newDoc = { ...prevDoc, resource: null };
-    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve(newDoc) });
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });
 
     await updateDocument(newDoc, prevDoc);
 
@@ -102,7 +101,7 @@ describe('updateDocument', () => {
 
   it('handles nested object changes', async () => {
     const newDoc = { ...prevDoc, desc: { datasourceName: 'new' } };
-    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve(newDoc) });
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });
 
     await updateDocument(newDoc, prevDoc);
 
@@ -113,7 +112,7 @@ describe('updateDocument', () => {
 
   it('calls save and refetches', async () => {
     const newDoc = { ...prevDoc, resource: 'changed' };
-    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve(newDoc) });
+    mockFetch.mockResolvedValueOnce({ json: () => Promise.resolve({ docData: newDoc }) });
 
     await updateDocument(newDoc, prevDoc);
 
@@ -133,7 +132,7 @@ describe('updateDocument', () => {
     const promise = updateDocument(newDoc, prevDoc).then(r => { result = r; });
     expect(result).toBeUndefined();
 
-    resolve({ json: () => Promise.resolve(newDoc) });
+    resolve({ json: () => Promise.resolve({ docData: newDoc }) });
     await promise;
 
     expect(result).toEqual(newDoc);

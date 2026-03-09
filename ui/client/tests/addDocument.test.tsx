@@ -42,7 +42,7 @@ describe('AddDocumentButton', () => {
       name: 'TestProject',
       documents: [{ _id: { $oid: 'new1' }, desc: { datasourceName: 'MyDoc' }, type: 'T', _cls: 'M', resource: 'myres', dataFormat: 'string', projectName: 'TestProject' }],
     };
-    mockExecPython.mockResolvedValueOnce({ data: updatedProject, problem: undefined });
+    mockExecPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -75,7 +75,7 @@ describe('AddDocumentButton', () => {
       name: 'TestProject',
       documents: [{ _id: { $oid: 'ag1' }, desc: { datasourceName: 'Agent1' }, type: 'ToolkitDataSource', _cls: 'M', resource: { effects: {} }, dataFormat: 'JSON_DICT', projectName: 'TestProject' }],
     };
-    mockExecPython.mockResolvedValueOnce({ data: updatedProject, problem: undefined });
+    mockExecPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -109,7 +109,7 @@ describe('AddDocumentButton', () => {
         { _id: { $oid: 'n1' }, desc: { datasourceName: 'NewDoc' }, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' },
       ],
     };
-    mockExecPython.mockResolvedValueOnce({ data: updatedProject, problem: undefined });
+    mockExecPython.mockResolvedValueOnce({ data: { project: updatedProject }, problem: undefined });
 
     render(<AddDocumentButton />);
     await act(async () => {
@@ -185,7 +185,7 @@ describe('AddDocumentButton', () => {
       documents: [{ _id: { $oid: 'd1' }, desc: { datasourceName: 'Delayed' }, type: 'T', _cls: 'M', resource: '', dataFormat: 'string', projectName: 'TestProject' }],
     };
     await act(async () => {
-      resolveExec({ data: updatedProject, problem: undefined });
+      resolveExec({ data: { project: updatedProject }, problem: undefined });
     });
 
     await waitFor(() => {
@@ -195,7 +195,7 @@ describe('AddDocumentButton', () => {
 
   it('includes toolkit in desc when selected', async () => {
     mockExecPython.mockResolvedValueOnce({
-      data: { name: 'TestProject', documents: [] },
+      data: { project: { name: 'TestProject', documents: [] } },
       problem: undefined,
     });
 

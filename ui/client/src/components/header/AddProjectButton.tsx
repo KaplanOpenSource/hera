@@ -12,7 +12,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { execPython } from "../../io/execPython";
+import { fetchPython } from "../../io/fetchPython";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
@@ -28,7 +28,9 @@ export const AddProjectButton = ({ }) => {
       dirStr = `'${filesDirectory}'`;
     }
 
-    const { problem } = await execPython(`
+    const { problem } = await fetchPython({
+      results: [],
+      code: `
 import os
 from types import SimpleNamespace
 
@@ -43,7 +45,8 @@ project_create(SimpleNamespace(
 
 # Creates a config document in MongoDB so the project appears in getProjectList()
 Project(projectName='${name}', filesDirectory=${dirStr})
-`)
+`,
+    })
     if (problem) {
       return;
     }

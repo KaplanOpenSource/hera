@@ -1,7 +1,7 @@
 import { BASEURL } from "../shared/baseurl";
 import { ExecRequest } from "../shared/types";
 
-export const execPython = async (code: string): Promise<{ data: any; problem: undefined | string; }> => {
+export const execPythonRaw = async (code: string): Promise<{ data: any; problem: undefined | string; }> => {
   try {
     console.log('executing', code);
     const payload: ExecRequest = {
@@ -21,3 +21,5 @@ export const execPython = async (code: string): Promise<{ data: any; problem: un
     return { data: undefined, problem };
   }
 }
+
+export const execPython = execPythonRaw;

@@ -2,7 +2,6 @@ import { ProjectEntire, ProjectName, Toolkit } from "@shared/types";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NO_PROJECT, useProjectStore } from "../stores/useProjectStore";
-import { execPython } from "./execPython";
 import { fetchPython } from "./fetchPython";
 import { ProjectCommands } from "./ProjectCommands";
 
@@ -14,34 +13,34 @@ export const fetchProjectsNames = async () => {
 }
 
 export const fetchProjectDetails = async (projectName: string) => {
-  const { data, problem } = await execPython(`
-import json
+  const { data, problem } = await fetchPython({
+    results: ['project'],
+    code: `
 from hera.datalayer import All
 docs = All.getDocumentsAsDict('${projectName}', with_id=True)
 project = {"name": '${projectName}', "documents": docs['documents']}
-result = json.dumps(project,indent=4)
-  `);
+`,
+  });
   if (!problem) {
     // Skip if the user switched projects while this fetch was in flight
     const { currProjectName, setCurrentProject } = useProjectStore.getState();
     if (currProjectName === projectName) {
-      const project = JSON.parse(data) as ProjectEntire;
-      setCurrentProject(project);
+      setCurrentProject(data.project as ProjectEntire);
     }
   }
 }
 
 export const fetchToolkits = async (projectName: string) => {
   const { setToolkits: setToolKits } = useProjectStore.getState();
-  const { data, problem } = await execPython(`
+  const { data, problem } = await fetchPython({
+    results: ['toolkitDocs'],
+    code: `
 from hera import toolkitHome
-import json
-result = toolkitHome.getToolkitDocuments()
-`);
-  // table = toolkitHome.getToolkitTable('${name}')
-  // result = table.to_json(orient='records')
+toolkitDocs = toolkitHome.getToolkitDocuments()
+`,
+  });
   if (!problem) {
-    const newToolkits = data.map((d: any) => {
+    const newToolkits = data.toolkitDocs.map((d: any) => {
       const desc = d.desc;
       const t = {
         toolkit: d.toolkit,

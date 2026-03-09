@@ -5,7 +5,7 @@ import { ProjectDocument, ProjectEntire } from "@shared/types";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
 import { fetchProjectDetails } from "../../io/FetchProjects";
-import { execPython } from "../../io/execPython";
+import { fetchPython } from "../../io/fetchPython";
 import { idDocId } from "../../shared/idDocId";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 
@@ -23,10 +23,13 @@ export const ProjectDocumentItem = ({
   const name = document?.desc?.datasourceName || document?.type || document._cls;
 
   const deleteDocument = async () => {
-    const { problem } = await execPython(`
+    const { problem } = await fetchPython({
+      results: [],
+      code: `
 from hera.datalayer import All
 All.deleteDocumentByID('${document?._id.$oid}')
-        `)
+`,
+    })
     if (problem) {
       return;
     }

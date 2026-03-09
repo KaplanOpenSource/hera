@@ -20,7 +20,7 @@ beforeEach(() => { vi.clearAllMocks(); });
 describe('DetailsViewRepo', () => {
   it('calls execPython with repo path on mount', async () => {
     mockExecPython.mockResolvedValueOnce({
-      data: { json: { key1: 'value1' } },
+      data: { jsonData: { key1: 'value1' } },
       problem: undefined,
     });
 
@@ -45,7 +45,7 @@ describe('DetailsViewRepo', () => {
 
   it('handles null json response', async () => {
     mockExecPython.mockResolvedValueOnce({
-      data: { json: null },
+      data: { jsonData: null },
       problem: undefined,
     });
 
@@ -72,7 +72,7 @@ describe('DetailsViewRepo', () => {
     expect(mockExecPython).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveExec({ data: { json: { key1: 'value1' } }, problem: undefined });
+      resolveExec({ data: { jsonData: { key1: 'value1' } }, problem: undefined });
     });
 
     // After resolution, component renders tree data without crashing
@@ -83,7 +83,7 @@ describe('DetailsViewRepo', () => {
 
   it('displays tree keys after loading', async () => {
     mockExecPython.mockResolvedValueOnce({
-      data: { json: { myDataSource: { path: '/data/file.csv' } } },
+      data: { jsonData: { myDataSource: { path: '/data/file.csv' } } },
       problem: undefined,
     });
 
