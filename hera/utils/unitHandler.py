@@ -1,8 +1,13 @@
 try:
     from unum import Unum
-    from unum.units import *
     from unum import NameConflictError
+    import unum.units as _unum_units_module
     import re
+
+    # Re-export every public unit symbol into this module's namespace
+    # (equivalent to ``from unum.units import *`` but griffe-friendly)
+    _unum_public = {k: v for k, v in vars(_unum_units_module).items() if not k.startswith('_')}
+    globals().update(_unum_public)
 
     unumSupport = True
 except ImportError:
