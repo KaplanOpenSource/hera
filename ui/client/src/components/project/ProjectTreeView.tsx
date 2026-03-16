@@ -2,11 +2,11 @@ import { Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idDocId } from '../../shared/idDocId';
+import { idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
@@ -47,16 +47,32 @@ export const ProjectTreeView = ({
     return splitTreeRef.current;
   }, []);
 
-  const handleDocumentCreated = useCallback((docOid: string) => {
+  const expandToDocument = useCallback((docOid: string) => {
     const tree = getSplitTree();
     if (!tree) return;
     const ancestors = tree.findAncestorKeys(docOid);
     console.log('[focus] docOid:', docOid, 'ancestors:', ancestors);
     if (ancestors) {
       setExpandedItems(prev => [...new Set([...prev, 'project-documents', ...ancestors])]);
-      setSelectedItemIds([idDocId(docOid)]);
     }
-  }, [getSplitTree, setSelectedItemIds]);
+  }, [getSplitTree]);
+
+  const handleDocumentCreated = useCallback((docOid: string) => {
+    expandToDocument(docOid);
+    setSelectedItemIds([idDocId(docOid)]);
+  }, [expandToDocument, setSelectedItemIds]);
+
+  // Expand branches to the initially selected document (e.g. from URL)
+  const hasExpandedInitial = useRef(false);
+  useEffect(() => {
+    if (hasExpandedInitial.current) return;
+    const docOid = idFromDocId(selectedItemsIds[0]);
+    if (docOid && project?.documentIds.has(docOid)) {
+      console.log('[expand-initial] expanding to', docOid, 'documents:', project?.documentIds);
+      expandToDocument(docOid);
+      hasExpandedInitial.current = true;
+    }
+  }, [project, selectedItemsIds, expandToDocument]);
 
   console.log(toolkits)
   console.log(project)
