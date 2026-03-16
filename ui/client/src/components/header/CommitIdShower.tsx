@@ -7,7 +7,7 @@ export const CommitIdShower = () => {
   const dev = import.meta.env.MODE === 'development';
   const id = dev ? 'dev' : commitId;
   return (
-    <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+    <Box>
       <Tooltip
         title={dev
           ? <>

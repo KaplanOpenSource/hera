@@ -9,14 +9,22 @@ pip install -r ui/server/requirements-server.txt
 #### Run
 Run this script, be sure to activate your `venv` or `heraenv` before
 ```sh
-hera-ui [--cors]
+hera-ui [options]
 ```
-This is a shell script on `hera/bin/` folder. [here](../hera/bin/hera-ui)  
-Args:  
-- `--cors`: not limiting serving the web page only to local browsing.  
-If the machine IP is `4.3.2.1` browse thru http://4.3.2.1:8000  
+This is a shell script on `hera/bin/` folder. [here](../hera/bin/hera-ui)
 
-- `--debug`: allowing you to run vscode debugging of hera [more info](https://code.visualstudio.com/docs/python/python-quick-start)  
+Use `--help` to see all available options.
+
+Options:
+- `--cors ORIGINS`: Enable CORS for external origins.  
+Use `all` to allow all origins, or pass a comma-separated list of IPs to allow specific ones.  
+Example: `--cors 192.168.1.10,10.0.0.5`  
+Each IP is prefixed with `http://` and port `8000` automatically.  
+When active, a red "CORS" indicator appears in the top-right of the UI.
+
+- `-y, --yes`: Skip confirmation prompts. Useful for non-interactive environments (e.g. VS Code launch).
+
+- `--debug`: allowing you to run vscode debugging of hera [more info](https://code.visualstudio.com/docs/python/python-quick-start)
 
 ## Using with docker
 #### Build

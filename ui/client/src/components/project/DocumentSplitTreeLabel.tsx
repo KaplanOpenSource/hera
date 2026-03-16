@@ -1,7 +1,7 @@
 import { Handyman, HotelClass } from "@mui/icons-material";
 import { Typography, Stack } from "@mui/material";
 import { SwitchCase, Case } from "../../elements/SwitchCase";
-import { DESC_PATH_TOOLKIT, DESC_PATH_TYPE, VALUE_GROUP_REST, VALUE_GROUP_UNDEFINED } from "./DocumentSplitGroup";
+import { DESC_PATH_TOOLKIT, DESC_PATH_TYPE, VALUE_GROUP_REST, VALUE_GROUP_UNDEFINED } from "../../utils/splitTree";
 
 export const DocumentSplitTreeLabel = ({
   path,

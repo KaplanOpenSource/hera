@@ -2,11 +2,13 @@ import { Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
+import { idDocId, idFromDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
@@ -32,18 +34,58 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
+  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
+  const splitTreeRef = useRef<SplitTree | null>(null);
+
+  const getSplitTree = useCallback(() => {
+    const currentProject = useProjectStore.getState().getProject();
+    const currentSettings = useViewSettingsStore.getState().viewSettings;
+    if (!currentProject) return null;
+    if (!splitTreeRef.current || splitTreeRef.current.needsRebuild(currentProject.documents, currentSettings)) {
+      splitTreeRef.current = new SplitTree(currentProject.documents, currentSettings.maxDepth, currentSettings);
+    }
+    return splitTreeRef.current;
+  }, []);
+
+  const expandToDocument = useCallback((docOid: string) => {
+    const tree = getSplitTree();
+    if (!tree) return;
+    const ancestors = tree.findAncestorKeys(docOid);
+    console.log('[focus] docOid:', docOid, 'ancestors:', ancestors);
+    if (ancestors) {
+      setExpandedItems(prev => [...new Set([...prev, 'project-documents', ...ancestors])]);
+    }
+  }, [getSplitTree]);
+
+  const handleDocumentCreated = useCallback((docOid: string) => {
+    expandToDocument(docOid);
+    setSelectedItemIds([idDocId(docOid)]);
+  }, [expandToDocument, setSelectedItemIds]);
+
+  // Expand branches to the initially selected document (e.g. from URL)
+  const hasExpandedInitial = useRef(false);
+  useEffect(() => {
+    if (hasExpandedInitial.current) return;
+    const docOid = idFromDocId(selectedItemsIds[0]);
+    if (docOid && project?.documentIds.has(docOid)) {
+      console.log('[expand-initial] expanding to', docOid, 'documents:', project?.documentIds);
+      expandToDocument(docOid);
+      hasExpandedInitial.current = true;
+    }
+  }, [project, selectedItemsIds, expandToDocument]);
 
   console.log(toolkits)
   console.log(project)
 
   return (
     <SimpleTreeView
-      defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
+      expandedItems={expandedItems}
+      onExpandedItemsChange={(_e, itemIds) => setExpandedItems(itemIds)}
       selectedItems={selectedItemsIds[0] ?? null}
       onSelectedItemsChange={(_e, itemIds) => {
         setSelectedItemIds(itemIds ? [itemIds] : [])
       }}
-      expansionTrigger={'iconContainer'}
+      expansionTrigger={'content'}
       multiSelect={false}
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}
@@ -62,6 +104,7 @@ export const ProjectTreeView = ({
             />
             <AddDocumentButton
               toolkit={undefined}
+              onDocumentCreated={handleDocumentCreated}
             />
           </Stack>
         )}
@@ -78,6 +121,7 @@ export const ProjectTreeView = ({
           docs={project?.documents}
           project={project}
           depth={viewSettings.maxDepth}
+          onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
       <RepoTreeWhole

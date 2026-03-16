@@ -12,9 +12,11 @@ import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
 export const ProjectDocumentItem = ({
   project,
   document,
+  onDocumentDeleted,
 }: {
   project: ProjectEntire,
   document: ProjectDocument,
+  onDocumentDeleted?: () => void,
 }) => {
   const { confirmOpen, ConfirmDialog } = useConfirm()
   const { viewSettings } = useViewSettingsStore();
@@ -34,6 +36,7 @@ All.deleteDocumentByID('${document?._id.$oid}')
       return;
     }
     await fetchProjectDetails(project.name);
+    onDocumentDeleted?.();
   }
 
   const isProjectConfig = document.type === project.name + '__config__'

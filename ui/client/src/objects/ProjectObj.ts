@@ -1,4 +1,7 @@
-import { ProjectDocument, ProjectEntire } from "../shared/types";
+import { ProjectEntire } from "../shared/types";
+import { DocumentObj } from "./DocumentObj";
+
+export { DocumentObj } from "./DocumentObj";
 
 export class ProjectObj {
   constructor(
@@ -18,35 +21,11 @@ export class ProjectObj {
     return this.allDocuments.filter(d => !d.isConfig);
   }
 
+  public get documentIds(): Set<string> {
+    return new Set(this.allDocuments.map(d => d.docid));
+  }
+
   public get configDocument(): DocumentObj | undefined {
     return this.allDocuments.filter(d => d.isConfig)[0];
-  }
-}
-
-export class DocumentObj {
-  constructor(
-    public data: ProjectDocument,
-    public project: ProjectObj,
-  ) {
-  }
-
-  public get docid(): string {
-    return this.data._id.$oid;
-  }
-
-  public get isConfig(): boolean {
-    return this.data.type === this.project.data.name + '__config__';
-  }
-
-  public get name(): string {
-    return this.data.desc?.datasourceName || this.data.type || this.data._cls;
-  }
-
-  public get toolkit(): string | undefined {
-    return this.data.desc.toolkit;
-  }
-
-  public get extDesc(): Record<string, any> {
-    return { ...(this.data.desc || {}), type: this.data.type }
   }
 }

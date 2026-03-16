@@ -119,9 +119,9 @@ export const FetchProjects = ({
       selectProject(urlProject ?? projectNames[0].name);
     } else {
       fetchProjectData(currProjectName);
-      const expectedPath = '/' + encodeURIComponent(currProjectName);
-      if (location.pathname !== expectedPath) {
-        navigate(expectedPath, { replace: true });
+      const expectedPrefix = '/' + encodeURIComponent(currProjectName);
+      if (!location.pathname.startsWith(expectedPrefix)) {
+        navigate(expectedPrefix, { replace: true });
       }
     }
   }, [currProjectName, projectNames, urlProjectName, navigate]);
