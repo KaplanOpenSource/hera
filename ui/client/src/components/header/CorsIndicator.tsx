@@ -33,16 +33,20 @@ export const CorsIndicator = () => {
 
   return (
     <Tooltip
-      title={origins.map((o) => (
-        <div key={o}>{o}</div>
-      ))}
+      title={<>
+        Cors origin allowed:
+        {origins.map((o) => (
+          <div key={o}>{o}</div>
+        ))}
+      </>}
     >
       <Typography
         variant="caption"
         sx={{
-          fontSize: '8px',
+          fontSize: '10px',
+          fontWeight: 'bold',
           cursor: 'default',
-          color: 'orange',
+          color: '#f00',
         }}
       >
         CORS
