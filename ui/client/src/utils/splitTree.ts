@@ -83,6 +83,18 @@ function getCompared(docs: DocumentObj[], depth: number, viewSettings: ViewSetti
   return compared;
 }
 
+export function findAncestorKeys(nodes: SplitTreeNode[], docId: string): string[] | null {
+  for (const node of nodes) {
+    if (node.type === SplitTreeNodeType.Leaf) {
+      if (node.doc.docid === docId) return [];
+    } else {
+      const result = findAncestorKeys(node.children, docId);
+      if (result !== null) return [node.itemKey, ...result];
+    }
+  }
+  return null;
+}
+
 export function buildSplitTree(
   docs: DocumentObj[],
   depth: number,

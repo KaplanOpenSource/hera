@@ -2,11 +2,13 @@ import { Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
+import { idDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { buildSplitTree, findAncestorKeys } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
@@ -32,13 +34,28 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
+  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
+
+  const handleDocumentCreated = useCallback((docOid: string) => {
+    const currentProject = useProjectStore.getState().getProject();
+    const currentSettings = useViewSettingsStore.getState().viewSettings;
+    if (!currentProject) return;
+    const tree = buildSplitTree(currentProject.documents, currentSettings.maxDepth, currentSettings);
+    const ancestors = findAncestorKeys(tree, docOid);
+    console.log('[focus] docOid:', docOid, 'ancestors:', ancestors);
+    if (ancestors) {
+      setExpandedItems(prev => [...new Set([...prev, 'project-documents', ...ancestors])]);
+      setSelectedItemIds([idDocId(docOid)]);
+    }
+  }, [setSelectedItemIds]);
 
   console.log(toolkits)
   console.log(project)
 
   return (
     <SimpleTreeView
-      defaultExpandedItems={['project-documents', 'no-toolkit', '*repos*']}
+      expandedItems={expandedItems}
+      onExpandedItemsChange={(_e, itemIds) => setExpandedItems(itemIds)}
       selectedItems={selectedItemsIds[0] ?? null}
       onSelectedItemsChange={(_e, itemIds) => {
         setSelectedItemIds(itemIds ? [itemIds] : [])
@@ -62,7 +79,7 @@ export const ProjectTreeView = ({
             />
             <AddDocumentButton
               toolkit={undefined}
-              onDocumentCreated={d => console.log('new docid:', d)}
+              onDocumentCreated={handleDocumentCreated}
             />
           </Stack>
         )}
