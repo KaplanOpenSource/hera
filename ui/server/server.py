@@ -10,52 +10,19 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from cors_handler import CorsHandler
 from mock_data import MOCK_PROJECTS
 
+cors_handler = CorsHandler()
 parser = argparse.ArgumentParser(description="Hera UI API server")
-parser.add_argument(
-    '--cors',
-    nargs='?',
-    const='*',
-    default=None,
-    metavar='ORIGINS',
-    help=(
-        'Enable CORS for external origins. '
-        'Without a value, allows all origins (*). '
-        'Pass a comma-separated list of IPs to allow specific ones '
-        '(e.g. --cors 192.168.1.10,10.0.0.5). '
-        'Each IP is prefixed with http:// and port 8000 automatically.'
-    ),
-)
+cors_handler.add_argument(parser)
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
 parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
 args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")
 
-LOCAL_ORIGINS = [f'http://{h}:{p}' for h in ['localhost', '127.0.0.1', '0.0.0.0'] for p in [5173, 8000]]
-
-if args.cors is not None:
-    if args.cors == '*':
-        warning = "WARNING: CORS is enabled for ALL origins (*). This is insecure in production."
-    else:
-        cors_origins = [f'http://{ip}:8000' for ip in args.cors.split(',')]
-        warning = f"WARNING: CORS is enabled for custom origins: {', '.join(cors_origins)}"
-    print(warning)
-    if not args.yes:
-        try:
-            answer = input("CORS weakens browser security. Continue? (use -y to skip) [y/N] ").strip().lower()
-        except EOFError:
-            answer = ''
-        if answer != 'y':
-            print("Aborted.")
-            sys.exit(0)
-    if args.cors == '*':
-        origins = ['*']
-    else:
-        origins = LOCAL_ORIGINS + cors_origins
-else:
-    origins = LOCAL_ORIGINS
+origins = cors_handler.get_origins(args)
 
 # Allow local Vite dev server
 app.add_middleware(
