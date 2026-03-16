@@ -62,6 +62,7 @@ export const ProjectTreeView = ({
             />
             <AddDocumentButton
               toolkit={undefined}
+              onDocumentCreated={d => console.log('new docid:', d)}
             />
           </Stack>
         )}

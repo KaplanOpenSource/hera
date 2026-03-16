@@ -19,8 +19,10 @@ const NO_TOOLKIT = '* No Toolkit *';
 
 export const AddDocumentButton = ({
   toolkit = undefined,
+  onDocumentCreated,
 }: {
   toolkit?: Toolkit | undefined,
+  onDocumentCreated?: (docOid: string) => void,
 }) => {
   const { toolkits } = useProjectStore();
   const [name, setName] = useState('');
@@ -57,7 +59,13 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
     if (problem) {
       return;
     }
+    const existingIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
     setCurrentProject(data.project as ProjectEntire);
+    const newIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
+    const [addedId] = newIds.difference(existingIds);
+    if (addedId) {
+      onDocumentCreated?.(addedId);
+    }
   }
 
   return (
