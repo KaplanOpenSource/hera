@@ -11,13 +11,11 @@ class CorsHandler:
     def add_argument(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             '--cors',
-            nargs='?',
-            const='*',
             default=None,
             metavar='ORIGINS',
             help=(
                 'Enable CORS for external origins. '
-                'Without a value, allows all origins (*). '
+                'Use "all" to allow all origins. '
                 'Pass a comma-separated list of IPs to allow specific ones '
                 '(e.g. --cors 192.168.1.10,10.0.0.5). '
                 'Each IP is prefixed with http:// and port 8000 automatically.'
@@ -28,9 +26,9 @@ class CorsHandler:
         if args.cors is None:
             return LOCAL_ORIGINS
 
-        if args.cors == '*':
+        if args.cors == 'all':
             self.custom_origins = ['*']
-            warning = "WARNING: CORS is enabled for ALL origins (*). This is insecure in production."
+            warning = "WARNING: CORS is enabled for ALL origins. This is insecure in production."
         else:
             self.custom_origins = [f'http://{ip}:8000' for ip in args.cors.split(',')]
             warning = f"WARNING: CORS is enabled for custom origins: {', '.join(self.custom_origins)}"
@@ -45,6 +43,6 @@ class CorsHandler:
                 print("Aborted.")
                 sys.exit(0)
 
-        if args.cors == '*':
+        if args.cors == 'all':
             return ['*']
         return LOCAL_ORIGINS + self.custom_origins

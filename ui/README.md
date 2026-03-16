@@ -16,7 +16,8 @@ This is a shell script on `hera/bin/` folder. [here](../hera/bin/hera-ui)
 Use `--help` to see all available options.
 
 Options:
-- `--cors [ORIGINS]`: Enable CORS for external origins. Without a value, allows all origins (`*`). Pass a comma-separated list of IPs to allow specific ones.  
+- `--cors ORIGINS`: Enable CORS for external origins.  
+Use `all` to allow all origins, or pass a comma-separated list of IPs to allow specific ones.  
 Example: `--cors 192.168.1.10,10.0.0.5`  
 Each IP is prefixed with `http://` and port `8000` automatically.  
 When active, a red "CORS" indicator appears in the top-right of the UI.

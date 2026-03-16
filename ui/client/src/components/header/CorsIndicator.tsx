@@ -8,10 +8,8 @@ export const CorsIndicator = () => {
   useEffect(() => {
     (async () => {
       try {
-        const url = `${BASEURL}/cors`;
-        console.log('CORS fetch url:', url);
-        const r = await fetch(url);
-        const text = await r.text();
+        const resp = await fetch(`${BASEURL}/cors`);
+        const text = await resp.text();
         try {
           const data = JSON.parse(text);
           console.log('CORS response:', data);
@@ -49,7 +47,7 @@ export const CorsIndicator = () => {
           color: '#f00',
         }}
       >
-        CORS
+        {origins.includes('*') ? 'CORS ALL' : 'CORS'}
       </Typography>
     </Tooltip>
   );
