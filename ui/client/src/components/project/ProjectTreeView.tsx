@@ -43,7 +43,7 @@ export const ProjectTreeView = ({
       onSelectedItemsChange={(_e, itemIds) => {
         setSelectedItemIds(itemIds ? [itemIds] : [])
       }}
-      expansionTrigger={'iconContainer'}
+      expansionTrigger={'content'}
       multiSelect={false}
     >
       <TreeItem key={`project-documents`} itemId={`project-documents`}

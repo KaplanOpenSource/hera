@@ -22,6 +22,10 @@ export const DetailsViewDocument = ({
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
   }, [doc.data])
 
+  useEffect(() => {
+    setPreviewHidden(false);
+  }, [doc.docid])
+
   const hasMap = isTileUrl(shownDoc.resource);
   const showMap = hasMap && !previewHidden;
 
