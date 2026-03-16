@@ -1,78 +1,44 @@
 import { TreeItem } from "@mui/x-tree-view";
-import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
+import { ProjectObj } from "../../objects/ProjectObj";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
-import { compareJsons, CompareResult, filterAndSortByGroups, getValueAtPath } from "../../utils/compareJsons";
+import { buildSplitTree, SplitTreeNode } from "../../utils/splitTree";
 import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
-import { reorderByKeys } from "../../utils/utils";
-
-export const VALUE_GROUP_REST = "__rest__";
-export const VALUE_GROUP_UNDEFINED = "__undefined__";
-export const DESC_PATH_TOOLKIT = "/toolkit";
-export const DESC_PATH_TYPE = "/type";
 
 const DocumentSplitTree = ({
-  docs,
   project,
-  depth,
-  compared,
+  nodes,
 }: {
-  docs: DocumentObj[];
   project: ProjectObj;
-  depth: number;
-  compared: CompareResult[];
+  nodes: SplitTreeNode[];
 }) => {
-  const { viewSettings } = useViewSettingsStore();
-  const bestPath = compared[0].path;
-  const isToolkit = bestPath === DESC_PATH_TOOLKIT;
-
-  const valueCounts = new Map<string, number>();
-  for (const doc of docs) {
-    const val = getValueAtPath(doc.data.desc as any, bestPath);
-    const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
-    valueCounts.set(key, (valueCounts.get(key) || 0) + 1);
-  }
-
-  const groups = new Map<string, DocumentObj[]>();
-  const restDocs: DocumentObj[] = [];
-  for (const doc of docs) {
-    const val = getValueAtPath(doc.extDesc, bestPath);
-    const key = val === undefined ? VALUE_GROUP_UNDEFINED : String(val);
-    if (!isToolkit && valueCounts.get(key)! < viewSettings.minGroupSize) {
-      restDocs.push(doc);
-    } else {
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)!.push(doc);
-    }
-  }
-
-  if (restDocs.length > 0) {
-    groups.set(VALUE_GROUP_REST, restDocs);
-  }
-
-  const entries = [...groups.entries()].sort((a, b) => (a[0].localeCompare(b[0])));
-
   return (
     <>
-      {entries.map(([value, groupDocs]) => {
-        const itemKey = `split_${bestPath}=${value}`;
+      {nodes.map(node => {
+        if (node.type === 'leaf') {
+          return (
+            <ProjectDocumentItem
+              key={`proj${project.name}_doc${node.doc.docid}`}
+              project={project.data}
+              document={node.doc.data}
+            />
+          );
+        }
+        console.log('[tree-item] split:', node.itemKey);
         return (
           <TreeItem
-            key={itemKey}
-            itemId={itemKey}
+            key={node.itemKey}
+            itemId={node.itemKey}
             label={
               <DocumentSplitTreeLabel
-                path={bestPath}
-                value={value}
+                path={node.path}
+                value={node.value}
               />
             }
           >
-            <DocumentSplitGroup
-              docs={groupDocs}
+            <DocumentSplitTree
               project={project}
-              depth={depth - 1}
+              nodes={node.children}
             />
           </TreeItem>
         );
@@ -91,34 +57,11 @@ export const DocumentSplitGroup = ({
   depth: number;
 }) => {
   const { viewSettings } = useViewSettingsStore();
-  let compared: CompareResult[] = [];
-  if (depth > 0 && docs.length > 1) {
-    const descs = docs.map((d) => ({ ...d.extDesc }));
-    const paths = compareJsons(descs, true);
-    compared = filterAndSortByGroups(paths, viewSettings.minGroupSize, viewSettings.maxBranches);
-    if (viewSettings.firstBranchHeadFields) {
-      compared = reorderByKeys(compared, x => x.path, [DESC_PATH_TOOLKIT, DESC_PATH_TYPE]);
-    }
-  }
-
-  return compared.length
-    ? (
-      <DocumentSplitTree
-        docs={docs}
-        project={project}
-        depth={depth}
-        compared={compared}
-      />
-    )
-    : (
-      <>
-        {docs.map((doc) => (
-          <ProjectDocumentItem
-            key={`proj${project.name}_doc${doc.docid}`}
-            project={project.data}
-            document={doc.data}
-          />
-        ))}
-      </>
-    );
+  const nodes = buildSplitTree(docs, depth, viewSettings);
+  return (
+    <DocumentSplitTree
+      project={project}
+      nodes={nodes}
+    />
+  );
 };
