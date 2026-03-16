@@ -1,9 +1,10 @@
 import argparse
+import mimetypes
 import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -64,6 +65,17 @@ def exec_code(payload: ExecPayload):
     result = _locals.get("result", None)
     print("got:", result)
     return jsonable_encoder(result)
+
+
+@app.get("/file/{file_path:path}")
+def serve_file(file_path: str):
+    print('serving: ', file_path)
+    full_path = Path("/") / file_path
+    if not full_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    media_type = mimetypes.guess_type(str(full_path))[0]
+    print('mime: ', media_type)
+    return FileResponse(str(full_path), media_type=media_type)
 
 
 # Serve built frontend (Vite) in production

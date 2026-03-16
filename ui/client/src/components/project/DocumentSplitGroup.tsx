@@ -27,7 +27,7 @@ const DocumentSplitTree = ({
             />
           );
         }
-        console.log('[tree-item] split:', node.itemKey);
+        // console.log('[tree-item] split:', node.itemKey);
         return (
           <TreeItem
             key={node.itemKey}
