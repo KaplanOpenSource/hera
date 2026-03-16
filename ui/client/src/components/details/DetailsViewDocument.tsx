@@ -1,4 +1,4 @@
-import { Visibility } from '@mui/icons-material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
@@ -62,10 +62,21 @@ export const DetailsViewDocument = ({
             minSize={5}
             collapsible
           >
-            <TileMapView
-              url={shownDoc.resource as string}
-              onClose={() => setPreviewHidden(true)}
-            />
+            <Box sx={{ height: '100%', position: 'relative' }}>
+              <Box sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1000 }}>
+                <ButtonTooltip
+                  title="Hide preview"
+                  onClick={() => setPreviewHidden(true)}
+                  sx={{
+                    backgroundColor: 'white',
+                    '&:hover': { backgroundColor: '#eee' },
+                  }}
+                >
+                  <VisibilityOff sx={{ fontSize: 14 }} />
+                </ButtonTooltip>
+              </Box>
+              <TileMapView url={shownDoc.resource as string} />
+            </Box>
           </Panel>
         </PanelGroup>
       </Box>
