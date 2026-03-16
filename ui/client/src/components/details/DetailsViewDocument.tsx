@@ -1,4 +1,4 @@
-import { Map } from '@mui/icons-material';
+import { Visibility } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
@@ -16,14 +16,14 @@ export const DetailsViewDocument = ({
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
-  const [mapHidden, setMapHidden] = useState(false);
+  const [previewHidden, setPreviewHidden] = useState(false);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
   }, [doc.data])
 
   const hasMap = isTileUrl(shownDoc.resource);
-  const showMap = hasMap && !mapHidden;
+  const showMap = hasMap && !previewHidden;
 
   return showMap
     ? (
@@ -31,8 +31,8 @@ export const DetailsViewDocument = ({
         <PanelGroup
           orientation="vertical"
           onLayoutChanged={(layout) => {
-            if (layout['map-panel'] === 0) {
-              setMapHidden(true);
+            if (layout['preview-panel'] === 0) {
+              setPreviewHidden(true);
             }
           }}
         >
@@ -57,14 +57,14 @@ export const DetailsViewDocument = ({
           />
 
           <Panel
-            id="map-panel"
+            id="preview-panel"
             defaultSize={50}
             minSize={5}
             collapsible
           >
             <TileMapView
               url={shownDoc.resource as string}
-              onClose={() => setMapHidden(true)}
+              onClose={() => setPreviewHidden(true)}
             />
           </Panel>
         </PanelGroup>
@@ -78,13 +78,13 @@ export const DetailsViewDocument = ({
           shownDoc={shownDoc}
           setShownDoc={setShownDoc}
         />
-        {hasMap && mapHidden && (
+        {hasMap && previewHidden && (
           <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
             <ButtonTooltip
-              title="Show map"
-              onClick={() => setMapHidden(false)}
+              title="Show preview"
+              onClick={() => setPreviewHidden(false)}
             >
-              <Map sx={{ fontSize: 14 }} />
+              <Visibility sx={{ fontSize: 14 }} />
             </ButtonTooltip>
           </Box>
         )}

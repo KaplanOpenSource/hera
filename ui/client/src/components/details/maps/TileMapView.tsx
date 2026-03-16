@@ -1,4 +1,4 @@
-import { Close } from '@mui/icons-material';
+import { VisibilityOff } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -20,14 +20,14 @@ export const TileMapView = ({
     <Box sx={{ height: '100%', position: 'relative' }}>
       <Box sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1000 }}>
         <ButtonTooltip
-          title="Hide map"
+          title="Hide preview"
           onClick={onClose}
           sx={{
             backgroundColor: 'white',
             '&:hover': { backgroundColor: '#eee' },
           }}
         >
-          <Close sx={{ fontSize: 14 }} />
+          <VisibilityOff sx={{ fontSize: 14 }} />
         </ButtonTooltip>
       </Box>
       <MapContainer
