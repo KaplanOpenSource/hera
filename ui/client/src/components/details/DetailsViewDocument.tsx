@@ -21,41 +21,42 @@ export const DetailsViewDocument = ({
 
   const showMap = isTileUrl(shownDoc.resource);
 
-  const detailsContent = (
-    <DetailsViewDocumentContent
-      doc={doc}
-      setDoc={setDoc}
-      shownDoc={shownDoc}
-      setShownDoc={setShownDoc}
-    />
-  );
+  return showMap
+    ? (
+      <Box sx={{ height: 'calc(100% + 32px)', m: -2 }}>
+        <PanelGroup orientation="vertical">
+          <Panel defaultSize={50} minSize={20}>
+            <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
+              <DetailsViewDocumentContent
+                doc={doc}
+                setDoc={setDoc}
+                shownDoc={shownDoc}
+                setShownDoc={setShownDoc}
+              />
+            </Box>
+          </Panel>
 
-  if (!showMap) {
-    return detailsContent;
-  }
+          <PanelResizeHandle
+            style={{
+              height: 4,
+              cursor: 'row-resize',
+              backgroundColor: '#e0e0e0',
+              outline: 'none',
+            }}
+          />
 
-  return (
-    <Box sx={{ height: 'calc(100% + 32px)', m: -2 }}>
-      <PanelGroup orientation="vertical">
-        <Panel defaultSize={50} minSize={20}>
-          <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
-            {detailsContent}
-          </Box>
-        </Panel>
-
-        <PanelResizeHandle
-          style={{
-            height: 4,
-            cursor: 'row-resize',
-            backgroundColor: '#e0e0e0',
-            outline: 'none',
-          }}
-        />
-
-        <Panel defaultSize={50} minSize={20}>
-          <TileMapView url={shownDoc.resource as string} />
-        </Panel>
-      </PanelGroup>
-    </Box>
-  )
+          <Panel defaultSize={50} minSize={20}>
+            <TileMapView url={shownDoc.resource as string} />
+          </Panel>
+        </PanelGroup>
+      </Box>
+    )
+    : (
+      <DetailsViewDocumentContent
+        doc={doc}
+        setDoc={setDoc}
+        shownDoc={shownDoc}
+        setShownDoc={setShownDoc}
+      />
+    )
 }
