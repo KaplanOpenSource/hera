@@ -73,7 +73,7 @@ export const Dashboard = () => {
               />
 
               <Panel defaultSize={50} minSize={20}>
-                <Paper sx={{ p: 2, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <Paper sx={{ p: 2, height: '100%', overflow: 'hidden' }}>
                   <DetailsViewPanel
                     project={project}
                     showItemId={selectedItemsIds[0]}

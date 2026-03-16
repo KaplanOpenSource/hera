@@ -1,5 +1,7 @@
 import { Box } from '@mui/material';
+import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
+import type { Map } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 export const isTileUrl = (resource: unknown): resource is string => {
@@ -11,9 +13,22 @@ export const TileMapView = ({
 }: {
   url: string,
 }) => {
+  const mapRef = useRef<Map | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!boxRef.current || !mapRef.current) return;
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+    });
+    observer.observe(boxRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <Box sx={{ flex: 1, minHeight: 0, mx: -2, mb: -2 }}>
+    <Box ref={boxRef} sx={{ height: '100%' }}>
       <MapContainer
+        ref={mapRef}
         center={[32, 35]}
         zoom={8}
         style={{ height: '100%', width: '100%' }}

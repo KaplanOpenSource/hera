@@ -2,6 +2,7 @@ import { Close, Done, DynamicForm, Science } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { useEffect, useState } from 'react';
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { AgentConfig } from '../../shared/AgentConfig';
@@ -59,95 +60,122 @@ export const DetailsViewDocument = ({
 
   const isChanged = JSON.stringify(doc.data) !== JSON.stringify(shownDoc);
   const showMap = isTileUrl(shownDoc.resource);
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        <Stack direction={'row'} alignItems={'center'} justifyItems={'center'}>
-          <Typography variant='h6' sx={{ marginRight: 1 }}>
-            {doc.isConfig ? doc.project.name + ' config' : doc.name}
-          </Typography>
-          <ButtonTooltip
-            title={'Show Formulated'}
-            onClick={() => setShowFormulated(!showFormulated)}
-          >
-            <DynamicForm color={showFormulated ? 'primary' : 'inherit'} />
-          </ButtonTooltip>
-          <ButtonTooltip
-            title={'Show Agent Config'}
-            onClick={() => setShowAgentConfig(!showAgentConfig)}
-            disabled={!isAgent}
-          >
-            <Science color={showAgentConfig ? 'primary' : 'inherit'} />
-          </ButtonTooltip>
-          {isChanged
-            ? (<>
-              <ButtonTooltip
-                title='Update Document'
-                onClick={() => setDoc(new DocumentObj(shownDoc, doc.project))}
-              >
-                <Done />
-              </ButtonTooltip>
-              <ButtonTooltip
-                title='Revert Document'
-                onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc.data)))}
-              >
-                <Close />
-              </ButtonTooltip>
-            </>)
-            : null}
-        </Stack>
-        <DetailsViewDocumentHeader
-          docid={doc.docid}
-          shownDoc={shownDoc}
-          setShownDoc={setShownDoc}
-          showFormulated={showFormulated}
-          extraFields={!showAgentConfig
-            ? []
-            : [
-              { name: 'type', value: shownDoc.type },
-              { name: 'dataFormat', value: shownDoc.dataFormat },
-            ]
-          }
-        />
-        <SimpleTreeView
-          defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
+
+  const detailsContent = (
+    <Box sx={{ height: '100%', overflow: 'auto' }}>
+      <Stack direction={'row'} alignItems={'center'} justifyItems={'center'}>
+        <Typography variant='h6' sx={{ marginRight: 1 }}>
+          {doc.isConfig ? doc.project.name + ' config' : doc.name}
+        </Typography>
+        <ButtonTooltip
+          title={'Show Formulated'}
+          onClick={() => setShowFormulated(!showFormulated)}
         >
-          {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
-            if (FORBIDDEN_FIELDS.includes(k)) {
-              return null;
-            }
-            if (showAgentConfig && ['resource', 'type', 'dataFormat'].includes(k)) {
-              return null;
-            }
-            const hideOnDesc = showFormulated && k === 'desc';
-            return (
-              <DetailsViewItem
-                key={k}
-                itemKey={k}
-                itemValue={!hideOnDesc ? v : copyWithout(v, HIDE_ON_DESC)}
-                parentKey={undefined}
-                setItemValue={newVal => {
-                  if (!hideOnDesc) {
-                    setShownDoc({ ...shownDoc, [k]: newVal });
-                  } else {
-                    setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, ...newVal } });
-                  }
-                }}
-              />
-            );
-          })}
-        </SimpleTreeView>
-        {showAgentConfig
-          ? (
-            <AgentConfigEditor
-              agentResource={shownDoc.resource as AgentConfig}
-              setAgentResource={newVal => setShownDoc({ ...shownDoc, resource: newVal })}
-            />
-          )
-          : null
+          <DynamicForm color={showFormulated ? 'primary' : 'inherit'} />
+        </ButtonTooltip>
+        <ButtonTooltip
+          title={'Show Agent Config'}
+          onClick={() => setShowAgentConfig(!showAgentConfig)}
+          disabled={!isAgent}
+        >
+          <Science color={showAgentConfig ? 'primary' : 'inherit'} />
+        </ButtonTooltip>
+        {isChanged
+          ? (<>
+            <ButtonTooltip
+              title='Update Document'
+              onClick={() => setDoc(new DocumentObj(shownDoc, doc.project))}
+            >
+              <Done />
+            </ButtonTooltip>
+            <ButtonTooltip
+              title='Revert Document'
+              onClick={() => setShownDoc(JSON.parse(JSON.stringify(doc.data)))}
+            >
+              <Close />
+            </ButtonTooltip>
+          </>)
+          : null}
+      </Stack>
+      <DetailsViewDocumentHeader
+        docid={doc.docid}
+        shownDoc={shownDoc}
+        setShownDoc={setShownDoc}
+        showFormulated={showFormulated}
+        extraFields={!showAgentConfig
+          ? []
+          : [
+            { name: 'type', value: shownDoc.type },
+            { name: 'dataFormat', value: shownDoc.dataFormat },
+          ]
         }
-      </Box>
-      {showMap && <TileMapView url={shownDoc.resource as string} />}
+      />
+      <SimpleTreeView
+        defaultExpandedItems={[keyForDetailsViewItem('desc'), keyForDetailsViewItem('resource')]}
+      >
+        {reorderEntries(Object.entries(shownDoc), ['desc', 'resource']).map(([k, v]) => {
+          if (FORBIDDEN_FIELDS.includes(k)) {
+            return null;
+          }
+          if (showAgentConfig && ['resource', 'type', 'dataFormat'].includes(k)) {
+            return null;
+          }
+          const hideOnDesc = showFormulated && k === 'desc';
+          return (
+            <DetailsViewItem
+              key={k}
+              itemKey={k}
+              itemValue={!hideOnDesc ? v : copyWithout(v, HIDE_ON_DESC)}
+              parentKey={undefined}
+              setItemValue={newVal => {
+                if (!hideOnDesc) {
+                  setShownDoc({ ...shownDoc, [k]: newVal });
+                } else {
+                  setShownDoc({ ...shownDoc, desc: { ...shownDoc.desc, ...newVal } });
+                }
+              }}
+            />
+          );
+        })}
+      </SimpleTreeView>
+      {showAgentConfig
+        ? (
+          <AgentConfigEditor
+            agentResource={shownDoc.resource as AgentConfig}
+            setAgentResource={newVal => setShownDoc({ ...shownDoc, resource: newVal })}
+          />
+        )
+        : null
+      }
+    </Box>
+  );
+
+  if (!showMap) {
+    return detailsContent;
+  }
+
+  return (
+    <Box sx={{ height: 'calc(100% + 32px)', m: -2 }}>
+      <PanelGroup orientation="vertical">
+        <Panel defaultSize={50} minSize={20}>
+          <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
+            {detailsContent}
+          </Box>
+        </Panel>
+
+        <PanelResizeHandle
+          style={{
+            height: 4,
+            cursor: 'row-resize',
+            backgroundColor: '#e0e0e0',
+            outline: 'none',
+          }}
+        />
+
+        <Panel defaultSize={50} minSize={20}>
+          <TileMapView url={shownDoc.resource as string} />
+        </Panel>
+      </PanelGroup>
     </Box>
   )
 }
