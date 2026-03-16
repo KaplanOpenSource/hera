@@ -12,7 +12,7 @@ export const TileMapView = ({
   url: string,
 }) => {
   return (
-    <Box sx={{ height: '100%', minHeight: 300 }}>
+    <Box sx={{ flex: 1, minHeight: 0, mx: -2, mb: -2 }}>
       <MapContainer
         center={[32, 35]}
         zoom={8}
