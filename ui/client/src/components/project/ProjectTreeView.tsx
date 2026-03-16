@@ -2,13 +2,13 @@ import { Folder, Refresh } from '@mui/icons-material';
 import { Stack, Tooltip, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idDocId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { buildSplitTree, findAncestorKeys } from '../../utils/splitTree';
+import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
@@ -35,19 +35,28 @@ export const ProjectTreeView = ({
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
   const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
+  const splitTreeRef = useRef<SplitTree | null>(null);
 
-  const handleDocumentCreated = useCallback((docOid: string) => {
+  const getSplitTree = useCallback(() => {
     const currentProject = useProjectStore.getState().getProject();
     const currentSettings = useViewSettingsStore.getState().viewSettings;
-    if (!currentProject) return;
-    const tree = buildSplitTree(currentProject.documents, currentSettings.maxDepth, currentSettings);
-    const ancestors = findAncestorKeys(tree, docOid);
+    if (!currentProject) return null;
+    if (!splitTreeRef.current || splitTreeRef.current.needsRebuild(currentProject.documents, currentSettings)) {
+      splitTreeRef.current = new SplitTree(currentProject.documents, currentSettings.maxDepth, currentSettings);
+    }
+    return splitTreeRef.current;
+  }, []);
+
+  const handleDocumentCreated = useCallback((docOid: string) => {
+    const tree = getSplitTree();
+    if (!tree) return;
+    const ancestors = tree.findAncestorKeys(docOid);
     console.log('[focus] docOid:', docOid, 'ancestors:', ancestors);
     if (ancestors) {
       setExpandedItems(prev => [...new Set([...prev, 'project-documents', ...ancestors])]);
       setSelectedItemIds([idDocId(docOid)]);
     }
-  }, [setSelectedItemIds]);
+  }, [getSplitTree, setSelectedItemIds]);
 
   console.log(toolkits)
   console.log(project)

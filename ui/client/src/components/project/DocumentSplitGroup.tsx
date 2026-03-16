@@ -1,7 +1,7 @@
 import { TreeItem } from "@mui/x-tree-view";
 import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
-import { buildSplitTree, SplitTreeNode, SplitTreeNodeType } from "../../utils/splitTree";
+import { SplitTree, SplitTreeNode, SplitTreeNodeType } from "../../utils/splitTree";
 import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 
@@ -57,11 +57,11 @@ export const DocumentSplitGroup = ({
   depth: number;
 }) => {
   const { viewSettings } = useViewSettingsStore();
-  const nodes = buildSplitTree(docs, depth, viewSettings);
+  const tree = new SplitTree(docs, depth, viewSettings);
   return (
     <DocumentSplitTree
       project={project}
-      nodes={nodes}
+      nodes={tree.nodes}
     />
   );
 };
