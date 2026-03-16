@@ -105,6 +105,7 @@ export const ProjectTreeView = ({
           docs={project?.documents}
           project={project}
           depth={viewSettings.maxDepth}
+          onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
       <RepoTreeWhole

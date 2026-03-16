@@ -8,9 +8,11 @@ import { ProjectDocumentItem } from "./ProjectDocumentItem";
 const DocumentSplitTree = ({
   project,
   nodes,
+  onDocumentDeleted,
 }: {
   project: ProjectObj;
   nodes: SplitTreeNode[];
+  onDocumentDeleted?: () => void;
 }) => {
   return (
     <>
@@ -21,6 +23,7 @@ const DocumentSplitTree = ({
               key={`proj${project.name}_doc${node.doc.docid}`}
               project={project.data}
               document={node.doc.data}
+              onDocumentDeleted={onDocumentDeleted}
             />
           );
         }
@@ -39,6 +42,7 @@ const DocumentSplitTree = ({
             <DocumentSplitTree
               project={project}
               nodes={node.children}
+              onDocumentDeleted={onDocumentDeleted}
             />
           </TreeItem>
         );
@@ -51,10 +55,12 @@ export const DocumentSplitGroup = ({
   docs,
   project,
   depth,
+  onDocumentDeleted,
 }: {
   docs: DocumentObj[];
   project: ProjectObj;
   depth: number;
+  onDocumentDeleted?: () => void;
 }) => {
   const { viewSettings } = useViewSettingsStore();
   const tree = new SplitTree(docs, depth, viewSettings);
@@ -62,6 +68,7 @@ export const DocumentSplitGroup = ({
     <DocumentSplitTree
       project={project}
       nodes={tree.nodes}
+      onDocumentDeleted={onDocumentDeleted}
     />
   );
 };
