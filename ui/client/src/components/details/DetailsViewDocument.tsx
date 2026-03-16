@@ -11,6 +11,7 @@ import { copyWithout, reorderEntries } from '../../utils/utils';
 import { AgentConfigEditor } from '../agents/AgentConfigEditor';
 import { DetailsViewDocumentHeader } from './DetailsViewDocumentHeader';
 import { DetailsViewItem, keyForDetailsViewItem } from './DetailsViewItem';
+import { isTileUrl, TileMapView } from './TileMapView';
 
 const HIDE_ON_DESC = ['datasourceName', 'toolkit', 'version'];
 const isAgentConfigDoc = (doc: ProjectDocument) => {
@@ -141,6 +142,10 @@ export const DetailsViewDocument = ({
             setAgentResource={newVal => setShownDoc({ ...shownDoc, resource: newVal })}
           />
         )
+        : null
+      }
+      {isTileUrl(shownDoc.resource)
+        ? <TileMapView url={shownDoc.resource} />
         : null
       }
     </>
