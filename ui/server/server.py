@@ -28,6 +28,7 @@ parser.add_argument(
     ),
 )
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
+parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
 args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")
@@ -36,12 +37,23 @@ LOCAL_ORIGINS = [f'http://{h}:{p}' for h in ['localhost', '127.0.0.1', '0.0.0.0'
 
 if args.cors is not None:
     if args.cors == '*':
-        origins = ['*']
-        print("WARNING: CORS is enabled for ALL origins (*). This is insecure in production.")
+        warning = "WARNING: CORS is enabled for ALL origins (*). This is insecure in production."
     else:
         cors_origins = [f'http://{ip}:8000' for ip in args.cors.split(',')]
+        warning = f"WARNING: CORS is enabled for custom origins: {', '.join(cors_origins)}"
+    print(warning)
+    if not args.yes:
+        try:
+            answer = input("CORS weakens browser security. Continue? (use -y to skip) [y/N] ").strip().lower()
+        except EOFError:
+            answer = ''
+        if answer != 'y':
+            print("Aborted.")
+            sys.exit(0)
+    if args.cors == '*':
+        origins = ['*']
+    else:
         origins = LOCAL_ORIGINS + cors_origins
-        print(f"WARNING: CORS is enabled for custom origins: {', '.join(cors_origins)}")
 else:
     origins = LOCAL_ORIGINS
 
