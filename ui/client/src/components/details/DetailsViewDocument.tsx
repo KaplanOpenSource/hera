@@ -6,7 +6,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { ProjectDocument } from '../../shared/types';
 import { DetailsViewDocumentContent } from './DetailsViewDocumentContent';
-import { isTileUrl, TileMapView } from './maps/TileMapView';
+import { hasPreview, PreviewChooser } from './PreviewChooser';
 
 export const DetailsViewDocument = ({
   doc,
@@ -26,10 +26,9 @@ export const DetailsViewDocument = ({
     setPreviewHidden(false);
   }, [doc.docid])
 
-  const hasMap = isTileUrl(shownDoc.resource);
-  const showMap = hasMap && !previewHidden;
+  const showPreview = hasPreview(shownDoc) && !previewHidden;
 
-  return showMap
+  return showPreview
     ? (
       <Box sx={{ height: 'calc(100% + 32px)', m: -2 }}>
         <PanelGroup
@@ -79,7 +78,7 @@ export const DetailsViewDocument = ({
                   <VisibilityOff sx={{ fontSize: 14 }} />
                 </ButtonTooltip>
               </Box>
-              <TileMapView url={shownDoc.resource as string} />
+              <PreviewChooser doc={shownDoc} />
             </Box>
           </Panel>
         </PanelGroup>
@@ -93,7 +92,7 @@ export const DetailsViewDocument = ({
           shownDoc={shownDoc}
           setShownDoc={setShownDoc}
         />
-        {hasMap && previewHidden && (
+        {hasPreview(shownDoc) && previewHidden && (
           <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
             <ButtonTooltip
               title="Show preview"
