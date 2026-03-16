@@ -8,8 +8,13 @@ export const VALUE_GROUP_UNDEFINED = "__undefined__";
 export const DESC_PATH_TOOLKIT = "/toolkit";
 export const DESC_PATH_TYPE = "/type";
 
+export enum SplitTreeNodeType {
+  Split = 'split',
+  Leaf = 'leaf',
+}
+
 export type SplitNode = {
-  type: 'split';
+  type: SplitTreeNodeType.Split;
   itemKey: string;
   path: string;
   value: string;
@@ -17,7 +22,7 @@ export type SplitNode = {
 };
 
 export type LeafNode = {
-  type: 'leaf';
+  type: SplitTreeNodeType.Leaf;
   doc: DocumentObj;
 };
 
@@ -85,11 +90,11 @@ export function buildSplitTree(
 ): SplitTreeNode[] {
   const compared = getCompared(docs, depth, viewSettings);
   if (!compared.length) {
-    return docs.map(doc => ({ type: 'leaf' as const, doc }));
+    return docs.map(doc => ({ type: SplitTreeNodeType.Leaf, doc }));
   }
   const groups = buildSplitLevel(docs, compared, viewSettings);
   return groups.map(g => ({
-    type: 'split' as const,
+    type: SplitTreeNodeType.Split,
     itemKey: g.itemKey,
     path: g.path,
     value: g.value,

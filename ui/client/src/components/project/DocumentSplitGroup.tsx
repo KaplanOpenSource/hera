@@ -1,7 +1,7 @@
 import { TreeItem } from "@mui/x-tree-view";
-import { ProjectObj } from "../../objects/ProjectObj";
+import { DocumentObj, ProjectObj } from "../../objects/ProjectObj";
 import { useViewSettingsStore } from "../../stores/useViewSettingsStore";
-import { buildSplitTree, SplitTreeNode } from "../../utils/splitTree";
+import { buildSplitTree, SplitTreeNode, SplitTreeNodeType } from "../../utils/splitTree";
 import { DocumentSplitTreeLabel } from "./DocumentSplitTreeLabel";
 import { ProjectDocumentItem } from "./ProjectDocumentItem";
 
@@ -15,7 +15,7 @@ const DocumentSplitTree = ({
   return (
     <>
       {nodes.map(node => {
-        if (node.type === 'leaf') {
+        if (node.type === SplitTreeNodeType.Leaf) {
           return (
             <ProjectDocumentItem
               key={`proj${project.name}_doc${node.doc.docid}`}
