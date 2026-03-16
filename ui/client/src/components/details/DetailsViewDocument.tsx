@@ -1,6 +1,8 @@
+import { Map } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
+import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { DocumentObj } from '../../objects/ProjectObj';
 import { ProjectDocument } from '../../shared/types';
 import { DetailsViewDocumentContent } from './DetailsViewDocumentContent';
@@ -14,17 +16,26 @@ export const DetailsViewDocument = ({
   setDoc: (newDoc: DocumentObj) => void,
 }) => {
   const [shownDoc, setShownDoc] = useState<ProjectDocument>(JSON.parse(JSON.stringify(doc.data)));
+  const [mapHidden, setMapHidden] = useState(false);
 
   useEffect(() => {
     setShownDoc(JSON.parse(JSON.stringify(doc.data)));
   }, [doc.data])
 
-  const showMap = isTileUrl(shownDoc.resource);
+  const hasMap = isTileUrl(shownDoc.resource);
+  const showMap = hasMap && !mapHidden;
 
   return showMap
     ? (
       <Box sx={{ height: 'calc(100% + 32px)', m: -2 }}>
-        <PanelGroup orientation="vertical">
+        <PanelGroup
+          orientation="vertical"
+          onLayoutChanged={(layout) => {
+            if (layout['map-panel'] === 0) {
+              setMapHidden(true);
+            }
+          }}
+        >
           <Panel defaultSize={50} minSize={20}>
             <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
               <DetailsViewDocumentContent
@@ -45,18 +56,38 @@ export const DetailsViewDocument = ({
             }}
           />
 
-          <Panel defaultSize={50} minSize={20}>
-            <TileMapView url={shownDoc.resource as string} />
+          <Panel
+            id="map-panel"
+            defaultSize={50}
+            minSize={5}
+            collapsible
+          >
+            <TileMapView
+              url={shownDoc.resource as string}
+              onClose={() => setMapHidden(true)}
+            />
           </Panel>
         </PanelGroup>
       </Box>
     )
     : (
-      <DetailsViewDocumentContent
-        doc={doc}
-        setDoc={setDoc}
-        shownDoc={shownDoc}
-        setShownDoc={setShownDoc}
-      />
+      <Box sx={{ height: '100%', position: 'relative' }}>
+        <DetailsViewDocumentContent
+          doc={doc}
+          setDoc={setDoc}
+          shownDoc={shownDoc}
+          setShownDoc={setShownDoc}
+        />
+        {hasMap && mapHidden && (
+          <Box sx={{ position: 'absolute', bottom: 4, right: 4 }}>
+            <ButtonTooltip
+              title="Show map"
+              onClick={() => setMapHidden(false)}
+            >
+              <Map sx={{ fontSize: 14 }} />
+            </ButtonTooltip>
+          </Box>
+        )}
+      </Box>
     )
 }
