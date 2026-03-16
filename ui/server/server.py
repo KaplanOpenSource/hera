@@ -42,6 +42,12 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/cors")
+def cors_info() -> dict:
+    print ('cors', cors_handler.custom_origins)
+    return {"origins": cors_handler.custom_origins}
+
+
 class ExecPayload(BaseModel):
     code: str
 

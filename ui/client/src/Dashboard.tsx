@@ -9,7 +9,7 @@ import { ProjectTreeView } from './components/project/ProjectTreeView';
 import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
-import { CommitIdShower } from './components/header/CommitIdShower';
+import { StatusIndicators } from './components/header/StatusIndicators';
 
 export const Dashboard = () => {
   const { projectName } = useParams<{ projectName: string }>();
@@ -34,10 +34,10 @@ export const Dashboard = () => {
     >
       <AppBar position="static">
         <Toolbar>
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} alignItems="center">
             <PageTitle />
             <ProjectChooser />
-            <CommitIdShower />
+            <StatusIndicators />
           </Stack>
         </Toolbar>
       </AppBar>

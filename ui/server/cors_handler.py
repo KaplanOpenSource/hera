@@ -1,10 +1,14 @@
+import argparse
 import sys
 
 LOCAL_ORIGINS = [f'http://{h}:{p}' for h in ['localhost', '127.0.0.1', '0.0.0.0'] for p in [5173, 8000]]
 
 
 class CorsHandler:
-    def add_argument(self, parser):
+    def __init__(self) -> None:
+        self.custom_origins: list[str] | None = None
+
+    def add_argument(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             '--cors',
             nargs='?',
@@ -20,16 +24,16 @@ class CorsHandler:
             ),
         )
 
-    def get_origins(self, args):
+    def get_origins(self, args: argparse.Namespace) -> list[str]:
         if args.cors is None:
             return LOCAL_ORIGINS
 
         if args.cors == '*':
-            origins = ['*']
+            self.custom_origins = ['*']
             warning = "WARNING: CORS is enabled for ALL origins (*). This is insecure in production."
         else:
-            origins = LOCAL_ORIGINS + [f'http://{ip}:8000' for ip in args.cors.split(',')]
-            warning = f"WARNING: CORS is enabled for custom origins: {', '.join(origins)}"
+            self.custom_origins = [f'http://{ip}:8000' for ip in args.cors.split(',')]
+            warning = f"WARNING: CORS is enabled for custom origins: {', '.join(self.custom_origins)}"
 
         print(warning)
         if not args.yes:
@@ -41,4 +45,6 @@ class CorsHandler:
                 print("Aborted.")
                 sys.exit(0)
 
-        return origins
+        if args.cors == '*':
+            return ['*']
+        return LOCAL_ORIGINS + self.custom_origins
