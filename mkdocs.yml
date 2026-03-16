@@ -91,6 +91,7 @@ nav:
   - Guides:
       - Best Practices: guides/best_practices.md
   - Testing:
+      - Getting Started: testing/getting_started.md
       - Test Flow: testing/flow.md
   - Reference:
       - Cheat Sheet: reference/cheat_sheet.md
