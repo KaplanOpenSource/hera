@@ -1,0 +1,3395 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Deep technical reference and user guide for the Hera scientific data management platform">
+      
+      
+      
+        <link rel="canonical" href="https://KaplanOpenSource.github.io/hera/testing/getting_started/">
+      
+      
+        <link rel="prev" href="../../guides/best_practices/">
+      
+      
+        <link rel="next" href="../flow/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+    
+    
+      
+        <title>Getting Started - Hera Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#testing-guide-how-to-run-tests" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Hera Documentation" class="md-header__button md-logo" aria-label="Hera Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Hera Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/KaplanOpenSource/hera" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    KaplanOpenSource/hera
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting_started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/core_concepts/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../toolkits/overview/" class="md-tabs__link">
+          
+  
+  
+  Toolkits
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../examples/repository_examples/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/best_practices/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Testing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/cheat_sheet/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../faq/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FAQ
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../notebooks/exploration/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Hera Documentation" class="md-nav__button md-logo" aria-label="Hera Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Hera Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/KaplanOpenSource/hera" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    KaplanOpenSource/hera
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/core_concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/data_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Toolkits
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Toolkits
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkits/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Toolkit Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/repository_examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-python-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Python Environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-test-data-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Test Data Repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. MongoDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Environment Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-run-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to Run Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How to Run Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-all-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run All Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-a-specific-test-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run a Specific Test Module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-a-specific-test-class-or-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run a Specific Test Class or Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choose-a-result-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose a Result Set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-with-short-traceback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run with Short Traceback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-only-fast-tests-skip-slow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run Only Fast Tests (skip slow)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-with-parallel-workers-requires-pytest-xdist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run with Parallel Workers (requires pytest-xdist)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-expected-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate Expected Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test_repositoryjson-test-data-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_repository.json — Test Data Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-modules-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Modules — Detailed Description
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Modules — Detailed Description">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test_datalayerpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_datalayer.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_repositorypy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_repository.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_topographypy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_topography.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_landcoverpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_landcover.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_lowfreqpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_lowfreq.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_highfreqpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_highfreq.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_demographypy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_demography.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shared-fixtures-conftestpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared Fixtures (conftest.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Shared Fixtures (conftest.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#session-scoped-project-fixtures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session-Scoped Project Fixtures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-toolkit-fixtures-session-scoped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Toolkit Fixtures (session-scoped)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#function-scoped-fixtures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function-Scoped Fixtures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison Helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datatoolkit-helper-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dataToolkit Helper Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dataToolkit Helper Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loadrepositoryfrompathjson_path-static" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        loadRepositoryFromPath(json_path) (static)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolvedatasourcepathsrepositoryjson-basedir-static" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolveDataSourcePaths(repositoryJSON, basedir) (static)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tests-are-skipped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests are skipped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-connection-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MongoDB connection errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matplotlib-backend-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Matplotlib backend issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-test-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding New Test Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding New Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding New Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step-by-Step Guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-adding-a-new-toolkit-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Adding a New Toolkit Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cheat_sheet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cheat Sheet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/repository_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/env_vars/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environment Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hera Exploration Notebook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-python-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Python Environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-test-data-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Test Data Repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. MongoDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Environment Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-run-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to Run Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How to Run Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-all-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run All Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-a-specific-test-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run a Specific Test Module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-a-specific-test-class-or-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run a Specific Test Class or Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choose-a-result-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose a Result Set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-with-short-traceback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run with Short Traceback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-only-fast-tests-skip-slow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run Only Fast Tests (skip slow)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-with-parallel-workers-requires-pytest-xdist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run with Parallel Workers (requires pytest-xdist)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-expected-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate Expected Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test_repositoryjson-test-data-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_repository.json — Test Data Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-modules-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Modules — Detailed Description
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Modules — Detailed Description">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test_datalayerpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_datalayer.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_repositorypy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_repository.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_topographypy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_topography.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_landcoverpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_landcover.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_lowfreqpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_lowfreq.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_highfreqpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_highfreq.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_demographypy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_demography.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shared-fixtures-conftestpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared Fixtures (conftest.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Shared Fixtures (conftest.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#session-scoped-project-fixtures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session-Scoped Project Fixtures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-toolkit-fixtures-session-scoped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Toolkit Fixtures (session-scoped)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#function-scoped-fixtures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function-Scoped Fixtures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison Helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datatoolkit-helper-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dataToolkit Helper Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dataToolkit Helper Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loadrepositoryfrompathjson_path-static" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        loadRepositoryFromPath(json_path) (static)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolvedatasourcepathsrepositoryjson-basedir-static" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolveDataSourcePaths(repositoryJSON, basedir) (static)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tests-are-skipped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests are skipped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-connection-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MongoDB connection errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matplotlib-backend-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Matplotlib backend issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-test-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding New Test Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding New Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding New Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step-by-Step Guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-adding-a-new-toolkit-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Adding a New Toolkit Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="testing-guide-how-to-run-tests">Testing Guide — How to Run Tests<a class="headerlink" href="#testing-guide-how-to-run-tests" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The Hera test infrastructure uses <strong>native Pytest</strong> with a <strong>Project-based data access</strong> pattern.
+All tests live under <code>hera/tests/</code> and can be executed with a single <code>pytest</code> command.</p>
+<p>Data is loaded once per session into a shared Hera <strong>Project</strong> via <code>test_repository.json</code>,
+and each toolkit test module receives a real toolkit instance backed by MongoDB —
+no monkey-patching of <code>getConfig</code> / <code>getDataSourceData</code> is needed.</p>
+<div class="admonition tip">
+<p class="admonition-title">Key Principle</p>
+<p>Tests do NOT know where files are stored on disk.
+They interact only with the Project and Toolkit APIs, exactly as production code does.</p>
+</div>
+<hr />
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>hera/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── pytest.ini                          # Pytest configuration
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── hera/
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── utils/data/toolkit.py           # dataToolkit (enhanced with direct-load methods)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   └── tests/
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│       ├── conftest.py                 # Session-scoped project, per-toolkit fixtures, helpers
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│       ├── test_datalayer.py           # Project CRUD tests
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│       ├── test_repository.py          # Repository add/get/load, path resolution
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│       ├── test_topography.py          # TopographyToolkit tests
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│       ├── test_landcover.py           # LandCoverToolkit tests
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│       ├── test_lowfreq.py             # lowFreqToolKit + analysis + presentation
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│       ├── test_highfreq.py            # HighFreqToolKit + calculators + turbulence
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│       ├── test_demography.py          # DemographyToolkit tests
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│       ├── repository/testCases/       # Test JSON data for repository tests
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│       └── datalayer/testCases/        # Test JSON data for datalayer tests
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>└── ~/hera_unittest_data/               # External test data repository
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    ├── data_config.json                # Data configuration metadata
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    ├── test_repository.json            # Hera-format repository mapping all test data
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    ├── measurements/                   # Raw test data files
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    │   ├── GIS/raster/                 # HGT, TIF files
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    │   ├── GIS/vector/                 # SHP files
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    │   └── meteorology/               # Parquet files (low/high freq)
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    └── expected/                       # Expected output result sets
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>        ├── BASELINE/
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>        ├── REGRESSION_20251113_1556/
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>        └── demo/
+</code></pre></div>
+<h3 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Session as Session Setup&lt;br/&gt;(conftest.py)
+    participant Project as Project("PYTEST_HERA_PROJECT")
+    participant MongoDB as MongoDB
+    participant Fixtures as Per-Toolkit Fixtures
+    participant Tests as Test Modules
+
+    Session-&gt;&gt;Session: 1. Read TEST_HERA env var
+    Session-&gt;&gt;Session: 2. Open test_repository.json
+    Session-&gt;&gt;Project: 3. Create Project
+    Session-&gt;&gt;Project: 4. loadAllDatasourcesInRepositoryJSONToProject()
+
+    loop For each toolkit in JSON
+        Project-&gt;&gt;Project: getToolkit(name, projectName)
+        Project-&gt;&gt;MongoDB: setConfig(...)
+        Project-&gt;&gt;MongoDB: addDataSource(...)
+    end
+
+    Session-&gt;&gt;Fixtures: Create session-scoped fixtures
+    Note over Fixtures: topo_toolkit ← TopographyToolkit&lt;br/&gt;lc_toolkit ← LandCoverToolkit&lt;br/&gt;demo_toolkit ← DemographyToolkit&lt;br/&gt;lf_toolkit ← lowFreqToolKit&lt;br/&gt;hf_toolkit ← HighFreqToolKit
+
+    Fixtures-&gt;&gt;Tests: Provide toolkit instances
+
+    Tests-&gt;&gt;MongoDB: toolkit.getConfig()
+    Tests-&gt;&gt;MongoDB: toolkit.getDataSourceData()
+    Tests-&gt;&gt;Tests: toolkit.analysis.*()
+    Tests-&gt;&gt;Tests: toolkit.presentation.*()</code></pre>
+<hr />
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<h3 id="1-python-environment">1. Python Environment<a class="headerlink" href="#1-python-environment" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>/home/ilay/hera
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">source</span><span class="w"> </span>heraenv/bin/activate
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>pip<span class="w"> </span>install<span class="w"> </span>pytest<span class="w">   </span><span class="c1"># if not already installed</span>
+</code></pre></div>
+<h3 id="2-test-data-repository">2. Test Data Repository<a class="headerlink" href="#2-test-data-repository" title="Permanent link">&para;</a></h3>
+<p>The tests rely on external data files stored in <code>~/hera_unittest_data/</code>.
+This directory must contain:</p>
+<ul>
+<li><code>data_config.json</code> — metadata about paths, assets, and result sets</li>
+<li><code>test_repository.json</code> — Hera-format repository mapping all test datasources to their toolkits</li>
+<li><code>measurements/</code> — raw data files (HGT, TIF, SHP, Parquet, etc.)</li>
+<li><code>expected/</code> — expected output files organized by result set</li>
+</ul>
+<h3 id="3-mongodb">3. MongoDB<a class="headerlink" href="#3-mongodb" title="Permanent link">&para;</a></h3>
+<p>All toolkit tests require a running MongoDB instance.
+The session-scoped project fixture loads data into MongoDB at startup and cleans up on teardown.</p>
+<h3 id="4-environment-variables">4. Environment Variables<a class="headerlink" href="#4-environment-variables" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TEST_HERA</code></td>
+<td>No</td>
+<td><code>~/hera_unittest_data</code></td>
+<td>Path to the test data repository root</td>
+</tr>
+<tr>
+<td><code>RESULT_SET</code></td>
+<td>No</td>
+<td><code>BASELINE</code></td>
+<td>Name of the expected-output result set</td>
+</tr>
+<tr>
+<td><code>PREPARE_EXPECTED_OUTPUT</code></td>
+<td>No</td>
+<td>(unset)</td>
+<td>Set to <code>"1"</code> to generate expected outputs instead of comparing</td>
+</tr>
+</tbody>
+</table>
+<p>See also: <a href="../../configuration/env_vars/">Environment Variables Reference</a></p>
+<hr />
+<h2 id="how-to-run-tests">How to Run Tests<a class="headerlink" href="#how-to-run-tests" title="Permanent link">&para;</a></h2>
+<h3 id="run-all-tests">Run All Tests<a class="headerlink" href="#run-all-tests" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>/home/ilay/hera
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">source</span><span class="w"> </span>heraenv/bin/activate
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">TEST_HERA</span><span class="o">=</span>~/hera_unittest_data
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>-v
+</code></pre></div>
+<h3 id="run-a-specific-test-module">Run a Specific Test Module<a class="headerlink" href="#run-a-specific-test-module" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pytest<span class="w"> </span>hera/tests/test_datalayer.py<span class="w"> </span>-v
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pytest<span class="w"> </span>hera/tests/test_repository.py<span class="w"> </span>-v
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pytest<span class="w"> </span>hera/tests/test_topography.py<span class="w"> </span>-v
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>pytest<span class="w"> </span>hera/tests/test_landcover.py<span class="w"> </span>-v
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>pytest<span class="w"> </span>hera/tests/test_lowfreq.py<span class="w"> </span>-v
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>pytest<span class="w"> </span>hera/tests/test_highfreq.py<span class="w"> </span>-v
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>pytest<span class="w"> </span>hera/tests/test_demography.py<span class="w"> </span>-v
+</code></pre></div>
+<h3 id="run-a-specific-test-class-or-function">Run a Specific Test Class or Function<a class="headerlink" href="#run-a-specific-test-class-or-function" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Run all tests in a class</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pytest<span class="w"> </span>hera/tests/test_topography.py::TestGetPointElevation<span class="w"> </span>-v
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Run a single test</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>pytest<span class="w"> </span>hera/tests/test_topography.py::TestGetPointElevation::test_basic<span class="w"> </span>-v
+</code></pre></div>
+<h3 id="choose-a-result-set">Choose a Result Set<a class="headerlink" href="#choose-a-result-set" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Via CLI option</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>--result-set<span class="w"> </span>BASELINE<span class="w"> </span>-v
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Via environment variable</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RESULT_SET</span><span class="o">=</span>REGRESSION_20251113_1556
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>-v
+</code></pre></div>
+<h3 id="run-with-short-traceback">Run with Short Traceback<a class="headerlink" href="#run-with-short-traceback" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>-v<span class="w"> </span>--tb<span class="o">=</span>short
+</code></pre></div>
+<h3 id="run-only-fast-tests-skip-slow">Run Only Fast Tests (skip slow)<a class="headerlink" href="#run-only-fast-tests-skip-slow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>-v<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;not slow&quot;</span>
+</code></pre></div>
+<h3 id="run-with-parallel-workers-requires-pytest-xdist">Run with Parallel Workers (requires pytest-xdist)<a class="headerlink" href="#run-with-parallel-workers-requires-pytest-xdist" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pip<span class="w"> </span>install<span class="w"> </span>pytest-xdist
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>-v<span class="w"> </span>-n<span class="w"> </span>auto
+</code></pre></div>
+<h3 id="generate-expected-outputs">Generate Expected Outputs<a class="headerlink" href="#generate-expected-outputs" title="Permanent link">&para;</a></h3>
+<p>When you need to update the baseline after intentional changes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">PREPARE_EXPECTED_OUTPUT</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>pytest<span class="w"> </span>hera/tests/<span class="w"> </span>-v
+</code></pre></div>
+<p>This will write the current test outputs as the new expected outputs instead of comparing against existing ones.</p>
+<hr />
+<h2 id="test_repositoryjson-test-data-mapping"><code>test_repository.json</code> — Test Data Mapping<a class="headerlink" href="#test_repositoryjson-test-data-mapping" title="Permanent link">&para;</a></h2>
+<p>The file <code>~/hera_unittest_data/test_repository.json</code> maps test data files to Hera toolkit datasources
+using the standard Hera repository JSON format. All paths are relative to the JSON file's directory.</p>
+<table>
+<thead>
+<tr>
+<th>Toolkit Key</th>
+<th>Config</th>
+<th>DataSources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GIS_Raster_Topography</code></td>
+<td><code>defaultSRTM: SRTMGL1</code></td>
+<td><code>SRTMGL1</code> → <code>measurements/GIS/raster</code> (directory, format: string)</td>
+</tr>
+<tr>
+<td><code>GIS_LandCover</code></td>
+<td><code>defaultLandCover: lc_mcd12q1</code></td>
+<td><code>lc_mcd12q1</code> → <code>measurements/GIS/raster/lc_mcd12q1.tif</code> (format: string)</td>
+</tr>
+<tr>
+<td><code>GIS_Demography</code></td>
+<td>—</td>
+<td><code>lamas_population</code> → <code>measurements/GIS/vector/population_lamas.shp</code> (format: geopandas)</td>
+</tr>
+<tr>
+<td><code>MeteoLowFreq</code></td>
+<td>—</td>
+<td><code>YAVNEEL</code> → <code>measurements/meteorology/lowfreqdata/YAVNEEL.parquet</code> (format: parquet)</td>
+</tr>
+<tr>
+<td><code>MeteoHighFreq</code></td>
+<td>—</td>
+<td><code>slicedYamim_sonic</code> + <code>slicedYamim_TRH</code> → <code>measurements/meteorology/highfreqdata/</code> (format: parquet)</td>
+</tr>
+</tbody>
+</table>
+<p>To add new test data, add entries to this JSON and they will automatically be loaded into the test project.</p>
+<p>See also: <a href="../../examples/repository_examples/">Repository Examples</a> and <a href="../../reference/repository_schema/">Repository Schema Reference</a></p>
+<hr />
+<h2 id="test-modules-detailed-description">Test Modules — Detailed Description<a class="headerlink" href="#test-modules-detailed-description" title="Permanent link">&para;</a></h2>
+<h3 id="test_datalayerpy"><code>test_datalayer.py</code><a class="headerlink" href="#test_datalayerpy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.datalayer.project.Project</code> CRUD operations.</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_project_init</code></td>
+<td>Verify Project creation and basic properties</td>
+</tr>
+<tr>
+<td><code>test_add_measurements_document</code></td>
+<td>Add a document, verify it persists</td>
+</tr>
+<tr>
+<td><code>test_get_measurements_documents</code></td>
+<td>Query documents by resource/format/type</td>
+</tr>
+<tr>
+<td><code>test_delete_measurements_documents</code></td>
+<td>Delete all documents, verify removal</td>
+</tr>
+<tr>
+<td><code>test_add_and_read_counters</code></td>
+<td>Read/write Counter documents via setConfig/getConfig</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Requires:</strong> MongoDB connection</p>
+<hr />
+<h3 id="test_repositorypy"><code>test_repository.py</code><a class="headerlink" href="#test_repositorypy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.utils.data.toolkit.dataToolkit</code> (repository management).</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_add_repository</code></td>
+<td>Register a repository JSON via <code>addRepository</code></td>
+</tr>
+<tr>
+<td><code>test_get_repository</code></td>
+<td>Retrieve and verify loaded JSON content</td>
+</tr>
+<tr>
+<td><code>test_load_datasources_to_project</code></td>
+<td>Full round-trip: load repository JSON, assert correct document count</td>
+</tr>
+<tr>
+<td><code>test_resolve_relative_paths</code></td>
+<td>Verify <code>isRelativePath</code> handling produces absolute paths</td>
+</tr>
+<tr>
+<td><code>test_absolute_paths_unchanged</code></td>
+<td>Verify absolute paths are not modified</td>
+</tr>
+<tr>
+<td><code>test_load_repository_from_path</code></td>
+<td>Test the direct-load method (no MongoDB)</td>
+</tr>
+<tr>
+<td><code>test_load_repository_nonexistent</code></td>
+<td>Verify FileNotFoundError for missing files</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Requires:</strong> MongoDB connection (for add/get/load tests), test JSON in <code>repository/testCases/</code></p>
+<hr />
+<h3 id="test_topographypy"><code>test_topography.py</code><a class="headerlink" href="#test_topographypy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.measurements.GIS.raster.topography.TopographyToolkit</code>.
+Uses the <code>topo_toolkit</code> fixture from conftest (backed by project datasource <code>SRTMGL1</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_basic</code> (getPointElevation)</td>
+<td>Single point elevation lookup</td>
+</tr>
+<tr>
+<td><code>test_second_file</code></td>
+<td>Elevation from a different HGT tile</td>
+</tr>
+<tr>
+<td><code>test_matches_hgt_file</code></td>
+<td>Verify toolkit result matches raw HGT binary read</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (getPointListElevation)</td>
+<td>Elevation for multiple points</td>
+</tr>
+<tr>
+<td><code>test_matches_hgt_files</code></td>
+<td>Multi-point comparison against raw HGT data</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (getElevationOfXarray)</td>
+<td>Elevation grid via xarray Dataset</td>
+</tr>
+<tr>
+<td><code>test_matches_hgt_file</code> (xarray)</td>
+<td>Xarray grid comparison against raw HGT data</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (getElevation)</td>
+<td>Area elevation via bounding box</td>
+</tr>
+<tr>
+<td><code>test_matches_hgt_file</code> (area)</td>
+<td>Area elevation comparison against raw HGT data</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (convertPointsCRS)</td>
+<td>CRS conversion (WGS84 -&gt; ITM)</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (createElevationSTL)</td>
+<td>STL string generation</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (getElevationSTL)</td>
+<td>STL from existing Dataset</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (calculateStatistics)</td>
+<td>Mean, min, max statistics</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data source:</strong> <code>SRTMGL1</code> (HGT directory path via <code>getDataSourceData</code>)</p>
+<hr />
+<h3 id="test_landcoverpy"><code>test_landcover.py</code><a class="headerlink" href="#test_landcoverpy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.measurements.GIS.raster.landcover.LandCoverToolkit</code>.
+Uses the <code>lc_toolkit</code> fixture from conftest (backed by project datasource <code>lc_mcd12q1</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_basic</code> (getLandCoverAtPoint)</td>
+<td>Land cover value at a single point</td>
+</tr>
+<tr>
+<td><code>test_against_raster</code></td>
+<td>Compare toolkit result with raw rasterio read</td>
+</tr>
+<tr>
+<td><code>test_basic</code> (getLandCover)</td>
+<td>Land cover map for a bounding box</td>
+</tr>
+<tr>
+<td><code>test_map_vs_raster</code></td>
+<td>Sampled map values vs. raster file</td>
+</tr>
+<tr>
+<td><code>test_at_point</code> (roughness)</td>
+<td>Roughness at a point</td>
+</tr>
+<tr>
+<td><code>test_area</code> (roughness)</td>
+<td>Roughness map for a bounding box</td>
+</tr>
+<tr>
+<td><code>test_values_in_range</code></td>
+<td>Verify roughness values are within expected range</td>
+</tr>
+<tr>
+<td><code>test_roughnesslength2sandgrainroughness</code></td>
+<td>Conversion function</td>
+</tr>
+<tr>
+<td><code>test_known_landcover</code></td>
+<td>Known land cover value -&gt; expected roughness</td>
+</tr>
+<tr>
+<td><code>test_out_of_bounds</code></td>
+<td>IndexError for out-of-bounds coordinates</td>
+</tr>
+<tr>
+<td><code>test_get_coding_map</code></td>
+<td>Coding map structure and values</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data source:</strong> <code>lc_mcd12q1</code> (file path via <code>getDataSourceData</code>, opened with rasterio by toolkit)</p>
+<hr />
+<h3 id="test_lowfreqpy"><code>test_lowfreq.py</code><a class="headerlink" href="#test_lowfreqpy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit</code>.
+Uses the <code>lf_toolkit</code> fixture from conftest (backed by project datasource <code>YAVNEEL</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Toolkit Init</td>
+<td><code>test_has_analysis</code>, <code>test_has_presentation</code>, <code>test_has_docType</code>, <code>test_docType_value</code></td>
+</tr>
+<tr>
+<td>Analysis</td>
+<td><code>test_basic</code> (addDatesColumns), <code>test_max_normalized</code>, <code>test_density</code>, <code>test_y_normalized_behaviour</code>, <code>test_basic</code> (resampleSecondMoments)</td>
+</tr>
+<tr>
+<td>Presentation</td>
+<td><code>test_plotScatter</code>, <code>test_dateLinePlot</code>, <code>test_plotProbContourf</code>, <code>test_plotProbContourf_bySeason</code></td>
+</tr>
+<tr>
+<td>Data Matching</td>
+<td><code>test_dateLinePlot_matches_data</code>, <code>test_plotScatter_matches_data</code></td>
+</tr>
+<tr>
+<td>Edge Cases</td>
+<td><code>test_scatter_empty_dataframe</code>, <code>test_scatter_nan_and_outliers</code>, <code>test_scatter_WS_field</code></td>
+</tr>
+<tr>
+<td>Distribution</td>
+<td><code>test_contourf_distribution_ranges</code></td>
+</tr>
+<tr>
+<td>Save</td>
+<td><code>test_scatter_creates_non_empty_image</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data source:</strong> <code>YAVNEEL</code> (parquet via <code>getDataSourceData</code>, returns dask DataFrame → <code>.compute()</code>)</p>
+<hr />
+<h3 id="test_highfreqpy"><code>test_highfreq.py</code><a class="headerlink" href="#test_highfreqpy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.measurements.meteorology.highfreqdata</code> toolkit, analysis calculators, and turbulence statistics.
+Uses the <code>hf_toolkit</code> fixture from conftest (backed by datasources <code>slicedYamim_sonic</code> and <code>slicedYamim_TRH</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Toolkit</td>
+<td><code>test_docType_property</code></td>
+</tr>
+<tr>
+<td>Data Reading</td>
+<td><code>test_read_sonic_data</code>, <code>test_read_trh_data</code>, <code>test_read_nonexistent_datasource</code></td>
+</tr>
+<tr>
+<td>Time Range</td>
+<td><code>test_sonic_time_range</code>, <code>test_trh_time_range</code></td>
+</tr>
+<tr>
+<td>Specific Points</td>
+<td><code>test_sonic_first_row</code>, <code>test_trh_first_row</code></td>
+</tr>
+<tr>
+<td>Error Paths</td>
+<td><code>test_campbelToParquet_nonexistent</code>, <code>test_asciiToParquet_nonexistent</code></td>
+</tr>
+<tr>
+<td>AbstractCalculator</td>
+<td><code>test_init_basic</code>, <code>test_sampling_window</code>, <code>test_compute_methods_exist</code>, <code>test_set_save_properties</code></td>
+</tr>
+<tr>
+<td>MeanDataCalculator</td>
+<td><code>test_calculate_mean</code>, <code>test_hour_and_timeWithinDay</code>, <code>test_horizontalSpeed</code>, <code>test_sigma_sigmaH</code>, <code>test_Ustar_and_uStarOverWindSpeed</code>, <code>test_compute_returns_dataframe</code></td>
+</tr>
+<tr>
+<td>Advanced MeanData</td>
+<td><code>test_TKE</code>, <code>test_MOLength</code></td>
+</tr>
+<tr>
+<td>RawdataAnalysis</td>
+<td><code>test_singlePointTurbulenceStatistics_returns_instance</code>, <code>test_raises_on_invalid</code>, <code>test_AveragingCalculator</code>, <code>test_AveragingCalculator_raises_on_invalid</code></td>
+</tr>
+<tr>
+<td>Turbulence Stats</td>
+<td><code>test_instantiation</code>, <code>test_invalid_input_type</code>, <code>test_fluctuations</code>, <code>test_secondMoments</code>, <code>test_sigma</code>, <code>test_horizontalSpeed</code>, <code>test_Ustar</code>, <code>test_TKE</code>, <code>test_MOLength_Sonic</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data sources:</strong> <code>slicedYamim_sonic</code>, <code>slicedYamim_TRH</code> (parquet via <code>getDataSourceData</code>)</p>
+<hr />
+<h3 id="test_demographypy"><code>test_demography.py</code><a class="headerlink" href="#test_demographypy" title="Permanent link">&para;</a></h3>
+<p>Tests for <code>hera.measurements.GIS.vector.demography.DemographyToolkit</code>.
+Uses the <code>demo_toolkit</code> fixture from conftest (backed by project datasource <code>lamas_population</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_basic</code> (calculatePopulationInPolygon)</td>
+<td>Basic polygon intersection</td>
+</tr>
+<tr>
+<td><code>test_partial_intersection</code></td>
+<td>Partial polygon overlap</td>
+</tr>
+<tr>
+<td><code>test_outside_bounds</code></td>
+<td>Polygon completely outside data extent</td>
+</tr>
+<tr>
+<td><code>test_invalid_datasource</code></td>
+<td>ValueError for non-existing data source</td>
+</tr>
+<tr>
+<td><code>test_with_known_values</code></td>
+<td>Synthetic data with known population values</td>
+</tr>
+<tr>
+<td><code>test_simple</code> (createNewArea)</td>
+<td>Create new area and verify total population</td>
+</tr>
+<tr>
+<td><code>test_creates_and_sets_path</code> (setDefaultDirectory)</td>
+<td>Directory creation and path assignment</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data source:</strong> <code>lamas_population</code> (geopandas via <code>getDataSourceData</code>)</p>
+<hr />
+<h2 id="shared-fixtures-conftestpy">Shared Fixtures (conftest.py)<a class="headerlink" href="#shared-fixtures-conftestpy" title="Permanent link">&para;</a></h2>
+<h3 id="session-scoped-project-fixtures">Session-Scoped Project Fixtures<a class="headerlink" href="#session-scoped-project-fixtures" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_hera_root</code></td>
+<td>Validated path to <code>~/hera_unittest_data</code></td>
+</tr>
+<tr>
+<td><code>data_config</code></td>
+<td>Parsed <code>data_config.json</code> dict</td>
+</tr>
+<tr>
+<td><code>result_set</code></td>
+<td>Active result-set name</td>
+</tr>
+<tr>
+<td><code>expected_dir</code></td>
+<td>Path to <code>expected/&lt;result_set&gt;/</code></td>
+</tr>
+<tr>
+<td><code>hera_test_project</code></td>
+<td><strong>The shared Hera Project</strong> with all test data loaded from <code>test_repository.json</code></td>
+</tr>
+<tr>
+<td><code>hera_project_name</code></td>
+<td>The string <code>"PYTEST_HERA_PROJECT"</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="per-toolkit-fixtures-session-scoped">Per-Toolkit Fixtures (session-scoped)<a class="headerlink" href="#per-toolkit-fixtures-session-scoped" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Toolkit Class</th>
+<th>Data Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>topo_toolkit</code></td>
+<td><code>TopographyToolkit</code></td>
+<td>SRTMGL1 (HGT directory)</td>
+</tr>
+<tr>
+<td><code>lc_toolkit</code></td>
+<td><code>LandCoverToolkit</code></td>
+<td>lc_mcd12q1 (TIF path)</td>
+</tr>
+<tr>
+<td><code>demo_toolkit</code></td>
+<td><code>DemographyToolkit</code></td>
+<td>lamas_population (SHP → GeoDataFrame)</td>
+</tr>
+<tr>
+<td><code>lf_toolkit</code></td>
+<td><code>lowFreqToolKit</code></td>
+<td>YAVNEEL (parquet → dask/pandas)</td>
+</tr>
+<tr>
+<td><code>hf_toolkit</code></td>
+<td><code>HighFreqToolKit</code></td>
+<td>slicedYamim_sonic, slicedYamim_TRH (parquet)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-scoped-fixtures">Function-Scoped Fixtures<a class="headerlink" href="#function-scoped-fixtures" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>project_fixture</code></td>
+<td>Temporary Project with cleanup (for <code>test_datalayer.py</code>)</td>
+</tr>
+<tr>
+<td><code>data_toolkit_fixture</code></td>
+<td>dataToolkit instance</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="comparison-helpers">Comparison Helpers<a class="headerlink" href="#comparison-helpers" title="Permanent link">&para;</a></h2>
+<p>Available in <code>conftest.py</code> for use in tests:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">hera.tests.conftest</span><span class="w"> </span><span class="kn">import</span> <span class="n">compare_dataframes</span><span class="p">,</span> <span class="n">compare_dataarrays</span><span class="p">,</span> <span class="n">compare_outputs</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># DataFrame comparison with numeric tolerance</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">assert</span> <span class="n">compare_dataframes</span><span class="p">(</span><span class="n">result_df</span><span class="p">,</span> <span class="n">expected_df</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># DataArray comparison</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="k">assert</span> <span class="n">compare_dataarrays</span><span class="p">(</span><span class="n">result_da</span><span class="p">,</span> <span class="n">expected_da</span><span class="p">)</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1"># Type-based comparison (supports: dataframe, geodataframe, xarray, float, dict, etc.)</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="k">assert</span> <span class="n">compare_outputs</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="s2">&quot;dataframe&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>For more details on the comparison system, see <a href="../flow/">Test Flow</a>.</p>
+<hr />
+<h2 id="datatoolkit-helper-methods"><code>dataToolkit</code> Helper Methods<a class="headerlink" href="#datatoolkit-helper-methods" title="Permanent link">&para;</a></h2>
+<p>Two static methods on <code>hera.utils.data.toolkit.dataToolkit</code> support direct loading without MongoDB:</p>
+<h3 id="loadrepositoryfrompathjson_path-static"><code>loadRepositoryFromPath(json_path)</code> (static)<a class="headerlink" href="#loadrepositoryfrompathjson_path-static" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">hera.utils.data.toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataToolkit</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">repo</span> <span class="o">=</span> <span class="n">dataToolkit</span><span class="o">.</span><span class="n">loadRepositoryFromPath</span><span class="p">(</span><span class="s2">&quot;/path/to/repository.json&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Returns dict with all relative resource paths resolved to absolute</span>
+</code></pre></div>
+<h3 id="resolvedatasourcepathsrepositoryjson-basedir-static"><code>resolveDataSourcePaths(repositoryJSON, basedir)</code> (static)<a class="headerlink" href="#resolvedatasourcepathsrepositoryjson-basedir-static" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">resolved</span> <span class="o">=</span> <span class="n">dataToolkit</span><span class="o">.</span><span class="n">resolveDataSourcePaths</span><span class="p">(</span><span class="n">repo_dict</span><span class="p">,</span> <span class="n">basedir</span><span class="o">=</span><span class="s2">&quot;/data/root&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="c1"># Deep-copies the dict and resolves all relative resource paths</span>
+</code></pre></div>
+<hr />
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="tests-are-skipped">Tests are skipped<a class="headerlink" href="#tests-are-skipped" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>"TEST_HERA directory not found"</strong> — Set <code>TEST_HERA</code> env var or create <code>~/hera_unittest_data/</code></li>
+<li><strong>"test_repository.json not found"</strong> — Create the repository JSON (see <code>test_repository.json</code> section above)</li>
+<li><strong>"datasource not loaded in project"</strong> — Verify MongoDB is running and the repository JSON is valid</li>
+</ul>
+<h3 id="mongodb-connection-errors">MongoDB connection errors<a class="headerlink" href="#mongodb-connection-errors" title="Permanent link">&para;</a></h3>
+<p>All toolkit tests (topography, landcover, demography, lowfreq, highfreq) require an active MongoDB instance.
+The session-scoped <code>hera_test_project</code> fixture loads data into MongoDB at startup and cleans it up on teardown.</p>
+<h3 id="matplotlib-backend-issues">Matplotlib backend issues<a class="headerlink" href="#matplotlib-backend-issues" title="Permanent link">&para;</a></h3>
+<p>Presentation tests (plots) may require a non-interactive backend:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MPLBACKEND</span><span class="o">=</span>Agg
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>pytest<span class="w"> </span>hera/tests/test_lowfreq.py<span class="w"> </span>-v
+</code></pre></div>
+<p>See also: <a href="../../troubleshooting/">Troubleshooting</a></p>
+<hr />
+<h2 id="adding-new-test-data">Adding New Test Data<a class="headerlink" href="#adding-new-test-data" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Place the data file under <code>~/hera_unittest_data/measurements/&lt;appropriate_subdir&gt;/</code></li>
+<li>Add an entry to <code>~/hera_unittest_data/test_repository.json</code> under the appropriate toolkit key</li>
+<li>The data will be automatically loaded into the test project on the next test run</li>
+<li>In your test module, access the data via <code>toolkit.getDataSourceData("your_datasource_name")</code></li>
+</ol>
+<hr />
+<h2 id="adding-new-tests">Adding New Tests<a class="headerlink" href="#adding-new-tests" title="Permanent link">&para;</a></h2>
+<h3 id="step-by-step-guide">Step-by-Step Guide<a class="headerlink" href="#step-by-step-guide" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Add test data</strong> to <code>~/hera_unittest_data/measurements/&lt;subdir&gt;/</code></li>
+<li><strong>Update <code>test_repository.json</code></strong> with a new entry under the appropriate toolkit key</li>
+<li><strong>Add a fixture</strong> in <code>conftest.py</code> (session-scoped, depends on <code>hera_test_project</code>)</li>
+<li><strong>Create a test module</strong> <code>hera/tests/test_&lt;name&gt;.py</code></li>
+<li><strong>Use the fixture</strong> to get a real toolkit instance — no file paths in tests</li>
+<li><strong>Compare outputs</strong> using <code>compare_outputs()</code> and expected files under <code>expected/BASELINE/</code></li>
+</ol>
+<h3 id="example-adding-a-new-toolkit-test">Example: Adding a New Toolkit Test<a class="headerlink" href="#example-adding-a-new-toolkit-test" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># In conftest.py — add a session-scoped fixture</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">my_toolkit</span><span class="p">(</span><span class="n">hera_test_project</span><span class="p">):</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">hera.my_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyToolkit</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="k">return</span> <span class="n">MyToolkit</span><span class="p">(</span><span class="n">projectName</span><span class="o">=</span><span class="n">PYTEST_PROJECT_NAME</span><span class="p">)</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="c1"># In test_my_toolkit.py</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestMyToolkit</span><span class="p">:</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_basic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">my_toolkit</span><span class="p">):</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>        <span class="n">data</span> <span class="o">=</span> <span class="n">my_toolkit</span><span class="o">.</span><span class="n">getDataSourceData</span><span class="p">(</span><span class="s2">&quot;my_datasource&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>        <span class="k">assert</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>        <span class="c1"># ... assertions ...</span>
+</code></pre></div>
+<hr />
+<h2 id="related-documentation">Related Documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../flow/">Test Flow</a> — Deep dive into the Pytest session lifecycle and comparison system</li>
+<li><a href="../../examples/repository_examples/">Repository Examples</a> — Examples of <code>test_repository.json</code> structure</li>
+<li><a href="../../reference/repository_schema/">Repository Schema Reference</a> — Complete schema documentation</li>
+<li><a href="../../configuration/env_vars/">Environment Variables</a> — All test-related environment variables</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "navigation.instant", "navigation.instant.progress", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
