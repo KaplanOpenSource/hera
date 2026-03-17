@@ -45,7 +45,7 @@ class dataToolkit(toolkit.abstractToolkit):
 
         Returns
         -------
-
+        None
         """
         self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
 
@@ -346,6 +346,7 @@ class dataToolkit(toolkit.abstractToolkit):
             The parsed repository JSON (toolkit-name -> section dict).
         basedir : str
             The base directory against which relative paths are resolved.
+            Typically the directory that contains the repository JSON file.
 
         Returns
         -------
@@ -365,6 +366,7 @@ class dataToolkit(toolkit.abstractToolkit):
                 for itemName, itemDesc in sectionDict.items():
                     if not isinstance(itemDesc, dict):
                         continue
+                    # Handle entries that have an "item" wrapper
                     item = itemDesc.get("item", itemDesc)
                     if "resource" not in item:
                         continue
@@ -381,6 +383,9 @@ class dataToolkit(toolkit.abstractToolkit):
         Read a repository JSON file directly from disk, resolve all relative
         ``resource`` paths to absolute paths based on the JSON file's directory,
         and return the resulting dict.
+
+        This allows tests (and lightweight scripts) to work with repository
+        data without going through ``addRepository`` + MongoDB storage.
 
         Parameters
         ----------

@@ -439,7 +439,7 @@ class Project:
 
         Returns
         -------
-
+        None
         """
         counterName = self._nomralizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
@@ -515,7 +515,8 @@ class Project:
 
         Returns
         -------
-
+        int
+            The updated counter value, or 0 if the counter was newly created.
         """
         counterName = self._nomralizeCounterName(counterName)
         isNew = self.defineCounter(counterName,0)

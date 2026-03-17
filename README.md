@@ -1,5 +1,32 @@
 ## Hera
 
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue?logo=github)](https://KaplanOpenSource.github.io/hera/)
+
+**Hera** is a Python-based platform for managing scientific data across measurements, simulations, and cached results.
+
+### Documentation
+
+Full documentation is available at **[https://KaplanOpenSource.github.io/hera/](https://KaplanOpenSource.github.io/hera/)**.
+
+The documentation covers architecture, toolkits, testing, CLI reference, examples, and more.
+
+#### Building Docs Locally
+
+```bash
+# Install documentation dependencies
+pip install -r docs/requirements-docs.txt
+
+# Start the local development server (with live reload)
+mkdocs serve
+
+# Build static site into site/
+mkdocs build
+```
+
+> **Note:** The legacy Sphinx-based documentation configuration in `requirements-doc.txt` is no longer maintained. All documentation now uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
+
+---
+
 ## 1. Introduction
 
 ## 2. Getting started

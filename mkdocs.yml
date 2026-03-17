@@ -1,8 +1,8 @@
 site_name: Hera Documentation
 site_description: Deep technical reference and user guide for the Hera scientific data management platform
-site_url: ""
-repo_url: http://mathsrv2:8081/edenn/pyhera.git
-repo_name: pyhera
+site_url: https://KaplanOpenSource.github.io/hera/
+repo_url: https://github.com/KaplanOpenSource/hera
+repo_name: KaplanOpenSource/hera
 
 theme:
   name: material
@@ -32,7 +32,7 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   icon:
-    repo: fontawesome/brands/git-alt
+    repo: fontawesome/brands/github
 
 plugins:
   - search
