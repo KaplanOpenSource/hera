@@ -10,17 +10,49 @@ Full documentation is available at **[https://KaplanOpenSource.github.io/hera/](
 
 The documentation covers architecture, toolkits, testing, CLI reference, examples, and more.
 
-#### Building Docs Locally
+#### Viewing Documentation Locally
+
+To preview the documentation site on your local machine:
 
 ```bash
-# Install documentation dependencies
+# Activate your virtual environment (if not already active)
+source heraenv/bin/activate
+
+# Install documentation dependencies (only needed once)
 pip install -r docs/requirements-docs.txt
 
-# Start the local development server (with live reload)
+# Start the local development server with live reload
 mkdocs serve
 
-# Build static site into site/
+# The site will be available at http://127.0.0.1:8000
+# Any changes you make to docs/ will automatically refresh in the browser
+```
+
+To build a static version of the site:
+
+```bash
+# Build static site into site/ directory
 mkdocs build
+
+# Build with strict mode (catches broken links and warnings)
+mkdocs build --strict
+```
+
+#### Automated Documentation Deployment
+
+The documentation is **automatically deployed** to GitHub Pages whenever changes are pushed to the `main` branch.
+
+**How it works:**
+- A GitHub Actions workflow (`.github/workflows/docs.yml`) monitors the `main` branch
+- When changes are detected in `docs/`, `mkdocs.yml`, or `hera/` code, it:
+  1. Builds the documentation site using MkDocs
+  2. Validates all links and Mermaid diagrams with `--strict` mode
+  3. Deploys the site to GitHub Pages automatically
+- The live site updates within 1-2 minutes after merging to `main`
+
+**Manual deployment** (for testing from other branches):
+```bash
+mkdocs gh-deploy --force
 ```
 
 > **Note:** The legacy Sphinx-based documentation configuration in `requirements-doc.txt` is no longer maintained. All documentation now uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
