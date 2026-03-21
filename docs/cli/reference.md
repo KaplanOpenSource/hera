@@ -41,6 +41,21 @@ flowchart LR
     end
 ```
 
+| Tool | Category | Description |
+|------|----------|-------------|
+| `hera-project` | Project Management | Database connections, project CRUD, repositories, toolkit registration, version management |
+| `hera-toolkit` | Project Management | Toolkit registry, loading, JSON import, default repository config |
+| `hera-GIS` | GIS Tools | Topography (raster/vector), buildings, land cover, STL generation |
+| `hera-openFoam` | Simulation Tools | OpenFOAM case setup, templates, workflows, running simulations |
+| `hera-LSM` | Simulation Tools | Lagrangian Stochastic Model management |
+| `hera-workflows` | Simulation Tools | Simulation group and workflow management |
+| `hera-riskassessment` | Risk Assessment | Agent repository creation |
+| `hera-ui` | Utilities | User interface launcher |
+| `hera-experiment` | Utilities | Experiment management |
+| `hera-radiosonde` | Utilities | Radiosonde data tools |
+| `hera-bib` | Utilities | Bibliography tools |
+| `jupyter-lab-server` | Utilities | Jupyter Lab server launcher |
+
 ---
 
 ## hera-project
