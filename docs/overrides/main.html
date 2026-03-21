@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if page.file.src_path.endswith(".ipynb") %}
+<div style="margin-bottom: 1em;">
+  <a href="https://github.com/KaplanOpenSource/hera/raw/master/docs/{{ page.file.src_path }}"
+     class="md-button md-button--primary"
+     download>
+    Download Jupyter Notebook
+  </a>
+</div>
+{% endif %}
+{{ super() }}
+{% endblock %}
