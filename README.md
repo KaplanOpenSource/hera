@@ -27,85 +27,129 @@ You can view the live deployment of this project here:
 ### Prerequisites
 *   **OS:** Ubuntu 22.04 LTS (verified)
 *   **Python:** 3.9.13+
-*   **Database:** MongoDB version 6.0 (running on default port 27017)
-*   **System packages:**
-    ```bash
-    sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev libgdal-dev gdal-bin python3-gdal
-    ```
+*   **Docker:** Required for quick install (MongoDB runs in a container)
 
-### Installation
+### Quick Install (recommended)
+
+The fastest way to get Hera running. Requires Docker and Python 3.9+.
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/KaplanOpenSource/hera
    cd hera
    ```
 
-2. **Set up a virtual environment:**
+2. **Run the initialization script:**
    ```bash
-   python3.9 -m venv heraenv
-   source heraenv/bin/activate
+   source init_with_mongo.sh
+   ```
+   This single script will:
+   - Set up Hera environment variables (`HERA_REPO_ROOT`, `PYHERA_DIR`, `PYTHONPATH`)
+   - Prompt to create a Python virtual environment at `~/.pyhera/environment` with all dependencies installed
+   - Prompt to persist the environment to `~/.bashrc`
+   - Prompt to auto-activate the Hera environment when you `cd` into the project directory
+   - Pull and start a MongoDB 5.0 Docker container with preconfigured credentials
+   - Create the `~/.pyhera/config.json` configuration file automatically
+
+   After running, everything is ready to use.
+
+3. **Install system dependencies and third-party tools (optional):**
+   ```bash
+   make install-deps       # System packages (libcairo, GDAL, etc.)
+   make install-paraview   # ParaView 5.11.0
+   make install-freecad    # FreeCad Python3 bindings
+   make install-openfoam   # OpenFOAM 10
+   make install-deps-all   # All of the above
    ```
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+#### Helper scripts
 
-   If this fails, you may need to reinstall `setuptools`:
-   ```bash
-   pip install --upgrade --force-reinstall setuptools
-   pip install -r requirements.txt
-   ```
+| Script | Purpose |
+|---|---|
+| `source set_hera_environment.sh` | Set environment variables, create venv, configure `.bashrc` (called automatically by `init_with_mongo.sh`) |
+| `source activate_hera.sh` | Activate the Hera venv and environment in the current shell |
+| `init_with_mongo.sh` | Full initialization: environment setup + MongoDB via Docker |
 
-4. **Install GDAL:**
-   Use `gdalinfo --version` to obtain your OS GDAL version, then install the matching Python binding:
-   ```bash
-   pip install GDAL==`gdal-config --version`
-   ```
-   If GDAL is not installed:
-   ```bash
-   sudo apt-get install -y libgdal-dev gdal-bin python3-gdal
-   ```
+#### Managing MongoDB with Make
 
-### Setup after installation
+After the initial setup, use the Makefile to manage the MongoDB container:
 
-Run the environment setup script from the project root:
 ```bash
-source set_hera_environment.sh
+make mongo-up              # Start MongoDB (data at ~/mongo-db-datadir)
+make mongo-down            # Stop MongoDB
+make mongo-status          # Check container status
+make mongo-logs            # Tail container logs
+make mongo-clean           # Remove container and delete all data
+make mongo-up MONGO_DATA=/path/to/data   # Override data directory
 ```
 
-This sets `HERA_REPO_ROOT`, `PYHERA_DIR`, and `PYTHONPATH` for the current session. The script will also ask if you want to add it to your `~/.bashrc` so that the environment loads automatically on every new shell.
+#### Running tests
 
-Create the required directories:
+```bash
+make test-setup            # Create test data directory structure at ~/hera_unittest_data
+make test                  # Run all tests (requires MongoDB + test data)
+```
+
+Run `make help` to see all available targets.
+
+---
+
+### Manual Installation
+
+If you prefer not to use Docker or need more control over each step, follow these instructions.
+
+#### 1. System packages
+
+```bash
+sudo apt install libcairo2-dev pkg-config python3-dev libgirepository1.0-dev libgdal-dev gdal-bin python3-gdal
+```
+
+#### 2. Clone and set up Python environment
+
+```bash
+git clone https://github.com/KaplanOpenSource/hera
+cd hera
+python3.9 -m venv heraenv
+source heraenv/bin/activate
+```
+
+#### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+If this fails, reinstall `setuptools` first:
+```bash
+pip install --upgrade --force-reinstall setuptools
+pip install -r requirements.txt
+```
+
+#### 4. Install GDAL Python binding
+
+Use `gdalinfo --version` to obtain your OS GDAL version, then:
+```bash
+pip install GDAL==`gdal-config --version`
+```
+
+#### 5. Configure environment variables
+
+Add the following to your shell profile or virtual environment activate script:
+```bash
+export PYTHONPATH=$PYTHONPATH:/path/to/hera
+export PATH=$PATH:/path/to/hera/hera/bin
+```
+
+Create required directories:
 ```bash
 mkdir -p ~/.pyhera/log/
 ```
 
-### Hera configuration files
+#### 6. MongoDB setup
 
-Create the following JSON file within `.pyhera` folder. The file contains the address and credentials for MongoDB. If not created manually, it will be created at first import of hera, but without values, so the import will fail.
+Install MongoDB 6.0 following the [official instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) and ensure it runs on port 27017.
 
-`.pyhera/config.json`
-
-```json
-{
-    "{username}": {
-        "dbIP": "{host}",
-        "dbName": "{database name}",
-        "password": "{password}",
-        "username": "{username}"
-    }
-}
-```
-
-* `{username}` - should match the name of your user in the Ubuntu system
-* `{host}` - location of MongoDB, if local it is typically `127.0.0.1`
-* `{dbName}` - name of database
-* `{password}` - choose a password
-
-### MongoDB Schema
-
-Start MongoDB with `mongosh` and run the following commands to create admin and regular users:
+Start MongoDB with `mongosh` and create users:
 
 ```javascript
 use admin
@@ -128,86 +172,25 @@ db.createUser(
 )
 ```
 
-Replace `{username}`, `{password}`, and `{dbName}` with the same values from `config.json`.
+#### 7. Hera configuration file
 
-### Use predefined names (with Makefile)
+Create `~/.pyhera/config.json`:
 
-This is especially convenient if you don't have MongoDB installed, as it uses Docker (you need Docker installed).
-
-A `Makefile` is provided in the project root to manage MongoDB, the Hera server, and tests. Run `make help` to see all available targets.
-
-**Start MongoDB:**
-```bash
-make mongo-up
-```
-
-This starts a MongoDB 5.0 container with data stored at `~/mongo-db-datadir`. It automatically creates a user "hera" with password "heracles" using the init scripts in `mongo-init.d/`.
-
-To override the data directory:
-```bash
-make mongo-up MONGO_DATA=/path/to/data
-```
-
-**Stop / restart MongoDB:**
-```bash
-make mongo-down
-make mongo-up
-```
-
-**Check status or view logs:**
-```bash
-make mongo-status
-make mongo-logs
-```
-
-**Remove container and delete all data:**
-```bash
-make mongo-clean
-```
-
-**Set up the test data directory:**
-```bash
-make test-setup
-```
-
-This creates the directory structure at `~/hera_unittest_data` needed for running the test suite. Override with `make test-setup TEST_HERA=/path/to/data`.
-
-**Run tests:**
-```bash
-make test
-```
-
-For the predefined setup, create `.pyhera/config.json` with:
 ```json
 {
-    "<username>": {
-        "dbIP": "127.0.0.1",
-        "dbName": "olymp",
-        "password": "heracles",
-        "username": "hera"
+    "{username}": {
+        "dbIP": "{host}",
+        "dbName": "{database name}",
+        "password": "{password}",
+        "username": "{username}"
     }
 }
 ```
-Replace `<username>` with your system username.
 
-### Installing third-party dependencies
-
-The Makefile also provides targets for installing third-party dependencies:
-
-```bash
-# Install system packages (libcairo, GDAL, etc.) and the GDAL Python binding
-make install-deps
-
-# Install individual third-party tools
-make install-paraview    # Download and set up ParaView 5.11.0
-make install-freecad     # Install FreeCad Python3 bindings
-make install-openfoam    # Install OpenFOAM 10
-
-# Install everything at once
-make install-deps-all
-```
-
-Run `make help` to see all available targets.
+* `{username}` - should match your Ubuntu system user
+* `{host}` - MongoDB address, typically `127.0.0.1` for local
+* `{dbName}` - name of database
+* `{password}` - choose a password
 
 ---
 
@@ -220,11 +203,8 @@ The documentation covers architecture, toolkits, testing, CLI reference, example
 ### Viewing Documentation Locally
 
 ```bash
-# Activate your virtual environment
-source heraenv/bin/activate
-
-# Install documentation dependencies (only needed once)
-pip install -r requirements.txt
+# Activate the Hera environment (if not already active)
+source activate_hera.sh
 
 # Start the local development server with live reload
 mkdocs serve
