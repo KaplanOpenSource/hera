@@ -3,7 +3,7 @@
 ## Using without docker
 #### Install
 ```
-pip install -r ui/server/requirements-server.txt
+pip install -r requirements.txt
 ```
 
 #### Run

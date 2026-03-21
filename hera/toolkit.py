@@ -1206,7 +1206,8 @@ class abstractToolkit(Project):
 
         Returns
         -------
-
+        list
+            List of datasource name strings.
         """
         docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
                                                 toolkit=self.toolkitName,

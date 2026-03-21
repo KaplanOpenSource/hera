@@ -264,7 +264,7 @@ class analysis:
             self.datalayer.populationTypes.values()) if populationTypes is None else populationTypes
         for populationType in populationTypes:
             if populationType in res_intersect_poly:
-                newData[populationType] = res_intersect_poly.sum()[populationType]
+                newData[populationType] = res_intersect_poly[[populationType]].sum()[populationType]
 
         doc = None  # will hold DB document if stored
 

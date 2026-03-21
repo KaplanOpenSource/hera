@@ -55,7 +55,7 @@ class dataToolkit(abstractToolkit):
 
         Returns
         -------
-
+        None
         """
         self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
 
@@ -450,3 +450,85 @@ class dataToolkit(abstractToolkit):
                 f"The input is not absolute (it is relative). Adding the path {basedir} to the resource {theItem['resource']}")
 
         return os.path.join(basedir, theItem["resource"]) if isRelativePath else theItem["resource"]
+
+    # -------------------------------------------------------------------------
+    # Direct-load helpers (no MongoDB round-trip required)
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def resolveDataSourcePaths(repositoryJSON, basedir=""):
+        """
+        Walk a repository JSON dict and resolve every ``resource`` field to an
+        absolute path, respecting the ``isRelativePath`` flag on each entry.
+
+        Parameters
+        ----------
+        repositoryJSON : dict
+            The parsed repository JSON (toolkit-name -> section dict).
+        basedir : str
+            The base directory against which relative paths are resolved.
+            Typically the directory that contains the repository JSON file.
+
+        Returns
+        -------
+        dict
+            A *deep copy* of ``repositoryJSON`` with all ``resource`` fields
+            converted to absolute paths.
+        """
+        import copy
+        resolved = copy.deepcopy(repositoryJSON)
+
+        for _toolkitName, toolkitDict in resolved.items():
+            if not isinstance(toolkitDict, dict):
+                continue
+            for sectionKey, sectionDict in toolkitDict.items():
+                if not isinstance(sectionDict, dict):
+                    continue
+                for itemName, itemDesc in sectionDict.items():
+                    if not isinstance(itemDesc, dict):
+                        continue
+                    # Handle entries that have an "item" wrapper
+                    item = itemDesc.get("item", itemDesc)
+                    if "resource" not in item:
+                        continue
+                    is_rel = itemDesc.get("isRelativePath", item.get("isRelativePath"))
+                    if is_rel == "True" or is_rel is True:
+                        item["resource"] = os.path.abspath(
+                            os.path.join(basedir, item["resource"])
+                        )
+        return resolved
+
+    @staticmethod
+    def loadRepositoryFromPath(json_path):
+        """
+        Read a repository JSON file directly from disk, resolve all relative
+        ``resource`` paths to absolute paths based on the JSON file's directory,
+        and return the resulting dict.
+
+        This allows tests (and lightweight scripts) to work with repository
+        data without going through ``addRepository`` + MongoDB storage.
+
+        Parameters
+        ----------
+        json_path : str
+            Path to the repository JSON file.
+
+        Returns
+        -------
+        dict
+            The repository dict with all resource paths resolved to absolute.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *json_path* does not exist.
+        """
+        json_path = os.path.abspath(json_path)
+        if not os.path.isfile(json_path):
+            raise FileNotFoundError(f"Repository JSON not found: {json_path}")
+
+        with open(json_path, "r", encoding="utf-8") as fh:
+            repo_json = json.load(fh)
+
+        basedir = os.path.dirname(json_path)
+        return dataToolkit.resolveDataSourcePaths(repo_json, basedir=basedir)

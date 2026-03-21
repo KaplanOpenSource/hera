@@ -8,7 +8,7 @@ cd "$(dirname "$0")/../.." # Go to hera repo root
 
 if ! pip show fastapi > /dev/null 2>&1; then
     echo "Hera-UI is not installed, please inform admin or install using the cmd:"
-    echo "  pip install -r ui/server/requirements-server.txt"
+    echo "  pip install -r requirements.txt"
     exit 1
 fi
 
