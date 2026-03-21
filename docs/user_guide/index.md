@@ -6,9 +6,10 @@ Welcome to the Hera User Guide. This section covers everything you need to insta
 
 ## Getting Started
 
-1. **[Key Concepts](concepts.md)** - Understand Projects, Toolkits, Data Sources, and Repositories
-2. **[Working with Data](working_with_data.md)** - Adding data, data formats, querying the database
-3. **[Installation & Setup](installation.md)** - Install Hera using the quick install script or manual steps
+1. **[Key Concepts](concepts.md)** - Understand the data lake, Toolkits, Data Sources, and Repositories
+2. **[Projects](projects.md)** - Project lifecycle, configuration, counters, and data methods
+3. **[Working with Data](working_with_data.md)** - Adding data, data formats, querying, data sources
+4. **[Installation & Setup](installation.md)** - Install Hera using the quick install script or manual steps
 3. **[CLI Reference](../cli/reference.md)** - Command-line tools for managing projects and toolkits
 4. **[Troubleshooting](../troubleshooting.md)** - Common issues and solutions
 
