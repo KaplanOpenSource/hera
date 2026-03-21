@@ -17,6 +17,12 @@ Start here if you're new to Hera. These notebooks cover the fundamentals in orde
 | [DataSource](DataSource.ipynb) | Adding data sources, versioning, listing, querying, getting data, deleting | [Working with Data > Data Sources](../user_guide/working_with_data.md#data-sources) |
 | [Repository](Repository.ipynb) | Repository management (add, list, remove, show), JSON structure, DataSource vs Measurements items | [Key Concepts > Repositories](../user_guide/concepts.md#repositories), [CLI Reference](../cli/reference.md#repository-management) |
 
+## Toolkit Tutorials
+
+| Notebook | What you'll learn | Related docs |
+|----------|------------------|-------------|
+| [Tile Toolkit](TileToolkitDocumentation.ipynb) | Map images from tile servers, WGS84 and ITM coordinates, custom tile servers | [Measurements > Tiles](../toolkits/measurements.md#tiles) |
+
 ### How to run the tutorials
 
 1. Activate the Hera environment:
