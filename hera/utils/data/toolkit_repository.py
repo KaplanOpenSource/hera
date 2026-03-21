@@ -24,6 +24,14 @@ class ToolkitRepository:
     """
 
     def __init__(self, project_name: str):
+        """
+        Initialize a ToolkitRepository for the given project.
+
+        Parameters
+        ----------
+        project_name : str
+            The project name to manage toolkit registrations for.
+        """
         self._project = Project(projectName=project_name)
 
     # ---------------------------
