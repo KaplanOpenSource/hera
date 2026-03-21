@@ -69,28 +69,17 @@ You can view the live deployment of this project here:
 
 ### Setup after installation
 
-In order for the package to work automatically each time you enter the virtual environment, the following steps are required:
+Run the environment setup script from the project root:
+```bash
+source set_hera_environment.sh
+```
 
-1. Enter the virtual environment bin folder:
-   ```bash
-   cd HERAENV_PATH/bin
-   ```
+This sets `HERA_REPO_ROOT`, `PYHERA_DIR`, and `PYTHONPATH` for the current session. The script will also ask if you want to add it to your `~/.bashrc` so that the environment loads automatically on every new shell.
 
-2. Edit the activate script:
-   ```bash
-   nano activate
-   ```
-
-3. Add two export commands at the end of the file:
-   ```bash
-   export PYTHONPATH=$PYTHONPATH:/home/YOUR_OS_USER_NAME/PATH_TO_HERA_GIT_FOLDER/hera/hera/bin
-   export PATH=$PATH:/home/YOUR_OS_USER_NAME/PATH_TO_HERA_GIT_FOLDER/hera/hera/bin
-   ```
-
-4. Create the required directories:
-   ```bash
-   mkdir -p ~/.pyhera/log/
-   ```
+Create the required directories:
+```bash
+mkdir -p ~/.pyhera/log/
+```
 
 ### Hera configuration files
 
