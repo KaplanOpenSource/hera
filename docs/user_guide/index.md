@@ -16,6 +16,7 @@ Welcome to the Hera User Guide. This section covers everything you need to insta
 ## Using Hera
 
 - **[Toolkit Catalog](../toolkits/overview.md)** - Browse available toolkits for GIS, meteorology, simulations, and risk assessment
+- **[Tutorials](../tutorials/index.md)** - Interactive Jupyter notebook walkthroughs
 - **[Workflows](../examples/workflows.md)** - Step-by-step guides for common data processing tasks
 - **[Repository Examples](../examples/repository_examples.md)** - Practical examples of working with repositories
 - **[Best Practices](../guides/best_practices.md)** - Recommended patterns for working with Hera

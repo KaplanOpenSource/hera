@@ -2,6 +2,8 @@
 
 A **Project** is Hera's unit of organization. Every document in the database — whether a measurement, simulation, or cached result — carries a `projectName` field that associates it with a project.
 
+> **Hands-on tutorial:** For an interactive walkthrough, see the [Project tutorial notebook](../tutorials/index.md).
+
 ---
 
 ## Projects are defined by their documents

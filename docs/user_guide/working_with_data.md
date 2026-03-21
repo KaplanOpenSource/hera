@@ -2,6 +2,8 @@
 
 This page covers the practical details of storing, querying, and loading data in Hera. For the high-level overview, see [Key Concepts](concepts.md).
 
+> **Hands-on tutorials:** See the [DataSource](../tutorials/index.md) and [Repository](../tutorials/index.md) notebook tutorials for interactive walkthroughs with real output.
+
 ---
 
 ## Adding data
