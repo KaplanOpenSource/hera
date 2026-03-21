@@ -71,6 +71,49 @@ def project_create(arguments):
                                                          overwrite=arguments.overwrite)
 
 
+def _parse_query_value(value_str):
+    """
+    Safely parse a query value string into a Python object.
+
+    Supports: integers, floats, booleans, None, and quoted strings.
+    Falls back to returning the raw string.
+
+    Parameters
+    ----------
+    value_str : str
+        The value portion of a key=value query argument.
+
+    Returns
+    -------
+    object
+        The parsed value.
+    """
+    stripped = value_str.strip()
+
+    if stripped.lower() == 'none':
+        return None
+    if stripped.lower() == 'true':
+        return True
+    if stripped.lower() == 'false':
+        return False
+
+    try:
+        return int(stripped)
+    except ValueError:
+        pass
+
+    try:
+        return float(stripped)
+    except ValueError:
+        pass
+
+    # Strip surrounding quotes if present
+    if len(stripped) >= 2 and stripped[0] in ('"', "'") and stripped[-1] == stripped[0]:
+        return stripped[1:-1]
+
+    return stripped
+
+
 def project_dump(arguments):
     """
     Dump documents from a project as JSON or table output.
@@ -78,13 +121,12 @@ def project_dump(arguments):
     fullQuery = dict(projectName=arguments.projectName)
 
     for queryElement in arguments.query:
-        fullQuery[queryElement.split('=')[0]] = eval(queryElement.split('=')[1])
+        key, _, value = queryElement.partition('=')
+        fullQuery[key.strip()] = _parse_query_value(value)
 
     docList = []
     for doc in datalayer_All.getDocuments(**fullQuery):
-        docDict = doc.asDict()
-        if 'docid' not in docDict['desc']:
-            docDict['desc']['docid'] = str(doc.id)
+        docDict = doc.asDict(with_id=True)
 
         docList.append(docDict)
 
@@ -112,13 +154,20 @@ def project_dump(arguments):
 def project_load(arguments):
     """
     Load documents from a JSON file into a project.
+
+    The file should contain a JSON list of document dicts, as produced
+    by ``project_dump --format json``.
     """
-    docsDict = loadJSON(arguments.file)
+    docsList = loadJSON(arguments.file)
     proj = Project(projectName=arguments.projectName)
 
-    for indx, doc in enumerate(docsDict):
-        print(f"Loading document {indx}/{len(docsDict)}")
-        proj.addDocumentFromDict(docsDict.get(doc))
+    if not isinstance(docsList, list):
+        print(f"ERROR: Expected a JSON list of documents, got {type(docsList).__name__}")
+        return
+
+    for indx, doc in enumerate(docsList):
+        print(f"Loading document {indx + 1}/{len(docsList)}")
+        proj.addDocumentFromDict(doc)
 
 
 def repository_list(argumets):
