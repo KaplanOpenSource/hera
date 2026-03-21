@@ -339,7 +339,7 @@ tinycss2==1.4.0
 tobler==0.12.1
 tomli==2.2.1
 toolz==1.0.0
-tornado==6.5
+tornado==6.5.5
 tqdm==4.67.1
 traitlets==5.14.3
 trio==0.29.0
