@@ -55,6 +55,24 @@ flowchart TD
     Base -.-> Data_domain
 ```
 
+| Toolkit Name | Category | Class | Description |
+|-------------|----------|-------|-------------|
+| `GIS_Raster_Topography` | GIS | `hera.measurements.GIS.raster.topography.TopographyToolkit` | Elevation data from SRTM, terrain analysis, STL generation |
+| `GIS_Vector_Topography` | GIS | `hera.measurements.GIS.vector.topography.TopographyToolkit` | Vector-based topography (contour lines, survey points) |
+| `GIS_Buildings` | GIS | `hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit` | Building footprints, 3D STL meshes for CFD |
+| `GIS_Demography` | GIS | `hera.measurements.GIS.vector.demography.DemographyToolkit` | Population data from census shapefiles |
+| `GIS_LandCover` | GIS | `hera.measurements.GIS.raster.landcover.LandCoverToolkit` | Land cover classification, surface roughness |
+| `GIS_Tiles` | GIS | `hera.measurements.GIS.raster.tiles.TilesToolkit` | Tile-based raster data management |
+| `MeteoLowFreq` | Meteorology | `hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit` | Hourly/daily station data, analysis, visualization |
+| `MeteoHighFreq` | Meteorology | `hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit` | High-frequency sonic anemometer and TRH data |
+| `OpenFOAM` | Simulations | `hera.simulations.openFoam.toolkit.OFToolkit` | OpenFOAM CFD simulation lifecycle management |
+| `LSM` | Simulations | `hera.simulations.LSM.toolkit.LSMToolkit` | Lagrangian Stochastic Model for dispersion |
+| `GaussianDispersion` | Simulations | `hera.simulations.gaussian.toolkit.gaussianToolkit` | Gaussian puff/plume dispersion models |
+| `WindProfile` | Simulations | `hera.simulations.windProfile.toolkit.WindProfileToolkit` | Vertical wind profile modeling |
+| `RiskAssessment` | Risk | `hera.riskassessment.riskToolkit.RiskToolkit` | Agent-based risk assessment framework |
+| `experiment` | Data | `hera.measurements.experiment.experiment.experimentHome` | Experimental data workflow management |
+| `dataToolkit` | Data | `hera.utils.data.toolkit.dataToolkit` | Repository management toolkit |
+
 ---
 
 ## GIS Toolkits
@@ -273,6 +291,16 @@ flowchart LR
     Mesh --> RunCase --> Monitor
     Monitor --> Analysis_OF --> Visualization
 ```
+
+| Phase | Step | Description |
+|-------|------|-------------|
+| Setup | Template Management | Save, load, and manage OpenFOAM case templates |
+| Setup | Case Setup | Configure boundary conditions, solver settings |
+| Setup | Mesh Generation | blockMesh, snappyHexMesh integration |
+| Execution | Run Simulation | Run cases, parallel execution (MPI) |
+| Execution | Monitor Progress | Track solver convergence and residuals |
+| Post-Processing | Data Extraction | Extract fields, probes, sample data |
+| Post-Processing | Visualization | Generate plots and ParaView-ready output |
 
 | Capability | Description |
 |------------|-------------|
