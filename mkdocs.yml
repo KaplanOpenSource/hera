@@ -114,6 +114,10 @@ nav:
       - Architecture:
           - Core Concepts: architecture/core_concepts.md
           - Data Layer: architecture/data_layer.md
+      - Toolkit Implementation:
+          - Measurements: developer_guide/measurements.md
+          - Simulations: developer_guide/simulations.md
+          - Risk Assessment: developer_guide/risk_assessment.md
       - Testing:
           - Getting Started: testing/getting_started.md
           - Test Flow: testing/flow.md
