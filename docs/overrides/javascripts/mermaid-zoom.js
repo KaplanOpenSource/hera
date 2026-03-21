@@ -1,80 +1,75 @@
-// Click-to-expand zoom for Mermaid diagrams
-// Adds an "Expand" button to each diagram and a fullscreen overlay on click.
+// Mermaid diagram expand button
+// Polls for rendered SVGs inside .mermaid elements, then adds an Expand button.
 
 (function () {
-  function addZoomToMermaid() {
-    // MkDocs Material renders mermaid as <pre class="mermaid"> then replaces with SVG
-    // Target both <pre class="mermaid"> and any element with class "mermaid" containing an SVG
-    document.querySelectorAll("pre.mermaid, .mermaid").forEach(function (el) {
-      if (el.getAttribute("data-zoom-bound")) return;
-      if (!el.querySelector("svg") && el.tagName !== "PRE") return;
-      el.setAttribute("data-zoom-bound", "true");
+  function addButtons() {
+    document.querySelectorAll("pre.mermaid svg, .mermaid svg").forEach(function (svg) {
+      var container = svg.parentElement;
+      if (!container || container.getAttribute("data-zoom-done")) return;
+      container.setAttribute("data-zoom-done", "true");
+      container.style.position = "relative";
 
-      // Wrap in a container
-      var wrapper = document.createElement("div");
-      wrapper.className = "mermaid-zoom-wrapper";
-      el.parentNode.insertBefore(wrapper, el);
-      wrapper.appendChild(el);
-
-      // Add expand button
+      // Expand button
       var btn = document.createElement("button");
-      btn.className = "mermaid-zoom-btn";
       btn.textContent = "Expand";
-      btn.title = "Click to view diagram fullscreen";
-      wrapper.appendChild(btn);
+      btn.title = "View diagram fullscreen";
+      btn.style.cssText = "position:absolute;top:4px;right:4px;z-index:10;" +
+        "background:#4051b5;color:#fff;border:none;border-radius:4px;" +
+        "padding:4px 10px;font-size:12px;cursor:pointer;opacity:0.8;";
+      btn.onmouseenter = function () { btn.style.opacity = "1"; };
+      btn.onmouseleave = function () { btn.style.opacity = "0.8"; };
+      container.appendChild(btn);
 
-      // Create overlay
+      // Fullscreen overlay
       var overlay = document.createElement("div");
-      overlay.className = "mermaid-zoom-overlay";
+      overlay.style.cssText = "display:none;position:fixed;top:0;left:0;width:100vw;" +
+        "height:100vh;z-index:9999;background:rgba(255,255,255,0.97);" +
+        "align-items:center;justify-content:center;padding:2rem;" +
+        "box-sizing:border-box;overflow:auto;cursor:zoom-out;flex-direction:column;";
       var hint = document.createElement("div");
-      hint.className = "mermaid-zoom-close-hint";
       hint.textContent = "Click anywhere or press Escape to close";
+      hint.style.cssText = "position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);" +
+        "font-size:14px;color:#666;";
       overlay.appendChild(hint);
       document.body.appendChild(overlay);
 
-      // Open overlay
+      // Open
       btn.addEventListener("click", function (e) {
+        e.preventDefault();
         e.stopPropagation();
-        var svg = el.querySelector("svg");
-        if (svg) {
-          var clone = svg.cloneNode(true);
-          // Remove any existing SVG in overlay (keep hint)
-          overlay.querySelectorAll("svg").forEach(function (s) { s.remove(); });
-          overlay.insertBefore(clone, hint);
-        }
-        overlay.classList.add("active");
+        overlay.querySelectorAll("svg").forEach(function (s) { s.remove(); });
+        var clone = svg.cloneNode(true);
+        clone.style.cssText = "max-width:95vw;max-height:85vh;width:auto;height:auto;";
+        clone.removeAttribute("width");
+        clone.removeAttribute("height");
+        overlay.insertBefore(clone, hint);
+        overlay.style.display = "flex";
         document.body.style.overflow = "hidden";
       });
 
-      // Close overlay on click
+      // Close
       overlay.addEventListener("click", function () {
-        overlay.classList.remove("active");
+        overlay.style.display = "none";
         document.body.style.overflow = "";
       });
     });
   }
 
-  // Run on load and observe for async Mermaid rendering
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
-      setTimeout(addZoomToMermaid, 1000);
-    });
-  } else {
-    setTimeout(addZoomToMermaid, 1000);
-  }
+  // Poll for Mermaid SVGs (rendered asynchronously)
+  var tries = 0;
+  var timer = setInterval(function () {
+    addButtons();
+    if (++tries > 30) clearInterval(timer);
+  }, 500);
 
-  // Re-run on navigation (MkDocs instant loading)
-  var observer = new MutationObserver(function () {
-    setTimeout(addZoomToMermaid, 500);
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  // Close on Escape
+  // Escape to close all overlays
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
-      document.querySelectorAll(".mermaid-zoom-overlay.active").forEach(function (ov) {
-        ov.classList.remove("active");
-        document.body.style.overflow = "";
+      document.querySelectorAll("div").forEach(function (el) {
+        if (el.style.zIndex === "9999" && el.style.display === "flex") {
+          el.style.display = "none";
+          document.body.style.overflow = "";
+        }
       });
     }
   });
