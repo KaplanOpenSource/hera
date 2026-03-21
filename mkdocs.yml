@@ -79,10 +79,10 @@ nav:
   - Home: index.md
   - User Guide:
       - Overview: user_guide/index.md
+      - Installation & Setup: user_guide/installation.md
       - Key Concepts: user_guide/concepts.md
       - Projects: user_guide/projects.md
       - Working with Data: user_guide/working_with_data.md
-      - Installation & Setup: user_guide/installation.md
       - CLI Reference: cli/reference.md
       - Toolkits:
           - Toolkit Catalog: toolkits/overview.md
