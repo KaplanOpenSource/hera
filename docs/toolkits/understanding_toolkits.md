@@ -6,17 +6,17 @@ This page explains what toolkits are, how they work, and how to access them — 
 
 ## What is a toolkit?
 
-A toolkit is a specialized module that knows how to **manage**, **analyze**, and **present** one type of scientific data.
+A toolkit is a specialized module that provides three layers for working with one type of scientific data: a **data layer**, an **analysis layer**, and a **presentation layer**.
 
 Without toolkits, you'd work directly with the Project API — adding documents, remembering file paths, writing your own analysis code, and building plots from scratch. A toolkit wraps all of that into a domain-specific interface:
 
-| Responsibility | What the toolkit does for you |
-|---------------|------------------------------|
-| **Data management** | Manages named, versioned data sources. You ask for data by name (`"YAVNEEL"`) instead of remembering file paths and query filters. |
+| Layer | What it does |
+|-------|-------------|
+| **Data layer** | Normalizes the data: loading from various formats, converting between representations, and storing persistently in the database. You ask for data by name (`"YAVNEEL"`) instead of remembering file paths, formats, and query filters. |
 | **Analysis** | Provides domain-specific processing methods. A meteorology toolkit knows how to compute hourly distributions; a GIS toolkit knows how to generate STL meshes. |
 | **Presentation** | Generates domain-specific visualizations. Seasonal wind roses, elevation contour maps, casualty plots — each toolkit provides the plots its domain needs. |
 
-Every toolkit inherits from `Project`, so it has full access to the data layer (measurements, simulations, cache). The toolkit adds its domain knowledge on top.
+Every toolkit inherits from `Project`, so it has full access to the project's data layer (measurements, simulations, cache). The toolkit adds its domain-specific layers on top.
 
 ---
 
@@ -64,6 +64,19 @@ meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="Win
 risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="WindStudy")
 ```
 
+The `projectName` parameter is **always required** — either explicitly or via `caseConfiguration.json`. If you pass `projectName=None`, the toolkit loads the project name from `caseConfiguration.json` in the current working directory:
+
+```python
+# Explicit project name
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="WindStudy")
+
+# projectName=None — loads from caseConfiguration.json in the current directory
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName=None)
+
+# Omitting projectName is equivalent to projectName=None
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ)
+```
+
 Each toolkit constant maps to a toolkit name string. Using constants avoids typos:
 
 | Constant | String value |
@@ -83,12 +96,11 @@ Every toolkit is **bound to a project** when you create it. This means:
 - Any documents the toolkit creates go into that project
 - The toolkit's configuration is project-specific
 
-If you're working from a project directory (with `caseConfiguration.json`), you can omit `projectName`:
+The project name is resolved as follows:
 
-```python
-# From a project directory — project name is auto-detected
-meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ)
-```
+1. If `projectName="WindStudy"` — use that name directly
+2. If `projectName=None` (or omitted) — load from `caseConfiguration.json` in the current directory
+3. If no `caseConfiguration.json` exists — use the read-only default project
 
 ### Listing available toolkits
 
@@ -191,13 +203,13 @@ The presentation layer generates domain-specific visualizations. Examples:
 - **Risk assessment**: `plotCasualtiesRose()` — radial casualty distribution
 - **GIS Tiles**: `plot()` — render map tile images with CRS axes
 
-### Data source management
+### Data layer (data source management)
 
-All toolkits inherit data source methods from `abstractToolkit`:
+The data layer normalizes how data is loaded, converted, and stored. All toolkits inherit these methods from `abstractToolkit`:
 
-- `getDataSourceData(name)` — load data by name
+- `getDataSourceData(name)` — load data by name (handles format detection and conversion)
 - `getDataSourceList()` — list available data sources
-- `addDataSource(name, resource, dataFormat)` — register a new data source
+- `addDataSource(name, resource, dataFormat)` — register a new data source with persistent storage
 - `getDataSourceTable()` — view all data sources as a DataFrame
 
 ---
