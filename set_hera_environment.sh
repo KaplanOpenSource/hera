@@ -14,12 +14,31 @@ echo "  HERA_REPO_ROOT=${HERA_REPO_ROOT}"
 echo "  PYHERA_DIR=${PYHERA_DIR}"
 echo "  PYTHONPATH=${PYTHONPATH}"
 echo ""
-echo "To create a Python virtual environment with all requirements:"
-echo ""
-echo "  python -m venv .venv"
-echo "  source .venv/bin/activate"
-echo "  pip install -r ${SCRIPT_DIR}/requirements.txt"
-echo "  pip install -e ${SCRIPT_DIR}"
+# Offer to create Python virtual environment in ~/.pyhera/environment
+VENV_DIR="${PYHERA_DIR}/environment"
+
+if [ -d "${VENV_DIR}" ] && [ -f "${VENV_DIR}/bin/activate" ]; then
+    echo "Python virtual environment already exists at ${VENV_DIR}."
+else
+    read -p "Create a Python virtual environment at ${VENV_DIR}? [y/N] " venv_answer
+    if [ "$venv_answer" = "y" ] || [ "$venv_answer" = "Y" ]; then
+        echo "Creating virtual environment..."
+        mkdir -p "${PYHERA_DIR}"
+        python3 -m venv "${VENV_DIR}"
+        echo "Installing requirements (this may take a while)..."
+        "${VENV_DIR}/bin/pip" install --upgrade pip
+        "${VENV_DIR}/bin/pip" install -r "${SCRIPT_DIR}/requirements.txt"
+        "${VENV_DIR}/bin/pip" install -e "${SCRIPT_DIR}"
+        echo "Virtual environment created and packages installed at ${VENV_DIR}."
+    else
+        echo "Skipped virtual environment creation."
+        echo "You can create one manually:"
+        echo "  python3 -m venv ${VENV_DIR}"
+        echo "  source ${VENV_DIR}/bin/activate"
+        echo "  pip install -r ${SCRIPT_DIR}/requirements.txt"
+        echo "  pip install -e ${SCRIPT_DIR}"
+    fi
+fi
 echo ""
 
 # Offer to persist to .bashrc
@@ -37,5 +56,32 @@ else
         echo "Added to ${BASHRC}. It will take effect in new shell sessions."
     else
         echo "Skipped. Run 'source ${SCRIPT_DIR}/set_hera_environment.sh' manually each session."
+    fi
+fi
+
+# Offer to auto-activate the Hera environment when entering the project directory
+ACTIVATE_LINE="source ${SCRIPT_DIR}/activate_hera.sh"
+AUTO_ACTIVATE_MARKER="# Hera auto-activate"
+
+if grep -qF "${AUTO_ACTIVATE_MARKER}" "${BASHRC}" 2>/dev/null; then
+    echo "Auto-activation on directory change is already configured in ${BASHRC}."
+elif [ -d "${VENV_DIR}" ] && [ -f "${VENV_DIR}/bin/activate" ]; then
+    echo ""
+    read -p "Auto-activate Hera environment when you cd into ${SCRIPT_DIR}? [y/N] " auto_answer
+    if [ "$auto_answer" = "y" ] || [ "$auto_answer" = "Y" ]; then
+        cat >> "${BASHRC}" <<AUTOEOF
+
+${AUTO_ACTIVATE_MARKER}
+cd() {
+    builtin cd "\$@" || return
+    if [ -f "\${PWD}/activate_hera.sh" ] && [ "\${PWD}" = "${SCRIPT_DIR}" ]; then
+        source "\${PWD}/activate_hera.sh"
+    fi
+}
+AUTOEOF
+        echo "Added auto-activation to ${BASHRC}."
+        echo "The Hera environment will activate automatically when you cd into ${SCRIPT_DIR}."
+    else
+        echo "Skipped. You can activate manually with: source ${SCRIPT_DIR}/activate_hera.sh"
     fi
 fi
