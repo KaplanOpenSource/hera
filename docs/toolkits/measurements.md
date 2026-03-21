@@ -109,6 +109,19 @@ ds = lc.getLandCover(minx=35.0, miny=32.0, maxx=35.1, maxy=32.1, dxdy=30)
 z0 = lc.getRoughness(minx=35.0, miny=32.0, maxx=35.1, maxy=32.1, dxdy=30)
 ```
 
+### Tiles
+
+**Toolkit name:** `GIS_Tiles`
+
+Tile-based raster data management for large datasets. Handles tiled storage and retrieval of raster data that is too large to fit in a single file.
+
+```python
+tiles = toolkitHome.getToolkit("GIS_Tiles", projectName="MY_PROJECT")
+
+# List available tile data sources
+tiles.getDataSourceList()
+```
+
 ---
 
 ## Meteorology Toolkits
