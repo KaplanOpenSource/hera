@@ -10,14 +10,14 @@ Hera is a Python-based platform for managing scientific data across measurements
 
 !!! tip "Quick Start"
     ```bash
-    # Activate the environment
-    source heraenv/bin/activate
-
-    # Initialize a project
+    git clone https://github.com/KaplanOpenSource/hera
+    cd hera
+    source init_with_mongo.sh
+    ```
+    Then in Python:
+    ```python
     from hera import Project, toolkitHome
     proj = Project(projectName="MY_PROJECT")
-
-    # Get a toolkit instance
     topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
     ```
 
@@ -106,17 +106,31 @@ flowchart TB
 
 ## Documentation Sections
 
+### [User Guide](user_guide/index.md)
+
+For users working **with** Hera — installation, configuration, toolkit usage, and workflows.
+
 | Section | Description |
 |---------|-------------|
-| [**Installation**](getting_started/installation.md) | Prerequisites, MongoDB setup, config file, environment variables |
+| [**Installation & Setup**](user_guide/installation.md) | Quick install and manual setup instructions |
 | [**CLI Reference**](cli/reference.md) | All `hera-*` command-line tools with usage examples |
+| [**Toolkit Catalog**](toolkits/overview.md) | Per-domain toolkit guides: GIS, Meteorology, Simulations, Risk |
+| [**Workflows & Examples**](examples/workflows.md) | Step-by-step data processing guides |
+| [**Cheat Sheet**](reference/cheat_sheet.md) | Quick command and API reference |
+| [**Troubleshooting**](troubleshooting.md) | Common errors and their solutions |
+
+### [Developer Guide](developer_guide/index.md)
+
+For developers working **on** Hera — architecture, data model, testing, and extending the platform.
+
+| Section | Description |
+|---------|-------------|
 | [**Core Concepts**](architecture/core_concepts.md) | Deep dive into `Project`, `ToolkitHome`, and `abstractToolkit` with class diagrams |
 | [**Data Layer**](architecture/data_layer.md) | MongoDB document model, `datatypes`, and the repository JSON pipeline |
-| [**Toolkit Catalog**](toolkits/overview.md) | Per-domain toolkit guides: GIS, Meteorology, Simulations, Risk |
 | [**Testing Flow**](testing/flow.md) | Pytest session lifecycle, fixtures, comparison helpers, and expected-output mechanism |
+| [**Repository Schema**](reference/repository_schema.md) | Detailed schema documentation |
 | [**Environment Variables**](configuration/env_vars.md) | Complete reference of all environment variables |
 | [**Glossary**](glossary.md) | Definitions of key Hera terms |
-| [**Troubleshooting**](troubleshooting.md) | Common errors and their solutions |
 
 ---
 

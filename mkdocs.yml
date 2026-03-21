@@ -77,28 +77,32 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Installation: getting_started/installation.md
+  - User Guide:
+      - Overview: user_guide/index.md
+      - Installation & Setup: user_guide/installation.md
       - CLI Reference: cli/reference.md
-  - Architecture:
-      - Core Concepts: architecture/core_concepts.md
-      - Data Layer: architecture/data_layer.md
-  - Toolkits:
-      - Toolkit Catalog: toolkits/overview.md
-  - Examples:
-      - Repository Examples: examples/repository_examples.md
-      - Workflows: examples/workflows.md
-  - Guides:
+      - Toolkits:
+          - Toolkit Catalog: toolkits/overview.md
+      - Examples:
+          - Repository Examples: examples/repository_examples.md
+          - Workflows: examples/workflows.md
       - Best Practices: guides/best_practices.md
-  - Testing:
-      - Getting Started: testing/getting_started.md
-      - Test Flow: testing/flow.md
-  - Reference:
-      - Cheat Sheet: reference/cheat_sheet.md
-      - Repository Schema: reference/repository_schema.md
-      - Environment Variables: configuration/env_vars.md
-      - Glossary: glossary.md
+      - Quick Reference:
+          - Cheat Sheet: reference/cheat_sheet.md
+          - Environment Variables: configuration/env_vars.md
+          - Glossary: glossary.md
       - Troubleshooting: troubleshooting.md
-  - FAQ: faq.md
-  - Tutorials:
-      - Exploration Notebook: notebooks/exploration.ipynb
+      - FAQ: faq.md
+  - Developer Guide:
+      - Overview: developer_guide/index.md
+      - Architecture:
+          - Core Concepts: architecture/core_concepts.md
+          - Data Layer: architecture/data_layer.md
+      - Testing:
+          - Getting Started: testing/getting_started.md
+          - Test Flow: testing/flow.md
+      - Reference:
+          - Repository Schema: reference/repository_schema.md
+          - Environment Variables: configuration/env_vars.md
+      - Tutorials:
+          - Exploration Notebook: notebooks/exploration.ipynb
