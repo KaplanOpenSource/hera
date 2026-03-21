@@ -27,16 +27,39 @@ class InjuryLevel(object):
 
 	_units 	    = None 
 	
-	@property 
-	def name(self): 
-		return self._name 
+	@property
+	def name(self):
+		"""Name of this injury level.
+
+		Returns
+		-------
+		str
+		"""
+		return self._name
 
 
-	@property 
+	@property
 	def units(self):
+		"""Units associated with this injury level.
+
+		Returns
+		-------
+		pint.Unit or None
+		"""
 		return self._units
 
 	def __init__(self,name,units=None,**parameters):
+		"""Initialize the injury level.
+
+		Parameters
+		----------
+		name : str
+			Name of the injury level.
+		units : pint.Unit or None, optional
+			Units for the threshold values.
+		**parameters
+			Additional keyword parameters (e.g. TL_50, sigma).
+		"""
 		self._name = name
 		self._parameters = parameters
 		self._units = units
@@ -128,11 +151,13 @@ class InjuryLevel(object):
 
 
 	def toJSON(self):
+		"""Serialize the injury level to a JSON-compatible dictionary."""
 		return dict(name=self.name,
 					units=str(self.units))
 
 
 	def __str__(self):
+		"""Return a JSON string representation of the injury level."""
 		json.dumps(self.toJSON(),indent=4)
 
 
@@ -147,12 +172,24 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		This class also return the toxic load of a requested fraction. 
 	"""
 
-	@property 
-	def TL_50(self): 	
+	@property
+	def TL_50(self):
+		"""Toxic load at which 50% of the population is affected.
+
+		Returns
+		-------
+		pint.Quantity
+		"""
 		return self._parameters["TL_50"]
-	
-	@property 
+
+	@property
 	def sigma(self):
+		"""Probit inverse (log-normal standard deviation).
+
+		Returns
+		-------
+		float
+		"""
 		return self._parameters["sigma"]
 	
 	def __init__(self,name,**parameters):
@@ -200,7 +237,18 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		return prob
 
 
-	def getToxicLoad(self,Percent): 
+	def getToxicLoad(self,Percent):
+		"""Return the toxic load corresponding to a given injury fraction.
+
+		Parameters
+		----------
+		Percent : float or array_like
+			Desired injury fraction(s) (0-1).
+
+		Returns
+		-------
+		float or numpy.ndarray
+		"""
 		a = numpy.log10(numpy.e)
 		percent = lognorm.ppf(Percent,self.sigma/a,scale=self.TL_50.m_as(dosage)/a)*a
 		return percent
@@ -234,6 +282,7 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 		return ret
 
 	def toJSON(self):
+		"""Serialize the lognormal dose-response level to a JSON-compatible dictionary."""
 		ret = super().toJSON()
 		ret['type'] = 'logNormalBase10'
 		ret['TL_50'] = str(self.TL_50)
@@ -243,14 +292,31 @@ class InjuryLevelLognormal10DoseResponse(InjuryLevel):
 
 ################################################################################################
 
-class InjuryLevelThreshold(InjuryLevel): 
+class InjuryLevelThreshold(InjuryLevel):
+	"""Injury level defined by a single concentration threshold."""
 
-	@property 
-	def threshold(self): 
+	@property
+	def threshold(self):
+		"""Concentration threshold value.
+
+		Returns
+		-------
+		pint.Quantity
+		"""
 		return self._parameters["threshold"]
 
 	def __init__(self,name,units=None,**parameters):
+		"""Initialize a threshold-based injury level.
 
+		Parameters
+		----------
+		name : str
+			Name of the injury level.
+		units : pint.Unit or None, optional
+			Concentration units; defaults to mg/m^3.
+		**parameters
+			Must include ``threshold``.
+		"""
 		actualunit = ureg.mg/ureg.m**3 if units is None else units
 		if "threshold" not in parameters: 
 			raise ValueError("Cannot find the threshold")
@@ -262,6 +328,7 @@ class InjuryLevelThreshold(InjuryLevel):
 		super(InjuryLevelThreshold,self).__init__(name,units=actualunit,**parameters)
 
 	def getPercent(self,ToxicLoad):
+		"""Return 1 if toxic load exceeds threshold, else 0."""
 		threshold = self.threshold
 		ToxicLoad = numpy.atleast_1d(ToxicLoad)
 		ret = numpy.array([ 1 if tounit(x,self.units) > threshold else 0 for x in ToxicLoad])
@@ -269,17 +336,18 @@ class InjuryLevelThreshold(InjuryLevel):
 
 	def _getGeopandas(self,concentrationField,x,y,**parameters):
 		"""
-			Return the correct geopandas of the  Injury level 
+			Return the correct geopandas of the  Injury level
 		"""
 		level = self.threshold.asNumber()
 		CS =  plt.contour(concentrationField[x],concentrationField[y],concentrationField.squeeze(),levels=numpy.atleast_1d(level))
-		if numpy.max(CS.levels) < level: 
+		if numpy.max(CS.levels) < level:
 			ret = geopandas.GeoDataFrame()
 		else:
 			ret = toGeopandas(CS)
 		return ret
 
 	def toJSON(self):
+		"""Serialize the threshold injury level to a JSON-compatible dictionary."""
 		ret = super().toJSON()
 		ret['type'] = 'threshold'
 		ret['threshold'] = str(self.threshold)
@@ -287,21 +355,36 @@ class InjuryLevelThreshold(InjuryLevel):
 
 ################################################################################################
 
-class InjuryLevelExponential(InjuryLevel): 
+class InjuryLevelExponential(InjuryLevel):
+	"""Injury level using an exponential dose-response model."""
 
-	@property 
-	def k(self): 
+	@property
+	def k(self):
+		"""Exponential rate constant.
+
+		Returns
+		-------
+		float
+		"""
 		return self._parameters["k"]
 
 	def __init__(self,name,**parameters):
+		"""Initialize an exponential injury level.
 
+		Parameters
+		----------
+		name : str
+			Name of the injury level.
+		**parameters
+			Must include ``k`` (the rate constant).
+		"""
 
 		parameters["k"] = float(parameters["k"])
 
 		super().__init__(name,**parameters)
 
 	def getPercent(self,ToxicLoad):
-		
+		"""Return the fraction affected using ``1 - exp(-k * ToxicLoad)``."""
 		ret = 1-numpy.exp(-self.k*numpy.array(ToxicLoad))
 		return ret 
 
@@ -320,6 +403,7 @@ class InjuryLevelExponential(InjuryLevel):
 
 
 	def toJSON(self):
+		"""Serialize the exponential injury level to a JSON-compatible dictionary."""
 		ret = super().toJSON()
 		ret['type'] = 'exponential'
 		ret['k'] = str(self.k)

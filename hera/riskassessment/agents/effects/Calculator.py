@@ -10,18 +10,33 @@ class AbstractCalculator(object):
 
 	# The breathing rate with which the injury level was determined. 
 	_injury_breathingRate = None 
-	@property 
-	def injuryBreathingRate(self): 
+	@property
+	def injuryBreathingRate(self):
+		"""Breathing rate used when the injury level was determined.
+
+		Returns
+		-------
+		pint.Quantity
+		"""
 		return self._injury_breathingRate
 
-	def __init__(self,breathingRate=10*ureg.L/ureg.min): 
+	def __init__(self,breathingRate=10*ureg.L/ureg.min):
+		"""Initialize with the reference breathing rate.
+
+		Parameters
+		----------
+		breathingRate : pint.Quantity, optional
+			Default is 10 L/min.
+		"""
 		self._injury_breathingRate=breathingRate
 
 
 	def toJSON(self):
+		"""Serialize the calculator to a JSON-compatible dictionary."""
 		return dict(breathingRate=str(self.injuryBreathingRate))
 
 	def __str__(self):
+		"""Return a JSON string representation of the calculator."""
 		return json.dumps(self.toJSON())
 
 class CalculatorHaber(AbstractCalculator): 
@@ -90,6 +105,7 @@ class CalculatorHaber(AbstractCalculator):
 			raise ValueError("concentrationField is not a pandas.DataFrame or xarray.Dataset")
 
 	def toJSON(self):
+		"""Serialize the Haber calculator to a JSON-compatible dictionary."""
 		ret = super().toJSON()
 		ret['type'] = 'haber'
 		return ret
@@ -168,13 +184,15 @@ class CalculatorTenBerge(AbstractCalculator):
 			raise ValueError("concentrationField is not a pandas.DataFrame or xarray.Dataset")
 
 	def toJSON(self):
+		"""Serialize the Ten Berge calculator to a JSON-compatible dictionary."""
 		ret = super().toJSON()
 		ret['type'] = 'tenBerge'
 		ret['n'] = str(self.n)
 		return ret
 
-class CalculatorMaxConcentration(AbstractCalculator): 
-	
+class CalculatorMaxConcentration(AbstractCalculator):
+	"""Calculator using the maximum rolling-average concentration."""
+
 	def __init__(self,sampling,breathingRate=10*ureg.L/ureg.min,**kwargs): 
 		"""
 			Implements the maximal concentration on the time axis.
@@ -238,6 +256,7 @@ class CalculatorMaxConcentration(AbstractCalculator):
 
 
 	def toJSON(self):
+		"""Serialize the max-concentration calculator to a JSON-compatible dictionary."""
 		ret = super().toJSON()
 		ret['type'] = 'maxConcentrations'
 		return ret

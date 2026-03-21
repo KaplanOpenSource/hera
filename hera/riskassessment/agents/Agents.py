@@ -92,6 +92,7 @@ class Agent:
 
 	@tenbergeCoefficient.setter
 	def tenbergeCoefficient(self,value):
+		"""Set the Ten Berge coefficient and rebuild effects."""
 		self._effectParameters["tenbergeCoefficient"] = float(value)
 		for effectname,effectconfig in self._agentconfig["effects"].items():
 			self._effects[effectname] = injuryfactory.getInjury(effectname,effectconfig,**self._effectParameters)
@@ -165,6 +166,7 @@ class Agent:
 
 
 	def __str__(self):
+		"""Return a JSON string representation of the agent."""
 		return json.dumps(self.toJSON(),indent=4)
 
 
@@ -182,14 +184,17 @@ class PhysicalPropeties(object):
 
 	@property
 	def _volatilityConst(self):
+		"""Volatility constants from the physical properties descriptor."""
 		return self._params["volatilityConstants"]
 
 	@property
 	def _densityConst(self):
+		"""Density constants from the physical properties descriptor."""
 		return self._params["densityConstants"]
 
 	@property
 	def _vaporConst(self):
+		"""Vapor pressure constants from the physical properties descriptor."""
 		return self._params["vaporPressure"]
 
 	@property
@@ -204,6 +209,7 @@ class PhysicalPropeties(object):
 
 	@molecularWeight.setter
 	def molecularWeight(self,value):
+		"""Set the molecular weight, converting to g/mol."""
 		self._molecularWeight = ureg(value).to("g/mol")
 
 	@property
@@ -213,6 +219,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
+		"""Set the sorption coefficient, converting to cm/s."""
 		self._sorptionCoefficient = ureg(value).to("cm/s")
 
 	@property
@@ -222,6 +229,7 @@ class PhysicalPropeties(object):
 
 	@spreadFactor.setter
 	def spreadFactor(self,value):
+		"""Set the spread factor as a float."""
 		self._spreadFactor = float(value)
 
 	def getMolecularWeight(self):

@@ -201,6 +201,12 @@ class ProtectionPolicy(object):
 
 	@property
 	def hdfkey(self):
+		"""Combined HDF key for all actions in this policy.
+
+		Returns
+		-------
+		str
+		"""
 		return "/".join([action.hdfkey for action in self._actionList])
 
 
@@ -279,8 +285,9 @@ class abstractAction(object):
 		self._policy 	 = policy
 		self._params     = kwargs
 
-	@classmethod 
-	def getAction(cls,actionID,policy,name,params): 
+	@classmethod
+	def getAction(cls,actionID,policy,name,params):
+		"""Instantiate a concrete action subclass by name."""
 		actionCLS = pydoc.locate("hera.riskassessment.protectionpolicy.ProtectionPolicy.Action%s" % name.title())
 		return actionCLS(actionID,policy,**params)
 
@@ -295,16 +302,29 @@ class abstractAction(object):
 		"""
 		pass
 
-class ActionIndoor(abstractAction): 
+class ActionIndoor(abstractAction):
+	"""Protection action that models sheltering indoors."""
 
 	_alpha = None
-	
-	@property 
-	def turnover(self):
-		return 1/self._alpha 
 
-	@property 
-	def alpha(self): 
+	@property
+	def turnover(self):
+		"""Air turnover rate (inverse of alpha).
+
+		Returns
+		-------
+		pint.Quantity
+		"""
+		return 1/self._alpha
+
+	@property
+	def alpha(self):
+		"""Infiltration rate (1 / turnover).
+
+		Returns
+		-------
+		pint.Quantity
+		"""
 		return self._alpha
 		
 	def __init__(self,actionID,policy,**kwargs): 
@@ -375,9 +395,11 @@ class ActionIndoor(abstractAction):
 
 	@property
 	def hdfkey(self):
+		"""HDF key encoding indoor turnover and time window."""
 		return "indoorT%dmin%s" % (self.turnover.m_as(ureg.min),self._timekey())
 
 	def _timekey(self):
+		"""Return a string encoding the enter/stay time window."""
 		data = self.policy.data
 		if "enter" in self.params:
 			enter = self.params["enter"]
@@ -393,13 +415,20 @@ class ActionIndoor(abstractAction):
 
 
 
-class ActionMasks(abstractAction): 
+class ActionMasks(abstractAction):
+	"""Protection action that models wearing masks."""
 
 	_protectionFactor = None
-	
-	@property 
+
+	@property
 	def protectionFactor(self):
-		return self._protectionFactor 
+		"""Mask protection factor (concentration divisor).
+
+		Returns
+		-------
+		float
+		"""
+		return self._protectionFactor
 	
 	def __init__(self,actionID,policy,**kwargs): 
 		"""
@@ -457,10 +486,11 @@ class ActionMasks(abstractAction):
 
 	@property
 	def hdfkey(self):
-
+		"""HDF key encoding mask protection factor and time window."""
 		return "maskPF%d%s" % (self.protectionFactor,self._timekey())
 
 	def _timekey(self):
+		"""Return a string encoding the wear/duration time window."""
 		data = self.policy.data
 		if "wear" in self.params:
 			wear  = self.params["wear"]

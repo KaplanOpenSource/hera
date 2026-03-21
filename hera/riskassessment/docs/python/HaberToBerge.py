@@ -10,9 +10,30 @@ class EstimateTBProbit(object):
 		does not converge. 
 	"""
 	def __init__(self,n):
-		self.n = n 
+		"""
+		Initialize with the Ten Berge exponent.
 
-	def transform(self,dosage): 
+		Parameters
+		----------
+		n : float
+			The Ten Berge exponent.
+		"""
+		self.n = n
+
+	def transform(self,dosage):
+		"""
+		Transform a Haber dosage to a Ten Berge dosage.
+
+		Parameters
+		----------
+		dosage : float or array
+			The Haber dosage value(s).
+
+		Returns
+		-------
+		float or array
+			The transformed Ten Berge dosage.
+		"""
 		return 2*(dosage/2)**self.n
 
 	def plotGuess(self,newProbit,E50,probit): 

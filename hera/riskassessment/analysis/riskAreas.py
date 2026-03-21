@@ -60,6 +60,7 @@ class riskAreaAlgorithm_Sweep(object):
 
 	@workerCount.setter
 	def workerCount(self,value):
+		"""Set the number of parallel worker processes."""
 		self._workerCount = int(value)
 
 	@property
@@ -73,6 +74,7 @@ class riskAreaAlgorithm_Sweep(object):
 
 	@parallel.setter
 	def parallel(self,value):
+		"""Set whether to run the sweep in parallel."""
 		self._runParallel = bool(value)
 
 	@property
@@ -94,6 +96,7 @@ class riskAreaAlgorithm_Sweep(object):
 
 	@dxdy.setter
 	def dxdy(self,value):
+		"""Set the grid spacing in metres."""
 		self._dxdy = float(value)
 
 	def __init__(self,dxdy=150,outlayers=3,parallel=True):
@@ -169,6 +172,7 @@ class riskAreaAlgorithm_Sweep(object):
 		return ret
 
 	def _doCalculation(self,releaseLoc,params):
+		"""Project effect isopleths at a single release location and return casualties."""
 		effectIsopleths = params["effectIsopleths"]
 		projected = effectIsopleths.datalayer(params["demog"], releaseLoc, mathematical_angle=params["rotate_angle"])
 		if projected is not None:
