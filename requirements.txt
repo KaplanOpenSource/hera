@@ -234,7 +234,7 @@ PuLP==3.0.2
 pure_eval==0.2.3
 py-staticmaps==0.4.0
 pyarrow==19.0.1
-pyasn1==0.6.2
+pyasn1==0.6.3
 pyasn1_modules==0.4.1
 pycparser==2.22
 pyevtk==1.6.0
