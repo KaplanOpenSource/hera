@@ -69,6 +69,12 @@ classDiagram
     ToolkitHome ..> abstractToolkit : "instantiates via getToolkit()"
 ```
 
+| Class | Role | Key methods |
+|-------|------|------------|
+| `Project` | Central data access layer — CRUD for measurements, simulations, cache | `addMeasurementsDocument`, `getMeasurementsDocuments`, `setConfig`, `getCounterAndAdd`, `saveData`, `export` |
+| `abstractToolkit` | Base for all domain toolkits — adds datasource management, analysis/presentation layers | `addDataSource`, `getDataSourceData`, `getDataSourceList`, `deleteDataSource`, `setDataSourceDefaultVersion` |
+| `ToolkitHome` | Registry/factory — resolves toolkit names to classes | `getToolkit`, `getToolkitTable`, `registerToolkit`, `getToolkitDocuments` |
+
 ### Concrete Toolkit Hierarchy
 
 All domain toolkits extend `abstractToolkit`. The diagram below shows the full inheritance tree including the special `dataToolkit` that manages repositories.
@@ -156,6 +162,19 @@ classDiagram
     abstractToolkit <|-- LSMToolkit : "simulations"
     abstractToolkit <|-- RiskToolkit : "risk assessment"
 ```
+
+| Toolkit class | Domain | Key capabilities |
+|--------------|--------|-----------------|
+| `dataToolkit` | Data | Repository management, loading data sources into projects |
+| `TopographyToolkit` | GIS (raster) | Elevation data, STL generation, CRS conversion |
+| `BuildingsToolkit` | GIS (vector) | Building footprints, 3D STL for CFD |
+| `DemographyToolkit` | GIS (vector) | Population calculations within polygons |
+| `LandCoverToolkit` | GIS (raster) | Land cover classification, roughness estimation |
+| `lowFreqToolKit` | Meteorology | Hourly/daily station data with analysis + presentation |
+| `HighFreqToolKit` | Meteorology | High-frequency sonic anemometer data |
+| `OFToolkit` | Simulations | OpenFOAM lifecycle (templates, running, post-processing) |
+| `LSMToolkit` | Simulations | Lagrangian Stochastic Model |
+| `RiskToolkit` | Risk | Agent-based hazard and casualty modeling |
 
 ---
 

@@ -78,6 +78,12 @@ markdown_extensions:
   - toc:
       permalink: true
 
+extra_css:
+  - overrides/stylesheets/mermaid-zoom.css
+
+extra_javascript:
+  - overrides/javascripts/mermaid-zoom.js
+
 nav:
   - Home: index.md
   - User Guide:
