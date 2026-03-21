@@ -9,6 +9,12 @@ This section is for developers working on or extending the Hera platform. It cov
 - **[Core Concepts](../architecture/core_concepts.md)** - Deep dive into `Project`, `ToolkitHome`, and `abstractToolkit` with class diagrams
 - **[Data Layer](../architecture/data_layer.md)** - MongoDB document model, `datatypes`, and the repository JSON pipeline
 
+## Toolkit Implementation
+
+- **[Measurements](measurements.md)** - GIS, meteorology, and experiment toolkit internals, class hierarchies, coordinate utilities
+- **[Simulations](simulations.md)** - OpenFOAM, LSM, Gaussian, wind profile, workflow system internals
+- **[Risk Assessment](risk_assessment.md)** - Agent/effects/injury system, protection policies, risk area algorithms
+
 ## API Reference
 
 - **[API Reference](api/index.md)** - Auto-generated documentation from Python source code covering all public classes and functions
