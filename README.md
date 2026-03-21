@@ -222,9 +222,9 @@ mkdocs build --strict
 
 ### Automated Documentation Deployment
 
-The documentation is automatically deployed to GitHub Pages whenever changes are pushed to the `main` branch.
+The documentation is automatically deployed to GitHub Pages whenever changes are pushed to the `master` branch.
 
-- A GitHub Actions workflow (`.github/workflows/docs.yml`) monitors the `main` branch
+- A GitHub Actions workflow (`.github/workflows/docs.yml`) monitors the `master` branch
 - When changes are detected in `docs/`, `mkdocs.yml`, or `hera/` code, it builds and deploys automatically
 - The live site updates within 1-2 minutes after merging to `main`
 
