@@ -42,6 +42,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		return ret 
 
 	def _shiftPolygons(self,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon"):
+		"""Rotate and translate polygons to a given location and wind angle."""
 		self = self.set_geometry(geometry)
 
 		rotate_angle = mathematical_angle if meteorological_angle is None else toMathematicalAngle(meteorological_angle)

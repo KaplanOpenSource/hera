@@ -14,9 +14,15 @@ class InjuryFactory(object):
 
 	_name = None
 
-	@property 
-	def name(self): 
-		return self._name 
+	@property
+	def name(self):
+		"""Name of this injury factory.
+
+		Returns
+		-------
+		str
+		"""
+		return self._name
 
 	def getInjury(self,name,cfgJSON,**additionalparameters): 
 		"""
@@ -73,17 +79,36 @@ class Injury(object):
 
 	@property
 	def calculator(self):
+		"""The calculator used for toxic load computation.
+
+		Returns
+		-------
+		AbstractCalculator
+		"""
 		return self._calculator
 
-	@property 
-	def levels(self): 
+	@property
+	def levels(self):
+		"""Ordered list of injury levels.
+
+		Returns
+		-------
+		list of InjuryLevel
+		"""
 		return self._levels
 
 	@property
-	def levelNames(self): 
+	def levelNames(self):
+		"""Names of all injury levels.
+
+		Returns
+		-------
+		list of str
+		"""
 		return [x.name for x in self._levels]
 
 	def __getitem__(self,name):
+		"""Access an injury level by name."""
 		return self._levelsmap[name]
 
 	def __init__(self,name,cfgJSON,calculator,units=None):
@@ -171,6 +196,7 @@ class Injury(object):
 
 	def calculate(self, concentrationField, field, time="datetime", x="x", y="y", breathingRate=10 * ureg.L / ureg.min,
 				  **parameters):
+		"""Deprecated. Use ``calculateRegionOfInjured`` instead."""
 		import warnings
 		warnings.warn("This function is obselete. Use calculateRegionOfInjured instead")
 		return self.calculateRegionOfInjured(concentrationField=concentrationField,
@@ -356,6 +382,7 @@ class Injury(object):
 
 
 	def toJSON(self):
+		"""Serialize the injury to a JSON-compatible dictionary."""
 		ret = dict()
 		#ret['name']  = self._name
 		ret['levels'] = dict([(lvl.name,lvl.toJSON()) for lvl in self.levels])
@@ -363,12 +390,15 @@ class Injury(object):
 		return ret
 
 	def __str__(self):
+		"""Return a JSON string representation of the injury."""
 		json.dumps(self.toJSON(),indent=4)
 
 
 
 
-class InjuryLognormal10(Injury): 
+class InjuryLognormal10(Injury):
+	"""Injury using base-10 lognormal dose-response levels."""
+
 	def _postCalculate(self,retList,time):
 		"""
                         Fill in the actual % that was effected. 
@@ -383,7 +413,9 @@ class InjuryLognormal10(Injury):
 		return pandas.concat(modList,ignore_index=True)
 
 
-class InjuryThreshold(Injury): 
+class InjuryThreshold(Injury):
+	"""Injury using threshold-based levels."""
+
 	def _postCalculate(self,retList,time):
 		"""
                         Calculate the percent Effected and calculate the differential polygons. 
@@ -398,6 +430,8 @@ class InjuryThreshold(Injury):
 
 
 class InjuryExponential(Injury):
+	"""Injury using exponential dose-response levels."""
+
 	def _postCalculate(self,retList,time):
 		"""
                         Calculate the percent Effected and calculate the differential polygons. 
