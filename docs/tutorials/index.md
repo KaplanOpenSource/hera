@@ -10,18 +10,18 @@ These notebooks complement the User Guide — they show the same concepts in a h
 
 Start here if you're new to Hera. These notebooks cover the fundamentals in order:
 
-| Notebook | What you'll learn | Related docs |
-|----------|------------------|-------------|
-| [Project](Project.ipynb) | Creating projects (CLI + Python), caseConfiguration.json, loading documents manually | [Projects](../user_guide/projects.md) |
-| [Toolkit and DataSource](Toolkit_and_DataSource.ipynb) | What toolkits are, available toolkit names, initializing toolkits, data source JSON structure | [Key Concepts](../user_guide/concepts.md), [Working with Data](../user_guide/working_with_data.md#data-sources) |
-| [DataSource](DataSource.ipynb) | Adding data sources, versioning, listing, querying, getting data, deleting | [Working with Data > Data Sources](../user_guide/working_with_data.md#data-sources) |
-| [Repository](Repository.ipynb) | Repository management (add, list, remove, show), JSON structure, DataSource vs Measurements items | [Key Concepts > Repositories](../user_guide/concepts.md#repositories), [CLI Reference](../cli/reference.md#repository-management) |
+| Notebook | What you'll learn | Related docs | Download |
+|----------|------------------|-------------|----------|
+| [Project](Project.ipynb) | Creating projects (CLI + Python), caseConfiguration.json, loading documents manually | [Projects](../user_guide/projects.md) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/Project.ipynb) |
+| [Toolkit and DataSource](Toolkit_and_DataSource.ipynb) | What toolkits are, available toolkit names, initializing toolkits, data source JSON structure | [Key Concepts](../user_guide/concepts.md), [Working with Data](../user_guide/working_with_data.md#data-sources) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/Toolkit_and_DataSource.ipynb) |
+| [DataSource](DataSource.ipynb) | Adding data sources, versioning, listing, querying, getting data, deleting | [Working with Data > Data Sources](../user_guide/working_with_data.md#data-sources) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/DataSource.ipynb) |
+| [Repository](Repository.ipynb) | Repository management (add, list, remove, show), JSON structure, DataSource vs Measurements items | [Key Concepts > Repositories](../user_guide/concepts.md#repositories), [CLI Reference](../cli/reference.md#repository-management) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/Repository.ipynb) |
 
 ## Toolkit Tutorials
 
-| Notebook | What you'll learn | Related docs |
-|----------|------------------|-------------|
-| [Tile Toolkit](TileToolkitDocumentation.ipynb) | Map images from tile servers, WGS84 and ITM coordinates, custom tile servers | [Measurements > Tiles](../toolkits/measurements.md#tiles) |
+| Notebook | What you'll learn | Related docs | Download |
+|----------|------------------|-------------|----------|
+| [Tile Toolkit](TileToolkitDocumentation.ipynb) | Map images from tile servers, WGS84 and ITM coordinates, custom tile servers | [Measurements > Tiles](../toolkits/measurements.md#tiles) | [:material-download: .ipynb](https://github.com/KaplanOpenSource/hera/raw/master/docs/tutorials/TileToolkitDocumentation.ipynb) |
 
 ### How to run the tutorials
 
