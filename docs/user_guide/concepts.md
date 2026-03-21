@@ -194,6 +194,52 @@ docs = proj.getSimulationsDocuments(
 
 This makes it possible to build rich, hierarchical metadata and query any level of the tree without loading documents into memory first.
 
+### Building queries from dictionaries: `dictToMongoQuery`
+
+When you pass keyword arguments to `getMeasurementsDocuments()`, Hera handles the flattening automatically. But sometimes you have a query as a Python dictionary — for example, loaded from a JSON config file or built programmatically. The utility function `dictToMongoQuery` converts a nested dictionary into MongoEngine's `__` query format:
+
+```python
+from hera.utils import dictToMongoQuery
+
+# A nested query dict (e.g., loaded from JSON)
+query_dict = {
+    "scenario": {
+        "source": "factory_A",
+        "wind": {
+            "speed": 5.0,
+            "direction": 270
+        }
+    },
+    "status": "completed"
+}
+
+# Convert to MongoEngine query format
+mongo_query = dictToMongoQuery(query_dict)
+# Result:
+# {
+#     "scenario__source": "factory_A",
+#     "scenario__wind__speed": 5.0,
+#     "scenario__wind__direction": 270,
+#     "status": "completed"
+# }
+
+# Use it directly in a query
+docs = proj.getMeasurementsDocuments(type="DispersionRun", **mongo_query)
+```
+
+The conversion rules:
+
+| Input | Output |
+|-------|--------|
+| `{"field": "value"}` | `{"field": "value"}` |
+| `{"field": {"sub": 1}}` | `{"field__sub": 1}` |
+| `{"a": {"b": {"c": 3}}}` | `{"a__b__c": 3}` |
+| `{"items": [10, 20]}` | `{"items__0": 10, "items__1": 20}` |
+
+This is especially useful when your query parameters come from an external source (a JSON file, CLI arguments, or a repository configuration) rather than hardcoded keyword arguments.
+
+Hera also provides `ConfigurationToJSON` (`hera.utils.jsonutils`) which handles the reverse direction — converting Python objects (including physical units via `Unum`) into JSON-safe dictionaries suitable for storing in `desc` fields. Together, these utilities form the bridge between structured Python data and MongoDB queries.
+
 ---
 
 ## Toolkits: Portals to Specific Data Types
