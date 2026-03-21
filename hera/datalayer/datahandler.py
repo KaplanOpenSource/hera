@@ -37,6 +37,13 @@ elif version == 2:
 
 
 class datatypes:
+    """
+    Registry of supported data format constants and dispatch logic for data handlers.
+
+    Each constant (e.g. ``STRING``, ``PARQUET``, ``HDF``) identifies a data format.
+    Use ``getHandler(formatName)`` to retrieve the corresponding ``DataHandler_*`` class,
+    or ``getDataFormatName(obj)`` to auto-detect the format from a Python object.
+    """
     STRING = "string"
     TIME = "time"
     CSV_PANDAS = "csv_pandas"
@@ -145,13 +152,42 @@ class datatypes:
 
     @staticmethod
     def guessHandler(obj_or_class):
+        """
+        Auto-detect the data format and return the appropriate handler class.
 
+        Parameters
+        ----------
+        obj_or_class : object or type
+            The data object or class to detect the format for.
+
+        Returns
+        -------
+        DataHandler class
+            The handler class for the detected format.
+        """
         dataTypeName = datatypes.getDataFormatName(obj_or_class)
 
         return datatypes.getHandler(objectType=dataTypeName)
 
     @staticmethod
     def getHandler(objectType):
+        """
+        Return the DataHandler class for the given data format name.
+
+        Parameters
+        ----------
+        objectType : str
+            A data format name (e.g. ``datatypes.PARQUET``).
+
+        Returns
+        -------
+        DataHandler class
+
+        Raises
+        ------
+        ValueError
+            If no handler exists for the given type.
+        """
         dataHandlerModule = importlib.import_module("hera.datalayer.datahandler")
 
         handlerName = f"DataHandler_{objectType}"

@@ -55,6 +55,36 @@ def clearFunctionCache(functionName,projectName=None):
     return True
 
 def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProcessFunction=None, getDataParams={},storeDataParams={}):
+    """
+    Decorator that caches a function's return value in the project database.
+
+    On first call, the function executes and its result is saved as a cache document.
+    On subsequent calls with the same arguments, the cached result is returned
+    instead of re-executing the function.
+
+    Can be used with or without arguments::
+
+        @cacheFunction
+        def my_func(x):
+            ...
+
+        @cacheFunction(returnFormat=datatypes.PARQUET, projectName="myproject")
+        def my_func(x):
+            ...
+
+    Parameters
+    ----------
+    returnFormat : str, optional
+        The data format to use when storing the result. If None, auto-detected.
+    projectName : str, optional
+        The project to store the cache in. If None, loaded from caseConfiguration.
+    postProcessFunction : callable, optional
+        A function applied to the result before returning it.
+    getDataParams : dict, optional
+        Extra keyword arguments passed to ``getData`` when loading from cache.
+    storeDataParams : dict, optional
+        Extra keyword arguments passed when saving to cache.
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -80,6 +110,12 @@ def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProces
 #####                                                                                    #####
 ##############################################################################################
 class cacheDecorators:
+    """
+    Internal implementation of the function caching mechanism.
+
+    Wraps a function call, serializes its arguments, checks the database for
+    a cached result, and stores the result if not already cached.
+    """
 
     prepareFunction = None
     postProcessFunction = None

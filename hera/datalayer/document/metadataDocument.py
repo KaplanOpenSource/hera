@@ -28,6 +28,19 @@ class MetadataFrame(object):
     dataFormat = StringField(required=True)
 
     def asDict(self, with_id=False):
+        """
+        Convert the document to a plain dictionary.
+
+        Parameters
+        ----------
+        with_id : bool, optional
+            If True, include the ``_id`` key. Default is False.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of the document.
+        """
         docDict = json.loads(self.to_json())
         if not with_id:
             docDict.pop('_id')
@@ -66,7 +79,25 @@ class nonDBMetadataFrame(object):
     """
     _data = None
 
-    def __init__(self,data, projectName=None, type=None, resource=None, dataFormat=None,**desc):
+    def __init__(self, data, projectName=None, type=None, resource=None, dataFormat=None, **desc):
+        """
+        Initialize a non-database metadata frame.
+
+        Parameters
+        ----------
+        data : object
+            The data to wrap.
+        projectName : str, optional
+            The project name.
+        type : str, optional
+            The document type.
+        resource : str, optional
+            The resource path or identifier.
+        dataFormat : str, optional
+            The data format name.
+        desc : dict
+            Additional metadata fields.
+        """
         self.projectName = projectName
         self.type = type
         self.resource = resource
@@ -76,8 +107,28 @@ class nonDBMetadataFrame(object):
         self._data = data
 
     def getData(self, **kwargs):
+        """
+        Return the wrapped data object.
+
+        Returns
+        -------
+        object
+            The data passed at initialization.
+        """
         return self._data
 
     def __getitem__(self, item):
+        """
+        Access document attributes by key.
+
+        Parameters
+        ----------
+        item : str
+            The attribute name.
+
+        Returns
+        -------
+        object
+        """
         return self.__dict__[item]
 

@@ -155,6 +155,13 @@ class Project:
 
     @property
     def projectName(self):
+        """
+        The name of the current project.
+
+        Returns
+        -------
+        str
+        """
         return self._projectName
 
 
@@ -584,7 +591,20 @@ class Project:
         descList = [doc.desc for doc in AbstractCollection().getDocuments(projectName=self._projectName)]
         return pandas.DataFrame(descList)
 
-    def getDocumentByID(self,id):
+    def getDocumentByID(self, id):
+        """
+        Returns a document by its ID from any collection.
+
+        Parameters
+        ----------
+        id : str
+            The document ID.
+
+        Returns
+        -------
+        document
+            The document with the given ID.
+        """
         return self._all.getDocumentByID(id)
 
     def getMeasurementsDocumentsAsDict(self, with_id=False, **kwargs):
@@ -954,14 +974,23 @@ class Project:
         doc = funcName(type=fullType, dataFormat=guessedDataFormat, resource=fileName, desc=qry)
         return doc
 
-    def saveMeasurementData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
-        self.saveData(name=name,data=data,desc=desc,kind="Measurement",type=type,dataFormat=dataFormat,**kwargs)
+    def saveMeasurementData(self, name, data, desc, type=None, dataFormat=None, **kwargs):
+        """
+        Save data as a measurement document. See ``saveData`` for parameter details.
+        """
+        self.saveData(name=name, data=data, desc=desc, kind="Measurement", type=type, dataFormat=dataFormat, **kwargs)
 
-    def saveCacheData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
-        self.saveData(name=name,data=data,desc=desc,kind="Cache",type=type,dataFormat=dataFormat,**kwargs)
+    def saveCacheData(self, name, data, desc, type=None, dataFormat=None, **kwargs):
+        """
+        Save data as a cache document. See ``saveData`` for parameter details.
+        """
+        self.saveData(name=name, data=data, desc=desc, kind="Cache", type=type, dataFormat=dataFormat, **kwargs)
 
-    def saveSimulationData(self,name,data,desc,type=None,dataFormat=None,**kwargs):
-        self.saveData(name=name,data=data,desc=desc,kind="Simulation",type=type,dataFormat=dataFormat,**kwargs)
+    def saveSimulationData(self, name, data, desc, type=None, dataFormat=None, **kwargs):
+        """
+        Save data as a simulation document. See ``saveData`` for parameter details.
+        """
+        self.saveData(name=name, data=data, desc=desc, kind="Simulation", type=type, dataFormat=dataFormat, **kwargs)
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
