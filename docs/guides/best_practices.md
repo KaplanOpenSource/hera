@@ -206,7 +206,7 @@ all_docs = proj.getMeasurementsDocuments()
 my_docs = [d for d in all_docs if d.desc.get("toolkit") == "MeteoLowFreq"]
 
 # Good: Use toolkit's filtered method
-toolkit = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+toolkit = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 docs = toolkit.getDataSourceDocuments()  # Already filtered
 ```
 

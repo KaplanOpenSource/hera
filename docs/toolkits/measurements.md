@@ -7,7 +7,7 @@ All measurement toolkits are accessed via `toolkitHome.getToolkit()` and bound t
 ```python
 from hera import toolkitHome
 
-toolkit = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
+toolkit = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
 ```
 
 ---
@@ -23,7 +23,7 @@ GIS toolkits manage geographic data — elevation models, building footprints, l
 Works with SRTM elevation data (HGT files) to provide terrain information for any location.
 
 ```python
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
 
 # Get elevation at a single point
 elev = topo.getPointElevation(lat=32.5, long=35.2)
@@ -45,7 +45,7 @@ points = topo.convertPointsCRS(points, inputCRS=4326, outputCRS=2039)
 Works with vector-based topography — contour lines and survey points.
 
 ```python
-vtopo = toolkitHome.getToolkit("GIS_Vector_Topography", projectName="MY_PROJECT")
+vtopo = toolkitHome.getToolkit(toolkitHome.GIS_VECTOR_TOPOGRAPHY, projectName="MY_PROJECT")
 
 # Cut a region from a data source
 region = vtopo.cutRegionFromSource(shape=my_polygon, datasource="contours")
@@ -61,7 +61,7 @@ vtopo.regionToSTL(shape=my_polygon, dxdy=30, datasource="contours")
 Manages building footprint data and generates 3D meshes for CFD simulations.
 
 ```python
-buildings = toolkitHome.getToolkit("GIS_Buildings", projectName="MY_PROJECT")
+buildings = toolkitHome.getToolkit(toolkitHome.GIS_BUILDINGS, projectName="MY_PROJECT")
 
 # Get building footprints in a bounding box
 gdf = buildings.getBuildingsFromRectangle(minx=35.0, miny=32.0, maxx=35.1, maxy=32.1)
@@ -81,7 +81,7 @@ buildings.regionToSTL(
 Population data analysis from census shapefiles.
 
 ```python
-demo = toolkitHome.getToolkit("GIS_Demography", projectName="MY_PROJECT")
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
 
 # Calculate population within a polygon
 pop = demo.calculatePopulationInPolygon(polygon=my_area, datasource="census_2020")
@@ -97,7 +97,7 @@ area_gdf = demo.createNewArea(polygon=my_area, datasource="census_2020")
 Land cover classification and surface roughness estimation for atmospheric modeling.
 
 ```python
-lc = toolkitHome.getToolkit("GIS_LandCover", projectName="MY_PROJECT")
+lc = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER, projectName="MY_PROJECT")
 
 # Get land cover class at a point
 cover = lc.getLandCoverAtPoint(lat=32.5, lon=35.2)
@@ -119,7 +119,7 @@ The Tiles toolkit plots raster map images from a tile server (Google Maps, OpenS
 from hera import toolkitHome
 import matplotlib.pyplot as plt
 
-tiles = toolkitHome.getToolkit("GIS_Tiles", projectName="MY_PROJECT")
+tiles = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName="MY_PROJECT")
 ```
 
 #### Getting a map image (WGS84 coordinates)
@@ -218,7 +218,7 @@ Meteorology toolkits handle weather station data at different temporal resolutio
 Hourly and daily meteorological station data with analysis and visualization.
 
 ```python
-lf = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 
 # Load station data
 df = lf.getDataSourceData("YAVNEEL")
@@ -246,7 +246,7 @@ lf.presentation.seasonalPlots.plotProbContourf_bySeason(enriched, fields=["T", "
 High-frequency (10-20 Hz) sonic anemometer and TRH sensor data for turbulence analysis.
 
 ```python
-hf = toolkitHome.getToolkit("MeteoHighFreq", projectName="MY_PROJECT")
+hf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_HIGHFREQ, projectName="MY_PROJECT")
 
 # Load sonic anemometer data
 sonic = hf.getDataSourceData("sonic_station_A")
@@ -264,7 +264,7 @@ stats = hf.analysis.calculateMeanData(sonic)
 Manages experimental workflows — organizing raw data files into structured experiments with metadata tracking.
 
 ```python
-exp = toolkitHome.getToolkit("experiment", projectName="MY_PROJECT")
+exp = toolkitHome.getToolkit(toolkitHome.EXPERIMENT, projectName="MY_PROJECT")
 
 # List available experiments
 exp.getExperimentsMap()

@@ -57,7 +57,7 @@ dt.loadAllDatasourcesInRepositoryJSONToProject(
 )
 
 # Step 2: Get toolkit and load data
-lf = toolkitHome.getToolkit("MeteoLowFreq", projectName="METEOROLOGY_ANALYSIS")
+lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="METEOROLOGY_ANALYSIS")
 df = lf.getDataSourceData("YAVNEEL").compute()  # Materialize dask DataFrame
 
 # Step 3: Enrich with date columns
@@ -182,9 +182,9 @@ dt.loadAllDatasourcesInRepositoryJSONToProject(
 )
 
 # Step 2: Get GIS toolkits
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="CFD_SIMULATION")
-landcover = toolkitHome.getToolkit("GIS_LandCover", projectName="CFD_SIMULATION")
-buildings = toolkitHome.getToolkit("GIS_Buildings", projectName="CFD_SIMULATION")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="CFD_SIMULATION")
+landcover = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER, projectName="CFD_SIMULATION")
+buildings = toolkitHome.getToolkit(toolkitHome.GIS_BUILDINGS, projectName="CFD_SIMULATION")
 
 # Step 3: Define simulation domain
 minx, miny = 35.0, 32.0
@@ -230,14 +230,14 @@ if len(buildings_gdf) > 0:
 
 # Step 8: Extract wind profile for simulation
 # (Assuming wind profile toolkit is available)
-wind_profile_tk = toolkitHome.getToolkit("WindProfile", projectName="CFD_SIMULATION")
+wind_profile_tk = toolkitHome.getToolkit(toolkitHome.WINDPROFILE, projectName="CFD_SIMULATION")
 wind_profile = wind_profile_tk.getWindProfile(
     lat=(miny + maxy) / 2,
     lon=(minx + maxx) / 2
 )
 
 # Step 9: Run OpenFOAM simulation (if toolkit available)
-of_tk = toolkitHome.getToolkit("OpenFOAM", projectName="CFD_SIMULATION")
+of_tk = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="CFD_SIMULATION")
 
 # Create case from template
 case = of_tk.createCaseFromTemplate(
@@ -355,10 +355,10 @@ dt.loadAllDatasourcesInRepositoryJSONToProject(
 )
 
 # Step 2: Get toolkits
-demo = toolkitHome.getToolkit("GIS_Demography", projectName="RISK_ASSESSMENT")
-meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="RISK_ASSESSMENT")
-lsm = toolkitHome.getToolkit("LSM", projectName="RISK_ASSESSMENT")
-risk = toolkitHome.getToolkit("RiskAssessment", projectName="RISK_ASSESSMENT")
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="RISK_ASSESSMENT")
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="RISK_ASSESSMENT")
+lsm = toolkitHome.getToolkit(toolkitHome.LSM, projectName="RISK_ASSESSMENT")
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="RISK_ASSESSMENT")
 
 # Step 3: Load population data
 population_gdf = demo.getDataSourceData("lamas_population")
@@ -480,8 +480,8 @@ print("Risk assessment complete!")
 
 ```python
 # Output of one toolkit feeds into another
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
-buildings = toolkitHome.getToolkit("GIS_Buildings", projectName="MY_PROJECT")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
+buildings = toolkitHome.getToolkit(toolkitHome.GIS_BUILDINGS, projectName="MY_PROJECT")
 
 # Get elevation
 elevation = topo.getElevation(minx, miny, maxx, maxy, dxdy=30)
@@ -496,7 +496,7 @@ buildings_gdf = buildings.getBuildingsFromRectangle(
 ### Pattern 2: Batch Processing Multiple Datasources
 
 ```python
-toolkit = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+toolkit = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 sources = toolkit.getDataSourceList()
 
 results = {}

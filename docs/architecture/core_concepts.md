@@ -391,7 +391,7 @@ A concrete toolkit like `lowFreqToolKit` extends `abstractToolkit` and provides:
 from hera import toolkitHome
 
 # Instantiate via the registry
-lf = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 
 # Access data
 df = lf.getDataSourceData("YAVNEEL")

@@ -182,9 +182,9 @@ Yes. Each toolkit operates independently within the same project:
 from hera import toolkitHome
 
 # Get multiple toolkits
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
-meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
-risk = toolkitHome.getToolkit("RiskAssessment", projectName="MY_PROJECT")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJECT")
 
 # All share the same project's data layer
 # Each toolkit only sees its own datasources (filtered by toolkit name)

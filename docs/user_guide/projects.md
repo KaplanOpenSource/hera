@@ -116,10 +116,10 @@ Once the data is loaded, [toolkits](concepts.md#toolkits-portals-to-specific-dat
 from hera import toolkitHome
 
 # The toolkit is bound to "WindStudy" and works with its data
-meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="WindStudy")
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="WindStudy")
 
 # Or from the project directory — projectName is auto-detected
-meteo = toolkitHome.getToolkit("MeteoLowFreq")
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ)
 
 # Access the loaded data sources
 df = meteo.getDataSourceData("YAVNEEL")
@@ -142,7 +142,7 @@ The flow is:
 
 ```python
 # After loading a repository, the toolkit can access the data by name
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="WindStudy")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="WindStudy")
 topo.getDataSourceList()
 # ['Israel_DEM_30m', 'SRTM_90m']
 

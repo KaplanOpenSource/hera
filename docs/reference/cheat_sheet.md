@@ -65,7 +65,7 @@ proj = Project(projectName="MY_PROJECT", filesDirectory="/data/myproject")
 from hera import toolkitHome
 
 # Get a toolkit instance
-toolkit = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+toolkit = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 
 # List all toolkits
 table = toolkitHome.getToolkitTable("MY_PROJECT")
@@ -243,7 +243,7 @@ dt.loadAllDatasourcesInRepositoryJSONToProject(
 
 ```python
 # Get toolkit
-lf = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 
 # Load data
 df = lf.getDataSourceData("YAVNEEL").compute()

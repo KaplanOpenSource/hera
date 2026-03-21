@@ -330,7 +330,7 @@ Instead of remembering query filters to find your data (`type="ToolkitDataSource
 ```python
 from hera import toolkitHome
 
-meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="WindStudy")
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="WindStudy")
 
 # Get data by name — no need to know how it's stored
 df = meteo.getDataSourceData("YAVNEEL")
