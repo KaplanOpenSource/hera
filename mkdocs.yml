@@ -99,6 +99,7 @@ nav:
           - Measurements: toolkits/measurements.md
           - Simulations: toolkits/simulations.md
           - Risk Assessment: toolkits/risk_assessment.md
+      - Repositories: user_guide/repositories.md
       - Tutorials: tutorials/index.md
       - Examples:
           - Repository Examples: examples/repository_examples.md
