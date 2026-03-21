@@ -18,7 +18,3 @@ This section is for developers working on or extending the Hera platform. It cov
 
 - **[Repository Schema](../reference/repository_schema.md)** - Detailed schema documentation for the data repository
 - **[Environment Variables](../configuration/env_vars.md)** - Complete reference of all environment variables
-
-## Tutorials
-
-- **[Exploration Notebook](../notebooks/exploration.ipynb)** - Interactive Jupyter notebook for exploring the Hera data model
