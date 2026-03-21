@@ -55,23 +55,35 @@ flowchart TD
     Base -.-> Data_domain
 ```
 
-| Toolkit Name | Category | Class | Description |
-|-------------|----------|-------|-------------|
-| `GIS_Raster_Topography` | GIS | `hera.measurements.GIS.raster.topography.TopographyToolkit` | Elevation data from SRTM, terrain analysis, STL generation |
-| `GIS_Vector_Topography` | GIS | `hera.measurements.GIS.vector.topography.TopographyToolkit` | Vector-based topography (contour lines, survey points) |
-| `GIS_Buildings` | GIS | `hera.measurements.GIS.vector.buildings.toolkit.BuildingsToolkit` | Building footprints, 3D STL meshes for CFD |
-| `GIS_Demography` | GIS | `hera.measurements.GIS.vector.demography.DemographyToolkit` | Population data from census shapefiles |
-| `GIS_LandCover` | GIS | `hera.measurements.GIS.raster.landcover.LandCoverToolkit` | Land cover classification, surface roughness |
-| `GIS_Tiles` | GIS | `hera.measurements.GIS.raster.tiles.TilesToolkit` | Tile-based raster data management |
-| `MeteoLowFreq` | Meteorology | `hera.measurements.meteorology.lowfreqdata.toolkit.lowFreqToolKit` | Hourly/daily station data, analysis, visualization |
-| `MeteoHighFreq` | Meteorology | `hera.measurements.meteorology.highfreqdata.toolkit.HighFreqToolKit` | High-frequency sonic anemometer and TRH data |
-| `OpenFOAM` | Simulations | `hera.simulations.openFoam.toolkit.OFToolkit` | OpenFOAM CFD simulation lifecycle management |
-| `LSM` | Simulations | `hera.simulations.LSM.toolkit.LSMToolkit` | Lagrangian Stochastic Model for dispersion |
-| `GaussianDispersion` | Simulations | `hera.simulations.gaussian.toolkit.gaussianToolkit` | Gaussian puff/plume dispersion models |
-| `WindProfile` | Simulations | `hera.simulations.windProfile.toolkit.WindProfileToolkit` | Vertical wind profile modeling |
-| `RiskAssessment` | Risk | `hera.riskassessment.riskToolkit.RiskToolkit` | Agent-based risk assessment framework |
-| `experiment` | Data | `hera.measurements.experiment.experiment.experimentHome` | Experimental data workflow management |
-| `dataToolkit` | Data | `hera.utils.data.toolkit.dataToolkit` | Repository management toolkit |
+| Constant | Toolkit Name | Category | Class | Description |
+|----------|-------------|----------|-------|-------------|
+| `toolkitHome.GIS_RASTER_TOPOGRAPHY` | `"GIS_Raster_Topography"` | GIS | `TopographyToolkit` | Elevation data from SRTM, terrain analysis, STL generation |
+| `toolkitHome.GIS_VECTOR_TOPOGRAPHY` | `"GIS_Vector_Topography"` | GIS | `TopographyToolkit` | Vector-based topography (contour lines, survey points) |
+| `toolkitHome.GIS_BUILDINGS` | `"GIS_Buildings"` | GIS | `BuildingsToolkit` | Building footprints, 3D STL meshes for CFD |
+| `toolkitHome.GIS_DEMOGRAPHY` | `"GIS_Demography"` | GIS | `DemographyToolkit` | Population data from census shapefiles |
+| `toolkitHome.GIS_LANDCOVER` | `"GIS_LandCover"` | GIS | `LandCoverToolkit` | Land cover classification, surface roughness |
+| `toolkitHome.GIS_TILES` | `"GIS_Tiles"` | GIS | `TilesToolkit` | Tile-based raster data management |
+| `toolkitHome.METEOROLOGY_LOWFREQ` | `"MeteoLowFreq"` | Meteorology | `lowFreqToolKit` | Hourly/daily station data, analysis, visualization |
+| `toolkitHome.METEOROLOGY_HIGHFREQ` | `"MeteoHighFreq"` | Meteorology | `HighFreqToolKit` | High-frequency sonic anemometer and TRH data |
+| `toolkitHome.SIMULATIONS_OPENFOAM` | `"OpenFOAM"` | Simulations | `OFToolkit` | OpenFOAM CFD simulation lifecycle management |
+| `toolkitHome.LSM` | `"LSM"` | Simulations | `LSMToolkit` | Lagrangian Stochastic Model for dispersion |
+| `toolkitHome.GAUSSIANDISPERSION` | `"GaussianDispersion"` | Simulations | `gaussianToolkit` | Gaussian puff/plume dispersion models |
+| `toolkitHome.WINDPROFILE` | `"WindProfile"` | Simulations | `WindProfileToolkit` | Vertical wind profile modeling |
+| `toolkitHome.RISKASSESSMENT` | `"RiskAssessment"` | Risk | `RiskToolkit` | Agent-based risk assessment framework |
+| `toolkitHome.EXPERIMENT` | `"experiment"` | Data | `experimentHome` | Experimental data workflow management |
+| — | `"heraData"` | Data | `dataToolkit` | Repository management toolkit |
+
+Use the constant instead of the string to avoid typos:
+
+```python
+from hera import toolkitHome
+
+# Recommended: use the constant
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
+
+# Also works, but error-prone:
+topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
+```
 
 ---
 
@@ -97,7 +109,7 @@ Provides elevation data access and terrain analysis from SRTM (HGT) files.
 ```python
 from hera import toolkitHome
 
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
 
 # Single point elevation
 elev = topo.getPointElevation(lat=32.5, long=35.2)
@@ -153,7 +165,7 @@ Population data analysis from census shapefiles (e.g., LAMAS Israel population d
 | `setDefaultDirectory(path)` | Set default data directory |
 
 ```python
-demo = toolkitHome.getToolkit("GIS_Demography", projectName="MY_PROJECT")
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
 pop = demo.calculatePopulationInPolygon(my_polygon, "lamas_population")
 ```
 
@@ -213,7 +225,7 @@ The presentation layer has two sub-layers:
     - `plotSeasonalHourly(data, field)` — Seasonal hourly distribution
 
 ```python
-lf = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+lf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 
 # Load data
 df = lf.getDataSourceData("YAVNEEL").compute()
@@ -250,7 +262,7 @@ The analysis layer (`RawdataAnalysis`) provides:
 | `MeasurementsData` | Raw measurement time series |
 
 ```python
-hf = toolkitHome.getToolkit("MeteoHighFreq", projectName="MY_PROJECT")
+hf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_HIGHFREQ, projectName="MY_PROJECT")
 
 # Load sonic data
 sonic_df = hf.getDataSourceData("slicedYamim_sonic").compute()

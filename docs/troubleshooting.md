@@ -131,7 +131,7 @@ hera-toolkit register --project MY_PROJECT --cls my_package.MyToolkit --name MyC
 1. List available datasources:
 
 ```python
-toolkit = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+toolkit = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 print(toolkit.getDataSourceTable())
 ```
 

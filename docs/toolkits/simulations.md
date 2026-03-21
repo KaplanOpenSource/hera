@@ -7,7 +7,7 @@ All simulation toolkits are accessed via `toolkitHome.getToolkit()` and bound to
 ```python
 from hera import toolkitHome
 
-toolkit = toolkitHome.getToolkit("OpenFOAM", projectName="MY_PROJECT")
+toolkit = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="MY_PROJECT")
 ```
 
 ---
@@ -23,7 +23,7 @@ Full lifecycle management for OpenFOAM CFD simulations: templates, case setup, m
 Templates are saved OpenFOAM case configurations that can be reused across simulations.
 
 ```python
-of = toolkitHome.getToolkit("OpenFOAM", projectName="MY_PROJECT")
+of = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="MY_PROJECT")
 
 # Save a case directory as a template
 of.saveTemplate(templateName="simpleFoam_base", caseDirectory="/path/to/case")
@@ -74,7 +74,7 @@ hera-openFoam simpleFoam templates load myTemplate \
 Atmospheric dispersion simulations using Lagrangian particle tracking.
 
 ```python
-lsm = toolkitHome.getToolkit("LSM", projectName="MY_PROJECT")
+lsm = toolkitHome.getToolkit(toolkitHome.LSM, projectName="MY_PROJECT")
 
 # Load model data
 lsm.loadData(
@@ -108,7 +108,7 @@ hera-LSM list MY_PROJECT
 Gaussian puff and plume models for atmospheric pollutant transport.
 
 ```python
-gauss = toolkitHome.getToolkit("GaussianDispersion", projectName="MY_PROJECT")
+gauss = toolkitHome.getToolkit(toolkitHome.GAUSSIANDISPERSION, projectName="MY_PROJECT")
 
 # The Gaussian toolkit provides methods for:
 # - Cloud dispersion modeling
@@ -125,7 +125,7 @@ gauss = toolkitHome.getToolkit("GaussianDispersion", projectName="MY_PROJECT")
 Vertical wind profile modeling and analysis.
 
 ```python
-wp = toolkitHome.getToolkit("WindProfile", projectName="MY_PROJECT")
+wp = toolkitHome.getToolkit(toolkitHome.WINDPROFILE, projectName="MY_PROJECT")
 
 # Wind profile analysis and modeling
 ```

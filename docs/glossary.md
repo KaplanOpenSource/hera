@@ -157,7 +157,7 @@ A **Version** is a three-element tuple `[major, minor, patch]` used to manage mu
 from hera import toolkitHome
 
 # Get a toolkit instance
-tk = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
+tk = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
 ```
 
 See [Core Concepts: ToolkitHome](architecture/core_concepts.md#toolkithome) for technical details.

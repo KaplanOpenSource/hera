@@ -18,7 +18,7 @@ Hera is a Python-based platform for managing scientific data across measurements
     ```python
     from hera import Project, toolkitHome
     proj = Project(projectName="MY_PROJECT")
-    topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
+    topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
     ```
 
 ---

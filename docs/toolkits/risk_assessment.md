@@ -5,7 +5,7 @@ The Risk Assessment toolkit provides an agent-based framework for modeling hazar
 ```python
 from hera import toolkitHome
 
-risk = toolkitHome.getToolkit("RiskAssessment", projectName="MY_PROJECT")
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJECT")
 ```
 
 ---
@@ -115,10 +115,10 @@ Risk assessment typically uses data from several other toolkits:
 
 ```python
 # A typical risk assessment workflow
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
-demo = toolkitHome.getToolkit("GIS_Demography", projectName="MY_PROJECT")
-meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
-risk = toolkitHome.getToolkit("RiskAssessment", projectName="MY_PROJECT")
+topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="MY_PROJECT")
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJECT")
 
 # Each toolkit contributes its domain data to the risk analysis
 ```
