@@ -86,6 +86,9 @@ nav:
       - CLI Reference: cli/reference.md
       - Toolkits:
           - Toolkit Catalog: toolkits/overview.md
+          - Measurements: toolkits/measurements.md
+          - Simulations: toolkits/simulations.md
+          - Risk Assessment: toolkits/risk_assessment.md
       - Examples:
           - Repository Examples: examples/repository_examples.md
           - Workflows: examples/workflows.md
