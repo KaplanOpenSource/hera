@@ -37,7 +37,7 @@ At its core, Hera is a **data lake with a metadata layer**. Your data — weathe
          └─────────────────────┘
 ```
 
-The `desc` field is a free-form dictionary — you can attach any metadata you need, forming a **tree-like structure** that you can later query. This is what makes Hera different from simply organizing files in folders: every piece of data is searchable by any combination of its metadata fields.
+The `desc` field is a free-form dictionary — you can attach any metadata you need, forming a **tree-like structure** that you can later [query by any level of nesting](#querying). This is what makes Hera different from simply organizing files in folders: every piece of data is searchable by any combination of its metadata fields. The `dataFormat` field tells Hera how to load the file — see [resource types](#resource-types) for all supported formats.
 
 ### A small example: store and retrieve
 
@@ -81,6 +81,118 @@ Hera organizes documents into three collections based on their role in the scien
 | **Cache** | Derived or intermediate results | Processed statistics, function return values, aggregations |
 
 This separation helps you understand the provenance of any piece of data — where it came from and what role it plays.
+
+### The `type` field
+
+The `type` field is a string label that you define to categorize documents within a collection. It has no fixed vocabulary — you choose type names that make sense for your domain. Hera uses `type` as the primary grouping mechanism for documents.
+
+For example, within the Measurements collection you might have:
+
+| `type` value | What it represents |
+|-------------|-------------------|
+| `"WeatherStation"` | Meteorological station data files |
+| `"ToolkitDataSource"` | Versioned data sources managed by toolkits |
+| `"Experiment_rawData"` | Raw experiment data files |
+| `"BuildingFootprints"` | GIS building vector data |
+| `"ElevationGrid"` | DEM / topography raster data |
+
+Toolkits use `type` internally to organize their data — for instance, all toolkit data sources are stored with `type="ToolkitDataSource"`. When you query documents, `type` is typically the first filter you apply.
+
+### Resource types (data formats) {#resource-types}
+
+The `dataFormat` field tells Hera how to read the `resource`. When you call `doc.getData()`, Hera dispatches to the correct handler based on this field. The supported formats are:
+
+| Format | `dataFormat` value | Python type returned by `getData()` | File extension |
+|--------|-------------------|--------------------------------------|---------------|
+| **Parquet** | `"parquet"` | `pandas.DataFrame` or `dask.DataFrame` | `.parquet` |
+| **CSV** | `"csv_pandas"` | `pandas.DataFrame` | `.csv` |
+| **HDF5** | `"HDF"` | `pandas.DataFrame` or `dask.DataFrame` | `.hdf` |
+| **NetCDF** | `"netcdf_xarray"` | `xarray.Dataset` | `.nc` |
+| **Zarr** | `"zarr_xarray"` | `xarray.Dataset` | `.zarr` |
+| **GeoPackage** | `"geopandas"` | `geopandas.GeoDataFrame` | `.gpkg` |
+| **GeoJSON** | `"JSON_geopandas"` | `geopandas.GeoDataFrame` | `.json` |
+| **GeoTIFF** | `"geotiff"` | GDAL dataset | `.tif` |
+| **JSON (dict)** | `"JSON_dict"` | `dict` | `.json` |
+| **JSON (pandas)** | `"JSON_pandas"` | `pandas.DataFrame` | `.json` |
+| **NumPy array** | `"numpy_array"` | `numpy.ndarray` | `.npy` |
+| **NumPy dict** | `"numpy_dict_array"` | dict of `numpy.ndarray` | `.npz` |
+| **Image** | `"image"` | `numpy.ndarray` (pixel data) | `.png` |
+| **Pickle** | `"pickle"` | any Python object | `.pckle` |
+| **String** | `"string"` | `str` | `.txt` |
+| **Timestamp** | `"time"` | `pandas.Timestamp` | — |
+| **Dict** | `"dict"` | `dict` (stored inline in resource) | — |
+| **Class** | `"Class"` | class instance or class object | — |
+
+When saving data with `proj.saveData()` or `proj.saveCacheData()`, Hera auto-detects the format from the Python object type (e.g., a `pandas.DataFrame` is saved as parquet, an `xarray.DataArray` as zarr).
+
+### Querying the database {#querying}
+
+Hera uses [MongoEngine](http://mongoengine.org/) under the hood. When you call `getMeasurementsDocuments()`, keyword arguments are translated into MongoDB queries. The `desc` fields are flattened using double-underscore (`__`) notation — the same convention MongoEngine uses for nested document queries.
+
+**Basic queries** — filter by top-level fields:
+
+```python
+# Find by type
+docs = proj.getMeasurementsDocuments(type="WeatherStation")
+
+# Find by type and data format
+docs = proj.getMeasurementsDocuments(type="WeatherStation", dataFormat="parquet")
+```
+
+**Querying nested `desc` fields** — pass desc fields directly as keyword arguments:
+
+```python
+# Find stations in Haifa
+docs = proj.getMeasurementsDocuments(type="WeatherStation", location="Haifa")
+
+# Find stations above 100m elevation
+docs = proj.getMeasurementsDocuments(type="WeatherStation", elevation=120)
+```
+
+Behind the scenes, `location="Haifa"` becomes a MongoDB query on `desc.location`, using MongoEngine's `__` syntax: `desc__location="Haifa"`.
+
+**Structured (nested) metadata queries** — when your `desc` has nested dictionaries, the double-underscore notation traverses the hierarchy:
+
+```python
+# Store a document with nested metadata
+proj.addMeasurementsDocument(
+    resource="/data/sim_result.nc",
+    dataFormat="netcdf_xarray",
+    type="DispersionRun",
+    desc={
+        "scenario": {
+            "source": "factory_A",
+            "release_rate": 10.0,
+            "wind": {
+                "speed": 5.0,
+                "direction": 270
+            }
+        },
+        "status": "completed"
+    }
+)
+
+# Query by nested fields — Hera flattens them with __ notation
+docs = proj.getSimulationsDocuments(
+    type="DispersionRun",
+    scenario__source="factory_A"            # desc.scenario.source
+)
+
+docs = proj.getSimulationsDocuments(
+    type="DispersionRun",
+    scenario__wind__speed=5.0               # desc.scenario.wind.speed
+)
+
+# Combine multiple nested filters
+docs = proj.getSimulationsDocuments(
+    type="DispersionRun",
+    scenario__source="factory_A",
+    scenario__wind__direction=270,
+    status="completed"
+)
+```
+
+This makes it possible to build rich, hierarchical metadata and query any level of the tree without loading documents into memory first.
 
 ---
 
