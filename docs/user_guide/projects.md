@@ -49,7 +49,7 @@ If the file is found, the project name is loaded automatically:
 proj = Project()  # projectName loaded from the file
 ```
 
-This is the recommended workflow — create the project once with the CLI, then any script run from that directory connects to the right project:
+This is the recommended workflow — create the project once with the [CLI](../cli/reference.md#project-management), then any script run from that directory connects to the right project:
 
 ```bash
 # Create the project directory
