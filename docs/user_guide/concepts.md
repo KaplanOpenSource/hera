@@ -22,6 +22,38 @@ from hera import Project
 proj = Project(projectName="MY_PROJECT")
 ```
 
+### Directory-based projects
+
+You don't always need to specify the project name explicitly. If you omit `projectName`, Hera looks for a `caseConfiguration.json` file in the current working directory:
+
+```json
+{
+    "projectName": "MY_PROJECT"
+}
+```
+
+If the file is found, the project name is loaded from it automatically:
+
+```python
+# When run from a directory containing caseConfiguration.json:
+proj = Project()  # projectName is loaded from the file
+```
+
+This is the recommended workflow for project directories — you create the project once with the CLI, and then any script run from that directory automatically connects to the right project:
+
+```bash
+# Create a project directory with its caseConfiguration.json
+hera-project project create MY_PROJECT --directory /data/my_experiment
+
+# Now work from that directory
+cd /data/my_experiment
+python my_analysis.py   # Project() inside the script picks up "MY_PROJECT" automatically
+```
+
+This convention means your scripts don't hardcode project names, making them portable across different projects. Toolkits work the same way — `toolkitHome.getToolkit("MeteoLowFreq")` without a `projectName` will also read from `caseConfiguration.json`.
+
+If no `caseConfiguration.json` exists and no name is provided, Hera uses a read-only **default project** used internally for repository management.
+
 A project gives you access to three document collections:
 
 | Collection | What it stores | Example |
