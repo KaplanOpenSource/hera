@@ -6,6 +6,7 @@ repo_name: KaplanOpenSource/hera
 
 theme:
   name: material
+  custom_dir: docs/overrides
   features:
     - navigation.tabs
     - navigation.tabs.sticky
