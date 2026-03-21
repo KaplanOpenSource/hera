@@ -15,7 +15,9 @@ Welcome to the Hera User Guide. This section covers everything you need to insta
 
 ## Using Hera
 
+- **[Understanding Toolkits](../toolkits/understanding_toolkits.md)** - What toolkits are, data layer, analysis, presentation
 - **[Toolkit Catalog](../toolkits/overview.md)** - Browse available toolkits for GIS, meteorology, simulations, and risk assessment
+- **[Repositories](repositories.md)** - Repository JSON format, user-level registry, how data sources are stored
 - **[Tutorials](../tutorials/index.md)** - Interactive Jupyter notebook walkthroughs
 - **[Workflows](../examples/workflows.md)** - Step-by-step guides for common data processing tasks
 - **[Repository Examples](../examples/repository_examples.md)** - Practical examples of working with repositories
