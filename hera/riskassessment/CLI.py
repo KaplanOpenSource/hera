@@ -3,6 +3,18 @@ import json
 import os
 
 def createRepository(arguments):
+    """
+    Create a risk assessment repository JSON from agent JSON files in a directory.
+
+    Scans the given path for JSON files that contain agent descriptors
+    (identified by having an ``effectParameters`` key) and generates a
+    repository JSON file mapping each agent as a data source.
+
+    Parameters
+    ----------
+    arguments : argparse.Namespace
+        CLI arguments with ``path`` and ``repository_name`` attributes.
+    """
     logger = logging.getLogger("hera.CLI_riskassesment.create_repository")
     logger.debug(f" Creating a repository..")
 
@@ -32,7 +44,20 @@ def createRepository(arguments):
     logger.debug(f" Finished creating Repository")
 
 
-def _check_if_agent(file_path:str):
+def _check_if_agent(file_path: str):
+    """
+    Check if a file is a valid agent JSON descriptor.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to check.
+
+    Returns
+    -------
+    dict or False
+        The parsed agent description if valid, False otherwise.
+    """
     logger = logging.getLogger("hera.CLI_riskassesment._check_if_agent")
     logger.debug(f"Checking if {file_path} is Afgent file.")
     try:

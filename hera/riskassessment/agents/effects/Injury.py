@@ -4,9 +4,15 @@ import pydoc
 from hera.utils import ureg
 from .thresholdGeoDataFrame import thresholdGeoDataFrame 
 
-class InjuryFactory(object): 
+class InjuryFactory(object):
+	"""Factory for creating ``Injury`` instances from JSON configuration.
 
-	_name = None 
+	Resolves the injury type and calculator classes by name, instantiates
+	them with the supplied parameters, and returns a fully configured
+	``Injury`` object.
+	"""
+
+	_name = None
 
 	@property 
 	def name(self): 

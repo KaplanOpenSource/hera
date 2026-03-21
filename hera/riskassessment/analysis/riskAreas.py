@@ -26,16 +26,37 @@ def getRiskAreaAlgorithm(algorithmName,**kwargs):
 	return estimatorCLS(**kwargs)
 
 
-class riskAreaAlgorithm_Sweep(object): 
+class riskAreaAlgorithm_Sweep(object):
+	"""Sweep-based risk area algorithm.
 
-	_dxdy = None # The density of points to plot. 
-	_outlayers = None # The number of outlayers to do around the object. 
-	_workerCount = None 
-	_runParallel = None 
+	Estimates the number of casualties at each point on a regular grid
+	by sweeping effect isopleths over a demographic layer.  Supports
+	parallel execution via ``multiprocessing``.
 
-	@property 
+	Attributes
+	----------
+	_dxdy : float or None
+	    Grid spacing (in metres) for the sweep mesh.
+	_outlayers : int or None
+	    Number of extra grid cells to add around the bounding box.
+	_workerCount : int or None
+	    Number of parallel workers to use.
+	_runParallel : bool or None
+	    Whether to execute the sweep in parallel.
+	"""
+
+	_dxdy = None # The density of points to plot.
+	_outlayers = None # The number of outlayers to do around the object.
+	_workerCount = None
+	_runParallel = None
+
+	@property
 	def workerCount(self):
-		return self._workerCount 
+		"""
+		int
+		    The number of parallel worker processes used for the sweep.
+		"""
+		return self._workerCount
 
 	@workerCount.setter
 	def workerCount(self,value):
@@ -43,22 +64,36 @@ class riskAreaAlgorithm_Sweep(object):
 
 	@property
 	def parallel(self):
+		"""
+		bool
+		    Whether the sweep calculation runs in parallel using
+		    ``multiprocessing``.
+		"""
 		return self._runParallel
 
 	@parallel.setter
 	def parallel(self,value):
 		self._runParallel = bool(value)
 
-	@property 
+	@property
 	def outlayers(self):
+		"""
+		int
+		    The number of extra grid cells added around the bounding box
+		    in each direction to avoid boundary effects.
+		"""
 		return self._outlayers
 
 	@property
-	def dxdy(self): 
+	def dxdy(self):
+		"""
+		float
+		    The grid spacing in metres between sweep points.
+		"""
 		return self._dxdy
 
 	@dxdy.setter
-	def dxdy(self,value): 
+	def dxdy(self,value):
 		self._dxdy = float(value)
 
 	def __init__(self,dxdy=150,outlayers=3,parallel=True):
@@ -73,13 +108,36 @@ class riskAreaAlgorithm_Sweep(object):
 
 
 	def _findBoundingBox(self,effectIsopleths, demog, mathematical_angle, geometryColumn="TotalPolygon",severityColumn="severity"):
-		"""
-			Returns a polygon of the area to search.
-			The polygon will be rotated such that the wind is in mathematical angle of 0.
+		"""Compute a grid of candidate release points covering the area of interest.
 
+		The bounding box is calculated by rotating the demographic region
+		so that the wind direction aligns with mathematical angle 0, then
+		expanding it by the width/length of the largest effect isopleth
+		plus ``outlayers * dxdy`` in each direction.  The resulting grid of
+		points is rotated back to the original coordinate frame.
 
-			Then it will encompass the demog_polygon + the width/length of the effectPolygons + outlayers*dxdy.
+		Parameters
+		----------
+		effectIsopleths : thresholdGeoDataFrame
+		    The effect isopleths containing threshold polygons and severity
+		    information.
+		demog : geopandas.GeoDataFrame
+		    The demographic data layer used to determine the spatial extent.
+		mathematical_angle : float
+		    Wind direction in mathematical (counter-clockwise from east)
+		    degrees.
+		geometryColumn : str, optional
+		    Name of the geometry column in ``effectIsopleths`` that holds the
+		    total polygons.  Default is ``'TotalPolygon'``.
+		severityColumn : str, optional
+		    Name of the column that identifies severity levels.  Default is
+		    ``'severity'``.
 
+		Returns
+		-------
+		geopandas.GeoDataFrame
+		    A GeoDataFrame of grid points covering the bounding area, rotated
+		    back to the original coordinate system.
 		"""
 		united = demog.convex_hull.unary_union
 		minX, minY, maxX, maxY = affinity.rotate(united, origin=united.centroid, angle=-mathematical_angle).bounds

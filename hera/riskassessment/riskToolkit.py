@@ -13,10 +13,12 @@ import geopandas
 
 class RiskToolkit(abstractToolkit):
     """
-        A class to load and get agents.
+    Toolkit for agent-based risk assessment.
 
-        Supports retrieval from the DB and initializing from a descriptor.
-
+    Manages hazardous agents (chemical, thermal, blast), their injury
+    effect models, protection policies, and casualty estimation.
+    Agents are stored as versioned data sources and can be loaded
+    from JSON descriptors or from the database.
     """
     _presentation = None
     _protectionPolicy = None
@@ -24,17 +26,52 @@ class RiskToolkit(abstractToolkit):
 
     @property
     def analysis(self):
+        """
+        Access the risk analysis layer.
+
+        Returns
+        -------
+        analysis
+            Object providing risk area calculation and LSM integration.
+        """
         return self._analysis
 
     @property
     def ProtectionPolicy(self):
+        """
+        Access the ProtectionPolicy class for building protection action pipelines.
+
+        Returns
+        -------
+        type
+            The ProtectionPolicy class (not an instance).
+        """
         return self._protectionPolicy
 
     @property
     def presentation(self):
+        """
+        Access the presentation layer for casualty visualizations.
+
+        Returns
+        -------
+        casualtiesPlot
+        """
         return self._presentation
 
     def __init__(self, projectName, filesDirectory=None, connectionName=None):
+        """
+        Initialize the RiskToolkit.
+
+        Parameters
+        ----------
+        projectName : str
+            The project name.
+        filesDirectory : str, optional
+            Directory for file outputs.
+        connectionName : str, optional
+            The DB connection name.
+        """
         super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName="RiskAssessment", connectionName=connectionName)
         self._presentation = casualtiesPlot()
         self._protectionPolicy = ProtectionPolicy
@@ -170,19 +207,44 @@ class RiskToolkit(abstractToolkit):
         return nonDBMetadataFrame(agentDescription) if agentDoc is None else agentDoc
 
 class analysis():
+    """
+    Risk analysis layer providing risk area calculations and LSM integration.
+    """
 
     _datalayer = None
     _LSM = None
 
     @property
     def LSM(self):
+        """
+        Access the LSM toolkit for Lagrangian dispersion data.
+
+        Returns
+        -------
+        LSMToolkit
+        """
         return self._LSM
 
     @property
     def datalayer(self):
+        """
+        Access the parent RiskToolkit (data layer).
+
+        Returns
+        -------
+        RiskToolkit
+        """
         return self._datalayer
 
     def __init__(self, dataLayer):
+        """
+        Initialize the analysis layer.
+
+        Parameters
+        ----------
+        dataLayer : RiskToolkit
+            The parent toolkit providing data access.
+        """
         self._datalayer = dataLayer
         self._LSM = LSMToolkit(projectName=self.datalayer.projectName)
 
