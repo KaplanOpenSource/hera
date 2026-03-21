@@ -203,7 +203,7 @@ region = dict(
 img = tiles.getImageFromCorners(**region)
 ```
 
-> **Jupyter tutorial:** See the [Tile Toolkit notebook](../../hera/doc/jupyter/User/toolkits/measurments/GIS/Raster/TileToolkitDocumentation.ipynb) for a full interactive walkthrough with map output.
+> **Jupyter tutorial:** See the [Tile Toolkit notebook](../tutorials/TileToolkitDocumentation.ipynb) for a full interactive walkthrough with map output.
 
 ---
 
