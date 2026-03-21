@@ -62,11 +62,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Set working directory and copy project files (exclude .venv, .git via .dockerignore)
 WORKDIR /app
 COPY requirements.txt .
-COPY ui/server/requirements-server.txt .
 
 # Install Python dependencies with pyenv's Python
 RUN python -m pip install --no-cache-dir -r requirements.txt
-RUN python -m pip install --no-cache-dir -r requirements-server.txt
 
 ENV PATH="/app:/app/hera/bin:${PATH}"
 ENV PYTHONPATH="/app:/app/hera/bin"

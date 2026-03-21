@@ -1,6 +1,0 @@
-# Documentation build dependencies (MkDocs Material)
-# Install with: pip install -r docs/requirements-docs.txt
-mkdocs-material==9.7.5
-mkdocstrings[python]==0.30.1
-pymdown-extensions==10.21
-mkdocs-jupyter==0.25.1

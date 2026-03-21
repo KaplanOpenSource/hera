@@ -248,7 +248,7 @@ This has been fixed by replacing the wildcard import in `hera/utils/unitHandler.
 **Solution:**
 
 ```bash
-pip install -r docs/requirements-docs.txt
+pip install -r requirements.txt
 ```
 
 ---

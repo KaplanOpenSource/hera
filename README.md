@@ -19,7 +19,7 @@ To preview the documentation site on your local machine:
 source heraenv/bin/activate
 
 # Install documentation dependencies (only needed once)
-pip install -r docs/requirements-docs.txt
+pip install -r requirements.txt
 
 # Start the local development server with live reload
 mkdocs serve
@@ -55,7 +55,7 @@ The documentation is **automatically deployed** to GitHub Pages whenever changes
 mkdocs gh-deploy --force
 ```
 
-> **Note:** The legacy Sphinx-based documentation configuration in `requirements-doc.txt` is no longer maintained. All documentation now uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
+> **Note:** All dependencies (including documentation) are consolidated in `requirements.txt`. Documentation uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
 
 ---
 
@@ -238,51 +238,67 @@ db.createUser(
 
 Exit mongosh
 
-#### 2.4.3 Use predefined names
+#### 2.4.3 Use predefined names (with Makefile)
 
 This is especially convenient if you don't have MongoDB installed, as it
 uses docker for it (you need docker installed, though...)
 
-Create an empty directory to be used for MongoDB, e.g. in your home folder:
+A `Makefile` is provided in the project root to manage MongoDB, the Hera server, and tests. Run `make help` to see all available targets:
 
 ```console
-$ mkdir mongo-db-datadir
+$ make help
 ```
 
-The next command will start a MongoDB server in a container on your machine,
-while setting up the users expected by Hera. You may need to adapt it, see
-below.
-
-*TODO* verify username, dbname
+**Start MongoDB:**
 
 ```console
-$ docker run --name hera-mongo \
-  -v ${HOME}/mongo-db-datadir:/data/db \
-  -v ${HOME}/hera/mongo-init.d:/docker-entrypoint-initdb.d \
-  -p 127.0.0.1:27017:27017 -d mongo:5.0 
+$ make mongo-up
 ```
 
-Note: In the above, `${HOME}` refers to a pre-defined environment
-variable. So:
+This starts a MongoDB 5.0 container with data stored at `~/mongo-db-datadir`.
+It automatically creates a user "hera" with password "heracles" using the
+init scripts in `mongo-init.d/`. The MongoDB server is only accessible from
+localhost, so this is not a terrible security issue.
 
-* `${HOME}/mongo-db-datadir` is the data directory assuming you
-  created it as above. If you created it somewhere else, adapt
-  accordingly.
-
-* `${HOME}/hera/mongo-init.d` assumes you've placed the Hera project
-  code in a folder `hera` in your home dir. Again, adapt if this
-  is not the case
-  
-This creates a MongoDB user named "hera" with password "heracles". The
-MongoDB server is not accessible from outside your computer, so this
-is not a terrible security issue.
-
-Note: Once you've successfully executed the above command, you can
-stop and start the mongo server with 
+To override the data directory:
 
 ```console
-$ docker stop hera-mongo
-$ docker start hera-mongo
+$ make mongo-up MONGO_DATA=/path/to/data
+```
+
+**Stop / restart MongoDB:**
+
+```console
+$ make mongo-down
+$ make mongo-up
+```
+
+**Check status or view logs:**
+
+```console
+$ make mongo-status
+$ make mongo-logs
+```
+
+**Remove container and delete all data:**
+
+```console
+$ make mongo-clean
+```
+
+**Set up the test data directory:**
+
+```console
+$ make test-setup
+```
+
+This creates the directory structure at `~/hera_unittest_data` needed for
+running the test suite. Override with `make test-setup TEST_HERA=/path/to/data`.
+
+**Run tests:**
+
+```console
+$ make test
 ```
 
 Finally, create the following json file within `.pyhera` folder:
