@@ -99,6 +99,43 @@ The auto-detection mapping:
 | `numpy.ndarray` | `numpy_array` | `.npy` |
 | `dict`, `list`, `bytes` | `pickle` | `.pckle` |
 
+### Using counters for unique file names
+
+Projects have built-in **atomic counters** — named integers stored in the database that increment safely even when multiple processes run in parallel. A common use case is generating unique file names for output data.
+
+```python
+proj = Project(projectName="WindStudy")
+
+# getCounterAndAdd returns the current value and increments it atomically.
+# On first call, the counter is created and returns 0.
+run_id = proj.getCounterAndAdd("simulation_run")  # 0
+output_path = f"/data/results/dispersion_run_{run_id}.nc"
+
+# Next call returns 1, then 2, etc.
+run_id = proj.getCounterAndAdd("simulation_run")  # 1
+output_path = f"/data/results/dispersion_run_{run_id}.nc"
+
+# Save with the generated file name
+proj.addSimulationsDocument(
+    resource=output_path,
+    dataFormat=proj.datatypes.NETCDF_XARRAY,
+    type="DispersionRun",
+    desc={"run_id": run_id, "scenario": "baseline"}
+)
+```
+
+This is exactly what `saveData` does internally — it uses a counter named after the data to generate unique file paths automatically.
+
+**Counter methods:**
+
+| Method | Description |
+|--------|-------------|
+| `getCounterAndAdd(name, addition=1)` | Return current value and increment atomically. Creates the counter (starting at 0) if it doesn't exist. |
+| `getCounter(name)` | Return the current value without incrementing. Returns `None` if the counter doesn't exist. |
+| `setCounter(name, defaultValue=0)` | Create or reset a counter to a specific value. |
+
+Counters are stored per-project in the project's config document, so each project has its own independent counters.
+
 ---
 
 ## The `type` field
@@ -277,3 +314,127 @@ The conversion rules:
 This is especially useful when your query parameters come from an external source (a JSON file, CLI arguments, or a repository configuration) rather than hardcoded keyword arguments.
 
 Hera also provides `ConfigurationToJSON` (`hera.utils.jsonutils`) which handles the reverse direction — converting Python objects (including physical units via `Unum`) into JSON-safe dictionaries suitable for storing in `desc` fields. Together, these utilities form the bridge between structured Python data and MongoDB queries.
+
+---
+
+## Working with data sources {#data-sources}
+
+While the Project API gives you low-level control over documents, **data sources** are the recommended way to work with external data through toolkits. A data source is a versioned, named dataset that a toolkit manages for you.
+
+### What is a data source?
+
+Instead of remembering query filters to find your data (`type="ToolkitDataSource", toolkit="MeteoLowFreq", datasourceName="YAVNEEL"`), you simply ask the toolkit by name:
+
+```python
+from hera import toolkitHome
+
+meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="WindStudy")
+
+# Get data by name — no need to know how it's stored
+df = meteo.getDataSourceData("YAVNEEL")
+```
+
+Behind the scenes, data sources are stored as measurement documents with `type="ToolkitDataSource"`. The toolkit handles all the querying and loading for you.
+
+### Listing available data sources
+
+```python
+# List data source names
+meteo.getDataSourceList()
+# ['YAVNEEL', 'HAIFA_PORT', 'BET_DAGAN']
+
+# View as a table with full details (name, version, format, resource path)
+meteo.getDataSourceTable()
+```
+
+From the CLI:
+
+```bash
+# List all data sources across all toolkits
+hera-project project measurements list --project WindStudy --shortcut ds
+
+# Filter by name
+hera-project project measurements list --project WindStudy --shortcut ds --contains YAVNEEL
+```
+
+### Versions
+
+Each data source can have multiple versions, identified by a 3-tuple `(major, minor, patch)`:
+
+```python
+# Add a data source with a specific version
+meteo.addDataSource(
+    dataSourceName="YAVNEEL",
+    resource="/data/meteo/yavneel_v1.parquet",
+    dataFormat=meteo.datatypes.PARQUET,
+    version=(1, 0, 0)
+)
+
+# Add a newer version of the same data source
+meteo.addDataSource(
+    dataSourceName="YAVNEEL",
+    resource="/data/meteo/yavneel_v2.parquet",
+    dataFormat=meteo.datatypes.PARQUET,
+    version=(2, 0, 0)
+)
+```
+
+### Getting data from a specific version
+
+```python
+# Get a specific version
+df_v1 = meteo.getDataSourceData("YAVNEEL", version=(1, 0, 0))
+df_v2 = meteo.getDataSourceData("YAVNEEL", version=(2, 0, 0))
+
+# Get without specifying version — returns the default or latest
+df = meteo.getDataSourceData("YAVNEEL")
+```
+
+When no version is specified, Hera resolves the data source in this order:
+
+1. **Default version** — if explicitly set via `setDataSourceDefaultVersion`
+2. **Latest version** — the highest version number among all versions
+
+### Setting a default version
+
+```python
+# Pin a specific version as the default for this project
+meteo.setDataSourceDefaultVersion("YAVNEEL", version=(1, 0, 0))
+
+# Now getDataSourceData("YAVNEEL") returns version (1, 0, 0)
+# regardless of newer versions existing
+```
+
+This is useful when you want reproducible results — pin the version your analysis depends on, and new data uploads won't change your output.
+
+### Updating and deleting data sources
+
+```python
+# Overwrite an existing version
+meteo.addDataSource(
+    dataSourceName="YAVNEEL",
+    resource="/data/meteo/yavneel_v1_fixed.parquet",
+    dataFormat=meteo.datatypes.PARQUET,
+    version=(1, 0, 0),
+    overwrite=True  # required when the version already exists
+)
+
+# Delete a data source
+meteo.deleteDataSource("YAVNEEL", version=(1, 0, 0))
+```
+
+### Loading data sources from a repository
+
+Instead of adding data sources one by one, you can define them in a repository JSON and load them all at once. See [Repositories](concepts.md#repositories) in Key Concepts for details.
+
+### Data source methods summary
+
+| Method | Description |
+|--------|-------------|
+| `getDataSourceData(name, version)` | Load and return the data |
+| `getDataSourceList(**filters)` | List data source names |
+| `getDataSourceTable(**filters)` | DataFrame of all data sources with metadata |
+| `getDataSourceDocument(name, version)` | Get the raw MongoDB document |
+| `addDataSource(name, resource, dataFormat, version, overwrite)` | Register a new data source |
+| `deleteDataSource(name, version)` | Remove a data source |
+| `setDataSourceDefaultVersion(name, version)` | Pin a default version |
