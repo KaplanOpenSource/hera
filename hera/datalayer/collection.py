@@ -15,6 +15,13 @@ class AbstractCollection(object):
 
     @property
     def type(self):
+        """
+        The collection type (e.g. 'Measurements', 'Simulations', 'Cache'), or None for all.
+
+        Returns
+        -------
+        str or None
+        """
         return self._type
 
     def __init__(self, ctype=None, connectionName=None):
@@ -89,6 +96,13 @@ class AbstractCollection(object):
         return list(set([doc[key] for doc in self.getDocuments(projectName=None, **query)]))
 
     def getProjectList(self):
+        """
+        Returns the list of unique project names in this collection.
+
+        Returns
+        -------
+        list of str
+        """
         return self._getAllValueByKey(key='projectName')
 
     def getDocumentByID(self, id):
@@ -141,6 +155,14 @@ class AbstractCollection(object):
         return obj
 
     def addDocumentFromJSON(self, json_data):
+        """
+        Adds a document from a JSON string representation.
+
+        Parameters
+        ----------
+        json_data : str
+            A JSON string representing the document.
+        """
         self._metadataCol.from_json(json_data).save()
 
     def deleteDocuments(self, projectName, **query):
@@ -194,7 +216,7 @@ class AbstractCollection(object):
 
 class Measurements_Collection(AbstractCollection):
     """
-        Abstract collection that contains documents of measurements.old
+    Collection that contains measurement documents.
     """
 
     def __init__(self, connectionName=None):

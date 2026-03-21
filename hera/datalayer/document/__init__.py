@@ -113,15 +113,30 @@ def removeConnection(connectionName):
 
 
 def getDBNamesFromJSON():
+    """
+    Return the list of connection names defined in the config file.
+
+    Returns
+    -------
+    list of str
+        The connection names from ``~/.pyhera/config.json``.
+    """
     mongoConfigJSON = getMongoJSON()
-    return [x for x in mongoConfigJSON.keys()] 
+    return [x for x in mongoConfigJSON.keys()]
 
 def getMongoConfigFromJson(connectionName=None):
     """
-    Get the mongoConfig of a user from .pyhera/config.json
+    Get the MongoDB connection config for a given connection name.
 
-    :param connectionName:
-    :return:
+    Parameters
+    ----------
+    connectionName : str, optional
+        The connection name. If None, uses the current OS username.
+
+    Returns
+    -------
+    dict
+        Dictionary with keys: ``username``, ``password``, ``dbIP``, ``dbName``.
     """
     mongoConfigJSON = getMongoJSON()
     mongoConfig = mongoConfigJSON[getpass.getuser()] if connectionName is None else mongoConfigJSON[connectionName]
@@ -250,12 +265,14 @@ def getDBObject(objectName, connectionName=None):
     Parameters
     ----------
 
-    objectName: str
-        The name of the object to return
-    user: str
-        Connection name
-    :return:
-        mongoengine object
+    objectName : str
+        The name of the object to return (e.g. 'Metadata', 'Measurements', 'Cache', 'Simulations').
+    connectionName : str, optional
+        The connection name. If None, uses the current OS username.
+
+    Returns
+    -------
+    mongoengine document class
     """
     connectionName = getpass.getuser() if connectionName is None else connectionName
 
@@ -275,6 +292,19 @@ def getDBObject(objectName, connectionName=None):
     return ret
 
 def parseConnectionString(conStr):
+    """
+    Parse a connection string into a MongoDB config dictionary.
+
+    Parameters
+    ----------
+    conStr : str
+        Connection string in the format ``username:password@host/dbName``.
+
+    Returns
+    -------
+    dict
+        Dictionary with keys: ``username``, ``password``, ``dbIP``, ``dbName``.
+    """
     username, password = conStr.split("@")[0].split(":")
     dbIP, dbName = conStr.split("@")[1].split("/")
     return dict(username=username,
