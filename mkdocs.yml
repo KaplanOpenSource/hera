@@ -79,6 +79,7 @@ nav:
   - Home: index.md
   - User Guide:
       - Overview: user_guide/index.md
+      - Key Concepts: user_guide/concepts.md
       - Installation & Setup: user_guide/installation.md
       - CLI Reference: cli/reference.md
       - Toolkits:

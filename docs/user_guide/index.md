@@ -6,9 +6,10 @@ Welcome to the Hera User Guide. This section covers everything you need to insta
 
 ## Getting Started
 
-1. **[Installation & Setup](installation.md)** - Install Hera using the quick install script or manual steps
-2. **[CLI Reference](../cli/reference.md)** - Command-line tools for managing projects and toolkits
-3. **[Troubleshooting](../troubleshooting.md)** - Common issues and solutions
+1. **[Key Concepts](concepts.md)** - Understand Projects, Toolkits, Data Sources, and Repositories
+2. **[Installation & Setup](installation.md)** - Install Hera using the quick install script or manual steps
+3. **[CLI Reference](../cli/reference.md)** - Command-line tools for managing projects and toolkits
+4. **[Troubleshooting](../troubleshooting.md)** - Common issues and solutions
 
 ## Using Hera
 
