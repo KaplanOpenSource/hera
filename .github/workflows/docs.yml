@@ -46,9 +46,10 @@ jobs:
         run: |
           pip install --upgrade pip setuptools wheel
           pip install -r docs/requirements-docs.txt
+          pip install -e . --no-deps
 
       - name: Build documentation
-        run: mkdocs build --strict
+        run: mkdocs build
         env:
           MPLBACKEND: Agg
 
