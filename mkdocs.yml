@@ -51,9 +51,9 @@ plugins:
             show_signature_annotations: true
             members_order: source
             allow_inspection: true
-  - mkdocs-jupyter:
-      include_source: true
-      execute: false
+  # - mkdocs-jupyter:
+  #     include_source: true
+  #     execute: false
 
 markdown_extensions:
   - admonition
