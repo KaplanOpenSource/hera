@@ -273,14 +273,16 @@ class abstractToolkit(Project):
         Return the document of a data source.
 
         If version is not specified, returns the default version (if configured)
-        or the latest version.
+        or the latest version. When multiple versions exist and no default is
+        set, the latest version is selected and automatically persisted as the
+        default in the project config for stable subsequent calls.
 
         Parameters
         ----------
         datasourceName : str or None
             The name of the data source. If None, return the default source (if set).
         version : tuple, optional
-            The version to retrieve. If None, returns the latest.
+            The version to retrieve. If None, returns the default or latest.
         filters : dict
             Additional query filters.
 
@@ -316,6 +318,15 @@ class abstractToolkit(Project):
             latestVersion = max(versionsList)
             docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
             ret = docList[0]
+
+            # No default was set and multiple versions exist — persist the
+            # latest version as the default so subsequent calls are stable.
+            if version is None and datasourceName is not None:
+                try:
+                    self.setConfig(**{f"{datasourceName}_defaultVersion": latestVersion})
+                except Exception:
+                    pass
+
         return ret
 
     def getToolkitDocument(self, toolkit_name: str):

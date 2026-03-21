@@ -218,8 +218,8 @@ topo.getDataSourceTable()
 
 Multiple versions of the same data source can coexist. When you request data without specifying a version, Hera returns:
 
-1. The **default version** — if one has been explicitly set
-2. The **latest version** — otherwise (highest version number)
+1. The **default version** — if one is stored in the project config
+2. The **latest version** — otherwise (highest version number), which is then automatically saved as the default for stable subsequent calls
 
 ```python
 # Set a default version

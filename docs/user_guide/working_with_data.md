@@ -392,8 +392,8 @@ df = meteo.getDataSourceData("YAVNEEL")
 
 When no version is specified, Hera resolves the data source in this order:
 
-1. **Default version** — if explicitly set via `setDataSourceDefaultVersion`
-2. **Latest version** — the highest version number among all versions
+1. **Default version** — if one is stored in the project config (via `setDataSourceDefaultVersion` or auto-persisted)
+2. **Latest version** — the highest version number among all versions. When this fallback is used, Hera **automatically saves** the latest version as the default in the project config, so subsequent calls return the same version consistently.
 
 ### Setting a default version
 
