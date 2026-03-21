@@ -66,6 +66,92 @@ If no `caseConfiguration.json` exists and no name is provided, Hera uses a read-
 
 ---
 
+## Project lifecycle
+
+A typical project goes through these steps:
+
+```mermaid
+flowchart LR
+    Create["1. Create\nproject directory"] --> Config["2. caseConfiguration.json\ncreated automatically"]
+    Config --> Load["3. Load external\ndata (repositories)"]
+    Load --> Work["4. Work with\ntoolkits"]
+```
+
+**Step 1 — Create a project directory:**
+
+```bash
+hera-project project create WindStudy --directory /data/wind_study
+cd /data/wind_study
+```
+
+This creates the directory and a `caseConfiguration.json` file inside it.
+
+**Step 2 — Load external data from repositories:**
+
+A [repository](concepts.md#repositories) is a JSON file that describes a collection of data sources — where they are, what format they're in, and which toolkit they belong to. Loading a repository populates your project with all the data sources it declares:
+
+```bash
+# Register a repository (one-time setup)
+hera-project repository add /path/to/my_repository.json
+
+# Load all its data sources into the project
+hera-project repository load my_repository WindStudy
+```
+
+Or load all registered repositories at once:
+
+```bash
+hera-project project updateRepositories --projectName WindStudy
+```
+
+See [Repositories](concepts.md#repositories) in Key Concepts for the JSON format, and [Working with data sources](working_with_data.md#data-sources) for how to interact with them.
+
+**Step 3 — Work with toolkits:**
+
+Once the data is loaded, [toolkits](concepts.md#toolkits-portals-to-specific-data-types) provide domain-specific access to it. Every toolkit is initialized with a project name — this binds the toolkit to the project's data:
+
+```python
+from hera import toolkitHome
+
+# The toolkit is bound to "WindStudy" and works with its data
+meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="WindStudy")
+
+# Or from the project directory — projectName is auto-detected
+meteo = toolkitHome.getToolkit("MeteoLowFreq")
+
+# Access the loaded data sources
+df = meteo.getDataSourceData("YAVNEEL")
+```
+
+See the [Toolkit Catalog](../toolkits/overview.md) for all available toolkits and their capabilities.
+
+---
+
+## Data sources as external databases
+
+Data sources are external datasets — weather observations, GIS files, simulation inputs — that are loaded into a project and then accessed through toolkits. Think of them as **external databases that get imported** into your project's MongoDB.
+
+The flow is:
+
+1. **External data** exists on disk (parquet files, netcDF, shapefiles, etc.)
+2. A **repository JSON** describes where each file is and which toolkit it belongs to
+3. You **load** the repository into a project — this creates measurement documents pointing to the files
+4. **Toolkits** access the data through named, versioned data sources
+
+```python
+# After loading a repository, the toolkit can access the data by name
+topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="WindStudy")
+topo.getDataSourceList()
+# ['Israel_DEM_30m', 'SRTM_90m']
+
+# The data itself still lives on disk — Hera stores the metadata and path
+elevation = topo.getDataSourceData("Israel_DEM_30m")
+```
+
+This means the same external data files can be shared across multiple projects — each project just stores its own metadata documents pointing to the files. For the full details on versions, defaults, and querying, see [Working with data sources](working_with_data.md#data-sources).
+
+---
+
 ## Three document collections
 
 Each project organizes its data into three MongoDB collections:
