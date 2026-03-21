@@ -94,6 +94,7 @@ nav:
       - Working with Data: user_guide/working_with_data.md
       - CLI Reference: cli/reference.md
       - Toolkits:
+          - Understanding Toolkits: toolkits/understanding_toolkits.md
           - Toolkit Catalog: toolkits/overview.md
           - Measurements: toolkits/measurements.md
           - Simulations: toolkits/simulations.md
