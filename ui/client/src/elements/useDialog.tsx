@@ -17,6 +17,7 @@ export interface DialogOptions<TValues> {
   title: string;
   yesText?: string;
   noText?: string;
+  maxWidth?: "xs" | "sm" | "md" | "lg" | "xl" | false;
   /** Initial values for the dialog form */
   initialValues: TValues;
   /** Render function for dialog body */
@@ -74,7 +75,12 @@ export function useDialog<TValues extends Record<string, any>>() {
   };
 
   const DialogComponent = options ? (
-    <Dialog open={open} onClose={() => close(false)} fullWidth maxWidth={"xl"}>
+    <Dialog
+      open={open}
+      onClose={() => close(false)}
+      fullWidth={!options.maxWidth}
+      maxWidth={options.maxWidth ?? "xl"}
+    >
       <DialogTitle>{options.title}</DialogTitle>
       <DialogContent>
         <Box sx={{ marginTop: 1 }}>

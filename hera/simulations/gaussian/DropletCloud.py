@@ -138,9 +138,9 @@ class FixedPointClippedDropletCloud(FixedPositionDropletsCloud):
     def clippedDiameter(self, value):
 
         if isinstance(value,str):
-            self._clippedDiameter = eval(value)
+            self._clippedDiameter = ureg(value)
         else:
-            self._clippedDiameter = tounit(value,mm)
+            self._clippedDiameter = tounit(value,ureg.mm)
 
 
     def __init__(self,mmd,geometricstd,position,Q,clippedDiameter,clouds=30, meteorologyname="StandardMeteorolgyConstant",**kwargs):

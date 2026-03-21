@@ -1,7 +1,7 @@
 import { Grid, Typography } from '@mui/material';
+import { Fragment } from 'react';
 import { ProjectDocument } from '../../shared/types';
 import { VersionFields } from './VersionFields';
-
 export const DetailsViewDocumentHeader = ({
   docid,
   shownDoc,
@@ -17,44 +17,44 @@ export const DetailsViewDocumentHeader = ({
 }) => {
   return (
     <Grid container spacing={1} alignItems={'center'}>
-      <Grid size={2}>
+      <Grid key="id-label" size={2}>
         <Typography sx={{ fontSize: 12 }}>
           Id:
         </Typography>
       </Grid>
-      <Grid size={10}>
+      <Grid key="id-value" size={10}>
         <Typography sx={{ fontSize: 12 }}>
           {docid}
         </Typography>
       </Grid>
-      <Grid size={2}>
+      <Grid key="cls-label" size={2}>
         <Typography sx={{ fontSize: 12 }}>
           Cls:
         </Typography>
       </Grid>
-      <Grid size={10}>
+      <Grid key="cls-value" size={10}>
         <Typography sx={{ fontSize: 12 }}>
           {shownDoc._cls}
         </Typography>
       </Grid>
       {!showFormulated ? null : (<>
-        <Grid size={2}>
+        <Grid key="toolkit-label" size={2}>
           <Typography sx={{ fontSize: 12 }}>
             Toolkit:
           </Typography>
         </Grid>
-        <Grid size={10}>
+        <Grid key="toolkit-value" size={10}>
           <Typography sx={{ fontSize: 12 }}>
             {shownDoc.desc.toolkit || 'None'}
           </Typography>
         </Grid>
         {!shownDoc.desc.version ? null : (<>
-          <Grid size={2}>
+          <Grid key="version-label" size={2}>
             <Typography sx={{ fontSize: 12 }}>
               Version:
             </Typography>
           </Grid>
-          <Grid size={10}>
+          <Grid key="version-value" size={10}>
             <VersionFields
               projectDoc={shownDoc}
               setProjectDoc={setShownDoc} />
@@ -62,7 +62,7 @@ export const DetailsViewDocumentHeader = ({
         </>)}
       </>)}
       {extraFields.map(({ name, value }) => (
-        <>
+        <Fragment key={`extra-${name}`}>
           <Grid size={2}>
             <Typography sx={{ fontSize: 12 }}>
               {name}
@@ -73,9 +73,8 @@ export const DetailsViewDocumentHeader = ({
               {value}
             </Typography>
           </Grid>
-        </>
+        </Fragment>
       ))}
     </Grid>
   )
 }
-

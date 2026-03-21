@@ -1,4 +1,4 @@
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import ureg, Unum, Quantity, celsius, K, tonumber
 from hera.riskassessment.agents.effects import  injuryfactory
 import numpy
 import json
@@ -43,7 +43,7 @@ class Agent:
 
 	@property
 	def name(self):
-	    return self._agentconfig['name']
+		return self._agentconfig['name']
 
 
 	def __init__(self,descriptor):
@@ -132,7 +132,7 @@ class PhysicalPropeties(object):
 
 	@molecularWeight.setter
 	def molecularWeight(self,value):
-		self._molecularWeight = tounit(eval(value),g/mol)
+		self._molecularWeight = ureg(value).to("g/mol")
 
 	@property
 	def sorptionCoefficient(self):
@@ -140,7 +140,7 @@ class PhysicalPropeties(object):
 
 	@sorptionCoefficient.setter
 	def sorptionCoefficient(self,value):
-		self._sorptionCoefficient = tounit(eval(value),cm/s)
+		self._sorptionCoefficient = ureg(value).to("cm/s")
 
 	@property
 	def spreadFactor(self):
@@ -169,14 +169,17 @@ class PhysicalPropeties(object):
 		:return:
 			The vapor saturation as Unum.
 		"""
-		temperature = tonumber(temperature,celsius)
-		MW = self.getMolecularWeight().asNumber(g/mol)
+		if isinstance(temperature, Unum):
+			temperature = temperature.asNumber(celsius)
+		elif isinstance(temperature, Quantity):
+			temperature = temperature.m_as(ureg.celsius)
+		MW = self.getMolecularWeight().to(ureg.g/ureg.mol)
 
 		a,b,c,d = self._volatilityConst
 
 		V1 = 10**(a-b/(temperature+c))
 
-		return 1.585287951807229e-5*MW*V1/(temperature+273.16)*g/cm**3
+		return 1.585287951807229e-5*MW*V1/(temperature+273.16)*ureg.g/ureg.cm**3
 
 
 	def getDensity(self, temperature):
@@ -189,30 +192,36 @@ class PhysicalPropeties(object):
 			:return:
 				The density as Unum
 		"""
-		temperature = tonumber(temperature,celsius)
+		if isinstance(temperature, Unum):
+			temperature = temperature.asNumber(celsius)
+		elif isinstance(temperature, Quantity):
+			temperature = temperature.m_as(ureg.celsius)
 		a,b,c = self._densityConst
 
-		return (a-b*(temperature-c))*g/cm**3
+		return (a-b*(temperature-c))*ureg.g/ureg.cm**3
 
 	def vaporPressure(self, temperature):
-		temperature = tonumber(temperature, K)
+		if isinstance(temperature, Unum):
+			temperature = temperature.asNumber(K)
+		elif isinstance(temperature, Quantity):
+			temperature = temperature.m_as(ureg.kelvin)
 		A = self._vaporConst["A"]
 		B = self._vaporConst["B"]
 		C = self._vaporConst["C"]
 		D = self._vaporConst["D"] if "D" in self._vaporConst.keys() else 0
 		E = self._vaporConst["E"] if "E" in self._vaporConst.keys() else 0
 		F = self._vaporConst["F"] if "F" in self._vaporConst.keys() else 0
-		units = self._vaporConst["units"]
-		return tonumber((10 ** (A - B / (temperature - C) + D * numpy.log10(
-			temperature) + E * temperature + F * temperature ** 2)) * units, bar)
+		units = ureg(self._vaporConst["units"])
+		return ((10 ** (A - B / (temperature - C) + D * numpy.log10(
+			temperature) + E * temperature + F * temperature ** 2)) * units).m_as(ureg.bar)
 
 
 	def __init__(self,configJSON):
 
 		if "physicalProperties" in configJSON:
 			self._params 		 = configJSON["physicalProperties"]
-			self.molecularWeight = self._params.get("molecularWeight","1")
-			self.sorptionCoefficient = self._params.get("sorptionCoefficient","1")
+			self.molecularWeight = self._params.get("molecularWeight","1*g/mol")
+			self.sorptionCoefficient = self._params.get("sorptionCoefficient","1*cm/s")
 			self.spreadFactor    = self._params.get("spreadFactor",1)
 	
 

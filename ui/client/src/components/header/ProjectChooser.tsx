@@ -1,42 +1,35 @@
-import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material";
+import { Autocomplete, TextField, Stack } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { EMPTY_NAME_PROJECT, useProjectStore } from "../../stores/useProjectStore";
 import { AddProjectButton } from "./AddProjectButton";
 import { DeleteProjectButton } from "./DeleteProjectButton";
 
-export const ProjectChooser = ({ }) => {
-  const { projectNames, currProjectName, selectProject } = useProjectStore();
+const displayName = (name: string) => name || EMPTY_NAME_PROJECT;
+const storeName = (name: string) => name === EMPTY_NAME_PROJECT ? "" : name;
 
-  const unempty = (s: string) => s === '' ? EMPTY_NAME_PROJECT : s;
-  const reempty = (s: string) => s === EMPTY_NAME_PROJECT ? '' : s;
+export const ProjectChooser = () => {
+  const { projectNames, currProjectName } = useProjectStore();
+  const navigate = useNavigate();
 
-  // console.log('projectNames', projectNames.map(x => x.name));
+  const options = projectNames.map(({ name }) => displayName(name));
 
   return (
-    <Stack direction={'row'}>
-      <FormControl size="small">
-        <InputLabel id="demo-simple-select-label">Project</InputLabel>
-        <Select
-          labelId="demo-simple-select-label"
-          id="demo-simple-select"
-          value={unempty(currProjectName)}
-          label="Project"
-          onChange={(event: SelectChangeEvent) => {
-            selectProject(reempty(event.target.value as string));
-          }}
-        >
-          {projectNames.map(({ name }) => {
-            return (
-              <MenuItem key={unempty(name)} value={unempty(name)}>
-                {unempty(name)}
-              </MenuItem>
-            )
-          })}
-        </Select>
-      </FormControl>
-      <AddProjectButton
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Autocomplete
+        size="small"
+        value={displayName(currProjectName)}
+        options={options}
+        onChange={(_, value) => {
+          if (value) {
+            navigate('/' + encodeURIComponent(storeName(value)));
+          }
+        }}
+        renderInput={(params) => <TextField {...params} label="Project" />}
+        disableClearable
+        sx={{ minWidth: 200 }}
       />
-      <DeleteProjectButton
-      />
+      <AddProjectButton />
+      <DeleteProjectButton />
     </Stack>
-  )
-}
+  );
+};

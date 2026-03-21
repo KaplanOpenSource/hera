@@ -18,7 +18,8 @@ except ImportError:
     unumSupport = False
 
 
-from pint import UnitRegistry
+from hera.utils.logging import get_logger
+from pint import Unit, UnitRegistry
 from pint import Quantity
 from pint.errors import UndefinedUnitError, DimensionalityError
 from deprecated import deprecated
@@ -34,10 +35,23 @@ def tonumber(x,theunit):
     return ret
 
 def tounit(x,theunit):
+    logger = get_logger(None, "hera.utils.tounit")
     if isinstance(x,Unum):
-        ret = x.asUnit(theunit)
+        logger.warning("Please prefer using the package pint for units using ureg")
+        if isinstance(theunit, Unit):
+            ret = unumToPint(x).to(theunit)
+        elif isinstance(theunit, Unum):
+            ret = x.asUnit(Unit)
+        else:
+            logger.error(f"can't convert {x} to units {theunit}")
     elif isinstance(x,Quantity):
-        ret = x.to(theunit)
+        if isinstance(theunit, Unum):
+            logger.warning("Please prefer using the package pint for units using ureg")
+            ret = pintToUnum(x).asUnit(theunit)
+        elif isinstance(theunit, Unit):
+            ret = x.to(Unit)
+        else:
+            logger.error(f"can't convert {x} to units {theunit}")
     else:
         ret = Quantity(x,theunit)
     return ret
@@ -261,6 +275,8 @@ if unumSupport:
             pint.Quantity: A pint quantity with the same unit.
         """
         # Get the string representation of the unum object
+        if isinstance(unum_obj, Quantity):
+            return unum_obj
         unit_str = str(unum_obj)
         pint_str = convert_unum_units_to_eval_str(unit_str)
         return value * ureg.parse_expression(pint_str)

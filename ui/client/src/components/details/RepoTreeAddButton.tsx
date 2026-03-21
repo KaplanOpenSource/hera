@@ -2,7 +2,7 @@ import { DriveFolderUpload } from "@mui/icons-material";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useDialog } from "../../elements/useDialog";
-import { execPython } from "../../io/execPython";
+import { fetchPython } from "../../io/fetchPython";
 import { ProjectEntire } from "../../shared/types";
 import { useProjectStore } from "../../stores/useProjectStore";
 
@@ -21,7 +21,9 @@ export const RepoTreeAddButton = ({
   const baseDir = currProject?.documents.find(x => x.type === currProject.name + '__config__')?.desc.filesDirectory || '';
 
   const addRepo = async (params: AddRepoArgs) => {
-    const { data } = await execPython(`
+    const { data } = await fetchPython({
+      results: ['project'],
+      code: `
 import logging
 import os
 from hera.datalayer import All
@@ -34,8 +36,8 @@ dtk.loadAllDatasourcesInRepositoryJSONToProject(projectName='${currProject?.name
                                                 overwrite=${params.overwrite ? 'True' : 'False'})
 docs = All.getDocumentsAsDict('${currProject?.name}', with_id=True)
 project = {"name": '${currProject?.name}', "documents": docs['documents']}
-result = {"project": project}
-        `);
+`,
+    });
     if (data) {
       setCurrentProject(data.project as ProjectEntire);
     }

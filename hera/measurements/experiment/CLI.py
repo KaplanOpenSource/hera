@@ -14,56 +14,83 @@ import zipfile
 from hera import toolkitHome
 from hera.utils.data import CLI as projectCLI
 
+def _resolve_project_name(arguments):
+    """
+    Resolve project name:
+    - Prefer --projectName if provided
+    - Else fall back to caseConfiguration.json (legacy behavior)
+    """
+    projectName = getattr(arguments, "projectName", None)
+    if projectName:
+        return projectName
+
+    configurationFile = getattr(arguments, "configurationFile", "caseConfiguration.json")
+    configuration = loadJSON(configurationFile)
+    return configuration["projectName"]
+
+
 def experiments_list(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
-    if 'projectName' not in arguments:
-        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
 
-        configuration = loadJSON(configurationFile)
-        projectName = configuration['projectName']
-    else:
-        projectName = arguments.projectName
+    projectName = _resolve_project_name(arguments)
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT,projectName=projectName)
-    print(tk.keys())
+    # ✅ FIX: avoid toolkitHome.getToolkit(...) to prevent duplicate projectName injection
+    from hera.measurements.experiment.experiment import experimentHome
+    home = experimentHome(projectName=projectName)
+
+    # keep old behavior: "print(tk.keys())" => print the experiment names
+    print(list(home.getExperimentsMap().keys()))
 
 
 def experiments_table(arguments):
     logger = logging.getLogger("hera.bin.experiment_experiments_table")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
-    if 'projectName' not in arguments:
-        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
 
-        configuration = loadJSON(configurationFile)
-        projectName = configuration['projectName']
-    else:
-        projectName = arguments.projectName
+    projectName = _resolve_project_name(arguments)
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT,projectName=projectName)
-    print(tk.getExperimentsTable())
+    # ✅ FIX: instantiate directly
+    from hera.measurements.experiment.experiment import experimentHome
+    home = experimentHome(projectName=projectName)
+
+    # If experimentHome has getExperimentsTable(), use it. Otherwise print a simple table.
+    if hasattr(home, "getExperimentsTable"):
+        print(home.getExperimentsTable())
+        return
+
+    names = list(home.getExperimentsMap().keys())
+    print(f"\nExperiments in project '{projectName}':")
+    if not names:
+        print("(none)")
+        return
+    for i, n in enumerate(names, start=1):
+        print(f"{i:>3}. {n}")
 
 
 def get_experiment_data(arguments):
     logger = logging.getLogger("hera.bin.experiment_get_experiment_data")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
-    if 'projectName' not in arguments:
-        configurationFile = arguments.configurationFile if 'configurationFile'  in arguments else "caseConfiguration.json"
 
-        configuration = loadJSON(configurationFile)
-        projectName = configuration['projectName']
-    else:
-        projectName = arguments.projectName
+    projectName = _resolve_project_name(arguments)
 
     if projectName not in datalayer.getProjectList():
         raise ValueError(f"Project '{projectName}' does not exists")
 
-    tk = toolkitHome.getToolkit(toolkitName=toolkitHome.EXPERIMENT, projectName=projectName)
-    parquet = tk.getExperiment(arguments.experiment).getExperimentData().getData(arguments.deviceType, deviceName=arguments.deviceName ,perDevice=arguments.perDevice)
+    # ✅ FIX: instantiate directly (no toolkitHome.getToolkit)
+    from hera.measurements.experiment.experiment import experimentHome
+    home = experimentHome(projectName=projectName)
+
+    exp = home.getExperiment(arguments.experiment)
+    parquet = exp.getExperimentData().getData(
+        arguments.deviceType,
+        deviceName=getattr(arguments, "deviceName", None),
+        perDevice=getattr(arguments, "perDevice", None),
+    )
     print(pandas.DataFrame(parquet))
+
 
 def create_experiment(arguments):
     logger = logging.getLogger("hera.bin.experiment_create_experiment")

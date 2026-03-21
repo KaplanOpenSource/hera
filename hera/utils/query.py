@@ -36,7 +36,7 @@ def andClause(excludeFields=[], **kwargs):
 
 def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
     """
-        Convets a dict object to a mongodb query.
+        Converts a dict object to a mongodb query.
 
         That is, if the JSON is:
 
@@ -65,7 +65,7 @@ def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
 
     if the
 
-    This will allow to use the returned dict in collection.getDocumets.
+    This will allow to use the returned dict in collection.getDocuments.
 
     :param  prefix: prefix for the mongoDB query fields.
                     used to select only a part of the document description.
@@ -86,7 +86,7 @@ def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
 
     def determineType(value, prefix,prefixExclude):
         if isinstance(value, dict):
-            _dictTomongo(value, local_perfix=prefix,prefixExclude=prefixExclude)
+            _dictToMongo(value, local_prefix=prefix,prefixExclude=prefixExclude)
         elif isinstance(value, list):
             for indx,listValue in enumerate(value):
                 new_prefix = f"{prefix}__{indx}"
@@ -94,19 +94,19 @@ def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
         else:
             ret[prefix] = value
 
-    def _dictTomongo(dictObj,local_perfix,prefixExclude):
+    def _dictToMongo(dictObj,local_prefix,prefixExclude):
         for key,value in dictObj.items():
             if key==prefixExclude:
-                new_prefix = local_perfix
+                new_prefix = local_prefix
             else:
-                new_prefix = key if local_perfix=="" else "%s__%s" % (local_perfix, key)
+                new_prefix = key if local_prefix=="" else "%s__%s" % (local_prefix, key)
 
             determineType(value,new_prefix,prefixExclude)
 
-    _dictTomongo(dictObj,local_perfix=prefix,prefixExclude=prefixExclude)
+    _dictToMongo(dictObj,local_prefix=prefix,prefixExclude=prefixExclude)
 
     # Now convert all the keys that end with __type to __type__.
-    # This fixes the pymongo queyr where __type is used to determine the type of the format.
+    # This fixes the pymongo query where __type is used to determine the type of the format.
     keyList = [key for key in ret.keys()]
     for key in keyList:
         if key.endswith("__type"):

@@ -1,18 +1,16 @@
 import { ProjectDocument } from "@shared/types";
-import { execPython } from "./execPython";
+import { fetchPython } from "./fetchPython";
 import { FORBIDDEN_FIELDS } from "../shared/constants";
 
 export const fetchDocument = async (docid: string) => {
-  const { data } = await execPython(`
-import json
+  const { data } = await fetchPython({
+    results: ['docData'],
+    code: `
 from hera.datalayer import All
-docs = All.getDocumentByID('${docid}')
-result = docs.asDict(with_id=True)
-`);
-  if (data) {
-    return data;
-  }
-  return undefined;
+docData = All.getDocumentByID('${docid}').asDict(with_id=True)
+`,
+  });
+  return data?.docData;
 }
 
 const stringifyToPython = (obj: any) => {
@@ -38,13 +36,11 @@ doc = All.getDocumentByID('${docid}')
   }
   lines.push(`
 doc.save()
-docs = All.getDocumentByID('${docid}')
-result = docs.asDict(with_id=True)
+docData = All.getDocumentByID('${docid}').asDict(with_id=True)
 `)
-  const code = lines.join('\n');
-  const { data } = await execPython(code);
-  if (data) {
-    return data;
-  }
-  return undefined;
+  const { data } = await fetchPython({
+    results: ['docData'],
+    code: lines.join('\n'),
+  });
+  return data?.docData;
 }

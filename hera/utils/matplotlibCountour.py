@@ -4,7 +4,7 @@ try:
 except ImportError:
     print("gis support not installed. ")
 
-from hera.utils.unitHandler import  *
+from hera.utils.unitHandler import ureg
 
 def standardize_polygon(poly, units_conversion):
     if isinstance(poly, list):

@@ -7,10 +7,10 @@ export const ButtonTooltip = ({
   title,
   ...restProps
 }: {
-  onClick: (e: MouseEvent<HTMLElement>) => void,
   title?: ReactNode,
+  onClick: NonNullable<IconButtonProps['onClick']>;
   children: any,
-} & IconButtonProps) => {
+} & Omit<IconButtonProps, 'onClick'>) => {
   return (
     <Tooltip
       title={title}

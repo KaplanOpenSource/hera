@@ -1,36 +1,42 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle,
-  TextField,
+  DialogTitle
 } from "@mui/material";
-import { useRef, useState } from "react";
-import { execPython } from "../../io/execPython";
-import { useProjectStore } from "../../stores/useProjectStore";
-import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
+import { useRef, useState } from "react";
 import { BooleanProperty } from "../../elements/BooleanProperty";
+import { ButtonDialog } from "../../elements/ButtonDialog";
+import { TextProperty } from "../../elements/TextProperty";
+import { fetchPython } from "../../io/fetchPython";
+import { useProjectStore } from "../../stores/useProjectStore";
+import { SelectProperty } from "../../elements/SelectProperty";
+
+const NO_TOOLKIT = '* No Toolkit *';
 
 export const AddDocumentButton = ({
   toolkit = undefined,
+  onDocumentCreated,
 }: {
   toolkit?: Toolkit | undefined,
+  onDocumentCreated?: (docOid: string) => void,
 }) => {
-  const [open, setOpen] = useState(false);
+  const { toolkits } = useProjectStore();
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
+  const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
+  const closeRef = useRef<() => void>();
 
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
-    if (toolkit?.toolkit) {
-      desc.toolkit = toolkit.toolkit;
+    if (chosenToolkit) {
+      desc.toolkit = chosenToolkit;
     }
     const addcmd = asAgent
       ? `
@@ -41,81 +47,98 @@ All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stri
       : `
 All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
     `;
-    const { problem, data } = await execPython(`
-import json
+    const { problem, data } = await fetchPython({
+      results: ['project'],
+      code: `
 from hera.datalayer import All, datatypes
 ${addcmd}
-
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
-result = {"name": '${currProjectName}', "documents": docs['documents']}
-      `)
+project = {"name": '${currProjectName}', "documents": docs['documents']}
+`,
+    })
     if (problem) {
       return;
     }
-    setCurrentProject((data as ProjectEntire));
-    setOpen(false);
+    const existingIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
+    setCurrentProject(data.project as ProjectEntire);
+    const newIds = useProjectStore.getState().getProject()?.documentIds ?? new Set<string>();
+    const [addedId] = newIds.difference(existingIds);
+    if (addedId) {
+      onDocumentCreated?.(addedId);
+    }
   }
 
-  return (<>
-    <ButtonTooltip
-      title='Add Document'
-      onClick={() => {
-        setOpen(true)
+  return (
+    <ButtonDialog
+      icon={<Add />}
+      title="Add Document"
+      onOpen={() => {
         setName('');
+        setResource('');
+        setAsAgent(false);
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
       }}
+      dialogProps={{
+        onClick: (e) => e.stopPropagation(),
+        onKeyDown: (e) => {
+          if (e.code === 'Enter') {
+            doAddDoc();
+            closeRef.current?.();
+          }
+        },
+      }}
+      closeRef={closeRef}
     >
-      <Add />
-    </ButtonTooltip>
-    <Dialog
-      open={open}
-      onClose={() => setOpen(false)}
-      onClick={e => e.stopPropagation()}
-      onKeyDown={e => { if (e.code === 'Enter') doAddDoc() }}
-    >
-      <DialogTitle>Add Document</DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          Adding a document
-        </DialogContentText>
-        <TextField
-          inputRef={inputRef}
-          autoFocus
-          required
-          margin="dense"
-          size="small"
-          label="Name"
-          fullWidth
-          variant="outlined"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <TextField
-          margin="dense"
-          size="small"
-          label="Resource"
-          fullWidth
-          variant="outlined"
-          value={resource}
-          onChange={(e) => setResource(e.target.value)}
-          disabled={asAgent}
-        />
-        <BooleanProperty
-          label="Agent"
-          value={asAgent}
-          setValue={v => setAsAgent(v)}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-        <Button onClick={() => {
-          doAddDoc();
-        }}>
-          Add Document
-        </Button>
-      </DialogActions>
-    </Dialog>
-  </>)
+      {(close) => (
+        <>
+          <DialogTitle>Add Document</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Adding a document
+            </DialogContentText>
+            <TextProperty
+              inputRef={inputRef}
+              autoFocus
+              required
+              margin="dense"
+              label="Name"
+              fullWidth
+              value={name}
+              setValue={v => setName(v)}
+            />
+            <TextProperty
+              margin="dense"
+              label="Resource"
+              fullWidth
+              value={resource}
+              setValue={v => setResource(v)}
+              disabled={asAgent}
+            />
+            <BooleanProperty
+              label="Agent"
+              value={asAgent}
+              setValue={v => setAsAgent(v)}
+            />
+            <SelectProperty
+              label="Toolkit"
+              value={chosenToolkit || NO_TOOLKIT}
+              setValue={(v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+              menuItems={[{ name: NO_TOOLKIT }, ...toolkits.map(t => ({ name: t.toolkit }))]}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={close}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              doAddDoc();
+              close();
+            }}>
+              Add Document
+            </Button>
+          </DialogActions>
+        </>
+      )}
+    </ButtonDialog>
+  )
 }

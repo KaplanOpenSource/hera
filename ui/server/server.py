@@ -1,22 +1,29 @@
+import argparse
+import mimetypes
 import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from cors_handler import CorsHandler
 from mock_data import MOCK_PROJECTS
+
+cors_handler = CorsHandler()
+parser = argparse.ArgumentParser(description="Hera UI API server")
+cors_handler.add_argument(parser)
+parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
+parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
+args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")
 
-if '--cors' in sys.argv:
-    origins = ['*']
-else:
-    origins = [f'http://{h}:{p}' for h in ['localhost', '127.0.0.1', '0.0.0.0'] for p in [5173, 8000]]
+origins = cors_handler.get_origins(args)
 
 # Allow local Vite dev server
 app.add_middleware(
@@ -36,6 +43,12 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/cors")
+def cors_info() -> dict:
+    print ('cors', cors_handler.custom_origins)
+    return {"origins": cors_handler.custom_origins}
+
+
 class ExecPayload(BaseModel):
     code: str
 
@@ -52,6 +65,17 @@ def exec_code(payload: ExecPayload):
     result = _locals.get("result", None)
     print("got:", result)
     return jsonable_encoder(result)
+
+
+@app.get("/file/{file_path:path}")
+def serve_file(file_path: str):
+    print('serving: ', file_path)
+    full_path = Path("/") / file_path
+    if not full_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    media_type = mimetypes.guess_type(str(full_path))[0]
+    print('mime: ', media_type)
+    return FileResponse(str(full_path), media_type=media_type)
 
 
 # Serve built frontend (Vite) in production
@@ -92,14 +116,14 @@ if __name__ == "__main__":
     # os.system("sh hera/scripts/run_mongo.sh")
     # os.system("sh hera/scripts/add_repo.sh")
 
-    if "--debug" in sys.argv:
+    if args.debug:
         import debugpy
 
         debugpy.listen(("0.0.0.0", 5678))
         print("debugpy listening on 0.0.0.0:5678 - attach your debugger")
 
     uvicorn.run(
-        "server:app",
+        app,
         host="0.0.0.0",
         port=8000,
         reload=False,

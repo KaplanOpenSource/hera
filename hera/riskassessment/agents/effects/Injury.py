@@ -1,7 +1,7 @@
 import pandas
 import json
 import pydoc
-from unum.units import *
+from hera.utils import ureg
 from .thresholdGeoDataFrame import thresholdGeoDataFrame 
 
 class InjuryFactory(object): 
@@ -32,15 +32,15 @@ class InjuryFactory(object):
 				For example the tenberge coefficient. 
 		"""		
 		try:
-	                injuryType = cfgJSON["type"]
+			injuryType = cfgJSON["type"]
 		except KeyError:
-                        raise ValueError("Injury type is not defined")
+			raise ValueError("Injury type is not defined")
                 
 		try:
 			calculatorTypeAndParams = cfgJSON["calculator"]
-			calcType,calcParam       = [x for x in calculatorTypeAndParams.items()][0]
+			calcType,calcParam = [x for x in calculatorTypeAndParams.items()][0]
 		except KeyError: 
-                        raise ValueError("Calculator not defined")
+			raise ValueError("Calculator not defined")
 
 		calculatorCLS = pydoc.locate("hera.riskassessment.agents.effects.Calculator.Calculator%s" % calcType)
 		calculator    = calculatorCLS(**calcParam,**additionalparameters)
@@ -67,7 +67,7 @@ class Injury(object):
 
 	@property
 	def calculator(self):
-	    return self._calculator
+		return self._calculator
 
 	@property 
 	def levels(self): 
@@ -109,7 +109,7 @@ class Injury(object):
 		levelNames = cfgJSON.get("levels")
 
 		if units is not None:
-			units = eval(units)
+			units = ureg(units)
 
 		for lvl in levelNames:
 			try:
@@ -163,7 +163,7 @@ class Injury(object):
 		"""
 		pass
 
-	def calculate(self, concentrationField, field, time="datetime", x="x", y="y", breathingRate=10 * L / min,
+	def calculate(self, concentrationField, field, time="datetime", x="x", y="y", breathingRate=10 * ureg.L / ureg.min,
 				  **parameters):
 		import warnings
 		warnings.warn("This function is obselete. Use calculateRegionOfInjured instead")
@@ -175,7 +175,7 @@ class Injury(object):
 											  breathingRate=breathingRate,
 											  **parameters)
 
-	def calculateRegionOfInjured(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*L/min,**parameters):
+	def calculateRegionOfInjured(self,concentrationField,field,time="datetime",x="x",y="y",breathingRate=10*ureg.L / ureg.min,**parameters):
 		"""
 			Calculates the fraction of the population that was effected in each point, and returns its contour.
 			The levels are determined by the injury type.
@@ -225,7 +225,7 @@ class Injury(object):
 		ret = self._postCalculate(retList,time)
 		return thresholdGeoDataFrame(ret)
 
-	def calculateToxicLoads(self,concentrationField,time="datetime",breathingRate=10*L/min,field=None):
+	def calculateToxicLoads(self,concentrationField,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None):
 		"""
 			Calculates the toxic loads of the concetration field.
 
@@ -251,7 +251,7 @@ class Injury(object):
 		return self.calculator.calculate(concentrationField, field, breathingRate=breathingRate, time=time)
 
 
-	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*L/min,field=None):
+	def calculatePointWiseFractionInjured(self,timeConcentration,time="datetime",breathingRate=10*ureg.L / ureg.min,field=None):
 		"""
 			Calculates the fraction of injury over time in each point.
 

@@ -42,6 +42,7 @@ export const DetailsViewItemName = ({
           </Typography>
           {setItemKey && (<>
             <ButtonTooltip
+              component="div"
               title={'Rename ' + itemKey}
               onClick={() => setEditing(!editing)}
             >

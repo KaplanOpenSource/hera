@@ -3,7 +3,7 @@ import { Stack, Tooltip, Typography } from "@mui/material";
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useEffect, useState } from "react";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
-import { execPython } from "../../io/execPython";
+import { fetchPython } from "../../io/fetchPython";
 import { idRepoId, TEMP_REPO_NAME } from "../../shared/idDocId";
 import { RepoTreeAddButton } from "./RepoTreeAddButton";
 import { TextFieldWithApply } from "./TextFieldWithApply";
@@ -22,15 +22,16 @@ export const DetailsViewRepo = ({
   useEffect(() => {
     (async () => {
       if (!isTempRepo) {
-        const { data } = await execPython(`
+        const { data } = await fetchPython({
+          results: ['jsonData'],
+          code: `
 import json
 with open('${repoPath}', 'r') as fjson:
-  data = json.load(fjson)
-result = {"json": data}
-            `);
-        console.log(data)
-        if (data?.json) {
-          setTree(data.json);
+  jsonData = json.load(fjson)
+`,
+        });
+        if (data?.jsonData) {
+          setTree(data.jsonData);
         } else {
           setTree(undefined)
         }

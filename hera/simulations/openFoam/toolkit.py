@@ -132,7 +132,7 @@ class OFToolkit(hermesWorkflowToolkit):
         if isinstance(baseConfiguration,str):
             logger.info(f"Assuming {baseConfiguration} is workflow name")
             workflow=self.getWorkflowDocumentByName(baseConfiguration)
-            base_config = workflow['desc']['workflow']
+            baseConfiguration = workflow['desc']['workflow']
         elif not isinstance(baseConfiguration, dict):
             logger.error("Slurm preparation can only handle base workflow contents or workflow name")
 
@@ -141,10 +141,10 @@ class OFToolkit(hermesWorkflowToolkit):
             with open(jsonVariations, 'r') as variationsFile:
                 jsonVariations = json.load(variationsFile)
         elif not isinstance(jsonVariations, dict):
-            logger.error("Slurm prepartion only supports json variation input as path or dict")
+            logger.error("Slurm preparation only supports json variation input as path or dict")
 
 
-        for jsonConfig in JSONVariations(base_config, jsonVariations):
+        for jsonConfig in JSONVariations(baseConfiguration, jsonVariations):
             doc = self.addWorkflowToGroup(workflowJSON=jsonConfig,
                                           groupName=workflow['desc']['groupName'],
                                           writeWorkflowToFile=True)
