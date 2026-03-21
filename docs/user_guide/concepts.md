@@ -4,15 +4,127 @@ A gentle introduction to the main ideas behind Hera. Understanding these concept
 
 ---
 
-## What is Hera?
+## The Big Picture: A Metadata-Driven Data Lake
 
-Hera is a platform for managing scientific data — measurements, simulations, and cached results — in a structured, reproducible way. It stores metadata in MongoDB and provides a Python API and CLI tools to organize, query, and process your data.
+At its core, Hera is a **data lake with a metadata layer**. Your data — weather observations, simulation outputs, GIS files, processed results — lives as ordinary files on disk. Hera doesn't move or copy those files. Instead, it stores **metadata documents** in MongoDB that describe each piece of data: what it is, where it lives, what format it's in, and any additional properties you attach to it.
 
-Everything in Hera revolves around three core ideas: **Projects**, **Toolkits**, and **Data Sources**.
+```
+┌─────────────────────────────────────────────────────┐
+│                    MongoDB                          │
+│                                                     │
+│  ┌─────────────────────────────────────────┐        │
+│  │ Document                                │        │
+│  │   projectName: "WindStudy"              │        │
+│  │   type: "WeatherStation"                │        │
+│  │   dataFormat: "parquet"                 │        │
+│  │   resource: "/data/station_A.parquet" ──┼──┐     │
+│  │   desc:                                 │  │     │
+│  │     station: "A"                        │  │     │
+│  │     location: "Haifa"                   │  │     │
+│  │     elevation: 120                      │  │     │
+│  │     period: "2023-2024"                 │  │     │
+│  └─────────────────────────────────────────┘  │     │
+│                                               │     │
+└───────────────────────────────────────────────┼─────┘
+                                                │
+                    ┌───────────────────────────┘
+                    ▼
+         ┌─────────────────────┐
+         │  /data/             │
+         │   station_A.parquet │  ← actual data on disk
+         │   station_B.parquet │
+         │   dem_30m.tif       │
+         └─────────────────────┘
+```
+
+The `desc` field is a free-form dictionary — you can attach any metadata you need, forming a **tree-like structure** that you can later query. This is what makes Hera different from simply organizing files in folders: every piece of data is searchable by any combination of its metadata fields.
+
+### A small example: store and retrieve
+
+```python
+from hera import Project
+
+proj = Project(projectName="WindStudy")
+
+# Store: register a file with metadata
+proj.addMeasurementsDocument(
+    resource="/data/station_A.parquet",
+    dataFormat="parquet",
+    type="WeatherStation",
+    desc={
+        "station": "A",
+        "location": "Haifa",
+        "elevation": 120,
+        "period": "2023-2024",
+        "variables": ["temperature", "wind_speed", "wind_direction"]
+    }
+)
+
+# Retrieve: find data by any metadata field
+docs = proj.getMeasurementsDocuments(type="WeatherStation", location="Haifa")
+
+# Load the actual data into a pandas DataFrame
+df = docs[0].getData()
+print(df.head())
+```
+
+You can query by any combination of fields — find all stations above 100m elevation, all data from 2024, all parquet files of a certain type, etc. The metadata acts as a catalog for your data lake.
+
+### Three collections for different roles
+
+Hera organizes documents into three collections based on their role in the scientific workflow:
+
+| Collection | Role | Example |
+|-----------|------|---------|
+| **Measurements** | Raw input data that comes from the real world | Weather station files, GIS shapefiles, sensor readings |
+| **Simulations** | Results produced by computational models | OpenFOAM output, dispersion model results |
+| **Cache** | Derived or intermediate results | Processed statistics, function return values, aggregations |
+
+This separation helps you understand the provenance of any piece of data — where it came from and what role it plays.
 
 ---
 
-## Projects
+## Toolkits: Portals to Specific Data Types
+
+While Projects give you raw access to all your data, **Toolkits** provide a domain-specific lens. A toolkit understands a particular kind of data — how to read it, process it, and visualize it.
+
+Think of toolkits as **portals**: each one is focused on a specific data type and knows the right questions to ask about it.
+
+```python
+from hera import toolkitHome
+
+# The meteorology toolkit knows how to work with weather station data
+meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="WindStudy")
+
+# It manages named, versioned datasets
+df = meteo.getDataSourceData("station_haifa")
+
+# It provides domain-specific analysis
+enriched = meteo.analysis.addDatesColumns(df, datecolumn="datetime")
+hourly = meteo.analysis.calcHourlyDist(enriched, field="wind_speed")
+
+# And domain-specific visualization
+meteo.presentation.seasonalPlots.plotSeasonalHourly(enriched, field="wind_speed")
+```
+
+Without a toolkit, you'd query the raw project and handle all the data loading, processing, and plotting yourself. With a toolkit, the domain knowledge is built in:
+
+| Without toolkit (raw Project) | With toolkit |
+|------------------------------|-------------|
+| `proj.getMeasurementsDocuments(type="WeatherStation", station="A")` | `meteo.getDataSourceData("station_haifa")` |
+| Manual pandas processing | `meteo.analysis.addDatesColumns(df, ...)` |
+| Manual matplotlib plotting | `meteo.presentation.dailyPlots.plotScatter(df, ...)` |
+| You manage versions manually | `meteo.getDataSourceData("station_haifa", version=(1,0,0))` |
+
+Each toolkit adds three things on top of the Project data layer:
+
+1. **Data Sources** — versioned, named datasets (no need to remember query filters)
+2. **Analysis** — domain-specific processing methods
+3. **Presentation** — domain-specific visualizations
+
+---
+
+## Projects (in detail)
 
 A **Project** is a container for all your data. Think of it as a workspace — every measurement file, simulation result, and cached computation belongs to a project.
 
@@ -54,67 +166,11 @@ This convention means your scripts don't hardcode project names, making them por
 
 If no `caseConfiguration.json` exists and no name is provided, Hera uses a read-only **default project** used internally for repository management.
 
-A project gives you access to three document collections:
-
-| Collection | What it stores | Example |
-|-----------|---------------|---------|
-| **Measurements** | Raw input data | Weather station readings, GIS shapefiles, sensor data |
-| **Simulations** | Computation results | OpenFOAM output, dispersion model results |
-| **Cache** | Derived/intermediate data | Processed statistics, function return values |
-
-Each document in a collection has:
-
-- **resource** — where the data lives (a file path or inline data)
-- **dataFormat** — what kind of data it is (parquet, netcdf, JSON, etc.)
-- **type** — an application-defined label for organizing documents
-- **desc** — a free-form metadata dictionary for querying
-
 Projects also support **configuration** (key-value settings) and **counters** (atomic sequential IDs), both stored in the database.
-
-### Working with a Project
-
-```python
-# Add a measurement
-proj.addMeasurementsDocument(
-    resource="/data/weather/station_A.parquet",
-    dataFormat="parquet",
-    type="WeatherStation",
-    desc={"station": "A", "location": "Haifa"}
-)
-
-# Query measurements
-docs = proj.getMeasurementsDocuments(type="WeatherStation", station="A")
-
-# Load the actual data
-df = docs[0].getData()
-
-# Save data with automatic format detection
-proj.saveCacheData(name="daily_stats", data=stats_df, desc={"period": "2024"})
-```
 
 ---
 
-## Toolkits
-
-A **Toolkit** is a domain-specific module built on top of a Project. Every toolkit inherits all of the Project's data layer capabilities, plus adds:
-
-- **Analysis layer** — domain-specific data processing (statistics, calculations, transformations)
-- **Presentation layer** — visualization and plotting
-- **Data sources** — versioned, named datasets managed by the toolkit
-
-You never create toolkits directly. Instead, you ask the **ToolkitHome** registry:
-
-```python
-from hera import toolkitHome
-
-# Get a GIS toolkit
-topo = toolkitHome.getToolkit("GIS_Raster_Topography", projectName="MY_PROJECT")
-
-# Get a meteorology toolkit
-meteo = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
-```
-
-### What toolkits are available?
+## Available Toolkits
 
 Hera ships with built-in toolkits for several domains:
 
@@ -127,24 +183,6 @@ Hera ships with built-in toolkits for several domains:
 | **Data** | experiment, dataToolkit | Experiment workflows, repository management |
 
 You can also register your own custom toolkits. See the [Toolkit Catalog](../toolkits/overview.md) for detailed documentation of each toolkit.
-
-### Using a toolkit
-
-Every toolkit follows the same pattern:
-
-```python
-# 1. Get the toolkit
-lf = toolkitHome.getToolkit("MeteoLowFreq", projectName="MY_PROJECT")
-
-# 2. Access data sources
-df = lf.getDataSourceData("YAVNEEL")
-
-# 3. Use analysis
-enriched = lf.analysis.addDatesColumns(df, datecolumn="datetime")
-
-# 4. Use presentation
-ax = lf.presentation.dailyPlots.plotScatter(enriched, plotField="Temperature")
-```
 
 ---
 
