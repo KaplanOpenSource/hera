@@ -104,5 +104,3 @@ nav:
       - Reference:
           - Repository Schema: reference/repository_schema.md
           - Environment Variables: configuration/env_vars.md
-      - Tutorials:
-          - Exploration Notebook: notebooks/exploration.ipynb
