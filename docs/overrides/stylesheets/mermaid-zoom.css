@@ -1,14 +1,36 @@
 /* Mermaid diagram click-to-expand zoom */
 
-/* Make diagrams full-width */
-.mermaid {
-  cursor: zoom-in;
-  transition: transform 0.3s ease;
-  overflow: visible;
+/* Wrapper for diagram + button */
+.mermaid-zoom-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
 }
 
-/* Expanded state */
-.mermaid.zoomed {
+/* Expand button */
+.mermaid-zoom-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+  background: var(--md-primary-fg-color, #4051b5);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.mermaid-zoom-btn:hover {
+  opacity: 1;
+}
+
+/* Fullscreen overlay */
+.mermaid-zoom-overlay {
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
@@ -16,45 +38,38 @@
   height: 100vh;
   z-index: 9999;
   background: rgba(255, 255, 255, 0.97);
-  cursor: zoom-out;
-  display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
   box-sizing: border-box;
   overflow: auto;
+  cursor: zoom-out;
 }
 
-/* Dark mode support */
-[data-md-color-scheme="slate"] .mermaid.zoomed {
+.mermaid-zoom-overlay.active {
+  display: flex;
+}
+
+/* Dark mode */
+[data-md-color-scheme="slate"] .mermaid-zoom-overlay {
   background: rgba(30, 30, 30, 0.97);
 }
 
-/* Make SVG inside zoomed diagram scale nicely */
-.mermaid.zoomed svg {
+/* SVG inside overlay scales nicely */
+.mermaid-zoom-overlay svg {
   max-width: 95vw;
   max-height: 90vh;
   width: auto;
   height: auto;
 }
 
-/* Hint text */
-.mermaid::after {
-  content: "Click to expand";
-  display: block;
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--md-default-fg-color--lighter);
-  margin-top: 0.5rem;
-  opacity: 0.6;
-}
-
-.mermaid.zoomed::after {
-  content: "Click to close";
+/* Close hint */
+.mermaid-zoom-close-hint {
   position: fixed;
-  bottom: 1rem;
+  bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.9rem;
-  opacity: 0.8;
+  font-size: 0.85rem;
+  color: var(--md-default-fg-color--light);
+  opacity: 0.7;
 }
