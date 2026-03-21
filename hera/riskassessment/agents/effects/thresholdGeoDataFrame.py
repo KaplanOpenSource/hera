@@ -12,10 +12,24 @@ pop = demoDatalayer(projectName="Demography") # used only for the analysis layer
 
 
 
-class thresholdGeoDataFrame(geopandas.GeoDataFrame): 
+class thresholdGeoDataFrame(geopandas.GeoDataFrame):
+	"""A GeoDataFrame that holds threshold-based injury isopleths.
 
-	def __init__(self,*args,**kwargs): 
-	
+	Extends ``geopandas.GeoDataFrame`` with convenience methods for
+	shifting, rotating, and projecting threshold polygons onto
+	demographic datasets.
+	"""
+
+	def __init__(self, *args, **kwargs):
+		"""Initialize a thresholdGeoDataFrame.
+
+		Parameters
+		----------
+		*args
+		    Positional arguments forwarded to ``geopandas.GeoDataFrame``.
+		**kwargs
+		    Keyword arguments forwarded to ``geopandas.GeoDataFrame``.
+		"""
 		super(thresholdGeoDataFrame,self).__init__(*args,**kwargs)
 
 	def shiftLocationAndAngle(self,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon"):

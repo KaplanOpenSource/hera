@@ -6,32 +6,88 @@ import json
 
 
 class Agent:
+	"""
+	Represents a hazardous agent with its associated injury effect models.
 
-	_effects = None 
+	An agent is initialized from a JSON descriptor that defines its name,
+	effect parameters (e.g. Ten Berge coefficient), and one or more injury
+	effects (e.g. inhalation, thermal). Each effect is accessible by name
+	via dictionary-style access (``agent["inhalation"]``).
+	"""
 
-	_effectsParameters = None 
+	_effects = None
+
+	_effectsParameters = None
 
 	@property
 	def effectNames(self):
+		"""
+		List of effect names defined for this agent.
+
+		Returns
+		-------
+		list of str
+		"""
 		return [x for x in self._effects.keys()]
 
-	def  __getitem__(self,name): 
+	def  __getitem__(self,name):
+		"""
+		Access an effect by name.
+
+		Parameters
+		----------
+		name : str
+			The effect name.
+
+		Returns
+		-------
+		Injury
+			The injury effect object.
+		"""
 		return self._effects[name]
 
 	@property
 	def physicalproperties(self):
+		"""
+		Physical properties of the agent (molecular weight, density, vapor pressure, etc.).
+
+		Returns
+		-------
+		PhysicalPropeties
+		"""
 		return self._physicalproperties
 
 	@property
 	def fullDescription(self):
+		"""
+		The full JSON descriptor used to initialize this agent.
+
+		Returns
+		-------
+		dict
+		"""
 		return self._agentconfig
 
-	@property 
-	def effectproperties(self): 
+	@property
+	def effectproperties(self):
+		"""
+		The effect parameters dictionary (e.g. tenbergeCoefficient).
+
+		Returns
+		-------
+		dict
+		"""
 		return self._effectParameters
 
 	@property
 	def tenbergeCoefficient(self):
+		"""
+		The Ten Berge coefficient for dose-response calculations.
+
+		Returns
+		-------
+		float
+		"""
 		return self._effectParameters.get("tenbergeCoefficient",1)
 
 	@tenbergeCoefficient.setter
@@ -43,6 +99,13 @@ class Agent:
 
 	@property
 	def name(self):
+		"""
+		The name of the agent.
+
+		Returns
+		-------
+		str
+		"""
 		return self._agentconfig['name']
 
 
@@ -84,6 +147,13 @@ class Agent:
 
 
 	def toJSON(self):
+		"""
+		Serialize the agent to a JSON-compatible dictionary.
+
+		Returns
+		-------
+		dict
+		"""
 		ret = dict(name=self.name,
 				   physicalProperties=self.physicalproperties.toJSON(),
 				   effect={})
@@ -124,10 +194,12 @@ class PhysicalPropeties(object):
 
 	@property
 	def molecularWeight(self):
+		"""Molecular weight in g/mol."""
 		return self._molecularWeight
 
 	@property
 	def molecularVolume(self):
+		"""Molecular volume from the physical properties descriptor."""
 		return self._params["molecularVolume"]
 
 	@molecularWeight.setter
@@ -136,6 +208,7 @@ class PhysicalPropeties(object):
 
 	@property
 	def sorptionCoefficient(self):
+		"""Sorption coefficient in cm/s."""
 		return self._sorptionCoefficient
 
 	@sorptionCoefficient.setter
@@ -144,6 +217,7 @@ class PhysicalPropeties(object):
 
 	@property
 	def spreadFactor(self):
+		"""Spread factor (dimensionless)."""
 		return self._spreadFactor
 
 	@spreadFactor.setter
@@ -151,12 +225,15 @@ class PhysicalPropeties(object):
 		self._spreadFactor = float(value)
 
 	def getMolecularWeight(self):
+		"""Return the molecular weight."""
 		return self._molecularWeight
 
 	def getSpreadFactor(self):
+		"""Return the spread factor."""
 		return self._spreadFactor
 
 	def getSorptionCoefficient(self):
+		"""Return the sorption coefficient."""
 		return self._sorptionCoefficient
 
 
@@ -201,6 +278,19 @@ class PhysicalPropeties(object):
 		return (a-b*(temperature-c))*ureg.g/ureg.cm**3
 
 	def vaporPressure(self, temperature):
+		"""
+		Calculate the vapor pressure at a given temperature.
+
+		Parameters
+		----------
+		temperature : float or Unum or Quantity
+			The temperature (in Kelvin or with units).
+
+		Returns
+		-------
+		float
+			Vapor pressure in bar.
+		"""
 		if isinstance(temperature, Unum):
 			temperature = temperature.asNumber(K)
 		elif isinstance(temperature, Quantity):
@@ -217,7 +307,16 @@ class PhysicalPropeties(object):
 
 
 	def __init__(self,configJSON):
+		"""
+		Initialize physical properties from an agent config JSON.
 
+		Parameters
+		----------
+		configJSON : dict
+			The full agent descriptor. If it contains a ``physicalProperties``
+			key, those values are used to set molecular weight, sorption
+			coefficient, and spread factor.
+		"""
 		if "physicalProperties" in configJSON:
 			self._params 		 = configJSON["physicalProperties"]
 			self.molecularWeight = self._params.get("molecularWeight","1*g/mol")
@@ -226,5 +325,12 @@ class PhysicalPropeties(object):
 	
 
 	def toJSON(self):
+		"""
+		Serialize physical properties to a JSON-compatible dictionary.
+
+		Returns
+		-------
+		dict
+		"""
 		return self._params
 

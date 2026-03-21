@@ -47,27 +47,53 @@ class ProtectionPolicy(object):
 
 	_params = None
 
-	@property 
-	def params(self): 
+	@property
+	def params(self):
+		"""
+		dict
+		    The parameters associated with this protection policy.
+		"""
 		return self._params
 
-	@property 
-	def finalname(self): 
+	@property
+	def finalname(self):
+		"""
+		str
+		    The name of the final concentration field in the dataset after
+		    all protection actions have been applied.
+		"""
 		return self._finalname
 
 	@property
 	def xname(self):
+		"""
+		str
+		    The name of the x-coordinate dimension in the dataset.
+		"""
 		return self._xname
-	@property 
-	def yname(self): 
+	@property
+	def yname(self):
+		"""
+		str
+		    The name of the y-coordinate dimension in the dataset.
+		"""
 		return self._yname
 
 	@property
-	def datetimename(self): 
+	def datetimename(self):
+		"""
+		str
+		    The name of the datetime dimension in the dataset.
+		"""
 		return self._datetimename
 
-	@property 
+	@property
 	def data(self):
+		"""
+		xarray.Dataset or None
+		    The concentration dataset produced after calling ``compute``.
+		    ``None`` before computation.
+		"""
 		return self._data
 
 	def __init__(self,actionList=[],x="x",y="y",datetime="datetime"): 
@@ -179,31 +205,70 @@ class ProtectionPolicy(object):
 
 
 
-class abstractAction(object): 
+class abstractAction(object):
+	"""Abstract base class for a single protection action in a policy pipeline.
+
+	Each action modifies the concentration field of its parent
+	``ProtectionPolicy`` during the ``compute`` step.  Concrete
+	subclasses (e.g. ``ActionIndoor``, ``ActionMasks``) implement the
+	specific transformation logic.
+
+	Attributes
+	----------
+	_actionID : int or None
+	    Sequential identifier of this action within the policy.
+	_actiontype : str or None
+	    String label for the type of action (e.g. ``'indoor'``, ``'masks'``).
+	_policy : ProtectionPolicy or None
+	    Reference to the owning protection policy.
+	_params : dict or None
+	    Keyword parameters that configure the action.
+	"""
 	_actionID = None
 	_actiontype = None
 	_policy = None
 	_params = None
 
-	@property 
-	def policy(self): 
+	@property
+	def policy(self):
+		"""
+		ProtectionPolicy
+		    The parent protection policy that owns this action.
+		"""
 		return self._policy
 
-	@property 
-	def actionid(self): 	
+	@property
+	def actionid(self):
+		"""
+		int
+		    The sequential identifier of this action within the policy.
+		"""
 		return self._actionID
 
-	@property 
-	def actiontype(self): 	
+	@property
+	def actiontype(self):
+		"""
+		str
+		    The type label of this action (e.g. ``'indoor'``, ``'masks'``).
+		"""
 		return self._actiontype
 
-	@property 
-	def params(self): 	
+	@property
+	def params(self):
+		"""
+		dict
+		    The keyword parameters that configure this action.
+		"""
 		return self._params
 
-	@property 	
-	def name(self,previdef=None): 
-		return "%s_%s" % (self._actiontype,self._actionID) 
+	@property
+	def name(self,previdef=None):
+		"""
+		str
+		    A unique name for this action, composed of its type and id
+		    (e.g. ``'indoor_1'``).
+		"""
+		return "%s_%s" % (self._actiontype,self._actionID)
 
 	def __init__(self,actionID,actiontype,policy,**kwargs): 
 		"""
