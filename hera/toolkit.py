@@ -34,101 +34,209 @@ TOOLKIT_SAVEMODE_FILEANDDB_REPLACE = "DB_overwrite"
 
 class abstractToolkit(Project):
     """
-    Base class for Toolkits.
+    Base class for all Toolkits.
 
-    * Inherits from Project – ולכן יש גישה לכל פונקציות ה־datalayer.
-    * מחזיק toolkitName ו־projectName.
-    * מוסיף מנגנון data sources שנשמרים כ-measurement documents מסוג
-      TOOLKIT_DATASOURCE_TYPE.
+    *  Like Project, it is initialized with a project name.
+       If the toolkit works on data, the data should be present in that project.
+
+    *  Inherits from Project and therefore exposes all the datalayer functions.
+
+    *  Holds the toolkit name, and references to the analysis and presentation layers.
+
+    *  Adds a mechanism (setConfig, getConfig) for saving configuration in the DB.
+       The settings are specific for a project.
+
+    *  Adds a data source mechanism to list, get, and add data sources.
+
+       - A data source is always saved as a measurement document of type
+         ``TOOLKIT_DATASOURCE_TYPE``.
+       - Each source has the following properties in the description:
+             * datasourceName : str
+             * toolkit : str
+             * version : tuple (major, minor, patch)
+       - The toolkit can have a default source version per project.
     """
 
     _toolkitname = None
     _projectName = None
 
-    _analysis = None  # holds the datalayer layer.
-    _presentation = None  # holds the presentation layer
+    _analysis = None
+    _presentation = None
 
     @property
     def presentation(self):
-        """Access to the presentation layer."""
+        """
+        Access the presentation layer.
+
+        Returns
+        -------
+        object or None
+        """
         return self._presentation
 
     @property
     def analysis(self):
-        """Access to the datalayer layer."""
+        """
+        Access the analysis (data) layer.
+
+        Returns
+        -------
+        object or None
+        """
         return self._analysis
 
     @property
     def toolkitName(self):
-        """The name of the toolkit."""
+        """
+        The name of the toolkit.
+
+        Returns
+        -------
+        str
+        """
         return self._toolkitname
 
     @property
     def projectName(self):
-        """The name of the project."""
+        """
+        The name of the project.
+
+        Returns
+        -------
+        str
+        """
         return self._projectName
 
-    def __init__(self, toolkitName: str, projectName: Optional[str] = None, filesDirectory: Optional[str] = None):
+    def __init__(self, toolkitName: str, projectName: Optional[str] = None,
+                 connectionName: Optional[str] = None, filesDirectory: Optional[str] = None):
         """
-        Initializes a new toolkit.
+        Initialize a new toolkit.
 
         Parameters
         ----------
         toolkitName : str
             The name of the toolkit.
-
-        projectName : str or None
+        projectName : str, optional
             The project that the toolkit works in.
-            If None – Project's automatic project-name mechanism is used.
-
-        filesDirectory : str
+            If None, Project's automatic project-name mechanism is used.
+        connectionName : str, optional
+            The name of the DB connection. If None, uses the current OS username.
+        filesDirectory : str, optional
             Directory to save datasource files.
         """
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory)
+        super().__init__(projectName=projectName, filesDirectory=filesDirectory, connectionName=connectionName)
         logger = get_classMethod_logger(self, "init")
         self._toolkitname = toolkitName
-        self._projectName = projectName
 
     @property
     def classLoggerName(self):
+        """
+        The logger name for the current class and method context.
+
+        Returns
+        -------
+        str
+        """
         return str(get_classMethod_logger(self, "{the_function_name}")).split(" ")[1]
+
+    # ------------------------------------------------------------------
+    # Document overrides — automatically tag with toolkit name
+    # ------------------------------------------------------------------
+
+    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+        Add a cache document, automatically tagging it with the toolkit name.
+
+        See ``Project.addCacheDocument`` for parameter details.
+        """
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
+        return super().addCacheDocument(resource, dataFormat, type, desc)
+
+    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+        Add a measurements document, automatically tagging it with the toolkit name.
+
+        See ``Project.addMeasurementsDocument`` for parameter details.
+        """
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
+        return super().addMeasurementsDocument(resource, dataFormat, type, desc)
+
+    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
+        """
+        Add a simulations document, automatically tagging it with the toolkit name.
+
+        See ``Project.addSimulationsDocument`` for parameter details.
+        """
+        if self.toolkitName is not None:
+            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName)
+        return super().addSimulationsDocument(resource, dataFormat, type, desc)
 
     # ------------------------------------------------------------------
     # Data sources API
     # ------------------------------------------------------------------
 
     def getDataSourceList(self, **filters) -> List[str]:
-        """Returns a list of data source names for this toolkit."""
+        """
+        Return a list of data source names for this toolkit.
+
+        Parameters
+        ----------
+        filters : dict
+            Additional query filters.
+
+        Returns
+        -------
+        list of str
+            Data source names.
+        """
         docList = self.getMeasurementsDocuments(
             type=TOOLKIT_DATASOURCE_TYPE,
             toolkit=self.toolkitName,
             **filters,
         )
-
-        ret = []
-        for doc in docList:
-            ret.append(doc["desc"]["datasourceName"])
-        return ret
+        return [doc['desc']['datasourceName'] for doc in docList]
 
     def getDataSourceMap(self, **filters) -> List[Dict[str, Any]]:
         """
-        Return list of all data sources and their versions related to this toolkit.
+        Return a list of all data sources and their versions for this toolkit.
+
+        Parameters
+        ----------
+        filters : dict
+            Additional query filters.
+
+        Returns
+        -------
+        list of dict
+            Each dict contains dataFormat, resource, and all desc fields.
         """
         docList = self.getMeasurementsDocuments(
             type=TOOLKIT_DATASOURCE_TYPE,
             toolkit=self.toolkitName,
             **filters,
         )
-
         ret = []
         for doc in docList:
-            dta = dict(dataFormat=doc["dataFormat"], resource=doc["resource"])
+            dta = dict(dataFormat=doc['dataFormat'], resource=doc['resource'])
             dta.update(doc.desc)
             ret.append(dta)
         return ret
 
     def getDataSourceTable(self, **filters) -> pd.DataFrame:
-        """Build a pandas DataFrame from all data sources of this toolkit."""
+        """
+        Build a pandas DataFrame from all data sources of this toolkit.
+
+        Parameters
+        ----------
+        filters : dict
+            Additional query filters.
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
         tables = []
         for sourceMap in self.getDataSourceMap(**filters):
             table = pd.json_normalize(sourceMap)
@@ -141,7 +249,17 @@ class abstractToolkit(Project):
 
     def getDataSourceDocumentsList(self, **kwargs):
         """
-        Return all the data source documents associated with this toolkit.
+        Return all data source documents associated with this toolkit.
+
+        Parameters
+        ----------
+        kwargs : dict
+            Additional query filters.
+
+        Returns
+        -------
+        list
+            List of mongoengine documents.
         """
         queryDict = {
             "type": TOOLKIT_DATASOURCE_TYPE,
@@ -152,8 +270,24 @@ class abstractToolkit(Project):
 
     def getDataSourceDocument(self, datasourceName: Optional[str], version=None, **filters):
         """
-        Return the document of the datasource.
-        If version is not specified, return the latest version or default version (if configured).
+        Return the document of a data source.
+
+        If version is not specified, returns the default version (if configured)
+        or the latest version.
+
+        Parameters
+        ----------
+        datasourceName : str or None
+            The name of the data source. If None, return the default source (if set).
+        version : tuple, optional
+            The version to retrieve. If None, returns the latest.
+        filters : dict
+            Additional query filters.
+
+        Returns
+        -------
+        document or None
+            The data source document, or None if not found.
         """
         if datasourceName is not None:
             filters[TOOLKIT_DATASOURCE_NAME] = datasourceName
@@ -178,18 +312,29 @@ class abstractToolkit(Project):
         elif len(docList) == 1:
             ret = docList[0]
         else:
-            versionsList = [doc["desc"]["version"] for doc in docList]
+            versionsList = [doc['desc']['version'] for doc in docList]
             latestVersion = max(versionsList)
-            docList = [doc for doc in docList if doc["desc"]["version"] == latestVersion]
+            docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
             ret = docList[0]
         return ret
 
     def getToolkitDocument(self, toolkit_name: str):
         """
-        Find a dynamic toolkit document by name (either desc.datasourceName or desc.toolkit).
-        Returns the mongoengine document or None.
+        Find a dynamic toolkit document by name.
+
+        Searches by ``desc.datasourceName`` first, then falls back to scanning
+        all ToolkitDataSource documents.
+
+        Parameters
+        ----------
+        toolkit_name : str
+            The toolkit name to search for.
+
+        Returns
+        -------
+        document or None
+            The mongoengine document, or None if not found.
         """
-        # First: direct filter on datasourceName (works on most implementations)
         try:
             q = self.getMeasurementsDocuments(
                 type="ToolkitDataSource", datasourceName=toolkit_name
@@ -197,10 +342,8 @@ class abstractToolkit(Project):
             if q and len(q) > 0:
                 return q[0]
         except Exception:
-            # fall through to broader search below
             pass
 
-        # Second: scan all ToolkitDataSource docs and match by desc fields
         try:
             q = self.getMeasurementsDocuments(type="ToolkitDataSource")
             for d in q:
@@ -210,7 +353,6 @@ class abstractToolkit(Project):
         except Exception:
             pass
 
-        # Optional: also look in DataSource collection if your project uses it
         try:
             q = self.getDataSourceDocuments(datasourceName=toolkit_name)
             if q and len(q) > 0:
@@ -220,43 +362,81 @@ class abstractToolkit(Project):
 
         return None
 
-
     def getDataSourceDocuments(self, datasourceName, version=None, **filters):
         """
-        Returns a list with the datasource (for API symmetry with measurements/cache).
+        Return a list containing the data source document (for API symmetry).
+
+        Parameters
+        ----------
+        datasourceName : str
+            The name of the data source.
+        version : tuple, optional
+            The version to retrieve.
+        filters : dict
+            Additional query filters.
+
+        Returns
+        -------
+        list
+            A list containing the document, or an empty list if not found.
         """
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         return [] if doc is None else [doc]
 
     def getDataSourceData(self, datasourceName=None, version=None, **filters):
         """
-            Return the data payload of a toolkit data source.
+        Return the data payload of a data source.
 
-            Args:
-                datasourceName (Optional[str]): Name of the datasource.
-                version (Optional[tuple]): Specific version to retrieve.
-                **filters: Additional query filters.
+        Parameters
+        ----------
+        datasourceName : str, optional
+            The name of the data source. If None, return the default source.
+        version : tuple, optional
+            The version to retrieve. If None, returns the latest.
+        filters : dict
+            Additional query filters.
 
-            Returns:
-                Any: The loaded datasource data, or None if not found.
+        Returns
+        -------
+        object or None
+            The loaded data, or None if the data source is not found.
         """
         filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         return None if doc is None else doc.getData()
 
-    def addDataSource(
-        self,
-        dataSourceName: str,
-        resource: str,
-        dataFormat: str,
-        version=(0, 0, 1),
-        overwrite: bool = False,
-        **kwargs,
-    ):
+    def addDataSource(self, dataSourceName: str, resource: str, dataFormat: str,
+                      version=(0, 0, 1), overwrite: bool = False, **kwargs):
         """
-        Adds a resource to the toolkit.
-        The type is always TOOLKIT_DATASOURCE_TYPE.
+        Add a data source to the toolkit.
+
+        The type is always ``TOOLKIT_DATASOURCE_TYPE``.
         The toolkit name is added automatically to the description.
+
+        Parameters
+        ----------
+        dataSourceName : str
+            The name of the data source.
+        resource : str
+            The resource path or data.
+        dataFormat : str
+            A data format string from ``datatypes``.
+        version : tuple of int
+            A 3-tuple version (major, minor, patch). Default is (0, 0, 1).
+        overwrite : bool
+            If True, overwrite an existing data source with the same name and version.
+        kwargs : dict
+            Additional metadata fields for the description.
+
+        Returns
+        -------
+        document
+            The newly created data source document.
+
+        Raises
+        ------
+        ValueError
+            If the data source already exists and overwrite is False.
         """
         kwargs[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
         kwargs[TOOLKIT_DATASOURCE_NAME] = dataSourceName
@@ -264,7 +444,6 @@ class abstractToolkit(Project):
 
         if (self.getDataSourceDocument(dataSourceName, version=version) is None) or overwrite:
             if self.getDataSourceDocument(dataSourceName, version=version) is not None:
-                # Exists -> delete and re-add
                 delargs = {
                     TOOLKIT_DATASOURCE_NAME: dataSourceName,
                     TOOLKIT_DATASOURCE_VERSION: version,
@@ -279,21 +458,51 @@ class abstractToolkit(Project):
             )
         else:
             raise ValueError(
-                f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. "
-                f"use overwrite=True to overwrite the existing document"
+                f"Record {dataSourceName} (version {version}) already exists in project "
+                f"{self.projectName}. Use overwrite=True to overwrite the existing document."
             )
 
         return doc
 
     def deleteDataSource(self, datasourceName, version=None, **filters):
-        """Delete a data source document."""
+        """
+        Delete a data source document.
+
+        Parameters
+        ----------
+        datasourceName : str
+            The name of the data source.
+        version : tuple, optional
+            The version to delete.
+        filters : dict
+            Additional query filters.
+
+        Returns
+        -------
+        document or None
+            The deleted document, or None if not found.
+        """
         doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
         if doc is not None:
             doc.delete()
         return doc
 
     def setDataSourceDefaultVersion(self, datasourceName: str, version: tuple):
-        """Set the default version for a given data source."""
+        """
+        Set the default version for a given data source.
+
+        Parameters
+        ----------
+        datasourceName : str
+            The name of the data source.
+        version : tuple
+            The version to set as default.
+
+        Raises
+        ------
+        ValueError
+            If no data source with the given name and version exists.
+        """
         if len(
             self.getMeasurementsDocuments(
                 type=TOOLKIT_DATASOURCE_TYPE,
@@ -357,9 +566,20 @@ class ToolkitHome(abstractToolkit):
 
     def __init__(self, projectName: Optional[str] = None, filesDirectory: Optional[str] = None):
         """
-        ToolkitHome itself הוא Toolkit (abstractToolkit):
-        - projectName יטען אוטומטית מ־caseConfiguration אם None.
-        - כל ה־ToolkitDataSource הדינמיים נרשמים תחת toolkitName="ToolkitHome".
+        Initialize the ToolkitHome registry.
+
+        ToolkitHome is itself a toolkit (inherits from abstractToolkit):
+
+        - ``projectName`` is loaded automatically from caseConfiguration if None.
+        - All dynamic ToolkitDataSource entries are registered under
+          toolkitName="ToolkitHome".
+
+        Parameters
+        ----------
+        projectName : str, optional
+            The project name. If None, loaded from caseConfiguration.
+        filesDirectory : str, optional
+            Directory for file outputs.
         """
         super().__init__(toolkitName="ToolkitHome", projectName=projectName, filesDirectory=filesDirectory)
 
@@ -870,9 +1090,19 @@ class ToolkitHome(abstractToolkit):
         return docs
 
 
-    def getToolkitTable(self, projectName: Optional[str]):
+    def getToolkitTable(self, projectName: Optional[str] = None):
         """
-        Build a DataFrame from getToolkitDocuments(...).
+        Build a DataFrame listing all available toolkits (static, dynamic, and experiments).
+
+        Parameters
+        ----------
+        projectName : str, optional
+            The project name. If None, uses the current project.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Table with columns: toolkit, cls, source, type, repositoryName, version.
         """
         docs = self.getToolkitDocuments(name=None, projectName=projectName) or []
         rows = []
@@ -965,6 +1195,34 @@ class ToolkitHome(abstractToolkit):
             overwrite: bool = False,
             **kwargs
     ):
+        """
+        Register a toolkit by name and filesystem path.
+
+        The toolkit is stored as a ToolkitDataSource measurement document
+        via the dataToolkit interface. When loaded later via ``getToolkit``,
+        the path is added to ``sys.path`` and the toolkit class is imported
+        using the convention ``<toolkit_name>.<toolkit_name>``.
+
+        Parameters
+        ----------
+        toolkit_name : str
+            The name of the toolkit to register.
+        toolkit_path : str
+            Path to the toolkit directory or file.
+        params : dict, optional
+            Additional parameters stored with the toolkit.
+        version : tuple of int
+            Version tuple (major, minor, patch). Default is (0, 0, 1).
+        overwrite : bool
+            If True, overwrite an existing registration.
+        kwargs : dict
+            Additional keyword arguments passed to ``addDataSource``.
+
+        Returns
+        -------
+        document
+            The created data source document.
+        """
         from hera.utils.data.toolkit import dataToolkit
 
         if not toolkit_name:
@@ -990,7 +1248,7 @@ class ToolkitHome(abstractToolkit):
             params = params
         )
     # ------------------------------------------------------------------
-    # JSON import helpers (unchanged, still valid עם הממשק החדש)
+    # JSON import helpers
     # ------------------------------------------------------------------
 
     def import_toolkits_from_json(
@@ -1055,7 +1313,18 @@ class ToolkitHome(abstractToolkit):
     def import_experiments_from_json(self, *, projectName: str, json_path: str) -> list:
         """
         Load experiments from JSON into the given project as measurements documents.
-        (לוגיקה קיימת – לא קשורה ישירות ל-datasource של toolkits.)
+
+        Parameters
+        ----------
+        projectName : str
+            The project to load experiments into.
+        json_path : str
+            Path to the JSON file containing experiment definitions.
+
+        Returns
+        -------
+        list of str
+            Names of the loaded experiments.
         """
         import json
         from hera.datalayer import Project
@@ -1105,356 +1374,3 @@ class ToolkitHome(abstractToolkit):
         return loaded
 
 
-class abstractToolkit(Project):
-    """
-        A base class for Toolkits.
-
-        *  Like project, it is initialized with a project name.
-           If the toolkit works on data, it should be present in that project.
-
-        *  Inherits from project and therefore exposes all the datalayer functions.
-
-        *  Holds the toolkit name, and references to the datalayer and presentation layers.
-
-        *  Adds a mechanism (setConfig,getConfig) for saving configuration in the DB. the settings are specific for a project.
-
-        *  Adds a mechanism to list, get and add data sources.
-            - A data source will always be saved as a measurement document.
-            - Each source has the following properties in the description (except for the other properties):
-                    * name : str
-                    * toolkit : str
-                    * projectName :str
-                    * version : tuple (major version, minor varsion, bug fix).
-                    * the type is TOOLKIT_DATASOURCE_TYPE.
-                    * metadata: dict with additional metadata of the datasource.
-
-            - The toolkit can have a default source for the project.
-                    A default data source is defined with its name and version
-                    If the version is not supplied, takes the latest version.
-            -
-
-    """
-    _toolkitname = None
-    _projectName = None
-
-    _analysis = None  # holds the datalayer layer.
-    _presentation = None  # holds the presentation layer
-
-    @property
-    def presentation(self):
-        """
-            Access to the presentation layer
-        :return:
-        """
-        return self._presentation
-
-    @property
-    def analysis(self):
-        """
-            Access to the datalayer layer
-        :return:
-        """
-        return self._analysis
-
-    @property
-    def toolkitName(self):
-        """
-            The name of the toolkit name
-        :return:
-        """
-        return self._toolkitname
-
-    @property
-    def projectName(self):
-        """
-            The name of the project
-        :return:
-        """
-        return self._projectName
-
-    def __init__(self, toolkitName, projectName, connectionName=None, filesDirectory=None):
-        """
-            Initializes a new toolkit.
-
-        Parameters
-        ----------
-
-        toolkitName: str
-            The name of the toolkit
-
-        projectName: str
-            The project that the toolkit works in.
-
-        filesDirectory: str
-            The directory to save datasource
-
-        """
-        super().__init__(projectName=projectName, filesDirectory=filesDirectory, connectionName=connectionName)
-        logger = get_classMethod_logger(self, "init")
-        self._toolkitname = toolkitName
-
-    @property
-    def classLoggerName(self):
-        return str(get_classMethod_logger(self, "{the_function_name}")).split(" ")[1]
-
-    def getDataSourceList(self, **filters):
-        """
-            Returns a list of the data source names
-        Parameters
-        ----------
-        filters
-
-        Returns
-        -------
-        list
-            List of datasource name strings.
-        """
-        docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
-                                                toolkit=self.toolkitName,
-                                                **filters)
-
-        ret = []
-        for doc in docList:
-            ret.append(doc['desc']['datasourceName'])
-
-        return ret
-
-    def getDataSourceMap(self, **filters):
-        """
-            Return the list of all data sources and their versions that are related to this toolkit
-
-        Parameters
-        ----------
-            asPandas: bool
-                If true, convert to pandas.
-
-            filters: parameters
-                Additional parameters to query the templates
-
-        Returns
-        -------
-            list of dicts or pandas
-        """
-        docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE,
-                                                toolkit=self.toolkitName,
-                                                **filters)
-
-        ret = []
-        for doc in docList:
-            dta = dict(dataFormat=doc['dataFormat'],
-                       resource=doc['resource'])
-            dta.update(doc.desc)
-            ret.append(dta)
-        return ret
-
-    def getDataSourceTable(self, **filters):
-
-        Table = []
-        for sourceMap in self.getDataSourceMap(**filters):
-            table = pandas.json_normalize(sourceMap)
-            Table.append(table)
-
-        if len(Table) == 0:
-            return pandas.DataFrame()
-        else:
-            return pandas.concat((Table), ignore_index=True)
-
-    def getDataSourceDocumentsList(self, **kwargs):
-        """
-            Return all the datasources associated with this toolkit.
-
-        Returns
-        -------
-            List of docs.
-        """
-        queryDict = {"type": TOOLKIT_DATASOURCE_TYPE,
-                     TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
-        queryDict.update(**kwargs)
-        return self.getMeasurementsDocuments(**queryDict)
-
-    def getDataSourceDocument(self, datasourceName, version=None, **filters):
-        """
-            Return the document of the datasource.
-            If version is not specified, return the latest version.
-
-            Returns a single document.
-
-        Parameters
-        ----------
-        datasourceName: str
-            The datasourceName of the source
-            if None, return the default source (if set).
-
-        version: tuple
-            The version of the source.
-            if not found, return the latest source
-
-
-        filters:
-            Additional parameters to the query.
-
-        Returns
-        -------
-                The document of the source. (None if not found)
-        """
-        if datasourceName is not None:
-            filters[TOOLKIT_DATASOURCE_NAME] = datasourceName
-        if version is not None:
-            filters[TOOLKIT_DATASOURCE_VERSION] = version
-        else:
-            try:
-                defaultVersion = self.getConfig()[f"{datasourceName}_defaultVersion"]
-                filters[TOOLKIT_DATASOURCE_VERSION] = defaultVersion
-            except:
-                pass
-
-        filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
-
-        docList = self.getMeasurementsDocuments(type=TOOLKIT_DATASOURCE_TYPE, **filters)
-
-        if len(docList) == 0:
-            ret = None
-
-        elif len(docList) == 1:
-            ret = docList[0]
-
-        elif len(docList) > 1:
-            versionsList = [doc['desc']['version'] for doc in docList]
-            latestVersion = max(versionsList)
-            docList = [doc for doc in docList if doc['desc']['version'] == latestVersion]
-            ret = docList[0]
-        return ret
-
-    def getDataSourceDocuments(self, datasourceName, version=None, **filters):
-        """
-            Returns a list with the datasource. This is for the complteness of the interface.
-            That is, making it similar to the Measurement, Cache and Simulation document retrieval.
-
-        Parameters
-        ----------
-        datasourceName: str
-            The datasourceName of the source
-            if None, return the default source (if set).
-
-        version: tuple
-            The version of the source.
-            if not found, return the latest source
-
-
-        filters:
-            Additional parameters to the query.
-
-        Returns
-        -------
-                A list that containes the document of the source. (empty list  if not found)
-        """
-        doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
-        return [] if doc is None else [doc]
-
-    def getDataSourceData(self, datasourceName=None, version=None, **filters):
-        """
-            Returns the data from the datasource.
-
-        Parameters
-        ----------
-
-        datasourceName: str
-            The datasourceName of the source
-            if None, return the default source (if set).
-
-        version: tuple
-            The version of the source.
-            if not found, return the latest source
-
-
-        filters: dict
-                additional filters to the query.
-
-        Returns
-        -------
-                The data of the source. (None if not found)
-        """
-        filters[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName  # {'toolkit' : self.toolkitName}
-        doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
-        return None if doc is None else doc.getData()
-
-    def addCacheDocument(self, resource="", dataFormat="string", type="", desc={}):
-        if self.toolkitName is not None:
-            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
-        return super().addCacheDocument(resource, dataFormat, type, desc)
-    
-    def addMeasurementsDocument(self, resource="", dataFormat="string", type="", desc={}):
-        if self.toolkitName is not None:
-            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
-        return super().addMeasurementsDocument(resource, dataFormat, type, desc)
-
-    def addSimulationsDocument(self, resource="", dataFormat="string", type="", desc={}):
-        if self.toolkitName is not None:
-            desc.setdefault(TOOLKIT_TOOLKITNAME_FIELD, self.toolkitName) 
-        return super().addSimulationsDocument(resource, dataFormat, type, desc)
-
-    def addDataSource(self, dataSourceName, resource, dataFormat, version=(0, 0, 1), overwrite=False, **kwargs):
-        """
-            Adds a resource to the toolkit.
-            The type is always TOOLKIT_DATASOURCE_TYPE.
-            The toolkit name is added to the description.
-
-        Parameters
-        ----------
-        dataSourceName: str
-                The name of the data source
-
-        version: tuple (of int)
-                A 3-tuple of the version
-
-        resource: str
-                The resource
-
-        dataFormat: str
-                A string of a datatypes.
-
-        kwargs: dict
-                The parameters
-
-        Returns
-        -------
-            The document of the datasource.
-        """
-
-        kwargs[TOOLKIT_TOOLKITNAME_FIELD] = self.toolkitName
-        kwargs[TOOLKIT_DATASOURCE_NAME] = dataSourceName
-        kwargs[TOOLKIT_DATASOURCE_VERSION] = version
-        if (self.getDataSourceDocument(dataSourceName, version=version) is None) or overwrite:
-            if self.getDataSourceDocument(dataSourceName, version=version) is not None:  # not None = Exist
-                # print("Delete existing, and add new data source.")
-                delargs = {TOOLKIT_DATASOURCE_NAME: dataSourceName,
-                           TOOLKIT_DATASOURCE_VERSION: version}
-
-                self.deleteDataSource(**delargs)
-            # else:
-            # print("Does not exist: add data source.")
-
-            doc = self.addMeasurementsDocument(type=TOOLKIT_DATASOURCE_TYPE,
-                                               resource=resource,
-                                               dataFormat=dataFormat,
-                                               desc=kwargs)
-        else:
-            raise ValueError(
-                f"Record {dataSourceName} (version {version}) already exists in project {self.projectName}. use overwrite=True to overwrite on the existing document")
-
-        return doc
-
-    def deleteDataSource(self, datasourceName, version=None, **filters):
-
-        doc = self.getDataSourceDocument(datasourceName=datasourceName, version=version, **filters)
-        doc.delete()
-
-        return doc
-
-    def setDataSourceDefaultVersion(self, datasourceName: str, version: tuple):
-        if len(self.getMeasurementsDocuments(type="ToolkitDataSource", **{"datasourceName": datasourceName,
-                                                                          "version": version})) == 0:
-            raise ValueError(f"No DataSource with name={datasourceName} and version={version}.")
-
-        self.setConfig(**{f"{datasourceName}_defaultVersion": version})
-        print(f"{version} for dataSource {datasourceName} is now set to default.")

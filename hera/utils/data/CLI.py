@@ -72,7 +72,9 @@ def project_create(arguments):
 
 
 def project_dump(arguments):
-
+    """
+    Dump documents from a project as JSON or table output.
+    """
     fullQuery = dict(projectName=arguments.projectName)
 
     for queryElement in arguments.query:
@@ -108,7 +110,9 @@ def project_dump(arguments):
 
 
 def project_load(arguments):
-
+    """
+    Load documents from a JSON file into a project.
+    """
     docsDict = loadJSON(arguments.file)
     proj = Project(projectName=arguments.projectName)
 
@@ -118,6 +122,9 @@ def project_load(arguments):
 
 
 def repository_list(argumets):
+    """
+    List all registered repositories.
+    """
     dtk = dataToolkit()
 
     repDataframe = dtk.getRepositoryTable()
@@ -134,6 +141,9 @@ def repository_list(argumets):
 
 
 def repository_add(argumets):
+    """
+    Register a new repository from a JSON file path.
+    """
     logger = logging.getLogger("hera.bin.repository_add")
     dtk = dataToolkit()
 
@@ -146,6 +156,9 @@ def repository_add(argumets):
 
 
 def repository_remove(arguments):
+    """
+    Remove a registered repository by name.
+    """
     logger = logging.getLogger("hera.bin.repository_remove")
     dtk = dataToolkit()
 
@@ -155,6 +168,9 @@ def repository_remove(arguments):
 
 
 def repository_show(arguments):
+    """
+    Display the contents of a registered repository (toolkits, data sources, etc.).
+    """
     logger = logging.getLogger("hera.bin.repository_remove")
     dtk = dataToolkit()
 
@@ -190,6 +206,9 @@ def repository_show(arguments):
 
 
 def repository_load(arguments):
+    """
+    Load data sources from a repository JSON file into a project.
+    """
     logger = logging.getLogger("hera.bin.repository_load")
     dtk = dataToolkit()
 
@@ -256,6 +275,9 @@ def add_toolkit(arguments):
         raise
 
 def display_datasource_versions(arguments):
+    """
+    Display data source versions for a project, optionally filtering by name or default versions only.
+    """
     proj = Project(projectName=arguments.projectName)
     datasources = []
 
@@ -309,6 +331,9 @@ def display_datasource_versions(arguments):
 
 
 def update_datasource_default_version(arguments):
+    """
+    Set the default version for a data source in a project.
+    """
     logger = logging.getLogger("hera.bin.update_datasource_version")
     arguments.version = tuple(int(item.strip()) for item in arguments.version.split(','))
     proj = Project(projectName=arguments.projectName)
@@ -316,6 +341,9 @@ def update_datasource_default_version(arguments):
 
 
 def update(arguments):
+    """
+    Load all repositories into a project, creating it from caseConfiguration.json if needed.
+    """
     logger = logging.getLogger("hera.bin.update")
     if not arguments.projectName:
         confFile = os.path.join(os.getcwd(), "caseConfiguration.json")
@@ -345,7 +373,7 @@ def update(arguments):
 
 def db_list(arguments):
     """
-        List the databases in the
+    List all configured database connections.
     """
     dbconfig = getMongoJSON()
     conList = []
@@ -367,6 +395,9 @@ def db_list(arguments):
 
 
 def db_create(arguments):
+    """
+    Create or update a database connection in the configuration file.
+    """
     addOrUpdateDatabase(connectionName=arguments.connectionName,
                         username=arguments.username,
                         password=arguments.password,
@@ -375,6 +406,9 @@ def db_create(arguments):
 
 
 def db_remove(arguments):
+    """
+    Remove a database connection from the configuration file.
+    """
     removeConnection(arguments.connectionName)
 
 
@@ -550,7 +584,6 @@ def toolkit_import_json(arguments):
         print(f"[ERROR] {e}")
 
 
-# שים לב: הקטע הבא נראה כאילו אמור להיות בתוך class, אבל אני משאיר כמו שהיה
 def project_measurements_list(args):
     """
     Implementation for:

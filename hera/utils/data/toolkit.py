@@ -8,17 +8,6 @@ from hera.utils.logging import get_classMethod_logger
 from hera.toolkit import abstractToolkit, ToolkitHome
 
 
-
-import json
-import argparse
-import pathlib
-import os
-
-from hera.utils import loadJSON, dictToMongoQuery
-from hera.utils.logging import get_classMethod_logger
-from hera.toolkit import abstractToolkit, ToolkitHome
-
-
 class dataToolkit(abstractToolkit):
     """
     Toolkit for managing data repositories (replacing the old hera-data).
@@ -42,20 +31,29 @@ class dataToolkit(abstractToolkit):
         }
     """
 
-    def __init__(self,connectionName=None):
-        super().__init__(toolkitName="heradata", projectName=self.DEFAULTPROJECT, filesDirectory=None,connectionName=connectionName)
+    def __init__(self, connectionName=None):
+        """
+        Initialize the dataToolkit on the default project.
+
+        Parameters
+        ----------
+        connectionName : str, optional
+            The DB connection name. If None, uses the current OS username.
+        """
+        super().__init__(toolkitName="heradata", projectName=self.DEFAULTPROJECT, filesDirectory=None, connectionName=connectionName)
 
     def addRepository(self, repositoryName, repositoryPath, overwrite=False):
         """
-            A path to the repository
+        Register a repository JSON file as a data source.
+
         Parameters
         ----------
-        repositoryName
-        repositoryPath
-
-        Returns
-        -------
-        None
+        repositoryName : str
+            The name to register the repository under.
+        repositoryPath : str
+            Path to the repository JSON file. ``.json`` extension is appended if missing.
+        overwrite : bool
+            If True, overwrite an existing repository with the same name.
         """
         self._allowWritingToDefaultProject = True  # allows the addition of datasource to the Default project.
 
@@ -65,9 +63,29 @@ class dataToolkit(abstractToolkit):
         self._allowWritingToDefaultProject = False
 
     def getRepositoryTable(self):
+        """
+        Return a DataFrame listing all registered repositories.
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
         return self.getDataSourceTable()
 
     def getRepository(self, repositoryName):
+        """
+        Load and return a repository's JSON content by name.
+
+        Parameters
+        ----------
+        repositoryName : str
+            The name of the registered repository.
+
+        Returns
+        -------
+        dict
+            The parsed repository JSON.
+        """
         logger = get_classMethod_logger(self, "getRepository")
         logger.info(f"Trying to find repository {repositoryName} in project {self.DEFAULTPROJECT}")
         repo = self.getDataSourceData(datasourceName=repositoryName)
@@ -75,6 +93,16 @@ class dataToolkit(abstractToolkit):
         return loadJSON(repo)
 
     def loadAllDatasourcesInAllRepositoriesToProject(self, projectName, overwrite=False):
+        """
+        Load all data sources from all registered repositories into a project.
+
+        Parameters
+        ----------
+        projectName : str
+            The target project name.
+        overwrite : bool
+            If True, overwrite existing data sources.
+        """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInAllRepositoriesToProject")
         for repository in self.getDataSourceList():
             try:
@@ -87,16 +115,16 @@ class dataToolkit(abstractToolkit):
 
     def loadAllDatasourcesInRepositoryToProject(self, projectName, repositoryName, overwrite=False):
         """
-            Loads all the datasets from the requested repository
+        Load all data sources from a specific repository into a project.
+
         Parameters
         ----------
-        projectName
-        repositoryName
-        overwrite
-
-        Returns
-        -------
-
+        projectName : str
+            The target project name.
+        repositoryName : str
+            The name of the registered repository to load from.
+        overwrite : bool
+            If True, overwrite existing data sources.
         """
         logger = get_classMethod_logger(self, "loadAllDatasourcesInRepositoryToProject")
         logger.info(f"Loading repository {repositoryName}")
@@ -246,35 +274,41 @@ class dataToolkit(abstractToolkit):
                     logger.error(err)
 
 
-    def _handle_Config(self,toolkit,itemName,docTypeDict,overwrite,basedir):
+    def _handle_Config(self, toolkit, itemName, docTypeDict, overwrite, basedir):
         """
-            The procedure to handle the config node.
+        Handle a Config section from a repository JSON by calling ``toolkit.setConfig``.
+
         Parameters
         ----------
-        node
-
-        Returns
-        -------
-
+        toolkit : abstractToolkit
+            The toolkit instance to configure.
+        itemName : str
+            The section name (unused, always 'Config').
+        docTypeDict : dict
+            Key-value pairs to set as configuration.
+        overwrite : bool
+            Whether to overwrite existing values.
+        basedir : str
+            Base directory for resolving relative paths (unused for Config).
         """
         toolkit.setConfig(**docTypeDict)
 
-    def _handle_DataSource(self,toolkit,itemName,docTypeDict,overwrite,basedir):
+    def _handle_DataSource(self, toolkit, itemName, docTypeDict, overwrite, basedir):
         """
-            Adds a datasource to the toolkit.
+        Handle a DataSource section from a repository JSON by adding data sources to the toolkit.
+
         Parameters
         ----------
-        itemName : string
-            The name of the item to add
-        itemDesc : dict
-            The JSON description
-
+        toolkit : abstractToolkit
+            The toolkit instance to add data sources to.
+        itemName : str
+            The section name.
+        docTypeDict : dict
+            Dictionary mapping data source names to their descriptions.
         overwrite : bool
-            If true, overwrite.
-
-        Returns
-        -------
-
+            If True, overwrite existing data sources.
+        basedir : str
+            Base directory for resolving relative resource paths.
         """
         logger = get_classMethod_logger(self, "_handle_DataSource")
 
@@ -328,16 +362,24 @@ class dataToolkit(abstractToolkit):
             else:
                 logger.error(f"Source {itemName} already exists in {toolkit.projectName}. Use --overwrite to force update")
 
-    def _DocumentHandler(self, toolkit, itemName, docTypeDict, overwrite, documentType,basedir):
+    def _DocumentHandler(self, toolkit, itemName, docTypeDict, overwrite, documentType, basedir):
         """
-            Handles measurement/cache or simulation document
+        Handle a Measurements, Simulations, or Cache section from a repository JSON.
+
         Parameters
         ----------
-        node
-        overwrite
-
-        Returns
-        -------
+        toolkit : abstractToolkit
+            The toolkit instance to add documents to.
+        itemName : str
+            The section name.
+        docTypeDict : dict
+            Dictionary mapping document names to their descriptions.
+        overwrite : bool
+            If True, overwrite existing documents.
+        documentType : str
+            One of 'Measurements', 'Simulations', or 'Cache'.
+        basedir : str
+            Base directory for resolving relative resource paths.
         """
         logger = get_classMethod_logger(self, "_handle_Document")
         logger.info(f"Loading {itemName} to toolkit {toolkit.toolkitName} (ProjectName {toolkit.projectName}")
@@ -381,27 +423,28 @@ class dataToolkit(abstractToolkit):
                 logger.error(
                     f"Source {itemName} already exists in {toolkit.projectName}. Use --overwrite to force update")
 
-    def _handle_Function(self,toolkit,itemName,docTypeDict,overwrite,basedir):
+    def _handle_Function(self, toolkit, itemName, docTypeDict, overwrite, basedir):
         """
-            A general function.
+        Handle a Function section by calling named methods on the toolkit.
 
-            The key of docTypeDict is
-             - dict: params
-             - list - list of dicts that will be the params to multiple calls.
+        Each key in ``docTypeDict`` is a method name on ``self``. The value can be:
+        - A dict: passed as keyword arguments to a single call.
+        - A list of dicts: each dict triggers a separate call.
 
-            Must have the signature :
-
-            - overwrite: bool
-
-            - [other paraeters] - passed from the item description.
+        The called method must accept an ``overwrite`` keyword argument.
 
         Parameters
         ----------
-        node
-        overwrite
-
-        Returns
-        -------
+        toolkit : abstractToolkit
+            The toolkit instance (unused directly; methods are called on ``self``).
+        itemName : str
+            The section name.
+        docTypeDict : dict
+            Maps method names to their argument(s).
+        overwrite : bool
+            Passed to each method call.
+        basedir : str
+            Base directory (unused for Function).
         """
         logger = get_classMethod_logger(self, "_handle_GeneralFunction")
         for itemName, itemDesc in docTypeDict.items():
@@ -422,24 +465,21 @@ class dataToolkit(abstractToolkit):
                 raise ValueError(err)
 
 
-    def _makeItemPathAbsolute(self, theItem,basedir):
+    def _makeItemPathAbsolute(self, theItem, basedir):
         """
-            Change the path of the item to be absolution be chechin the is relative flag.
-
-            An internal function.
+        Convert a resource path to absolute if the ``isRelativePath`` flag is set.
 
         Parameters
         ----------
         theItem : dict
-            The item data to be added.
-            Has the fields:
-                 - isRelative field : bool
-                - resource : string.
-                        Either absolute or relative path.
+            The item data containing ``resource`` and optionally ``isRelativePath``.
+        basedir : str
+            Base directory to resolve relative paths against.
 
         Returns
         -------
-
+        str
+            The absolute resource path.
         """
         logger = get_classMethod_logger(self, "_makeItemPathAbsolute")
         isRelativePath = bool(theItem.get("isRelativePath", True))
