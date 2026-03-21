@@ -10,7 +10,7 @@ Hera provides a set of command-line tools in `hera/bin/` for managing projects, 
 flowchart LR
     subgraph ProjectMgmt ["Project Management"]
         direction TB
-        HeraProject["hera-project\n\nDatabase, project,\nrepository, and\nversion management"]
+        HeraProject["hera-project\n\nDatabase, project,\nrepository, toolkit,\nand version management"]
         HeraToolkit["hera-toolkit\n\nToolkit registry,\nloading, and\nJSON import"]
     end
 
@@ -91,13 +91,27 @@ hera-project project updateRepositories
 hera-project project updateRepositories --projectName MY_PROJECT --overwrite
 ```
 
-### Measurements
+### Measurements, Simulations, and Cache
 
 ```bash
 # List measurements in a project
 hera-project project measurements list --project MY_PROJECT
 hera-project project measurements list --project MY_PROJECT --type ToolkitDataSource
 hera-project project measurements list --project MY_PROJECT --contains YAVNEEL
+
+# Use shortcuts for common document groups
+hera-project project measurements list --project MY_PROJECT --shortcut ds     # dynamic toolkits
+hera-project project measurements list --project MY_PROJECT --shortcut exp    # experiments
+hera-project project measurements list --project MY_PROJECT --shortcut sim    # simulations
+hera-project project measurements list --project MY_PROJECT --shortcut cache  # cache
+hera-project project measurements list --project MY_PROJECT --shortcut all    # everything
+
+# Convenience aliases for simulations and cache
+hera-project project simulations list --project MY_PROJECT
+hera-project project simulations list --project MY_PROJECT --contains windProfile
+
+hera-project project cache list --project MY_PROJECT
+hera-project project cache list --project MY_PROJECT --contains functionCache
 ```
 
 ### Repository Management
@@ -119,6 +133,16 @@ hera-project repository show myRepository
 # Load repository data into a project
 hera-project repository load myRepository MY_PROJECT
 hera-project repository load myRepository MY_PROJECT --overwrite
+```
+
+### Toolkit Registration
+
+```bash
+# Register a toolkit by name and filesystem path
+hera-project addToolkit myToolkit /path/to/toolkit/directory
+hera-project addToolkit myToolkit /path/to/toolkit/directory --version "1,0,0"
+hera-project addToolkit myToolkit /path/to/toolkit/directory --params '{"key": "value"}'
+hera-project addToolkit myToolkit /path/to/toolkit/directory --overwrite
 ```
 
 ### Version Management

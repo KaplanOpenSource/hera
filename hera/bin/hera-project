@@ -1,4 +1,13 @@
 #! /usr/bin/env python
+"""
+hera-project — CLI tool for managing Hera projects, databases, repositories, and toolkits.
+
+Usage:
+    hera-project db list|create|remove
+    hera-project project list|create|dump|load|updateRepositories|version
+    hera-project repository list|add|remove|show|load
+    hera-project addToolkit <name> <path>
+"""
 import argparse
 import logging
 from hera.utils.data import CLI
@@ -24,23 +33,23 @@ if __name__ == "__main__":
     db_subparsers = db_project.add_subparsers(help='Database management')
 
     # db list
-    db_list = db_subparsers.add_parser('list', help='list project')
+    db_list = db_subparsers.add_parser('list', help='List database connections')
     db_list.add_argument('--onlyName', dest="fulldetails", default=True, action="store_false",
                          help='Print only the database connection names')
     db_list.set_defaults(func=CLI.db_list)
 
     # db create
-    db_new = db_subparsers.add_parser('create', help='create a project')
-    db_new.add_argument('connectionName', type=str, help='The database name to create')
-    db_new.add_argument('--username', type=str, required=True, help='The username')
-    db_new.add_argument('--password', type=str, required=True, help='The database name to create')
-    db_new.add_argument('--IP', type=str, required=True, help='The database name to create')
-    db_new.add_argument('--databaseName', type=str, required=True, help='The database name to create')
+    db_new = db_subparsers.add_parser('create', help='Create or update a database connection')
+    db_new.add_argument('connectionName', type=str, help='The connection name to create')
+    db_new.add_argument('--username', type=str, required=True, help='The database username')
+    db_new.add_argument('--password', type=str, required=True, help='The database password')
+    db_new.add_argument('--IP', type=str, required=True, help='The database server IP address')
+    db_new.add_argument('--databaseName', type=str, required=True, help='The database name')
     db_new.set_defaults(func=CLI.db_create)
 
     # db remove
-    db_remove = db_subparsers.add_parser('remove', help='create a project')
-    db_remove.add_argument('connectionName', type=str, default=None, help='The database name to create')
+    db_remove = db_subparsers.add_parser('remove', help='Remove a database connection')
+    db_remove.add_argument('connectionName', type=str, default=None, help='The connection name to remove')
     db_remove.set_defaults(func=CLI.db_remove)
 
     # ------------------- project management
@@ -61,12 +70,13 @@ if __name__ == "__main__":
     parser_new.add_argument('--directory', dest="directory", type=str, default=None,
                             help='directory to create the project in')
     parser_new.add_argument('--noRepositories', dest="loadRepositories", default=True, action="store_false")
-    parser_new.add_argument('--dont-overwrite', dest="overwrite", default=True, action="store_true")
+    parser_new.add_argument('--dont-overwrite', dest="overwrite", default=True, action="store_false",
+                            help='Do not overwrite existing data sources when loading repositories')
     parser_new.set_defaults(func=CLI.project_create)
 
     # project dump/save
     parser_dump = project_subparsers.add_parser('dump', help='Saves the project record to the disk')
-    parser_dump.add_argument('projectName', type=str, default=None, help='The project name to create')
+    parser_dump.add_argument('projectName', type=str, default=None, help='The project name to dump')
     parser_dump.add_argument('query', metavar='query', nargs='*', type=str, help='the query parameters')
     parser_dump.add_argument('--fileName', type=str, help='save to', default=None, required=False)
     parser_dump.add_argument('--format', dest="outputFormat", default="table", choices=['table', 'json'],
@@ -75,7 +85,7 @@ if __name__ == "__main__":
 
     # project load
     parser_load = project_subparsers.add_parser('load', help='load dumped record into the project')
-    parser_load.add_argument('projectName', type=str, default=None, help='The project name to create')
+    parser_load.add_argument('projectName', type=str, default=None, help='The project name to load into')
     parser_load.add_argument('file', type=str, help='The dumped file name')
     parser_load.set_defaults(func=CLI.project_load)
 
@@ -83,7 +93,7 @@ if __name__ == "__main__":
     repository_update = project_subparsers.add_parser('updateRepositories', help='Update all repositories in workspace to a project')
     repository_update.add_argument('--projectName', default=None, help='The project to load the repository')
     repository_update.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                   help='overwrite the existing projcet with the repository')
+                                   help='Overwrite existing data sources in the project')
     repository_update.set_defaults(func=CLI.update)
 
     # ----------------- Versions
@@ -101,7 +111,7 @@ if __name__ == "__main__":
     version_update = version_subparsers.add_parser('update', help='Update datasource version.')
     version_update.add_argument('projectName', type=str, help='Project Name.')
     version_update.add_argument('datasource', type=str, help='Datasource Name.')
-    version_update.add_argument('version', type=str, help='Version in Fromat "d,d,d". For example "0,0,1".')
+    version_update.add_argument('version', type=str, help='Version in format "d,d,d". For example "0,0,1".')
     version_update.set_defaults(func=CLI.update_datasource_default_version)
 
     # ----------------- Repository
@@ -116,7 +126,7 @@ if __name__ == "__main__":
     repository_add = repository_subparsers.add_parser('add', help='Add the data repository to the default project')
     repository_add.add_argument('repositoryName', type=str, help='The full path to the repository descriptor file of the repository')
     repository_add.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                help='overwrite the existing workflow with the same name')
+                                help='Overwrite an existing repository with the same name')
     repository_add.set_defaults(func=CLI.repository_add)
 
     # repository remove
@@ -134,7 +144,7 @@ if __name__ == "__main__":
     repository_load.add_argument('repositoryName', type=str, help='name of the repository')
     repository_load.add_argument('projectName', type=str, help='name of the project')
     repository_load.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
-                                 help='overwrite the existing workflow with the same name')
+                                 help='Overwrite existing data sources in the project')
     repository_load.set_defaults(func=CLI.repository_load)
     # -----------------  Toolkit
     # toolkit add
