@@ -14,6 +14,7 @@ import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
 import { Repository } from "../../shared/types";
+import { RepositoriesInProject } from "./RepositoriesInProject";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
@@ -121,15 +122,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
           value={loadRepositories}
           setValue={v => setLoadRepositories(v)}
         />
-        {repositories.length > 0 && (
-          <ul style={{ margin: '8px 0', paddingLeft: 24 }}>
-            {repositories.map(r => (
-              <li key={r.datasourceName}>
-                <strong>{r.datasourceName}</strong> — {r.resource}
-              </li>
-            ))}
-          </ul>
-        )}
+        <RepositoriesInProject repositories={repositories} />
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
