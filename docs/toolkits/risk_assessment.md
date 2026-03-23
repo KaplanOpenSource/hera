@@ -424,3 +424,299 @@ risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJEC
 ```
 
 For the full API details, see the [Toolkit Catalog](overview.md) and the [API Reference](../developer_guide/api/risk.md).
+
+---
+
+## Complete Examples
+
+### Example 1: Toxic gas release with Lognormal10 dose-response
+
+This example models a chlorine gas release using the LSM dispersion model and Lognormal10 injury levels with the Ten Berge calculator. It covers the full pipeline: dispersion → concentration → toxic load → injury contours → casualty estimation.
+
+```python
+from hera import toolkitHome
+from unum.units import kg, mg
+
+# ---------------------------------------------------------------
+# Step 1: Set up toolkits
+# ---------------------------------------------------------------
+PROJECT = "ChlorineRelease"
+
+lsm  = toolkitHome.getToolkit(toolkitHome.LSM, projectName=PROJECT)
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName=PROJECT)
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName=PROJECT)
+
+# ---------------------------------------------------------------
+# Step 2: Run or retrieve an LSM dispersion simulation
+# ---------------------------------------------------------------
+# Option A: run a new simulation from a template
+template = lsm.getTemplateByName("urban_chlorine")
+template.run(
+    topography="/data/topography",
+    stations=weather_stations_df,
+    simulationName="chlorine_run_001",
+    windSpeed=3.0,
+    windDirection=225,
+    releaseRate=5.0
+)
+
+# Option B: retrieve an existing simulation
+simulations = lsm.getSimulations(windSpeed=3.0, windDirection=225)
+sim = simulations[0]
+
+# ---------------------------------------------------------------
+# Step 3: Get concentration field
+# ---------------------------------------------------------------
+# Q = total released mass (scales the normalized LSM output)
+concentration = sim.getConcentration(Q=500 * kg)
+# Result: xarray.Dataset with 'C' field in mg/m³ at each (x, y, z, datetime)
+
+# ---------------------------------------------------------------
+# Step 4: Load the agent and compute toxic loads
+# ---------------------------------------------------------------
+agent = risk.getAgent("Chlorine")
+print(f"Agent: {agent.name}")
+print(f"Ten Berge coefficient: {agent.tenbergeCoefficient}")
+print(f"Effects: {agent.effectNames}")
+
+# The agent has a Lognormal10 effect with Ten Berge calculator
+effect = agent["RegularPopulation"]
+print(f"Calculator: {type(effect.calculator).__name__}")  # CalculatorTenBerge
+print(f"Severity levels: {effect.levelNames}")            # ['Severe', 'Mild', 'Light']
+
+# Compute toxic loads: integral(C^n dt) over time
+# Uses concentration at ground level (z=0 or z=10)
+toxic_loads = effect.calculateToxicLoads(
+    concentration.sel(z=10),
+    field="C"
+)
+
+# ---------------------------------------------------------------
+# Step 5: Calculate injury contours
+# ---------------------------------------------------------------
+# Get contour polygons for the Severe injury level
+severe_contours = effect["Severe"].calculateContours(
+    toxic_loads,
+    time="datetime",
+    x="x",
+    y="y"
+)
+# Result: GeoDataFrame with columns:
+#   datetime | severity | percentEffected | TotalPolygon | DiffPolygon
+
+# ---------------------------------------------------------------
+# Step 6: Project onto population data for casualty estimates
+# ---------------------------------------------------------------
+# Load demographic data
+population = demo.getDataSourceData("census_2020")
+
+# Project injury contours onto population
+release_location = (178000, 665000)  # ITM coordinates
+wind_direction_math = 45  # mathematical angle
+
+casualties = severe_contours.project(
+    demographic=population,
+    loc=release_location,
+    mathematical_angle=wind_direction_math
+)
+
+# Result: DataFrame with affected population per severity level
+print(casualties.groupby("severity")["effectedtotal_pop"].sum())
+
+# ---------------------------------------------------------------
+# Step 7: Apply protection policy (optional)
+# ---------------------------------------------------------------
+from hera.riskassessment import ProtectionPolicy
+from hera.utils import ureg
+
+policy = ProtectionPolicy()
+policy.indoor(turnover=2 * ureg.hour, enter="10min", stay="3h")
+
+# Apply protection to the concentration field before computing toxic loads
+protected_concentration = policy.compute(concentration.sel(z=10), C="C")
+
+# Recalculate with protected concentrations
+protected_toxic_loads = effect.calculateToxicLoads(protected_concentration, field="C")
+protected_contours = effect["Severe"].calculateContours(
+    protected_toxic_loads, time="datetime", x="x", y="y"
+)
+
+# Compare casualties with and without protection
+protected_casualties = protected_contours.project(
+    demographic=population,
+    loc=release_location,
+    mathematical_angle=wind_direction_math
+)
+print("Without protection:", casualties["effectedtotal_pop"].sum())
+print("With indoor shelter:", protected_casualties["effectedtotal_pop"].sum())
+
+# ---------------------------------------------------------------
+# Step 8: Visualize
+# ---------------------------------------------------------------
+risk.presentation.plotCasualtiesRose(
+    results=severe_contours,
+    area=population,
+    severityList=["Severe", "Mild"],
+    loc=release_location,
+    meteorological_angles=[0, 45, 90, 135, 180, 225, 270, 315]
+)
+```
+
+---
+
+### Example 2: Industrial accident with Threshold (AEGL) dose-response
+
+This example models an industrial chemical release using AEGL threshold levels with the MaxConcentration calculator. Instead of cumulative dose, AEGL uses peak concentration over a sampling period.
+
+```python
+from hera import toolkitHome
+from unum.units import kg
+
+# ---------------------------------------------------------------
+# Step 1: Set up toolkits
+# ---------------------------------------------------------------
+PROJECT = "IndustrialAccident"
+
+lsm  = toolkitHome.getToolkit(toolkitHome.LSM, projectName=PROJECT)
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName=PROJECT)
+demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName=PROJECT)
+
+# ---------------------------------------------------------------
+# Step 2: Get concentration from LSM simulation
+# ---------------------------------------------------------------
+sim = lsm.getSimulations(simulationName="factory_release")[0]
+concentration = sim.getConcentration(Q=100 * kg)
+
+# ---------------------------------------------------------------
+# Step 3: Load an agent with Threshold effects
+# ---------------------------------------------------------------
+# This agent uses AEGL levels — binary thresholds based on peak
+# concentration, not cumulative dose.
+#
+# Agent JSON looks like:
+# {
+#     "name": "HydrogenFluoride",
+#     "effectParameters": {"tenbergeCoefficient": 1},
+#     "effects": {
+#         "AEGL10min": {
+#             "type": "Threshold",
+#             "calculator": {"MaxConcentration": {"sampling": "10min"}},
+#             "parameters": {
+#                 "type": "Threshold",
+#                 "levels": ["AEGL-3", "AEGL-2", "AEGL-1"],
+#                 "parameters": {
+#                     "AEGL-3": {"threshold": "139*mg/m**3"},
+#                     "AEGL-2": {"threshold": "34*mg/m**3"},
+#                     "AEGL-1": {"threshold": "1.3*mg/m**3"}
+#                 }
+#             }
+#         }
+#     }
+# }
+
+agent = risk.getAgent("HydrogenFluoride")
+print(f"Agent: {agent.name}")
+print(f"Effects: {agent.effectNames}")  # ['AEGL10min']
+
+# Access the AEGL effect
+aegl = agent["AEGL10min"]
+print(f"Calculator: {type(aegl.calculator).__name__}")  # CalculatorMaxConcentration
+print(f"Levels: {aegl.levelNames}")  # ['AEGL-3', 'AEGL-2', 'AEGL-1']
+
+# ---------------------------------------------------------------
+# Step 4: Inspect threshold values
+# ---------------------------------------------------------------
+for level_name in aegl.levelNames:
+    level = aegl[level_name]
+    print(f"{level_name}: threshold = {level.threshold}")
+    # AEGL-3: threshold = 139 mg/m³ (life-threatening)
+    # AEGL-2: threshold = 34 mg/m³  (irreversible health effects)
+    # AEGL-1: threshold = 1.3 mg/m³ (notable discomfort)
+
+# ---------------------------------------------------------------
+# Step 5: Calculate injury regions
+# ---------------------------------------------------------------
+# The MaxConcentration calculator finds the peak concentration
+# at each location over the sampling period.
+# The Threshold injury level then marks locations where
+# peak concentration exceeds each AEGL threshold.
+
+# Calculate contours for the most severe level (AEGL-3)
+aegl3_contours = aegl["AEGL-3"].calculateContours(
+    concentration.sel(z=10),
+    time="datetime",
+    x="x",
+    y="y"
+)
+
+# Calculate for all levels
+aegl2_contours = aegl["AEGL-2"].calculateContours(
+    concentration.sel(z=10),
+    time="datetime",
+    x="x",
+    y="y"
+)
+
+aegl1_contours = aegl["AEGL-1"].calculateContours(
+    concentration.sel(z=10),
+    time="datetime",
+    x="x",
+    y="y"
+)
+
+# ---------------------------------------------------------------
+# Step 6: Estimate affected population
+# ---------------------------------------------------------------
+population = demo.getDataSourceData("census_2020")
+release_location = (180000, 663000)  # ITM coordinates
+
+# Project each AEGL zone onto population
+for name, contours in [("AEGL-3", aegl3_contours),
+                        ("AEGL-2", aegl2_contours),
+                        ("AEGL-1", aegl1_contours)]:
+    if len(contours) > 0:
+        casualties = contours.project(
+            demographic=population,
+            loc=release_location,
+            mathematical_angle=45
+        )
+        if casualties is not None:
+            total = casualties["effectedtotal_pop"].sum()
+            print(f"{name}: {total:.0f} people in affected zone")
+        else:
+            print(f"{name}: no affected population")
+    else:
+        print(f"{name}: concentration below threshold everywhere")
+
+# ---------------------------------------------------------------
+# Step 7: Compare with protection (masks)
+# ---------------------------------------------------------------
+from hera.riskassessment import ProtectionPolicy
+from hera.utils import ureg
+
+# Gas masks with protection factor 1000
+policy = ProtectionPolicy()
+policy.masks(protectionFactor=1000, wear="5min", duration="4h")
+
+protected = policy.compute(concentration.sel(z=10), C="C")
+
+# With masks, the effective concentration is 1000x lower
+# so fewer locations exceed the AEGL thresholds
+aegl3_protected = aegl["AEGL-3"].calculateContours(
+    protected, time="datetime", x="x", y="y"
+)
+print(f"AEGL-3 zone without masks: {len(aegl3_contours)} polygons")
+print(f"AEGL-3 zone with masks:    {len(aegl3_protected)} polygons")
+```
+
+### Key differences between the two examples
+
+| Aspect | Example 1 (Lognormal10) | Example 2 (Threshold) |
+|--------|------------------------|----------------------|
+| **Agent** | Chlorine | Hydrogen Fluoride |
+| **Calculator** | TenBerge (`integral(C^n dt)`) | MaxConcentration (peak C) |
+| **Injury model** | Lognormal10 — gradual % affected | Threshold — binary 0%/100% |
+| **Parameters** | TL_50, sigma per severity | threshold (with units) per AEGL level |
+| **Result** | % of population affected at each severity | Zone where concentration exceeds standard |
+| **Use case** | Toxic exposure over time | Acute exposure standards (AEGL, ERPG) |
+| **Protection** | Indoor sheltering (air exchange) | Gas masks (protection factor) |
