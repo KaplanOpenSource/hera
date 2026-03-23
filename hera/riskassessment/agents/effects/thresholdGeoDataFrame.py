@@ -8,8 +8,6 @@ from ....utils import toMeteorologicalAngle,toMathematicalAngle
 
 from hera.measurements.GIS.vector.demography import DemographyToolkit as demoDatalayer
 
-pop = demoDatalayer(projectName="Demography") # used only for the analysis layer, which is static.
-
 
 
 class thresholdGeoDataFrame(geopandas.GeoDataFrame):
@@ -54,81 +52,94 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		return shiftedPolygons
 
 
-	def project(self,demographic,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon",population="total_pop"):
+	def project(self,demographic,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon",population="total_pop",projectName=None):
 		"""
-			Projects the results on a demographic data set. 
-			The rotation and translation are in respect to the (0,0) coordinate of the concentration field. 
+		Projects the results on a demographic data set.
+		The rotation and translation are in respect to the (0,0) coordinate of the concentration field.
 
-			:param: demographic - either a geopandas dataframe or a dictionary 
-                        that represetents the parameters that will pass to the GISResource. 
-
-			:param: loc - the location of the fall. 
-			:param: meteorological_angle - wind  in meteorology angle.
-							either this or the mathematical_angle
-			:param: mathematical_angle   - wind  in meteorology angle.
-							either this or the meteorological_angle 
+		Parameters
+		----------
+		demographic : geopandas.GeoDataFrame
+			The demographic data.
+		loc : tuple
+			The (x, y) location of the release.
+		meteorological_angle : float or list of float, optional
+			Wind angle(s) in meteorological convention.
+		mathematical_angle : float or list of float, optional
+			Wind angle(s) in mathematical convention.
+		geometry : str
+			The geometry column name.
+		population : str or list of str
+			The population column(s) to use.
+		projectName : str, optional
+			The project name for the DemographyToolkit. If None, uses the
+			project associated with the demographic data source.
 		"""
-		if isinstance(meteorological_angle,collections.Iterable): 
+		if isinstance(meteorological_angle,collections.Iterable):
 			retList = []
-			radList = []
-			for metangle in meteorological_angle: 
-				projectedValue = self._project(demographic=demographic,loc=loc,meteorological_angle=metangle,geometry=geometry)
-				if projectedValue is None: 
+			for metangle in meteorological_angle:
+				projectedValue = self._project(demographic=demographic,loc=loc,meteorological_angle=metangle,geometry=geometry,projectName=projectName)
+				if projectedValue is None:
 					continue
 				projectedValue["meteorological_angle"] 		= metangle
 				projectedValue["mathematical_angle_rad"] 	= numpy.deg2rad(toMathematicalAngle(metangle))
 				projectedValue["mathematical_angle"] 		= toMathematicalAngle(metangle)
-				radList.append(projectedValue)
-			ret = pandas.concat(retList) 
+				retList.append(projectedValue)
+			ret = pandas.concat(retList)
 
-		elif isinstance(mathematical_angle,collections.Iterable): 
+		elif isinstance(mathematical_angle,collections.Iterable):
 			retList = []
-			for mathangle in mathematical_angle: 
-				projectedValue=self._project(demographic=demographic,loc=loc,mathematical_angle=mathangle,geometry=geometry)
-				if projectedValue is None: 
+			for mathangle in mathematical_angle:
+				projectedValue=self._project(demographic=demographic,loc=loc,mathematical_angle=mathangle,geometry=geometry,projectName=projectName)
+				if projectedValue is None:
 					continue
 				projectedValue["meteorological_angle"] 		= toMeteorologicalAngle(mathangle)
 				projectedValue["mathematical_angle_rad"] 	= numpy.deg2rad(mathangle)
 				projectedValue["mathematical_angle"] 		= mathangle
 				retList.append(projectedValue)
 
-			ret = pandas.concat(retList) 
+			ret = pandas.concat(retList)
 		else:
 			ret = self._project(demographic=demographic,loc=loc,meteorological_angle=meteorological_angle,
-								mathematical_angle=mathematical_angle,geometry=geometry, population=population)
+								mathematical_angle=mathematical_angle,geometry=geometry, population=population,projectName=projectName)
 		return ret 
 
-	def _project(self,demographic,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon",population="total_pop"):
+	def _project(self,demographic,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon",population="total_pop",projectName=None):
 		"""
-			Projects the polygons of the thresholds on the demography.
-			Shifts and rotates the polygons according to loc and the angle of the wind.
+		Projects the polygons of the thresholds on the demography.
+		Shifts and rotates the polygons according to loc and the angle of the wind.
 
 		Parameters
 		----------
-		demographic : geopandnaas
-				Holds the deomgraphy
+		demographic : geopandas.GeoDataFrame
+			The demographic data.
 		loc : tuple
-			The location of the thresholds.
+			The (x, y) location of the release.
 		meteorological_angle : float
 			The angle of the wind in meteorological angles.
 			Only meteorological_angle or mathematical_angle should be supplied.
-
-		mathematical_angle
+		mathematical_angle : float
 			Only meteorological_angle or mathematical_angle should be supplied.
-		geometry : string
+		geometry : str
 			The name of the column to use for the thresholds.
-
-		population : string
-			The name of the column to use for the population.
+		population : str or list of str
+			The name of the column(s) to use for the population.
+		projectName : str, optional
+			The project name for the DemographyToolkit. If None, uses the
+			current project context.
 
 		Returns
 		-------
-
+		pandas.DataFrame or None
+			Casualty estimates per severity and time step, or None if no
+			population is affected.
 		"""
+		demoToolkit = demoDatalayer(projectName=projectName)
+
 		localcrs = {"init":"epsg:2039"} # itm
 
 		demog_data = demographic
-		demog_data = demog_data.to_crs(localcrs) # convert to itm. It is in m**2. 
+		demog_data = demog_data.to_crs(localcrs) # convert to itm. It is in m**2.
 
 		shiftedPolygons = self._shiftPolygons(loc=loc,meteorological_angle=meteorological_angle,mathematical_angle=mathematical_angle,geometry=geometry)
 
@@ -138,7 +149,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 			for indx,row in data.iterrows():
 				curpoly = shiftedPolygons.loc[indx]
 				if curpoly.is_valid:
-					res     = pop.analysis.calculatePopulationInPolygon(dataSourceOrData=demog_data,shapeNameOrData=curpoly, populationTypes=population)
+					res     = demoToolkit.analysis.calculatePopulationInPolygon(dataSourceOrData=demog_data,shapeNameOrData=curpoly, populationTypes=population)
 					if len(res) > 0:
 						for popu in population:
 							res['effected%s' % popu] = res[popu]*row.percentEffected
