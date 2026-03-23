@@ -1,12 +1,14 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
+  createTheme,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  TextField
+  TextField,
+  ThemeProvider
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -86,6 +88,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
     >
       <Add />
     </ButtonTooltip>
+    <ThemeProvider theme={createTheme()}>
     <Dialog
       open={open}
       onClose={() => setOpen(false)}
@@ -133,5 +136,6 @@ Project(projectName='${name}', filesDirectory=${dirStr})
         </Button>
       </DialogActions>
     </Dialog>
+    </ThemeProvider>
   </>)
 }
