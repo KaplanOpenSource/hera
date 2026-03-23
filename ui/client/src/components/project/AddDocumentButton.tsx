@@ -1,11 +1,13 @@
 import { Add } from "@mui/icons-material";
 import {
+  Autocomplete,
   Button,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Stack
+  Stack,
+  TextField
 } from "@mui/material";
 import { DocumentDesc, ProjectEntire, Toolkit } from "../../shared/types";
 import { useRef, useState } from "react";
@@ -141,11 +143,18 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
                 setValue={(v) => setCls(METADATA_CLASSES.find(c => c.name === v)!)}
                 menuItems={METADATA_CLASSES.map(c => ({ name: c.name }))}
               />
-              <SelectProperty
-                label="Toolkit"
+              <Autocomplete
+                size="small"
+                disableClearable
+                style={{ minWidth: '200px' }}
+                options={[NO_TOOLKIT, ...toolkits.map(t => t.toolkit)]}
                 value={chosenToolkit || NO_TOOLKIT}
-                setValue={(v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
-                menuItems={[{ name: NO_TOOLKIT }, ...toolkits.map(t => ({ name: t.toolkit }))]}
+                onChange={(_e, v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+                renderInput={(params) => <TextField {...params} label="Toolkit" />}
+                slotProps={{
+                  popper: { placement: 'bottom-start', modifiers: [{ name: 'flip', enabled: false }] },
+                  listbox: { style: { maxHeight: '250px' } },
+                }}
               />
             </Stack>
           </DialogContent>
