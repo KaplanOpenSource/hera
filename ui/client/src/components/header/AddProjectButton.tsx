@@ -15,7 +15,8 @@ import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
-import { RepositoriesInProject } from "../repo/RepositoriesInProject";
+import { SimpleTreeView } from "@mui/x-tree-view";
+import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
@@ -106,7 +107,9 @@ Project(projectName='${name}', filesDirectory=${dirStr})
           value={loadRepositories}
           setValue={v => setLoadRepositories(v)}
         />
-        <RepositoriesInProject />
+        <SimpleTreeView>
+          <RegisteredRepositories />
+        </SimpleTreeView>
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
