@@ -16,7 +16,7 @@ import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
 import { Repository } from "../../shared/types";
-import { RepositoriesInProject } from "./RepositoriesInProject";
+import { RepositoriesInProject } from "../repo/RepositoriesInProject";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
