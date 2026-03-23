@@ -1,3 +1,4 @@
+import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { Repository } from "../../shared/types";
 
 export const RepositoriesInProject = ({
@@ -9,12 +10,15 @@ export const RepositoriesInProject = ({
     return null;
   }
   return (
-    <ul style={{ margin: '8px 0', paddingLeft: 24 }}>
+    <SimpleTreeView>
       {repositories.map(r => (
-        <li key={r.datasourceName}>
-          <strong>{r.datasourceName}</strong> — {r.resource}
-        </li>
+        <TreeItem key={r.datasourceName} itemId={r.datasourceName} label={r.datasourceName}>
+          <TreeItem itemId={`${r.datasourceName}/resource`} label={`Resource: ${r.resource}`} />
+          <TreeItem itemId={`${r.datasourceName}/dataFormat`} label={`Data Format: ${r.dataFormat}`} />
+          <TreeItem itemId={`${r.datasourceName}/toolkit`} label={`Toolkit: ${r.toolkit}`} />
+          <TreeItem itemId={`${r.datasourceName}/version`} label={`Version: ${r.version.join('.')}`} />
+        </TreeItem>
       ))}
-    </ul>
+    </SimpleTreeView>
   )
 }
