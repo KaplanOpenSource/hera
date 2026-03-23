@@ -4,9 +4,10 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
+  DialogTitle,
+  Stack
 } from "@mui/material";
-import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
+import { DocumentDesc, ProjectEntire, MetadataCls, Toolkit } from "../../shared/types";
 import { useRef, useState } from "react";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
@@ -28,6 +29,7 @@ export const AddDocumentButton = ({
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
+  const [cls, setCls] = useState<MetadataCls>(MetadataCls.Measurements);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
@@ -114,17 +116,30 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               setValue={v => setResource(v)}
               disabled={asAgent}
             />
-            <BooleanProperty
-              label="Agent"
-              value={asAgent}
-              setValue={v => setAsAgent(v)}
-            />
-            <SelectProperty
-              label="Toolkit"
-              value={chosenToolkit || NO_TOOLKIT}
-              setValue={(v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
-              menuItems={[{ name: NO_TOOLKIT }, ...toolkits.map(t => ({ name: t.toolkit }))]}
-            />
+            <Stack
+              direction={'column'}
+              spacing={1}
+              justifyItems={'flex-start'}
+              alignItems={'flex-start'}
+            >
+              <BooleanProperty
+                label="Agent"
+                value={asAgent}
+                setValue={v => setAsAgent(v)}
+              />
+              <SelectProperty
+                label="Class"
+                value={cls}
+                setValue={(v) => setCls(v as MetadataCls)}
+                menuItems={Object.values(MetadataCls).map(v => ({ name: v }))}
+              />
+              <SelectProperty
+                label="Toolkit"
+                value={chosenToolkit || NO_TOOLKIT}
+                setValue={(v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+                menuItems={[{ name: NO_TOOLKIT }, ...toolkits.map(t => ({ name: t.toolkit }))]}
+              />
+            </Stack>
           </DialogContent>
           <DialogActions>
             <Button onClick={close}>

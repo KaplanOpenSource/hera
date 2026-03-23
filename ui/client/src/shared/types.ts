@@ -20,6 +20,12 @@ export interface ProjectEntire {
   documents: ProjectDocument[];
 }
 
+export enum MetadataCls {
+  Simulations = 'Metadata.Simulations',
+  Measurements = 'Metadata.Measurements',
+  Cache = 'Metadata.Cache',
+}
+
 export interface DocumentDesc {
   toolkit?: string;
   datasourceName?: string;
