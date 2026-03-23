@@ -41,7 +41,7 @@ The main entry point. Inherits from `abstractToolkit` and manages agents as vers
 | `presentation` | `casualtiesPlot` | Casualty roses, bar plots |
 | `ProtectionPolicy` | Class reference | Protection action pipeline builder |
 
-### Agent
+### Agent (`agents/Agents.py`)
 
 An `Agent` represents a hazardous material with its effects and physical properties.
 
@@ -50,6 +50,40 @@ An `Agent` represents a hazardous material with its effects and physical propert
 | `Agent` | Container | Holds effects, physical properties, Ten Berge coefficient |
 | `PhysicalPropeties` | Properties | Molecular weight, density, volatility, vapor pressure, sorption |
 | Effects (dict) | `Injury` instances | Accessed by name: `agent["inhalation"]` |
+
+#### Agent initialization flow
+
+When `Agent(descriptor)` is called:
+
+1. Extract `effectParameters` from the descriptor (e.g., `tenbergeCoefficient`)
+2. For each entry in `effects`:
+   - Call `InjuryFactory.getInjury(name, cfgJSON, **effectParameters)` to build the `Injury` object
+   - Store in `self._effects[name]`
+3. Add all effects as attributes on the Agent (`self.__dict__.update(self._effects)`) — this allows `agent.RegularPopulation` as well as `agent["RegularPopulation"]`
+4. Initialize `PhysicalPropeties` from the `physicalProperties` section
+
+#### Ten Berge coefficient mutation
+
+When `agent.tenbergeCoefficient = value` is set:
+- Updates `self._effectParameters["tenbergeCoefficient"]`
+- **Rebuilds all effects** by re-calling `InjuryFactory.getInjury()` for each effect with the new coefficient
+- This means changing the coefficient propagates to all calculators immediately
+
+#### PhysicalPropeties class
+
+Stores and computes physical properties using empirical correlations:
+
+| Property/Method | What it computes |
+|----------------|-----------------|
+| `molecularWeight` | Molecular weight in g/mol (auto-converted from string with units) |
+| `sorptionCoefficient` | Sorption coefficient in cm/s |
+| `spreadFactor` | Dimensionless spread factor |
+| `molecularVolume` | Molecular volume from descriptor |
+| `getVolatility(temperature)` | Vapor saturation concentration [g/cm³] using Antoine-type equation |
+| `getDensity(temperature)` | Liquid density [g/cm³] using linear temperature model |
+| `vaporPressure(temperature)` | Vapor pressure [bar] using extended Antoine equation |
+
+Temperature inputs accept raw floats (Celsius for volatility/density, Kelvin for vapor pressure), `Unum`, or `pint.Quantity` — the methods convert internally.
 
 #### Agent descriptor JSON format
 
@@ -89,29 +123,61 @@ An `Agent` represents a hazardous material with its effects and physical propert
 
 ## Effects system
 
-The effects system follows a layered architecture:
+The effects system follows a layered architecture. Each layer is resolved dynamically from JSON descriptors using `pydoc.locate`.
 
-### Calculators
+### Calculators (`agents/effects/Calculator.py`)
 
-Calculators compute the toxic load (dose) from a concentration field:
+Calculators compute the toxic load (dose) from a concentration field. All inherit from `AbstractCalculator` which stores the reference `injuryBreathingRate`.
 
-| Calculator | Class | Formula |
-|-----------|-------|---------|
-| Haber | `CalculatorHaber` | Simple time integral of concentration |
-| Ten Berge | `CalculatorTenBerge` | `integral(C^n * dt)` where n is the Ten Berge exponent |
-| Max Concentration | `CalculatorMaxConcentration` | Peak concentration value |
+| Calculator | Class | Formula | Input |
+|-----------|-------|---------|-------|
+| Haber | `CalculatorHaber` | `D(T) = integral(C × dt) × breathingRatio` | `pandas.DataFrame` or `xarray.Dataset` |
+| Ten Berge | `CalculatorTenBerge` | `D(T) = integral(C^n × dt) × breathingRatio` | Same, plus `tenbergeCoefficient` from agent |
+| Max Concentration | `CalculatorMaxConcentration` | Peak concentration over sampling period | Same, plus `sampling` parameter (e.g., `"10min"`) |
 
-### Injury levels
+#### Implementation details
 
-Injury levels map toxic loads to percent affected:
+- **Unit handling**: All calculators convert concentrations to `mg/m³` internally using `inUnits.m_as(ureg.mg / ureg.m**3)`. xarray attributes are checked for field-specific units.
+- **Breathing rate ratio**: `breathingRatio = (breathingRate / self.injuryBreathingRate).magnitude` — scales the dose based on actual vs. reference breathing rate.
+- **Time integration**: For `pandas.DataFrame`, time steps are computed via `diff().apply(lambda x: x.seconds)/60.` (non-uniform spacing supported). For `xarray.Dataset`, uses `cumsum(dim=time) * dt`.
 
-| Level type | Class | Dose-response model |
-|-----------|-------|-------------------|
-| Lognormal10 | `InjuryLevelLognormal10` | Log-normal CDF (base 10) with `TL_50` and `sigma` |
-| Threshold | `InjuryLevelThreshold` | Binary: 0% below threshold, 100% above |
-| Exponential | `InjuryLevelExponential` | Exponential dose-response with parameter `k` |
+### Injury levels (`agents/effects/InjuryLevel.py`)
 
-### Injuries
+Injury levels map toxic loads to the fraction of population affected. All inherit from `InjuryLevel`.
+
+| Level type | Class | `getPercent(ToxicLoad)` implementation |
+|-----------|-------|---------------------------------------|
+| Lognormal10 | `InjuryLevelLognormal10` | `lognorm.cdf(ToxicLoad, sigma/a, scale=TL_50/a) * a` where `a = log10(e)` |
+| Threshold | `InjuryLevelThreshold` | `1 if ToxicLoad > threshold else 0` (vectorized via `numpy.atleast_1d`) |
+| Exponential | `InjuryLevelExponential` | `1 - numpy.exp(-k * ToxicLoad)` |
+
+#### Contour generation (`calculateContours`)
+
+Each `InjuryLevel` can generate spatial contour polygons from a 2D toxic load field:
+
+1. The `_getGeopandas()` method calls `matplotlib.pyplot.contour()` on the toxic load grid
+2. For **Lognormal10**: generates contours at percentiles from 5% to 95% (plus higher-severity levels to avoid double-counting)
+3. For **Threshold**: generates a single contour at the threshold value
+4. For **Exponential**: generates a contour at the `k` value
+5. The contour collection is converted to a `GeoDataFrame` using `utils.matplotlibCountour.toGeopandas()`
+
+The base `calculateContours()` method iterates over time steps, calling `_getGeopandas()` for each, and returns a combined `thresholdGeoDataFrame` with columns: `datetime`, `severity`, `percentEffected`, `TotalPolygon`, `DiffPolygon`.
+
+#### Higher-severity subtraction
+
+When computing `Injury.getPercent(level, ToxicLoad)`, the percentage at each severity level is the **difference** from the level above:
+
+```python
+# For the most severe level (index 0):
+val = levels[0].getPercent(ToxicLoad)
+
+# For subsequent levels:
+val = levels[i].getPercent(ToxicLoad) - levels[i-1].getPercent(ToxicLoad)
+```
+
+This ensures that the sum of all severity levels doesn't exceed 100%.
+
+### Injuries (`agents/effects/Injury.py`)
 
 An `Injury` combines a calculator with one or more injury levels:
 
@@ -122,9 +188,34 @@ An `Injury` combines a calculator with one or more injury levels:
 | `InjuryThreshold` | Injury using threshold dose-response |
 | `InjuryExponential` | Injury using exponential dose-response |
 
-### Factory pattern
+#### Injury initialization
 
-`InjuryFactory.getInjury(name, cfgJSON)` dynamically resolves the calculator and injury classes from the JSON descriptor using `pydoc.locate`.
+When `Injury(name, cfgJSON, calculator)` is created:
+
+1. Resolve the `InjuryLevel` class from `cfgJSON["type"]` via `pydoc.locate("hera.riskassessment.agents.effects.InjuryLevel.InjuryLevel<type>")`
+2. For each level name in `cfgJSON["levels"]` (ordered from most severe to least):
+   - Extract parameters from `cfgJSON["parameters"][levelName]`
+   - Inject `higher_severity` reference to the previous level (for subtraction in `getPercent`)
+   - Create the `InjuryLevel` instance
+3. Store in `self._levels` (ordered list) and `self._levelsmap` (name → level dict)
+
+#### Key methods
+
+| Method | What it does |
+|--------|-------------|
+| `calculate(concentrationField, field, ...)` | Full pipeline: calculator → toxic loads → contour polygons for each level → `thresholdGeoDataFrame` |
+| `calculateToxicLoads(concentrationField, field)` | Calculator step only — returns toxic loads (xarray/pandas) |
+| `calculateRegionOfInjured(concentrationField, field)` | Same as `calculate` but returns the region GeoDataFrame |
+| `getPercent(levelName, ToxicLoad)` | Get fraction affected at a specific severity level (with subtraction) |
+
+### Factory pattern (`InjuryFactory`)
+
+`InjuryFactory.getInjury(name, cfgJSON, **additionalparameters)` dynamically resolves:
+
+1. **Calculator**: `pydoc.locate("hera.riskassessment.agents.effects.Calculator.Calculator<calcType>")` — instantiated with `calcParam` + `additionalparameters` (e.g., `tenbergeCoefficient`)
+2. **Injury**: `pydoc.locate("hera.riskassessment.agents.effects.Injury.Injury<injuryType>")` — instantiated with `(name, parameters, calculator, units)`
+
+The naming convention is strict — class names must match `Calculator<Name>` and `Injury<Name>` exactly.
 
 ---
 
@@ -177,14 +268,95 @@ Supports parallel execution via `multiprocessing.Pool`.
 
 ---
 
-## Spatial results: thresholdGeoDataFrame
+## Spatial results: thresholdGeoDataFrame (`agents/effects/thresholdGeoDataFrame.py`)
 
-`thresholdGeoDataFrame` extends `geopandas.GeoDataFrame` with methods for:
+`thresholdGeoDataFrame` extends `geopandas.GeoDataFrame` and is the primary data structure for spatial injury results. It holds contour polygons generated by `InjuryLevel.calculateContours()` and provides methods to place them on a real map and project onto population data.
 
-| Method | Purpose |
-|--------|---------|
-| `shiftLocationAndAngle(loc, angle)` | Translate and rotate threshold polygons to a release location |
-| `project(demographic, loc, angle)` | Project threshold polygons onto demographic data to estimate casualties |
+### Expected columns
+
+A `thresholdGeoDataFrame` typically has these columns (produced by `calculateContours`):
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `datetime` | timestamp | The time step |
+| `severity` | str | Injury level name (e.g., `"Severe"`, `"Mild"`) |
+| `percentEffected` | float | Fraction of population affected (0–1) |
+| `TotalPolygon` | geometry | Cumulative contour polygon |
+| `DiffPolygon` | geometry | Difference from the level above (avoids double-counting) |
+| `ThresholdPolygon` | geometry | The geometry column used for spatial operations |
+| `ToxicLoad` | float | The toxic load value for this contour |
+
+### Methods
+
+#### `shiftLocationAndAngle(loc, meteorological_angle=None, mathematical_angle=None, geometry="ThresholdPolygon")`
+
+Returns a **new** `thresholdGeoDataFrame` with polygons rotated and translated to a release location. The original contours are computed relative to the source at `(0, 0)` — this method places them on a real map.
+
+**Implementation:**
+
+1. Set the active geometry to `geometry` column
+2. Call `_shiftPolygons()` which:
+   - Converts meteorological angle to mathematical angle if needed
+   - Rotates all polygons around `(0, 0, 0)` by the wind angle using `self.rotate(angle, origin=(0,0,0))`
+   - Translates to the release location using `self.translate(*loc)`
+3. Return a copy with the shifted geometry
+
+#### `project(demographic, loc, meteorological_angle=None, mathematical_angle=None, geometry="ThresholdPolygon", population="total_pop")`
+
+Projects the threshold polygons onto a demographic dataset to estimate casualties. This is the main method for going from "injury zones" to "number of people affected".
+
+**Supports three calling patterns:**
+
+1. **Single angle**: `project(demographic, loc, mathematical_angle=45)` — single projection
+2. **List of meteorological angles**: `project(demographic, loc, meteorological_angles=[0, 90, 180, 270])` — iterates and concatenates results with angle metadata
+3. **List of mathematical angles**: Same as above but with math angles
+
+**Implementation of `_project()` (single angle):**
+
+1. Convert demographic data to ITM (EPSG:2039) coordinate system
+2. Call `_shiftPolygons()` to position the contours at the release location and wind angle
+3. Group the contours by `(severity, datetime)`
+4. For each contour polygon:
+   - Call `DemographyToolkit.analysis.calculatePopulationInPolygon()` to intersect with the census data
+   - Multiply the population by `percentEffected` to get `effectedPopulation`
+   - Record `ToxicLoad`, `severity`, `datetime`
+5. Concatenate all results into a single DataFrame
+
+**Output columns:**
+
+| Column | Description |
+|--------|-------------|
+| `effectedtotal_pop` | Number of people affected (population × percentEffected) |
+| `percentEffected` | Fraction affected at this contour level |
+| `ToxicLoad` | The toxic load value |
+| `severity` | Injury severity level name |
+| `datetime` | Time step |
+| `total_pop` | Total population in the intersected area |
+| geometry columns | Census polygon geometries |
+
+#### Module-level singleton
+
+The file creates a module-level `DemographyToolkit` instance:
+
+```python
+pop = demoDatalayer(projectName="Demography")
+```
+
+This is used by `_project()` to access the `calculatePopulationInPolygon` analysis method. The `"Demography"` project is expected to contain the census data. This is a **static dependency** — the project name is hardcoded.
+
+### Data flow
+
+```
+InjuryLevel.calculateContours()
+    ↓ produces
+thresholdGeoDataFrame (contours at origin)
+    ↓ shiftLocationAndAngle(loc, angle)
+thresholdGeoDataFrame (positioned on map)
+    ↓ project(demographic, loc, angle)
+pandas.DataFrame (casualties per severity per time step)
+    ↓ groupby("severity").sum()
+Total casualties per severity level
+```
 
 ---
 
