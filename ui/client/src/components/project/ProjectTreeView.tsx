@@ -125,7 +125,7 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
-      <RegisteredRepositories />
+      <RegisteredRepositories showUpdateButton />
       <RepoTreeWhole
       />
     </SimpleTreeView>
