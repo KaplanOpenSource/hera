@@ -1,11 +1,18 @@
+import { Stack } from "@mui/material";
 import { TreeItem } from "@mui/x-tree-view";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { JsonTreeNode } from "../../elements/JsonTreeNode";
 import { fetchPython } from "../../io/fetchPython";
 import { Repository } from "../../shared/types";
 import { RepoLabel } from "./RepoLabel";
 
-export const RepoContents = ({ repo }: { repo: Repository }) => {
+export const RepoContents = ({
+  repo,
+  actions,
+}: {
+  repo: Repository,
+  actions?: ReactNode,
+}) => {
   const [contents, setContents] = useState<Record<string, any> | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -27,7 +34,17 @@ repoData = dataToolkit().getRepository('${repo.datasourceName}')
   return (
     <TreeItem
       itemId={repo.datasourceName}
-      label={<RepoLabel repo={repo} />}
+      label={actions
+        ? (
+          <Stack direction="row" alignItems="center">
+            <RepoLabel repo={repo} />
+            {actions}
+          </Stack>
+        )
+        : (
+          <RepoLabel repo={repo} />
+        )
+      }
       onClick={handleExpand}
     >
       {!loaded
