@@ -1,4 +1,4 @@
-import { AppBar, Box, Paper, Stack, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, Paper, Stack, Toolbar, Typography, createTheme, ThemeProvider } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,6 +10,25 @@ import { FetchProjects } from './io/FetchProjects';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
 import { StatusIndicators } from './components/header/StatusIndicators';
+
+const headerTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    background: { paper: '#1976d2' },
+  },
+  components: {
+    MuiInputBase: {
+      styleOverrides: {
+        input: {
+          '&::selection': {
+            backgroundColor: 'rgba(255,255,255,0.3)',
+            color: '#fff',
+          },
+        },
+      },
+    },
+  },
+});
 
 export const Dashboard = () => {
   const { projectName, docId } = useParams<{ projectName: string; docId: string }>();
@@ -50,15 +69,17 @@ export const Dashboard = () => {
         flexDirection: 'column',
       }}
     >
-      <AppBar position="static">
-        <Toolbar>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <PageTitle />
-            <ProjectChooser />
-            <StatusIndicators />
-          </Stack>
-        </Toolbar>
-      </AppBar>
+      <ThemeProvider theme={headerTheme}>
+        <AppBar position="static">
+          <Toolbar>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <PageTitle />
+              <ProjectChooser />
+              <StatusIndicators />
+            </Stack>
+          </Toolbar>
+        </AppBar>
+      </ThemeProvider>
 
       <Box
         sx={{
