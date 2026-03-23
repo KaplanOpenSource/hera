@@ -100,14 +100,16 @@ Injury levels define the **dose-response relationship** — given a toxic load, 
 | **Threshold** | Binary: 0% below, 100% above | `threshold` value |
 | **Exponential** | Exponential curve | `k` (rate parameter) |
 
-The most common model is **Lognormal10**, which uses two parameters per severity level:
+#### Lognormal10
+
+The most common model. Uses a log-normal cumulative distribution function (base 10) with two parameters per severity level:
 
 - **TL_50** — the toxic load at which 50% of the population is affected
-- **sigma** — how steep the dose-response curve is
+- **sigma** — how spread out the dose-response curve is (larger = more gradual transition)
 
-### How effects are defined in the agent JSON
+The percentage affected at a given toxic load `D` is: `P(D) = CDF_lognormal(D; TL_50, sigma)`
 
-Each effect in the agent descriptor specifies the calculator, the dose-response model, and the parameters for each severity level:
+**JSON format:**
 
 ```json
 {
@@ -131,11 +133,79 @@ Each effect in the agent descriptor specifies the calculator, the dose-response 
 }
 ```
 
-This defines an effect called `"RegularPopulation"` that:
+This defines an effect called `"RegularPopulation"` that uses the Ten Berge calculator and has three severity levels. At a toxic load of 1000, 50% of the population has Severe injuries.
 
-- Uses the **Ten Berge** calculator with a breathing rate of 10 L/min
-- Has **Lognormal10** dose-response at three severity levels
-- At a toxic load of 1000, 50% of the population has Severe injuries
+#### Threshold
+
+A binary model — 0% affected below the threshold, 100% above. Commonly used with the **MaxConcentration** calculator for acute exposure standards (e.g., AEGL, ERPG levels).
+
+- **threshold** — the concentration value (with units) above which the population is affected
+
+**JSON format:**
+
+```json
+{
+    "effects": {
+        "AEGL": {
+            "type": "Threshold",
+            "calculator": {
+                "MaxConcentration": {"sampling": "10min"}
+            },
+            "parameters": {
+                "type": "Threshold",
+                "levels": ["AEGL-3", "AEGL-2", "AEGL-1"],
+                "parameters": {
+                    "AEGL-3": {"threshold": "50.0*mg/m**3"},
+                    "AEGL-2": {"threshold": "8.6*mg/m**3"},
+                    "AEGL-1": {"threshold": "1.5*mg/m**3"}
+                }
+            }
+        }
+    }
+}
+```
+
+This defines three AEGL levels with concentration thresholds. The MaxConcentration calculator uses the peak concentration over a sampling period instead of a cumulative dose. At any point where the concentration exceeds the threshold, 100% of the population at that location is affected at that level.
+
+#### Exponential
+
+A smooth dose-response curve: `P(D) = 1 - exp(-k × D)`. The percentage affected increases continuously with toxic load, approaching 100% asymptotically.
+
+- **k** — the rate parameter (larger = steeper response)
+
+**JSON format:**
+
+```json
+{
+    "effects": {
+        "ExponentialEffect": {
+            "type": "Exponential",
+            "calculator": {
+                "Haber": {"breathingRate": 10}
+            },
+            "parameters": {
+                "type": "Exponential",
+                "levels": ["HighExposure", "LowExposure"],
+                "parameters": {
+                    "HighExposure": {"k": 0.01},
+                    "LowExposure":  {"k": 0.001}
+                }
+            }
+        }
+    }
+}
+```
+
+### Combining calculators and injury levels
+
+Any calculator can be paired with any injury level type. Common combinations:
+
+| Use case | Calculator | Injury level | Example |
+|---------|-----------|-------------|---------|
+| Toxic gas (cumulative dose) | TenBerge | Lognormal10 | Chlorine inhalation over time |
+| Acute exposure standards | MaxConcentration | Threshold | AEGL/ERPG concentration limits |
+| Simple dose-response | Haber | Exponential | Linear dose accumulation |
+| Sensitivity analysis | TenBerge | Lognormal10 | Vary `tenbergeCoefficient` to test assumptions |
 
 ### Working with effects in code
 
