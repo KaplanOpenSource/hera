@@ -8,7 +8,7 @@ import {
   DialogTitle,
   TextField
 } from "@mui/material";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
@@ -19,8 +19,26 @@ export const AddProjectButton = ({ }) => {
   const [name, setName] = useState('');
   const [filesDirectory, setFilesDirectory] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
+  const [repositories, setRepositories] = useState<{ datasourceName: string, resource: string }[]>([]);
   const navigate = useNavigate();
   const inputRef = useRef();
+
+  useEffect(() => {
+    (async () => {
+      if (open) {
+        const { data, problem } = await fetchPython({
+          results: ['repos'],
+          code: `
+from hera.utils.data.toolkit import dataToolkit
+repos = dataToolkit().getRepositoryTable().to_dict(orient='records')
+`,
+        });
+        if (!problem && data?.repos) {
+          setRepositories(data.repos);
+        }
+      }
+    })();
+  }, [open]);
 
   const doAddProject = async () => {
     let dirStr = `os.path.join(os.getcwd(), 'projects', '${name}')`;
@@ -102,6 +120,11 @@ Project(projectName='${name}', filesDirectory=${dirStr})
           value={loadRepositories}
           setValue={v => setLoadRepositories(v)}
         />
+        {repositories.length > 0 && (
+          <ul style={{ margin: '8px 0', paddingLeft: 24 }}>
+            {repositories.map(r => <li key={r.datasourceName}>{r.datasourceName}</li>)}
+          </ul>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
