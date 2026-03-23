@@ -63,13 +63,168 @@ hera-riskassessment agents createRepository myAgents --path /path/to/agents/
 
 ## Effects and injury levels
 
-Effects calculators determine the injury level based on exposure parameters (concentration, duration, distance, etc.). Each agent can have multiple effect types.
+Each agent has one or more **effects** — named injury models that describe how exposure to the agent harms a population. An effect combines two things: a **calculator** that computes the toxic load from concentration data, and one or more **injury levels** that map the toxic load to a percentage of people affected.
+
+### The chain: Concentration → Toxic Load → Injury
+
+```
+Concentration field    →    Calculator    →    Toxic Load    →    Injury Levels    →    % Affected
+(from dispersion)          (Haber/TenBerge)    (cumulative)       (Severe/Mild/...)     (per level)
+```
+
+1. A dispersion simulation (LSM or Gaussian) produces a **concentration field** — concentration values over space and time
+2. A **calculator** integrates the concentration over time to produce a **toxic load** (dose)
+3. **Injury levels** convert the toxic load into a percentage of the population affected at each severity
+
+### Calculators
+
+Calculators determine *how* concentration is converted to dose. The choice depends on the toxicological model for the agent:
+
+| Calculator | What it computes | When to use |
+|-----------|-----------------|-------------|
+| **Haber** | `D(T) = integral(C dt)` — simple time integral | Agents where dose is proportional to concentration × time |
+| **Ten Berge** | `D(T) = integral(C^n dt)` — concentration raised to power n | Agents where higher concentrations are disproportionately more dangerous (most real chemicals) |
+| **Max Concentration** | Peak concentration value | Agents where the instantaneous peak matters, not cumulative dose |
+
+The Ten Berge exponent `n` (the `tenbergeCoefficient`) is an agent property — it controls how much weight is given to high vs. low concentrations. When `n=1`, Ten Berge reduces to Haber.
+
+All calculators accept concentration data as either `pandas.DataFrame` or `xarray.Dataset`, and account for the population's breathing rate.
+
+### Injury levels
+
+Injury levels define the **dose-response relationship** — given a toxic load, what percentage of the population is affected? Each effect can have multiple severity levels (e.g., Severe, Mild, Light):
+
+| Injury level type | Dose-response model | Parameters |
+|------------------|--------------------|-----------|
+| **Lognormal10** | Log-normal CDF (base 10) | `TL_50` (toxic load at 50% effect), `sigma` (spread) |
+| **Threshold** | Binary: 0% below, 100% above | `threshold` value |
+| **Exponential** | Exponential curve | `k` (rate parameter) |
+
+The most common model is **Lognormal10**, which uses two parameters per severity level:
+
+- **TL_50** — the toxic load at which 50% of the population is affected
+- **sigma** — how steep the dose-response curve is
+
+### How effects are defined in the agent JSON
+
+Each effect in the agent descriptor specifies the calculator, the dose-response model, and the parameters for each severity level:
+
+```json
+{
+    "effects": {
+        "RegularPopulation": {
+            "type": "Lognormal10",
+            "calculator": {
+                "TenBerge": {"breathingRate": 10}
+            },
+            "parameters": {
+                "type": "Lognormal10DoseResponse",
+                "levels": ["Severe", "Mild", "Light"],
+                "parameters": {
+                    "Severe": {"TL_50": 1000, "sigma": 0.5},
+                    "Mild":   {"TL_50": 100,  "sigma": 0.4},
+                    "Light":  {"TL_50": 10,   "sigma": 0.3}
+                }
+            }
+        }
+    }
+}
+```
+
+This defines an effect called `"RegularPopulation"` that:
+
+- Uses the **Ten Berge** calculator with a breathing rate of 10 L/min
+- Has **Lognormal10** dose-response at three severity levels
+- At a toxic load of 1000, 50% of the population has Severe injuries
+
+### Working with effects in code
+
+```python
+agent = risk.getAgent("Chlorine")
+
+# List effects
+print(agent.effectNames)  # ['RegularPopulation']
+
+# Access an effect
+effect = agent["RegularPopulation"]
+
+# The effect has a calculator and injury levels
+print(effect.calculator)   # CalculatorTenBerge
+print(effect.levelNames)   # ['Severe', 'Mild', 'Light']
+
+# Access a specific injury level
+severe = effect["Severe"]
+```
+
+### Physical properties
+
+Agents can also have physical properties used for evaporation and dispersion modeling:
+
+```python
+# Access physical properties
+props = agent.physicalproperties
+
+# Molecular weight, density, vapor pressure at a temperature
+mw = props.molecularWeight           # e.g., 70.9 g/mol
+density = props.getDensity(20)       # density at 20°C
+volatility = props.getVolatility(20) # vapor saturation at 20°C
+vp = props.vaporPressure(293)        # vapor pressure at 293K
+```
 
 ---
 
 ## Protection policies
 
-Protection policies model how sheltering, evacuation, or other protective actions reduce exposure. A `ProtectionPolicy` object defines the protection level and its impact on the effect calculations.
+Protection policies model how sheltering, evacuation, or other protective actions reduce exposure. A `ProtectionPolicy` builds a **pipeline of actions** that modify the concentration field before injury calculations.
+
+### Indoor sheltering
+
+The indoor model computes the indoor concentration `Cin` based on the outdoor concentration `Cout` and the building's air exchange rate:
+
+```
+Cin[t] = (Cin[t-1] + alpha × dt × Cout[t]) / (1 + alpha × dt)
+```
+
+Where `alpha = 1/turnover` is the air exchange rate. A longer turnover time means better protection (slower air exchange).
+
+```python
+from hera.riskassessment import ProtectionPolicy
+from hera.utils import ureg
+
+# Create a policy with indoor sheltering
+policy = ProtectionPolicy()
+policy.indoor(
+    turnover=2*ureg.hour,    # air exchange every 2 hours
+    enter="5min",            # population enters buildings 5 min after release
+    stay="2h"                # stays indoor for 2 hours
+)
+
+# Apply to a concentration field
+protected = policy.compute(concentration_data, C="C")
+```
+
+### Masking
+
+Masks reduce the inhaled concentration by a protection factor:
+
+```python
+policy.masks(
+    protectionFactor=1000,   # mask reduces concentration by 1000x
+    wear="0min",             # masks on immediately
+    duration="3h"            # worn for 3 hours
+)
+```
+
+### Chaining actions
+
+Actions can be chained — each modifies the concentration field for the next:
+
+```python
+policy = ProtectionPolicy()
+policy.indoor(turnover=2*ureg.hour, enter="5min", stay="2h") \
+      .masks(protectionFactor=100, wear="0min", duration="3h")
+result = policy.compute(concentration_data, C="C")
+```
 
 ---
 
