@@ -139,21 +139,96 @@ This defines an effect called `"RegularPopulation"` that:
 
 ### Working with effects in code
 
+#### Loading an agent and exploring its effects
+
 ```python
+risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJECT")
+
+# Load an agent
 agent = risk.getAgent("Chlorine")
 
-# List effects
-print(agent.effectNames)  # ['RegularPopulation']
+# Agent-level properties
+print(agent.name)                  # 'Chlorine'
+print(agent.tenbergeCoefficient)   # 2.0
+print(agent.effectNames)           # ['RegularPopulation']
+```
 
-# Access an effect
+#### Inspecting an effect
+
+```python
+# Access an effect by name (dictionary-style)
 effect = agent["RegularPopulation"]
 
-# The effect has a calculator and injury levels
-print(effect.calculator)   # CalculatorTenBerge
-print(effect.levelNames)   # ['Severe', 'Mild', 'Light']
+# The effect's calculator
+print(type(effect.calculator))     # <class 'CalculatorTenBerge'>
 
+# List all severity levels in this effect
+print(effect.levelNames)           # ['Severe', 'Mild', 'Light']
+```
+
+#### Inspecting injury levels
+
+Each severity level has its own dose-response parameters:
+
+```python
 # Access a specific injury level
 severe = effect["Severe"]
+mild = effect["Mild"]
+light = effect["Light"]
+
+# For Lognormal10 levels, inspect the parameters:
+# TL_50 — the toxic load at which 50% of the population is affected
+# sigma — the spread of the dose-response curve
+print(f"Severe: TL_50={severe.TL_50}, sigma={severe.sigma}")
+print(f"Mild:   TL_50={mild.TL_50}, sigma={mild.sigma}")
+print(f"Light:  TL_50={light.TL_50}, sigma={light.sigma}")
+
+# For Threshold levels:
+# threshold — the binary cutoff value
+# print(f"Threshold: {level.threshold}")
+
+# For Exponential levels:
+# k — the rate parameter
+# print(f"k: {level.k}")
+```
+
+#### Computing toxic loads and injury percentages
+
+```python
+# Given a concentration field from a dispersion simulation:
+# concentration_data is an xarray.Dataset with a "C" field
+
+# Step 1: Calculate toxic loads using the effect
+toxic_loads = effect.calculateToxicLoads(concentration_data, field="C")
+
+# Step 2: Get the percentage affected at each severity level
+# for a given toxic load value
+toxic_load_value = 500
+percent_severe = effect.getPercent("Severe", toxic_load_value)
+percent_mild = effect.getPercent("Mild", toxic_load_value)
+print(f"At toxic load {toxic_load_value}: {percent_severe:.1%} severe, {percent_mild:.1%} mild")
+
+# Step 3: Calculate contours of injury regions on a 2D map
+contours = severe.calculateContours(toxic_loads, time="datetime", x="x", y="y")
+# Returns a GeoDataFrame with polygons for each time step and severity level
+```
+
+#### Modifying the Ten Berge coefficient
+
+The Ten Berge coefficient can be changed after loading — this rebuilds all effects:
+
+```python
+# Change the exponent (e.g., for sensitivity analysis)
+agent.tenbergeCoefficient = 1.5
+# All effects are automatically recalculated with the new coefficient
+```
+
+#### Serializing an agent
+
+```python
+# Export agent to JSON (for saving or inspection)
+import json
+print(json.dumps(agent.toJSON(), indent=2))
 ```
 
 ### Physical properties
