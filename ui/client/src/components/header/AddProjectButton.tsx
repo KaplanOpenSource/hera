@@ -10,12 +10,11 @@ import {
   TextField,
   ThemeProvider
 } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
-import { Repository } from "../../shared/types";
 import { RepositoriesInProject } from "../repo/RepositoriesInProject";
 
 export const AddProjectButton = ({ }) => {
@@ -23,26 +22,8 @@ export const AddProjectButton = ({ }) => {
   const [name, setName] = useState('');
   const [filesDirectory, setFilesDirectory] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const [repositories, setRepositories] = useState<Repository[]>([]);
   const navigate = useNavigate();
   const inputRef = useRef();
-
-  useEffect(() => {
-    (async () => {
-      if (open) {
-        const { data, problem } = await fetchPython({
-          results: ['repos'],
-          code: `
-from hera.utils.data.toolkit import dataToolkit
-repos = dataToolkit().getRepositoryTable().to_dict(orient='records')
-`,
-        });
-        if (!problem && data?.repos) {
-          setRepositories(data.repos);
-        }
-      }
-    })();
-  }, [open]);
 
   const doAddProject = async () => {
     let dirStr = `os.path.join(os.getcwd(), 'projects', '${name}')`;
@@ -125,7 +106,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
           value={loadRepositories}
           setValue={v => setLoadRepositories(v)}
         />
-        <RepositoriesInProject repositories={repositories} />
+        <RepositoriesInProject />
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>

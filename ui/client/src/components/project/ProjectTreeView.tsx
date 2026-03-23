@@ -12,6 +12,7 @@ import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
+import { RegisteredRepositories } from '../repo/RegisteredRepositories';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -124,6 +125,7 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
+      <RegisteredRepositories />
       <RepoTreeWhole
       />
     </SimpleTreeView>

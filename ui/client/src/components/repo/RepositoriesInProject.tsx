@@ -1,12 +1,10 @@
 import { SimpleTreeView } from "@mui/x-tree-view";
-import { Repository } from "../../shared/types";
 import { RepoContents } from "./RepoContents";
+import { useRegisteredRepositories } from "./useRegisteredRepositories";
 
-export const RepositoriesInProject = ({
-  repositories,
-}: {
-  repositories: Repository[],
-}) => {
+export const RepositoriesInProject = () => {
+  const { repositories } = useRegisteredRepositories();
+
   if (repositories.length === 0) {
     return null;
   }
