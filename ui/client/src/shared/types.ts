@@ -44,6 +44,14 @@ export interface ExecRequest {
   code: string;
 }
 
+export interface Repository {
+  datasourceName: string;
+  resource: string;
+  dataFormat: string;
+  toolkit: string;
+  version: number[];
+}
+
 export interface Toolkit {
   toolkit: string;
   cls: string;

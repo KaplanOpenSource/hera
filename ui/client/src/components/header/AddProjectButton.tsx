@@ -13,13 +13,14 @@ import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
+import { Repository } from "../../shared/types";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [filesDirectory, setFilesDirectory] = useState('');
   const [loadRepositories, setLoadRepositories] = useState(true);
-  const [repositories, setRepositories] = useState<{ datasourceName: string, resource: string }[]>([]);
+  const [repositories, setRepositories] = useState<Repository[]>([]);
   const navigate = useNavigate();
   const inputRef = useRef();
 
@@ -122,7 +123,11 @@ Project(projectName='${name}', filesDirectory=${dirStr})
         />
         {repositories.length > 0 && (
           <ul style={{ margin: '8px 0', paddingLeft: 24 }}>
-            {repositories.map(r => <li key={r.datasourceName}>{r.datasourceName}</li>)}
+            {repositories.map(r => (
+              <li key={r.datasourceName}>
+                <strong>{r.datasourceName}</strong> — {r.resource}
+              </li>
+            ))}
           </ul>
         )}
       </DialogContent>
