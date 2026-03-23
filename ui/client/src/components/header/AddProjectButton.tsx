@@ -107,7 +107,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
           value={loadRepositories}
           setValue={v => setLoadRepositories(v)}
         />
-        <SimpleTreeView>
+        <SimpleTreeView defaultExpandedItems={['registered-repos']}>
           <RegisteredRepositories />
         </SimpleTreeView>
       </DialogContent>

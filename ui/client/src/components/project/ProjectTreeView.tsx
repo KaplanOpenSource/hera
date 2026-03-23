@@ -35,7 +35,7 @@ export const ProjectTreeView = ({
 }) => {
   const { toolkits } = useProjectStore();
   const { viewSettings } = useViewSettingsStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['project-documents', 'no-toolkit', '*repos*', 'registered-repos']);
   const splitTreeRef = useRef<SplitTree | null>(null);
 
   const getSplitTree = useCallback(() => {
