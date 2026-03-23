@@ -24,7 +24,12 @@ export const CentralRepoFolder = () => {
       code: `
 import os, glob
 folder = os.path.expanduser('${folderPath}')
-jsonFiles = sorted(glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)) if os.path.isdir(folder) else []
+if os.path.isdir(folder):
+    allFiles = glob.glob(os.path.join(folder, '**', '*.json'), recursive=True)
+    allFiles = [f for f in allFiles if not f.endswith('caseConfiguration.json')]
+    jsonFiles = sorted(allFiles)
+else:
+    jsonFiles = []
 `,
     });
     if (!problem && data?.jsonFiles) {
