@@ -334,15 +334,9 @@ Projects the threshold polygons onto a demographic dataset to estimate casualtie
 | `total_pop` | Total population in the intersected area |
 | geometry columns | Census polygon geometries |
 
-#### Module-level singleton
+#### DemographyToolkit instantiation
 
-The file creates a module-level `DemographyToolkit` instance:
-
-```python
-pop = demoDatalayer(projectName="Demography")
-```
-
-This is used by `_project()` to access the `calculatePopulationInPolygon` analysis method. The `"Demography"` project is expected to contain the census data. This is a **static dependency** — the project name is hardcoded.
+The `_project()` method creates a `DemographyToolkit` instance using the `projectName` parameter passed through from `project()`. This ensures the demography toolkit uses the same project context as the caller, rather than a hardcoded project name.
 
 ### Data flow
 
