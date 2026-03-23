@@ -1,4 +1,5 @@
 import { Delete } from "@mui/icons-material";
+import { createTheme, ThemeProvider } from "@mui/material";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { useConfirm } from "../../elements/useConfirm";
 import { fetchPython } from "../../io/fetchPython";
@@ -50,7 +51,7 @@ project = {"name": projectNames[0]['name'], "documents": docs['documents']}
       }}
     >
       <Delete />
-      {ConfirmDialog}
+      <ThemeProvider theme={createTheme()}>{ConfirmDialog}</ThemeProvider>
     </ButtonTooltip>
   </>)
 }

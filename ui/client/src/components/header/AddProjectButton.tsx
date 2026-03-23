@@ -1,18 +1,22 @@
 import { Add } from "@mui/icons-material";
 import {
   Button,
+  createTheme,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  TextField
+  TextField,
+  ThemeProvider
 } from "@mui/material";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonTooltip } from "../../elements/ButtonTooltip";
 import { fetchPython } from "../../io/fetchPython";
+import { SimpleTreeView } from "@mui/x-tree-view";
+import { RegisteredRepositories } from "../repo/RegisteredRepositories";
 
 export const AddProjectButton = ({ }) => {
   const [open, setOpen] = useState(false);
@@ -66,6 +70,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
     >
       <Add />
     </ButtonTooltip>
+    <ThemeProvider theme={createTheme()}>
     <Dialog
       open={open}
       onClose={() => setOpen(false)}
@@ -102,6 +107,9 @@ Project(projectName='${name}', filesDirectory=${dirStr})
           value={loadRepositories}
           setValue={v => setLoadRepositories(v)}
         />
+        <SimpleTreeView defaultExpandedItems={['registered-repos']}>
+          <RegisteredRepositories />
+        </SimpleTreeView>
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpen(false)}>
@@ -112,5 +120,6 @@ Project(projectName='${name}', filesDirectory=${dirStr})
         </Button>
       </DialogActions>
     </Dialog>
+    </ThemeProvider>
   </>)
 }

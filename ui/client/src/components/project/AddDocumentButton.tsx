@@ -1,12 +1,15 @@
 import { Add } from "@mui/icons-material";
 import {
+  Autocomplete,
   Button,
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
+  DialogTitle,
+  Stack,
+  TextField
 } from "@mui/material";
-import { DocumentDesc, ProjectEntire, Toolkit } from "@shared/types";
+import { DocumentDesc, ProjectEntire, Toolkit } from "../../shared/types";
 import { useRef, useState } from "react";
 import { BooleanProperty } from "../../elements/BooleanProperty";
 import { ButtonDialog } from "../../elements/ButtonDialog";
@@ -14,6 +17,14 @@ import { TextProperty } from "../../elements/TextProperty";
 import { fetchPython } from "../../io/fetchPython";
 import { useProjectStore } from "../../stores/useProjectStore";
 import { SelectProperty } from "../../elements/SelectProperty";
+
+const METADATA_CLASSES = [
+  { name: 'Metadata.Measurements', collection: 'Measurements_Collection' },
+  { name: 'Metadata.Simulations', collection: 'Simulations_Collection' },
+  { name: 'Metadata.Cache', collection: 'Cache_Collection' },
+] as const;
+
+type MetadataCls = typeof METADATA_CLASSES[number];
 
 const NO_TOOLKIT = '* No Toolkit *';
 
@@ -28,6 +39,7 @@ export const AddDocumentButton = ({
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
+  const [cls, setCls] = useState<MetadataCls>(METADATA_CLASSES[0]);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
@@ -45,12 +57,12 @@ All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stri
     type='ToolkitDataSource')
       `
       : `
-All.addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
+${cls.collection}().addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
     `;
     const { problem, data } = await fetchPython({
       results: ['project'],
       code: `
-from hera.datalayer import All, datatypes
+from hera.datalayer import All, datatypes, ${cls.collection}
 ${addcmd}
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 project = {"name": '${currProjectName}', "documents": docs['documents']}
@@ -114,17 +126,37 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               setValue={v => setResource(v)}
               disabled={asAgent}
             />
-            <BooleanProperty
-              label="Agent"
-              value={asAgent}
-              setValue={v => setAsAgent(v)}
-            />
-            <SelectProperty
-              label="Toolkit"
-              value={chosenToolkit || NO_TOOLKIT}
-              setValue={(v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
-              menuItems={[{ name: NO_TOOLKIT }, ...toolkits.map(t => ({ name: t.toolkit }))]}
-            />
+            <Stack
+              direction={'column'}
+              spacing={1}
+              justifyItems={'flex-start'}
+              alignItems={'flex-start'}
+            >
+              <BooleanProperty
+                label="Agent"
+                value={asAgent}
+                setValue={v => setAsAgent(v)}
+              />
+              <SelectProperty
+                label="Class"
+                value={cls.name}
+                setValue={(v) => setCls(METADATA_CLASSES.find(c => c.name === v)!)}
+                menuItems={METADATA_CLASSES.map(c => ({ name: c.name }))}
+              />
+              <Autocomplete
+                size="small"
+                disableClearable
+                style={{ minWidth: '200px' }}
+                options={[NO_TOOLKIT, ...toolkits.map(t => t.toolkit)]}
+                value={chosenToolkit || NO_TOOLKIT}
+                onChange={(_e, v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+                renderInput={(params) => <TextField {...params} label="Toolkit" />}
+                slotProps={{
+                  popper: { placement: 'bottom-start', modifiers: [{ name: 'flip', enabled: false }] },
+                  listbox: { style: { maxHeight: '250px' } },
+                }}
+              />
+            </Stack>
           </DialogContent>
           <DialogActions>
             <Button onClick={close}>
