@@ -6,7 +6,7 @@ import geopandas
 from ....utils import toMeteorologicalAngle,toMathematicalAngle
 
 
-from hera.measurements.GIS.vector.demography import DemographyToolkit as demoDatalayer
+import geopandas as gpd
 
 
 
@@ -104,6 +104,38 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 								mathematical_angle=mathematical_angle,geometry=geometry, population=population,projectName=projectName)
 		return ret 
 
+	@staticmethod
+	def _calculatePopulationInPolygon(demography, poly, populationTypes):
+		"""
+		Calculate the population within a polygon by spatial intersection.
+
+		Parameters
+		----------
+		demography : geopandas.GeoDataFrame
+			The demographic data with geometry and population columns.
+		poly : shapely.geometry
+			The polygon to intersect with.
+		populationTypes : list of str
+			Column names for population counts.
+
+		Returns
+		-------
+		geopandas.GeoDataFrame
+			The intersection with area-weighted population.
+		"""
+		res_intersect_poly = demography.loc[demography["geometry"].intersection(poly).is_empty == False]
+		intersection_poly = res_intersect_poly["geometry"].intersection(poly)
+
+		res_intersection = geopandas.GeoDataFrame.from_dict(
+			{"geometry": intersection_poly.geometry,
+			 "areaFraction": intersection_poly.area / res_intersect_poly.area})
+
+		for populationType in populationTypes:
+			if populationType in res_intersect_poly:
+				res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
+
+		return res_intersection
+
 	def _project(self,demographic,loc,meteorological_angle=None,mathematical_angle=None,geometry="ThresholdPolygon",population="total_pop",projectName=None):
 		"""
 		Projects the polygons of the thresholds on the demography.
@@ -125,8 +157,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 		population : str or list of str
 			The name of the column(s) to use for the population.
 		projectName : str, optional
-			The project name for the DemographyToolkit. If None, uses the
-			current project context.
+			Unused. Kept for backward compatibility.
 
 		Returns
 		-------
@@ -134,8 +165,6 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 			Casualty estimates per severity and time step, or None if no
 			population is affected.
 		"""
-		demoToolkit = demoDatalayer(projectName=projectName)
-
 		localcrs = {"init":"epsg:2039"} # itm
 
 		demog_data = demographic
@@ -149,7 +178,7 @@ class thresholdGeoDataFrame(geopandas.GeoDataFrame):
 			for indx,row in data.iterrows():
 				curpoly = shiftedPolygons.loc[indx]
 				if curpoly.is_valid:
-					res     = demoToolkit.analysis.calculatePopulationInPolygon(dataSourceOrData=demog_data,shapeNameOrData=curpoly, populationTypes=population)
+					res = self._calculatePopulationInPolygon(demog_data, curpoly, population)
 					if len(res) > 0:
 						for popu in population:
 							res['effected%s' % popu] = res[popu]*row.percentEffected

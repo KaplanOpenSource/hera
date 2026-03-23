@@ -334,9 +334,9 @@ Projects the threshold polygons onto a demographic dataset to estimate casualtie
 | `total_pop` | Total population in the intersected area |
 | geometry columns | Census polygon geometries |
 
-#### DemographyToolkit instantiation
+#### Population calculation
 
-The `_project()` method creates a `DemographyToolkit` instance using the `projectName` parameter passed through from `project()`. This ensures the demography toolkit uses the same project context as the caller, rather than a hardcoded project name.
+The spatial intersection with demographic data is done directly inside `_project()` via a static `_calculatePopulationInPolygon()` method, which performs area-weighted population calculation without depending on `DemographyToolkit` or any project. The `demographic` GeoDataFrame is passed in by the caller, so the data source is fully under user control.
 
 ### Data flow
 
