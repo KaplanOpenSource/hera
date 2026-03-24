@@ -3,8 +3,10 @@ from hera.simulations.openFoam import FLOWTYPE_INCOMPRESSIBLE
 
 
 class StochasticLagrangianSolver_toolkitExtension(absractStochasticLagrangianSolver_toolkitExtension):
+    """Concrete implementation of the stochastic Lagrangian solver toolkit extension."""
 
     def __init__(self, toolkit):
+        """Initialize with a reference to the parent toolkit."""
         super().__init__(toolkit=toolkit)
 
     def createDispersionFlowField(self, flowName, flowData, OriginalFlowField, dispersionDuration,flowType=FLOWTYPE_INCOMPRESSIBLE,

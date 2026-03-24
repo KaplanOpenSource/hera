@@ -28,10 +28,11 @@ class OFObjectHome:
 
     @property
     def fieldDefinitions(self):
+        """Return the dictionary of field definitions."""
         return self._fieldDefinitions
 
     def __init__(self):
-
+        """Initialize the field definitions from the built-in JSON catalog."""
         fieldJSON = """
         {
             "U" : { 

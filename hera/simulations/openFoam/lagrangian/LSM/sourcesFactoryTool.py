@@ -2,12 +2,15 @@ import numpy
 import pandas
 
 class sourcesFactoryTool():
+    """Factory for creating particle source geometries of various shapes."""
 
     @property
     def sourcesTypeList(self):
+        """List of available source geometry type names."""
         return [x.split("_")[1] for x in dir(self) if "makeSource" in x and "_" in x]
 
     def makeSource(self, x, y, z, nParticles, type="Point", **kwargs):
+        """Create a particle source DataFrame for the given geometry type."""
 
         slist = self.sourcesTypeList
         if type not in slist:
@@ -16,9 +19,11 @@ class sourcesFactoryTool():
         return getattr(self, f"makeSource_{type}")(x, y, z, nParticles, **kwargs)
 
     def makeSource_Point(self,x,y,z,nParticles,**kwargs):
+        """Generate particles at a single point location."""
         return pandas.DataFrame({"x":[x for i in range(nParticles)],"y":[y for i in range(nParticles)],"z":[z for i in range(nParticles)]})
 
     def makeSource_Circle(self,x,y,z,nParticles,radius,distribution="uniform",**kwargs):
+        """Generate particles distributed in a circle on the XY plane."""
 
         Rs = getattr(numpy.random,distribution)(0,radius,nParticles)
         thetas = numpy.random.uniform(0,2*numpy.pi,nParticles)
@@ -30,6 +35,7 @@ class sourcesFactoryTool():
         return pandas.DataFrame({"x":xs,"y":ys,"z":[z for i in range(nParticles)]})
 
     def makeSource_Sphere(self,x,y,z,nParticles,radius,distribution="uniform",**kwargs):
+        """Generate particles distributed within a sphere."""
 
         Rs = getattr(numpy.random,distribution)(0,radius,nParticles)
         thetas = numpy.random.uniform(0,2*numpy.pi,nParticles)
@@ -44,6 +50,7 @@ class sourcesFactoryTool():
         return pandas.DataFrame({"x":xs,"y":ys,"z":zs})
 
     def makeSource_Cylinder(self,x,y,z,nParticles,radius,height,horizontalDistribution="uniform",verticalDistribution="uniform",**kwargs):
+        """Generate particles distributed within a cylinder."""
 
         Rs = getattr(numpy.random,horizontalDistribution)(0,radius,nParticles)
         Hs = getattr(numpy.random,verticalDistribution)(-height/2,height/2,nParticles)
@@ -58,6 +65,7 @@ class sourcesFactoryTool():
         return pandas.DataFrame({"x":xs,"y":ys,"z":zs})
 
     def makeSource_Rectangle(self,x,y,z,nParticles,lengthX,lengthY,rotateAngle=0,**kwargs):
+        """Generate particles distributed within a rotated rectangle on the XY plane."""
 
         xdist = numpy.random.uniform(-lengthX/2,lengthX/2,nParticles)
         ydist = numpy.random.uniform(-lengthY/2, lengthY/2, nParticles)
@@ -69,6 +77,7 @@ class sourcesFactoryTool():
         return pandas.DataFrame({"x":xs,"y":ys,"z":[z for i in range(nParticles)]})
 
     def makeSource_Cube(self,x,y,z,nParticles,lengthX,lengthY,lengthZ,rotateAngle=0,**kwargs):
+        """Generate particles distributed within a rotated cuboid volume."""
 
         xdist = numpy.random.uniform(-lengthX/2,lengthX/2,nParticles)
         ydist = numpy.random.uniform(-lengthY/2,lengthY/2, nParticles)

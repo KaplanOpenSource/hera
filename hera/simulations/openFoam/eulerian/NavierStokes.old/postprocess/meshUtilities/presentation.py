@@ -3,19 +3,23 @@ import matplotlib.pyplot as plt
 import math
 
 class presentation():
+    """Presentation layer for plotting OpenFOAM mesh analysis results."""
 
     _datalayer = None
     _analysis = None
 
     @property
     def datalayer(self):
+        """Return the data layer instance."""
         return self._datalayer
 
     @property
     def analysis(self):
+        """Return the analysis layer instance."""
         return self._analysis
 
     def __init__(self, dataLayer, Analysis):
+        """Initialize the presentation layer with data and analysis references."""
 
         self._datalayer =  dataLayer
         self._analysis = Analysis
@@ -61,7 +65,7 @@ class presentation():
         return ax
 
     def UinLocations(self, data, points, style="plot", colors=["blue", "red"], labels=["Distance Downwind (m)", "Velocity (m/s)", "Height (m)"],ax=None):
-
+        """Plot velocity profiles at specified downwind locations with inset axes."""
         if ax is None:
             fig, ax = plt.subplots()
         else:

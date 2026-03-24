@@ -9,8 +9,10 @@ from hera.utils.logging import helpers as hera_logging
 
 
 class sponge_handler(object):
+    """Handler that creates sponge layer alpha files for OpenFOAM simulations."""
 
     def run(self,**params):
+        """Run the sponge layer creation workflow."""
 
 
 

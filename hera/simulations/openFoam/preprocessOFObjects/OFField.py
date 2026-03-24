@@ -12,6 +12,7 @@ from .utils import ParsedParameterFileToDataFrame
 
 
 class OFField(OFObject):
+    """OpenFOAM field with initialization, I/O, and boundary manipulation."""
 
     fieldComputation = None  # eulerian/ lagrangian.
 
@@ -51,9 +52,11 @@ class OFField(OFObject):
 
 
     def __getitem__(self, item):
+        """Return the field data for the given processor key."""
         return self.data[item]
 
     def __iter__(self):
+        """Iterate over processor keys in the field data."""
         return self.data.__iter__()
 
     def getZeroValue(self):
@@ -395,6 +398,7 @@ class OFField(OFObject):
 
         """
         def dataframeToField(regionData):
+            """Convert a region DataFrame to a PyFoam Field object."""
             name = ""
             if self.fieldType == FIELDTYPE_SCALAR:
                 fieldList = [l[0] for l in regionData.sort_values("processorIndex")[self.componentNames].values]

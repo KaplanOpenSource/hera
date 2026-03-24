@@ -61,15 +61,18 @@ axisscale = 1. # 0.001
 
 
 def shrinkdir(filename):
+    """Return the directory path by removing the filename."""
     lastslash = filename.rfind('/')
     return filename[:lastslash+1]
 
 def shrinktitle(filename):
+    """Extract the simulation name from a file path."""
     lastslash = filename.rfind('/')
     previousslash = filename[:lastslash].rfind('/')
     return filename[previousslash+1:lastslash]
 
 def rmse(a,b, zeros=True):
+    """Compute root mean square error between two arrays."""
     if zeros:
         return round(((a - b) ** 2).mean() ** .5,4)
     else:
@@ -82,6 +85,7 @@ def rmse(a,b, zeros=True):
 
 
 def logreader(filename, time1):
+    """Read wall-clock time for a given iteration from the solver log file."""
     slash = filename.rfind("/")+1
     directory = filename[:slash]
 
@@ -104,6 +108,7 @@ def logreader(filename, time1):
 
 
 def logall(filename):
+    """Parse the solver log and return lists of iteration numbers and wall-clock times."""
     resultitter = []
     resulttime = []
     slash = filename.rfind("/")+1
@@ -136,6 +141,7 @@ def logall(filename):
     return resultitter, resulttime
 
 def stat(a,b, kind='rmse', nantozero=True, verbose=None):
+    """Compute a statistical metric between two arrays."""
     # return np.sqrt(np.mean((predictions-targets)**2))
     # np.corrcoef(db[i][sel], db[-1][sel])[1, 0]
     try:
@@ -183,6 +189,7 @@ def stat(a,b, kind='rmse', nantozero=True, verbose=None):
 
 def corrall(filename, sel, axisIndex , axisValue, clipxmin, clipxmax, clipymin, clipymax, clipzmin, clipzmax
             , heightcontour, reader=None,end=None, parallel=True, last=None):
+    """Compute correlation of each time step with the last and with the next across iterations."""
     corrlast = []
     corrnear = []
     print(filename, sel)
@@ -228,6 +235,7 @@ def corrall(filename, sel, axisIndex , axisValue, clipxmin, clipxmax, clipymin, 
     
     
 def makegrid(mat, field, axis=2, ticks=400, method='linear'):
+    """Interpolate scattered 2D slice data onto a regular grid."""
     if axis == 0:  # 'x'
         x1 = mat['y']
         y1 = mat['z']
@@ -271,6 +279,7 @@ def makegrid(mat, field, axis=2, ticks=400, method='linear'):
     return xmin, xmax, ymin, ymax, zi1
 
 def makegrid3d(mat, field, ticks=40):
+    """Interpolate scattered 3D data onto a regular grid."""
     x1 = mat['x']
     y1 = mat['y']
     z1 = mat['z']
@@ -305,13 +314,14 @@ def makegrid3d(mat, field, ticks=40):
     return xmin, xmax, ymin, ymax, zmin, zmax, vi1
 
 def get_times(filename):
+    """Retrieve available time step values from an OpenFOAM case."""
     bse = paraviewOpenFOAM(shrinkdir(filename))
     times = bse.reader.TimestepValues
     return times
 
 def get_slice(filename, itteration, axis_index, axis_value, offset=0.0
               , clipxmin=0.0, clipxmax=0.0, clipymin=0.0, clipymax=0.0, clipzmin=0.0, clipzmax=0.0, reader=None, parallel=False):
-
+    """Extract a planar slice from an OpenFOAM case with optional clipping bounds."""
     if usehera:
         # dirname=r'/data4bk/nirb/Simulations/Mala/mala2b/'
         bse = paraviewOpenFOAM(shrinkdir(filename))
@@ -442,6 +452,7 @@ def get_slice(filename, itteration, axis_index, axis_value, offset=0.0
 
 def get_slice_height(filename, itteration, axis_index, axis_value, offset=0.0,
                      clipxmin=0.0, clipxmax=0.0, clipymin=0.0, clipymax=0.0, clipzmin=0.0, clipzmax=0.0, reader = None):
+    """Extract a height-contour slice from an OpenFOAM case with optional clipping bounds."""
     if reader is None:
         reader = bse.ReadCase('case name', filename, CaseType='Decomposed Case')  # 'Reconstructed Case')
         print('Initial timelist print:', reader.TimestepValues)
@@ -540,6 +551,7 @@ def get_slice_height(filename, itteration, axis_index, axis_value, offset=0.0,
 
 def get_clip(filename, itteration,
              clipxmin=0.0, clipxmax=0.0, clipymin=0.0, clipymax=0.0, clipzmin=0.0, clipzmax=0.0, reader=None, parallel=False):
+    """Extract a clipped 3D region from an OpenFOAM case."""
     if usehera:
         bse = paraviewOpenFOAM(shrinkdir(filename))
         # bse = paraviewOpenFOAM(dirname)
@@ -668,6 +680,7 @@ def get_clip(filename, itteration,
 
 
 def density_estimation(m1, m2):
+    """Estimate a 2D kernel density from two arrays using Gaussian KDE."""
     X, Y = np.mgrid[min(m1):max(m1):100j, min(m2):max(m2):100j]
     positions = np.vstack([X.ravel(), Y.ravel()])
     values = np.vstack([m1, m2])
@@ -677,6 +690,7 @@ def density_estimation(m1, m2):
 
 
 def flood(floor, i=0, j=0, max_floor=0):
+    """Recursively flood-fill a 2D matrix from position (i, j) with a label value."""
     # print ('ijk',i,j,floor[i,j])
     if floor[i, j] == -999:
         floor[i, j] = max_floor
@@ -700,6 +714,7 @@ def flood(floor, i=0, j=0, max_floor=0):
 
 
 def flood_main(floor):
+    """Label connected zero-valued regions in a 2D matrix using flood fill."""
     sys.setrecursionlimit(floor.shape[0]*floor.shape[1])  # 10000 is an example, try with different values
     print('flood size:',floor.shape[0], floor.shape[1])
     max_floor = 1
@@ -726,15 +741,17 @@ def flood_main(floor):
 
 
 def remove_left(s):
+    """Remove the first character from a string."""
     return s[1:]
 
 
 def remove_right(s):
+    """Remove the last character from a string."""
     return s[:-1]
 
 
 def read_measurement(textboxfile1value, textboxtime1value, mainsimulation, showfieldindex):
-
+    """Read velocity probe measurements and coordinates from an OpenFOAM probe file."""
     if float(textboxtime1value).is_integer():
         print('probe int')
     else:
@@ -791,26 +808,31 @@ def read_measurement(textboxfile1value, textboxtime1value, mainsimulation, showf
 
 
 def log_profile(x, a, b, c, d):
+    """Compute a logarithmic wind profile value."""
 #        u[i] = uh * beta / k * math.log(((z[i] - h) + d) / z0)
     return a * np.log(b * (x + d)) + c
 
 
 def exp_profile(x, a, b, c):
+    """Compute an exponential wind profile value."""
 #        u[i] = uh * math.exp(beta * (z[i] - h) / lvar)
 #        return Uh * np.exp()
     return a * np.exp(-b * x) + c
 
 
 def logexp_profile(x, a, b, c, d, e, g):
+    """Compute a combined log-exponential wind profile value."""
 #        u[i] = uh * math.exp(beta * (z[i] - h) / lvar)
 #        return Uh * np.exp()
     return ((np.arctan(g * x )/(math.pi/2) + 1) / 2) * (a * np.log(b * (x + c))) + ((np.arctan(-g*x)/(math.pi/2) + 1) / 2) * (d * np.exp(-e * x))
 
 def test_profile(x, a, b, c):
+    """Compute a test logarithmic profile value."""
 #        u[i] = uh * beta / k * math.log(((z[i] - h) + d) / z0)
     return a * np.log(b * x + c)
 
 def find_index(xcoord, ycoord, zcoord, x, y, z):
+    """Find fractional grid indices for a given (x, y, z) coordinate."""
     dx = x[1]-x[0]
     dy = y[1]-y[0]
     dz = z[1]-z[0]
@@ -835,6 +857,7 @@ def find_index(xcoord, ycoord, zcoord, x, y, z):
     return xindex,yindex, zindex
 
 def traj(xcoord, ycoord, zcoord, x, y, z, gridux,griduy, griduz, duration = 200, dt = 0.1, verbose = False):
+    """Compute a particle trajectory through a 3D velocity field."""
     if 5==7:
         a=random.randint(-5,5)
         xcoord0=xcoord
@@ -1019,7 +1042,7 @@ def traj(xcoord, ycoord, zcoord, x, y, z, gridux,griduy, griduz, duration = 200,
     # plt.show()
     
 def morphology(textboxfile1value,textboxtime1value , x,y,radius=100):
-    
+    """Compute urban morphology parameters for a rectangular area around (x, y)."""
 # This funcrion will return the morphology parameter of an area base on the mesh
 
 # Parameters:
@@ -1108,7 +1131,7 @@ def morphology(textboxfile1value,textboxtime1value , x,y,radius=100):
     return he, lambdaf, lambdap, lc
 
 def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3, verbose=False):
-    
+    """Compute the wind velocity at a given height using an urban canopy model."""
 	# This function will return the wind velocity at height z 
 
 	# parameters:
@@ -1171,6 +1194,7 @@ def windprofile(z, uref=3, href=24, he=24, lambdap=0.3, lambdaf=0.3,beta=0.3, ve
 
          
 def histogram(array, title):
+    """Plot a histogram of the central 80 percent of an array."""
     sortarray = np.sort(array, axis=None)
     l = len(array)
     plt.figure()
@@ -1179,6 +1203,7 @@ def histogram(array, title):
     plt.show()
          
 def corrfunc(array, x, y, title):
+    """Compute and plot the spatial correlation function of an array."""
     cf=np.zeros(int(math.ceil(((x.max()-x.min())**2.+(y.max()-y.min())**2.)**0.5)+1.))
     sf=np.zeros(math.ceil(((x.max()-x.min())**2.+(y.max()-y.min())**2.)**0.5)+1.)
     sfm=np.zeros(math.ceil(((x.max()-x.min())**2.+(y.max()-y.min())**2.)**0.5)+1.)
@@ -1213,6 +1238,7 @@ def corrfunc(array, x, y, title):
 #        plt.show()
          
 def chi(uw0, uw1, main=True):
+    """Compute a chi-squared-like histogram distance between two arrays."""
     precentile=.9
     uw0a=uw0.copy().ravel()
     uw1a=uw1.copy().ravel()
@@ -1247,6 +1273,7 @@ def chi(uw0, uw1, main=True):
     return round(chi2,3)
          
 def interpvel(matu,matw,i,j):
+    """Interpolate 2D velocity components at fractional grid indices."""
 #    u = matu[int(i),int(j)]
 #    w = matw[int(i),int(j)]
     fraci=i-int(i)
@@ -1272,6 +1299,7 @@ def interpvel(matu,matw,i,j):
 
 
 def interpvel3d(matu, matv, matw, i, j, k):
+    """Interpolate 3D velocity components at fractional grid indices."""
 #    u = matu[int(i),int(j)]
 #    w = matw[int(i),int(j)]
     i0=int(i)
@@ -1409,6 +1437,7 @@ def interpvel3d(matu, matv, matw, i, j, k):
 
         
 def rpaintinside(mat,cur,point, border):
+    """Recursively flood-fill a 2D matrix inside a bordered region."""
 #    print('recursive flood fill')
 
     if (not((mat[cur[0],cur[1]]==border) | (mat[cur[0],cur[1]]==point))):
@@ -1424,6 +1453,7 @@ def rpaintinside(mat,cur,point, border):
             paintinside(mat,[cur[0],cur[1]-1],point,border)
 
 def paintinside(mat,cur,point, border):
+    """Iteratively flood-fill a 2D matrix inside a bordered region."""
 #    print('non rec flood fill')
     matbkup=mat.copy()
     matbkup[cur[0],cur[1]]=point
@@ -1454,7 +1484,7 @@ def paintinside(mat,cur,point, border):
 
 
 def eddie_mask_gradient(psi1):
-    
+    """Detect eddy regions using the gradient of a stream function field."""
     if 5==6:
         itter=1000000000
         files=[r'/ibdata2/nirb/openFOAM/ml/windAroundurbanMichelstadt2zomegablock1/windAroundCube.foam']
@@ -1644,6 +1674,7 @@ def eddie_mask_gradient(psi1):
 
 
 def eddies(files, itter, axisindex, axispos, xminc, xmaxc, yminc, ymaxc, zminc, zmaxc, currentRow, parallel=True):
+        """Detect and analyze eddies from OpenFOAM simulation slices."""
         from skimage import measure
         from shapely.geometry import Point
         from shapely.geometry.polygon import Polygon
@@ -2180,6 +2211,7 @@ def eddies(files, itter, axisindex, axispos, xminc, xmaxc, yminc, ymaxc, zminc, 
 
 
 def diff_files(files, itter, field, xminc, xmaxc, yminc, ymaxc, zminc, zmaxc, axisindex, axispos, currentRow, heightcontour=False, parallel=True):
+        """Compute and plot the difference between two OpenFOAM simulation fields."""
         print('diffdebug',parallel)
         textboxtime1value = itter[0]
         textboxtime2value = itter[-1]
@@ -2323,6 +2355,7 @@ def diff_files(files, itter, field, xminc, xmaxc, yminc, ymaxc, zminc, zmaxc, ax
 
 
 def vprofile(files, bounds, itter):
+    """Plot vertical velocity profiles from clipped simulation data."""
     plt.figure()
     for i in range(len(files)):
         db = get_clip(files[i], itter,
@@ -2369,7 +2402,7 @@ def vprofile(files, bounds, itter):
 
 
 def plot_file(files, fields, itter, xminc, xmaxc, yminc, ymaxc, zminc, zmaxc, axisindex, axispos, addtotitle="", parallel=True):
-
+    """Plot selected fields from one or more OpenFOAM simulation files."""
     if 5==7:
         files=[r'/ibdata2/nirb/openFOAM/vortex/tlv1/tlv1.foam']
         files=[u'/ibdata2/nirb/openFOAM/porous/windAroundBuildings-davidsona/windAroundBuildings-davidsona.OpenFOAM',
@@ -2501,7 +2534,7 @@ def plot_file(files, fields, itter, xminc, xmaxc, yminc, ymaxc, zminc, zmaxc, ax
 
 
 def profile3(files,textboxtime1value,axisindex,axispos,learnfrom,areaname,startarea,endarea,currentitem,xmingui,xmaxgui,ymingui,ymaxgui,zmingui,zmaxgui, verbose=False, parallel=True):
-    
+    """Compute and plot wind profiles with morphology-based analytical comparison."""
     print(files,textboxtime1value,axisindex,axispos,learnfrom,startarea,endarea,currentitem,xmingui,xmaxgui,ymingui,ymaxgui,zmingui,zmaxgui)
 
 #        files=[r'/ibdata2/nirb/openFOAM/porous/hadasflatcoarse8/windAroundCube.foam']
@@ -3050,13 +3083,17 @@ def profile3(files,textboxtime1value,axisindex,axispos,learnfrom,areaname,starta
     print('****scores final=', scores, scoresvalue)
     
     def exponential2(x, a, b, c):
+          """Compute a double-exponential profile."""
           return 2*np.exp(x/(2*c*c*50*(1-c)/b))
     def exponential(x, a, b):
+          """Compute an exponential profile."""
           return a*np.exp(b*x)
     def log(x, a, b, c):
+          """Compute a logarithmic profile."""
           return a*np.log((x-c)/b)
 #                  return a*np.log(b*x*x-c)**2
     def power_law(x, a, b):
+          """Compute a power-law profile."""
           return a*np.power(x, b)
 #            parsexp2, covexp2 = curve_fit(f=exponential2, xdata=z[:10], ydata=windfine[:10], p0=[0, 0], bounds=(-np.inf, np.inf))
 #            print('pars', parsexp2)
@@ -3088,7 +3125,7 @@ def profile3(files,textboxtime1value,axisindex,axispos,learnfrom,areaname,starta
       
     
 def profile4(files,itter,axisindex,axispos,learnfrom,areaname,startarea,endarea,currentitem,xmingui,xmaxgui,ymingui,ymaxgui,zmingui,zmaxgui, verbose=False, sub=False, parallel=True):
-    
+    """Compute wind profiles with learning-based fitting across urban areas."""
     if 5==4:
         itter=40000
         files = [ r'/data4bk/nirb/Simulations/michaelstadtfloor1ml/windAroundcaseE.foam',
@@ -3428,6 +3465,7 @@ def profile4(files,itter,axisindex,axispos,learnfrom,areaname,startarea,endarea,
 
 
 def areaaccuracy(areaname):
+    """Read and analyze area-wise accuracy scores from saved text files."""
     areaname='ashkelon'
 #    areaname='natanya'
     areaname='bs'
@@ -3581,6 +3619,7 @@ def areaaccuracy(areaname):
     return
 
 def compare():
+    """Compare simulation results between different time steps or configurations."""
     files=[r'/data4bk/nirb/Simulations/michaelstadtfloor1ml/michaelstadtfloor1ml.foam']
     itter=[1,2300]
     files=[r'/ibdata2/nirb/openFOAM/ml/michaelstadtfloor1ml/michaelstadtfloor1ml.foam']
@@ -3766,11 +3805,13 @@ def compare():
 
 
 class App(QWidget):
+    """Qt-based GUI application for OpenFOAM post-processing and visualization."""
 
     slicomatic = False
     showfieldlist = {'U_x':0, 'U_y':1, 'U_z':2}
 
     def __init__(self):
+        """Initialize the OpenFOAM viewer application."""
         super(App, self).__init__()
         self.title = 'IIBR - OpenFoam Viewer'
         self.left = 10
@@ -3780,6 +3821,7 @@ class App(QWidget):
         self.initUI()
 
     def initUI(self):
+        """Set up the graphical user interface layout and widgets."""
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -4065,6 +4107,7 @@ class App(QWidget):
     @pyqtSlot()
 
     def on_click_trajectories(self):
+        """Handle the trajectories button click to compute and plot particle trajectories."""
         print('start traj', datetime.datetime.now())
                         
  #self.filename1.text()
@@ -4237,6 +4280,7 @@ class App(QWidget):
 #        self.reader1 = None
 
     def on_click_stream_lines(self):
+        """Handle the stream lines button click to compute and plot stream lines."""
         cc=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 #            cc=['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:pink','tab:gray','tab:olive','tab:cyan']
         files=[]        
@@ -4377,6 +4421,7 @@ class App(QWidget):
             plt.plot(tx,ty,'.'+cc[f])                
         
     def on_click_eddies(self):
+        """Handle the eddies button click to detect and visualize eddies."""
         itter=[float(self.itteration1.text())]
         files=[]        
         listItems=self.listfiles.selectedItems()
@@ -4399,8 +4444,9 @@ class App(QWidget):
         eddies(files, itter, axisindex, axispos, xmin, xmax, ymin, ymax, zmin, zmax, currentRow)
            
     def on_click_eddies2(self):
+        """Handle the secondary eddies button click for advanced eddy analysis."""
         textboxtime1value = float(self.itteration1.text())
-        files=[]        
+        files=[]
         listItems=self.listfiles.selectedItems()
         if listItems:
             for item in listItems:
@@ -4720,6 +4766,7 @@ class App(QWidget):
             
             
     def trajectory(self,u,w,dx,dz,location, mask):
+        """Compute a single trajectory through a 2D velocity field with masking."""
         s = np.zeros_like(u)
         s[np.isnan(u)]=np.NaN
         t1=[location[0], location[1]]
@@ -4949,6 +4996,7 @@ class App(QWidget):
 #            return location[0]+location[1]
         
     def on_click_eddiesold(self):
+        """Handle the legacy eddies button click for older eddy detection."""
         textboxtime1value = float(self.itteration1.text())
         textboxfile1value = self.filename1.text()
         
@@ -5374,7 +5422,7 @@ class App(QWidget):
 
         
     def on_click_learn(self):
-
+        """Handle the learn button click to train and evaluate ML wind models."""
         full = True
         files=[]   
         inside=True
@@ -6668,7 +6716,7 @@ class App(QWidget):
         print ('fin ml', datetime.datetime.now())
 
     def on_click_sinks(self):
-
+        """Handle the sinks button click to locate and visualize flow sinks in 3D."""
         print('start sink', datetime.datetime.now())
 
         textboxfile1value = self.filename1.text()
@@ -6728,6 +6776,7 @@ class App(QWidget):
         #                    method='linear')  # Nearest for keeping zeros that are buildings
 
         def gd(result, x, y, z, v, xi, yi, zi, m):
+            """Perform griddata interpolation in a separate thread."""
             result[0] = griddata((x, y, z), v, (xi, yi, zi), method=m)  # Nearest for keeping zeros that are buildings
 
             return
@@ -6785,6 +6834,7 @@ class App(QWidget):
         print('fin sink', datetime.datetime.now())
 
     def on_click_statistics(self):
+        """Handle the statistics button click to compute validation statistics."""
         gui=False
         rtheta=True
         mainsimulation = self.experiment.currentText()
@@ -6912,6 +6962,7 @@ class App(QWidget):
 
         
     def on_click_experiment(self):
+        """Handle the experiment button click to compare simulation with observations."""
         gui=False
         cca = True
         mainsimulation = self.experiment.currentText()
@@ -7116,6 +7167,7 @@ class App(QWidget):
             plt.show()
             
     def on_click_porous(self):
+        """Handle the porous button click to apply porous media parameterization."""
         angle = 0 # 0 is west wind
         print ('!!!! we used angle:', angle, '!!!!')
         if self.learnfrom.text()!="":
@@ -7350,6 +7402,7 @@ class App(QWidget):
         ####################           
         
     def on_click_lsm(self):
+        """Handle the LSM button click to compute land surface model diagnostics."""
         textboxfile1value = self.filename1.text()
         textboxtime1value = float(self.itteration1.text())
 
@@ -7508,7 +7561,7 @@ class App(QWidget):
                                 
     
     def on_click_error_classification(self):
-
+        """Handle the error classification button click to categorize prediction errors."""
         mainsimulation = self.experiment.currentText()
         observation = chooseobservation(mainsimulation)
 
@@ -7752,6 +7805,7 @@ class App(QWidget):
 
 
     def on_click_add_file(self):
+        """Handle the add file button click to add a simulation file to the list."""
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "",
@@ -7760,14 +7814,14 @@ class App(QWidget):
             self.listfiles.addItem(fileName)
         
     def on_click_remove_file(self):
-
+        """Handle the remove file button click to remove the selected file from the list."""
         listItems=self.listfiles.selectedItems()
         if not listItems: return        
         for item in listItems:
            self.listfiles.takeItem(self.listfiles.row(item))
             
     def on_click_para(self):
-
+        """Handle the parallel processing button click to run analysis in parallel."""
         textboxtime1value = float(self.itteration1.text())
 #        textboxfile1value = self.filename1.text()
         files=[]        
@@ -7855,6 +7909,7 @@ class App(QWidget):
         pvsimple.Interact(view=None)
         print ('fin test')
     def on_click_save_configuaration(self):
+        """Save the current GUI configuration to a JSON file."""
         items = []
         for index in range(self.listfields.count()): #xrange
             items.append(self.listfields.item(index).text())
@@ -7890,10 +7945,12 @@ class App(QWidget):
             json.dump(data, outfile, indent=4)
 
     def changeHoldOn(self):
+        """Clear the legend list when the hold-on checkbox state changes."""
         print ('clear legend', self.holdon.checkState())
         self.legend = []
 
     def on_click_density(self):
+        """Handle the density button click to compute and plot kernel density estimation."""
         textboxtime1value = float(self.itteration1.text())
         textboxfile1value = self.filename1.text()
         if self.heightcontour.checkState():
@@ -7917,7 +7974,7 @@ class App(QWidget):
                              QMessageBox.Ok, QMessageBox.Ok)
 
     def on_click_itter(self):
-
+        """Handle the iteration button click to plot convergence over iterations."""
 #        if self.holdon.checkState():
 #            fig = plt.figure(110)
 #        else:
@@ -8016,7 +8073,8 @@ class App(QWidget):
         
         
     def on_click_corr(self):
-        files=[]        
+        """Handle the correlation button click to compute time-step correlations."""
+        files=[]
         listItems=self.listfiles.selectedItems()
         if listItems:
            for item in listItems:
@@ -8078,6 +8136,7 @@ class App(QWidget):
        
         
     def on_click_profile(self):
+        """Handle the profile button click to compute and plot a vertical wind profile."""
         ##############################
         # calculating vertical profile
         ##############################
@@ -8341,6 +8400,7 @@ class App(QWidget):
         
         
     def on_click_profile2(self):
+        """Handle the profile2 button click for an alternative vertical profile analysis."""
         ##############################
         # calculating vertical profile
         ##############################
@@ -8528,7 +8588,8 @@ class App(QWidget):
 
         
     def on_click_profile3(self):
-        files=[]        
+        """Handle the profile3 button click for morphology-based profile analysis."""
+        files=[]
         listItems=self.listfiles.selectedItems()
         if listItems:
            for item in listItems:
@@ -8557,6 +8618,7 @@ class App(QWidget):
 
             
     def on_click_update_fields(self):
+        """Update the available field list from the selected simulation file."""
         textboxfile1value = self.listfiles.item(0).text()
         reader = bse.ReadCase('slice_1', textboxfile1value, CaseType='Decomposed Case')
         print('update:', reader.CellArrays)
@@ -8582,6 +8644,7 @@ class App(QWidget):
             self.listfields.addItem(db.keys()[field])
 
     def on_click_diff_files(self):
+        """Handle the diff files button click to compute differences between simulations."""
         if self.use2.checkState():
             itter = [float(self.itteration1.text())]
         else:
@@ -8611,6 +8674,7 @@ class App(QWidget):
         diff_files(files, itter, field, xminc, xmaxc, yminc, ymaxc, zminc, zmaxc, axisindex, axispos, currentRow, parallel=self.parallel.checkState())
         
     def on_click_plot(self):
+        """Handle the plot button click to visualize selected simulation fields."""
         items = self.listfields.selectedItems()
         fields = []
         for i in range(len(items)):
@@ -8647,7 +8711,8 @@ class App(QWidget):
 
 
     def on_click_diff_times(self):
-        files=[]        
+        """Handle the diff times button click to compare fields across time steps."""
+        files=[]
         listItems=self.listfiles.selectedItems()
         if listItems:
             for item in listItems:
@@ -8725,7 +8790,7 @@ class App(QWidget):
 
 
 def buildtopo():
-        
+    """Build an OpenFOAM topoSetDict file from urban morphology area data."""
     yehuda200 = choosearea('tlvbig250')
     topostart = [
     "FoamFile\n"
@@ -8820,6 +8885,7 @@ def buildtopo():
     
     
 def remapsimulation(fromsim, tosim, itter = 14000):
+    """Remap simulation results from one mesh to another using interpolation."""
     fromsim= u'/data4bk/nirb/Simulations/Dans/tlvbig2/'
     tosim = u'/data4bk/nirb/Simulations/Dans/tlvbigmap2/'
     itter = 14000
@@ -9677,6 +9743,7 @@ diff_files([files[0], files[1]], [textboxtime1value], 'U_z', -500, 500, 0, 0, 0,
 
 
 def quad(x):
+    """Estimate optimal drone flight path considering wind conditions."""
     # typical drone speed - up to 20m/s there are few that can go 80m/s
     #typical wind speed at 1000m a.g.l. - 10 m/s
     

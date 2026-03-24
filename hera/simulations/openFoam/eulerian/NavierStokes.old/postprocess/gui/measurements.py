@@ -4910,6 +4910,7 @@ observationMichelstadttke = [
 ]
 
 def chooseobservation(observationName):
+    """Return the observation dataset array for the given observation name."""
     if observationName==u'observationB':
         observation = observationBfull
     elif observationName==u'observationE':

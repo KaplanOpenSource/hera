@@ -17,6 +17,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 
 def interp2(x,y, x0,x1,y0,y1,d00,d01,d10,d11):
+    """Perform bilinear interpolation on a 2D grid cell."""
     # d01 is d at x=0, y=1
     d0 = d00*(x1-x)/(x1-x0) + d10*(x-x0)/(x1-x0)
     d1 = d01*(x1-x)/(x1-x0) + d11*(x-x0)/(x1-x0)
@@ -168,6 +169,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 
 def regrid2(data, factor):
+    """Regrid a 2D array by the given factor using regular grid interpolation."""
     out_x = int(data.shape[0]*factor)
     out_y = int(data.shape[1]*factor)
     m = max(data.shape[0], data.shape[1])
@@ -180,6 +182,7 @@ def regrid2(data, factor):
     return interpolating_function((xv, yv))
 
 def regrid3(data, factorxy, factorz):
+    """Regrid a 3D array with separate horizontal and vertical scaling factors."""
     # make the data grid more focus (factor more than 1) or blur (factor less than 1)
     out_x = int(data.shape[0]*factorz)
     out_y = int(data.shape[1]*factorxy)

@@ -60,14 +60,17 @@ class VTKpipelineExecutionContext:
 
     @property
     def reader(self):
+        """The OpenFOAM reader proxy object."""
         return self._reader
 
     @property
     def pvOFBase(self):
+        """The paraviewOpenFOAM base object."""
         return self._pvOFBase
 
     @property
     def VTKpipelineJSON(self):
+        """The parsed JSON definition of the VTK pipeline."""
         return self._VTKpipelineJSON
 
     def __init__(self, pipelineJSON, casePath, caseType=CASETYPE_DECOMPOSED, serverName=None, fieldNames=None):

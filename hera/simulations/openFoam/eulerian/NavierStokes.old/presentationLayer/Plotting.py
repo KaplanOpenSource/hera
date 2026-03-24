@@ -4,10 +4,12 @@ import math
 from hera.simulations.openfoam.NavierStokes.preProcess import dataManipulations
 
 class Plotting():
+    """Plotting utilities for OpenFOAM Navier-Stokes post-processing."""
 
     _arrange = None
 
     def __init__(self):
+        """Initialize the Plotting instance with a data manipulations helper."""
         self._arrange=dataManipulations("")
 
     def variableAgainstDistance(self, data, variable, height, style="plot", colors=["red", "blue"], signedColors=["blue", "orange", "green", "red"],
@@ -63,7 +65,7 @@ class Plotting():
         return ax
 
     def UinLocations(self, data, points, style="plot", colors=["blue", "red"], labels=["Distance Downwind (m)", "Velocity (m/s)", "Height (m)"],ax=None):
-
+        """Plot velocity profiles at specified downwind locations with inset axes."""
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -89,7 +91,7 @@ class Plotting():
             ax.scatter(point, data.loc[data.distance==point].terrain.mean(), color=colors[1], zorder=15)
 
     def velocityInHeight(self, data, height):
-
+        """Interpolate velocity values at a given height over terrain across all (x, y) positions."""
         xs = []
         ys = []
         vels = []

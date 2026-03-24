@@ -47,12 +47,14 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def workflowGroup(self):
+        """Return the workflow group name from the hera document."""
         ret = None
         if self.workflowHeraDocument:
             return self.workflowHeraDocument['desc']['groupName']
 
     @workflowGroup.setter
     def workflowGroup(self, value):
+        """Set the workflow group name and save to the hera document."""
         ret = None
         if not isinstance(value,str):
             raise ValueError("Group name must be a string")
@@ -63,6 +65,7 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def workflowGroupID(self):
+        """Return the workflow group ID from the hera document."""
         ret = None
         if self.workflowHeraDocument:
             ret =  self.workflowHeraDocument['desc']['groupID']
@@ -70,6 +73,7 @@ class abstractWorkflow(hermes.workflow):
 
     @workflowGroup.setter
     def workflowGroupID(self, value):
+        """Set the workflow group ID and save to the hera document."""
         ret = None
         if not isinstance(value,str):
             raise ValueError("Group name must be a string")
@@ -80,31 +84,38 @@ class abstractWorkflow(hermes.workflow):
 
     @property
     def controlDict(self):
+        """Return the ControlDict workflow node."""
         return self['ControlDict']
 
     @property
     def fvSolution(self):
+        """Return the fvSolution workflow node."""
         return self['fvSolution']
 
 
     @property
     def fvScheme(self):
+        """Return the fvScheme workflow node."""
         return self['fvScheme']
 
     @property
     def fileWriter(self):
+        """Return the fileWriter workflow node."""
         return self['fileWriter']
 
     @property
     def parameters(self):
+        """Return the Parameters workflow node."""
         return self['Parameters']
 
     @property
     def buildAllRun(self):
+        """Return the buildAllRun workflow node."""
         return self['buildAllRun']
 
     @property
     def defineNewBoundaryConditions(self):
+        """Return the defineNewBoundaryConditions workflow node."""
         return self['defineNewBoundaryConditions']
 
 
@@ -194,10 +205,12 @@ class workflow_Eulerian(abstractWorkflow):
 
     @property
     def blockMesh(self):
+        """Return the blockMesh workflow node."""
         return self['blockMesh']
 
     @property
     def snappyHexMesh(self):
+        """Return the snappyHexMesh node, or None if it does not exist."""
         return self['snappyHexMesh'] if 'snappyHexMesh' in self.nodes else None
 
     def prepareICandBC(self,configurationFile):
@@ -320,8 +333,10 @@ class workflow_Eulerian(abstractWorkflow):
 #### Lagrangian
 
 class workflow_Lagrangian(abstractWorkflow):
+    """Hermes workflow specialization for Lagrangian particle simulations."""
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the Lagrangian workflow."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
@@ -329,8 +344,10 @@ class workflow_Lagrangian(abstractWorkflow):
 ##                          Workflow_StochasticLagrangianSolver
 ##############################################################################
 class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
+    """Hermes workflow for stochastic Lagrangian dispersion simulations."""
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the stochastic Lagrangian solver workflow and validate parameters."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
         logger = get_classMethod_logger(self,"init")
         # Make sure that the
@@ -342,44 +359,56 @@ class workflow_StochasticLagrangianSolver(workflow_Lagrangian):
 
     @property
     def dispersionName(self):
+        """Return the name of the dispersion workflow."""
         return self.name
 
 
     @property
     def originalFlowFieldName(self):
+        """Return the name of the original flow field."""
         return self.parameters.parameters['originalFlowField']
 
     @property
     def dispersionFlowFieldName(self):
+        """Return the composite dispersion flow field name."""
         return f"{self.parameters.parameters['originalFlowField']}_DFF_{self.parameters.parameters['dispersionFlowField']}"
 
     @dispersionFlowFieldName.setter
     def dispersionFlowFieldName(self, value):
+        """Set the dispersion flow field name parameter."""
         self.parameters.parameters['dispersionFlowField'] = str(value)
 
     @property
     def dispersionDuration(self):
+        """Return the dispersion duration from the parameters."""
         return self.parameters.parameters['dispersionDuration']
 
 ##########################################################
 ##                          Workflow_simpleFoam
 ##########################################################
 class workflow_simpleFoam(workflow_Eulerian):
+    """Hermes workflow for the simpleFoam steady-state solver."""
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the simpleFoam workflow."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 ##########################################################
 ##                          workflow_buoyantReactingFoam
 ##########################################################
 class workflow_buoyantReactingFoam(workflow_Eulerian):
+    """Hermes workflow for the buoyantReactingFoam compressible solver."""
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the buoyantReactingFoam workflow."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
 class workflow_scalarTransportFoam(workflow_Eulerian):
+    """Hermes workflow for the scalarTransportFoam solver."""
+
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the scalarTransportFoam workflow."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 
@@ -387,16 +416,20 @@ class workflow_scalarTransportFoam(workflow_Eulerian):
 ##                          Workflow_indoorFOAMBoussinesq
 ##########################################################
 class workflow_indoorFOAMBoussinesq(workflow_Eulerian):
+    """Hermes workflow for the indoor Boussinesq approximation solver."""
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the indoorFOAMBoussinesq workflow."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 ##########################################################
 ##                          Workflow_indoorFOAMBoussinesq
 ##########################################################
 class workflow_homogenousWindLogProfile(workflow_Eulerian):
+    """Hermes workflow for the homogeneous wind logarithmic profile solver."""
 
     def __init__(self ,workflowJSON,workflowHeraDocument=None,name=None, **kwargs):
+        """Initialize the homogenousWindLogProfile workflow."""
         super().__init__(workflowJSON=workflowJSON, workflowHeraDocument=workflowHeraDocument,name=name, **kwargs)
 
 

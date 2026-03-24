@@ -9,6 +9,7 @@ from utils import loadJSON
 
 
 def getCellDataAndGroundData(casePath,ground="ground"):
+    """Read cell center and ground boundary data from an OpenFOAM case."""
     f = open(os.path.join(casePath, "0", "cellCenters"), "r")
     lines = f.readlines()
     f.close()
