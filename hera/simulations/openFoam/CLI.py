@@ -20,6 +20,7 @@ from ..CLI  import workflow_add
 
 
 def Foam_createEmpty(arguments):
+    """Create an empty OpenFOAM case directory with specified fields."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -53,6 +54,7 @@ def Foam_createEmpty(arguments):
 
 
 def Foam_parser_FieldDescription(arguments):
+    """Write a JSON template for field descriptions to a file."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : Foam_parser_FieldDescription -----")
     logger.debug(f" arguments: {arguments}")
@@ -99,6 +101,7 @@ def foam_solver_template_buildExecute(arguments):
         handler_buildExecute(arguments)
 
 def foam_solver_templates_list(arguments):
+    """List available solver templates for a given project and solver."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start : foam_templates_flow_list-----")
     logger.debug(f" arguments: {arguments}")
@@ -116,6 +119,7 @@ def foam_solver_templates_list(arguments):
 
 
 def foam_solver_template_create(arguments):
+    """Create a solver template JSON file from a named template."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -145,6 +149,7 @@ def foam_solver_template_create(arguments):
 
 
 def foam_templates_node_list(arguments):
+    """List available node templates for a given project."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -161,6 +166,7 @@ def foam_templates_node_list(arguments):
     print(templates)
 
 def foam_solver_simulations_list(arguments):
+    """List existing simulations for a given solver and display their differences."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -247,12 +253,15 @@ def stochasticLagrangian_dispersionFlow_create(arguments):
     logger.debug(f"----- End -----")
 
 def foam_mesh_blockMesh(arguments):
+    """Adjust the blockMesh node (not yet implemented)."""
     raise NotImplementedError("Not implemented yet, blockMesh")
 
 def foam_mesh_setDomainHeight(arguments):
+    """Set the domain height in the blockMesh (not yet implemented)."""
     raise NotImplementedError("Not implemented yet, maybe we will use classy blocks")
 
 def IC_hydrostaticPressure(argumets):
+    """Set hydrostatic pressure initial conditions (not yet implemented)."""
     raise NotImplementedError("Use the openfoam application")
 
 def stochasticLagrangian_dispersionFlow_writeEmptyTemplate(arguments):
@@ -411,6 +420,7 @@ def stochasticLagrangian_dispersion_create(arguments):
                                                                  dispersionFlowDirectory=dispersionFlowField)
 
 def stochasticLagrangian_source_cylinder(arguments):
+    """Write a cylindrical particle source position file for a dispersion case."""
     logger = logging.getLogger("hera.bin.stochasticLagrangian_source_cylinder")
     logger.debug(f"----- Start -----")
     logger.debug(f"  Got arguments: {arguments}")
@@ -564,6 +574,7 @@ def stochasticLagrangian_postProcess_toVTK(arguments):
                                       overwrite=arguments.overwrite, xcoord="x", ycoord="y", zcoord="z")
 
 def objects_createVerticesAndBoundary(arguments):
+    """Extract bounding box vertices and boundary conditions from an OBJ file."""
     logger = logging.getLogger("hera.bin")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -728,6 +739,7 @@ def foam_BC(arguments):
     pass
 
 def hermes_buildExecute(arguments):
+    """Build and execute a hermes workflow from the given arguments."""
     logger = logging.getLogger("bin.hermes_buildExecute")
     handler_buildExecute(arguments)
 

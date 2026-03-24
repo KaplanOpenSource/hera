@@ -13,6 +13,7 @@ import datetime
 import math
 
 def plotProbe(file, times, vectors, el,pos, maxpos, offset=0):
+    """Plot OpenFOAM probe data showing how a variable changes in time."""
     # plot the openFOAM probes data
     
     # file - for the title
@@ -58,6 +59,7 @@ def plotProbe(file, times, vectors, el,pos, maxpos, offset=0):
     return
 
 def getProbe(file, jumps = 1):
+    """Read OpenFOAM probe data and convert it to lists of times and vectors."""
     # get openfoam probe data and convert it to python data
     f = open(file+"U","r")
     lines = f.readlines()

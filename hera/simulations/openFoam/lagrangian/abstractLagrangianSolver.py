@@ -36,6 +36,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     DOCTYPE_CONCENTRATIONEULERIAN_CACHE = "EulerianConcentrationCacheDocType"
 
     def __init__(self, toolkit):
+        """Initialize with a reference to the parent toolkit."""
         self.toolkit = toolkit
         self.analysis = analysis(self)
 
@@ -135,6 +136,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         """
 
         def toTimeFormat(timeDirectory):
+            """Convert a time directory name to int if possible, else float."""
             int_version = int(float(timeDirectory))
             float_version = float(timeDirectory)
             return int_version if float_version == int_version else float_version
@@ -619,6 +621,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             doc.save()
 
     def createAndLinkDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
+        """Create a dispersion case directory and link it to the flow field directory."""
         logger = get_classMethod_logger(self, "createAndLinkDispersionCaseDirectory")
         dispersionDirectory = os.path.abspath(dispersionDirectory)
         dispersionFlowDirectory = os.path.abspath(dispersionFlowDirectory)
@@ -676,6 +679,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
     @property
     def sourcesTypeList(self):
+        """List of available source geometry type names."""
         return [x.split("_")[1] for x in dir(self) if "makeSource" in x and "_" in x]
 
     def writeParticlePositionFile(self, x, y, z, nParticles, dispersionName, type="Point",
@@ -730,11 +734,13 @@ class absractStochasticLagrangianSolver_toolkitExtension:
             writeFile.write(string)
 
     def makeSource_Point(self, x, y, z, nParticles, **kwargs):
+        """Generate particles at a single point location."""
         return pandas.DataFrame(
             {"x": [x for i in range(nParticles)], "y": [y for i in range(nParticles)],
              "z": [z for i in range(nParticles)]})
 
     def makeSource_Circle(self, x, y, z, nParticles, radius, distribution="uniform", **kwargs):
+        """Generate particles distributed in a circle on the XY plane."""
         Rs = getattr(numpy.random, distribution)(0, radius, nParticles)
         thetas = numpy.random.uniform(0, 2 * numpy.pi, nParticles)
         xs = []
@@ -745,6 +751,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return pandas.DataFrame({"x": xs, "y": ys, "z": [z for i in range(nParticles)]})
 
     def makeSource_Sphere(self, x, y, z, nParticles, radius, distribution="uniform", **kwargs):
+        """Generate particles distributed within a sphere."""
         Rs = getattr(numpy.random, distribution)(0, radius, nParticles)
         thetas = numpy.random.uniform(0, 2 * numpy.pi, nParticles)
         phis = numpy.random.uniform(0, 2 * numpy.pi, nParticles)
@@ -759,6 +766,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
     def makeSource_Cylinder(self, x, y, z, nParticles, radius, height, horizontalDistribution="uniform",
                             verticalDistribution="uniform", **kwargs):
+        """Generate particles distributed within a cylinder."""
         Rs = getattr(numpy.random, horizontalDistribution)(0, radius, nParticles)
         Hs = getattr(numpy.random, verticalDistribution)(-height / 2, height / 2, nParticles)
         thetas = numpy.random.uniform(0, 2 * numpy.pi, nParticles)
@@ -772,6 +780,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
 
     def makeSource_Rectangle(self, x, y, z, nParticles, lengthX, lengthY, rotateAngle=0, **kwargs):
+        """Generate particles distributed within a rotated rectangle on the XY plane."""
         xdist = numpy.random.uniform(-lengthX / 2, lengthX / 2, nParticles)
         ydist = numpy.random.uniform(-lengthY / 2, lengthY / 2, nParticles)
         xs = []
@@ -782,6 +791,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return pandas.DataFrame({"x": xs, "y": ys, "z": [z for i in range(nParticles)]})
 
     def makeSource_Cube(self, x, y, z, nParticles, lengthX, lengthY, lengthZ, rotateAngle=0, **kwargs):
+        """Generate particles distributed within a rotated cuboid volume."""
         xdist = numpy.random.uniform(-lengthX / 2, lengthX / 2, nParticles)
         ydist = numpy.random.uniform(-lengthY / 2, lengthY / 2, nParticles)
         zdist = numpy.random.uniform(-lengthZ / 2, lengthZ / 2, nParticles)
@@ -795,6 +805,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
 
     def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
+        """Parse mass and parcel fate information from a solver log file."""
         count = 0
         times = []
         names = []
@@ -803,6 +814,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         parcels = []
 
         def addToLists(time, name, action, m, parcel):
+            """Append a parsed record to the accumulator lists."""
             times.append(time)
             names.append(name)
             actions.append(action)
@@ -1349,12 +1361,15 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
 
 class analysis:
+    """Analysis utilities for computing Lagrangian concentration fields."""
+
     DOCTYPE_CONCENTRATION = "xarray_concentration"
     DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
 
     datalayer = None
 
     def __init__(self, datalayer):
+        """Initialize with a reference to the parent toolkit extension."""
         self.datalayer = datalayer
         self.datalayer.toolkit.initConfig(analysisFullMeshCounter=0,
                                           analysisPointWiseCounter=0)
@@ -1811,6 +1826,7 @@ def extractFile(path, columnNames, vector=True, skiphead=20, skipend=4):
 
 def readLagrangianRecord(timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=True,
                          cloudName="kinematicCloud"):
+    """Read a single Lagrangian time step record from the case directory."""
 
     columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[],datetime=[])
     if withVelocity:

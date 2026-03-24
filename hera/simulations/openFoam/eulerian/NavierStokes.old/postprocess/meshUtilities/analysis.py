@@ -5,18 +5,22 @@ import xarray
 from scipy.interpolate import griddata
 
 class analysis():
+    """Analysis layer for interpolating and transforming OpenFOAM mesh data."""
 
     _datalayer = None
     _presentation = None
 
     @property
     def presentation(self):
+        """Return the presentation layer instance."""
         return self._presentation
     @property
     def datalayer(self):
+        """Return the data layer instance."""
         return self._datalayer
 
     def __init__(self, dataLayer):
+        """Initialize the analysis layer with a data layer reference."""
 
         self._datalayer = dataLayer
         self._presentation = presentation(dataLayer=self.datalayer, Analysis=self)

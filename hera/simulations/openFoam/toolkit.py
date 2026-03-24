@@ -55,6 +55,7 @@ class OFToolkit(hermesWorkflowToolkit):
     buoyantReactingFoam = None
 
     def __init__(self, projectName, filesDirectory=None, connectionName=None):
+        """Initialize the OpenFOAM toolkit with solver extensions and object home."""
         super().__init__(projectName=projectName,
                          filesDirectory=filesDirectory,
                          toolkitName="OFworkflowToolkit", 
@@ -331,6 +332,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         return self.getMeshExtent(doc.getData())
 
     def read_points_file(self,path):
+        """Parse an OpenFOAM points file and return coordinates as a numpy array."""
         pts = []
         with open(path) as f:
             lines = f.readlines()
@@ -352,9 +354,7 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
 
     def getMeshExtent(self,caseDirectory):
-        """
-
-        """
+        """Return the bounding box of the mesh from the points file."""
         points_path = os.path.join(caseDirectory,"constant","polyMesh","points")
         if not os.path.exists(points_path):
             raise FileNotFoundError(f"File not found: {points_path}")
@@ -768,6 +768,7 @@ class Analysis:
 
     @property
     def datalayer(self):
+        """Return the associated OFToolkit data layer."""
         return self._datalayer
 
     def __init__(self, datalayer):
@@ -863,8 +864,10 @@ class Analysis:
         vtkPipeline.loadToProject(datalayer =self.datalayer, overwrite=overwriteMetadata)
 
 class Presentation:
+    """Handles visualization output (CSV, VTK) for OpenFOAM results."""
 
     def __init__(self, datalayer, analysis):
+        """Initialize the presentation layer with a data layer and analysis."""
         self.datalayer = datalayer
         self.analysis = analysis
 

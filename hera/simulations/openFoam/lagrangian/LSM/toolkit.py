@@ -19,6 +19,8 @@ from evtk.hl import pointsToVTK, structuredToVTK
 
 
 class OFLSMToolkit(toolkit.abstractToolkit):
+    """Toolkit for OpenFOAM Lagrangian Stochastic Model simulations."""
+
     _casePath = None
     _cloudName = None
     _sources = None
@@ -29,38 +31,47 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
     @property
     def analysis(self):
+        """Analysis object for concentration computations."""
         return self._analysis
 
     @property
     def sourcesFactory(self):
+        """Factory for creating particle source geometries."""
         return self._sourcesFactory
 
     @property
     def casePath(self):
+        """Path to the OpenFOAM case directory."""
         return self._casePath
 
     @casePath.setter
     def casePath(self, newPath):
+        """Set the case directory path."""
         self._casePath = newPath
 
     @property
     def topography(self):
+        """GIS topography toolkit instance."""
         return self._topography
 
     @property
     def cloudName(self):
+        """Name of the Lagrangian particle cloud."""
         return self._cloudName
 
     @cloudName.setter
     def cloudName(self, value):
+        """Set the Lagrangian particle cloud name."""
         self._cloudName = str(value)
 
     @property
     def parallelCase(self):
+        """Whether the case is a parallel decomposed case."""
         return self._parallelCase
 
     @parallelCase.setter
     def parallelCase(self, value):
+        """Set the parallel case flag."""
         self._parallelCase = value
 
     def __init__(self, projectName, casePath=None, cloudName="kinematicCloud", filesDirectory=None, parallelCase=False,connectionName=None):
@@ -159,6 +170,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
         return newData.astype(float)
 
     def _readRecord(self, timeName, casePath, withVelocity=False, withReleaseTimes=False, withMass=False):
+        """Read a single Lagrangian time step record from the case directory."""
 
         columnsDict = dict(x=[], y=[], z=[], id=[], procId=[], globalID=[], globalX=[], globalY=[], globalZ=[])
         if withMass:
@@ -226,6 +238,7 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
     @property
     def doctype(self):
+        """Document type identifier for LSM run records."""
         return "LSMRuns"
 
     def loadData(self,
@@ -701,6 +714,8 @@ class OFLSMToolkit(toolkit.abstractToolkit):
 
 
 class Analysis:
+    """Analysis utilities for computing concentrations from Lagrangian data."""
+
     DOCTYPE_CONCENTRATION = "xarray_concentration"
     DOCTYPE_CONCENTRATION_POINTWISE = "dask_concentration"
 
@@ -708,9 +723,11 @@ class Analysis:
 
     @property
     def datalayer(self):
+        """Reference to the parent data layer toolkit."""
         return self._datalayer
 
     def __init__(self, datalayer):
+        """Initialize the analysis with a reference to the data layer."""
         self._datalayer = datalayer
 
     def calcConcentrationPointWise(self, data, dxdydz, xfield="globalX", yfield="globalY", zfield="globalZ"):
@@ -1011,6 +1028,7 @@ class Analysis:
 
 
     def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
+        """Parse mass and parcel fate information from a solver log file."""
         count = 0
         times = []
         names = []
@@ -1019,6 +1037,7 @@ class Analysis:
         parcels = []
 
         def addToLists(time, name, action, m, parcel):
+            """Append a parsed record to the accumulator lists."""
             times.append(time)
             names.append(name)
             actions.append(action)

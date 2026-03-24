@@ -2,8 +2,10 @@ from .abstractEulerianSolver import absractEulerianSolver_toolkitExtension
 
 
 class simpleFoam_toolkitExtension(absractEulerianSolver_toolkitExtension):
+    """Toolkit extension for the incompressible simpleFoam solver."""
 
     def __init__(self,toolkit):
+        """Initialize the simpleFoam extension as incompressible."""
         super().__init__(toolkit=toolkit,solverName="simpleFOAM",incompressible=True)
 
 

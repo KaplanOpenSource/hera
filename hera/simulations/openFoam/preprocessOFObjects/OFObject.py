@@ -45,6 +45,7 @@ class OFObject:
 
     @property
     def componentNames(self):
+        """Return the list of component column names based on field type."""
         if self.fieldType == FIELDTYPE_SCALAR:
             ret = [self.fileName]
         elif self.fieldType == FIELDTYPE_VECTOR:
@@ -66,18 +67,22 @@ class OFObject:
 
     @property
     def processors(self):
+        """Return the processor names in this field."""
         return self.data.keys()
 
     @property
     def processorItems(self):
+        """Return the processor name-data pairs."""
         return self.data.items()
 
     @property
     def dimensionsStr(self):
+        """Return the dimensions as an OpenFOAM-formatted string."""
         return self.getDimensions(**self.dimensions)
 
     @property
     def dimensionsList(self):
+        """Return the dimensions as an ordered list of exponents."""
         return [ self.dimensions.get('kg',0),
                  self.dimensions.get('m',0),
                  self.dimensions.get('s',0),
@@ -87,6 +92,7 @@ class OFObject:
                  self.dimensions.get('cd',0)]
 
     def boundaryField(self,processorName='singleProcessor'):
+        """Return the boundary field data for a given processor."""
         return self.data[processorName]['boundaryField']
 
     def __init__(self, name, fileName, fieldType, dimensions=None):

@@ -5,6 +5,7 @@ from .. import FLOWTYPE_COMPRESSIBLE,FLOWTYPE_INCOMPRESSIBLE
 import pandas
 
 class absractEulerianSolver_toolkitExtension:
+    """Base toolkit extension for Eulerian OpenFOAM solvers."""
 
     toolkit = None
 
@@ -17,6 +18,7 @@ class absractEulerianSolver_toolkitExtension:
     incompressible = None
 
     def __init__(self,toolkit,solverName,incompressible):
+        """Initialize the solver extension with a toolkit, solver name, and compressibility flag."""
         self.toolkit = toolkit
         self.solverName = solverName
         self.incompressible = incompressible
@@ -24,6 +26,7 @@ class absractEulerianSolver_toolkitExtension:
 
     @property
     def flowType(self):
+        """Return the flow type string based on the compressibility flag."""
         return self.toolkit.FLOWTYPE_INCOMPRESSIBLE if self.incompressible else SIMULATIONTYPE_COMPRESSIBLE
 
 

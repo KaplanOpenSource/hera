@@ -197,6 +197,7 @@ class paraviewOpenFOAM:
             yield ret
 
     def _parsePointSet(self, pointSet, timeslice, fieldnames, regularMesh):
+        """Parse a VTK point set into a pandas DataFrame or xarray Dataset."""
         logger = get_classMethod_logger(self, "_parsePointSet")
         if isinstance(pointSet.Points, dsa.VTKNoneArray):
             logger.debug("No data exists for filter... return with None")
@@ -257,6 +258,7 @@ class paraviewOpenFOAM:
         return curstep
 
     def _parseMultiBlockDataSet(self, multiBlock, timeslice, fieldnames, regularMesh):
+        """Parse a VTK multi-block dataset, preserving block names."""
         num_blocks = multiBlock.GetNumberOfBlocks()
         final_data = []
         if num_blocks == 0:
@@ -283,6 +285,7 @@ class paraviewOpenFOAM:
         return final_data
 
     def _assignBlockName(self, regularMesh, blockName, parsed_block):
+        """Assign a block name column/variable to a parsed data block."""
         if regularMesh:
             assert isinstance(parsed_block, xarray.Dataset) or isinstance(parsed_block, xarray.DataArray), f"while processing regular mesh got produced {type(parsed_block)} instead of xarray"
             blockNameMap=numpy.full(tuple(parsed_block.sizes.values()), fill_value=blockName)
@@ -295,6 +298,7 @@ class paraviewOpenFOAM:
         return parsed_block
 
     def _getBlockName(self, multiBlock, i):
+        """Retrieve the metadata name of a block by its index."""
         blockName = numpy.nan
         if multiBlock.HasMetaData(i):
             blockMetaData = multiBlock.GetMetaData(i)
@@ -344,6 +348,7 @@ class paraviewOpenFOAM:
             raise NotImplementedError(f"Currently reading timestamp doesn't implement parsing of {type(data)}")
 
     def _parseTable(self, table, timeslice, regularMesh):
+        """Parse a VTK table into a pandas DataFrame or xarray Dataset."""
         df = pandas.DataFrame()
         for columnName in table.RowData.keys():
             df[columnName]=table.RowData[columnName]
@@ -352,6 +357,7 @@ class paraviewOpenFOAM:
         return ret
 
     def _readTimeStep(self, datasource, timeslice, fieldnames=None, regularMesh=False):
+        """Fetch and parse data from a VTK source at a given time slice."""
         # read the timestep.
         logger = get_classMethod_logger(self, "_readTimeStep")
 
@@ -502,6 +508,7 @@ class paraviewOpenFOAM:
                     shutil.rmtree(fileTodelete)
 
     def writeList(self,theList,blockID,filtersDict,regularMesh,fileExt):
+        """Write a list of time step data blocks to temporary files."""
         logger = get_classMethod_logger(self,"writeList")
         filterList = [x for x in theList[0].keys()]
         for filterName in filterList:
@@ -533,32 +540,39 @@ class paraviewOpenFOAM:
     @deprecated(reason="Use writeRegularCase instead")
     def write_netcdf(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                      append=False):
+        """Write datasources as netcdf files (deprecated)."""
         self.writeRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite,append)
 
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_pandas(self, datasourcenamelist, timelist=None, fieldnames=None):
+        """Read time steps as pandas DataFrames (deprecated)."""
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_xarray(self, datasourcenamelist, timelist=None, fieldnames=None):
+        """Read time steps as xarray Datasets (deprecated)."""
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=False")
     def to_dataFrame(self, datasourcenamelist, timelist=None, fieldnames=None):
+        """Read time steps as pandas DataFrames (deprecated)."""
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=False)
 
     @deprecated(reason="Old Name, use readTimeSteps with regularMesh=True")
     def to_dataArray(self, datasourcenamelist, timelist=None, fieldnames=None):
+        """Read time steps as xarray DataArrays (deprecated)."""
         return self.readTimeSteps(datasourcenamelist, timelist, fieldnames, regtularMesh=True)
     @deprecated(reason="Use writeNonRegularCase instead")
     def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                       append=False, filterList=None):
+        """Write datasources as parquet files (deprecated)."""
         writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
 
     @deprecated(reason="Use writeNonRegularCase instead")
     def write_parquet(self, datasourcenamelist, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False,
                       append=False, filterList=None):
+        """Write datasources as parquet files (deprecated)."""
         writeNonRegularCase(datasourcenamelist, timeList, fieldnames, tsBlockNum, overwrite, append, filterList)
 
 

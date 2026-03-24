@@ -8,6 +8,7 @@ from PyFoam.Basics.DataStructures import Field,Vector,Tensor,DictProxy,Dimension
 #               Utils
 #########################################################################
 def extractFieldFile(casePath, columnNames, patchNameList=None,filterInternalPatches=True, **kwargs):
+    """Parse an OpenFOAM field file and return its data as a DataFrame."""
     try:
         dataParsedFile = ParsedParameterFile(casePath)
     except Exception as e:
@@ -16,6 +17,7 @@ def extractFieldFile(casePath, columnNames, patchNameList=None,filterInternalPat
     return ParsedParameterFileToDataFrame(dataParsedFile=dataParsedFile,columnNames=columnNames, patchNameList=patchNameList,filterInternalPatches=filterInternalPatches, **kwargs)
 
 def ParsedParameterFileToDataFrame(dataParsedFile,columnNames, patchNameList=None,filterInternalPatches=True, **kwargs):
+    """Convert a PyFoam ParsedParameterFile to a pandas DataFrame."""
     ret = []
     pndsData = pandas.DataFrame([[x for x in item] for item in numpy.atleast_2d(dataParsedFile['internalField'].val)],
                                 columns=columnNames).assign(**kwargs, region='internalField')

@@ -4,6 +4,7 @@ from .presentation import presentation
 import os
 
 class datalayer(project.ProjectMultiDBPublic):
+    """Data layer for OpenFOAM mesh post-processing with analysis and presentation."""
 
     _projectName = None
     _analysis = None
@@ -11,13 +12,16 @@ class datalayer(project.ProjectMultiDBPublic):
 
     @property
     def presentation(self):
+        """Return the presentation layer instance."""
         return self._presentation
 
     @property
     def analysis(self):
+        """Return the analysis layer instance."""
         return self._analysis
 
     def __init__(self, projectName, databaseNameList=None, useAll=False,publicProjectName="postprocess"):
+        """Initialize the data layer with project name, database list, and sub-layers."""
 
         self._projectName = projectName
         super().__init__(projectName=projectName, publicProjectName=publicProjectName,databaseNameList=databaseNameList,useAll=useAll)
@@ -25,12 +29,15 @@ class datalayer(project.ProjectMultiDBPublic):
         self._presentation = presentation(dataLayer=self,Analysis=self._analysis)
 
     def getDocuments(self,**kwargs):
+        """Retrieve simulation documents from the database."""
         return self.getSimulationsDocuments(**kwargs)
 
     def getDocumentsAsDict(self,**kwargs):
+        """Retrieve simulation documents from the database as a dictionary."""
         return self.getSimulationsDocumentsAsDict(**kwargs)
 
     def saveAndAddtoDB(self, save, addToDB, data, path, key, filter, user=None, **kwargs):
+        """Save data to HDF and optionally register it in the database."""
 
         path = path if path is not None else os.path.join("%s.hdf" % filter)
         if save:

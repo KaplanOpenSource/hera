@@ -12890,6 +12890,7 @@ michaelstadt=[[-1999, -501., -700, 700., 0.25, .25, 20.]
 ]            
 
 def choosearea(areaname):
+    """Return the morphology dataset for the given area name."""
     if areaname=='tlvbig250':
         return tlvbig250
     elif areaname=='jer200':
@@ -12914,6 +12915,7 @@ def choosearea(areaname):
         return 'undefined'
 
 def findindex(x,y,data):
+    """Find the index of the area cell containing the given (x, y) coordinate."""
     j=np.nan
     for i in range(len(data)):
         if ((x>data[i][0]) & (x<data[i][1]) & (y>data[i][2]) & (y<data[i][3])):
@@ -12921,6 +12923,7 @@ def findindex(x,y,data):
     return j
 
 def meanheight(areaname):
+    """Compute the mean building height for the given area name."""
 #    areaname='tlvbig250'
     print(areaname)
     hmap = choosearea(areaname)
@@ -12931,6 +12934,7 @@ def meanheight(areaname):
     
 
 def plotmap(data):
+    """Plot a contour map of the building height field from morphology data."""
     hmap=np.asarray(data)
     
     xgrid = np.linspace(hmap[:,0].min(), hmap[:,0].max(), 100)
@@ -12944,6 +12948,7 @@ def plotmap(data):
     plt.title('hc')
     
 def areastatistics():
+    """Compute and display morphology statistics for predefined areas."""
     areaname='bs'
     areaname='ashkelon'
     areaname='natanya'
