@@ -19,11 +19,15 @@ only_when_full_logging_tests = pytest.mark.skipif(
 
 
 class TestClass:
+    """Dummy class used to test getClassLogger naming."""
+
     class InnerTestClass:
+        """Nested dummy class for qualified-name logger tests."""
         pass
 
 
 def test_getclasslogger_external():
+    """Verify logger name matches module + class for a top-level class."""
     logger = getClassLogger(TestClass)
     name_parts = logger.name.rsplit('.', 1)
     assert name_parts[0] == TestClass.__module__
@@ -31,6 +35,7 @@ def test_getclasslogger_external():
 
 
 def test_getclasslogger_nested():
+    """Verify logger name includes parent and nested class qualname."""
     logger = getClassLogger(TestClass.InnerTestClass)
     name_parts = logger.name.rsplit('.', 2)
     assert name_parts[0] == TestClass.__module__
@@ -39,8 +44,10 @@ def test_getclasslogger_nested():
 
 
 def test_getclasslogger_infunc():
+    """Verify logger name for a class defined inside a function."""
 
     class InFunc:
+        """Local class used to test logger naming for function-scoped classes."""
         pass
 
     logger = getClassLogger(InFunc)
@@ -49,6 +56,7 @@ def test_getclasslogger_infunc():
 
 
 def test_get_default_logging_config():
+    """Verify default logging config is a dict with resolved file paths."""
     config = get_default_logging_config()
     assert isinstance(config, dict)
     assert not config.get('disable_existing_loggers', True)
@@ -58,6 +66,7 @@ def test_get_default_logging_config():
 
 
 def _assert_resolved_path(alleged_path):
+    """Assert that a path string is absolute and has no unresolved placeholders."""
     assert isinstance(alleged_path, str)
     assert '{hera_log}' not in alleged_path
     p = pathlib.Path(alleged_path)
@@ -65,6 +74,7 @@ def _assert_resolved_path(alleged_path):
 
 
 def test_with_logger():
+    """Verify with_logger returns name and dict with all supplied options."""
     name, shunra = with_logger("shunra", level="EXECUTION", handlers=["bin"], propagate=True)
     assert name == "shunra"
     assert shunra["level"] == "EXECUTION"
@@ -73,6 +83,7 @@ def test_with_logger():
 
 
 def test_with_logger_defaults():
+    """Verify with_logger omits keys not explicitly provided."""
     name, zeus = with_logger("zeus", level="DEBUG")
     assert name == "zeus"
     assert zeus["level"] == "DEBUG"

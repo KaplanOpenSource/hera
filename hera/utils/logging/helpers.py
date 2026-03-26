@@ -15,17 +15,21 @@ MODE_WRITE = 'w'
 # This function is named to match the style of the stdlib logging module
 # noinspection PyPep8Naming
 def getClassLogger(cls: type):
+    """Return a logger named after the class's module and qualified name."""
     name = cls.__module__ + "." + cls.__qualname__
     return logging.getLogger(name)
 
 def get_logger(instance, name=None):
+    """Return a class logger for the instance, or a named logger if name is given."""
     return getClassLogger(instance.__class__) if name is None else logging.getLogger(name)
 
 def get_classMethod_logger(instance, name=None):
+    """Return a logger scoped to a class method, appending name if provided."""
     lgname = instance.__class__.__module__ + "." + instance.__class__.__qualname__ if name is None else instance.__class__.__module__ + "." + instance.__class__.__qualname__ + "." + name
     return logging.getLogger(lgname)
 
 def get_default_logging_config(*, disable_existing_loggers: bool = False) -> dict:
+    """Load the default Hera logging configuration, creating it on first use."""
     defaultLocalConfig = os.path.join(HERA_DEFAULT_LOG_DIR,'heraLogging.config')
     if not os.path.isfile(defaultLocalConfig):
         defaultConfig = read_text('hera.utils.logging', 'heraLogging.config')

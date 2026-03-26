@@ -68,7 +68,7 @@ def zip_items(zip_filename, items):
 
 
 def list_json_files_in_zip(zip_path):
-
+    """Return a list of dicts with name and parsed content for each JSON file in a zip."""
     jsonFiles = []
 
     # Open the zip file in read mode

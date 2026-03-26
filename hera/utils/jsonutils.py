@@ -536,10 +536,11 @@ class JSONvariationItem:
 
 
     def __iter__(self):
+        """Return the iterator object (self)."""
         return self
 
     def __next__(self):
-
+        """Return the next variation mapping or raise StopIteration."""
         if self._curIter > self._itemCount-1:
             raise StopIteration
 
