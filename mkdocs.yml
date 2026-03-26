@@ -132,8 +132,19 @@ nav:
       - Architecture:
           - Core Concepts: architecture/core_concepts.md
           - Data Layer: architecture/data_layer.md
-          - Measurements: developer_guide/measurements.md
-          - Simulations: developer_guide/simulations.md
+          - Measurements:
+              - Overview: developer_guide/measurements/index.md
+              - GIS: developer_guide/measurements/gis.md
+              - Meteorology: developer_guide/measurements/meteorology.md
+              - Experiment: developer_guide/measurements/experiment.md
+          - Simulations:
+              - Overview: developer_guide/simulations/index.md
+              - OpenFOAM: developer_guide/simulations/openfoam.md
+              - LSM: developer_guide/simulations/lsm.md
+              - Gaussian Dispersion: developer_guide/simulations/gaussian.md
+              - Wind Profile: developer_guide/simulations/windprofile.md
+              - Hermes Workflows: developer_guide/simulations/workflows.md
+              - ML / Deep Learning: developer_guide/simulations/ml.md
           - Risk Assessment: developer_guide/risk_assessment.md
       - Testing:
           - Getting Started: testing/getting_started.md
