@@ -240,6 +240,7 @@ class DataHandler_geotiff(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save geotiff data to file (not implemented)."""
         raise NotImplementedError("Not implemented yet")
 
     @staticmethod
@@ -268,6 +269,7 @@ class DataHandler_string(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a string resource to a text file."""
         with open(fileName, "w") as outFile:
             outFile.write(resource)
         return dict()
@@ -336,6 +338,7 @@ class DataHandler_csv_pandas(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a pandas DataFrame to a CSV file."""
         resource.to_csv(fileName,**kwargs)
         return dict()
 
@@ -372,6 +375,7 @@ class DataHandler_HDF(object):
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save data to HDF format (not implemented)."""
         raise NotImplementedError("HDF saver not implemented yet")
 
     @staticmethod
@@ -400,9 +404,11 @@ class DataHandler_HDF(object):
 
 
 class DataHandler_netcdf_xarray(object):
+    """Handler for xarray datasets stored as NetCDF files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save an xarray dataset to NetCDF format."""
         resource.to_netcdf(fileName,**kwargs)
         return dict()
 
@@ -429,6 +435,7 @@ class DataHandler_netcdf_xarray(object):
 
 
 class DataHandler_zarr_xarray(object):
+    """Handler for xarray datasets stored as Zarr archives."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
@@ -469,9 +476,11 @@ class DataHandler_zarr_xarray(object):
 
 
 class DataHandler_JSON_dict(object):
+    """Handler for Python dicts stored as JSON files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a dict to a JSON file."""
         with open(fileName, "w") as outFile:
             json.dump(resource, outFile,**kwargs)
         return dict()
@@ -495,9 +504,11 @@ class DataHandler_JSON_dict(object):
 
 
 class DataHandler_JSON_pandas(object):
+    """Handler for pandas DataFrames/Series stored as JSON files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a pandas DataFrame or Series to JSON format."""
         resource.to_json(fileName,**kwargs)
 
         if isinstance(resource, pandas.Series):
@@ -540,14 +551,17 @@ class DataHandler_JSON_pandas(object):
 
 
 class DataHandler_JSON_geopandas(object):
+    """Handler for GeoDataFrames stored as GeoJSON files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a GeoDataFrame to GeoJSON format."""
         resource.to_json(fileName,**kwargs)
         return dict(crs = resource.crs )
 
     @staticmethod
     def getData(resource, desc={}, **kwargs):
+        """Load a GeoDataFrame from a GeoJSON file."""
         df = geopandas.GeoDataFrame.from_features(loadJSON(resource)["features"])
         if "crs" in desc:
             df.crs = desc['crs']
@@ -556,14 +570,17 @@ class DataHandler_JSON_geopandas(object):
 
 
 class DataHandler_geopandas(object):
+    """Handler for GeoDataFrames stored as GeoPackage files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a GeoDataFrame to GeoPackage (GPKG) format."""
         resource.to_file(fileName, driver="GPKG",**kwargs)
         return dict(crs=resource.crs)
 
     @staticmethod
     def getData(resource, desc={}, **kwargs):
+        """Load a GeoDataFrame from a geospatial file."""
         df = geopandas.read_file(resource, **kwargs)
         if "crs" in desc:
             df.crs = desc['crs']
@@ -572,9 +589,11 @@ class DataHandler_geopandas(object):
 
 
 class DataHandler_parquet(object):
+    """Handler for pandas/dask DataFrames stored as Parquet files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a pandas or dask DataFrame to Parquet format."""
         if isinstance(resource, pandas.DataFrame):
             # pandas. write as a single file.
             # if any of the columns is integer it breaks the dask
@@ -616,9 +635,11 @@ class DataHandler_parquet(object):
 
 
 class DataHandler_image(object):
+    """Handler for image data stored via matplotlib."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save an image array to a file using ``matplotlib.image.imsave``."""
         mpimg.imsave(fileName, resource,**kwargs)
         return dict()
 
@@ -642,9 +663,11 @@ class DataHandler_image(object):
 
 
 class DataHandler_pickle(object):
+    """Handler for arbitrary Python objects stored as pickle files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save an object to a pickle file."""
         with open(fileName, 'wb') as f:
             pickle.dump(resource, f,**kwargs)
         return dict()
@@ -670,6 +693,7 @@ class DataHandler_pickle(object):
 
 
 class DataHandler_dict(object):
+    """Handler for dict data stored directly in the document resource field."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
@@ -705,9 +729,11 @@ class DataHandler_dict(object):
 
 
 class DataHandler_tif(object):
+    """Handler for GeoTIFF raster files (read-only via rasterio)."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Not implemented; raises ``NotImplementedError``."""
         raise NotImplementedError("tif format is not implemented")
 
     @staticmethod
@@ -730,9 +756,11 @@ class DataHandler_tif(object):
 
 
 class DataHandler_numpy_array:
+    """Handler for numpy arrays stored as ``.npy`` files."""
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a numpy array to ``.npy`` format."""
         numpy.save(fileName, resource,**kwargs)
         return dict()
 
@@ -762,6 +790,7 @@ class DataHandler_numpy_dict_array:
 
     @staticmethod
     def saveData(resource, fileName,**kwargs):
+        """Save a dict of numpy arrays to ``.npz`` format."""
         numpy.savez(fileName, **resource,**kwargs)
         return dict()
 
@@ -809,11 +838,13 @@ class DataHandler_Class(object):
 
     @staticmethod
     def saveData(resource, fileName, **kwargs):
+        """Not implemented; class datatypes cannot be saved to disk."""
         # Storing a "Class" datatype as a file is not supported by this handler.
         raise NotImplementedError("Saving a Class datatype is not supported")
 
     @staticmethod
     def getData(resource, desc=None, **kwargs):
+        """Import and optionally instantiate a class from ``desc['classpath']``."""
         import os
         import sys
         import importlib

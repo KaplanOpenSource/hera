@@ -454,6 +454,7 @@ class Project:
         cnfg_doc.update_one(**{f"set__desc__counter__{counterName}":defaultValue})
 
     def _normalizeCounterName(self, counterName):
+        """Normalize a counter name by replacing dots with underscores."""
         counterName=counterName.replace('.','_')
         # avoiding conflicts with mongodb
         if '__' in counterName:
@@ -504,6 +505,7 @@ class Project:
         return doc['desc']['counters'][counterName]
 
     def _enforce_counter_field(self, cnfg_doc):
+        """Ensure the ``counters`` field exists in the config document."""
         if cnfg_doc.filter(desc__counters__exists=True).first() is None:
             cnfg_doc.update(**{f"set__desc__counters": {}})
 
@@ -541,6 +543,7 @@ class Project:
 
     @deprecated(reason="Use getCounterAndAdd instead")
     def addCounter(self, counterName, addition=1):
+        """Deprecated. Use ``getCounterAndAdd`` instead."""
         return self.getCounterAndAdd(counterName,addition)
 
     def getConfig(self):
