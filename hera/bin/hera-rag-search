@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""
+hera-rag-search — CLI entry point for the Hera RAG toolkit.
+
+Commands:
+    hera-rag-search index                 index docs/ + hera/
+    hera-rag-search index --clean         wipe and rebuild
+    hera-rag-search index --docs-only     skip Python docstrings
+    hera-rag-search search "query"        search + LLM answer
+    hera-rag-search search "query" --raw  chunks only, no LLM
+    hera-rag-search watch                 watch docs/ for changes
+    hera-rag-search serve                 start REST API server
+    hera-rag-search serve --with-watcher  serve + watch simultaneously
+"""
+from __future__ import annotations
+from pathlib import Path
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+app = typer.Typer(name="hera-rag-search", help="RAG search over Hera docs and source.", no_args_is_help=True)
+console = Console()
+
+_BIN_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _BIN_DIR.parent
+_DOCS_DEFAULT = _REPO_ROOT / "docs"
+_CODE_DEFAULT = _REPO_ROOT / "hera"
+
+
+@app.command()
+def index(
+    docs: Path = typer.Option(_DOCS_DEFAULT, "--docs"),
+    code: Path = typer.Option(_CODE_DEFAULT, "--code"),
+    clean: bool = typer.Option(False, "--clean", "-c"),
+    docs_only: bool = typer.Option(False, "--docs-only"),
+    batch_size: int = typer.Option(64),
+):
+    """Build (or rebuild) the RAG index from docs/ and hera/ source."""
+    from hera.utils.rag.indexer import build_index
+
+    if not docs.exists():
+        console.print(f"[red]docs path not found: {docs}[/red]")
+        raise typer.Exit(1)
+
+    code_root = None if docs_only else (code if code.exists() else None)
+    if not docs_only and not code.exists():
+        console.print(f"[yellow]code path not found ({code}), indexing docs only.[/yellow]")
+
+    console.print(f"{'Rebuilding' if clean else 'Building'} index from [bold]{docs}[/bold]" +
+                  (f" + [bold]{code_root}[/bold]" if code_root else "") + "...")
+
+    with console.status("Indexing..."):
+        result = build_index(docs, code_root, clean=clean, batch_size=batch_size)
+
+    console.print(
+        f"[green]Done.[/green]  "
+        f"Markdown: {result['docs']}  Docstrings: {result['docstrings']}  "
+        f"Notebooks: {result['notebooks']}  [bold]Total: {result['total']}[/bold]"
+    )
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(...),
+    top_k: int = typer.Option(5, "--top-k", "-k"),
+    raw: bool = typer.Option(False, "--raw"),
+    chunk_type: str = typer.Option(None, "--type", "-t"),
+    source_prefix: str = typer.Option(None, "--source", "-s"),
+):
+    """Search the index and generate an answer with Ollama."""
+    from hera.utils.rag import retrieve, RAGSearch
+
+    with console.status("Searching..."):
+        chunks = retrieve(query, top_k=top_k, chunk_type=chunk_type, source_prefix=source_prefix)
+
+    if not chunks:
+        console.print("[red]No results found.[/red]")
+        raise typer.Exit()
+
+    table = Table(title=f"Top {len(chunks)} chunks", show_lines=True)
+    table.add_column("Score", style="cyan", width=7)
+    table.add_column("Source", style="magenta")
+    table.add_column("Section")
+    table.add_column("Type", width=10)
+    table.add_column("Excerpt", no_wrap=False, max_width=70)
+    for c in chunks:
+        table.add_row(f"{c['score']:.3f}", c["source"], c["section"], c["chunk_type"],
+                      c["text"][:200] + ("..." if len(c["text"]) > 200 else ""))
+    console.print(table)
+
+    if raw:
+        return
+
+    from hera.utils.rag.config import settings
+    console.rule(f"[bold green]Answer from {settings.ollama_model}")
+    for token in RAGSearch().stream(query, top_k=top_k, chunk_type=chunk_type):
+        print(token, end="", flush=True)
+    print()
+
+
+@app.command()
+def watch(
+    root: Path = typer.Option(_DOCS_DEFAULT, "--root"),
+    debounce: float = typer.Option(2.0),
+):
+    """Watch a directory and auto re-index on file changes."""
+    from hera.utils.rag.serve import run_watcher
+    run_watcher(root.resolve(), debounce=debounce)
+
+
+@app.command()
+def serve(
+    host: str = typer.Option(None),
+    port: int = typer.Option(None),
+    reload: bool = typer.Option(False, "--reload"),
+    with_watcher: bool = typer.Option(False, "--with-watcher"),
+    watch_root: Path = typer.Option(_DOCS_DEFAULT, "--watch-root"),
+):
+    """Start the REST API server (optionally with file watcher)."""
+    from hera.utils.rag.serve import run_server, run_watcher
+    import threading
+
+    if with_watcher:
+        t = threading.Thread(target=run_watcher, args=(watch_root.resolve(),), daemon=True)
+        t.start()
+        console.print(f"[cyan]Watcher started on {watch_root}[/cyan]")
+
+    run_server(host=host, port=port, reload=reload)
+
+
+def main():
+    """Entry point for the CLI."""
+    app()
+
+
+if __name__ == "__main__":
+    main()
