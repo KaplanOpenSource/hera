@@ -52,6 +52,31 @@ An experiment in Hera is organized into a hierarchy:
 
 Each experiment has a **data engine** that handles the actual data retrieval — Parquet files, MongoDB via Pandas, or MongoDB via Dask. All trial and entity objects share the same engine instance.
 
+### Data storage: `StoreDataPerDevice`
+
+Each entity type (device type) has a `StoreDataPerDevice` flag that controls how measurement data is organized on disk:
+
+| `StoreDataPerDevice` | Parquet file layout | Example |
+|----------------------|--------------------|---------|
+| `false` (default) | **One file per entity type** — all devices of that type in a single parquet file, with a `deviceName` column to distinguish them | `data/Sonic.parquet` contains data from sonic01, sonic02, ... |
+| `true` | **One file per device** — each device has its own parquet file | `data/sonic01.parquet`, `data/sonic02.parquet`, ... |
+
+This flag is defined in the experiment metadata (Argos zip file) as a `Constant`-scope property on the entity type. It affects:
+
+- **How data is stored**: the repository JSON creates one `Experiment_rawData` document per type (if `false`) or per device (if `true`)
+- **How data is queried**: when `StoreDataPerDevice=false`, the engine loads the single file and filters by `deviceName`; when `true`, it loads the specific device's file directly
+- **CLI usage**: when using `hera-experiment data`, pass `--perDevice True` if the entity type stores data per device
+
+```python
+# StoreDataPerDevice=false (default): one file, filter by device name
+df = trial.getData(deviceType="Sonic", deviceName="sonic01")
+# Loads Sonic.parquet, filters to sonic01 rows
+
+# StoreDataPerDevice=true: separate files per device
+df = trial.getData(deviceType="PID", deviceName="PID_01")
+# Loads PID_01.parquet directly
+```
+
 ---
 
 ## Listing experiments
