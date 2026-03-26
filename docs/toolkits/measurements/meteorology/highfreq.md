@@ -10,12 +10,9 @@ from hera import toolkitHome
 # Tip: if you created the project with `hera-project project create`, you can omit projectName
 hf = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_HIGHFREQ, projectName="MY_PROJECT")
 
-# Load sonic anemometer data (returns dask DataFrame)
-sonic = hf.getDataSourceData("sonic_station_A")
-
-# Create a turbulence calculator
+# Create a turbulence calculator — pass a data source name or a DataFrame
 turb = hf.analysis.singlePointTurbulenceStatistics(
-    sonicData=sonic,
+    sonicData="sonic_station_A",   # loads from project automatically
     samplingWindow="30min",
     start="2024-03-15 00:00", end="2024-03-16 00:00",
     height=10, buildingHeight=5, averagedHeight=7,
@@ -102,14 +99,29 @@ The analysis layer follows a **calculator pattern**: create a calculator object,
 
 ### Step 1: Create a turbulence calculator
 
+You can pass either a **data source name** (string) or a **DataFrame** directly:
+
 ```python
+# Option A: pass a data source name — the toolkit loads it automatically
 turb = hf.analysis.singlePointTurbulenceStatistics(
-    sonicData=df,               # pandas or dask DataFrame with u, v, w, T columns
-    samplingWindow="30min",     # averaging/resampling window
+    sonicData="sonic_station_A",  # data source name from the project
+    samplingWindow="30min",
     start="2024-03-15 08:00",
     end="2024-03-15 12:00",
-    height=10,                  # instrument height (m)
-    buildingHeight=5,           # building height (m)
+    height=10,
+    buildingHeight=5,
+    averagedHeight=7,
+)
+
+# Option B: pass a DataFrame directly
+sonic = hf.getDataSourceData("sonic_station_A")
+turb = hf.analysis.singlePointTurbulenceStatistics(
+    sonicData=sonic,              # pandas or dask DataFrame with u, v, w, T columns
+    samplingWindow="30min",       # averaging/resampling window
+    start="2024-03-15 08:00",
+    end="2024-03-15 12:00",
+    height=10,                    # instrument height (m)
+    buildingHeight=5,             # building height (m)
     averagedHeight=7,           # area-averaged building height (m)
     isMissingData=False,        # True if gaps exist in the data
 )
