@@ -27,11 +27,22 @@ class TilesToolkit(toolkit.abstractToolkit):
 
     @property
     def doctype(self):
+        """Return the document type string for tile images."""
         return f"{self.toolkitName}_PNG"
 
 
     def __init__(self, projectName, filesDirectory=None,connectionName=None):
+        """Initialize the TilesToolkit.
 
+        Parameters
+        ----------
+        projectName : str
+            The project name to initialize the toolkit on.
+        filesDirectory : str or None
+            Path to save tile files. Uses default if None.
+        connectionName : str or None
+            Name of the database connection.
+        """
         super().__init__(projectName=projectName,
                          toolkitName="Tiles",
                          filesDirectory=filesDirectory,
@@ -206,6 +217,20 @@ class TilesToolkit(toolkit.abstractToolkit):
 
 
     def tile2deg(self, xtile, ytile, zoom):
+        """Convert tile coordinates to WGS84 latitude/longitude.
+
+        Parameters
+        ----------
+        xtile, ytile : int
+            Tile x and y indices.
+        zoom : int
+            Zoom level.
+
+        Returns
+        -------
+        tuple of float
+            (latitude, longitude) in degrees.
+        """
         n = 2.0 ** zoom
         lon_deg = xtile / n * 360.0 - 180.0
         lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
@@ -213,6 +238,20 @@ class TilesToolkit(toolkit.abstractToolkit):
         return (lat_deg, lon_deg)
 
     def deg2tile(self, lat_deg, lon_deg, zoom):
+        """Convert WGS84 latitude/longitude to tile coordinates.
+
+        Parameters
+        ----------
+        lat_deg, lon_deg : float
+            Latitude and longitude in degrees.
+        zoom : int
+            Zoom level.
+
+        Returns
+        -------
+        tuple of int
+            (xtile, ytile) tile indices.
+        """
         lat_rad = math.radians(lat_deg)
         n = 2.0 ** zoom
         xtile = int((lon_deg + 180.0) / 360.0 * n)
@@ -220,9 +259,17 @@ class TilesToolkit(toolkit.abstractToolkit):
         return (xtile, ytile)
 
     def listImages(self,**filters):
+        """Return stored tile image documents matching the given filters."""
         return self.getMeasurementsDocuments(type=self.doctype, **filters)
 
     def setDefaultTileServer(self,server):
+        """Set the default tile server URL in the project config.
+
+        Parameters
+        ----------
+        server : str
+            URL template for the tile server.
+        """
         self.setConfig(**{"defaultTileServer": server})
 
 
@@ -234,9 +281,17 @@ class presentation:
 
     @property
     def datalayer(self):
+        """Return the associated data layer."""
         return self._datalayer
 
     def __init__(self,dataLayer):
+        """Initialize presentation with a data layer reference.
+
+        Parameters
+        ----------
+        dataLayer : TilesToolkit
+            The associated tiles data layer.
+        """
         self._datalayer = dataLayer
 
     def plot(self, imageNameOrData,inputCRS=WSG84,outputCRS=ITM,extents=None, ax=None,display=True,**filters):

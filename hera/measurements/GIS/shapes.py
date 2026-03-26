@@ -15,12 +15,23 @@ class ShapesToolKit(toolkit.abstractToolkit):
 
     @property
     def doctype(self):
+        """Return the document type string for GeoJSON shapes."""
         return f"{self.toolkitName}_GeoJSON"
 
 
 
     def __init__(self, projectName, filesDirectory=None,connectionName=None):
+        """Initialize the ShapesToolKit.
 
+        Parameters
+        ----------
+        projectName : str
+            The project name to initialize the toolkit on.
+        filesDirectory : str or None
+            Path to save region files. Uses default if None.
+        connectionName : str or None
+            Name of the database connection.
+        """
         super().__init__(projectName=projectName,
                          toolkitName="Shapes",
                          filesDirectory=filesDirectory,
@@ -120,15 +131,17 @@ class ShapesToolKit(toolkit.abstractToolkit):
         return None if len(docList)==0 else docList[0]
 
 class presentation():
+    """Presentation layer for ShapesToolKit."""
 
     _datalayer = None
 
     @property
     def datalayer(self):
+        """Return the associated data layer."""
         return self._datalayer
 
     def __init__(self,dataLayer):
-
+        """Initialize presentation with a data layer reference."""
         self._datalayer = dataLayer
 
 

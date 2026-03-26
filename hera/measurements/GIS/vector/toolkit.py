@@ -10,7 +10,7 @@ TOOLKIT_VECTOR_REGIONNAME = "regionName"
 
 
 class VectorToolkit(toolkit.abstractToolkit):
-
+    """Base toolkit for vector GIS data operations."""
 
     def __init__(self, projectName, toolkitName = 'VectorToolkit', filesDirectory=None,connectionName=None):
         """
@@ -36,6 +36,18 @@ class VectorToolkit(toolkit.abstractToolkit):
 
     @staticmethod
     def geopandasToGeoJson(geoData):
+        """Convert a GeoDataFrame to a GeoJSON string.
+
+        Parameters
+        ----------
+        geoData : geopandas.GeoDataFrame
+            The GeoDataFrame to convert.
+
+        Returns
+        -------
+        str
+            GeoJSON string representation.
+        """
         if isinstance(geoData,geopandas.GeoDataFrame):
             dataHandler = io.BytesIO()
             geoData.to_file(dataHandler,driver='GeoJSON')

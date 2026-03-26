@@ -34,6 +34,7 @@ WSG84 = 4326
 
 
 class TopographyToolkit(toolkit.abstractToolkit):
+    """Toolkit for raster-based topography and elevation operations."""
 
     def __init__(self, projectName, filesDirectory=None,connectionName=None):
         """
@@ -499,10 +500,18 @@ class TopographyToolkit(toolkit.abstractToolkit):
 
 
 class topographyAnalysis:
+    """Provides statistical analysis methods for topography elevation data."""
 
     datalayer = None
 
     def __init__(self,datalayer):
+        """Initialize with a reference to the topography data layer.
+
+        Parameters
+        ----------
+        datalayer : TopographyToolkit
+            The parent toolkit providing elevation data access.
+        """
         self.datalayer = datalayer
 
     def calculateStastics(self,elevation):

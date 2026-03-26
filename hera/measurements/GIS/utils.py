@@ -95,6 +95,22 @@ def convertCRS(points, inputCRS, outputCRS, **kwargs):
 
 
 def create_xarray(minx,miny,maxx,maxy,dxdy=30, inputCRS=WSG84):
+    """Create an xarray DataArray grid of lat/lon over a bounding box.
+
+    Parameters
+    ----------
+    minx, miny, maxx, maxy : float
+        Bounding box coordinates.
+    dxdy : float
+        Grid spacing in meters (default 30).
+    inputCRS : int
+        EPSG code of the input coordinate system.
+
+    Returns
+    -------
+    xarray.DataArray
+        Grid with lat/lon coordinates over (i, j) dimensions.
+    """
     if inputCRS == WSG84:
         min_pp = convertCRS(points=[[miny, minx]], inputCRS=inputCRS, outputCRS=ITM)[0]
         max_pp = convertCRS(points=[[maxy, maxx]], inputCRS=inputCRS, outputCRS=ITM)[0]
@@ -146,17 +162,34 @@ class stlFactory:
     _heightColumnsNames=None
 
     def __init__(self):
+        """Initialize stlFactory with default height column name."""
         self._heightColumnsNames= "HEIGHT"
 
     @property
     def heightColumnsNames(self):
+        """Return the name of the height column."""
         return self._heightColumnsNames
 
     @heightColumnsNames.setter
     def heightColumnsNames(self, value):
+        """Set the name of the height column."""
         self._heightColumnsNames = value
 
     def _make_facet_str(self, n, v1, v2, v3):
+        """Build an ASCII STL facet string from a normal and three vertices.
+
+        Parameters
+        ----------
+        n : array-like
+            Face normal vector.
+        v1, v2, v3 : array-like
+            Triangle vertex coordinates.
+
+        Returns
+        -------
+        str
+            STL facet block as a string.
+        """
         facet_str = 'facet normal ' + ' '.join(map(str, n)) + '\n'
         facet_str += '  outer loop\n'
         facet_str += '      vertex ' + ' '.join(map(str, v1)) + '\n'
@@ -383,7 +416,18 @@ class stlFactory:
         return {"x":grid_x,"y":grid_y,"height":grid_z2.values}
 
     def _organizeGrid(self, grid):
+        """Fill NaN border values in each row with nearest valid values.
 
+        Parameters
+        ----------
+        grid : array-like
+            2D grid with potential NaN values at row edges.
+
+        Returns
+        -------
+        array-like
+            Grid with NaN edges replaced by nearest non-NaN values.
+        """
         for row in grid:
             for i in range(len(row)):
                 if math.isnan(row[i]):

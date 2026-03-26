@@ -21,18 +21,22 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     @property
     def buildings(self):
+        """BuildingsToolkit : The buildings toolkit instance."""
         return self._buildings
 
     @property
     def shapes(self):
+        """ShapesToolKit : The shapes toolkit instance."""
         return self._shapes
 
     @property
     def analysis(self):
+        """analysis : The demography analysis layer."""
         return self._analysis
 
     @property
     def populationTypes(self):
+        """dict : Mapping of population group names to column names."""
         return self._populationTypes
 
     def __init__(self, projectName, filesDirectory=None,connectionName=None):
@@ -95,6 +99,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
         self._FilesDirectory = fllpath
 
     def projectPolygonOnPopulation(self, shapelyPolygon, dataSourceOrData, populationTypes="All", dataSourceVersion=None):
+        """Deprecated. Use ``analysis.calculatePopulationInPolygon`` instead."""
         import warnings
         warnings.warn("Depracted in Version 2.0.0+. Use datalayer.calculatePopulationInPolygon",
                       category=DeprecationWarning,
@@ -103,6 +108,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     @property
     def FilesDirectory(self):
+        """str : Path to the files directory."""
         return self._FilesDirectory
 
 
@@ -147,9 +153,17 @@ class analysis:
 
     @property
     def datalayer(self):
+        """DemographyToolkit : Reference to the parent data layer."""
         return self._datalayer
 
     def __init__(self, dataLayer):
+        """Initialize the demography analysis with a reference to the data layer.
+
+        Parameters
+        ----------
+        dataLayer : DemographyToolkit
+            The parent demography toolkit instance.
+        """
         self._datalayer = dataLayer
 
     def createNewArea(self,

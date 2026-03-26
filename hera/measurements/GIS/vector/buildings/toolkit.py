@@ -28,7 +28,17 @@ class BuildingsToolkit(VectorToolkit):
         - Land height  : the columns name is in LandHeightColumn. Default value=HT_LAND.
     """
     def __init__(self, projectName, filesDirectory=None,connectionName=None):
+        """Initialize the buildings toolkit.
 
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        filesDirectory : str or None, optional
+            Path to the files directory.
+        connectionName : str or None, optional
+            Database connection name.
+        """
         super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory,connectionName=connectionName)
         self._analysis = analysis(dataLayer=self)
 
