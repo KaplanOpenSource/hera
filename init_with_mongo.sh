@@ -19,12 +19,9 @@ echo "Creating directories..."
 mkdir -p "${DATA_DIR}"
 mkdir -p "${PYHERA_DIR}/log"
 
-# 2. Pull Docker images
+# 2. Pull the MongoDB image
 echo "Pulling ${MONGO_IMAGE}..."
 docker pull "${MONGO_IMAGE}"
-
-echo "Pulling mermaid-cli (for diagram rendering)..."
-docker pull minlag/mermaid-cli
 
 # 3. Remove existing container if present
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
