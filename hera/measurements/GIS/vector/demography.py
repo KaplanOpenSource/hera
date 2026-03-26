@@ -708,3 +708,342 @@ class presentation:
 
         plt.tight_layout()
         return fig
+
+    def plotPopulationInPolygon(self, intersectionResult, queryPolygon=None,
+                                 contextData=None,
+                                 populationType="total_pop",
+                                 ax=None, figsize=(12, 10),
+                                 cmap="OrRd", contextColor="0.9",
+                                 alpha=0.8, edgecolor="0.3", linewidth=0.5,
+                                 colorbar=True, colorbar_label=None,
+                                 title=None,
+                                 xlim=None, ylim=None,
+                                 inputCRS=None, outputCRS=ITM):
+        """
+        Plot the result of ``calculatePopulationInPolygon``.
+
+        Shows intersected census areas colored by population, optionally
+        with the query polygon outlined and surrounding census areas
+        as context.
+
+        Parameters
+        ----------
+        intersectionResult : geopandas.GeoDataFrame
+            The result from ``analysis.calculatePopulationInPolygon()``.
+        queryPolygon : shapely.geometry, optional
+            The query polygon to overlay as a dashed outline.
+        contextData : geopandas.GeoDataFrame, optional
+            Full census data to show as gray background context.
+        populationType : str
+            Population column to color by. Default: ``"total_pop"``.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates a new figure.
+        figsize : tuple of float
+            Figure size. Default: (12, 10).
+        cmap : str
+            Colormap for affected areas. Default: ``"OrRd"``.
+        contextColor : str
+            Fill color for context (unaffected) areas. Default: ``"0.9"`` (light gray).
+        alpha : float
+            Transparency of affected areas. Default: 0.8.
+        edgecolor : str
+            Polygon edge color. Default: ``"0.3"``.
+        linewidth : float
+            Polygon edge width. Default: 0.5.
+        colorbar : bool
+            Whether to show a colorbar. Default: True.
+        colorbar_label : str, optional
+            Colorbar label.
+        title : str, optional
+            Plot title.
+        xlim, ylim : tuple of float, optional
+            Axis limits.
+        inputCRS : int or str, optional
+            CRS of the input data. Use ``WSG84`` (4326) or ``ITM`` (2039).
+        outputCRS : int or str
+            CRS to reproject to for plotting. Default: ``ITM``.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+        # Plot context (full census) in gray
+        if contextData is not None:
+            ctx = contextData.copy()
+            if inputCRS is not None:
+                ctx = ctx.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
+            if outputCRS is not None:
+                ctx = ctx.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+            ctx.plot(ax=ax, color=contextColor, edgecolor="0.7", linewidth=0.2)
+
+        # Plot intersection result
+        plot_data = intersectionResult.copy()
+        if inputCRS is not None:
+            plot_data = plot_data.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
+        if outputCRS is not None:
+            plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+
+        if populationType in plot_data.columns:
+            plot_data.plot(column=populationType, ax=ax, cmap=cmap, alpha=alpha,
+                           edgecolor=edgecolor, linewidth=linewidth, legend=False)
+            if colorbar:
+                sm = plt.cm.ScalarMappable(
+                    cmap=cmap,
+                    norm=mcolors.Normalize(
+                        vmin=plot_data[populationType].min(),
+                        vmax=plot_data[populationType].max()
+                    )
+                )
+                sm._A = []
+                cbar = plt.colorbar(sm, ax=ax)
+                cbar.set_label(colorbar_label or f"Population ({populationType})")
+        else:
+            plot_data.plot(ax=ax, color="tomato", alpha=alpha,
+                           edgecolor=edgecolor, linewidth=linewidth)
+
+        # Overlay query polygon outline
+        if queryPolygon is not None:
+            from shapely.geometry import mapping
+            import geopandas as _gpd
+            poly_gdf = _gpd.GeoDataFrame(geometry=[queryPolygon])
+            if inputCRS is not None:
+                poly_gdf = poly_gdf.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS)
+            if outputCRS is not None:
+                poly_gdf = poly_gdf.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+            poly_gdf.boundary.plot(ax=ax, color="blue", linewidth=2, linestyle="--")
+
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        if title is not None:
+            ax.set_title(title)
+
+        return ax
+
+    def plotArea(self, areaData, contextData=None,
+                 populationType="total_pop",
+                 ax=None, figsize=(12, 10),
+                 areaColor="steelblue", contextColor="0.9",
+                 alpha=0.6, edgecolor="0.3", linewidth=1.0,
+                 annotate=True, annotate_fontsize=12,
+                 title=None,
+                 xlim=None, ylim=None,
+                 inputCRS=None, outputCRS=ITM):
+        """
+        Plot a custom area from ``createNewArea`` with population annotation.
+
+        Parameters
+        ----------
+        areaData : geopandas.GeoDataFrame
+            The result from ``analysis.createNewArea()``.
+        contextData : geopandas.GeoDataFrame, optional
+            Full census data to show as gray background.
+        populationType : str
+            Population column to annotate. Default: ``"total_pop"``.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on.
+        figsize : tuple of float
+            Figure size. Default: (12, 10).
+        areaColor : str
+            Fill color for the custom area. Default: ``"steelblue"``.
+        contextColor : str
+            Fill color for context areas. Default: ``"0.9"``.
+        alpha : float
+            Transparency of the custom area. Default: 0.6.
+        edgecolor : str
+            Edge color. Default: ``"0.3"``.
+        linewidth : float
+            Edge width. Default: 1.0.
+        annotate : bool
+            Whether to annotate with population count. Default: True.
+        annotate_fontsize : int
+            Font size for the annotation. Default: 12.
+        title : str, optional
+            Plot title.
+        xlim, ylim : tuple of float, optional
+            Axis limits.
+        inputCRS : int or str, optional
+            CRS of the input data. Use ``WSG84`` (4326) or ``ITM`` (2039).
+        outputCRS : int or str
+            CRS to reproject to. Default: ``ITM``.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+        # Plot context
+        if contextData is not None:
+            ctx = contextData.copy()
+            if inputCRS is not None:
+                ctx = ctx.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
+            if outputCRS is not None:
+                ctx = ctx.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+            ctx.plot(ax=ax, color=contextColor, edgecolor="0.7", linewidth=0.2)
+
+        # Plot the custom area
+        plot_data = areaData.copy()
+        if inputCRS is not None:
+            plot_data = plot_data.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
+        if outputCRS is not None:
+            plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+
+        plot_data.plot(ax=ax, color=areaColor, alpha=alpha,
+                       edgecolor=edgecolor, linewidth=linewidth)
+
+        # Annotate with population
+        if annotate and populationType in plot_data.columns:
+            for _, row in plot_data.iterrows():
+                centroid = row.geometry.centroid
+                pop_val = row[populationType]
+                ax.annotate(
+                    f"{pop_val:,.0f}",
+                    xy=(centroid.x, centroid.y),
+                    ha="center", va="center",
+                    fontsize=annotate_fontsize, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8)
+                )
+
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        if title is not None:
+            ax.set_title(title)
+
+        return ax
+
+    def plotPopulationOnMap(self, data, tilesToolkit,
+                            populationType="total_pop",
+                            density=True,
+                            zoomlevel=14,
+                            tileServer=None,
+                            ax=None, figsize=(14, 12),
+                            cmap="YlOrRd",
+                            vmin=None, vmax=None,
+                            alpha=0.5,
+                            edgecolor="0.3", linewidth=0.3,
+                            colorbar=True, colorbar_label=None,
+                            title=None,
+                            inputCRS=None, outputCRS=ITM):
+        """
+        Overlay population density on a tile server map background.
+
+        Fetches map tiles for the data extent and overlays the population
+        choropleth with transparency.
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame
+            The demographic data.
+        tilesToolkit : TilesToolkit
+            An initialized Tiles toolkit for fetching map images.
+            Get via ``toolkitHome.getToolkit(toolkitHome.GIS_TILES, ...)``.
+        populationType : str
+            Population column to plot. Default: ``"total_pop"``.
+        density : bool
+            If True, plot population density (people/km²).
+            If False, plot absolute counts. Default: True.
+        zoomlevel : int
+            Tile server zoom level (higher = more detail). Default: 14.
+        tileServer : str, optional
+            Tile server URL or datasource name. If None, uses default.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on.
+        figsize : tuple of float
+            Figure size. Default: (14, 12).
+        cmap : str
+            Colormap for the population overlay. Default: ``"YlOrRd"``.
+        vmin, vmax : float, optional
+            Color scale range.
+        alpha : float
+            Transparency of the population overlay (0=transparent, 1=opaque).
+            Default: 0.5. Lower values show more of the map underneath.
+        edgecolor : str
+            Polygon edge color. Default: ``"0.3"``.
+        linewidth : float
+            Polygon edge width. Default: 0.3.
+        colorbar : bool
+            Whether to show a colorbar. Default: True.
+        colorbar_label : str, optional
+            Colorbar label.
+        title : str, optional
+            Plot title.
+        inputCRS : int or str, optional
+            CRS of the input data. Use ``WSG84`` (4326) or ``ITM`` (2039).
+        outputCRS : int or str
+            CRS for the output plot. Default: ``ITM``.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+        """
+        plot_data = data.copy()
+
+        if inputCRS is not None:
+            plot_data = plot_data.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
+
+        # Get bounds in WGS84 for tile fetching
+        bounds_wgs84 = plot_data.to_crs(epsg=WSG84).total_bounds  # [minx, miny, maxx, maxy]
+
+        # Fetch map tiles
+        tile_img = tilesToolkit.getImageFromCorners(
+            minx=bounds_wgs84[0], miny=bounds_wgs84[1],
+            maxx=bounds_wgs84[2], maxy=bounds_wgs84[3],
+            zoomlevel=zoomlevel,
+            tileServer=tileServer,
+            inputCRS=WSG84,
+            outputCRS=outputCRS if outputCRS is not None else ITM
+        )
+
+        # Create figure
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+        # Plot the map tiles as background
+        tilesToolkit.presentation.plot(tile_img, outputCRS=outputCRS if outputCRS is not None else ITM, ax=ax)
+
+        # Reproject population data to output CRS
+        if outputCRS is not None:
+            plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+
+        # Compute density if requested
+        if density:
+            area_km2 = plot_data.geometry.area / 1e6
+            plot_col = f"{populationType}_density"
+            plot_data[plot_col] = (plot_data[populationType] / area_km2).replace([np.inf, -np.inf], 0).fillna(0)
+        else:
+            plot_col = populationType
+
+        # Overlay population choropleth
+        plot_data.plot(
+            column=plot_col, ax=ax,
+            cmap=cmap, vmin=vmin, vmax=vmax,
+            alpha=alpha,
+            edgecolor=edgecolor, linewidth=linewidth,
+            legend=False
+        )
+
+        if colorbar:
+            label = colorbar_label or ("Population density [people/km²]" if density else "Population count")
+            sm = plt.cm.ScalarMappable(
+                cmap=cmap,
+                norm=mcolors.Normalize(
+                    vmin=vmin if vmin is not None else plot_data[plot_col].min(),
+                    vmax=vmax if vmax is not None else plot_data[plot_col].max()
+                )
+            )
+            sm._A = []
+            cbar = plt.colorbar(sm, ax=ax)
+            cbar.set_label(label)
+
+        if title is not None:
+            ax.set_title(title)
+
+        return ax
