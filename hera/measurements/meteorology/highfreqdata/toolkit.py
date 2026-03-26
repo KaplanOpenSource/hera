@@ -88,15 +88,25 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         raw = self._parse_raw(path, fromTime, toTime, parser)
         return self._normalise_raw(raw)
 
-    def loadData(self, name, path, fromTime=None, toTime=None,
+    def loadData(self, name, path, outputDirectory, fromTime=None, toTime=None,
                  parser="auto", version=(0, 0, 1), overwrite=False,
-                 metadata=None):
+                 append=False, metadata=None):
         """Parse a raw data file, save as parquet, and register as a data source.
 
         This is the recommended way to ingest new high-frequency data. It
-        parses, normalises, writes a parquet file to the toolkit's file
-        directory, and registers the result as a versioned data source in
-        the project.
+        parses, normalises, writes a parquet file, and registers the result
+        as a versioned data source in the project.
+
+        If a data source with the same name already exists in the DB:
+
+        - **append=True**: loads the existing parquet, concatenates the new
+          data, and saves back to the same file.
+        - **overwrite=True**: replaces the existing file and document.
+        - Both ``False`` (default): raises ``ValueError``.
+        - Both ``True``: raises ``ValueError`` (mutually exclusive).
+
+        If the data source does not exist, a new file is created using the
+        project counter to generate a unique filename.
 
         Parameters
         ----------
@@ -104,7 +114,9 @@ class HighFreqToolKit(toolkit.abstractToolkit):
             Data source name (e.g. ``'sonic_10m'``). For multi-device
             files, device names are appended (``'sonic_10m_Raw_Sonic_1'``).
         path : str
-            Path to a raw data file or directory.
+            Path to a raw data file or directory to parse.
+        outputDirectory : str
+            Directory where the parquet file will be stored.
         fromTime : str or None, optional
             Start time filter.
         toTime : str or None, optional
@@ -114,20 +126,29 @@ class HighFreqToolKit(toolkit.abstractToolkit):
         version : tuple of int, optional
             Data source version ``(major, minor, patch)``. Default ``(0, 0, 1)``.
         overwrite : bool, optional
-            If ``True``, overwrite an existing data source with the same name.
+            If ``True``, replace an existing data source.
+        append : bool, optional
+            If ``True``, append to an existing data source's parquet file.
         metadata : dict, optional
-            Additional metadata to store with the data source.
+            User-controlled metadata to store with the data source.
 
         Returns
         -------
-        list of documents
-            The created data source document(s).
+        document or list of documents
+            The created/updated data source document(s).
+
+        Raises
+        ------
+        ValueError
+            If both *overwrite* and *append* are ``True``, or if the data
+            source already exists and neither flag is set.
         """
+        if overwrite and append:
+            raise ValueError("overwrite and append are mutually exclusive.")
+
         results = self.parseData(path, fromTime, toTime, parser)
 
-        # Ensure output directory exists
-        parquet_dir = os.path.join(self.filesDirectory, "parquet")
-        os.makedirs(parquet_dir, exist_ok=True)
+        os.makedirs(outputDirectory, exist_ok=True)
 
         docs = []
         for df, meta in results:
@@ -138,15 +159,42 @@ class HighFreqToolKit(toolkit.abstractToolkit):
                 suffix = meta.get("deviceName", meta.get("deviceType", ""))
                 ds_name = f"{name}_{suffix}" if suffix else name
 
-            # Only store user-provided metadata (parser metadata is for
-            # normalisation only — available via parseData() for inspection)
             desc = dict(metadata) if metadata else {}
 
-            # Save parquet
-            output_file = os.path.join(parquet_dir, f"{ds_name}.parquet")
+            # Check if data source already exists
+            existing_doc = self.getDataSourceDocument(ds_name, version=list(version))
+
+            if existing_doc is not None:
+                if append:
+                    # Load existing data, concatenate, save back
+                    import pandas as pd
+                    existing_df = existing_doc.getData()
+                    if hasattr(existing_df, "compute"):
+                        existing_df = existing_df.compute()
+                    combined = pd.concat([existing_df, df]).sort_index()
+                    combined = combined[~combined.index.duplicated(keep="last")]
+                    output_file = existing_doc.resource
+                    combined.to_parquet(output_file)
+                    # Document already points to this file — no DB update needed
+                    docs.append(existing_doc)
+                    continue
+                elif overwrite:
+                    # Will be handled by addDataSource(overwrite=True) below
+                    output_file = existing_doc.resource
+                else:
+                    raise ValueError(
+                        f"Data source '{ds_name}' (version {version}) already exists. "
+                        f"Use overwrite=True or append=True."
+                    )
+            else:
+                # New data source — generate filename with counter
+                file_id = self.getCounterAndAdd(f"highfreq_{ds_name}")
+                output_file = os.path.join(
+                    outputDirectory, f"{ds_name}_{file_id}.parquet"
+                )
+
             df.to_parquet(output_file)
 
-            # Register as data source
             doc = self.addDataSource(
                 dataSourceName=ds_name,
                 resource=output_file,

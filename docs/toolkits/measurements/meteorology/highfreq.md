@@ -69,18 +69,18 @@ The toolkit provides two ways to ingest raw sensor files (Campbell binary TOB1 o
 
 ### `loadData` — parse, save, and register (recommended)
 
-Parse a raw file, save the normalised output as Parquet, and register it as a versioned data source in the project. This is the recommended workflow — once loaded, the data is available by name everywhere.
+Parse a raw file, save the normalised output as Parquet, and register it as a versioned data source in the project. Once loaded, the data is available by name everywhere.
 
 ```python
 # Parse + normalise + save as data source
 doc = hf.loadData(
     name="sonic_10m",
     path="/raw_data/2024_03_15.dat",
+    outputDirectory="/data/project/highfreq",   # where to store the parquet
     fromTime="2024-03-15 00:00",
     toTime="2024-03-16 00:00",
     parser="auto",          # auto-detect, or "campbell" / "toa5"
     version=(1, 0, 0),
-    overwrite=False,
     metadata={"station": "Haifa", "height": 10, "campaign": "March2024"},
 )
 
@@ -93,10 +93,34 @@ turb = hf.analysis.singlePointTurbulenceStatistics(
 )
 ```
 
+#### Append vs overwrite
+
+If a data source with the same name already exists:
+
+```python
+# Append new data to the existing parquet file
+hf.loadData("sonic_10m", "/raw_data/2024_03_16.dat",
+    outputDirectory="/data/project/highfreq",
+    append=True)
+
+# Or replace entirely
+hf.loadData("sonic_10m", "/raw_data/2024_03_16.dat",
+    outputDirectory="/data/project/highfreq",
+    overwrite=True)
+```
+
+- **Neither flag** (default): raises ``ValueError`` if the data source exists
+- **append=True**: loads the existing parquet, concatenates new data, deduplicates by timestamp
+- **overwrite=True**: replaces the file and document
+- Both ``True``: raises ``ValueError`` (mutually exclusive)
+
+New data sources get a unique filename via the project counter (e.g. ``sonic_10m_0.parquet``).
+
 For multi-device files (TOA5 with multiple sonics), device names are appended automatically:
 
 ```python
-docs = hf.loadData(name="station_A", path="/raw_data/multi_device.dat")
+docs = hf.loadData(name="station_A", path="/raw_data/multi_device.dat",
+    outputDirectory="/data/project/highfreq")
 # Creates: "station_A_Raw_Sonic_1", "station_A_Raw_Sonic_2", etc.
 ```
 
