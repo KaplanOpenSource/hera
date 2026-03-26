@@ -237,14 +237,6 @@ flowchart TB
     Toolkit --> Presentation["Presentation\n(visualization)"]
     Toolkit --> DataSources["Data Sources\n(versioned datasets)"]
 ```
--->kit --> Presentation["Presentation\n(visualization)"]
-    Toolkit --> DataSources["Data Sources\n(versioned datasets)"]
-```
--->
--->kit --> Presentation["Presentation\n(visualization)"]
-    Toolkit --> DataSources["Data Sources\n(versioned datasets)"]
-```
--->
 -->
 
 1. You ask **ToolkitHome** for a toolkit by name
