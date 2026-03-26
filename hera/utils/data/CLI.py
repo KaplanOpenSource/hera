@@ -420,6 +420,54 @@ def update(arguments):
     dtk.loadAllDatasourcesInAllRepositoriesToProject(projectName=projectName, overwrite=arguments.overwrite)
 
 
+def populate(arguments):
+    """
+    Load all registered repositories into all existing projects (or a specific project).
+
+    This is a bulk operation: for each project in the database, load all
+    data sources from all registered repositories.
+    """
+    logger = logging.getLogger("hera.bin.populate")
+    dtk = dataToolkit()
+
+    overwrite = getattr(arguments, 'overwrite', False)
+    target_project = getattr(arguments, 'projectName', None)
+
+    if target_project:
+        projects = [target_project]
+        logger.info(f"Populating single project: {target_project}")
+    else:
+        projects = getProjectList()
+        logger.info(f"Populating all {len(projects)} projects")
+
+    repositories = dtk.getDataSourceList()
+    if not repositories:
+        print("No repositories registered. Use 'hera-project repository add' first.")
+        return
+
+    print(f"Repositories: {', '.join(repositories)}")
+    print(f"Projects: {len(projects)}")
+    print(f"Overwrite: {overwrite}")
+    print("")
+
+    success = 0
+    failed = 0
+    for projectName in projects:
+        if projectName == Project.DEFAULTPROJECT:
+            continue
+        try:
+            print(f"  Populating {projectName}...")
+            dtk.loadAllDatasourcesInAllRepositoriesToProject(
+                projectName=projectName, overwrite=overwrite
+            )
+            success += 1
+        except Exception as e:
+            logger.error(f"  Failed to populate {projectName}: {e}")
+            failed += 1
+
+    print(f"\nDone. Success: {success}, Failed: {failed}")
+
+
 def db_list(arguments):
     """
     List all configured database connections.

@@ -12,7 +12,7 @@ SERVER_IMAGE     = hera-server
 
 TEST_HERA       ?= $(HOME)/hera_unittest_data
 
-.PHONY: install install-docs install-rag \
+.PHONY: install install-docs install-rag populate populate-project \
         help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
         build run stop test test-setup \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
@@ -27,7 +27,18 @@ install: mongo-up
 	@echo ""
 	@echo "=== Hera installed ==="
 	@echo "  MongoDB running on port $(MONGO_PORT)"
+	@echo "  Run 'make populate' to load repositories into all projects."
 	@echo "  Run 'make help' for all available targets."
+
+populate:
+	@echo "Populating all projects with registered repositories..."
+	hera-project project populate --overwrite
+	@echo "Done."
+
+populate-project:
+	@echo "Populating project $(PROJECT)..."
+	hera-project project populate --projectName $(PROJECT) --overwrite
+	@echo "Done."
 
 install-docs: docs-build
 	@echo ""
@@ -45,6 +56,8 @@ help:
 	@echo ""
 	@echo "  Quick start:"
 	@echo "    make install             Set up MongoDB (Docker)"
+	@echo "    make populate            Load all repositories into all projects"
+	@echo "    make populate-project PROJECT=name  Populate a single project"
 	@echo "    make install-docs        Build documentation (pulls mermaid, renders diagrams)"
 	@echo "    make install-rag         Full RAG setup (services + model + index)"
 	@echo ""

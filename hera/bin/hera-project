@@ -96,6 +96,15 @@ if __name__ == "__main__":
                                    help='Overwrite existing data sources in the project')
     repository_update.set_defaults(func=CLI.update)
 
+    # project populate
+    parser_populate = project_subparsers.add_parser('populate',
+        help='Load all repositories into all existing projects (or a specific project)')
+    parser_populate.add_argument('--projectName', default=None,
+        help='Populate only this project. If not specified, populate all projects.')
+    parser_populate.add_argument('--overwrite', dest="overwrite", action="store_true", default=False,
+        help='Overwrite existing data sources in the projects')
+    parser_populate.set_defaults(func=CLI.populate)
+
     # ----------------- Versions
     parser_version = project_subparsers.add_parser('version', help='Manage project datasources versions')
     version_subparsers = parser_version.add_subparsers(help='Version management')
