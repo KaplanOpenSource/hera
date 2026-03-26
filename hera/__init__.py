@@ -1,4 +1,18 @@
 __version__ = '2.16.1'
+__author__ = 'Yehuda Arav'
+__contributors__ = [
+    'Eyal Fattal',
+    'Eden Nitzan',
+    'Lidor Borstein',
+    'Hasa Sarrousi',
+    'Anat Kira',
+    'Jonathan Milo',
+    'Nir Ben Moshe',
+    'Ilai Falach',
+    'Elia Salo',
+    'Lior Antonov',
+    'Shira Cohen',
+]
 
 import sys
 python_version = sys.version_info
