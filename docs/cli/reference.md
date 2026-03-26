@@ -43,6 +43,16 @@ flowchart LR
         JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
     end
 ```
+-->era-bib\n\nBibliography\ntools"]
+        JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
+    end
+```
+-->
+-->era-bib\n\nBibliography\ntools"]
+        JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
+    end
+```
+-->
 -->
 
 | Tool | Category | Description |

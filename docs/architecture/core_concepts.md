@@ -71,6 +71,14 @@ classDiagram
     Project <|-- abstractToolkit : "inherits data layer"
     ToolkitHome ..> abstractToolkit : "instantiates via getToolkit()"
 ```
+-->    Project <|-- abstractToolkit : "inherits data layer"
+    ToolkitHome ..> abstractToolkit : "instantiates via getToolkit()"
+```
+-->
+-->    Project <|-- abstractToolkit : "inherits data layer"
+    ToolkitHome ..> abstractToolkit : "instantiates via getToolkit()"
+```
+-->
 -->
 
 | Class | Role | Key methods |
@@ -169,6 +177,16 @@ classDiagram
     abstractToolkit <|-- LSMToolkit : "simulations"
     abstractToolkit <|-- RiskToolkit : "risk assessment"
 ```
+-->t : "simulations"
+    abstractToolkit <|-- LSMToolkit : "simulations"
+    abstractToolkit <|-- RiskToolkit : "risk assessment"
+```
+-->
+-->t : "simulations"
+    abstractToolkit <|-- LSMToolkit : "simulations"
+    abstractToolkit <|-- RiskToolkit : "risk assessment"
+```
+-->
 -->
 
 | Toolkit class | Domain | Key capabilities |
@@ -232,6 +250,14 @@ flowchart TD
     ResolveFiles --> SaveConfig["Save filesDirectory\nto project config\n(if not already saved)"]
     SaveConfig --> Ready["Project instance\nready for use"]
 ```
+-->["Save filesDirectory\nto project config\n(if not already saved)"]
+    SaveConfig --> Ready["Project instance\nready for use"]
+```
+-->
+-->["Save filesDirectory\nto project config\n(if not already saved)"]
+    SaveConfig --> Ready["Project instance\nready for use"]
+```
+-->
 -->
 
 !!! note "The Default Project"
@@ -312,6 +338,18 @@ flowchart TD
 
     AutoRegister -- "No" --> ReturnNone["Return None\n(toolkit not available)"]
 ```
+-->mport"]
+    RegisterAndImport --> Instantiate
+
+    AutoRegister -- "No" --> ReturnNone["Return None\n(toolkit not available)"]
+```
+-->
+-->mport"]
+    RegisterAndImport --> Instantiate
+
+    AutoRegister -- "No" --> ReturnNone["Return None\n(toolkit not available)"]
+```
+-->
 -->
 
 !!! warning "Singleton Pattern"
@@ -404,6 +442,20 @@ flowchart LR
     GetData --> CallGetData
     CallGetData --> ReturnData
 ```
+-->-> UseDefault
+    UseVersion --> GetData
+    UseDefault --> GetData
+    GetData --> CallGetData
+    CallGetData --> ReturnData
+```
+-->
+-->-> UseDefault
+    UseVersion --> GetData
+    UseDefault --> GetData
+    GetData --> CallGetData
+    CallGetData --> ReturnData
+```
+-->
 -->
 
 ### Key Methods
@@ -495,6 +547,20 @@ flowchart TD
     HandleFunc --> NextSection
     NextSection --> SectionType
 ```
+-->on
+    HandleSim --> NextSection
+    HandleCache --> NextSection
+    HandleFunc --> NextSection
+    NextSection --> SectionType
+```
+-->
+-->on
+    HandleSim --> NextSection
+    HandleCache --> NextSection
+    HandleFunc --> NextSection
+    NextSection --> SectionType
+```
+-->
 -->
 
 ### Handler Dispatch Table

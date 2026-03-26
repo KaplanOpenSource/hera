@@ -17,7 +17,13 @@ if ! command -v mkdocs &> /dev/null; then
     pip install -e . --no-deps
 fi
 
-echo ""
+# Render any new or changed Mermaid diagrams (skips unchanged ones)
+if command -v docker &> /dev/null; then
+    echo "Checking diagrams for changes..."
+    python3 render_diagrams.py
+    echo ""
+fi
+
 echo "=== Hera Documentation Server ==="
 echo "  http://127.0.0.1:8000"
 echo "  Press Ctrl+C to stop"

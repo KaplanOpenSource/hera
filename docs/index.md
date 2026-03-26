@@ -104,6 +104,16 @@ flowchart TB
     Project -- "CRUD" --> SimColl
     Project -- "CRUD" --> CacheColl
 ```
+-->  Project -- "CRUD" --> MeasColl
+    Project -- "CRUD" --> SimColl
+    Project -- "CRUD" --> CacheColl
+```
+-->
+-->  Project -- "CRUD" --> MeasColl
+    Project -- "CRUD" --> SimColl
+    Project -- "CRUD" --> CacheColl
+```
+-->
 -->
 
 ---

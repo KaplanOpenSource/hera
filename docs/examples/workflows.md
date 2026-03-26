@@ -37,6 +37,16 @@ flowchart LR
     GetData --> Enrich --> Calc --> Stats
     Stats --> DailyPlots --> SeasonalPlots --> Export
 ```
+-->> LoadData --> GetData
+    GetData --> Enrich --> Calc --> Stats
+    Stats --> DailyPlots --> SeasonalPlots --> Export
+```
+-->
+-->> LoadData --> GetData
+    GetData --> Enrich --> Calc --> Stats
+    Stats --> DailyPlots --> SeasonalPlots --> Export
+```
+-->
 -->
 
 ### Step-by-Step Code
@@ -166,6 +176,20 @@ flowchart TD
 
     Combine --> WindProfile --> RunOF --> PostProcess
 ```
+-->ildingsSTL
+    TopoSTL --> Combine
+    BuildingsSTL --> Combine
+
+    Combine --> WindProfile --> RunOF --> PostProcess
+```
+-->
+-->ildingsSTL
+    TopoSTL --> Combine
+    BuildingsSTL --> Combine
+
+    Combine --> WindProfile --> RunOF --> PostProcess
+```
+-->
 -->
 
 ### Step-by-Step Code
@@ -338,6 +362,20 @@ flowchart TD
     CalculateCasualties --> Statistics
     CalculateCasualties --> Reports
 ```
+-->s
+
+    CalculateCasualties --> CasualtyMaps
+    CalculateCasualties --> Statistics
+    CalculateCasualties --> Reports
+```
+-->
+-->s
+
+    CalculateCasualties --> CasualtyMaps
+    CalculateCasualties --> Statistics
+    CalculateCasualties --> Reports
+```
+-->
 -->
 
 ### Step-by-Step Code

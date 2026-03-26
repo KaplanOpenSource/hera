@@ -470,6 +470,14 @@ flowchart TD
     DocFields --> DocAction["toolkit.addMeasurements\nDocument(...)\nOR\naddSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
     FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
 ```
+-->dSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
+    FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
+```
+-->
+-->dSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
+    FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
+```
+-->
 -->
 
 ---

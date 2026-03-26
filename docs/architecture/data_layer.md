@@ -68,6 +68,16 @@ classDiagram
     Simulations_Collection ..> Simulations : "manages"
     Cache_Collection ..> Cache : "manages"
 ```
+--> Measurements : "manages"
+    Simulations_Collection ..> Simulations : "manages"
+    Cache_Collection ..> Cache : "manages"
+```
+-->
+--> Measurements : "manages"
+    Simulations_Collection ..> Simulations : "manages"
+    Cache_Collection ..> Cache : "manages"
+```
+-->
 -->
 
 ### Document Fields
@@ -116,6 +126,20 @@ flowchart LR
     GetDoc --> MetadataCol
     DelDoc --> MetadataCol
 ```
+--> GetMeas --> GetDoc
+    DelMeas --> DelDoc
+    AddDoc --> MetadataCol
+    GetDoc --> MetadataCol
+    DelDoc --> MetadataCol
+```
+-->
+--> GetMeas --> GetDoc
+    DelMeas --> DelDoc
+    AddDoc --> MetadataCol
+    GetDoc --> MetadataCol
+    DelDoc --> MetadataCol
+```
+-->
 -->
 
 !!! note "Three Parallel APIs"
@@ -173,6 +197,18 @@ flowchart TD
         CLASS["CLASS\nClass\npydoc.locate + instantiate"]
     end
 ```
+--> subgraph DynamicFormats ["Dynamic"]
+        direction LR
+        CLASS["CLASS\nClass\npydoc.locate + instantiate"]
+    end
+```
+-->
+--> subgraph DynamicFormats ["Dynamic"]
+        direction LR
+        CLASS["CLASS\nClass\npydoc.locate + instantiate"]
+    end
+```
+-->
 -->
 
 | Constant | Value | Description |
@@ -230,6 +266,20 @@ flowchart TD
     ReadImg --> Return
     ReturnString --> Return
 ```
+-->  LoadClass --> Return
+    ReadPickle --> Return
+    ReadTiff --> Return
+    ReadImg --> Return
+    ReturnString --> Return
+```
+-->
+-->  LoadClass --> Return
+    ReadPickle --> Return
+    ReadTiff --> Return
+    ReadImg --> Return
+    ReturnString --> Return
+```
+-->
 -->
 
 !!! tip "Auto-Detection"
@@ -331,6 +381,22 @@ sequenceDiagram
 
     DT-->>User: Loading complete
 ```
+-->DT->>Toolkit: Call named function<br/>with parameters
+            end
+        end
+    end
+
+    DT-->>User: Loading complete
+```
+-->
+-->DT->>Toolkit: Call named function<br/>with parameters
+            end
+        end
+    end
+
+    DT-->>User: Loading complete
+```
+-->
 -->
 
 ### Path Resolution
@@ -406,6 +472,18 @@ flowchart TD
     PickMax --> ReturnDoc
     QueryDefault --> ReturnDoc
 ```
+-->s" --> PickMax["Sort by version\ntuple and pick\nhighest version"]
+
+    PickMax --> ReturnDoc
+    QueryDefault --> ReturnDoc
+```
+-->
+-->s" --> PickMax["Sort by version\ntuple and pick\nhighest version"]
+
+    PickMax --> ReturnDoc
+    QueryDefault --> ReturnDoc
+```
+-->
 -->
 
 ---
