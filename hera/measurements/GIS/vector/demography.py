@@ -2,6 +2,9 @@ import geopandas
 import io
 import os
 import geopandas as gpd
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import numpy as np
 from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
@@ -18,6 +21,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
 
     _buildings = None
     _analysis = None
+    _presentation = None
 
     @property
     def buildings(self):
@@ -33,6 +37,11 @@ class DemographyToolkit(toolkit.VectorToolkit):
     def analysis(self):
         """analysis : The demography analysis layer."""
         return self._analysis
+
+    @property
+    def presentation(self):
+        """presentation : The demography presentation layer."""
+        return self._presentation
 
     @property
     def populationTypes(self):
@@ -60,6 +69,7 @@ class DemographyToolkit(toolkit.VectorToolkit):
         self._projectName = projectName
         super().__init__(projectName=projectName, toolkitName="Demography", filesDirectory=filesDirectory,connectionName=connectionName)
         self._analysis = analysis(self)
+        self._presentation = presentation(self)
 
         self._populationTypes = {"All":"total_pop","Children":"age_0_14","Youth":"age_15_19",
                            "YoungAdults":"age_20_29","Adults":"age_30_64","Elderly":"age_65_up"}
@@ -384,3 +394,292 @@ class analysis:
                 res_intersection[populationType] = intersection_poly.area / res_intersect_poly.area * res_intersect_poly[populationType]
 
         return res_intersection
+
+
+class presentation:
+    """
+    Presentation layer for the Demography toolkit.
+
+    Provides methods for visualizing population density and distribution
+    on geographic maps.
+    """
+
+    _datalayer = None
+
+    @property
+    def datalayer(self):
+        """DemographyToolkit : Reference to the parent toolkit."""
+        return self._datalayer
+
+    def __init__(self, dataLayer):
+        """
+        Initialize the presentation layer.
+
+        Parameters
+        ----------
+        dataLayer : DemographyToolkit
+            The parent demography toolkit instance.
+        """
+        self._datalayer = dataLayer
+
+    def plotPopulationDensity(self, data, populationType="total_pop",
+                              ax=None, figsize=(12, 10),
+                              cmap="YlOrRd", vmin=None, vmax=None,
+                              alpha=1.0, edgecolor="0.5", linewidth=0.3,
+                              colorbar=True, colorbar_label=None,
+                              title=None,
+                              xlim=None, ylim=None,
+                              outputCRS=None):
+        """
+        Plot population density as a choropleth map.
+
+        Computes density as population / area (in km²) for each polygon
+        and plots a colored map.
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame
+            The demographic data with geometry and population columns.
+        populationType : str
+            Column name for the population count (default: ``"total_pop"``).
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates a new figure.
+        figsize : tuple of float
+            Figure size (width, height) in inches. Default: (12, 10).
+        cmap : str or matplotlib.colors.Colormap
+            Colormap name or instance. Default: ``"YlOrRd"``.
+        vmin : float, optional
+            Minimum value for the color scale. If None, auto-detected.
+        vmax : float, optional
+            Maximum value for the color scale. If None, auto-detected.
+        alpha : float
+            Transparency of the polygons (0=transparent, 1=opaque). Default: 1.0.
+        edgecolor : str
+            Color of polygon edges. Default: ``"0.5"`` (gray).
+        linewidth : float
+            Width of polygon edges. Default: 0.3.
+        colorbar : bool
+            Whether to show a colorbar. Default: True.
+        colorbar_label : str, optional
+            Label for the colorbar. If None, uses ``"Population density [people/km²]"``.
+        title : str, optional
+            Plot title.
+        xlim : tuple of float, optional
+            (xmin, xmax) limits for the x-axis. If None, auto from data.
+        ylim : tuple of float, optional
+            (ymin, ymax) limits for the y-axis. If None, auto from data.
+        outputCRS : int or str, optional
+            CRS to reproject data before plotting (e.g., 2039 for ITM, 4326 for WGS84).
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
+        """
+        plot_data = data.copy()
+
+        if outputCRS is not None:
+            plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+
+        # Compute density: population / area in km²
+        area_km2 = plot_data.geometry.area / 1e6
+        density_col = f"{populationType}_density"
+        plot_data[density_col] = plot_data[populationType] / area_km2
+        plot_data[density_col] = plot_data[density_col].replace([np.inf, -np.inf], 0).fillna(0)
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+        plot_data.plot(
+            column=density_col,
+            ax=ax,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=alpha,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            legend=False
+        )
+
+        if colorbar:
+            sm = plt.cm.ScalarMappable(
+                cmap=cmap,
+                norm=mcolors.Normalize(
+                    vmin=vmin if vmin is not None else plot_data[density_col].min(),
+                    vmax=vmax if vmax is not None else plot_data[density_col].max()
+                )
+            )
+            sm._A = []
+            cbar = plt.colorbar(sm, ax=ax)
+            cbar.set_label(colorbar_label or "Population density [people/km²]")
+
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        if title is not None:
+            ax.set_title(title)
+
+        return ax
+
+    def plotPopulation(self, data, populationType="total_pop",
+                       ax=None, figsize=(12, 10),
+                       cmap="YlOrRd", vmin=None, vmax=None,
+                       alpha=1.0, edgecolor="0.5", linewidth=0.3,
+                       colorbar=True, colorbar_label=None,
+                       title=None,
+                       xlim=None, ylim=None,
+                       outputCRS=None):
+        """
+        Plot absolute population count as a choropleth map.
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame
+            The demographic data with geometry and population columns.
+        populationType : str
+            Column name for the population count (default: ``"total_pop"``).
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates a new figure.
+        figsize : tuple of float
+            Figure size (width, height) in inches. Default: (12, 10).
+        cmap : str or matplotlib.colors.Colormap
+            Colormap name or instance. Default: ``"YlOrRd"``.
+        vmin : float, optional
+            Minimum value for the color scale.
+        vmax : float, optional
+            Maximum value for the color scale.
+        alpha : float
+            Transparency (0=transparent, 1=opaque). Default: 1.0.
+        edgecolor : str
+            Color of polygon edges. Default: ``"0.5"``.
+        linewidth : float
+            Width of polygon edges. Default: 0.3.
+        colorbar : bool
+            Whether to show a colorbar. Default: True.
+        colorbar_label : str, optional
+            Label for the colorbar. If None, uses ``"Population count"``.
+        title : str, optional
+            Plot title.
+        xlim : tuple of float, optional
+            (xmin, xmax) limits for the x-axis.
+        ylim : tuple of float, optional
+            (ymin, ymax) limits for the y-axis.
+        outputCRS : int or str, optional
+            CRS to reproject data before plotting.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
+        """
+        plot_data = data.copy()
+
+        if outputCRS is not None:
+            plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+        plot_data.plot(
+            column=populationType,
+            ax=ax,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=alpha,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            legend=False
+        )
+
+        if colorbar:
+            sm = plt.cm.ScalarMappable(
+                cmap=cmap,
+                norm=mcolors.Normalize(
+                    vmin=vmin if vmin is not None else plot_data[populationType].min(),
+                    vmax=vmax if vmax is not None else plot_data[populationType].max()
+                )
+            )
+            sm._A = []
+            cbar = plt.colorbar(sm, ax=ax)
+            cbar.set_label(colorbar_label or "Population count")
+
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        if title is not None:
+            ax.set_title(title)
+
+        return ax
+
+    def plotPopulationByType(self, data, populationTypes=None,
+                             figsize=(16, 10), ncols=3,
+                             cmap="YlOrRd", alpha=0.8,
+                             edgecolor="0.5", linewidth=0.2,
+                             outputCRS=None):
+        """
+        Plot multiple population types as a grid of subplots.
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame
+            The demographic data.
+        populationTypes : list of str, optional
+            Column names to plot. If None, uses all population types
+            defined in the toolkit.
+        figsize : tuple of float
+            Figure size. Default: (16, 10).
+        ncols : int
+            Number of columns in the subplot grid. Default: 3.
+        cmap : str
+            Colormap name. Default: ``"YlOrRd"``.
+        alpha : float
+            Transparency. Default: 0.8.
+        edgecolor : str
+            Polygon edge color. Default: ``"0.5"``.
+        linewidth : float
+            Polygon edge width. Default: 0.2.
+        outputCRS : int or str, optional
+            CRS to reproject data before plotting.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The figure with all subplots.
+        """
+        if populationTypes is None:
+            populationTypes = [v for v in self.datalayer.populationTypes.values()
+                               if v in data.columns]
+
+        nplots = len(populationTypes)
+        nrows = max(1, (nplots + ncols - 1) // ncols)
+
+        fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+        axes = np.atleast_1d(axes).flatten()
+
+        for i, pop_type in enumerate(populationTypes):
+            # Find the display name
+            display_name = pop_type
+            for name, col in self.datalayer.populationTypes.items():
+                if col == pop_type:
+                    display_name = name
+                    break
+
+            self.plotPopulation(
+                data, populationType=pop_type,
+                ax=axes[i], cmap=cmap, alpha=alpha,
+                edgecolor=edgecolor, linewidth=linewidth,
+                title=display_name, colorbar=True,
+                colorbar_label=pop_type,
+                outputCRS=outputCRS
+            )
+
+        # Hide unused axes
+        for i in range(nplots, len(axes)):
+            axes[i].set_visible(False)
+
+        plt.tight_layout()
+        return fig
