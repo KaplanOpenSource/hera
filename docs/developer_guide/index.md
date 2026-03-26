@@ -28,6 +28,10 @@ This section is for developers working on or extending the Hera platform. It cov
 - **[Getting Started with Tests](../testing/getting_started.md)** - Setting up the test environment and running tests
 - **[Test Flow](../testing/flow.md)** - Pytest session lifecycle, fixtures, comparison helpers, and the expected-output mechanism
 
+## Roadmap
+
+- **[Roadmap](roadmap.md)** - Planned improvements: contract-first typed interfaces, unified toolkit registry, env var DB config
+
 ## Reference
 
 - **[Repository Schema](../reference/repository_schema.md)** - Detailed schema documentation for the data repository

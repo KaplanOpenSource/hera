@@ -216,6 +216,60 @@ If two repositories define a data source with the same name for the same toolkit
 
 ---
 
+## Populating projects
+
+New projects are automatically populated with repositories when created via `hera-project project create`. But if you:
+
+- Added a new repository after creating projects
+- Want to ensure all projects have the latest data sources
+- Created projects before registering repositories
+
+Use the **populate** command to bulk-load all repositories into all projects at once:
+
+```bash
+# Populate ALL existing projects with all registered repositories
+make populate
+
+# Populate a specific project
+make populate-project PROJECT=WindStudy
+```
+
+Or via the CLI directly:
+
+```bash
+# All projects
+hera-project project populate --overwrite
+
+# Single project
+hera-project project populate --projectName WindStudy --overwrite
+
+# Without --overwrite: skips data sources that already exist
+hera-project project populate
+```
+
+The `--overwrite` flag controls whether existing data sources are replaced. Without it, only new data sources are added.
+
+### Typical workflow
+
+```bash
+# 1. Register your repositories (one time)
+hera-project repository add /data/repos/gis_data.json
+hera-project repository add /data/repos/meteo_data.json
+
+# 2. Create some projects
+hera-project project create WindStudy --directory /data/wind_study
+hera-project project create CoastalSim --directory /data/coastal
+
+# 3. Later, add a new repository
+hera-project repository add /data/repos/risk_agents.json
+
+# 4. Populate all projects with the new repository
+make populate
+# Both WindStudy and CoastalSim now have risk agent data sources
+```
+
+---
+
 ## Next steps
 
 - **[Working with Data Sources](working_with_data.md#data-sources)** — API details for versions, defaults, querying
