@@ -236,19 +236,96 @@ make rag-watch
 
 ## MkDocs plugin
 
-A floating "Ask AI" button can be injected into the MkDocs site:
+### Overview
 
-1. Set `RAG_ENABLED=true` in `.env` or environment
-2. Start the RAG API server: `make rag-serve`
-3. Build or serve docs: `make rag-docs-serve`
+The RAG toolkit includes a MkDocs plugin that injects a floating "Ask AI" search widget into every documentation page. The widget communicates with the RAG API server to provide AI-powered answers.
 
-The plugin injects a floating action button (bottom-right corner) that opens a search panel. Questions are answered via SSE streaming from the Ollama backend. Sources are displayed with relevance scores.
+### How it works
 
-To register manually in `mkdocs.yml`:
+1. The plugin class `HeraMkDocsPlugin` is registered as a MkDocs entry point in `setup.py`:
+   ```python
+   entry_points={
+       "mkdocs.plugins": [
+           "hera_rag_search = hera.utils.rag.serve:HeraMkDocsPlugin",
+       ],
+   }
+   ```
+
+2. When MkDocs builds a page, the plugin's `on_page_content` method runs:
+   - Checks `RAG_ENABLED` setting — if `false`, returns HTML unchanged
+   - If `true`, injects the widget HTML/CSS/JS before `</body>`
+
+3. The widget consists of:
+   - **Floating Action Button (FAB)** — fixed position, bottom-right corner
+   - **Search panel** — text input + "Ask" button + answer area + sources area
+   - **JavaScript** — handles user input, SSE streaming, and source display
+
+### Widget ↔ API communication
+
+The widget uses two API calls per question:
+
+```
+User types question → click "Ask"
+    ↓
+EventSource(GET /stream?q=...) → SSE tokens streamed into answer div
+    ↓ (in parallel)
+fetch(GET /search?q=...&no_llm=true) → JSON with chunks → rendered as source links
+```
+
+- **Streaming**: Uses the browser's `EventSource` API (Server-Sent Events) connected to the `/stream` endpoint. Tokens appear incrementally as the LLM generates them.
+- **Sources**: A separate `fetch()` call to `/search?no_llm=true` retrieves the matching chunks without invoking the LLM, used to display source references with relevance scores.
+
+### Configuration
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `RAG_ENABLED` | `false` | Must be `true` to inject the widget |
+| `RAG_API_URL` | `http://localhost:8765` | The widget's JS uses this URL to call the API |
+
+The API URL is baked into the injected HTML at build/serve time via string formatting:
+```python
+widget = _WIDGET_HTML.format(api_url=settings.rag_api_url.rstrip("/"))
+```
+
+### Enabling the plugin
+
+**Option 1 — Via Makefile (recommended):**
+```bash
+make rag-serve &          # start API in background
+make rag-docs-serve       # serves docs with RAG_ENABLED=true
+```
+
+**Option 2 — Manual registration in `mkdocs.yml`:**
 ```yaml
 plugins:
-  - hera_rag_search
+  - search                # keep the default search plugin
+  - hera_rag_search       # add the RAG widget
 ```
+Then set `RAG_ENABLED=true` in your environment.
+
+**Option 3 — Environment only (no mkdocs.yml change):**
+If the plugin is installed via `pip install -e .[rag]`, MkDocs discovers it automatically from the entry point. Just set:
+```bash
+export RAG_ENABLED=true
+export RAG_API_URL=http://localhost:8765
+```
+
+### Customizing the widget
+
+The widget HTML/CSS/JS is defined in `_WIDGET_HTML` in `serve.py`. Key CSS variables used:
+
+| CSS Variable | Purpose | Fallback |
+|-------------|---------|----------|
+| `--md-primary-fg-color` | FAB and button background | `#1976d2` |
+| `--md-default-bg-color` | Panel background | `#fff` |
+| `--md-default-fg-color` | Text color | `#000` |
+| `--md-text-font` | Font family | `sans-serif` |
+
+These automatically match the MkDocs Material theme (light and dark mode).
+
+### Disabling
+
+Set `RAG_ENABLED=false` (the default). The plugin's `on_page_content` returns HTML unchanged — zero overhead when disabled.
 
 ---
 
