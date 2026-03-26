@@ -29,6 +29,38 @@ class RawdataAnalysis:
         """
         self._datalayer = datalayer
 
+    def _resolveData(self, dataOrName):
+        """Resolve a data source name or DataFrame to a DataFrame.
+
+        Parameters
+        ----------
+        dataOrName : str or pandas.DataFrame or dask.dataframe.DataFrame
+            If a string, loads the named data source from the toolkit.
+            If a DataFrame, returns it directly.
+
+        Returns
+        -------
+        pandas.DataFrame or dask.dataframe.DataFrame
+
+        Raises
+        ------
+        ValueError
+            If the data source name is not found or the type is unsupported.
+        """
+        if isinstance(dataOrName, (pandas.DataFrame, dask.dataframe.DataFrame)):
+            return dataOrName
+        if isinstance(dataOrName, str):
+            data = self.datalayer.getDataSourceData(dataOrName)
+            if data is None:
+                raise ValueError(
+                    f"Data source '{dataOrName}' not found in project "
+                    f"'{self.datalayer.projectName}'."
+                )
+            return data
+        raise ValueError(
+            f"Expected a data source name (str) or DataFrame, got {type(dataOrName)}."
+        )
+
     def singlePointTurbulenceStatistics(self,
                                         sonicData,
                                         samplingWindow,
@@ -40,42 +72,36 @@ class RawdataAnalysis:
                                         inmemory=False,
                                         isMissingData=False,
                                         **kwargs):
-        """
-        This method loads the raw data that corresponds to the requirements (projectName, station, instrument.. ) and
-        creates a turbulence calculator with the desirable sampling window.
-
+        """Create a single-point turbulence statistics calculator.
 
         Parameters
         ----------
-        sonicData : str / pandas.DataFrame / dask.Dataframe / None
-            the data to process.
-
-            if str, queries the database with the deviceName as input.
-
-             if NOne, query the database only with kwargs.
-
+        sonicData : str or pandas.DataFrame or dask.dataframe.DataFrame
+            Sonic anemometer data. If a string, the named data source is
+            loaded from the project automatically.
         samplingWindow : str
-            The desirable sampling window.
-
-        start : str/pandas.Timestamp
-            Datetime of the begin.
-
-        end : str/pandas.Timestamp
-            Datetime of the end.
-
-        inmemory : bool, positional, default False
-            A flag of whether or not to use pandas.
-
-        isMissingData : bool, positional, default False
-            A flag if there is a missing data to compute accordingly.
-
-        kwargs :
-            Other query arguments for the database.
+            Resampling window (e.g. ``'30min'``, ``'10S'``).
+        start : str or pandas.Timestamp
+            Start of the analysis period.
+        end : str or pandas.Timestamp
+            End of the analysis period.
+        height : float
+            Instrument height above ground (m).
+        buildingHeight : float
+            Height of the building the instrument is mounted on (m).
+        averagedHeight : float
+            Area-averaged building height in the surroundings (m).
+        inmemory : bool, optional
+            Whether to use pandas (in-memory) mode. Default ``False``.
+        isMissingData : bool, optional
+            Set ``True`` if the data has gaps. Default ``False``.
+        **kwargs
+            Additional metadata stored in the calculator's identifier.
 
         Returns
         -------
         singlePointTurbulenceStatistics
-            A turbulence calculator of the loaded raw data.
+            A turbulence calculator ready for method-chained analysis.
         """
 
         identifier = {'projectName': self.datalayer.projectName,
@@ -92,10 +118,7 @@ class RawdataAnalysis:
                       }
         identifier.update(kwargs)
 
-        if isinstance(sonicData, pandas.DataFrame) or isinstance(sonicData, dask.dataframe.DataFrame):
-         rawData = sonicData
-        else:
-            raise ValueError("deviceNameOrData must be a dask/pandas dataframe")
+        rawData = self._resolveData(sonicData)
 
         return singlePointTurbulenceStatistics(rawData=rawData, metadata=identifier)
 
@@ -110,43 +133,36 @@ class RawdataAnalysis:
                             inmemory=False,
                             isMissingData=False,
                             **kwargs):
-        """
-        This method loads the raw data that corresponds to the requirements (projectName, station, instrument.. ) and
-        creates a TRH calculator with the desirable sampling window. It then uses the calculator to return a mean temperature
-        pandas dataframe.
-
+        """Create an averaging calculator for time-windowed mean fields.
 
         Parameters
         ----------
-        deviceNameOrData : str / pandas.DataFrame / dask.Dataframe / None
-            the data to process.
-
-            if str, queries the database with the deviceName as input.
-
-             if NOne, query the database only with kwargs.
-
+        deviceNameOrData : str or pandas.DataFrame or dask.dataframe.DataFrame
+            Raw data or data source name. If a string, the named data
+            source is loaded from the project automatically.
         samplingWindow : str
-            The desirable sampling window.
-
-        start : str/pandas.Timestamp
-            Datetime of the begin.
-
-        end : str/pandas.Timestamp
-            Datetime of the end.
-
-        inmemory : bool, positional, default False
-            A flag of whether or not to use pandas.
-
-        isMissingData : bool, positional, default False
-            A flag if there is a missing data to compute accordingly.
-
-        kwargs :
-            Other query arguments for the database.
+            Resampling window (e.g. ``'30min'``, ``'5min'``).
+        start : str or pandas.Timestamp
+            Start of the analysis period.
+        end : str or pandas.Timestamp
+            End of the analysis period.
+        height : float
+            Instrument height above ground (m).
+        buildingHeight : float
+            Height of the building the instrument is mounted on (m).
+        averagedHeight : float
+            Area-averaged building height in the surroundings (m).
+        inmemory : bool, optional
+            Whether to use pandas (in-memory) mode. Default ``False``.
+        isMissingData : bool, optional
+            Set ``True`` if the data has gaps. Default ``False``.
+        **kwargs
+            Additional metadata stored in the calculator's identifier.
 
         Returns
         -------
-        singlePointTurbulenceStatistics
-            A turbulence calculator of the loaded raw data.
+        AveragingCalculator
+            A calculator with pre-computed windowed means.
         """
 
         identifier = {'projectName': self.datalayer.projectName,
@@ -162,10 +178,7 @@ class RawdataAnalysis:
                       }
         identifier.update(kwargs)
 
-        if isinstance(deviceNameOrData, pandas.DataFrame) or isinstance(deviceNameOrData, dask.dataframe.DataFrame):
-            rawData = deviceNameOrData
-        else:
-            raise ValueError("deviceNameOrData must be a dask/pandas dataframe")
+        rawData = self._resolveData(deviceNameOrData)
 
         calculator = AveragingCalculator(rawData=rawData, metadata=identifier)
 
