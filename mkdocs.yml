@@ -97,8 +97,24 @@ nav:
           - Understanding Toolkits: toolkits/understanding_toolkits.md
           - Repositories: user_guide/repositories.md
           - Toolkit Catalog: toolkits/overview.md
-          - Measurements: toolkits/measurements.md
-          - Simulations: toolkits/simulations.md
+          - Measurements:
+              - GIS:
+                  - Topography (Raster): toolkits/measurements/gis/topography_raster.md
+                  - Topography (Vector): toolkits/measurements/gis/topography_vector.md
+                  - Buildings: toolkits/measurements/gis/buildings.md
+                  - Demography: toolkits/measurements/gis/demography.md
+                  - Land Cover: toolkits/measurements/gis/landcover.md
+                  - Tiles: toolkits/measurements/gis/tiles.md
+              - Meteorology:
+                  - MeteoLowFreq: toolkits/measurements/meteorology/lowfreq.md
+                  - MeteoHighFreq: toolkits/measurements/meteorology/highfreq.md
+              - Experiment: toolkits/measurements/experiment.md
+          - Simulations:
+              - OpenFOAM: toolkits/simulations/openfoam.md
+              - LSM: toolkits/simulations/lsm.md
+              - Gaussian Dispersion: toolkits/simulations/gaussian.md
+              - Wind Profile: toolkits/simulations/windprofile.md
+              - Hermes Workflows: toolkits/simulations/workflows.md
           - Risk Assessment: toolkits/risk_assessment.md
       - Tutorials: tutorials/index.md
       - Examples:
