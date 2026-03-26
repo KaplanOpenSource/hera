@@ -138,10 +138,9 @@ class HighFreqToolKit(toolkit.abstractToolkit):
                 suffix = meta.get("deviceName", meta.get("deviceType", ""))
                 ds_name = f"{name}_{suffix}" if suffix else name
 
-            # Merge user metadata
-            desc = dict(meta)
-            if metadata:
-                desc.update(metadata)
+            # Only store user-provided metadata (parser metadata is for
+            # normalisation only — available via parseData() for inspection)
+            desc = dict(metadata) if metadata else {}
 
             # Save parquet
             output_file = os.path.join(parquet_dir, f"{ds_name}.parquet")

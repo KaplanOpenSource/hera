@@ -81,6 +81,7 @@ doc = hf.loadData(
     parser="auto",          # auto-detect, or "campbell" / "toa5"
     version=(1, 0, 0),
     overwrite=False,
+    metadata={"station": "Haifa", "height": 10, "campaign": "March2024"},
 )
 
 # Now accessible by name everywhere:
@@ -101,24 +102,25 @@ docs = hf.loadData(name="station_A", path="/raw_data/multi_device.dat")
 
 ### `parseData` — parse and normalise without saving
 
-For previewing data or one-off analysis without registering a data source:
+For previewing data or one-off analysis without registering a data source. Returns parser-extracted metadata for inspection — useful for deciding what to store with `loadData`:
 
 ```python
 results = hf.parseData(
     path="/raw_data/2024_03_15.dat",
     parser="auto",
 )
-# Returns list of (normalised_dataframe, metadata_dict)
+# Returns list of (normalised_dataframe, parser_metadata_dict)
 
-df, metadata = results[0]
+df, parser_meta = results[0]
 print(df.head())
 #                         u     v     w      T
 # Time
 # 2024-03-15 00:00:00  -2.65  3.05  1.96  24.93
 # 2024-03-15 00:00:00  -2.70  3.10  1.90  24.95
 
-print(metadata)
+print(parser_meta)
 # {'station': 'CR3000_1', 'instrument': 'CSAT3', 'height': 10, 'deviceType': 'sonic'}
+# (extracted from file headers — use this to decide what metadata to pass to loadData)
 
 # Pass directly to analysis:
 turb = hf.analysis.singlePointTurbulenceStatistics(sonicData=df, ...)
