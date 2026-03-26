@@ -106,6 +106,287 @@ classDiagram
 
 ---
 
+## Argos zip file structure
+
+The Argos zip file (e.g. `HaifaFluxes2014.zip`) is the single source of truth for experiment metadata. It contains a `data.json` file and optionally an `images/` directory with map images.
+
+`ExperimentZipFile.__init__()` extracts `data.json`, migrates it from any supported version (1.0.0, 2.0.0, 3.0.0) to the canonical internal format, then initialises `TrialSet` and `EntityType` objects from the parsed structure.
+
+### data.json root structure (version 3.0.0)
+
+```json
+{
+  "version": "3.0.0",
+  "name": "Haifa2014",
+  "startDate": "2014-06-01T00:00:00.000Z",
+  "endDate": "2014-09-30T00:00:00.000Z",
+  "description": "Haifa flux measurement campaign",
+  "trialTypes": [ ... ],
+  "deviceTypes": [ ... ],
+  "imageStandalone": [ ... ],
+  "shapes": [ ... ]
+}
+```
+
+After version migration, the internal canonical format uses `trialSets`, `entityTypes`, and `maps` as key names.
+
+### trialTypes → Trial Sets
+
+Each entry in `trialTypes` defines a trial set containing trials:
+
+```json
+{
+  "name": "Measurements",
+  "attributeTypes": [
+    {"type": "Date",   "name": "TrialStart", "scope": "Trial"},
+    {"type": "Date",   "name": "TrialEnd",   "scope": "Trial"},
+    {"type": "String", "name": "ReleaseStart", "scope": "Trial", "required": false}
+  ],
+  "trials": [
+    {
+      "name": "Measurement",
+      "createdDate": "2014-06-15T08:00:00.000Z",
+      "cloneFrom": null,
+      "properties": [
+        {"key": "TrialStart", "val": "2014-06-15T06:00:00.000Z", "type": "Date"},
+        {"key": "TrialEnd",   "val": "2014-06-15T18:00:00.000Z", "type": "Date"}
+      ],
+      "devicesOnTrial": [
+        {
+          "deviceTypeName": "Sonic",
+          "deviceItemName": "sonic01",
+          "location": {
+            "name": "OSMMap",
+            "coordinates": [32.789483, 35.040617]
+          },
+          "containedIn": null,
+          "attributes": [
+            {"name": "height", "value": "9"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Maps to | Description |
+|-------|---------|-------------|
+| `name` | `TrialSet.name` | Trial set identifier |
+| `attributeTypes` | `TrialSet.properties` | Defines the property schema for trials (type, name, scope) |
+| `trials[].name` | `Trial.name` | Trial identifier |
+| `trials[].properties` | `Trial.properties` | Key-value pairs; `TRIALSTART` and `TRIALEND` define the time window |
+| `trials[].devicesOnTrial` | `Trial.entities` | Which devices participate, with per-trial location and attributes |
+
+### deviceTypes → Entity Types
+
+Each entry in `deviceTypes` defines a device type and its instances:
+
+```json
+{
+  "name": "Sonic",
+  "attributeTypes": [
+    {
+      "type": "Boolean",
+      "name": "StoreDataPerDevice",
+      "defaultValue": false,
+      "scope": "Constant"
+    },
+    {"type": "String", "name": "stationName", "scope": "Device"},
+    {"type": "Number", "name": "height", "scope": "Device"}
+  ],
+  "devices": [
+    {
+      "name": "sonic01",
+      "attributes": [
+        {"name": "stationName", "value": "Check_Post"},
+        {"name": "height", "value": "9"}
+      ]
+    },
+    {
+      "name": "sonic02",
+      "attributes": [
+        {"name": "stationName", "value": "Gan-Margalit"},
+        {"name": "height", "value": "6"}
+      ]
+    }
+  ]
+}
+```
+
+| Field | Maps to | Description |
+|-------|---------|-------------|
+| `name` | `EntityType.name` | Device type identifier |
+| `attributeTypes` | `EntityType.properties` | Property schema with scope rules |
+| `devices[].name` | `Entity.name` | Device instance identifier |
+| `devices[].attributes` | `Entity.properties` | Device-scope property values |
+
+### Attribute scopes
+
+| Scope | Meaning | Where defined | Example |
+|-------|---------|---------------|---------|
+| `Constant` | Same value for all entities of this type | `attributeTypes[].defaultValue` | `StoreDataPerDevice=false` |
+| `Device` | Per-device value | `devices[].attributes` | `stationName`, `height` |
+| `Trial` | Per-trial-per-device value | `devicesOnTrial[].attributes` | Calibration values |
+
+### Entity containment hierarchy
+
+Entities can be nested via `containedIn`. Child entities inherit missing attributes (including location) from their parent:
+
+```json
+{
+  "deviceTypeName": "TRH",
+  "deviceItemName": "TRH01",
+  "containedIn": {
+    "deviceTypeName": "Sonic",
+    "deviceItemName": "sonic01"
+  },
+  "attributes": []
+}
+```
+
+The `fillContained` module resolves the hierarchy: walks up the containment tree, copies missing attributes from parent to child, and flattens `location` into `mapName`, `latitude`, `longitude`.
+
+### Key trial properties
+
+| Property | Type | Role |
+|----------|------|------|
+| `TrialStart` / `TRIALSTART` | Date | Start of measurement period — used by `TrialWithdata.getData()` |
+| `TrialEnd` / `TRIALEND` | Date | End of measurement period — used by `TrialWithdata.getData()` |
+| `ReleaseStart` | Date | Optional: release event time (used by `addTrialProperties()` for `fromRelease`) |
+| `StoreDataPerDevice` | Boolean (Constant) | Controls whether parquet files are per-device or per-type |
+
+---
+
+## Experiment repository JSON
+
+The repository JSON registers an experiment with the Hera project system. It is generated by `hera-experiment create` and loaded via `hera-project repository add`.
+
+### Complete structure
+
+```json
+{
+  "experiment": {
+    "DataSource": {
+      "<experimentName>": {
+        "isRelativePath": "True",
+        "item": {
+          "dataSourceName": "<experimentName>",
+          "resource": "",
+          "dataFormat": "string",
+          "overwrite": "True"
+        }
+      }
+    },
+    "Measurements": {
+      "<parquetName_1>": {
+        "isRelativePath": "True",
+        "item": {
+          "type": "Experiment_rawData",
+          "resource": "data/<parquetName_1>.parquet",
+          "dataFormat": "parquet",
+          "desc": {
+            "deviceType": "<entityTypeName>",
+            "experimentName": "<experimentName>",
+            "deviceName": "<entityName or empty>"
+          }
+        }
+      },
+      "<parquetName_2>": {
+        "isRelativePath": "True",
+        "item": {
+          "type": "Experiment_rawData",
+          "resource": "data/<parquetName_2>.parquet",
+          "dataFormat": "parquet",
+          "desc": {
+            "deviceType": "<entityTypeName>",
+            "experimentName": "<experimentName>",
+            "deviceName": "<entityName or empty>"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### DataSource section
+
+Registers the experiment class as a toolkit data source (type `ToolkitDataSource`). The `resource` field points to the experiment directory containing `code/`, `data/`, and `runtimeExperimentData/`.
+
+### Measurements section
+
+One entry per parquet file. The `<parquetName>` depends on `StoreDataPerDevice`:
+
+| `StoreDataPerDevice` | `parquetName` | `desc.deviceName` | Parquet file contains |
+|----------------------|---------------|--------------------|-----------------------|
+| `false` (default) | Entity type name (e.g. `Sonic`) | `""` (empty) | All devices of this type in one file |
+| `true` | Entity name (e.g. `sonic01`) | `"sonic01"` | Single device per file |
+
+### Example (Haifa2014)
+
+```json
+{
+  "experiment": {
+    "DataSource": {
+      "Haifa2014": {
+        "isRelativePath": "True",
+        "item": {
+          "dataSourceName": "Haifa2014",
+          "resource": "",
+          "dataFormat": "string",
+          "overwrite": "True"
+        }
+      }
+    },
+    "Measurements": {
+      "Sonic": {
+        "isRelativePath": "True",
+        "item": {
+          "type": "Experiment_rawData",
+          "resource": "data/Sonic.parquet",
+          "dataFormat": "parquet",
+          "desc": {
+            "deviceType": "Sonic",
+            "experimentName": "Haifa2014",
+            "deviceName": ""
+          }
+        }
+      },
+      "TRH": {
+        "isRelativePath": "True",
+        "item": {
+          "type": "Experiment_rawData",
+          "resource": "data/TRH.parquet",
+          "dataFormat": "parquet",
+          "desc": {
+            "deviceType": "TRH",
+            "experimentName": "Haifa2014",
+            "deviceName": ""
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### How the repository is loaded
+
+```
+hera-project repository add Haifa2014_repository.json
+hera-project project create MY_PROJECT
+```
+
+Loading resolves `isRelativePath` entries against the repository file's directory, then:
+
+1. **DataSource** entries → `experimentHome.addDataSource()` → creates a `ToolkitDataSource` document pointing to the experiment directory
+2. **Measurements** entries → `experimentHome.addMeasurementsDocument()` → creates `Experiment_rawData` documents pointing to parquet files
+
+The `parquetDataEngineHera.getData()` method later queries these `Experiment_rawData` documents to find and load the correct parquet file for a given device type.
+
+---
+
 ## Data engine layer (`dataEngine.py`)
 
 Three interchangeable backends provide data access. All share the same interface (`getData`, `getDataFromTrial`) and are selected at initialization via `dataEngineFactory`.
