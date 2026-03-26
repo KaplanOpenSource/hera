@@ -112,6 +112,14 @@ make test-setup            # Create test data directory at ~/hera_unittest_data
 make test                  # Run all tests (requires MongoDB + test data)
 ```
 
+### Building Documentation
+
+```bash
+make docs-build            # Full build: render diagrams + build MkDocs site
+make docs-serve            # Render diagrams + start local preview at localhost:8000
+make docs-deploy           # Render diagrams + deploy to GitHub Pages
+```
+
 Run `make help` to see all available targets.
 
 ---
