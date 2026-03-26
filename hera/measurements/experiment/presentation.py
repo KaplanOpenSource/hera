@@ -53,32 +53,48 @@ class experimentPresentation:
 
     @property
     def cmap(self):
+        """Return the colormap used for technical plots."""
         return self._cmap
     @property
     def saveFigures(self):
+        """Return whether figures should be saved to disk."""
         return self._saveFigures
 
     @saveFigures.setter
     def saveFigures(self, value):
+        """Set whether figures should be saved to disk."""
         self._saveFigures = value
 
     @property
     def savePath(self):
+        """Return the absolute path for saving figures."""
         return os.path.abspath(self._savePath)
 
     @savePath.setter
     def savePath(self, value):
+        """Set the path for saving figures."""
         self._savePath = value
 
     @property
     def datalayer(self):
+        """Return the experiment data layer."""
         return self._datalayer
 
     @property
     def analysis(self):
+        """Return the experiment analysis layer."""
         return self._analysis
 
     def __init__(self,datalayer,analysis):
+        """Initialize the presentation layer.
+
+        Parameters
+        ----------
+        datalayer : experimentSetupWithData
+            The experiment data layer.
+        analysis : experimentAnalysis
+            The experiment analysis layer.
+        """
         self._datalayer = datalayer
         self._analysis  = analysis
         colors = [
@@ -101,6 +117,19 @@ class experimentPresentation:
 
 
     def plotOrigin(self, ax=None, s=50):
+        """Plot the origin marker on the given axes.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. Created if None.
+        s : int, optional
+            Marker size.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+        """
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
@@ -467,6 +496,19 @@ class experimentPresentation:
     #########################
 
     def _get_continuous_cmap(self, cmap_list, float_list=None):
+        """Build a continuous LinearSegmentedColormap from a list of RGB values.
+
+        Parameters
+        ----------
+        cmap_list : list of list of float
+            RGB color values, each in [0, 1].
+        float_list : list of float, optional
+            Positions for each color in [0, 1]. Linearly spaced if None.
+
+        Returns
+        -------
+        matplotlib.colors.LinearSegmentedColormap
+        """
         cdict = dict()
 
         if float_list is None:
@@ -479,6 +521,18 @@ class experimentPresentation:
         return cmp
 
     def _splitName(self,x):
+        """Extract the device identifier from a space-separated name string.
+
+        Parameters
+        ----------
+        x : str
+            Device name string.
+
+        Returns
+        -------
+        int or str
+            Integer second token if available, otherwise the first token.
+        """
         if len(x.split(" ")) > 1:
             return int(x.split(" ")[1])
         else:

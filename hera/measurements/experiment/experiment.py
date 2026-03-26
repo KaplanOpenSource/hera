@@ -34,6 +34,17 @@ class experimentHome(toolkit.abstractToolkit):
     CODE_DIRECTORY = "code"
 
     def __init__(self, projectName, filesDirectory=None,connectionName=None):
+        """Initialize the experiment home factory.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        filesDirectory : str, optional
+            Directory for cache/intermediate files.
+        connectionName : str, optional
+            Name of the database connection to use.
+        """
         super().__init__(projectName=projectName, toolkitName="experimentToolKit", filesDirectory=filesDirectory,connectionName=connectionName)
         self.logger = logging.getLogger()
         self.logger.info("Init experiment toolkit")
@@ -228,18 +239,22 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
 
     @property
     def analysis(self):
+        """Return the experiment analysis layer."""
         return self._analysis
 
     @property
     def presentation(self):
+        """Return the experiment presentation layer."""
         return self._presentation
 
     @property
     def configuration(self):
+        """Return the experiment configuration dictionary."""
         return self._configuration
 
     @property
     def name(self):
+        """Return the experiment name from the configuration."""
         return self.configuration["experimentName"]
 
     def _initTrialSets(self):
@@ -358,10 +373,12 @@ class experimentSetupWithData(argosDataObjects.ExperimentZipFile, toolkit.abstra
 
     @property
     def defaultTrialSet(self):
+        """Return the name of the default trial set."""
         return self._defaultTrialSetName
 
     @property
     def trialsOfDefaultTrialSet(self):
+        """Return the trials belonging to the default trial set."""
         return self.trialSet[self.defaultTrialSet]
 
     def _initAnalysisAndPresentation(self, analysisCLS, presentationCLS):
@@ -474,6 +491,7 @@ class TrialSetWithData(argosDataObjects.TrialSet):
     """
 
     def _initTrials(self):
+        """Initialize trials from trial set metadata with data engine links."""
         for trial in self._metadata["trials"]:
             self[trial["name"]] = TrialWithdata(
                 trialSet=self,
@@ -542,6 +560,17 @@ class TrialWithdata(argosDataObjects.Trial):
         metadata: dict,
         experimentData: dataEngineFactory,
     ):
+        """Initialize a trial with a link to the shared data engine.
+
+        Parameters
+        ----------
+        trialSet : TrialSetWithData
+            Parent trial set.
+        metadata : dict
+            Trial metadata from the experiment setup.
+        experimentData : dataEngineFactory
+            Shared experiment data engine.
+        """
         self._experimentData = experimentData
         super().__init__(trialSet, metadata)
 
@@ -552,6 +581,7 @@ class EntityTypeWithData(argosDataObjects.EntityType):
     """
 
     def _initEntities(self):
+        """Initialize entities from entity type metadata with data engine links."""
         for entity in self._metadata["entities"]:
             self[entity["name"]] = EntityWithData(
                 entityType=self,
@@ -620,6 +650,17 @@ class EntityWithData(argosDataObjects.Entity):
         metadata: dict,
         experimentData,
     ):
+        """Initialize an entity with a link to the shared data engine.
+
+        Parameters
+        ----------
+        entityType : EntityTypeWithData
+            Parent entity type.
+        metadata : dict
+            Entity metadata from the experiment setup.
+        experimentData : object
+            Shared experiment data engine.
+        """
         self._experimentData = experimentData
         super().__init__(entityType, metadata)
 

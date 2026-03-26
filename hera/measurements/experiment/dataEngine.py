@@ -10,11 +10,30 @@ PANDASDB = 'pandasDataEngineDB'
 DASKDB = 'daskDataEngineDB'
 
 class dataEngineFactory:
+    """Factory for creating experiment data engine instances."""
 
     def __init__(self):
+        """Initialize the data engine factory."""
         pass
 
     def getDataEngine(self,projectName, datasourceConfiguration,experimentObj, dataType = PARQUETHERA):
+        """Create and return a data engine of the requested type.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        datasourceConfiguration : dict
+            Data source configuration dictionary.
+        experimentObj : object
+            The parent experiment object.
+        dataType : str, optional
+            Engine type identifier (PARQUETHERA, PANDASDB, or DASKDB).
+
+        Returns
+        -------
+        pandasDataEngineDB or parquetDataEngineHera or daskDataEngineDB
+        """
 
         if dataType == PANDASDB:
             return pandasDataEngineDB(projectName,datasourceConfiguration)
@@ -26,15 +45,18 @@ class dataEngineFactory:
             raise NotImplementedError(f"Hera datalayer {dataType} is not implemeneted yet. ")
 
 class pandasDataEngineDB:
+    """Data engine that retrieves experiment data from MongoDB using pandas."""
 
     _mongo_client = None
     _dbConfiguration = None
 
     @property
     def DBconfiguration(self):
+        """Return the database configuration dictionary."""
         self._dbConfiguration
 
     def dbConnect(self):
+        """Establish a connection to the MongoDB server."""
         # print("mongodb://" + self._DB['login']['username'] + ":" + self._DB['login']['password'] + "@" +
         #      self._DB['login']['ip'] + ":" + self._DB['login']['port'] + "/")
         try:
@@ -47,7 +69,15 @@ class pandasDataEngineDB:
             return e
 
     def __init__(self, projectName,datasourceConfiguration):
+        """Initialize the pandas DB engine and connect to MongoDB.
 
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        datasourceConfiguration : dict
+            Configuration dictionary containing 'DB' connection details.
+        """
         if 'DB' not in datasourceConfiguration:
             raise ValueError(f"The configuration file does not have 'DB' definitions\n Got: {json.dumps(datasourceConfiguration,indent=4)}")
 
@@ -116,7 +146,23 @@ class pandasDataEngineDB:
         return data
 
     def getData(self, deviceType, deviceName=None, startTime=None, endTime=None):
+        """Query MongoDB and return device data as a pandas DataFrame.
 
+        Parameters
+        ----------
+        deviceType : str
+            The device type (collection name).
+        deviceName : str, optional
+            Filter by specific device name.
+        startTime : datetime-like or float, optional
+            Start of the time range.
+        endTime : datetime-like or float, optional
+            End of the time range.
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
         collectionList = [x['name'] for x in self._mongo_client[self._dbConfiguration['db_name']].list_collections()]
         if deviceType not in collectionList:
             raise ValueError(f"device type {deviceType} not found. Should be one of {','.join(collectionList)}")
@@ -157,29 +203,53 @@ class pandasDataEngineDB:
         return ret
 
     def getDeviceList(self, device):
+        """Return the list of entities for the given device type.
 
+        Parameters
+        ----------
+        device : str
+            The device type name.
+        """
         devicesList = self._experimentObj.experimentSetup.entityType
         return devicesList[device]
 
     def getDeviceTable(self, device):
+        """Return the entity type table for the given device type.
 
+        Parameters
+        ----------
+        device : str
+            The device type name.
+        """
         Table = self._experimentObj.experimentSetup.entityTypeTable
         return Table[device]
 
 class daskDataEngineDB:
+    """Data engine that retrieves experiment data from MongoDB using dask."""
 
     _mongo_client = None
     _dbConfiguration = None
 
     @property
     def DBconfiguration(self):
+        """Return the database configuration dictionary."""
         self._dbConfiguration
 
     @property
     def connectionString(self):
+        """Return the MongoDB connection URI string."""
         return f"mongodb://{self._dbConfiguration['login']['username']}:{self._dbConfiguration['login']['password']}@{self._dbConfiguration['login']['ip']}:{self._dbConfiguration['login']['port']}/"
 
     def __init__(self, projectName, datasourceConfiguration):
+        """Initialize the dask DB engine with connection configuration.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        datasourceConfiguration : dict
+            Configuration dictionary containing 'DB' connection details.
+        """
 
         if 'DB' not in datasourceConfiguration:
             raise ValueError(f"The configuration file does not have 'DB' definitions\n Got: {json.dumps(datasourceConfiguration,indent=4)}")
@@ -250,7 +320,23 @@ class daskDataEngineDB:
         return data
 
     def getData(self, deviceType, deviceName=None, startTime=None, endTime=None):
+        """Query MongoDB and return device data as a dask DataFrame.
 
+        Parameters
+        ----------
+        deviceType : str
+            The device type (collection name).
+        deviceName : str, optional
+            Filter by specific device name.
+        startTime : datetime-like or float, optional
+            Start of the time range.
+        endTime : datetime-like or float, optional
+            End of the time range.
+
+        Returns
+        -------
+        dask.DataFrame or None
+        """
         # collectionList = [x['name'] for x in self._mongo_client[self._dbConfiguration['db_name']].list_collections()]
         # if deviceType not in collectionList:
         #     raise ValueError(f"device type {deviceType} not found. Should be one of {','.join(collectionList)}")
@@ -292,21 +378,46 @@ class daskDataEngineDB:
         return ret
 
     def getDeviceList(self, device):
+        """Return the list of entities for the given device type.
 
+        Parameters
+        ----------
+        device : str
+            The device type name.
+        """
         devicesList = self._experimentObj.experimentSetup.entityType
         return devicesList[device]
 
     def getDeviceTable(self, device):
+        """Return the entity type table for the given device type.
 
+        Parameters
+        ----------
+        device : str
+            The device type name.
+        """
         Table = self._experimentObj.experimentSetup.entityTypeTable
         return Table[device]
 
 class parquetDataEngineHera(datalayer.Project):
+    """Data engine that retrieves experiment data from Hera parquet storage."""
+
     experimentName = None
     experimentObj = None
 
 
     def __init__(self, projectName, datasourceConfiguration,experimentObj):
+        """Initialize the parquet data engine.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        datasourceConfiguration : dict
+            Configuration dictionary with experiment name and settings.
+        experimentObj : object
+            The parent experiment object.
+        """
         logger = get_classMethod_logger(self,"parquetDataEngineHera")
 
         super().__init__(projectName=projectName)
