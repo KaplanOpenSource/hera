@@ -1,6 +1,6 @@
 # Hera Documentation
 
-**Version 2.15.5** | Scientific Data Management & Analysis Platform
+**Version 2.16.0** | Scientific Data Management & Analysis Platform
 
 ---
 
