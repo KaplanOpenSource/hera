@@ -7,6 +7,7 @@ except ImportError:
 from hera.utils.unitHandler import ureg
 
 def standardize_polygon(poly, units_conversion):
+    """Scale polygon coordinates by a units conversion factor."""
     if isinstance(poly, list):
         xs = [p[0] for p in poly]
         ys = [p[1] for p in poly]

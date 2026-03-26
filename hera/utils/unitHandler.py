@@ -258,6 +258,7 @@ if unumSupport:
     def convert_unum_units_to_eval_str(unit_str):
         """Convert a unum-style unit string to an eval-safe expression."""
         def replace_exponents(match):
+            """Replace unit-exponent pairs with Python power syntax."""
             unit = match.group(1)
             exponent = match.group(2)
             return f"{unit}**{exponent}"

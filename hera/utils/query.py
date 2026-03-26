@@ -85,6 +85,7 @@ def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
     ret = {}
 
     def determineType(value, prefix,prefixExclude):
+        """Dispatch value by type and recurse or store in ret."""
         if isinstance(value, dict):
             _dictToMongo(value, local_prefix=prefix,prefixExclude=prefixExclude)
         elif isinstance(value, list):
@@ -95,6 +96,7 @@ def dictToMongoQuery(dictObj,prefix="",prefixExclude="desc"):
             ret[prefix] = value
 
     def _dictToMongo(dictObj,local_prefix,prefixExclude):
+        """Recursively flatten a dict into mongo-style dot-separated keys."""
         for key,value in dictObj.items():
             if key==prefixExclude:
                 new_prefix = local_prefix

@@ -37,16 +37,19 @@ class bibItem:
 
 
     def isHebrewText(self,line):
+        """Check whether a single line contains Hebrew characters."""
         return any(['HEBREW' in self._getUnicodeName(c) for c in line])
 
 
     def _getUnicodeName(self,c):
+        """Return the Unicode name of a character, or 'NONE' on failure."""
         try:
             return unicodedata.name(c)
         except ValueError:
             return 'NONE'
 
     def convert(self):
+        """Convert the bib item, wrapping Hebrew text with appropriate LaTeX commands."""
         if self.isHebrew:
             newItem = ['\\sethebrew\n']
             for line in self._item:
@@ -153,7 +156,14 @@ class bibtexFile:
     _first_last_Lines = None
 
     def __init__(self,thefile):
+        """
+        Initialize the bibtexFile by reading and parsing bib items.
 
+        Parameters
+        ----------
+        thefile : str or file-like
+            Path to the bbl file or an open file object.
+        """
         thefileStr = None
 
         if isinstance(thefile,str):
@@ -198,9 +208,11 @@ class bibtexFile:
 
     @property
     def items(self):
+        """List of parsed bibItem objects."""
         return self._bibItems
 
     def convert(self):
+        """Convert all bib items and return the full file as a string."""
         final = []
         for itm in self.items:
             final.append(itm.convert())

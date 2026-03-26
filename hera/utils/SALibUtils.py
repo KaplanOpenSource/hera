@@ -6,7 +6,8 @@ import json
 from hera.utils.jsonutils import setJSONPath
 
 class SALibUtils:
-    
+    """Utilities for building and transforming SALib sensitivity analysis problems."""
+
     @classmethod
     def buildSAProblem(cls, **kwargs):
         """
@@ -55,7 +56,7 @@ class SALibUtils:
 
     @classmethod
     def transformSample(cls, batchList, problemContainer):
-
+        """Transform raw SALib samples to their actual typed values."""
         typeDict = problemContainer['type']
         newbatchList = []
         for batch in batchList:
@@ -70,14 +71,17 @@ class SALibUtils:
 
     @classmethod
     def typeInt(cls,lower,upper):
+        """Build a type descriptor for an integer parameter."""
         return dict(type="int",parameters=[lower,upper+1])
 
     @classmethod
     def typeList(cls,items):
+        """Build a type descriptor for a categorical list parameter."""
         return dict(type="list", parameters=items)
 
     @classmethod
     def typeLog(cls,lower,upper):
+        """Build a type descriptor for a log-scale parameter."""
         return dict(type="log",parameters=[lower,upper])
 
 
@@ -86,14 +90,17 @@ class SALibUtils:
     ##----------------------------------------------------------
     @classmethod
     def _getBounds_list(cls,parameters):
+        """Return sampling bounds for a list-type parameter."""
         return [0,len(parameters)]
 
     @classmethod
     def _getBounds_int(cls,parameters):
+        """Return sampling bounds for an integer-type parameter."""
         return [parameters[0],parameters[1]+1]
 
     @classmethod
     def _getBounds_log(cls,parameters):
+        """Return sampling bounds for a log-scale parameter."""
         return [parameters[0],parameters[1]+1]
 
     ##----------------------------------------------------------
@@ -101,6 +108,7 @@ class SALibUtils:
     ##----------------------------------------------------------
     @classmethod
     def _transform_list(cls,value,meta):
+        """Map a sampled float to the corresponding list item."""
         indx = int(numpy.floor(value))
         if indx==len(meta['parameters']):
             indx -=1
@@ -108,14 +116,17 @@ class SALibUtils:
 
     @classmethod
     def _transform_int(cls,value,meta):
+        """Transform a sampled float to an integer by flooring."""
         return int(numpy.floor(value))
 
     @classmethod
     def _transform_log(cls,value,meta):
+        """Transform a sampled value to log-scale (10**value)."""
         return 10**float(value)
 
     @classmethod
     def _transform_float(cls,value,meta):
+        """Transform a sampled value to a Python float."""
         return float(value)
 
 
