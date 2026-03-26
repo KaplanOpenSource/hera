@@ -118,14 +118,48 @@ Base class for all vector GIS toolkits. Adds:
 
 **Source:** `vector/buildings/toolkit.py` + `vector/buildings/analysis.py`
 
-Key internals:
-- `getBuildingsFromRectangle()` — queries OpenStreetMap-style data within a bounding box
-- `get_buildings_height()` — extracts height from `BLDG_HT` column, falls back to `building:levels × 3`
-- `analysis.py` provides building morphology calculations:
-  - `_LambdaP()` — plan area density (λp)
-  - `_A_f()` — frontal area density
-  - `iterBlocks()` — iterate over spatial blocks for block-averaged statistics
-  - `getHc()` — average building height
+**Toolkit methods:**
+
+| Method | Purpose |
+|--------|---------|
+| `getBuildingsFromRectangle(minx, miny, maxx, maxy, dataSourceName, inputCRS, withElevation)` | Query footprints by bounding box, optionally add raster topography elevation |
+| `getBuildingHeightFromRasterTopographyToolkit(buildingData, topographyDataSource)` | Add ground elevation column from SRTM at each building centroid |
+| `get_buildings_height(gdf)` | Extract height from `BLDG_HT` column; fallback to `building:levels * 3` |
+| `filter_buildings_in_area(buildings_data, min_lon, min_lat, max_lon, max_lat)` | Filter GeoJSON features by bounding box (static method) |
+| `buildingsGeopandasToSTLRasterTopography(buildingData, ...)` | Convert GeoDataFrame to 3D STL mesh via FreeCAD |
+| `regionToSTL(minx, miny, maxx, maxy, dxdy, inputCRS, outputCRS, solidName, fileName)` | High-level STL generation for a bounding box |
+
+**Height resolution logic** (in `getBuildingsFromRectangle` and `_LambdaP`):
+
+1. Use `BLDG_HT` column if present and > 0
+2. If `BLDG_HT` is 0 but `HI_PNT_Z` and `HT_LAND` exist, compute `HI_PNT_Z - HT_LAND`
+3. If `HT_LAND` is 0, use nearest building's `HT_LAND` as fallback
+4. If no height data, `get_buildings_height` uses `building:levels * 3`
+5. Buildings with `FTYPE` 14 or 16 are excluded from morphology calculations
+
+**Analysis layer (`analysis.py`):**
+
+| Method | Purpose |
+|--------|---------|
+| `LambdaFromBuildingData(windDirection, resolution, buildingsData, overwrite, saveCache)` | Compute block-averaged λp, λf, hc for a domain; caches results in DB |
+| `ConvexPolygons(regionNameOrData, buffer)` | Group nearby buildings into convex hulls (recursive merge of overlapping hulls) |
+
+**Blocks class** — domain decomposition engine used by `LambdaFromBuildingData`:
+
+The `Blocks` class divides the domain bounding box into a grid of square cells and computes morphology parameters per cell:
+
+| Method | Purpose |
+|--------|---------|
+| `__init__(level, df, exteriorBlock, **kwargs)` | Create a block level with division by `size`, `npxy`, `width`/`height`, or `npx`/`npy` |
+| `iterBlocks(**kwargs)` | Create a nested block level one level deeper |
+| `Lambda(buildings, windDirection)` | Iterate all blocks, compute λp, λf, hc per block, return GeoDataFrame |
+| `initBuildingsBlock(blockDict)` | Clip buildings to a single block extent |
+| `_LambdaP()` | Plan area fraction: total building footprint / block area |
+| `_LambdaF(windDirection)` | Frontal area density: rotate each building by wind direction, project width × height |
+| `_A_f(buildingGeometry, height, windDirection)` | Frontal area of a single building |
+| `getHc()` | Area-weighted mean building height |
+
+**Cache strategy:** `LambdaFromBuildingData` stores results as `type="Lambda_Buildings"` documents in the Cache collection, keyed by `(bounds, wind, resolution, crs)`. Uses a project counter (`analysis_CacheCounter`) for unique GeoJSON filenames.
 
 ### DemographyToolkit
 

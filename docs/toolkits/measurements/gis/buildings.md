@@ -23,7 +23,7 @@ morphology = buildings.analysis.LambdaFromBuildingData(
 )
 ```
 
-For the full API, see the [API Reference](../../developer_guide/api/measurements.md). For implementation details, see the [Developer Guide](../../developer_guide/measurements/gis.md).
+For the full API, see the [API Reference](../../developer_guide/api/measurements.md). For implementation details (height resolution logic, Blocks class, cache strategy), see the [Developer Guide > GIS > BuildingsToolkit](../../developer_guide/measurements/gis.md#buildingstoolkit).
 
 ---
 
