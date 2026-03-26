@@ -104,11 +104,68 @@ classDiagram
 
 `experimentSetupWithData` uses multiple inheritance — it extends both `argosDataObjects.ExperimentZipFile` (for experiment metadata from Argos zip files) and `abstractToolkit` (for Hera data layer access). Trial and Entity classes similarly extend their Argos counterparts while adding the `_experimentData` reference for data retrieval.
 
+### Experiment factory pattern
+
+Argos experiments can be loaded from two sources:
+
+| Factory | Source | Location |
+|---------|--------|----------|
+| `fileExperimentFactory` | Local ZIP file or JSON | `pyargos/argos/experimentSetup/dataObjectsFactory.py` |
+| `webExperimentFactory` | ArgosWEB server via GraphQL | `pyargos/argos/experimentSetup/dataObjectsFactory.py` |
+
+Both return the same `Experiment` interface. In Hera, `experimentSetupWithData.__init__` uses `fileExperimentFactory` internally when loading from the experiment directory.
+
+### JSON version migration
+
+The Argos ZIP `data.json` has three schema versions. All are normalised to an internal canonical format on load:
+
+| Version | Key naming | Structure |
+|---------|-----------|-----------|
+| **1.0.0** | `entityTypes`, `trialSets` | Matches internal format (pass-through) |
+| **2.0.0** | `entityTypes`, `entities`, `trialSets`, `trials` | Flat references with cross-linking by key |
+| **3.0.0** (current) | `deviceTypes`, `trialTypes` | Device-centric naming, nested structure |
+
+Migration is handled by `_fix_json_version_X_X_X()` methods in `ExperimentZipFile`. The canonical internal format always uses:
+
+```python
+{
+    "experiment": {"name": "...", "description": "...", "version": "..."},
+    "entityTypes": [{"name": "...", "attributeTypes": [...], "entities": [...]}],
+    "trialSets": [{"name": "...", "attributeTypes": [...], "trials": [...]}],
+    "maps": [...]
+}
+```
+
+### Property type parsing
+
+When `Trial.__init__` processes properties, each type has a dedicated parser:
+
+| Type | Parser | Conversion |
+|------|--------|------------|
+| `String` / `text` / `textArea` | `_parseProperty_text` | Pass-through |
+| `Number` | `_parseProperty_number` | `float(value)` |
+| `Boolean` | `_parseProperty_boolean` | Handles `"true"/"false"`, `"yes"/"no"`, `"1"/"0"` |
+| `Date` | `_parseProperty_datetime` | ISO 8601 string (not converted to Timestamp) |
+| `datetime_local` | `_parseProperty_datetime` | Parsed to `pandas.Timestamp` with Israel TZ |
+| `location` | `_parseProperty_location` | Expands to `locationName`, `latitude`, `longitude` |
+| `selectList` | `_parseProperty_selectList` | Value from predefined options |
+
+### Containment resolution algorithm
+
+`fill_properties_by_contained()` in `pyargos/argos/experimentSetup/fillContained.py`:
+
+1. For each entity in a trial's `devicesOnTrial`:
+2. If `containedIn` is set, walk up the parent chain
+3. Copy missing attributes from parent to child (child's own values take precedence)
+4. Inherit location from parent if child has none
+5. Flatten `location` object into `mapName`, `latitude`, `longitude` columns
+6. Flatten `containedIn` into `containedInType`, `containedIn` (name only)
+
 ---
 
 ## Argos zip file structure
 
-The Argos zip file (e.g. `HaifaFluxes2014.zip`) is the single source of truth for experiment metadata. It contains a `data.json` file and optionally an `images/` directory with map images.
+The Argos zip file (e.g. `HaifaFluxes2014.zip`) is the single source of truth for experiment metadata. It contains a `data.json` file, optionally an `images/` directory with map images, and optionally a `shapes.geojson` file.
 
 `ExperimentZipFile.__init__()` extracts `data.json`, migrates it from any supported version (1.0.0, 2.0.0, 3.0.0) to the canonical internal format, then initialises `TrialSet` and `EntityType` objects from the parsed structure.
 
@@ -823,11 +880,111 @@ sequenceDiagram
 
 ---
 
+## Data pipeline infrastructure
+
+The experiment system supports a real-time data pipeline from field sensors to Parquet files. This infrastructure is implemented in pyArgos (`argos/`) and integrated with Hera's experiment toolkit.
+
+### Pipeline architecture
+
+```
+Field Devices → Node-RED → Kafka → pyArgos Consumer → Parquet files → Hera
+               (normalise   (1 topic    (batch consume     (data/ dir)    (analysis +
+                + route)     per type)   up to 5000 msgs)                  presentation)
+```
+
+### Kafka consumer (`argos/kafka/`)
+
+The Kafka consumer reads messages from per-device-type topics and writes Parquet files:
+
+1. Poll messages in batches (up to 5000 per batch)
+2. JSON → Pandas DataFrame
+3. Add `datetime` column (Israel timezone)
+4. Cast numeric columns (Temperature, RH → `float64`)
+5. Sort by timestamp, remove duplicates
+6. Append to or create Parquet file in `data/` directory
+
+```python
+from argos.kafka.consumer import consume_topic, consume_topic_server
+
+# One-shot: drain all messages and exit
+consume_topic("Sonic", "data/")
+
+# Continuous: poll in loop with delay
+consume_topic_server("Sonic", "data/", delayInSeconds=300)
+```
+
+Configuration in `Datasources_Configurations.json`:
+```json
+{
+    "experimentName": "MyExperiment",
+    "kafka": {
+        "bootstrap_servers": ["127.0.0.1:9092"]
+    }
+}
+```
+
+### ThingsBoard integration (`argos/thingsboard/`)
+
+The experiment manager can load device configurations to ThingsBoard for IoT device management:
+
+```python
+from argos.manager import experimentManager
+
+manager = experimentManager("/path/to/experiment")
+manager.loadDevicesToThingsboard()                              # create profiles + devices
+manager.loadTrialDesignToThingsboard("design", "myTrial")       # upload trial config
+manager.clearDevicesFromThingsboard()                           # cleanup
+```
+
+When loading a trial, pyArgos:
+1. Clears all attribute scopes on each device
+2. Writes trial-specific attributes as `SERVER_SCOPE`
+3. Devices receive the new configuration
+
+### Node-RED integration (`argos/nodered/`)
+
+Node-RED normalises and routes sensor data. A device map connects device identifiers to entity types:
+
+```json
+{
+    "Sensor 1": {"entityType": "DEVICE", "entityName": "Sensor_0001"},
+    "Sensor 2": {"entityType": "DEVICE", "entityName": "Sensor_0002"}
+}
+```
+
+Generate with:
+```bash
+python -m argos.bin.trialManager --noderedCreateDeviceMap
+```
+
+### NoSQL backends (`argos/noSQLdask/`)
+
+For experiments that store data in NoSQL databases rather than Parquet files:
+
+| Class | Backend | Use case |
+|-------|---------|----------|
+| `CassandraBag` | Cassandra (ThingsBoard telemetry) | Read from `ts_kv_cf` table |
+| `MongoBag` | MongoDB | Time-range queries on collections |
+
+Both use Dask for parallel partitioned reads across time ranges.
+
+### Configuration files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `Datasources_Configurations.json` | `runtimeExperimentData/` | Kafka bootstrap servers, ThingsBoard credentials, experiment name |
+| `deviceMap.json` | `runtimeExperimentData/` | Node-RED device routing table |
+| `<experiment>.zip` | `runtimeExperimentData/` | Argos metadata (data.json + images) |
+| `<experiment>_repository.json` | Experiment root | Hera data source registration |
+
+---
+
 ## Cross-references
 
 | What | Where |
 |------|-------|
 | User guide (experiment usage) | [Toolkits > Measurements > Experiment](../../toolkits/measurements/experiment.md) |
 | API reference (auto-generated) | [API > Measurements](../api/measurements.md) |
-| Argos data objects | `hera/measurements/experiment/argosDataObjects.py` |
+| Argos data objects | `pyargos/argos/experimentSetup/dataObjects.py` |
+| Argos documentation | `pyargos/docs/` |
 | CLI reference | [CLI Reference > hera-experiment](../../cli/reference.md#hera-experiment) |
