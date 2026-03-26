@@ -67,6 +67,7 @@ class MetadataFrame(object):
         return getHandler(self.dataFormat).getData(resource=self.resource,desc=self.desc, **storeParametersDict)
 
     def __str__(self):
+        """Return a pretty-printed JSON representation of the document."""
         return json.dumps(self.asDict(with_id=False),indent=4)
 
 

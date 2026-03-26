@@ -25,6 +25,14 @@ class AbstractCollection(object):
         return self._type
 
     def __init__(self, ctype=None, connectionName=None):
+        """
+        Parameters
+        ----------
+        ctype : str or None
+            Collection type name (e.g. 'Measurements'). None for all types.
+        connectionName : str or None
+            Optional database connection alias.
+        """
         self._type = ctype
         self._metadataCol = getDBObject('Metadata', connectionName) if self.type is None else getDBObject(ctype, connectionName)
 
@@ -93,6 +101,7 @@ class AbstractCollection(object):
         return self._metadataCol.objects(**query)
 
     def _getAllValueByKey(self, key, **query):
+        """Return all unique values for ``key`` across matching documents."""
         return list(set([doc[key] for doc in self.getDocuments(projectName=None, **query)]))
 
     def getProjectList(self):
@@ -220,6 +229,12 @@ class Measurements_Collection(AbstractCollection):
     """
 
     def __init__(self, connectionName=None):
+        """
+        Parameters
+        ----------
+        connectionName : str or None
+            Optional database connection alias.
+        """
         if version == 2:
             super(Measurements_Collection, self).__init__(ctype='Measurements', connectionName=connectionName)
         elif version == 3:
@@ -235,6 +250,12 @@ class Simulations_Collection(AbstractCollection):
     """
 
     def __init__(self, connectionName=None):
+        """
+        Parameters
+        ----------
+        connectionName : str or None
+            Optional database connection alias.
+        """
         if version == 2:
             super(Simulations_Collection, self).__init__(ctype='Simulations', connectionName=connectionName)
         elif version == 3:
@@ -246,6 +267,12 @@ class Cache_Collection(AbstractCollection):
     """
 
     def __init__(self, connectionName=None):
+        """
+        Parameters
+        ----------
+        connectionName : str or None
+            Optional database connection alias.
+        """
         if version == 2:
             super(Cache_Collection, self).__init__(ctype='Cache', connectionName=connectionName)
         elif version == 3:

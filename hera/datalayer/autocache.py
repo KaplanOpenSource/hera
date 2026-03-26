@@ -86,8 +86,10 @@ def cacheFunction(_func=None, *, returnFormat=None, projectName=None, postProces
         Extra keyword arguments passed when saving to cache.
     """
     def decorator(func):
+        """Wrap the target function with caching logic."""
         @wraps(func)
         def wrapper(*args, **kwargs):
+            """Invoke the cached version of the wrapped function."""
             return cacheDecorators(
                 func=func,
                 dataFormat=returnFormat,
@@ -124,6 +126,7 @@ class cacheDecorators:
 
     @staticmethod
     def is_mongo_serializable(obj):
+        """Check whether ``obj`` can be BSON-encoded for MongoDB storage."""
         try:
             # BSON expects a dict at the top level
             BSON.encode({'test': obj})
@@ -134,6 +137,7 @@ class cacheDecorators:
     # Serialize an object into a plain text
     @staticmethod
     def obj_to_txt(obj):
+        """Serialize ``obj`` to a base64-encoded text string via pickle."""
         message_bytes = pickle.dumps(obj)
         base64_bytes = base64.b64encode(message_bytes)
         txt = base64_bytes.decode('ascii')
@@ -142,12 +146,29 @@ class cacheDecorators:
     # De-serialize an object from a plain text
     @staticmethod
     def txt_to_obj(txt):
+        """Deserialize an object from a base64-encoded text string."""
         base64_bytes = txt.encode('ascii')
         message_bytes = base64.b64decode(base64_bytes)
         obj = pickle.loads(message_bytes)
         return obj
 
     def __init__(self, func,dataFormat,projectName = None,postProcessFunction=None,getDataParams={},storeDataParams={}):
+        """
+        Parameters
+        ----------
+        func : callable
+            The function whose results are cached.
+        dataFormat : str or None
+            Storage format for the cached data.
+        projectName : str or None
+            Project that owns the cache collection.
+        postProcessFunction : callable or None
+            Optional transform applied to the result before returning.
+        getDataParams : dict
+            Extra keyword arguments forwarded to ``getData``.
+        storeDataParams : dict
+            Extra keyword arguments forwarded when saving data.
+        """
         self.func = func
         self.postProcessFunction = postProcessFunction
         self.projectName = projectName
@@ -156,7 +177,7 @@ class cacheDecorators:
         self.dataFormat = dataFormat
 
     def __call__(self, *args, **kwargs):
-
+        """Execute the function, returning a cached result when available."""
         sig = inspect.signature(self.func)
 
         # Bind the passed args and kwargs to the signature
