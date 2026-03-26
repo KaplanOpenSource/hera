@@ -89,6 +89,8 @@ flowchart TD
 | `source set_hera_environment.sh` | Set environment variables, create venv, configure `.bashrc` (called automatically by `init_with_mongo.sh`) |
 | `source activate_hera.sh` | Activate the Hera venv and environment in the current shell |
 | `init_with_mongo.sh` | Full initialization: environment setup + MongoDB via Docker |
+| `./serve_docs.sh` | Start local MkDocs preview server (renders diagrams first) |
+| `python render_diagrams.py` | Render Mermaid diagrams to SVG using Docker (incremental) |
 
 ### Managing MongoDB with Make
 
@@ -108,6 +110,24 @@ make mongo-up MONGO_DATA=/path/to/data   # Override data directory
 ```bash
 make test-setup            # Create test data directory at ~/hera_unittest_data
 make test                  # Run all tests (requires MongoDB + test data)
+```
+
+### Building Documentation
+
+The documentation site can be built and previewed locally. Diagram images are pre-rendered using a Docker-based Mermaid CLI (pulled automatically on first build).
+
+```bash
+make docs-build            # Full build: render diagrams + build MkDocs site
+make docs-serve            # Render diagrams + start local preview at localhost:8000
+make docs-deploy           # Render diagrams + deploy to GitHub Pages
+```
+
+Diagram rendering is incremental — only new or changed diagrams are re-rendered (~2s each). Unchanged diagrams are skipped instantly.
+
+```bash
+make render-diagrams       # Render new/changed diagrams only
+make render-diagrams-force # Re-render ALL diagrams from scratch
+make docs-clean            # Remove built site/
 ```
 
 Run `make help` to see all available targets.
