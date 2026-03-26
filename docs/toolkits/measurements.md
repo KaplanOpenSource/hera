@@ -130,11 +130,85 @@ The toolkit maps display names to column names: `"All"` → `total_pop`, `"Child
 demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
 
 # Calculate population within a polygon
-pop = demo.calculatePopulationInPolygon(polygon=my_area, datasource="census_2020")
+pop = demo.analysis.calculatePopulationInPolygon(
+    shapelyPolygon=my_area,
+    dataSourceOrData="census_2020"
+)
 
 # Create a new area GeoDataFrame
-area_gdf = demo.createNewArea(polygon=my_area, datasource="census_2020")
+area_gdf = demo.analysis.createNewArea(
+    shapeNameOrData=my_area,
+    dataSourceOrData="census_2020"
+)
 ```
+
+#### Presentation layer
+
+The demography toolkit has a presentation layer for visualizing population data on maps. All plotting methods support coordinate system control via the `WSG84` and `ITM` constants:
+
+```python
+from hera.measurements.GIS import WSG84, ITM
+```
+
+**Plot population density** (people/km²):
+
+```python
+# Load demographic data
+census = demo.getDataSourceData("census_2020")
+
+# Plot population density — defaults to ITM coordinates
+ax = demo.presentation.plotPopulationDensity(census)
+
+# Full control over the plot
+ax = demo.presentation.plotPopulationDensity(
+    census,
+    populationType="total_pop",   # column to plot
+    inputCRS=WSG84,               # data is in WGS84
+    outputCRS=ITM,                # plot in ITM (default)
+    cmap="YlOrRd",                # colormap
+    vmin=0, vmax=10000,           # color scale range
+    alpha=0.8,                    # transparency
+    edgecolor="0.3",              # polygon edge color
+    linewidth=0.5,                # polygon edge width
+    xlim=(170000, 190000),        # x-axis domain (ITM meters)
+    ylim=(660000, 670000),        # y-axis domain
+    title="Population Density [people/km²]",
+    colorbar=True,
+    colorbar_label="Density [people/km²]"
+)
+```
+
+**Plot absolute population counts**:
+
+```python
+ax = demo.presentation.plotPopulation(
+    census,
+    populationType="total_pop",
+    cmap="Blues",
+    outputCRS=ITM
+)
+```
+
+**Plot all age groups** as a grid of subplots:
+
+```python
+# Shows All, Children, Youth, YoungAdults, Adults, Elderly
+fig = demo.presentation.plotPopulationByType(
+    census,
+    ncols=3,                      # 3 columns in the grid
+    cmap="YlOrRd",
+    alpha=0.8,
+    inputCRS=WSG84,
+    outputCRS=ITM
+)
+```
+
+**CRS constants:**
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ITM` | 2039 | Israeli Transverse Mercator (meters) — default for plotting |
+| `WSG84` | 4326 | WGS84 (degrees lat/lon) |
 
 ### Land Cover
 
