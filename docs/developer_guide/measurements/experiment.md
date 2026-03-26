@@ -350,6 +350,183 @@ flowchart TD
 5. Analysis methods query data via the engine and cache results
 6. Presentation methods call analysis for data and render visualizations
 
+### Trial.getData swimlane
+
+The call chain when retrieving data for a specific trial. The trial resolves its own start/end times from Argos metadata, then delegates to the shared data engine:
+
+![Diagram](../../images/diagrams/dev_guide_experiment_trial_getData.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant Trial as TrialWithdata
+    participant Argos as Argos Trial<br/>(base class)
+    participant Engine as _experimentData<br/>(parquetDataEngineHera)
+    participant Project as Project<br/>(data layer)
+    participant MongoDB as MongoDB
+    participant Disk as File System
+
+    User->>Trial: getData(deviceType, deviceName, startTime, endTime, withMetadata)
+
+    alt startTime/endTime not provided
+        Trial->>Argos: self.properties[TRIALSTART]
+        Argos-->>Trial: startTime
+        Trial->>Argos: self.properties[TRIALEND]
+        Argos-->>Trial: endTime
+    end
+
+    Trial->>Engine: getData(deviceType, deviceName, startTime, endTime)
+
+    Note over Engine: parquetDataEngineHera<br/>extends Project
+
+    Engine->>Project: getMeasurementsDocuments(<br/>type="Experiment_rawData",<br/>experimentName=...,<br/>deviceType=...)
+    Project->>MongoDB: query
+    MongoDB-->>Project: document list
+    Project-->>Engine: documents
+
+    Engine->>Engine: doc = documents[0]
+    Engine->>Disk: doc.getData()<br/>→ dask.read_parquet(resource)
+    Disk-->>Engine: dask DataFrame
+
+    alt deviceName specified AND not perDevice
+        Engine->>Engine: filter by deviceName column
+    end
+
+    Engine->>Engine: data.loc[startTime:endTime]
+    Engine-->>Trial: filtered DataFrame
+
+    alt withMetadata=True
+        Trial->>Argos: self.entitiesTable()
+        Argos-->>Trial: metadata DataFrame
+        Trial->>Trial: merge data with metadata<br/>on deviceName
+    end
+
+    Trial-->>User: DataFrame
+```
+-->
+
+### EntityType.getData and EntityType.getDataTrial swimlanes
+
+Entity types provide two data access paths — by time range or by trial name. Both resolve to the same data engine call:
+
+![Diagram](../../images/diagrams/dev_guide_experiment_entity_getData.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant ET as EntityTypeWithData
+    participant Trial as TrialWithdata
+    participant Argos as Argos Trial
+    participant Engine as _experimentData
+
+    rect rgb(240, 248, 255)
+    Note over User,Engine: Path A: EntityType.getData(startTime, endTime)
+    User->>ET: getData(startTime, endTime)
+    ET->>Engine: getData(deviceType=self.name,<br/>startTime, endTime)
+    Engine-->>ET: DataFrame (all devices)
+    ET-->>User: DataFrame
+    end
+
+    rect rgb(255, 248, 240)
+    Note over User,Engine: Path B: EntityType.getDataTrial(trialSetName, trialName)
+    User->>ET: getDataTrial(trialSetName, trialName)
+    ET->>ET: trial = self.experiment.trialSet[trialSetName][trialName]
+    ET->>Argos: trial.properties[TRIALSTART]
+    Argos-->>ET: startTime
+    ET->>Argos: trial.properties[TRIALEND]
+    Argos-->>ET: endTime
+    ET->>ET: perDevice = self.properties["StoreDataPerDevice"]
+    ET->>Engine: getData(deviceType=self.name,<br/>startTime, endTime,<br/>perDevice=perDevice)
+    Engine-->>ET: DataFrame
+    ET-->>User: DataFrame
+    end
+```
+-->
+
+### Entity.getData swimlane
+
+A single entity (device/sensor) retrieves its own data by passing both its type and name to the engine:
+
+![Diagram](../../images/diagrams/dev_guide_experiment_single_entity.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant Entity as EntityWithData
+    participant Engine as _experimentData<br/>(shared engine)
+    participant DataLayer as Project / MongoDB / Disk
+
+    User->>Entity: getData(startTime, endTime)
+    Entity->>Entity: perDevice = self.properties["StoreDataPerDevice"]
+    Entity->>Engine: getData(<br/>deviceType=self.entityType,<br/>deviceName=self.name,<br/>startTime, endTime,<br/>perDevice=perDevice)
+    Engine->>DataLayer: query + read parquet
+    DataLayer-->>Engine: raw DataFrame
+    Engine->>Engine: filter by deviceName + time slice
+    Engine-->>Entity: filtered DataFrame
+    Entity-->>User: DataFrame
+```
+-->
+
+### Experiment initialization swimlane
+
+How the shared data engine is created and propagated to all child objects during experiment setup:
+
+![Diagram](../../images/diagrams/dev_guide_experiment_init.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant Home as experimentHome
+    participant Exp as experimentSetupWithData
+    participant Factory as dataEngineFactory
+    participant Engine as Data Engine
+    participant Argos as Argos ExperimentZipFile
+
+    User->>Home: getExperiment("Haifa2014")
+    Home->>Home: getDataSourceDocument("Haifa2014")
+    Home->>Exp: __init__(projectName, pathToExperiment, dataType)
+
+    Exp->>Argos: ExperimentZipFile.__init__()<br/>load metadata from zip
+    Argos-->>Exp: trial sets, entity types metadata
+
+    Exp->>Factory: getDataEngine(projectName, config, self, dataType)
+    Factory-->>Exp: engine instance (e.g. parquetDataEngineHera)
+    Note over Exp: self._experimentData = engine
+
+    rect rgb(240, 248, 255)
+    Note over Exp: Initialize trial sets
+    loop for each trial set in metadata
+        Exp->>Exp: TrialSetWithData(self, setup, experimentData)
+        Note over Exp: TrialSet stores _experimentData
+        loop for each trial in trial set
+            Exp->>Exp: TrialWithdata(trialSet, metadata, experimentData)
+            Note over Exp: Trial stores _experimentData
+        end
+    end
+    end
+
+    rect rgb(255, 248, 240)
+    Note over Exp: Initialize entity types
+    loop for each entity type in metadata
+        Exp->>Exp: EntityTypeWithData(self, metadata, experimentData)
+        Note over Exp: EntityType stores _experimentData
+        loop for each entity in entity type
+            Exp->>Exp: EntityWithData(entityType, metadata, experimentData)
+            Note over Exp: Entity stores _experimentData
+        end
+    end
+    end
+
+    Exp->>Exp: _initAnalysisAndPresentation()
+    Exp-->>Home: experiment instance
+    Home-->>User: experiment instance
+```
+-->
+
 ---
 
 ## Design patterns
