@@ -5,13 +5,28 @@ from .meandatacalculator import AveragingCalculator, MeanDataCalculator
 
 
 class RawdataAnalysis:
+    """Analysis layer for the high-frequency meteorology toolkit.
+
+    Provides factory methods for creating turbulence calculators,
+    averaging calculators, and mean-data calculators from raw sonic
+    anemometer data.
+    """
+
     _datalayer = None
 
     @property
     def datalayer(self):
+        """HighFreqToolKit : The parent toolkit instance."""
         return self._datalayer
 
     def __init__(self, datalayer):
+        """Initialise with a reference to the parent toolkit.
+
+        Parameters
+        ----------
+        datalayer : HighFreqToolKit
+            The high-frequency meteorology toolkit.
+        """
         self._datalayer = datalayer
 
     def singlePointTurbulenceStatistics(self,
@@ -158,6 +173,25 @@ class RawdataAnalysis:
 
     def MeanDataCalculator(self, TurbCalcOrData=None, compute_mode_turb='not_from_db_and_not_save',
                            AverageCalcOrData=None, compute_mode_AverageCalc=None, **metadata):
+        """Create a MeanDataCalculator for deriving mean-field turbulence statistics.
 
+        Parameters
+        ----------
+        TurbCalcOrData : singlePointTurbulenceStatistics or pandas.DataFrame or dask.DataFrame, optional
+            Turbulence calculator or pre-computed second-moment data.
+        compute_mode_turb : str
+            Compute mode for the turbulence calculator (default ``'not_from_db_and_not_save'``).
+        AverageCalcOrData : AveragingCalculator or pandas.DataFrame or dask.DataFrame, optional
+            Averaging calculator or pre-computed mean data.
+        compute_mode_AverageCalc : str, optional
+            Compute mode for the averaging calculator. Defaults to *compute_mode_turb*.
+        **metadata
+            Additional metadata forwarded to the calculator (``start``, ``end``, etc.).
+
+        Returns
+        -------
+        MeanDataCalculator
+            A calculator pre-populated with second moments and optional mean fields.
+        """
         return MeanDataCalculator(TurbCalcOrData, compute_mode_turb, AverageCalcOrData, compute_mode_AverageCalc,
                                   **metadata)

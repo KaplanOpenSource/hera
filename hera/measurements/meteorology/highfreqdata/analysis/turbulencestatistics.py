@@ -8,16 +8,59 @@ from .abstractcalculator import AbstractCalculator
 
 
 class singlePointTurbulenceStatistics(AbstractCalculator):
+    """Single-point turbulence statistics calculator.
+
+    Computes various turbulence statistics (fluctuations, moments, standard
+    deviations, friction velocity, Monin-Obukhov length, structure functions,
+    etc.) from high-frequency meteorological time-series data at a single
+    measurement point.
+
+    Parameters
+    ----------
+    rawData : pandas.DataFrame or dask.dataframe.DataFrame
+        Raw high-frequency time-series data containing at least u, v, w, and T
+        columns.
+    metadata : dict
+        Metadata dictionary describing the measurement, including keys such as
+        ``isMissingData``, ``start``, ``end``, and instrument information.
+    """
 
     def __init__(self, rawData, metadata):
+        """Initialize the turbulence statistics calculator.
+
+        Parameters
+        ----------
+        rawData : pandas.DataFrame or dask.dataframe.DataFrame
+            Raw high-frequency time-series data containing at least u, v, w,
+            and T columns.
+        metadata : dict
+            Metadata dictionary describing the measurement configuration.
+        """
         super(singlePointTurbulenceStatistics, self).__init__(rawData=rawData, metadata=metadata)
         self.data = None
 
     @property
     def isMissingData(self):
+        """Check whether the raw data contains missing values.
+
+        Returns
+        -------
+        bool
+            ``True`` if the metadata indicates the raw data has missing values,
+            ``False`` otherwise.
+        """
         return self.metaData["isMissingData"]
 
     def getData(self):
+        """Return the computed data.
+
+        Returns
+        -------
+        pandas.DataFrame or dask.dataframe.DataFrame or None
+            The DataFrame containing raw data augmented with computed
+            turbulence quantities, or ``None`` if no computations have been
+            performed yet.
+        """
         return self.data
 
     def fluctuations(self, inMemory=None):
@@ -1285,8 +1328,30 @@ uStarOverWindSpeed
 
 
 class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
+    """Spark-compatible single-point turbulence statistics calculator.
+
+    Extends `singlePointTurbulenceStatistics` with a ``fluctuations``
+    implementation that handles Spark-style repartitioning and an alternative
+    wind-direction convention.
+    """
 
     def fluctuations(self, inMemory=None):
+        """Calculate mean values and fluctuations for u, v, w, T, and wind direction.
+
+        This override adjusts the wind-direction computation to use a
+        [0, 360) degree convention and corrects the first raw-data index to
+        align with the averaged data.
+
+        Parameters
+        ----------
+        inMemory : InMemoryAvgData or None, optional
+            In-memory reference for averaged data storage. Default is ``None``.
+
+        Returns
+        -------
+        SinglePointStatisticsSpark
+            The instance itself, allowing method chaining.
+        """
         if self._InMemoryAvgRef is None:
             self._InMemoryAvgRef = inMemory
 
@@ -1339,13 +1404,54 @@ class SinglePointStatisticsSpark(singlePointTurbulenceStatistics):
 
 
 class InMemoryRawData(pandas.DataFrame):
+    """In-memory container for raw high-frequency data.
+
+    Extends ``pandas.DataFrame`` with an additional ``_Attrs`` dictionary for
+    storing metadata, and provides HDF5 serialization that persists both the
+    data and its associated attributes (as a sidecar JSON file).
+    """
+
     _Attrs = None
 
     def __init__(self, data=None, index=None, columns=None, dtype=None, copy=False):
+        """Initialize the in-memory raw data container.
+
+        Parameters
+        ----------
+        data : numpy.ndarray, dict, pandas.DataFrame, or None, optional
+            Data to populate the DataFrame with.
+        index : pandas.Index or array-like or None, optional
+            Index for the resulting DataFrame.
+        columns : pandas.Index or array-like or None, optional
+            Column labels for the resulting DataFrame.
+        dtype : numpy.dtype or None, optional
+            Data type to force for all columns.
+        copy : bool, optional
+            Whether to copy data from inputs. Default is ``False``.
+        """
         super(InMemoryRawData, self).__init__(data=data, index=index, columns=columns, dtype=dtype, copy=copy)
         self._Attrs = {}
 
     def append(self, other, ignore_index=False, verify_integrity=False):
+        """Append rows of *other* and merge attribute dictionaries.
+
+        Parameters
+        ----------
+        other : InMemoryRawData
+            The data to append.
+        ignore_index : bool, optional
+            If ``True``, the resulting index will be relabelled 0, 1, ...
+            Default is ``False``.
+        verify_integrity : bool, optional
+            If ``True``, raise ``ValueError`` on duplicate index. Default is
+            ``False``.
+
+        Returns
+        -------
+        InMemoryRawData
+            A new ``InMemoryRawData`` instance containing the combined rows and
+            merged attributes.
+        """
         ret = super(InMemoryRawData, self).append(other, ignore_index=ignore_index, verify_integrity=verify_integrity)
         ret = InMemoryRawData(ret)
         ret._Attrs = other._Attrs
@@ -1355,6 +1461,28 @@ class InMemoryRawData(pandas.DataFrame):
 
     @classmethod
     def read_hdf(cls, path_or_buf, key=None, **kwargs):
+        """Read an HDF5 file into an ``InMemoryRawData`` instance.
+
+        If a JSON sidecar file (same base name, ``.json`` extension) exists
+        alongside the HDF5 file, its contents are loaded as the instance
+        attributes.
+
+        Parameters
+        ----------
+        path_or_buf : str
+            Path to the HDF5 file.
+        key : str or None, optional
+            The group identifier in the HDF store.
+        **kwargs
+            Additional keyword arguments forwarded to
+            ``pandas.read_hdf``.
+
+        Returns
+        -------
+        InMemoryRawData
+            A new instance populated with data from the file and, when
+            available, its sidecar attributes.
+        """
         ret = InMemoryRawData(pandas.read_hdf(path_or_buf, key, **kwargs))
         path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.json')
 
@@ -1365,6 +1493,22 @@ class InMemoryRawData(pandas.DataFrame):
         return ret
 
     def to_hdf(self, path_or_buf, key, **kwargs):
+        """Write the data to an HDF5 file with an optional JSON sidecar.
+
+        The data is saved to an ``.hdf`` file. If the instance carries
+        non-empty attributes, they are written (or merged) into a JSON
+        sidecar file with the same base name.
+
+        Parameters
+        ----------
+        path_or_buf : str
+            Path for the output file (extension is replaced with ``.hdf``).
+        key : str
+            The group identifier in the HDF store.
+        **kwargs
+            Additional keyword arguments forwarded to
+            ``pandas.DataFrame.to_hdf``.
+        """
         pandasCopy = self.copy()
         path_or_buf = '%s%s' % (path_or_buf.rpartition('.')[0], '.hdf')
         pandasCopy.to_hdf(path_or_buf, key, **kwargs)
@@ -1383,14 +1527,65 @@ class InMemoryRawData(pandas.DataFrame):
 
 
 class InMemoryAvgData(InMemoryRawData):
+    """In-memory container for averaged turbulence data.
+
+    Extends ``InMemoryRawData`` by holding a reference to a
+    ``singlePointTurbulenceStatistics`` calculator. Attribute access is
+    proxied to the calculator so that turbulence statistics methods can be
+    called directly on this container.
+    """
+
     _TurbulenceCalculator = None
 
     def __init__(self, data = None, index = None, columns = None, dtype = None, copy = False, turbulenceCalculator = None):
+        """Initialize the in-memory averaged data container.
+
+        Parameters
+        ----------
+        data : numpy.ndarray, dict, pandas.DataFrame, or None, optional
+            Data to populate the DataFrame with.
+        index : pandas.Index or array-like or None, optional
+            Index for the resulting DataFrame.
+        columns : pandas.Index or array-like or None, optional
+            Column labels for the resulting DataFrame.
+        dtype : numpy.dtype or None, optional
+            Data type to force for all columns.
+        copy : bool, optional
+            Whether to copy data from inputs. Default is ``False``.
+        turbulenceCalculator : singlePointTurbulenceStatistics or None, optional
+            The turbulence calculator whose methods will be accessible via
+            attribute access on this container.
+        """
         super(InMemoryAvgData, self).__init__(data = data, index = index, columns = columns, dtype = dtype, copy = copy)
         self._TurbulenceCalculator = turbulenceCalculator
         self._Attrs['samplingWindow'] = turbulenceCalculator.SamplingWindow
 
     def __getattr__(self, item):
+        """Proxy attribute access to the underlying turbulence calculator.
+
+        When an attribute is not found on this instance, the lookup is
+        forwarded to the stored ``_TurbulenceCalculator``. If the attribute
+        corresponds to a calculator method, it is wrapped so that the
+        ``inMemory`` argument is automatically set to this container.
+
+        Parameters
+        ----------
+        item : str
+            The attribute name to look up.
+
+        Returns
+        -------
+        callable
+            A callable that delegates to the corresponding method on the
+            turbulence calculator.
+
+        Raises
+        ------
+        AttributeError
+            If ``_TurbulenceCalculator`` is ``None``.
+        NotImplementedError
+            If *item* is not an attribute of the turbulence calculator.
+        """
         if self._TurbulenceCalculator is None:
             raise AttributeError("The attribute '_TurbulenceCalculator' is None.")
         elif not item in dir(self._TurbulenceCalculator):

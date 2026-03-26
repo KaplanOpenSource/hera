@@ -5,10 +5,34 @@ import os
 
 
 class ASCIIParser:
+    """Parser for Campbell Scientific TOA5 ASCII data files.
+
+    Reads ``.dat`` files containing high-frequency sonic or TCT/TRH data,
+    auto-detecting device type (Raw Sonic or Tct_Trh) from file metadata
+    or filename.
+    """
+
     def __init__(self):
+        """Initialise the ASCII parser."""
         pass
 
-    def parse(self, path :str, fromTime=None, toTime=None):                                                             ## Will return N parquet files as number of devices inside a binary file
+    def parse(self, path :str, fromTime=None, toTime=None):
+        """Parse a TOA5 ASCII file or directory of files.
+
+        Parameters
+        ----------
+        path : str
+            Path to a ``.dat`` file or a directory containing ``.dat`` files.
+        fromTime : str or None
+            Start time filter (inclusive).
+        toTime : str or None
+            End time filter (inclusive).
+
+        Returns
+        -------
+        dict
+            Mapping of device IDs to ``pandas.DataFrame`` instances.
+        """
         if path[len(path)-4:] == ".dat":                                                                                ## File path includes .dat at the end
             dfs = self.getPandasFromFile(path, fromTime, toTime)
         else:
