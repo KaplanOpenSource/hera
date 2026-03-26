@@ -1,4 +1,4 @@
-__version__ = '2.15.5'
+__version__ = '2.16.0'
 
 import sys
 python_version = sys.version_info
@@ -18,6 +18,59 @@ from hera.datalayer.autocache import cacheFunction,clearFunctionCache,clearAllFu
 toolkitHome = ToolkitHome()
 
 """
+2.16.0 (2026-03)
+-----------------
+    Architecture:
+        - Unified duplicate abstractToolkit class definitions into a single class
+        - Removed DemographyToolkit hardcoded dependency from thresholdGeoDataFrame;
+          spatial intersection is now inlined without project dependency
+        - Auto-persist latest data source version as default when no default is set
+        - Removed dead code: shapes.py, abstractLocation.py, GIS_SHAPES constant
+
+    Data Layer:
+        - Fix project_dump CLI: replaced eval() with safe value parser
+        - Fix project_load CLI: fixed iteration bug (was treating list as dict)
+        - Fix hera-project argparse: 8 copy-pasted help strings, --dont-overwrite logic bug
+
+    Dynamic Toolkits:
+        - Dynamic toolkit registration and loading via ToolkitHome.registerToolkit()
+        - hera-project addToolkit CLI command for registering toolkits by path
+        - ToolkitHome resolution: static registry -> database -> experiments
+
+    Documentation:
+        - Comprehensive MkDocs Material documentation site with GitHub Pages deployment
+        - User Guide: Key Concepts, Projects, Working with Data, Understanding Toolkits,
+          Repositories, Toolkit Catalog, Measurements, Simulations, Risk Assessment
+        - Developer Guide: Core Concepts, Data Layer, API Reference (auto-generated),
+          Toolkit Implementation (Measurements, Simulations, Risk Assessment)
+        - Jupyter notebook tutorials integrated with download buttons
+        - CLI Reference with all commands documented
+
+    Docstrings:
+        - 100% pydoc coverage: datalayer, toolkit.py, riskassessment, simulations/openFoam,
+          measurements/GIS, utils/data
+        - All Hebrew comments translated to English
+
+    Build & CI:
+        - Makefile with MongoDB Docker, test setup, third-party install targets
+        - set_hera_environment.sh with venv creation and .bashrc persistence
+        - activate_hera.sh for one-command environment activation
+        - init_with_mongo.sh for full initialization
+        - GitHub Actions docs workflow (Python 3.12, auto-deploy to GitHub Pages)
+        - Conda recipe updated (meta.yaml, bld.bat, build.sh)
+        - requirements.txt: removed local file:// path
+
+    LSM:
+        - Slurm batch execution support (prepareSlurmLSMExecution)
+        - Switched to pint units (backwards compatible with unum)
+
+    Risk Assessment:
+        - Default to pint units with unum fallback warning
+        - resourceFilePath support for reading data source content from external files
+
+    Machine Learning:
+        - Updated ML/DL toolkit
+
 2.15.5
     #272    - Fixed the way we check the dataframe type in the analysis of the high freq toolkit. 
     
