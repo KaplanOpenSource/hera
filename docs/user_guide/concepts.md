@@ -96,6 +96,7 @@ Think of toolkits as **portals**: each one is focused on a specific data type an
 from hera import toolkitHome
 
 # The meteorology toolkit knows how to work with weather station data
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
 meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName="WindStudy")
 
 # It manages named, versioned datasets

@@ -5,6 +5,7 @@ The Risk Assessment toolkit provides an agent-based framework for modeling hazar
 ```python
 from hera import toolkitHome
 
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
 risk = toolkitHome.getToolkit(toolkitHome.RISKASSESSMENT, projectName="MY_PROJECT")
 ```
 

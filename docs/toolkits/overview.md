@@ -98,6 +98,7 @@ Use the constant instead of the string to avoid typos:
 from hera import toolkitHome
 
 # Recommended: use the constant
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
 topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
 
 # Also works, but error-prone:

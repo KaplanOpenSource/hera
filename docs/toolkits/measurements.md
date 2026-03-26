@@ -7,6 +7,7 @@ All measurement toolkits are accessed via `toolkitHome.getToolkit()` and bound t
 ```python
 from hera import toolkitHome
 
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
 toolkit = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
 ```
 
