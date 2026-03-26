@@ -5,6 +5,18 @@ from hera.datalayer import collection as datalayer
 
 
 class AbstractCalculator(object):
+    """Base class for high-frequency meteorological data calculators.
+
+    Provides the common infrastructure for computing turbulence statistics
+    from raw sonic anemometer data. Manages raw data, temporary computed
+    columns, in-memory averaged references, and optional database
+    persistence of results.
+
+    Subclasses (``singlePointTurbulenceStatistics``, ``AveragingCalculator``)
+    add domain-specific calculation methods that populate ``_TemporaryData``
+    and ``_CalculatedParams``.
+    """
+
     _RawData = None
     _metadata = None
     _DataType = None
@@ -16,6 +28,22 @@ class AbstractCalculator(object):
     _saveProperties = {'dataFormat': None}
 
     def __init__(self, rawData, metadata):
+        """Initialise with raw data and metadata.
+
+        Parameters
+        ----------
+        rawData : pandas.DataFrame or dask.dataframe.DataFrame
+            High-frequency time-series data (u, v, w, T columns expected).
+        metadata : dict
+            Experiment metadata including ``samplingWindow``, ``projectName``,
+            ``height``, ``buildingHeight``, ``averagedHeight``, ``start``,
+            ``end``, etc.
+
+        Raises
+        ------
+        ValueError
+            If *rawData* is neither a pandas nor a dask DataFrame.
+        """
         if isinstance(rawData,pandas.DataFrame):
             self._DataType = 'pandas'
         elif isinstance(rawData,dask.dataframe.DataFrame):
@@ -32,27 +60,33 @@ class AbstractCalculator(object):
 
     @property
     def JoinMethod(self):
+        """str : Join method used when merging computed columns (default ``'left'``)."""
         return self._joinmethod
 
     @property
     def RawData(self):
+        """pandas.DataFrame or dask.dataframe.DataFrame : The original raw data."""
         return self._RawData
 
 
     @property
     def TemporaryData(self):
+        """pandas.DataFrame : Intermediate computed columns before final aggregation."""
         return self._TemporaryData
 
     @property
     def metaData(self):
+        """dict : Experiment metadata dictionary."""
         return self._metadata
 
     @property
     def SamplingWindow(self):
+        """str : Resampling window from metadata (e.g. ``'30min'``, ``'10min'``)."""
         return self._metadata['samplingWindow']
 
     @property
     def Karman(self):
+        """float : Von Kármán constant (0.4)."""
         return self._Karman
 
     def set_saveProperties(self, dataFormat, **kwargs):
@@ -98,6 +132,28 @@ class AbstractCalculator(object):
         self._updateInMemoryAvgRef(df)
 
     def compute(self, mode='not_from_db_and_not_save'):
+        """Execute all pending calculations and return the aggregated result.
+
+        Parameters
+        ----------
+        mode : str
+            Execution mode controlling database interaction:
+
+            - ``'not_from_db_and_not_save'`` — compute locally, do not persist.
+            - ``'from_db_and_save'`` — check DB first; compute and save if missing.
+            - ``'from_db_and_not_save'`` — check DB first; compute if missing, don't save.
+            - ``'not_from_db_and_save'`` — compute locally and save to DB.
+
+        Returns
+        -------
+        InMemoryAvgData
+            Aggregated result containing all computed parameters.
+
+        Raises
+        ------
+        ValueError
+            If no parameters have been calculated yet.
+        """
         if self._TemporaryData.columns.empty:
             raise ValueError("Parameters have not been calculated yet.")
 
@@ -166,13 +222,44 @@ class AbstractCalculator(object):
 
 
 def getSaveData(dataFormat, **kwargs):
+    """Dispatch data saving to the appropriate ``SaveDataHandler`` method.
+
+    Parameters
+    ----------
+    dataFormat : str
+        Target format name (``'HDF'``, ``'JSON_pandas'``, ``'parquet'``).
+    **kwargs
+        Arguments forwarded to the handler (``data``, ``path``, etc.).
+
+    Returns
+    -------
+    str or dict
+        Path or metadata dict returned by the handler.
+    """
     return getattr(globals()['SaveDataHandler'], 'getSaveData_%s' % dataFormat)(**kwargs)
 
 
 class SaveDataHandler(object):
+    """Static methods for persisting computed data in various formats."""
 
     @staticmethod
     def getSaveData_HDF(data, path, key):
+        """Save data to HDF5 format.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            Data to save.
+        path : str
+            File path.
+        key : str
+            HDF5 group key.
+
+        Returns
+        -------
+        dict
+            ``{'path': path, 'key': key}``.
+        """
         data.to_HDF(path, key)
         return dict(path=path,
                     key=key
@@ -180,6 +267,20 @@ class SaveDataHandler(object):
 
     @staticmethod
     def getSaveData_JSON_pandas(data, path=None):
+        """Save data as JSON.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            Data to save.
+        path : str, optional
+            File path. If ``None``, returns JSON string directly.
+
+        Returns
+        -------
+        str
+            JSON string (if *path* is ``None``) or file path.
+        """
         if path is None:
             return data.to_json()
         else:
@@ -188,6 +289,20 @@ class SaveDataHandler(object):
 
     @staticmethod
     def getSaveData_parquet(data, path):
+        """Save data as Parquet files.
+
+        Parameters
+        ----------
+        data : dask.dataframe.DataFrame
+            Data to save (repartitioned to 100 MB chunks).
+        path : str
+            Output directory path.
+
+        Returns
+        -------
+        str
+            The output path.
+        """
         data = data.repartition(partition_size='100MB')
         data.to_parquet(path)
         return path

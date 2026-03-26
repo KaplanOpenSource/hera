@@ -41,6 +41,7 @@ class HighFreqToolKit(toolkit.abstractToolkit):
 
     @property
     def docType(self):
+        """str : Document type identifier for high-frequency data."""
         return f"{self.toolkitName}_HighFreqData"
 
 

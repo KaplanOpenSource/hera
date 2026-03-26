@@ -8,7 +8,22 @@ from .turbulencestatistics import singlePointTurbulenceStatistics
 from hera.utils.filter_immediate import Filter
 
 class AveragingCalculator(AbstractCalculator):
+    """Calculator that resamples raw data to compute time-averaged means.
+
+    Resamples the input data at the sampling window interval and computes
+    the mean of each column, appending ``_bar`` to column names.
+    """
+
     def __init__(self, rawData, metadata):
+        """Initialise and immediately compute windowed averages.
+
+        Parameters
+        ----------
+        rawData : pandas.DataFrame or dask.dataframe.DataFrame
+            High-frequency time-series data.
+        metadata : dict
+            Must contain ``'samplingWindow'`` (e.g. ``'30min'``).
+        """
         super(AveragingCalculator, self).__init__(rawData=rawData, metadata=metadata)
 
         self._TemporaryData = self._RawData.resample(self.SamplingWindow).mean().rename(
@@ -16,20 +31,44 @@ class AveragingCalculator(AbstractCalculator):
         for col in self._TemporaryData.columns:
             self._CalculatedParams.append([col, {}])
 
-        self.data = self._TemporaryData  # ✅ כאן נפתרה הבעיה
+        self.data = self._TemporaryData
 
     def getData(self):
+        """Return the time-averaged DataFrame.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Columns named ``<original>_bar`` containing windowed means.
+        """
         return self.data
 
 
 class MeanDataCalculator:
+    """Computes mean-field turbulence statistics from second moments.
+
+    Combines turbulence calculator output (second moments) with optionally
+    time-averaged mean fields. Provides a fluent API for computing derived
+    quantities (friction velocity, stability parameters, anisotropy, etc.)
+    via method chaining.
+    """
+
     def __init__(self, TurbCalcOrData = None, compute_mode_turb = 'not_from_db_and_not_save', AverageCalcOrData = None,
                  compute_mode_AverageCalc = None, **metadata):
-        """
+        """Initialise with turbulence data and optional mean fields.
 
-        :param query_fields:
-        :param functions:
-        :param compute_mode:
+        Parameters
+        ----------
+        TurbCalcOrData : singlePointTurbulenceStatistics or pandas.DataFrame or dask.DataFrame
+            Source of second-moment data.
+        compute_mode_turb : str
+            Compute mode for the turbulence calculator.
+        AverageCalcOrData : AveragingCalculator or pandas.DataFrame or dask.DataFrame, optional
+            Source of time-averaged mean fields (``u_bar``, ``v_bar``, etc.).
+        compute_mode_AverageCalc : str, optional
+            Compute mode for the averaging calculator. Defaults to *compute_mode_turb*.
+        **metadata
+            Experiment metadata (``start``, ``end``, ``height``, etc.).
         """
 
         if compute_mode_AverageCalc is None:
@@ -89,7 +128,21 @@ class MeanDataCalculator:
             return MeanDataCalculator(filter_obj.data, **self.metaData)
 
     def filterDates(self, start, end, inplace = False):
+        """Filter data to a date range.
 
+        Parameters
+        ----------
+        start : str or pandas.Timestamp
+            Start of the date range.
+        end : str or pandas.Timestamp
+            End of the date range.
+        inplace : bool
+            If ``True``, modify this instance. Otherwise return a new one.
+
+        Returns
+        -------
+        MeanDataCalculator
+        """
         filter_obj = Filter(data = self.MeanData, inplace = True)
 
         filter_obj.outsideInterval(lower_bound = start, upper_bound = end)
@@ -102,14 +155,26 @@ class MeanDataCalculator:
 
 
     def hour(self):
+        """Add an ``hour`` column extracted from the time index.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "hour" not in self.MeanData.columns:
             self.MeanData["hour"] = self.MeanData.index.hour
 
         return self
 
     def timeWithinDay(self):
+        """Add a ``timeWithinDay`` column as fractional hours (hour + min/60 + sec/3600).
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "timeWithinDay" not in self.MeanData.columns:
             self.MeanData["timeWithinDay"] = self.MeanData.index.hour + self.MeanData.index.minute / 60 + \
                                              self.MeanData.index.second / 3600
@@ -117,7 +182,13 @@ class MeanDataCalculator:
         return self
 
     def horizontalSpeed(self):
+        """Compute mean horizontal wind speed from u_bar and v_bar using ``hypot``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'horizontal_speed_bar' not in self.MeanData.columns:
             self.MeanData['horizontal_speed_bar'] = numpy.hypot(self.MeanData['u_bar'], self.MeanData['v_bar'])
 
@@ -127,7 +198,16 @@ class MeanDataCalculator:
         return (U ** 2 + V ** 2) ** 0.5, (-numpy.degrees(numpy.arctan2(V, U)) + 90) % 360
 
     def alignedStress(self):
+        """Rotate the Reynolds stress tensor to align with the mean wind direction.
 
+        Adds columns: ``uu_aligned``, ``uv_aligned``, ``vv_aligned``,
+        ``uw_aligned``, ``vw_aligned``.
+
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "uu_aligned" not in self.MeanData.columns:
             self.horizontalSpeed()
             cos_theta = self.MeanData["u_bar"] / self.MeanData["horizontal_speed_bar"]
@@ -144,7 +224,13 @@ class MeanDataCalculator:
         return self
 
     def sigma(self):
+        """Compute velocity standard deviations: ``sigmaU``, ``sigmaV``, ``sigmaW``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaU' not in self.MeanData.columns:
             self.MeanData['sigmaU'] = numpy.sqrt(self.MeanData["uu"])
             self.MeanData['sigmaV'] = numpy.sqrt(self.MeanData["vv"])
@@ -153,7 +239,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaAligned(self):
+        """Compute wind-aligned standard deviations: ``sigmaU_aligned``, ``sigmaV_aligned``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "sigmaU_aligned" not in self.MeanData.columns:
             self.sigma()
             self.alignedStress()
@@ -163,7 +255,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaH(self):
+        """Compute horizontal velocity standard deviation ``sigmaH = hypot(sigmaU, sigmaV) / sqrt(2)``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaH' not in self.MeanData.columns:
             self.sigma()
             self.MeanData['sigmaH'] = numpy.hypot(self.MeanData['sigmaU'], self.MeanData['sigmaV']) / numpy.sqrt(2)
@@ -171,14 +269,26 @@ class MeanDataCalculator:
         return self
 
     def Ustar(self):
+        """Compute friction velocity ``u* = (uw² + vw²)^0.25``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'Ustar' not in self.MeanData.columns:
             self.MeanData['Ustar'] = (self.MeanData['uw'] ** 2 + self.MeanData['vw'] ** 2) ** 0.25
 
         return self
 
     def sigmaHOverUstar(self):
+        """Compute dimensionless ratio ``sigmaH / u*``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaHOverUstar' not in self.MeanData.columns:
             self.sigmaH()
             self.Ustar()
@@ -187,7 +297,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaUOverUstar(self):
+        """Compute dimensionless ratio ``sigmaU_aligned / u*``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaUOverUstar' not in self.MeanData.columns:
             self.sigmaAligned()
             self.Ustar()
@@ -196,7 +312,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaVOverUstar(self):
+        """Compute dimensionless ratio ``sigmaV_aligned / u*``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaVOverUstar' not in self.MeanData.columns:
             self.sigmaAligned()
             self.Ustar()
@@ -205,7 +327,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaWOverUstar(self):
+        """Compute dimensionless ratio ``sigmaW / u*``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaWOverUstar' not in self.MeanData.columns:
             self.sigma()
             self.Ustar()
@@ -214,7 +342,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaHOverWindSpeed(self):
+        """Compute turbulence intensity ``sigmaH / horizontal_speed_bar``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaHOverWindSpeed' not in self.MeanData.columns:
             self.sigmaH()
             self.horizontalSpeed()
@@ -223,7 +357,13 @@ class MeanDataCalculator:
         return self
 
     def sigmaWOverWindSpeed(self):
+        """Compute vertical turbulence intensity ``sigmaW / horizontal_speed_bar``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'sigmaWOverWindSpeed' not in self.MeanData.columns:
             self.sigma()
             self.horizontalSpeed()
@@ -232,7 +372,13 @@ class MeanDataCalculator:
         return self
 
     def absWOverSigmaW(self):
+        """Compute ratio ``|w_bar| / sigmaW``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "absWOverSigmaW" not in self.MeanData.columns:
             self.sigma()
             self.MeanData["absWOverSigmaW"] = abs(self.MeanData["w_bar"]) / self.MeanData["sigmaW"]
@@ -240,7 +386,13 @@ class MeanDataCalculator:
         return self
 
     def uStarOverWindSpeed(self):
+        """Compute ratio ``u* / horizontal_speed_bar``.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'uStarOverWindSpeed' not in self.MeanData.columns:
             self.Ustar()
             self.horizontalSpeed()
@@ -259,14 +411,26 @@ class MeanDataCalculator:
         return self
 
     def Rvw(self):
+        """Compute correlation coefficient between v' and w' fluctuations.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'Rvw' not in self.MeanData.columns:
             self.MeanData['Rvw'] = self.MeanData['vw'] / numpy.sqrt(self.MeanData['vv'] * self.MeanData['ww'])
 
         return self
 
     def Ruw(self):
+        """Compute correlation coefficient between u' and w' fluctuations.
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'Ruw' not in self.MeanData.columns:
             self.MeanData['Ruw'] = self.MeanData['uw'] / numpy.sqrt(self.MeanData['uu'] * self.MeanData['ww'])
 
@@ -308,7 +472,17 @@ class MeanDataCalculator:
     #     return self
 
     def effectivez(self):
+        """Compute effective measurement height accounting for buildings.
 
+        ``z_eff = instrumentHeight + buildingHeight - 0.7 * averagedHeight``
+
+        Stores the result in ``self.metaData['effectivez']``.
+
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "effectivez" not in self.metaData.keys():
             H = int(self.metaData['buildingHeight'])
             instrumentHeight = int(self.metaData['height'])
@@ -318,7 +492,13 @@ class MeanDataCalculator:
         return self
 
     def zOverL(self):
+        """Compute dimensionless stability parameter ``z/L`` (effective height / Monin-Obukhov length).
 
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if 'zOverL' not in self.MeanData.columns:
             self.MOLength().effectivez()
             self.MeanData['zOverL'] = self.metaData["effectivez"] / self.MeanData['L']
@@ -379,7 +559,16 @@ class MeanDataCalculator:
         return eig_ser
 
     def anisotropyEigs(self):
+        """Compute eigenvalues of the Reynolds stress anisotropy tensor.
 
+        Adds columns: ``lambda_1``, ``lambda_2``, ``lambda_3``, ``x_B``, ``y_B``
+        (Lumley triangle coordinates).
+
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "lambda_1" not in self.MeanData.columns:
             eig_data = self.MeanData.apply(self._eig, axis=1)
             for col in eig_data.columns:
@@ -392,7 +581,16 @@ class MeanDataCalculator:
         return self
 
     def anisotropyCats(self):
+        """Classify turbulence anisotropy into categories on the Lumley triangle.
 
+        Categories: ``'2-component axisymmetric'``, ``'isotropic'``,
+        ``'1-component'``, or ``'non-pure'``.
+
+        Returns
+        -------
+        MeanDataCalculator
+            Self (for method chaining).
+        """
         if "isotropy_cat" not in self.MeanData.columns:
             self.anisotropyEigs()
 
@@ -482,4 +680,11 @@ class MeanDataCalculator:
         return self
 
     def compute(self):
+        """Return the accumulated mean-data DataFrame.
+
+        Returns
+        -------
+        pandas.DataFrame
+            All computed columns joined into one DataFrame.
+        """
         return self.MeanData
