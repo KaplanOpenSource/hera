@@ -12,7 +12,8 @@ SERVER_IMAGE     = hera-server
 
 TEST_HERA       ?= $(HOME)/hera_unittest_data
 
-.PHONY: help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
+.PHONY: install install-docs install-rag \
+        help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
         build run stop test test-setup \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
         mermaid-pull render-diagrams render-diagrams-force \
@@ -20,8 +21,32 @@ TEST_HERA       ?= $(HOME)/hera_unittest_data
         rag-index rag-reindex rag-index-docs rag-search rag-search-raw \
         rag-serve rag-serve-watch rag-watch rag-docs-serve rag-docs-build
 
+# --- Top-level install targets ---
+
+install: mongo-up
+	@echo ""
+	@echo "=== Hera installed ==="
+	@echo "  MongoDB running on port $(MONGO_PORT)"
+	@echo "  Run 'make help' for all available targets."
+
+install-docs: docs-build
+	@echo ""
+	@echo "=== Documentation built ==="
+	@echo "  Site in site/ — run 'make docs-serve' to preview."
+
+install-rag: rag-setup
+	@echo ""
+	@echo "=== RAG installed ==="
+	@echo "  Run 'make rag-search RAG_QUERY=\"your question\"'"
+	@echo "  Run 'make rag-serve' for REST API."
+
 help:
 	@echo "Hera targets:"
+	@echo ""
+	@echo "  Quick start:"
+	@echo "    make install             Set up MongoDB (Docker)"
+	@echo "    make install-docs        Build documentation (pulls mermaid, renders diagrams)"
+	@echo "    make install-rag         Full RAG setup (services + model + index)"
 	@echo ""
 	@echo "  MongoDB:"
 	@echo "    make mongo-up      Start MongoDB container (data at $(MONGO_DATA))"
