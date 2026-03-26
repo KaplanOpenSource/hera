@@ -29,11 +29,19 @@ import math
 import os
 from pathlib import Path
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+
+try:
+    import geopandas as gpd
+except ImportError:
+    gpd = None
+
+try:
+    import xarray as xr
+except ImportError:
+    xr = None
 
 # Project name used for ALL toolkit tests in this session
 PYTEST_PROJECT_NAME = "PYTEST_HERA_PROJECT"
@@ -276,7 +284,7 @@ def compare_dataframes(df1, df2, rtol=1e-6, atol=1e-6):
 def compare_dataarrays(da1, da2, rtol=1e-6, atol=1e-6):
     """Compare two xarray DataArrays with tolerance."""
     try:
-        if not isinstance(da1, xr.DataArray) or not isinstance(da2, xr.DataArray):
+        if xr is None or not isinstance(da1, xr.DataArray) or not isinstance(da2, xr.DataArray):
             return False
         return np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=True)
     except Exception:
@@ -329,9 +337,10 @@ def compare_outputs(result, expected, output_type):
             expected = expected.getData()
         output_type = "dataframe"
 
-    if hasattr(result, "df") and isinstance(result.df, (pd.DataFrame, gpd.GeoDataFrame)):
+    _df_types = (pd.DataFrame, gpd.GeoDataFrame) if gpd is not None else (pd.DataFrame,)
+    if hasattr(result, "df") and isinstance(result.df, _df_types):
         result = result.df
-    if hasattr(expected, "df") and isinstance(expected.df, (pd.DataFrame, gpd.GeoDataFrame)):
+    if hasattr(expected, "df") and isinstance(expected.df, _df_types):
         expected = expected.df
 
     if result is None and expected == "null":
@@ -342,7 +351,7 @@ def compare_outputs(result, expected, output_type):
     funcs = {
         "dataframe": lambda: isinstance(result, pd.DataFrame) and compare_dataframes(result, expected),
         "metadataframe": lambda: isinstance(result, pd.DataFrame) and compare_dataframes(result, expected),
-        "geodataframe": lambda: isinstance(result, (gpd.GeoDataFrame, pd.DataFrame)) and compare_dataframes(result, expected),
+        "geodataframe": lambda: isinstance(result, _df_types) and compare_dataframes(result, expected),
         "ndarray": lambda: isinstance(result, np.ndarray) and isinstance(expected, np.ndarray) and np.allclose(result, expected, rtol=1e-6, atol=1e-6, equal_nan=True),
         "npz": lambda: isinstance(result, tuple) and isinstance(expected, tuple) and all(np.allclose(r, e, rtol=1e-6, atol=1e-6, equal_nan=True) for r, e in zip(result, expected)),
         "xarray": lambda: result.equals(expected),
@@ -415,9 +424,9 @@ def load_expected_output(filename, output_type, expected_dir):
         "dict": lambda: _read_json(candidate),
         "list": lambda: _read_json(candidate),
         "dataframe": lambda: pd.read_json(candidate) if candidate.endswith(".json") else pd.read_parquet(candidate),
-        "geodataframe": lambda: gpd.read_file(candidate),
-        "xarray": lambda: xr.open_dataset(candidate),
-        "dataarray": lambda: xr.open_dataarray(candidate),
+        "geodataframe": lambda: gpd.read_file(candidate) if gpd is not None else None,
+        "xarray": lambda: xr.open_dataset(candidate) if xr is not None else None,
+        "dataarray": lambda: xr.open_dataarray(candidate) if xr is not None else None,
         "npz": lambda: _read_ndarray(candidate),
         "ndarray": lambda: _read_ndarray(candidate),
         "str": lambda: _read_text(candidate),
