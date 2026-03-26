@@ -202,6 +202,105 @@ buildings.buildingsGeopandasToSTLRasterTopography(
 
 ---
 
+## Presentation layer
+
+The buildings toolkit has a presentation layer for visualising footprints, heights, and morphology parameters.
+
+**Available methods:**
+
+| Method | What it plots | Key parameters |
+|--------|-------------|----------------|
+| `plotBuildings(data)` | Building footprints (uniform color) | `facecolor`, `alpha` |
+| `plotBuildingHeights(data)` | Footprints colored by height (choropleth) | `heightColumn`, `cmap`, `vmin`/`vmax` |
+| `plotMorphology(morphData, column)` | Block grid colored by λp, λf, or hc | `column` (`"lambdaP"`, `"lambdaF"`, `"hc"`) |
+| `plotBuildingsWithMorphology(buildings, morph)` | Buildings overlaid on morphology grid | `morphColumn`, building + morph styling |
+| `plotHeightHistogram(data)` | Histogram of building heights | `bins`, `heightColumn` |
+| `plotBuildingsOnMap(data, tilesToolkit)` | Buildings overlaid on tile server map | `heightColumn`, `zoomlevel` |
+
+All map methods support: `ax`, `figsize`, `cmap`, `alpha`, `edgecolor`, `linewidth`, `colorbar`, `title`, `xlim`/`ylim`, `inputCRS`, `outputCRS`.
+
+### Building footprints
+
+```python
+# Simple footprint map
+ax = buildings.presentation.plotBuildings(gdf, facecolor="steelblue", alpha=0.8)
+
+# Colored by height
+ax = buildings.presentation.plotBuildingHeights(
+    gdf, heightColumn="BLDG_HT",
+    cmap="YlOrBr", vmin=0, vmax=50,
+    title="Building Heights",
+)
+```
+
+### Morphology choropleth
+
+Visualise the output of `LambdaFromBuildingData` as a colored block grid:
+
+```python
+morphology = buildings.analysis.LambdaFromBuildingData(270, 250, gdf)
+
+# Plan area fraction
+ax = buildings.presentation.plotMorphology(
+    morphology, column="lambdaP",
+    cmap="RdYlGn_r", title="Plan Area Fraction (λp)",
+)
+
+# Frontal area density
+ax = buildings.presentation.plotMorphology(
+    morphology, column="lambdaF",
+    title="Frontal Area Density (λf)",
+)
+
+# Average building height
+ax = buildings.presentation.plotMorphology(
+    morphology, column="hc",
+    cmap="YlOrBr", colorbar_label="Average height (m)",
+)
+```
+
+### Buildings overlaid on morphology
+
+```python
+ax = buildings.presentation.plotBuildingsWithMorphology(
+    gdf, morphology,
+    morphColumn="lambdaP",
+    buildingColor="0.2", buildingAlpha=0.6,
+    morphAlpha=0.5,
+    title="Buildings with λp blocks",
+)
+```
+
+### Height histogram
+
+```python
+ax = buildings.presentation.plotHeightHistogram(
+    gdf, heightColumn="BLDG_HT",
+    bins=40, title="Building Height Distribution",
+)
+```
+
+### Buildings on map
+
+```python
+from hera import toolkitHome
+
+tiles = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName="MY_PROJECT")
+
+# Uniform color on map
+ax = buildings.presentation.plotBuildingsOnMap(gdf, tiles, zoomlevel=15)
+
+# Colored by height on map
+ax = buildings.presentation.plotBuildingsOnMap(
+    gdf, tiles,
+    heightColumn="BLDG_HT",
+    cmap="YlOrBr", alpha=0.7, zoomlevel=15,
+    title="Building Heights on Map",
+)
+```
+
+---
+
 ## Complete example
 
 ```python
@@ -217,20 +316,34 @@ gdf = buildings.getBuildingsFromRectangle(
     inputCRS=ITM,
     withElevation=True,
 )
-
 print(f"Found {len(gdf)} buildings")
-print(gdf[["BLDG_HT", "HT_LAND", "geometry"]].head())
 
-# 2. Compute urban morphology for westerly wind
+# 2. Visualise footprints colored by height
+buildings.presentation.plotBuildingHeights(gdf, title="Tel Aviv Buildings")
+
+# 3. Height distribution
+buildings.presentation.plotHeightHistogram(gdf, bins=40)
+
+# 4. Compute urban morphology for westerly wind
 morphology = buildings.analysis.LambdaFromBuildingData(
     windMeteorologicalDirection=270,
     resolution=250,
     buildingsData=gdf,
 )
 
-print(morphology[["lambdaP", "lambdaF", "hc"]].describe())
+# 5. Visualise morphology
+buildings.presentation.plotBuildingsWithMorphology(
+    gdf, morphology, morphColumn="lambdaP",
+    title="Tel Aviv — Plan Area Fraction",
+)
 
-# 3. Generate 3D STL for CFD
+# 6. Buildings on satellite map
+tiles = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName="TelAvivStudy")
+buildings.presentation.plotBuildingsOnMap(
+    gdf, tiles, heightColumn="BLDG_HT", zoomlevel=15,
+)
+
+# 7. Generate 3D STL for CFD
 buildings.buildingsGeopandasToSTLRasterTopography(
     buildingData=gdf,
     buildingHeightColumn="BLDG_HT",
@@ -238,8 +351,4 @@ buildings.buildingsGeopandasToSTLRasterTopography(
     outputFileName="tel_aviv_buildings.stl",
     flatTerrain=False,
 )
-
-# 4. Group buildings into urban blocks
-clusters = buildings.analysis.ConvexPolygons(gdf, buffer=50)
-print(f"Identified {len(clusters)} building clusters")
 ```
