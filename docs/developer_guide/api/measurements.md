@@ -25,6 +25,20 @@ Toolkits for managing GIS data, meteorological observations, and experimental me
       show_source: true
       members_order: source
 
+### DemographyToolkit — Presentation
+
+::: hera.measurements.GIS.vector.demography.presentation
+    options:
+      show_source: true
+      members_order: source
+
+### DemographyToolkit — Analysis
+
+::: hera.measurements.GIS.vector.demography.analysis
+    options:
+      show_source: true
+      members_order: source
+
 ## GIS - Raster
 
 ### TopographyToolkit (Raster)
