@@ -72,6 +72,9 @@ MPLBACKEND=Agg RESULT_SET=BASELINE TEST_HERA=/data/test pytest hera/tests/ -v
 
 For the result set selection, the system uses the following priority chain:
 
+![Diagram](../images/diagrams/configuration_env_vars_0_9686a927.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Determine active\nresult set"] --> CheckCLI{--result-set\nCLI flag\nprovided?}
@@ -85,6 +88,7 @@ flowchart TD
     CheckConfig -- "Yes" --> UseConfig["Use config value"]
     CheckConfig -- "No" --> UseFallback["Use 'BASELINE'\nhardcoded fallback"]
 ```
+-->
 
 ---
 

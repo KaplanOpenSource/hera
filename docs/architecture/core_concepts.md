@@ -8,6 +8,9 @@ This page provides a deep technical reference for the three foundational classes
 
 The diagram below shows the **core hierarchy** — `Project` at the base, `abstractToolkit` adding datasource management on top, and `ToolkitHome` acting as the registry/factory.
 
+![Diagram](../images/diagrams/architecture_core_concepts_0_666f80ef.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 classDiagram
     class Project {
@@ -68,6 +71,7 @@ classDiagram
     Project <|-- abstractToolkit : "inherits data layer"
     ToolkitHome ..> abstractToolkit : "instantiates via getToolkit()"
 ```
+-->
 
 | Class | Role | Key methods |
 |-------|------|------------|
@@ -79,6 +83,9 @@ classDiagram
 
 All domain toolkits extend `abstractToolkit`. The diagram below shows the full inheritance tree including the special `dataToolkit` that manages repositories.
 
+![Diagram](../images/diagrams/architecture_core_concepts_1_4e97226d.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 classDiagram
     class abstractToolkit {
@@ -162,6 +169,7 @@ classDiagram
     abstractToolkit <|-- LSMToolkit : "simulations"
     abstractToolkit <|-- RiskToolkit : "risk assessment"
 ```
+-->
 
 | Toolkit class | Domain | Key capabilities |
 |--------------|--------|-----------------|
@@ -194,6 +202,9 @@ The `Project` class is the central data access layer. Every interaction with sto
 
 ### Initialization Flow
 
+![Diagram](../images/diagrams/architecture_core_concepts_2_003f2fd3.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Project(projectName=...,\nconnectionName=...,\nfilesDirectory=...)"] --> CheckName{projectName\nis None?}
@@ -221,6 +232,7 @@ flowchart TD
     ResolveFiles --> SaveConfig["Save filesDirectory\nto project config\n(if not already saved)"]
     SaveConfig --> Ready["Project instance\nready for use"]
 ```
+-->
 
 !!! note "The Default Project"
     When `projectName=None` and no `caseConfiguration.json` exists, Hera uses a special `"defaultProject"` which is **read-only**. This is used by the `dataToolkit` to store repository metadata without polluting user projects.
@@ -277,6 +289,9 @@ Every document in Hera has the following top-level fields:
 
 ### Toolkit Resolution Flow
 
+![Diagram](../images/diagrams/architecture_core_concepts_3_4ef816a5.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["getToolkit(toolkitName,\nprojectName, filesDirectory)"] --> CheckStatic{Is toolkitName\nin static\nregistry?}
@@ -297,6 +312,7 @@ flowchart TD
 
     AutoRegister -- "No" --> ReturnNone["Return None\n(toolkit not available)"]
 ```
+-->
 
 !!! warning "Singleton Pattern"
     `ToolkitHome` is instantiated once at `hera/__init__.py` as `toolkitHome = ToolkitHome()`. All code should use this singleton rather than creating new instances. The static registry dict is populated in `__init__` and shared across the entire process.
@@ -353,6 +369,9 @@ The `_toolkits` dict is structured as:
 
 ### Datasource Lifecycle
 
+![Diagram](../images/diagrams/architecture_core_concepts_4_099a0520.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     subgraph Register ["1. Register Datasource"]
@@ -385,6 +404,7 @@ flowchart LR
     GetData --> CallGetData
     CallGetData --> ReturnData
 ```
+-->
 
 ### Key Methods
 
@@ -438,6 +458,9 @@ ax = lf.presentation.dailyPlots.plotScatter(enriched, plotField="RH")
 
 ### Repository JSON Loading Pipeline
 
+![Diagram](../images/diagrams/architecture_core_concepts_5_98ea1dbf.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["loadAllDatasourcesIn\nRepositoryJSONToProject(\nprojectName, repositoryJSON,\nbasedir, overwrite,\nauto_register_missing)"] --> ParseJSON["Parse repositoryJSON\ndictionary"]
@@ -472,6 +495,7 @@ flowchart TD
     HandleFunc --> NextSection
     NextSection --> SectionType
 ```
+-->
 
 ### Handler Dispatch Table
 

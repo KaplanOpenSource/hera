@@ -6,6 +6,9 @@ Hera provides a set of command-line tools in `hera/bin/` for managing projects, 
 
 ## Overview
 
+![Diagram](../images/diagrams/cli_reference_0_8490f808.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     subgraph ProjectMgmt ["Project Management"]
@@ -40,6 +43,7 @@ flowchart LR
         JupyterLab["jupyter-lab-server\n\nJupyter Lab\nserver launcher"]
     end
 ```
+-->
 
 | Tool | Category | Description |
 |------|----------|-------------|

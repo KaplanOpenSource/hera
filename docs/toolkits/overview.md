@@ -8,6 +8,12 @@ This page provides a comprehensive overview of all built-in toolkits in Hera, or
 
 Every toolkit inherits from `abstractToolkit`, which itself inherits from `Project`. This means every toolkit has full data layer access plus domain-specific analysis and presentation capabilities.
 
+![Diagram](../images/diagrams/toolkits_overview_0_7d31b649.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+![Diagram](../images/diagrams/toolkits_overview_0_7d31b649.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph ToolkitPattern ["Toolkit Design Pattern"]
@@ -54,6 +60,8 @@ flowchart TD
     Base -.-> Risk_domain
     Base -.-> Data_domain
 ```
+-->
+-->
 
 | Constant | Toolkit Name | Category | Class | Description |
 |----------|-------------|----------|-------|-------------|
@@ -281,6 +289,12 @@ stats = hf.analysis.calculateMeanData(sonic_df)
 
 Full lifecycle management for OpenFOAM CFD simulations.
 
+![Diagram](../images/diagrams/toolkits_overview_1_7d53b999.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+![Diagram](../images/diagrams/toolkits_overview_1_7d53b999.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     subgraph SetupPhase ["Setup"]
@@ -303,6 +317,8 @@ flowchart LR
     Mesh --> RunCase --> Monitor
     Monitor --> Analysis_OF --> Visualization
 ```
+-->
+-->
 
 | Phase | Step | Description |
 |-------|------|-------------|
@@ -369,6 +385,12 @@ Vertical wind profile modeling and analysis.
 
 Agent-based risk assessment modeling framework.
 
+![Diagram](../images/diagrams/toolkits_overview_2_9640b12e.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+![Diagram](../images/diagrams/toolkits_overview_2_9640b12e.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph InputData ["Input Data"]
@@ -401,6 +423,8 @@ flowchart TD
     Casualties --> RiskMaps
     Casualties --> Analysis_RA
 ```
+-->
+-->
 
 | Component | Description |
 |-----------|-------------|

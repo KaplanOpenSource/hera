@@ -56,11 +56,18 @@ def render_mermaid_to_svg(mermaid_source: str, output_path: Path) -> bool:
             input_file = Path(tmpdir) / "input.mmd"
             output_file = Path(tmpdir) / "output.svg"
 
+            # Make temp dir and file accessible to the Docker container
+            os.chmod(tmpdir, 0o777)
             input_file.write_text(mermaid_source)
+            os.chmod(input_file, 0o666)
+
+            uid = os.getuid()
+            gid = os.getgid()
 
             result = subprocess.run(
                 [
                     "docker", "run", "--rm",
+                    "--user", f"{uid}:{gid}",
                     "-v", f"{tmpdir}:/data",
                     DOCKER_IMAGE,
                     "-i", "/data/input.mmd",
@@ -68,7 +75,7 @@ def render_mermaid_to_svg(mermaid_source: str, output_path: Path) -> bool:
                     "-b", "transparent",
                     "-w", "2048",
                 ],
-                capture_output=True, text=True, timeout=30
+                capture_output=True, text=True, timeout=60
             )
 
             if result.returncode != 0:

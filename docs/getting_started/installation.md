@@ -22,6 +22,9 @@ The fastest way to get Hera running. Uses Docker for MongoDB and scripts to auto
 
 ### Installation Flow
 
+![Diagram](../images/diagrams/getting_started_installation_0_653d38cb.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Clone["git clone + cd hera"] --> Init["source init_with_mongo.sh"]
@@ -33,6 +36,7 @@ flowchart TD
     Init --> Config["Creates ~/.pyhera/config.json"]
     Config --> Verify["Verify: python -c\n'from hera import Project'"]
 ```
+-->
 
 ### Steps
 
@@ -108,6 +112,9 @@ If you prefer not to use Docker or need more control over each step, follow thes
 
 ### Installation Flow
 
+![Diagram](../images/diagrams/getting_started_installation_1_e0984dfa.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph Step1 ["Step 1: System Packages"]
@@ -146,6 +153,7 @@ flowchart TD
     Dirs --> MongoInstall --> MongoUsers --> MongoConfig
     MongoConfig --> VerifyImport --> VerifyCLI
 ```
+-->
 
 ### Step 1: System Packages
 

@@ -8,6 +8,9 @@ This page covers the MongoDB document model, the `datatypes` system for format d
 
 Hera stores all metadata in MongoDB using a single base model (`Metadata`) with three subtypes. Each document represents a pointer to data — the actual data lives on disk (or inline for small values).
 
+![Diagram](../images/diagrams/architecture_data_layer_0_a442aadb.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 classDiagram
     class Metadata {
@@ -65,6 +68,7 @@ classDiagram
     Simulations_Collection ..> Simulations : "manages"
     Cache_Collection ..> Cache : "manages"
 ```
+-->
 
 ### Document Fields
 
@@ -81,6 +85,9 @@ classDiagram
 
 Each collection type wraps a MongoEngine document class and provides the standard CRUD interface:
 
+![Diagram](../images/diagrams/architecture_data_layer_1_126c6f18.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     subgraph ProjectAPI ["Project API Layer"]
@@ -109,6 +116,7 @@ flowchart LR
     GetDoc --> MetadataCol
     DelDoc --> MetadataCol
 ```
+-->
 
 !!! note "Three Parallel APIs"
     The `Project` class exposes identical method sets for all three collection types: `addMeasurementsDocument` / `addSimulationsDocument` / `addCacheDocument`, and similarly for get and delete. Under the hood, each delegates to its own `Collection` instance which filters by the `_cls` discriminator.
@@ -123,6 +131,9 @@ The `datatypes` class defines all supported data format constants and provides t
 
 ### Supported Formats
 
+![Diagram](../images/diagrams/architecture_data_layer_2_6b3cb736.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph TabularFormats ["Tabular Data"]
@@ -162,6 +173,7 @@ flowchart TD
         CLASS["CLASS\nClass\npydoc.locate + instantiate"]
     end
 ```
+-->
 
 | Constant | Value | Description |
 |----------|-------|-------------|
@@ -187,6 +199,9 @@ flowchart TD
 
 When `document.getData()` is called, the system resolves the handler based on `dataFormat`:
 
+![Diagram](../images/diagrams/architecture_data_layer_3_a857df8c.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["doc.getData()"] --> ReadFormat["Read doc.dataFormat\nand doc.resource"]
@@ -215,6 +230,7 @@ flowchart TD
     ReadImg --> Return
     ReturnString --> Return
 ```
+-->
 
 !!! tip "Auto-Detection"
     The `datatypes.getDataFormatName(data)` static method can auto-detect the format from a Python object (DataFrame -> `"parquet"`, xarray.Dataset -> `"netcdf_xarray"`, dict -> `"JSON_dict"`, etc.). This is used by `Project.saveData()` to automatically choose the right format and file extension.
@@ -262,6 +278,9 @@ A **repository JSON** is the standard way to declare and load data into a Hera p
 
 ### Loading Pipeline
 
+![Diagram](../images/diagrams/architecture_data_layer_4_1a682ce1.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
     participant User as User / CLI
@@ -312,6 +331,7 @@ sequenceDiagram
 
     DT-->>User: Loading complete
 ```
+-->
 
 ### Path Resolution
 
@@ -367,6 +387,9 @@ When a datasource is registered via `abstractToolkit.addDataSource()`, it create
 
 When `getDataSourceDocument(name)` is called without a version:
 
+![Diagram](../images/diagrams/architecture_data_layer_5_40c0c156.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["getDataSourceDocument(\nname, version=None)"] --> CheckDefault{Default version\nset in project\nconfig?}
@@ -383,6 +406,7 @@ flowchart TD
     PickMax --> ReturnDoc
     QueryDefault --> ReturnDoc
 ```
+-->
 
 ---
 

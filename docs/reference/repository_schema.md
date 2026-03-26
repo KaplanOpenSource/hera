@@ -441,6 +441,9 @@ For items with `isRelativePath: "False"` or `isRelativePath: false`:
 
 ## Complete Schema Diagram
 
+![Diagram](../images/diagrams/reference_repository_schema_0_89b70986.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Repository JSON\nRoot Dictionary"] --> ToolkitKey["<ToolkitName>\nString key"]
@@ -467,6 +470,7 @@ flowchart TD
     DocFields --> DocAction["toolkit.addMeasurements\nDocument(...)\nOR\naddSimulationsDocument(...)\nOR\naddCacheDocument(...)"]
     FuncSection --> FuncAction["dataToolkit.<functionName>\n(**params)"]
 ```
+-->
 
 ---
 

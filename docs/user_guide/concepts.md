@@ -219,6 +219,9 @@ A repository JSON maps toolkit names to their data sources, configurations, and 
 
 ## How it all fits together
 
+![Diagram](../images/diagrams/user_guide_concepts_0_73733e10.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TB
     User["You (Python / CLI)"]
@@ -233,6 +236,7 @@ flowchart TB
     Toolkit --> Presentation["Presentation\n(visualization)"]
     Toolkit --> DataSources["Data Sources\n(versioned datasets)"]
 ```
+-->
 
 1. You ask **ToolkitHome** for a toolkit by name
 2. ToolkitHome finds and instantiates the right **Toolkit** class
