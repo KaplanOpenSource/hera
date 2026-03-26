@@ -2,9 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyhera",
-    url="http://mathsrv2:8081/edenn/pyhera.git",
+    url="https://github.com/KaplanOpenSource/hera",
     packages=find_packages(),
-    author="Eden Nitzan",
+    author="Yehuda Arav",
+    maintainer="Yehuda Arav",
+    maintainer_email="",
+    description="Scientific data management and analysis platform",
+    long_description_content_type="text/markdown",
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX :: Linux",
+    ],
+    python_requires=">=3.9",
     extras_require={
         "rag": [
             "sentence-transformers>=2.7",
