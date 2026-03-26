@@ -488,6 +488,247 @@ flowchart TD
 
 ---
 
+## Connection Management (`document/__init__.py`)
+
+### How connections are established
+
+When `hera` is imported, the `document/__init__.py` module automatically connects to all databases defined in `~/.pyhera/config.json`:
+
+```python
+# Runs at import time (bottom of document/__init__.py)
+for user in getDBNamesFromJSON():
+    createDBConnection(
+        connectionName=user,
+        mongoConfig=getMongoConfigFromJson(connectionName=user)
+    )
+```
+
+### Dynamic class creation
+
+MongoDB document classes are created **dynamically at runtime** using Python's `type()` builtin. This allows each database connection to have its own set of MongoEngine document classes with the correct `db_alias`:
+
+```python
+# Creates a new class: Metadata(DynamicDocument, MetadataFrame)
+new_Metadata = type('Metadata', (DynamicDocument, MetadataFrame), {
+    'meta': {
+        'db_alias': f'{dbName}-alias',  # binds to specific DB
+        'allow_inheritance': True,       # enables Measurements/Simulations/Cache subtypes
+        'auto_create_indexes': True,
+        'indexes': ['projectName']       # index for fast project queries
+    }
+})
+
+# Subtypes inherit from the dynamic Metadata class
+new_Measurements = type('Measurements', (new_Metadata,), {})
+new_Simulations = type('Simulations', (new_Metadata,), {})
+new_Cache = type('Cache', (new_Metadata,), {})
+```
+
+### The `dbObjects` registry
+
+All connections and document classes are stored in a module-level dictionary:
+
+```python
+dbObjects = {
+    "connectionName1": {
+        "connection": <mongoengine connection>,
+        "Metadata": <dynamic Metadata class>,
+        "Measurements": <dynamic Measurements class>,
+        "Simulations": <dynamic Simulations class>,
+        "Cache": <dynamic Cache class>,
+    },
+    "connectionName2": { ... },
+}
+```
+
+`getDBObject(objectName, connectionName)` retrieves a class from this registry. Collections use it to get their MongoEngine document class:
+
+```python
+# Inside AbstractCollection.__init__:
+self._metadataCol = getDBObject('Metadata', connectionName)
+# or for typed collections:
+self._metadataCol = getDBObject('Measurements', connectionName)
+```
+
+### Multi-database support
+
+Each connection name maps to a separate MongoDB database. This enables:
+- Different projects on different servers
+- Shared "public" databases alongside local ones
+- Parallel connections with different aliases
+
+---
+
+## MetadataFrame (`document/metadataDocument.py`)
+
+### getData() dispatch
+
+`MetadataFrame.getData()` is the bridge between metadata and actual data:
+
+```python
+def getData(self, **kwargs):
+    storeParametersDict = self.desc.get("storeParameters", {})
+    storeParametersDict.update(kwargs)
+    return getHandler(self.dataFormat).getData(
+        resource=self.resource, desc=self.desc, **storeParametersDict
+    )
+```
+
+1. Reads `storeParameters` from the document's `desc` — these were saved when the data was written (e.g., `usePandas=True` for parquet)
+2. Merges with any kwargs passed by the caller
+3. Calls `getHandler(dataFormat)` to find the right `DataHandler_*` class
+4. Delegates to the handler's `getData(resource, desc, **params)`
+
+### nonDBMetadataFrame
+
+A wrapper for data that isn't stored in MongoDB. Used by `saveData` when `saveMode=NOSAVE` and by `createNewArea` when data is computed in memory:
+
+```python
+class nonDBMetadataFrame:
+    def __init__(self, data, projectName=None, type=None, ...):
+        self._data = data   # the actual Python object
+
+    def getData(self, **kwargs):
+        return self._data   # just returns the object, no handler dispatch
+```
+
+---
+
+## DataHandler Pattern (`datahandler.py`)
+
+### How handlers work
+
+Each `DataHandler_*` class is a static utility with two methods:
+
+```python
+class DataHandler_parquet:
+    @staticmethod
+    def saveData(resource, fileName, **kwargs):
+        # Save the data object to disk
+        resource.to_parquet(fileName, **kwargs)
+        return {"usePandas": True}  # store parameters returned to caller
+
+    @staticmethod
+    def getData(resource, desc={}, usePandas=False, **kwargs):
+        # Load data from disk
+        df = dask.dataframe.read_parquet(resource, **kwargs)
+        if usePandas:
+            df = df.compute()
+        return df
+```
+
+Key pattern:
+- `saveData` writes to disk and returns a dict of **store parameters** — these are saved in `desc.storeParameters` so `getData` can reproduce the exact same load behavior
+- `getData` reads from disk using `resource` (file path) and `desc` for metadata
+
+### Handler dispatch
+
+```python
+def getHandler(objectType):
+    handlerName = f"DataHandler_{objectType}"
+    return getattr(datahandler_module, handlerName)
+```
+
+`objectType` is the `dataFormat` string (e.g., `"parquet"` → `DataHandler_parquet`).
+
+### Auto-detection
+
+When saving data with `Project.saveData()`, the format is auto-detected:
+
+```python
+datatypes.typeDatatypeMap = {
+    "pandas.core.frame.DataFrame": {"typeName": "parquet", "ext": "parquet"},
+    "geopandas.geodataframe.GeoDataFrame": {"typeName": "geopandas", "ext": "gpkg"},
+    "xarray.core.dataarray.DataArray": {"typeName": "zarr_xarray", "ext": "zarr"},
+    "numpy.ndarray": {"typeName": "numpy_array", "ext": "npy"},
+    "dict": {"typeName": "pickle", "ext": "pckle"},
+    # ...
+}
+```
+
+`datatypes.getDataFormatName(obj)` looks up the fully-qualified class name in this map and returns the format string.
+
+### Adding a new handler
+
+1. Create a class `DataHandler_myformat` in `datahandler.py`:
+   ```python
+   class DataHandler_myformat:
+       @staticmethod
+       def saveData(resource, fileName, **kwargs):
+           # write resource to fileName
+           return {}
+
+       @staticmethod
+       def getData(resource, desc={}, **kwargs):
+           # read and return data from resource
+           pass
+   ```
+
+2. Add a constant to `datatypes`:
+   ```python
+   MYFORMAT = "myformat"
+   ```
+
+3. Optionally add to `typeDatatypeMap` for auto-detection:
+   ```python
+   "mypackage.MyClass": {"typeName": "myformat", "ext": "myext"}
+   ```
+
+---
+
+## Function Caching (`autocache.py`)
+
+### How `@cacheFunction` works
+
+The `cacheFunction` decorator caches function return values in the project database:
+
+```python
+@cacheFunction(returnFormat=datatypes.PARQUET, projectName="MY_PROJECT")
+def expensive_computation(x, y):
+    # ... long computation ...
+    return result_df
+```
+
+### Cache lookup flow
+
+```
+1. Function called with (args, kwargs)
+    ↓
+2. Bind args to function signature → dict of all parameters
+    ↓
+3. Convert to JSON (ConfigurationToJSON) with standardized MKS units
+    ↓
+4. Serialize non-BSON values to base64 text
+    ↓
+5. Add function's fully-qualified name
+    ↓
+6. Query Cache collection: type="functionCacheData" + all serialized params
+    ↓
+7a. Cache HIT → doc.getData() → return
+7b. Cache MISS → execute function → saveData → create cache document → return
+```
+
+### Argument serialization
+
+Each function argument is checked for BSON compatibility:
+
+```python
+for key, value in call_info.items():
+    serializable = BSON.encode({'test': value})  # try BSON
+    if serializable:
+        call_info_serialized[key] = (True, value)      # store as-is
+    else:
+        call_info_serialized[key] = (False, base64(pickle(value)))  # serialize
+```
+
+This handles complex objects (numpy arrays, custom classes) that MongoDB can't store natively.
+
+### Unit standardization
+
+Arguments with physical units (pint Quantities or Unum) are converted to MKS before querying. This means `5 * ureg.km` and `5000 * ureg.m` produce the same cache key — the cache is unit-aware.
+
+---
+
 ## API Reference
 
 ::: hera.datalayer.datahandler.datatypes
