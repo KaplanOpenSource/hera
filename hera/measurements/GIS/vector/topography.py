@@ -19,12 +19,26 @@ from .toolkit import VectorToolkit
 from ..utils import stlFactory
 
 class TopographyToolkit(VectorToolkit):
+    """Toolkit for managing and analyzing vector topography data."""
 
     @property
     def stlFactory(self):
+        """stlFactory : stlFactory
+            The STL factory instance used for vector-to-STL conversions."""
         return self._stlFactory
 
     def __init__(self, projectName, filesDirectory="",connectionName=None):
+        """Initialize the topography toolkit with project settings and analysis layer.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        filesDirectory : str, optional
+            Path to the files directory.
+        connectionName : str or None, optional
+            Database connection name.
+        """
         toolkitName = "Topography"
         super().__init__(projectName=projectName, filesDirectory=filesDirectory, toolkitName=toolkitName,connectionName=connectionName)
         self._analysis = analysis(projectName=projectName, dataLayer=self)
@@ -204,14 +218,25 @@ class TopographyToolkit(VectorToolkit):
 
 
 class analysis():
+    """Analysis layer for the topography toolkit."""
 
     _datalayer = None
 
     @property
     def datalayer(self):
+        """TopographyToolkit : Reference to the parent data layer."""
         return self._datalayer
 
     def __init__(self, projectName, dataLayer):
+        """Initialize the topography analysis with a reference to the data layer.
+
+        Parameters
+        ----------
+        projectName : str
+            Name of the project.
+        dataLayer : TopographyToolkit
+            The parent topography toolkit instance.
+        """
         self._datalayer = dataLayer
 
 

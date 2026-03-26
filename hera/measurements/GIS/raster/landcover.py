@@ -28,6 +28,7 @@ warnings.filterwarnings("ignore",
 
 # ================== CLASS ================== #
 class LandCoverToolkit(toolkit.abstractToolkit):
+    """Toolkit for land cover data retrieval, roughness calculation, and mapping."""
     # """
     # We should use different roughness to buildings and to topo
     #
@@ -230,6 +231,7 @@ class LandCoverToolkit(toolkit.abstractToolkit):
         """
 
         def vectorizeLandCoverCalc(lat, lon, img, lonUpperLeft, lonResolution, latUpperLeft, latResolution):
+            """Return the landcover pixel value at a given lat/lon coordinate."""
             ilat = math.floor((lat - latUpperLeft) / latResolution)
             ilon = math.floor((lon - lonUpperLeft) / lonResolution)
             return img[ilat, ilon]
@@ -674,6 +676,18 @@ class LandCoverToolkit(toolkit.abstractToolkit):
 
 
     def _getRoughnessFromBuildingsDataFrame(self,lambdaGrid):
+        """Compute roughness parameters from a buildings lambda GeoDataFrame.
+
+        Parameters
+        ----------
+        lambdaGrid : geopandas.GeoDataFrame
+            DataFrame with lambdaF, lambdaP, and hc columns.
+
+        Returns
+        -------
+        geopandas.GeoDataFrame
+            Updated DataFrame with z0, dd, Lc, and ll columns.
+        """
         lambdaGrid.loc[(lambdaGrid.hc < 2), "lambdaF"] = 0.25
         lambdaGrid.loc[(lambdaGrid.hc < 2), "lambdaP"] = 0.25
         lambdaGrid.loc[(lambdaGrid.hc < 2), "hc"] = 2
@@ -689,14 +703,15 @@ class LandCoverToolkit(toolkit.abstractToolkit):
     
     @staticmethod
     def roughnesslength2sandgrainroughness(rl):
-    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏    
+        """Convert roughness length to equivalent sand grain roughness (Ks = z0 * 30)."""
+    #Desmond, C. J., Watson, S. J., & Hancock, P. E. (2017). Modelling the wind energy resource in complex terrain and atmospheres. Numerical simulation and wind tunnel investigation of non-neutral forest canopy flow. Journal of wind engineering and industrial aerodynamics, 166, 48-60.‏
     # https://www.sciencedirect.com/science/article/pii/S0167610516300083#bib12
     # eq. 5: Equivalent sand grain roughness (m) is z0*30
-    
+
     # we can you it for "nutkRoughWallFunction" boundary condition for Ks (sand grain roughness) parameter
     # Cs value can be set as 0.5
-    
-        return rl*30.0 # return Ks value 
+
+        return rl*30.0 # return Ks value
 
 
 class presentation:
@@ -707,9 +722,17 @@ class presentation:
 
     @property
     def datalayer(self):
+        """Return the associated data layer."""
         return self._datalayer
 
     def __init__(self, dataLayer):
+        """Initialize presentation with data layer and color map.
+
+        Parameters
+        ----------
+        dataLayer : LandCoverToolkit
+            The associated land cover data layer.
+        """
         self._datalayer = dataLayer
         self.landcover_colors_map = {
             0: 'blue',  # Water
@@ -797,6 +820,23 @@ class presentation:
         plt.show()
 
     def _plotWithRectangles(self,ax,plot,rectangles,alpha):
+        """Overlay colored rectangles on a satellite image axes.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axes to draw on.
+        plot : matplotlib.image.AxesImage
+            Background image.
+        rectangles : list of tuple
+            Rectangle specs (x, y, width, height, color).
+        alpha : float
+            Transparency level.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+        """
         extent = plot.get_extent()
         ax.imshow(plot.get_array(), extent=extent)
         ax = self._adddRectanglesToPlot(ax, rectangles,alpha)
@@ -807,6 +847,21 @@ class presentation:
         return ax
 
     def _adddRectanglesToPlot(self,ax,rectangles,alpha):
+        """Add rectangle patches to a matplotlib axes.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axes to add patches to.
+        rectangles : list of tuple
+            Rectangle specs (x, y, width, height, color).
+        alpha : float
+            Transparency level.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+        """
         for rect in rectangles:
             x, y, width, height, color = rect
             rectangle = patches.Rectangle(
@@ -822,6 +877,18 @@ class presentation:
 
         return ax
     def _getLandcoverRectangles(self,landcover):
+        """Build colored rectangles from landcover grid cells.
+
+        Parameters
+        ----------
+        landcover : xarray.DataArray
+            Landcover data with lat, lon, and landcover coordinates.
+
+        Returns
+        -------
+        list of tuple
+            Unique rectangle specs (x, y, width, height, color).
+        """
         rectangles = []
         for arr in landcover:
             for x in arr:
@@ -831,6 +898,18 @@ class presentation:
         return list(set(rectangles))
 
     def _getRoughnessRectangles(self,landcover):
+        """Build color-mapped rectangles from roughness (z0) grid cells.
+
+        Parameters
+        ----------
+        landcover : xarray.DataArray
+            Landcover data with lat, lon, and z0 coordinates.
+
+        Returns
+        -------
+        list of tuple
+            Unique rectangle specs (x, y, width, height, color).
+        """
         rectangles = []
         colormap = plt.cm.viridis
         norm = mcolors.Normalize(vmin=landcover.z0.min().values, vmax=landcover.z0.max().values)
@@ -882,6 +961,20 @@ class presentation:
         plt.show()
 
     def _getLambdasRectangles(self,field,landcover):
+        """Build color-mapped rectangles from a lambda field in landcover.
+
+        Parameters
+        ----------
+        field : str
+            Name of the lambda field to visualize.
+        landcover : xarray.DataArray
+            Landcover data with the specified field.
+
+        Returns
+        -------
+        list of tuple
+            Unique rectangle specs (x, y, width, height, color).
+        """
         rectangles = []
         colormap = plt.cm.viridis
         norm = mcolors.Normalize(vmin=landcover[field].min().values, vmax=landcover[field].max().values)

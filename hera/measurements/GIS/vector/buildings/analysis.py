@@ -18,6 +18,13 @@ class analysis():
     Analysis layer class of GIS Buildings. Acess this class with BuildingsToolkit.analysis.
     """
     def __init__(self, dataLayer):
+        """Initialize the buildings analysis layer.
+
+        Parameters
+        ----------
+        dataLayer : BuildingsToolkit
+            The parent buildings toolkit instance.
+        """
         self.datalayer = dataLayer
         cnfg = dict(self.datalayer.getConfig())
         cnfg.setdefault("analysis_CacheCounter",0)
@@ -196,6 +203,22 @@ class Blocks(object):
     _blockArea = 0 # Total erea of the Block
 
     def _SplitFunction(self, min, max, axis):
+        """Compute split coordinates and step size along a given axis.
+
+        Parameters
+        ----------
+        min : float
+            Minimum coordinate value.
+        max : float
+            Maximum coordinate value.
+        axis : str
+            The axis to split ('x' or 'y').
+
+        Returns
+        -------
+        tuple
+            (coords, step_size) arrays for the split.
+        """
         funcDict = {"size": numpy.arange, "count": (lambda x, y, z: numpy.linspace(x, y, z)[:-1])}
         coords = funcDict[self._DivisionType[axis]](min, max, self._Division[axis])
         dx = (coords[1] - coords[0]) if len(coords) > 1 else (max - min)
@@ -269,11 +292,18 @@ class Blocks(object):
             raise ValueError("Either x or y axis is not set.")
 
     def _GetBlocks(self):
+        """Yield block dictionaries from the internal list."""
         for x in self._listOfDicts:
             yield x
 
-    # Creates a dictionary of
     def _BuildIndexList(self):
+        """Build the list of block index dictionaries for the domain decomposition.
+
+        Returns
+        -------
+        Blocks
+            Self, with ``_listOfDicts`` populated.
+        """
         self._listOfDicts = []
         enum = lambda L: [x for x in enumerate(L)]
         currentLevel = self._Level
@@ -312,6 +342,18 @@ class Blocks(object):
         return self
 
     def iterBlocks(self, **kwargs):
+        """Create a nested block level and build its index list.
+
+        Parameters
+        ----------
+        **kwargs
+            Division parameters forwarded to the new ``Blocks`` constructor.
+
+        Returns
+        -------
+        Blocks
+            A new Blocks instance one level deeper with indices built.
+        """
         return Blocks(level=(self._Level + 1), exteriorBlock=self, df=self._Df, **kwargs)._BuildIndexList()
 
     def initBuildingsBlock(self, blockDict):
@@ -341,6 +383,13 @@ class Blocks(object):
         return OnebuildingsBlock
 
     def _LambdaP(self):
+        """Calculate the plan area fraction (lambda_P) for this block.
+
+        Returns
+        -------
+        float
+            The lambda_P value.
+        """
         if self._Buildings.empty:
             return 0
 
@@ -397,6 +446,22 @@ class Blocks(object):
         return lambdaP
 
     def _A_f(self, buildingGeometry, height, windDirection):
+        """Calculate the frontal area of a building for a given wind direction.
+
+        Parameters
+        ----------
+        buildingGeometry : shapely.geometry.Polygon
+            The building footprint geometry.
+        height : float
+            Building height in meters.
+        windDirection : float
+            Wind direction angle in degrees.
+
+        Returns
+        -------
+        float
+            The frontal area.
+        """
         A_f = 0
         g = geopandas.GeoSeries([buildingGeometry])
 
@@ -475,7 +540,13 @@ class Blocks(object):
         return lambda_f
 
     def getHc(self):
+        """Return the average building height for this block.
 
+        Returns
+        -------
+        float or None
+            Average building height, or None if lambda_P is not set.
+        """
         if self._LambdaP is not None:
 
             return self._hc

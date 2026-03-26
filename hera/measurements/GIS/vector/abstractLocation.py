@@ -194,7 +194,17 @@ class AbstractLocationToolkit(toolkit.abstractToolkit):
         return outputFileName if doc is None else doc
 
     def makeRegion_shp(self,points,inputData,outputFileName):
+        """Clip a shapefile to the bounding box defined by points using ogr2ogr.
 
+        Parameters
+        ----------
+        points : list, dict, or geopandas.GeoDataFrame
+            Bounding box coordinates for clipping.
+        inputData : str
+            Path to the input shapefile.
+        outputFileName : str
+            Path to the output clipped shapefile.
+        """
         if isinstance(points,list):
             points = dict(minX= points[0], minY=points[1], maxX=points[2] , maxY=points[3])
         elif isinstance(points,dict):

@@ -125,6 +125,14 @@ def buildings_parser_list(arguments):
 
 
 def buildings_raster_toSTL(arguments):
+    """Export buildings within a bounding box to an STL file.
+
+    Parameters
+    ----------
+    arguments : namespace
+        CLI arguments including minx, miny, maxx, maxy, dxdy,
+        inputCRS, outputCRS, dataSourceName, fileName, and projectName.
+    """
     logger = logging.getLogger("hera.bin.measuerments.GIS")
 
     if "projectName" in arguments:
@@ -155,6 +163,15 @@ def buildings_raster_toSTL(arguments):
 
 
 def get_landocver(arguments):
+    """Retrieve landcover or roughness data and save as CSV.
+
+    Parameters
+    ----------
+    arguments : namespace
+        CLI arguments including minx, miny, maxx, maxy, dxdy,
+        inputCRS, dataSourceName, roughness, isBuilding,
+        windDirection, resolution, filePath, and projectName.
+    """
     logger = logging.getLogger("hera.measuerments.GIS.CLI.get_landocver")
     logger.info(f"Arguments: {arguments}")
 
