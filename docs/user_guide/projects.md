@@ -72,12 +72,16 @@ If no `caseConfiguration.json` exists and no name is provided, Hera uses a read-
 
 A typical project goes through these steps:
 
+![Diagram](../images/diagrams/user_guide_projects_0_aac364c3.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     Create["1. Create\nproject directory"] --> Config["2. caseConfiguration.json\ncreated automatically"]
     Config --> Load["3. Load external\ndata (repositories)"]
     Load --> Work["4. Work with\ntoolkits"]
 ```
+-->
 
 **Step 1 — Create a project directory:**
 

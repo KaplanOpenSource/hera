@@ -50,6 +50,9 @@ External test data lives in a separate directory:
 
 ## Session Lifecycle — The Complete Flow
 
+![Diagram](../images/diagrams/testing_flow_0_14d2ef73.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
     participant Pytest as Pytest Runner
@@ -135,6 +138,7 @@ sequenceDiagram
     Conftest -->> Pytest: Cleanup complete
     end
 ```
+-->
 
 ---
 
@@ -178,6 +182,9 @@ def hera_test_project(test_hera_root):
 
 ### What loadAllDatasourcesInRepositoryJSONToProject Does
 
+![Diagram](../images/diagrams/testing_flow_1_2c0423bb.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Start:\nrepositoryJSON dict\n+ basedir path"] --> IterToolkits["Iterate over each\ntoolkitName key\nin the JSON"]
@@ -215,6 +222,7 @@ flowchart TD
     HandleFunc --> NextSection
     NextSection --> SectionType
 ```
+-->
 
 !!! info "Overwrite Mode"
     The `overwrite=True` parameter ensures that running the test suite multiple times does not accumulate stale documents. Existing documents with the same datasource name are deleted before the new ones are inserted.
@@ -244,6 +252,9 @@ Each toolkit test module depends on a session-scoped fixture that instantiates t
 
 ### Fixture Dependency Graph
 
+![Diagram](../images/diagrams/testing_flow_2_a0c79d4e.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph EnvLayer ["Environment Layer"]
@@ -282,6 +293,7 @@ flowchart TD
     HeraPrj --> LfTK
     HeraPrj --> HfTK
 ```
+-->
 
 ---
 
@@ -303,6 +315,9 @@ flowchart TD
 
 Here is the typical pattern, using `test_lowfreq.py` as an example:
 
+![Diagram](../images/diagrams/testing_flow_3_0990832d.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["Test function receives\nlf_toolkit fixture\n(session-scoped)"] --> LoadData["Module fixture: lowfreq_df\nlf_toolkit.getDataSourceData(\n'YAVNEEL')"]
@@ -330,6 +345,7 @@ flowchart TD
     NeedCompare -- "No" --> DirectAssert["Direct assertions:\nassert value == expected\nassert shape == (n, m)"]
     DirectAssert --> PassTest3["Test PASSES"]
 ```
+-->
 
 !!! note "Dask to Pandas"
     The `parquet` data handler returns a **dask DataFrame** for lazy loading. Test fixtures call `.compute()` to materialize it into a pandas DataFrame before running assertions.
@@ -352,6 +368,9 @@ The `conftest.py` module provides a rich set of comparison functions for validat
 
 ### compare_outputs Dispatcher
 
+![Diagram](../images/diagrams/testing_flow_4_80e13768.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     Start["compare_outputs(\nresult, expected,\noutput_type)"] --> TypeSwitch{output_type\nvalue?}
@@ -384,6 +403,7 @@ flowchart TD
     CompareStr --> ReturnBool
     CompareNPZ --> ReturnBool
 ```
+-->
 
 ### compare_dataframes — Deep Comparison
 

@@ -48,6 +48,9 @@ hera/
 
 ### Data Flow
 
+![Diagram](../images/diagrams/testing_getting_started_0_5985e56e.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
     participant Session as Session Setup<br/>(conftest.py)
@@ -77,6 +80,7 @@ sequenceDiagram
     Tests->>Tests: toolkit.analysis.*()
     Tests->>Tests: toolkit.presentation.*()
 ```
+-->
 
 ---
 

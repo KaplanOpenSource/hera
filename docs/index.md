@@ -27,6 +27,9 @@ Hera is a Python-based platform for managing scientific data across measurements
 
 The entire system is built around three core abstractions: **Project**, **ToolkitHome**, and **abstractToolkit**. The diagram below shows how they relate to each other and to the concrete domain toolkits.
 
+![Diagram](images/diagrams/index_0_fb3e36be.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TB
     subgraph UserLayer ["User Entry Points"]
@@ -101,6 +104,7 @@ flowchart TB
     Project -- "CRUD" --> SimColl
     Project -- "CRUD" --> CacheColl
 ```
+-->
 
 ---
 

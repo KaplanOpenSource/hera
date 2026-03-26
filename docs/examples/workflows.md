@@ -10,6 +10,9 @@ Complete pipeline for analyzing low-frequency meteorological station data.
 
 ### Overview
 
+![Diagram](../images/diagrams/examples_workflows_0_d567fe0b.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     subgraph Load ["1. Load Data"]
@@ -34,6 +37,7 @@ flowchart LR
     GetData --> Enrich --> Calc --> Stats
     Stats --> DailyPlots --> SeasonalPlots --> Export
 ```
+-->
 
 ### Step-by-Step Code
 
@@ -122,6 +126,9 @@ Generate STL meshes for CFD simulation from GIS data.
 
 ### Overview
 
+![Diagram](../images/diagrams/examples_workflows_1_26b54cb5.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph GIS ["GIS Data Loading"]
@@ -159,6 +166,7 @@ flowchart TD
 
     Combine --> WindProfile --> RunOF --> PostProcess
 ```
+-->
 
 ### Step-by-Step Code
 
@@ -282,6 +290,9 @@ Complete risk assessment workflow from population data to casualty estimates.
 
 ### Overview
 
+![Diagram](../images/diagrams/examples_workflows_2_35cd9575.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart TD
     subgraph Input ["Input Data"]
@@ -327,6 +338,7 @@ flowchart TD
     CalculateCasualties --> Statistics
     CalculateCasualties --> Reports
 ```
+-->
 
 ### Step-by-Step Code
 
