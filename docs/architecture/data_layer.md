@@ -486,6 +486,152 @@ flowchart TD
 -->
 -->
 
+### addDataSource Swimlane
+
+The full call chain when a toolkit registers a new data source — from the toolkit API down through the data layer to MongoDB:
+
+![Diagram](../images/diagrams/architecture_data_layer_6_addsource.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant Toolkit as abstractToolkit
+    participant Project as Project
+    participant Collection as Measurements_Collection
+    participant MongoDB as MongoDB
+
+    User->>Toolkit: addDataSource(name, resource, dataFormat, version, **metadata)
+    Note over Toolkit: Attach toolkit name,<br/>datasource name,<br/>version to desc
+
+    Toolkit->>Toolkit: getDataSourceDocument(name, version)
+    Toolkit->>Project: getMeasurementsDocuments(type="ToolkitDataSource", ...)
+    Project->>Collection: getDocuments(projectName, **filters)
+    Collection->>MongoDB: query
+    MongoDB-->>Collection: results
+    Collection-->>Toolkit: existing doc or empty
+
+    alt Data source exists AND overwrite=True
+        Toolkit->>Toolkit: deleteDataSource(name, version)
+        Toolkit->>MongoDB: doc.delete()
+    else Data source exists AND overwrite=False
+        Toolkit-->>User: raise ValueError
+    end
+
+    Toolkit->>Project: addMeasurementsDocument(type="ToolkitDataSource", resource, dataFormat, desc)
+    Note over Toolkit: abstractToolkit override<br/>injects toolkit name<br/>into desc
+    Project->>Collection: addDocument(projectName, resource, dataFormat, type, desc)
+    Collection->>MongoDB: MetadataCol(...).save()
+    MongoDB-->>Collection: saved document
+    Collection-->>Project: document
+    Project-->>Toolkit: document
+    Toolkit-->>User: document
+```
+-->
+
+### add[Type]Document Swimlane
+
+The call chain for adding documents to each collection (Measurements, Simulations, Cache). All three follow the same pattern — only the collection class differs:
+
+![Diagram](../images/diagrams/architecture_data_layer_7_addtype.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant Project as Project
+    participant Collection as AbstractCollection<br/>(Measurements / Simulations / Cache)
+    participant MongoEngine as MongoEngine Document
+    participant MongoDB as MongoDB
+
+    User->>Project: addMeasurementsDocument(resource, dataFormat, type, desc)
+    Note over Project: Or addSimulationsDocument<br/>or addCacheDocument
+
+    alt Called via abstractToolkit
+        Note over Project: abstractToolkit override<br/>adds toolkit name to desc<br/>before calling super()
+    end
+
+    Project->>Collection: addDocument(projectName, resource, dataFormat, type, desc)
+    Note over Collection: Measurements_Collection uses _cls="Metadata.Measurements"<br/>Simulations_Collection uses _cls="Metadata.Simulations"<br/>Cache_Collection uses _cls="Metadata.Cache"
+
+    Collection->>MongoEngine: MetadataCol(projectName, resource, dataFormat, type, desc)
+    MongoEngine->>MongoEngine: validate fields
+    MongoEngine->>MongoDB: save()
+    MongoDB-->>MongoEngine: ObjectId
+    MongoEngine-->>Collection: saved document
+    Collection-->>Project: document
+    Project-->>User: document
+```
+-->
+
+### loadData Swimlane (HighFreqToolKit)
+
+The complete flow for ingesting raw sensor data — from parsing through to data source registration:
+
+![Diagram](../images/diagrams/architecture_data_layer_8_loaddata.svg)
+
+<!-- mermaid source (for editing, paste into mermaid.live):
+```mermaid
+sequenceDiagram
+    participant User
+    participant HF as HighFreqToolKit
+    participant Parser as Parser<br/>(Campbell / TOA5)
+    participant Normalise as normalise_sonic_df<br/>normalise_trh_df
+    participant Disk as File System
+    participant Toolkit as abstractToolkit
+    participant MongoDB as MongoDB
+
+    User->>HF: loadData(name, path, outputDirectory, append, overwrite, metadata)
+
+    rect rgb(240, 248, 255)
+    Note over HF,Normalise: Phase 1: Parse and normalise
+    HF->>HF: _detect_parser(path)
+    HF->>Parser: parse(path, fromTime, toTime)
+    Parser-->>HF: raw DataFrame or dict
+    HF->>Normalise: normalise(raw_df)
+    Note over Normalise: Lowercase columns<br/>DatetimeIndex<br/>Float dtypes
+    Normalise-->>HF: (normalised_df, parser_metadata)
+    end
+
+    rect rgb(255, 248, 240)
+    Note over HF,MongoDB: Phase 2: Check existing
+    HF->>Toolkit: getDataSourceDocument(name, version)
+    Toolkit->>MongoDB: query ToolkitDataSource
+    MongoDB-->>Toolkit: existing_doc or None
+    end
+
+    alt Data source exists AND append=True
+        rect rgb(240, 255, 240)
+        Note over HF,Disk: Phase 3a: Append
+        HF->>Disk: read existing parquet (from doc.resource)
+        Disk-->>HF: existing_df
+        HF->>HF: concat + deduplicate by timestamp
+        HF->>Disk: write combined parquet
+        end
+    else Data source exists AND overwrite=True
+        rect rgb(255, 255, 240)
+        Note over HF,Disk: Phase 3b: Overwrite
+        HF->>Disk: write new parquet (reuse path)
+        HF->>Toolkit: addDataSource(overwrite=True)
+        Toolkit->>MongoDB: delete old + insert new
+        end
+    else Data source does NOT exist
+        rect rgb(248, 240, 255)
+        Note over HF,MongoDB: Phase 3c: Create new
+        HF->>Toolkit: getCounterAndAdd("highfreq_{name}")
+        Toolkit-->>HF: file_id (e.g. 0)
+        Note over HF: filename = {name}_{file_id}.parquet
+        HF->>Disk: write new parquet
+        HF->>Toolkit: addDataSource(name, resource, "parquet", version, **metadata)
+        Toolkit->>MongoDB: insert ToolkitDataSource document
+        end
+    end
+
+    MongoDB-->>HF: document
+    HF-->>User: document
+```
+-->
+
 ---
 
 ## Connection Management (`document/__init__.py`)
