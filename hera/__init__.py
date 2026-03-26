@@ -1,4 +1,4 @@
-__version__ = '2.16.0'
+__version__ = '2.16.1'
 
 import sys
 python_version = sys.version_info
@@ -18,6 +18,42 @@ from hera.datalayer.autocache import cacheFunction,clearFunctionCache,clearAllFu
 toolkitHome = ToolkitHome()
 
 """
+2.16.1 (2026-03)
+-----------------
+    Docstrings:
+        - 100% pydoc coverage in hera/datalayer (autocache, datahandlers, collections)
+        - 100% pydoc coverage in hera/measurements/GIS (12 files, 61 items)
+        - 100% pydoc coverage in hera/simulations/openFoam (29 files, 360 items)
+
+    Dead code removal:
+        - Removed shapes.py, abstractLocation.py (unused GIS modules)
+        - Removed GIS_SHAPES constant from ToolkitHome (orphaned, no registry entry)
+
+    Bug fixes:
+        - Removed hardcoded projectName="Demography" from thresholdGeoDataFrame;
+          spatial intersection now inlined without external toolkit dependency
+
+    Documentation:
+        - OpenFOAM user guide: fields, mesh, workflows, VTK pipeline, Lagrangian
+        - OpenFOAM developer guide: full architecture (composition tree, workflows,
+          solver hierarchy, preprocessing objects, VTK filter pipeline)
+        - Risk assessment: complete examples (Lognormal10 + Threshold/AEGL),
+          effects/injury levels explained, protection policies
+        - Understanding Toolkits overview page, Repositories page
+        - Developer guide: risk assessment implementation details
+          (agents, effects factory, thresholdGeoDataFrame, indoor model)
+
+    Diagram rendering:
+        - Pre-render all 35 Mermaid diagrams to SVG using Docker mermaid-cli
+        - Incremental rendering: skip unchanged diagrams (hash-based)
+        - render_diagrams.py script with --check and --force flags
+        - Integrated into serve_docs.sh as pre-step
+        - Makefile targets: mermaid-pull, render-diagrams, docs-serve
+        - mermaid-cli Docker image pulled during init_with_mongo.sh setup
+
+    Tooling:
+        - serve_docs.sh for local MkDocs preview server
+
 2.16.0 (2026-03)
 -----------------
     Architecture:
