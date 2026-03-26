@@ -429,7 +429,7 @@ class presentation:
                               colorbar=True, colorbar_label=None,
                               title=None,
                               xlim=None, ylim=None,
-                              outputCRS=None):
+                              inputCRS=None, outputCRS=None):
         """
         Plot population density as a choropleth map.
 
@@ -468,6 +468,9 @@ class presentation:
             (xmin, xmax) limits for the x-axis. If None, auto from data.
         ylim : tuple of float, optional
             (ymin, ymax) limits for the y-axis. If None, auto from data.
+        inputCRS : int or str, optional
+            CRS of the input data if not already set on the GeoDataFrame
+            (e.g., 4326 for WGS84, 2039 for ITM).
         outputCRS : int or str, optional
             CRS to reproject data before plotting (e.g., 2039 for ITM, 4326 for WGS84).
 
@@ -477,6 +480,9 @@ class presentation:
             The axes with the plot.
         """
         plot_data = data.copy()
+
+        if inputCRS is not None:
+            plot_data = plot_data.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
 
         if outputCRS is not None:
             plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
@@ -530,7 +536,7 @@ class presentation:
                        colorbar=True, colorbar_label=None,
                        title=None,
                        xlim=None, ylim=None,
-                       outputCRS=None):
+                       inputCRS=None, outputCRS=None):
         """
         Plot absolute population count as a choropleth map.
 
@@ -566,6 +572,8 @@ class presentation:
             (xmin, xmax) limits for the x-axis.
         ylim : tuple of float, optional
             (ymin, ymax) limits for the y-axis.
+        inputCRS : int or str, optional
+            CRS of the input data if not already set on the GeoDataFrame.
         outputCRS : int or str, optional
             CRS to reproject data before plotting.
 
@@ -575,6 +583,9 @@ class presentation:
             The axes with the plot.
         """
         plot_data = data.copy()
+
+        if inputCRS is not None:
+            plot_data = plot_data.set_crs(epsg=inputCRS if isinstance(inputCRS, int) else inputCRS, allow_override=True)
 
         if outputCRS is not None:
             plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
@@ -619,7 +630,7 @@ class presentation:
                              figsize=(16, 10), ncols=3,
                              cmap="YlOrRd", alpha=0.8,
                              edgecolor="0.5", linewidth=0.2,
-                             outputCRS=None):
+                             inputCRS=None, outputCRS=None):
         """
         Plot multiple population types as a grid of subplots.
 
@@ -642,6 +653,8 @@ class presentation:
             Polygon edge color. Default: ``"0.5"``.
         linewidth : float
             Polygon edge width. Default: 0.2.
+        inputCRS : int or str, optional
+            CRS of the input data if not already set on the GeoDataFrame.
         outputCRS : int or str, optional
             CRS to reproject data before plotting.
 
@@ -674,7 +687,7 @@ class presentation:
                 edgecolor=edgecolor, linewidth=linewidth,
                 title=display_name, colorbar=True,
                 colorbar_label=pop_type,
-                outputCRS=outputCRS
+                inputCRS=inputCRS, outputCRS=outputCRS
             )
 
         # Hide unused axes
