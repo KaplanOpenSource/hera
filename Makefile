@@ -16,7 +16,9 @@ TEST_HERA       ?= $(HOME)/hera_unittest_data
         build run stop test test-setup \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
         mermaid-pull render-diagrams render-diagrams-force \
-        docs-deps docs-build docs-build-strict docs-serve docs-deploy docs-clean
+        docs-deps docs-build docs-build-strict docs-serve docs-deploy docs-clean \
+        rag-index rag-reindex rag-index-docs rag-search rag-search-raw \
+        rag-serve rag-serve-watch rag-watch rag-docs-serve rag-docs-build
 
 help:
 	@echo "Hera targets:"
@@ -53,6 +55,13 @@ help:
 	@echo "    make render-diagrams-force  Re-render ALL diagrams"
 	@echo "    make mermaid-pull        Pull the mermaid-cli Docker image"
 	@echo "    make docs-deps           Install documentation dependencies"
+	@echo ""
+	@echo "  RAG Search:"
+	@echo "    make rag-index           Build RAG index from docs/ + hera/"
+	@echo "    make rag-reindex         Wipe and rebuild RAG index"
+	@echo "    make rag-search          Search with default query"
+	@echo "    make rag-serve           Start RAG REST API server"
+	@echo "    make rag-serve-watch     Serve + auto re-index on changes"
 
 # --- MongoDB ---
 
@@ -248,3 +257,41 @@ docs-clean:
 	@echo "Removing built site..."
 	rm -rf site/
 	@echo "Done."
+
+# --- RAG ---
+
+RAG_DOCS  ?= docs
+RAG_CODE  ?= hera
+RAG_QUERY ?= "How do I get started?"
+
+rag-index:
+	hera-rag-search index --docs $(RAG_DOCS) --code $(RAG_CODE)
+
+rag-reindex:
+	hera-rag-search index --docs $(RAG_DOCS) --code $(RAG_CODE) --clean
+
+rag-index-docs:
+	hera-rag-search index --docs $(RAG_DOCS) --docs-only
+
+rag-search:
+	hera-rag-search search $(RAG_QUERY)
+
+rag-search-raw:
+	hera-rag-search search $(RAG_QUERY) --raw
+
+rag-serve:
+	hera-rag-search serve
+
+rag-serve-watch:
+	hera-rag-search serve --with-watcher --watch-root $(RAG_DOCS)
+
+rag-watch:
+	hera-rag-search watch --root $(RAG_DOCS)
+
+rag-docs-serve:
+	RAG_ENABLED=true hera-rag-search serve &
+	sleep 2
+	RAG_ENABLED=true mkdocs serve
+
+rag-docs-build:
+	RAG_ENABLED=true mkdocs build
