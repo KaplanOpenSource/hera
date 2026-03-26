@@ -39,7 +39,37 @@ For the full API, see the [API Reference](../../developer_guide/api/measurements
 
 ## Concepts
 
-An experiment in Hera is organized into a hierarchy:
+### The Argos data model
+
+An experiment is defined in the **Argos** experiment management system ([ArgosWEB](https://github.com/KaplanOpenSource/argos)) and exported as a ZIP file. The data model has four core objects:
+
+**Entity Types and Entities** — devices and sensors:
+
+- An **Entity Type** is a class of device (e.g., "Sonic", "TRH", "Gateway"). It defines the attribute schema — which properties every device of this type has.
+- An **Entity** is a specific device instance (e.g., "sonic01", "TRH_North"). It has its own attribute values.
+
+**Trial Sets and Trials** — experimental configurations:
+
+- A **Trial Set** groups related trials (e.g., "Measurements", "Calibration"). It defines the trial-level property schema.
+- A **Trial** is a specific time-bounded experimental run. It assigns entities to locations, sets per-trial attribute values, and defines `TrialStart`/`TrialEnd` timestamps.
+
+### Property scopes
+
+Each attribute has a **scope** that determines where its value is set:
+
+| Scope | Level | Changes per trial? | Example |
+|-------|-------|-------------------|---------|
+| **Constant** | Entity type | No — same for all devices of this type | `StoreDataPerDevice=false` |
+| **Device** | Entity instance | No — fixed per device | `stationName="Check_Post"`, `height=9` |
+| **Trial** | Per-device-per-trial | Yes — different in each trial | `location`, calibration values, thresholds |
+
+### Containment hierarchy
+
+Entities can be nested — a TRH sensor can be "contained in" a sonic anemometer station. Child entities **inherit** location and attributes from their parents. For example, if `TRH01` is contained in `sonic01`, and `TRH01` has no location set, it inherits `sonic01`'s location.
+
+### Hera class hierarchy
+
+In Hera, the Argos data model is extended with data-engine awareness:
 
 | Level | Class | Description |
 |-------|-------|-------------|
@@ -51,6 +81,113 @@ An experiment in Hera is organized into a hierarchy:
 | **Entity** | `EntityWithData` | A single sensor/device (e.g., "S01", "TRH_North") |
 
 Each experiment has a **data engine** that handles the actual data retrieval — Parquet files, MongoDB via Pandas, or MongoDB via Dask. All trial and entity objects share the same engine instance.
+
+---
+
+## Experiment lifecycle
+
+### 1. Define in ArgosWEB
+
+Create the experiment in the Argos web UI:
+- Define entity types and their attribute schemas
+- Create entity instances (devices/sensors)
+- Create trial sets and trials with `TrialStart`/`TrialEnd` dates
+- Place devices on map images with coordinates
+- Set up containment hierarchy (which sensor is on which station)
+- Export as ZIP file
+
+### 2. Create experiment directory
+
+```bash
+hera-experiment create MyExperiment --zip /path/to/exported.zip --path /experiments/
+```
+
+This creates the standard directory structure:
+
+```
+MyExperiment/
+├── code/
+│   └── MyExperiment.py              # Experiment class (customisable)
+├── data/                            # Parquet files (one per device type)
+│   ├── Sonic.parquet
+│   └── TRH.parquet
+├── runtimeExperimentData/
+│   ├── Datasources_Configurations.json
+│   └── MyExperiment.zip             # Argos metadata
+└── MyExperiment_repository.json     # For loading into Hera projects
+```
+
+### 3. Collect data
+
+During the experiment, data flows from sensors to Parquet files:
+
+```
+Devices → Node-RED → Kafka → pyArgos consumer → Parquet files
+         (normalise)  (1 topic   (batch consume)   (data/ dir)
+                      per type)
+```
+
+Or data can be loaded from Campbell binary/TOA5 files after the fact.
+
+### 4. Load into Hera project
+
+```bash
+# Register repository (one-time)
+hera-project repository add MyExperiment/MyExperiment_repository.json
+
+# Create project (loads all registered repositories)
+hera-project project create MY_PROJECT
+
+# Or update existing project
+hera-project project updateRepositories MY_PROJECT
+```
+
+### 5. Analyse in Python
+
+```python
+from hera import toolkitHome
+
+home = toolkitHome.getToolkit(toolkitHome.EXPERIMENT, projectName="MY_PROJECT")
+exp = home["MyExperiment"]
+
+# Access trial data
+df = exp.trialSet["Measurements"]["Trial_01"].getData(deviceType="Sonic")
+
+# Analyse
+exp.analysis.addTrialProperties(df, "Trial_01")
+```
+
+---
+
+## Exploring experiment metadata
+
+Before accessing data, you can inspect the experiment's structure:
+
+```python
+exp = home["MyExperiment"]
+
+# Experiment configuration
+print(exp.name)
+print(exp.configuration)
+
+# Entity types and their properties
+for name, etype in exp.entityType.items():
+    print(f"{name}: {etype.numberOfEntities} entities")
+    print(etype.propertiesTable)       # attribute schema
+    print(etype.entitiesTable)         # all devices as DataFrame
+
+# Trial sets and trials
+for ts_name, ts in exp.trialSet.items():
+    print(f"Trial set: {ts_name}")
+    print(ts.trialsTable)              # all trials as DataFrame
+    for trial_name, trial in ts.items():
+        print(f"  Trial: {trial_name}")
+        print(f"    Start: {trial.properties['TrialStart']}")
+        print(f"    End: {trial.properties['TrialEnd']}")
+        print(trial.entitiesTable())   # devices in this trial with locations
+```
+
+---
 
 ### Data storage: `StoreDataPerDevice`
 
