@@ -57,11 +57,16 @@ help:
 	@echo "    make docs-deps           Install documentation dependencies"
 	@echo ""
 	@echo "  RAG Search:"
+	@echo "    make rag-setup           Full setup: install + services + model + index"
+	@echo "    make rag-services-up     Start Qdrant + Cassandra + Ollama"
+	@echo "    make rag-services-down   Stop all RAG services"
+	@echo "    make rag-services-status Show RAG service status"
 	@echo "    make rag-index           Build RAG index from docs/ + hera/"
 	@echo "    make rag-reindex         Wipe and rebuild RAG index"
 	@echo "    make rag-search          Search with default query"
 	@echo "    make rag-serve           Start RAG REST API server"
 	@echo "    make rag-serve-watch     Serve + auto re-index on changes"
+	@echo "    make rag-clean           Stop services + remove all data"
 
 # --- MongoDB ---
 
@@ -295,3 +300,132 @@ rag-docs-serve:
 
 rag-docs-build:
 	RAG_ENABLED=true mkdocs build
+
+# ── RAG Infrastructure ────────────────────────────────────────────────────────
+
+QDRANT_CONTAINER = hera-qdrant
+QDRANT_IMAGE     = qdrant/qdrant
+QDRANT_PORT      = 6333
+QDRANT_DATA      ?= $(HOME)/qdrant-data
+
+CASS_CONTAINER   = hera-cassandra
+CASS_IMAGE       = cassandra:4
+CASS_PORT        = 9042
+CASS_DATA        ?= $(HOME)/cassandra-data
+
+OLLAMA_CONTAINER = hera-ollama
+OLLAMA_IMAGE     = ollama/ollama
+OLLAMA_PORT      = 11434
+OLLAMA_DATA      ?= $(HOME)/ollama-data
+OLLAMA_MODEL     ?= llama3
+
+rag-install:
+	@echo "Installing RAG dependencies..."
+	pip install -e .[rag]
+	@echo "Done."
+
+rag-qdrant-up:
+	@mkdir -p $(QDRANT_DATA)
+	@if docker ps --format '{{.Names}}' | grep -q '^$(QDRANT_CONTAINER)$$'; then \
+		echo "$(QDRANT_CONTAINER) is already running."; \
+	elif docker ps -a --format '{{.Names}}' | grep -q '^$(QDRANT_CONTAINER)$$'; then \
+		echo "Starting existing $(QDRANT_CONTAINER)..."; \
+		docker start $(QDRANT_CONTAINER); \
+	else \
+		echo "Creating $(QDRANT_CONTAINER)..."; \
+		docker run --name $(QDRANT_CONTAINER) \
+			-v $(QDRANT_DATA):/qdrant/storage \
+			-p 127.0.0.1:$(QDRANT_PORT):6333 \
+			-d $(QDRANT_IMAGE); \
+	fi
+	@echo "Qdrant ready on port $(QDRANT_PORT)."
+
+rag-qdrant-down:
+	@docker stop $(QDRANT_CONTAINER) 2>/dev/null || true
+	@echo "$(QDRANT_CONTAINER) stopped."
+
+rag-cassandra-up:
+	@mkdir -p $(CASS_DATA)
+	@if docker ps --format '{{.Names}}' | grep -q '^$(CASS_CONTAINER)$$'; then \
+		echo "$(CASS_CONTAINER) is already running."; \
+	elif docker ps -a --format '{{.Names}}' | grep -q '^$(CASS_CONTAINER)$$'; then \
+		echo "Starting existing $(CASS_CONTAINER)..."; \
+		docker start $(CASS_CONTAINER); \
+	else \
+		echo "Creating $(CASS_CONTAINER)..."; \
+		docker run --name $(CASS_CONTAINER) \
+			-v $(CASS_DATA):/var/lib/cassandra \
+			-p 127.0.0.1:$(CASS_PORT):9042 \
+			-d $(CASS_IMAGE); \
+	fi
+	@echo "Waiting for Cassandra to be ready..."
+	@for i in $$(seq 1 60); do \
+		if docker exec $(CASS_CONTAINER) cqlsh -e "DESCRIBE KEYSPACES" >/dev/null 2>&1; then \
+			echo "Cassandra ready on port $(CASS_PORT)."; \
+			break; \
+		fi; \
+		if [ "$$i" -eq 60 ]; then \
+			echo "WARNING: Cassandra may still be starting up."; \
+		fi; \
+		sleep 2; \
+	done
+
+rag-cassandra-down:
+	@docker stop $(CASS_CONTAINER) 2>/dev/null || true
+	@echo "$(CASS_CONTAINER) stopped."
+
+rag-ollama-up:
+	@mkdir -p $(OLLAMA_DATA)
+	@if docker ps --format '{{.Names}}' | grep -q '^$(OLLAMA_CONTAINER)$$'; then \
+		echo "$(OLLAMA_CONTAINER) is already running."; \
+	elif docker ps -a --format '{{.Names}}' | grep -q '^$(OLLAMA_CONTAINER)$$'; then \
+		echo "Starting existing $(OLLAMA_CONTAINER)..."; \
+		docker start $(OLLAMA_CONTAINER); \
+	else \
+		echo "Creating $(OLLAMA_CONTAINER)..."; \
+		docker run --name $(OLLAMA_CONTAINER) \
+			-v $(OLLAMA_DATA):/root/.ollama \
+			-p 127.0.0.1:$(OLLAMA_PORT):11434 \
+			-d $(OLLAMA_IMAGE); \
+	fi
+	@echo "Ollama ready on port $(OLLAMA_PORT)."
+
+rag-ollama-down:
+	@docker stop $(OLLAMA_CONTAINER) 2>/dev/null || true
+	@echo "$(OLLAMA_CONTAINER) stopped."
+
+rag-ollama-pull:
+	@echo "Pulling model $(OLLAMA_MODEL)..."
+	@docker exec $(OLLAMA_CONTAINER) ollama pull $(OLLAMA_MODEL)
+	@echo "Model $(OLLAMA_MODEL) ready."
+
+rag-services-up: rag-qdrant-up rag-cassandra-up rag-ollama-up
+	@echo "All RAG services running."
+
+rag-services-down: rag-qdrant-down rag-cassandra-down rag-ollama-down
+	@echo "All RAG services stopped."
+
+rag-services-status:
+	@echo "=== RAG Services ==="
+	@docker ps --filter name=hera-qdrant --filter name=hera-cassandra --filter name=hera-ollama \
+		--format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || echo "No RAG containers found."
+
+rag-setup: rag-install rag-services-up
+	@echo "Waiting for services to stabilize..."
+	@sleep 5
+	@$(MAKE) rag-ollama-pull
+	@$(MAKE) rag-reindex
+	@echo ""
+	@echo "=== RAG Setup Complete ==="
+	@echo "  make rag-search RAG_QUERY=\"your question\""
+	@echo "  make rag-serve"
+
+rag-clean: rag-services-down
+	@echo "Removing RAG containers and data..."
+	-docker rm -f $(QDRANT_CONTAINER) $(CASS_CONTAINER) $(OLLAMA_CONTAINER) 2>/dev/null
+	rm -rf $(QDRANT_DATA) $(CASS_DATA) $(OLLAMA_DATA)
+	@echo "RAG data cleaned."
+
+.PHONY: rag-install rag-qdrant-up rag-qdrant-down rag-cassandra-up rag-cassandra-down \
+        rag-ollama-up rag-ollama-down rag-ollama-pull \
+        rag-services-up rag-services-down rag-services-status rag-setup rag-clean
