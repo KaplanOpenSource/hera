@@ -15,6 +15,10 @@ This section is for developers working on or extending the Hera platform. It cov
 - **[Simulations](simulations.md)** - OpenFOAM, LSM, Gaussian, wind profile, workflow system internals
 - **[Risk Assessment](risk_assessment.md)** - Agent/effects/injury system, protection policies, risk area algorithms
 
+## RAG Search
+
+- **[RAG Search Toolkit](rag.md)** - Architecture, indexer, search API, REST server, file watcher, MkDocs plugin, CLI reference
+
 ## API Reference
 
 - **[API Reference](api/index.md)** - Auto-generated documentation from Python source code covering all public classes and functions
