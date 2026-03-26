@@ -171,6 +171,7 @@ nav:
           - Simulations: developer_guide/api/simulations.md
           - Risk Assessment: developer_guide/api/risk.md
           - Utilities: developer_guide/api/utils.md
+      - Roadmap: developer_guide/roadmap.md
       - Reference:
           - Repository Schema: reference/repository_schema.md
           - Environment Variables: configuration/env_vars.md

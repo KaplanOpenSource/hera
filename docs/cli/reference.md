@@ -118,6 +118,10 @@ hera-project project load MY_PROJECT project_dump.json
 # Update repositories for a project
 hera-project project updateRepositories
 hera-project project updateRepositories --projectName MY_PROJECT --overwrite
+
+# Populate all projects with all registered repositories
+hera-project project populate --overwrite
+hera-project project populate --projectName MY_PROJECT --overwrite
 ```
 
 ### Measurements, Simulations, and Cache
