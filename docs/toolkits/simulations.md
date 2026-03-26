@@ -7,6 +7,7 @@ All simulation toolkits are accessed via `toolkitHome.getToolkit()` and bound to
 ```python
 from hera import toolkitHome
 
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
 toolkit = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="MY_PROJECT")
 ```
 

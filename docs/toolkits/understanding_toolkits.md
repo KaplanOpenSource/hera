@@ -77,6 +77,19 @@ meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ, projectName=None
 meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ)
 ```
 
+!!! tip "Avoid hardcoding projectName"
+    If you create your project directory with the CLI, you never need to specify `projectName` in your code:
+    ```bash
+    hera-project project create WindStudy --directory /data/wind_study
+    cd /data/wind_study
+    ```
+    Now all Python scripts in that directory can omit `projectName`:
+    ```python
+    # No projectName needed — loaded from caseConfiguration.json
+    meteo = toolkitHome.getToolkit(toolkitHome.METEOROLOGY_LOWFREQ)
+    ```
+    This makes your scripts portable across different projects. See [Projects > Directory-based projects](../user_guide/projects.md#directory-based-projects) for details.
+
 Each toolkit constant maps to a toolkit name string. Using constants avoids typos:
 
 | Constant | String value |
