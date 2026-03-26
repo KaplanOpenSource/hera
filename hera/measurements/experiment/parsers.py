@@ -7,8 +7,10 @@ import dask.dataframe as dd
 
 
 class Parser_OldStyleMetaDataParquet():
+    """Parser for old-style metadata stored alongside Parquet data files."""
 
     def __init__(self):
+        """Initialize the parser."""
 
         pass
 
@@ -180,6 +182,8 @@ class Parser_OldStyleMetaDataParquet():
         return devicesList, trialsList, assetsDict
 
 class Parser_CampbellBinary(object):
+    """Parser for Campbell Scientific binary data files."""
+
     _lut = None
     _dataContent = None # The array of the data.
     _basenum = None
@@ -189,12 +193,41 @@ class Parser_CampbellBinary(object):
     _chunkSize = None # The number of records to read in each batch.
 
     def __init__(self, chunkSize = 10000):
+        """
+        Initialize the Campbell binary parser.
+
+        Parameters
+        ----------
+        chunkSize : int, optional
+            Number of records to read per batch. Default is 10000.
+        """
         self._lut = {}
         self._dataContent = 0
         self._basenum = 0
         self._chunkSize = chunkSize
 
     def parse(self, path, fromTime=None, toTime=None, **metadata):
+        """
+        Parse binary data from a file or directory.
+
+        Parameters
+        ----------
+        path : str
+            Path to a binary file or directory of binary files.
+        fromTime : str or pandas.Timestamp, optional
+            Start time for filtering records.
+        toTime : str or pandas.Timestamp, optional
+            End time for filtering records.
+        **metadata
+            Additional metadata to attach to each record.
+
+        Returns
+        -------
+        loaded_dask : dask.dataframe.DataFrame
+            Parsed data as a Dask DataFrame.
+        metadata_dict : dict
+            Nested dict of station/instrument/height metadata.
+        """
         if os.path.isfile(path):
             df = self.getPandasFromFile(path, fromTime=fromTime, toTime=toTime)
         else:
@@ -218,6 +251,23 @@ class Parser_CampbellBinary(object):
         return loaded_dask, metadata_dict
 
     def getPandasFromFile(self, path, fromTime, toTime):
+        """
+        Parse a single binary file into a pandas DataFrame.
+
+        Parameters
+        ----------
+        path : str
+            Path to the binary file.
+        fromTime : str or pandas.Timestamp or None
+            Start time filter.
+        toTime : str or pandas.Timestamp or None
+            End time filter.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Concatenated DataFrame with height, station, and instrument columns.
+        """
         cbi = CampbellBinaryInterface(file=path)
         ts, cols, data = self.getData(path, fromTime=fromTime, toTime=toTime)
         dfList = []
@@ -231,6 +281,23 @@ class Parser_CampbellBinary(object):
         return pandas.concat(dfList, sort=True)
 
     def getPandasFromDir(self, path, fromTime, toTime):
+        """
+        Parse all .dat files in a directory into a single DataFrame.
+
+        Parameters
+        ----------
+        path : str
+            Directory containing .dat binary files.
+        fromTime : str or pandas.Timestamp or None
+            Start time filter.
+        toTime : str or pandas.Timestamp or None
+            End time filter.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Concatenated DataFrame from all files in the directory.
+        """
         dfList = []
         for file in glob.glob(os.path.join(path, '*.dat')):
             tmp_df = self.getPandasFromFile(file, fromTime=fromTime, toTime=toTime)
@@ -238,6 +305,27 @@ class Parser_CampbellBinary(object):
         return pandas.concat(dfList, sort=True)
 
     def getData(self, file, fromTime, toTime):
+        """
+        Extract timestamps, column names, and data from a binary file.
+
+        Parameters
+        ----------
+        file : str
+            Path to the binary file.
+        fromTime : str or pandas.Timestamp or None
+            Start time filter.
+        toTime : str or pandas.Timestamp or None
+            End time filter.
+
+        Returns
+        -------
+        ts : list
+            List of pandas.Timestamp for each record.
+        columnsNames : list
+            Column name lists per height group.
+        retVal : dict
+            Data values keyed by height.
+        """
         cbi = CampbellBinaryInterface(file=file)
         retVal = {}
 
@@ -266,17 +354,29 @@ class Parser_CampbellBinary(object):
         return ts, cbi.columnsNames, retVal
 
 class Parser_TOA5(object):
+    """Parser for Campbell Scientific TOA5 ASCII data files."""
 
     def __init__(self):
+        """Initialize the TOA5 parser."""
         pass
 
     def parse(self, file):
+        """
+        Parse a TOA5 file.
+
+        Parameters
+        ----------
+        file : str
+            Path to the TOA5 file.
+        """
         pass
 
 
 
 ############################## Private ###############################
 class CampbellBinaryInterface(object):
+    """Low-level interface for reading Campbell Scientific TOB1 binary files."""
+
     _file = None
     _binData = None
     _headersSize = None
@@ -292,26 +392,31 @@ class CampbellBinaryInterface(object):
 
     @property
     def headersSize(self):
+        """int : Size of the header section in bytes."""
         if self._headersSize is None:
             self._headersSize = self._getHeadersSize()
         return self._headersSize
 
     @property
     def headers(self):
+        """list of str : Parsed header lines from the binary file."""
         if self._headers is None:
             self._headers = self._getHeaders()
         return self._headers
 
     @property
     def station(self):
+        """str : Station name extracted from the first header line."""
         return self.headers[0].split(',')[1]
 
     @property
     def instrument(self):
+        """str : Instrument name extracted from the first header line."""
         return self.headers[0].split(',')[-1]
 
     @property
     def heights(self):
+        """list of int : Measurement heights derived from column layout."""
         if len(self.columnsNames) == 1:
             return [10]
         else:
@@ -319,6 +424,7 @@ class CampbellBinaryInterface(object):
 
     @property
     def recordSize(self):
+        """int : Size of a single data record in bytes."""
         if self._recordSize is None:
             if self.headers[4].find(",") == -1:
                 raise Exception("Missing Format Descriptor in line 4....")
@@ -328,49 +434,65 @@ class CampbellBinaryInterface(object):
 
     @property
     def recordsNum(self):
+        """int : Total number of data records in the file."""
         return (len(self._binData)-self.headersSize)//self.recordSize
 
     @property
     def rawFormat(self):
+        """list of str : Raw Campbell format type strings (e.g., 'FP2', 'IEEE4')."""
         if self._rawFormat is None:
             self._getFormat()
         return self._rawFormat
 
     @property
     def format(self):
+        """str : Struct format string for unpacking binary records."""
         if self._format is None:
             self._format = self._getFormat()
         return self._format
 
     @property
     def firstTime(self):
+        """pandas.Timestamp : Timestamp of the first record."""
         if self._firstTime is None:
             self._firstTime = self._getFirstTime()
         return self._firstTime
 
     @property
     def lastTime(self):
+        """pandas.Timestamp : Timestamp of the last record."""
         if self._lastTime is None:
             self._lastTime = self._getLastTime()
         return self._lastTime
 
     @property
     def columnsNames(self):
+        """list of list of str : Column names grouped by height."""
         if self._columnsNames is None:
             self._columnsNames = self._getColumnNames()
         return self._columnsNames
 
     @property
     def columnsIndexes(self):
+        """list of list of int : Start/end index pairs for each height group."""
         if self._columnsIndexes is None:
             self._columnsIndexes = self._getColumnIndexes()
         return self._columnsIndexes
 
     @property
     def binData(self):
+        """bytes : Raw binary content of the file."""
         return self._binData
 
     def __init__(self, file):
+        """
+        Initialize the interface and read the binary file.
+
+        Parameters
+        ----------
+        file : str
+            Path to the Campbell binary file.
+        """
         self._file = file
 
         with open(file, 'rb') as binFile:
@@ -379,6 +501,14 @@ class CampbellBinaryInterface(object):
         self._lut = {}
 
     def _getFormat(self):
+        """
+        Build the struct format string from header format descriptors.
+
+        Returns
+        -------
+        str
+            Struct-compatible format string.
+        """
         rawFormata = self.headers[4].split(",")
         self._rawFormat = len(rawFormata) * ['']
 
@@ -406,6 +536,14 @@ class CampbellBinaryInterface(object):
         return format
 
     def _getHeaders(self):
+        """
+        Parse the five header lines from the binary data.
+
+        Returns
+        -------
+        list of str
+            Cleaned header lines.
+        """
         headers = []
         numlf = 5
         basenum = 0
@@ -431,6 +569,14 @@ class CampbellBinaryInterface(object):
         return headers
 
     def _getColumnNames(self):
+        """
+        Derive column name lists from the second header line.
+
+        Returns
+        -------
+        list of list of str
+            Column names grouped by measurement height.
+        """
         colheader = self.headers[1].upper()
         cols = []
 
@@ -453,6 +599,14 @@ class CampbellBinaryInterface(object):
         return cols
 
     def _getColumnIndexes(self):
+        """
+        Derive column index ranges from the second header line.
+
+        Returns
+        -------
+        list of list of int
+            Start/end index pairs for slicing record data per height.
+        """
         colheader = self.headers[1].upper()
         Indexes = []
 
@@ -475,6 +629,14 @@ class CampbellBinaryInterface(object):
         return Indexes
 
     def _getHeadersSize(self):
+        """
+        Calculate the byte offset where data records begin.
+
+        Returns
+        -------
+        int
+            Number of bytes occupied by the header section.
+        """
         numlf = 5
         header_size = 0
 
@@ -486,24 +648,85 @@ class CampbellBinaryInterface(object):
         return header_size
 
     def _getFirstTime(self):
+        """
+        Return the timestamp of the first record.
+
+        Returns
+        -------
+        pandas.Timestamp
+        """
         time, _ = self.getRecordByIndex(0)
         return time
 
     def _getLastTime(self):
+        """
+        Return the timestamp of the last record.
+
+        Returns
+        -------
+        pandas.Timestamp
+        """
         time, _ = self.getRecordByIndex(self.recordsNum-1)
         return time
 
     def getRecordByIndex(self, i):
+        """
+        Retrieve a single record by its zero-based index.
+
+        Parameters
+        ----------
+        i : int
+            Record index.
+
+        Returns
+        -------
+        time : pandas.Timestamp
+            Record timestamp.
+        line : list
+            Parsed data values for the record.
+        """
         index = self.headersSize+i*self.recordSize
         lastSec, lastmili, line = self._getDataFromStream(self._binData[index: index+self.recordSize])
         time = pandas.Timestamp(1990, 1, 1) + pandas.Timedelta(days=lastSec / 86400.0, milliseconds=lastmili)
         return time, line
 
     def getRecordByTime(self, time):
+        """
+        Retrieve a record matching the given timestamp.
+
+        Parameters
+        ----------
+        time : pandas.Timestamp
+            Target timestamp.
+
+        Returns
+        -------
+        time : pandas.Timestamp
+            Record timestamp.
+        line : list
+            Parsed data values.
+        """
         i = self.getRecordIndexByTime(time)
         return self.getRecordByIndex(i)
 
     def _getDataFromStream(self, partStream):
+        """
+        Unpack a binary record and convert special format types.
+
+        Parameters
+        ----------
+        partStream : bytes
+            Raw bytes for one record.
+
+        Returns
+        -------
+        seconds : int
+            Seconds since 1990-01-01.
+        nanoseconds : float
+            Sub-second nanosecond fraction in milliseconds.
+        data : list
+            Converted data values.
+        """
         retval = list(struct.unpack(self.format, partStream))
         for i in range(3, len(retval)):
             if self.rawFormat[i] == 'FP2':
@@ -513,12 +736,40 @@ class CampbellBinaryInterface(object):
         return retval[0], retval[1] / 1000000, retval[2:]
 
     def _byteToStr(self,inpbyte):
+        """
+        Convert a byte sequence to a null-stripped string.
+
+        Parameters
+        ----------
+        inpbyte : bytes
+            Raw byte sequence.
+
+        Returns
+        -------
+        str
+            Decoded string with null characters removed.
+        """
         retval = ''
         for i in range(len(inpbyte)):
             retval += chr(inpbyte[i])
         return retval.strip('\0')
 
     def _floatConvert(self, hbyte, lowbyte):
+        """
+        Convert Campbell FP2 two-byte value to a float.
+
+        Parameters
+        ----------
+        hbyte : int
+            High byte.
+        lowbyte : int
+            Low byte.
+
+        Returns
+        -------
+        float
+            Decoded floating-point value.
+        """
         if (hbyte & 0x80) > 0:
             sign = -1.0
         else:
@@ -538,6 +789,19 @@ class CampbellBinaryInterface(object):
         return val
 
     def _newfloatConvert(self, key):
+        """
+        Convert an FP2 value using a lookup-table cache.
+
+        Parameters
+        ----------
+        key : int
+            Raw FP2 integer value.
+
+        Returns
+        -------
+        float or None
+            Converted float, or NaN for the sentinel value 65183.
+        """
         try:
             return self._lut[key]
         except:
@@ -549,10 +813,40 @@ class CampbellBinaryInterface(object):
             return val
 
     def getTimeByRecordIndex(self, i):
+        """
+        Return the timestamp for a given record index.
+
+        Parameters
+        ----------
+        i : int
+            Record index.
+
+        Returns
+        -------
+        pandas.Timestamp
+        """
         time, _ = self.getRecordByIndex(i)
         return time
 
     def getRecordIndexByTime(self, time):
+        """
+        Find the record index for a given timestamp using binary search.
+
+        Parameters
+        ----------
+        time : pandas.Timestamp
+            Target timestamp.
+
+        Returns
+        -------
+        int
+            Index of the matching record.
+
+        Raises
+        ------
+        IndexError
+            If no record matches the given time.
+        """
         upperIndex = self.recordsNum
         lowerIndex = 0
         recordTime = self.getTimeByRecordIndex((lowerIndex+upperIndex)//2)

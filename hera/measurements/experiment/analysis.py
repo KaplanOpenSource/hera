@@ -11,9 +11,17 @@ class experimentAnalysis:
 
     @property
     def datalayer(self):
+        """Return the experiment data layer."""
         return self._datalayer
 
     def __init__(self,datalayer):
+        """Initialize the analysis with a reference to the data layer.
+
+        Parameters
+        ----------
+        datalayer : experimentSetupWithData
+            The experiment data layer.
+        """
         self._datalayer = datalayer
 
     def getDeviceLocations(self,entityTypeName,trialName,trialSetName=None):
@@ -75,6 +83,18 @@ class experimentAnalysis:
         return analysis
 
     def _splitName(self,x):
+        """Extract the device identifier from a space-separated name string.
+
+        Parameters
+        ----------
+        x : str
+            Device name string.
+
+        Returns
+        -------
+        str
+            Second token if available, otherwise the first token.
+        """
         if len(x.split(" ")) > 1:
             return x.split(" ")[1]
         else:

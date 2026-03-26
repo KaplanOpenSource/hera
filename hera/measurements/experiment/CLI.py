@@ -30,6 +30,14 @@ def _resolve_project_name(arguments):
 
 
 def experiments_list(arguments):
+    """
+    Print the list of experiment names in a project.
+
+    Parameters
+    ----------
+    arguments : argparse.Namespace
+        Must contain projectName or configurationFile.
+    """
     logger = logging.getLogger("hera.bin.experiment_experiments_list")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -45,6 +53,14 @@ def experiments_list(arguments):
 
 
 def experiments_table(arguments):
+    """
+    Print a formatted table of experiments in a project.
+
+    Parameters
+    ----------
+    arguments : argparse.Namespace
+        Must contain projectName or configurationFile.
+    """
     logger = logging.getLogger("hera.bin.experiment_experiments_table")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -70,6 +86,15 @@ def experiments_table(arguments):
 
 
 def get_experiment_data(arguments):
+    """
+    Retrieve and print experiment measurement data as a DataFrame.
+
+    Parameters
+    ----------
+    arguments : argparse.Namespace
+        Must contain projectName, experiment, deviceType, and optionally
+        deviceName and perDevice.
+    """
     logger = logging.getLogger("hera.bin.experiment_get_experiment_data")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -93,6 +118,14 @@ def get_experiment_data(arguments):
 
 
 def create_experiment(arguments):
+    """
+    Scaffold a new experiment directory with code, data, and repository files.
+
+    Parameters
+    ----------
+    arguments : argparse.Namespace
+        Must contain experimentName, path, zip, and relative.
+    """
     logger = logging.getLogger("hera.bin.experiment_create_experiment")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
@@ -136,6 +169,16 @@ def create_experiment(arguments):
     os.chmod("createNodeRedDeviceMap.sh", 0o755)
 
 def _create_empty_class(experiment_path,experimentName):
+    """
+    Generate a boilerplate Python class file for a new experiment.
+
+    Parameters
+    ----------
+    experiment_path : str
+        Root directory of the experiment.
+    experimentName : str
+        Name used for the class and file.
+    """
     logger = logging.getLogger("hera.bin._create_empty_class")
     logger.debug(f" creating an empty class for implementation..")
 
@@ -173,6 +216,20 @@ class {experimentName}Presentation(experimentSetupWithData):
     logger.debug(f" finished creating an empty class for implementation..")
 
 def _create_repository(argos_zip,experiment_path,experimentName,relative):
+    """
+    Create a repository JSON file and datasource configuration from metadata.
+
+    Parameters
+    ----------
+    argos_zip : str or None
+        Path to an Argos experiment zip file, or None.
+    experiment_path : str
+        Root directory of the experiment.
+    experimentName : str
+        Name of the experiment.
+    relative : bool
+        If True, store resource paths as relative.
+    """
     logger = logging.getLogger("hera.bin._create_repository")
     logger.info(f"Creating the repository")
     logger.debug(f" Since zip file is provided, creating a repository..")
@@ -234,6 +291,18 @@ def _create_repository(argos_zip,experiment_path,experimentName,relative):
     logger.debug(f" finished creating the repository json file")
 
 def _make_runtimeExperimentData(argos_zip,experiment_path,experimentName):
+    """
+    Create the runtimeExperimentData directory and its configuration file.
+
+    Parameters
+    ----------
+    argos_zip : str or None
+        Path to an Argos zip file to copy, or None.
+    experiment_path : str
+        Root directory of the experiment.
+    experimentName : str
+        Name of the experiment.
+    """
     logger = logging.getLogger("hera.bin._make_runtimeExperimentData")
     logger.debug(f" creating runtimeExperimentData directory if it does not exists")
     os.makedirs(os.path.join(experiment_path, 'runtimeExperimentData'), exist_ok=True)
@@ -246,6 +315,14 @@ def _make_runtimeExperimentData(argos_zip,experiment_path,experimentName):
         shutil.copy(argos_zip, os.path.join(experiment_path, 'runtimeExperimentData',f'{experimentName}.zip'))
 
 def load_experiment_to_project(arguments):
+    """
+    Load an experiment's repository into a project's data layer.
+
+    Parameters
+    ----------
+    arguments : argparse.Namespace
+        Must contain projectName, experiment (path), and overwrite flag.
+    """
     logger = logging.getLogger("hera.bin.experiment_load_experiment_to_project")
     logger.debug(f"----- Start -----")
     logger.debug(f" arguments: {arguments}")
