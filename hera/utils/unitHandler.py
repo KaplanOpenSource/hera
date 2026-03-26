@@ -1,22 +1,16 @@
-try:
-    from unum import Unum
-    from unum import NameConflictError
-    import unum.units as _unum_units_module
-    import re
+"""
+Unit handling module for Hera.
 
-    # Re-export every public unit symbol into this module's namespace
-    # (equivalent to ``from unum.units import *`` but griffe-friendly)
-    _unum_public = {k: v for k, v in vars(_unum_units_module).items() if not k.startswith('_')}
-    globals().update(_unum_public)
+**Pint is the preferred unit system.** Use ``ureg`` for all new code.
+Unum is supported as a fallback for backward compatibility with older code.
 
-    unumSupport = True
-except ImportError:
-    # Just define the unum class as a place holder
-    # so that the tonumber and tounit will work.
-    class Unum:
-        pass
-    unumSupport = False
+Usage::
 
+    from hera.utils.unitHandler import ureg, Quantity
+
+    speed = 5.0 * ureg.m / ureg.s
+    area = 10 * ureg.dunam          # custom: 1 dunam = 1000 m²
+"""
 
 from hera.utils.logging import get_logger
 from pint import Unit, UnitRegistry
@@ -24,141 +18,256 @@ from pint import Quantity
 from pint.errors import UndefinedUnitError, DimensionalityError
 from deprecated import deprecated
 
-def tonumber(x,theunit):
-    if isinstance(x,Unum):
-        ret = x.asNumber(theunit)
-    elif isinstance(x,Quantity):
-        ret = x.to(theunit).magnitude
-    else:
-        ret = x
+# ---------------------------------------------------------------------------
+# Pint unit registry (preferred)
+# ---------------------------------------------------------------------------
 
-    return ret
-
-def tounit(x,theunit):
-    logger = get_logger(None, "hera.utils.tounit")
-    if isinstance(x,Unum):
-        logger.warning("Please prefer using the package pint for units using ureg")
-        if isinstance(theunit, Unit):
-            ret = unumToPint(x).to(theunit)
-        elif isinstance(theunit, Unum):
-            ret = x.asUnit(Unit)
-        else:
-            logger.error(f"can't convert {x} to units {theunit}")
-    elif isinstance(x,Quantity):
-        if isinstance(theunit, Unum):
-            logger.warning("Please prefer using the package pint for units using ureg")
-            ret = pintToUnum(x).asUnit(theunit)
-        elif isinstance(theunit, Unit):
-            ret = x.to(Unit)
-        else:
-            logger.error(f"can't convert {x} to units {theunit}")
-    else:
-        ret = Quantity(x,theunit)
-    return ret
-
-# tonumber = lambda x, theunit: x.asNumber(theunit) if isinstance(x, Unum) else x
-# tounit = lambda x, theunit: x.asUnit(theunit) if isinstance(x, Unum) else x * theunit
-tounum = tounit
-
-# Initialize the Pint unit registry (preferred over unum)
 ureg = UnitRegistry()
 ureg.define('mmH2O = atm / 10197.162129779')
 ureg.define('dunam = 1000*m**2')
 
-# Pint-based unit constants — prefer these in new code.
-# When unum is installed, celsius/K are overridden below by unum units
-# for backward compatibility with .asNumber(celsius). New code should
-# use ureg.degC and ureg.kelvin directly.
-if not unumSupport:
-    celsius = ureg.degC
-    K = ureg.kelvin
+# Pint-based unit constants for convenience
+celsius = ureg.degC
+K = ureg.kelvin
+
+# ---------------------------------------------------------------------------
+# Unum support (backward compatibility only)
+# ---------------------------------------------------------------------------
+
+try:
+    from unum import Unum
+    from unum import NameConflictError
+    import unum.units as _unum_units_module
+    import re
+
+    # Export unum unit symbols (m, kg, s, etc.) for backward compatibility.
+    # NOTE: celsius and K are NOT overridden — pint versions are kept.
+    _unum_units = {k: v for k, v in vars(_unum_units_module).items() if not k.startswith('_')}
+    _unum_compat = {k: v for k, v in _unum_units.items() if k not in ('celsius', 'K')}
+    globals().update(_unum_compat)
+
+    # Unum celsius/K available as _unum_celsius/_unum_K for
+    # backward-compatible .asNumber() calls in old code paths.
+    _unum_celsius = _unum_units.get('celsius', None)
+    _unum_K = _unum_units.get('K', None)
+
+    # Override celsius/K with unum versions since existing code like
+    # temperature.asNumber(celsius) needs unum units.
+    # New code should use ureg.degC and ureg.kelvin instead.
+    if _unum_celsius is not None:
+        celsius = _unum_celsius
+    if _unum_K is not None:
+        K = _unum_K
+
+    unumSupport = True
+except ImportError:
+    class Unum:
+        """Placeholder when unum is not installed."""
+        pass
+    _unum_units = {}
+    _unum_celsius = None
+    _unum_K = None
+    unumSupport = False
+
+
+# ---------------------------------------------------------------------------
+# Conversion helpers
+# ---------------------------------------------------------------------------
+
+def tonumber(x, theunit):
+    """
+    Convert a value with units to a plain number in the given unit.
+
+    Parameters
+    ----------
+    x : Unum, Quantity, or numeric
+        The value to convert.
+    theunit : unit
+        The target unit.
+
+    Returns
+    -------
+    float
+    """
+    if isinstance(x, Unum) and unumSupport:
+        ret = x.asNumber(theunit)
+    elif isinstance(x, Quantity):
+        ret = x.to(theunit).magnitude
+    else:
+        ret = x
+    return ret
+
+
+def tounit(x, theunit):
+    """
+    Convert a value to the given unit, handling both pint and unum.
+
+    Parameters
+    ----------
+    x : Unum, Quantity, or numeric
+        The value to convert.
+    theunit : Unit, Unum, or str
+        The target unit.
+
+    Returns
+    -------
+    Quantity or Unum
+    """
+    logger = get_logger(None, "hera.utils.tounit")
+    if isinstance(x, Unum) and unumSupport:
+        logger.warning("Please prefer using pint (ureg) for units")
+        if isinstance(theunit, Unit):
+            ret = unumToPint(x).to(theunit)
+        elif isinstance(theunit, Unum):
+            ret = x.asUnit(theunit)
+        else:
+            logger.error(f"can't convert {x} to units {theunit}")
+            ret = x
+    elif isinstance(x, Quantity):
+        if isinstance(theunit, Unum) and unumSupport:
+            logger.warning("Please prefer using pint (ureg) for units")
+            ret = pintToUnum(x).asUnit(theunit)
+        elif isinstance(theunit, (Unit, str)):
+            ret = x.to(theunit)
+        else:
+            logger.error(f"can't convert {x} to units {theunit}")
+            ret = x
+    else:
+        ret = Quantity(x, theunit)
+    return ret
+
+
+tounum = tounit
+
+
+# ---------------------------------------------------------------------------
+# Unum custom units and conversion helpers (only when unum is installed)
+# ---------------------------------------------------------------------------
 
 if unumSupport:
+    # Access unum unit objects from the private dict
+    _m = _unum_units['m']
+    _s = _unum_units['s']
+    _g = _unum_units['g']
+    _kg = _unum_units['kg']
+    _cm = _unum_units['cm']
+    _N = _unum_units['N']
+    _bar = _unum_units['bar']
+    _L = _unum_units['L']
+
+    # Define custom unum units
     try:
-        atm = Unum.unit('atm', 1.01325 * bar, 'atmosphere')
-    except NameConflictError as e:
-        atm = Unum.unit('atm', conv=None, name='atmosphere')
+        _unum_atm = Unum.unit('atm', 1.01325 * _bar, 'atmosphere')
+    except NameConflictError:
+        _unum_atm = Unum.unit('atm', conv=None, name='atmosphere')
 
     try:
-        mbar = Unum.unit('mbar', bar / 1000, 'millibar')
-    except NameConflictError as e:
-        mbar = Unum.unit('mbar', conv=None, name='millibar')
+        _unum_mbar = Unum.unit('mbar', _bar / 1000, 'millibar')
+    except NameConflictError:
+        _unum_mbar = Unum.unit('mbar', conv=None, name='millibar')
 
     try:
-        mmHg = Unum.unit('mmHg', atm / 760., 'mmHg = 1 torr')
-    except NameConflictError as e:
-        mmHg = Unum.unit('mmHg', conv=None, name='mmHg = 1 torr')
+        _unum_mmHg = Unum.unit('mmHg', _unum_atm / 760., 'mmHg = 1 torr')
+    except NameConflictError:
+        _unum_mmHg = Unum.unit('mmHg', conv=None, name='mmHg = 1 torr')
 
     try:
-        mmH2O = Unum.unit('mmH2O', atm / 10197.162129779, 'mmH2O = 0.0000980665bar')
-    except NameConflictError as e:
-        mmH2O = Unum.unit('mmH2O', conv=None, name='mmH2O = 1 torr')
+        _unum_mmH2O = Unum.unit('mmH2O', _unum_atm / 10197.162129779, 'mmH2O')
+    except NameConflictError:
+        _unum_mmH2O = Unum.unit('mmH2O', conv=None, name='mmH2O')
 
     try:
-        torr = Unum.unit('torr', atm / 760., 'torr = 1 mmHg')
-    except NameConflictError as e:
-        torr = Unum.unit('torr', conv=None, name='torr = 1 mmHg')
+        _unum_torr = Unum.unit('torr', _unum_atm / 760., 'torr = 1 mmHg')
+    except NameConflictError:
+        _unum_torr = Unum.unit('torr', conv=None, name='torr = 1 mmHg')
 
     try:
-        dyne = Unum.unit('dyne', 1e-5 * N, 'dyne')
-    except NameConflictError as e:
-        dyne = Unum.unit('dyne', conv=None, name='dyne')
+        _unum_dyne = Unum.unit('dyne', 1e-5 * _N, 'dyne')
+    except NameConflictError:
+        _unum_dyne = Unum.unit('dyne', conv=None, name='dyne')
 
     try:
-        poise = Unum.unit('poise', g / cm / s, 'poise')
-    except NameConflictError as e:
-        poise = Unum.unit('poise', conv=None, name='poise')
+        _unum_poise = Unum.unit('poise', _g / _cm / _s, 'poise')
+    except NameConflictError:
+        _unum_poise = Unum.unit('poise', conv=None, name='poise')
 
     try:
-        cpoise = Unum.unit('cpoise', poise / 10., 'centipoise')
-    except NameConflictError as e:
-        cpoise = Unum.unit('cpoise', conv=None, name='centipoise')
+        _unum_cpoise = Unum.unit('cpoise', _unum_poise / 10., 'centipoise')
+    except NameConflictError:
+        _unum_cpoise = Unum.unit('cpoise', conv=None, name='centipoise')
 
     try:
-        mL = Unum.unit('mL', 1e-3 * L)
+        Unum.unit('mL', 1e-3 * _L)
     except NameConflictError:
         pass
 
     try:
-        uL = Unum.unit('uL', 1e-6 * L)
+        Unum.unit('uL', 1e-6 * _L)
     except NameConflictError:
         pass
 
     try:
-        nL = Unum.unit('nL', 1e-9 * L)
+        Unum.unit('nL', 1e-9 * _L)
     except NameConflictError:
         pass
 
+    # Map pint unit names to unum unit objects (for conversion)
+    PINT_TO_UNUM_MAP = {
+        'meter': _m,
+        'metre': _m,
+        "hour": _unum_units.get('h', _unum_units.get('hour', None)),
+        "centimeter": _cm,
+        "mmHg": _unum_mmHg,
+        "mbar": _unum_mbar,
+        'second': _s,
+        "milligram": _unum_units.get('mg', None),
+        "minute": _unum_units.get('min', None),
+        "atm": _unum_atm,
+        "milliliter": _unum_units.get('mL', None),
+        'kilogram': _kg,
+        'ampere': _unum_units.get('A', None),
+        'kelvin': _unum_units.get('K', None),
+        'mole': _unum_units.get('mol', None),
+        'candela': _unum_units.get('cd', None),
+        'radian': _unum_units.get('rad', None),
+        'steradian': _unum_units.get('sr', None),
+        'hertz': _unum_units.get('Hz', None),
+        'newton': _N,
+        'pascal': _unum_units.get('Pa', None),
+        'joule': _unum_units.get('J', None),
+        'watt': _unum_units.get('W', None),
+        'coulomb': _unum_units.get('C', None),
+        'volt': _unum_units.get('V', None),
+        'farad': _unum_units.get('F', None),
+        'ohm': _unum_units.get('ohm', None),
+        'siemens': _unum_units.get('S', None),
+        'weber': _unum_units.get('Wb', None),
+        'tesla': _unum_units.get('T', None),
+        'henry': _unum_units.get('H', None),
+        'lumen': _unum_units.get('lm', None),
+        'lux': _unum_units.get('lx', None),
+        'becquerel': _unum_units.get('Bq', None),
+        'gray': _unum_units.get('Gy', None),
+        'sievert': _unum_units.get('Sv', None),
+        'katal': _unum_units.get('kat', None),
+    }
+    # Remove None entries
+    PINT_TO_UNUM_MAP = {k: v for k, v in PINT_TO_UNUM_MAP.items() if v is not None}
 
-    @deprecated(reason="Doesn't work for some cases For example kg/s/m. Move to Pint")
+    @deprecated(reason="Doesn't work for some cases. Move to Pint")
     def convert_unum_units_to_eval_str(unit_str):
-        """
-        Converts a string like 'kg/m3' to 'kg/m**3' for eval-safe unit expression.
-        It assumes the input string is a valid unum-style unit string.
-
-        Args:
-            unit_str (str): A unit string in unum format (e.g., 'kg/m3').
-
-        Returns:
-            str: A string formatted for eval (e.g., 'kg/m**3').
-        """
-
-        # Convert shorthand exponents like m3 to m**3 (only when preceded by a letter)
+        """Convert a unum-style unit string to an eval-safe expression."""
         def replace_exponents(match):
             unit = match.group(1)
             exponent = match.group(2)
             return f"{unit}**{exponent}"
-
-        # Regex matches: a letter or unit symbol followed by an integer exponent
         pattern = re.compile(r'([a-zA-Z]+)(-?\d+)')
-        # Apply the transformation only to denominator (after '/') or any place it appears
         unit_str = re.sub(pattern, replace_exponents, unit_str)
-
         return unit_str
 
-
-    @deprecated(reason="Doesn't work for some cases For example kg/s/m")
+    @deprecated(reason="Doesn't work for some cases")
     def unumToStr(obj):
+        """Convert a Unum object to a string representation."""
         if isinstance(obj, Unum):
             objStr = convert_unum_units_to_eval_str(str(obj))
             ret = objStr.replace(" [", "*").replace("]", "")
@@ -166,9 +275,9 @@ if unumSupport:
             ret = str(obj)
         return ret
 
-
-    @deprecated(reason="Doesn't work for some cases For example kg/s/m")
+    @deprecated(reason="Doesn't work for some cases")
     def strToUnum(value):
+        """Convert a string to a Unum object."""
         if isinstance(value, Unum):
             ret = value
         else:
@@ -178,129 +287,61 @@ if unumSupport:
                 ret = value
         return ret
 
-
-    # Map pint unit names to unum.unit unit objects
-    PINT_TO_UNUM_MAP = {
-        'meter': m,
-        'metre': m,
-        "hour" : h,
-        "centimeter" : cm,
-        "mmHg": mmHg,
-        "mbar": mbar,
-        'second': s,
-        "milligram": mg,
-        "minute": min,
-        "atm": atm,
-        "milliliter": mL,
-        'kilogram': kg,
-        'ampere': A,
-        'kelvin': K,
-        'mole': mol,
-        'candela': cd,
-        'radian': rad,
-        'steradian': sr,
-        'hertz': Hz,
-        'newton': N,
-        'pascal': Pa,
-        'joule': J,
-        'watt': W,
-        'coulomb': C,
-        'volt': V,
-        'farad': F,
-        'ohm': ohm,
-        'siemens': S,
-        'weber': Wb,
-        'tesla': T,
-        'henry': H,
-        'lumen': lm,
-        'lux': lx,
-        'becquerel': Bq,
-        'gray': Gy,
-        'sievert': Sv,
-        'katal': kat,
-    }
-
-
     def extractUnumUnitsFromPint(pint_quantity):
-        """
-        Converts the pint unit string 'meters**1*second**-2' to unum str m**1*s**-2
-        Parameters
-        ----------
-        pint_units_str : str
-            The str of the unum.
-
-        Returns
-        -------
-
-        """
+        """Extract unum unit equivalent from a pint Quantity."""
         units = pint_quantity._units
-
-        unum_unit = 1 * m / m  # unitless number
-
+        unum_unit = 1 * _m / _m  # unitless
         for unit_name, power in units.items():
             if unit_name not in PINT_TO_UNUM_MAP:
-                raise ValueError(f"Unit '{unit_name}' not mapped to Unum unit object.")
-            unum_base = PINT_TO_UNUM_MAP[unit_name]
-            unum_unit *= unum_base ** power
-
+                raise ValueError(f"Unit '{unit_name}' not mapped to Unum.")
+            unum_unit *= PINT_TO_UNUM_MAP[unit_name] ** power
         return unum_unit
-
 
     def pintToUnum(pint_quantity):
         """
-            Conver pint quantity ot Unum.
+        Convert a pint Quantity to a Unum object.
+
         Parameters
         ----------
-        pint_quantity (pint) : The value to convert.
+        pint_quantity : Quantity
+            The pint value to convert.
 
         Returns
         -------
-            unum.
+        Unum
         """
         magnitude = pint_quantity.magnitude
         units = pint_quantity._units
-
-        unum_unit = 1 * m / m  # unitless number
-
+        unum_unit = 1 * _m / _m
         for unit_name, power in units.items():
             if unit_name not in PINT_TO_UNUM_MAP:
-                raise ValueError(f"Unit '{unit_name}' not mapped to Unum unit object.")
-            unum_base = PINT_TO_UNUM_MAP[unit_name]
-            unum_unit *= unum_base ** power
-
+                raise ValueError(f"Unit '{unit_name}' not mapped to Unum.")
+            unum_unit *= PINT_TO_UNUM_MAP[unit_name] ** power
         return magnitude * unum_unit
-
 
     def unumToPint(unum_obj, value=1.0):
         """
-        Convert a Unum object to a Pint Quantity.
+        Convert a Unum object to a pint Quantity.
 
-        Args:
-            unum_obj (Unum): A unum object (e.g., kg / m**3).
-            value (float): Optional numerical value.
+        Parameters
+        ----------
+        unum_obj : Unum
+            The unum value to convert.
+        value : float
+            Optional numerical value.
 
-        Returns:
-            pint.Quantity: A pint quantity with the same unit.
+        Returns
+        -------
+        Quantity
         """
-        # Get the string representation of the unum object
         if isinstance(unum_obj, Quantity):
             return unum_obj
         unit_str = str(unum_obj)
         pint_str = convert_unum_units_to_eval_str(unit_str)
         return value * ureg.parse_expression(pint_str)
 
-
     def unumToBaseUnits(unum_obj):
-        """
-            Convert the unum object to MKS units.
-        Parameters
-        ----------
-        unum_obj (Unum): A unum object (e.g., kg / m**3).
-
-        Returns
-        -------
-        Unum
-        """
+        """Convert a Unum object to MKS base units."""
         pint_obj = unumToPint(unum_obj)
         standardize = pint_obj.to_base_units()
         return pintToUnum(standardize)
