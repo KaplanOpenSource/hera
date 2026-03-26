@@ -5,6 +5,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
+from hera.measurements.GIS.utils import WSG84, ITM
 from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
@@ -469,10 +470,13 @@ class presentation:
         ylim : tuple of float, optional
             (ymin, ymax) limits for the y-axis. If None, auto from data.
         inputCRS : int or str, optional
-            CRS of the input data if not already set on the GeoDataFrame
-            (e.g., 4326 for WGS84, 2039 for ITM).
+            CRS of the input data if not already set on the GeoDataFrame.
+            Use the constants ``WSG84`` (4326) or ``ITM`` (2039) from
+            ``hera.measurements.GIS.utils``.
         outputCRS : int or str, optional
-            CRS to reproject data before plotting (e.g., 2039 for ITM, 4326 for WGS84).
+            CRS to reproject data before plotting.
+            Use the constants ``WSG84`` (4326) or ``ITM`` (2039) from
+            ``hera.measurements.GIS.utils``.
 
         Returns
         -------
@@ -574,8 +578,12 @@ class presentation:
             (ymin, ymax) limits for the y-axis.
         inputCRS : int or str, optional
             CRS of the input data if not already set on the GeoDataFrame.
+            Use the constants ``WSG84`` (4326) or ``ITM`` (2039) from
+            ``hera.measurements.GIS.utils``.
         outputCRS : int or str, optional
             CRS to reproject data before plotting.
+            Use the constants ``WSG84`` (4326) or ``ITM`` (2039) from
+            ``hera.measurements.GIS.utils``.
 
         Returns
         -------
@@ -655,8 +663,12 @@ class presentation:
             Polygon edge width. Default: 0.2.
         inputCRS : int or str, optional
             CRS of the input data if not already set on the GeoDataFrame.
+            Use the constants ``WSG84`` (4326) or ``ITM`` (2039) from
+            ``hera.measurements.GIS.utils``.
         outputCRS : int or str, optional
             CRS to reproject data before plotting.
+            Use the constants ``WSG84`` (4326) or ``ITM`` (2039) from
+            ``hera.measurements.GIS.utils``.
 
         Returns
         -------
