@@ -90,6 +90,8 @@ restored = JSONToConfiguration(json_safe)
 print(restored["windSpeed"])  # 3.5 meter / second
 ```
 
+For the full details on saving and loading configurations with units — including `splitUnits` for unit-aware database queries, `JSONVariations` for parameter sweeps, and `compareJSONS` for diffing configurations — see **[JSON Utilities](json.md)**.
+
 ## Custom Units Reference
 
 | Unit | Definition | Typical Use |
