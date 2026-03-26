@@ -430,7 +430,7 @@ class presentation:
                               colorbar=True, colorbar_label=None,
                               title=None,
                               xlim=None, ylim=None,
-                              inputCRS=None, outputCRS=None):
+                              inputCRS=None, outputCRS=ITM):
         """
         Plot population density as a choropleth map.
 
@@ -540,7 +540,7 @@ class presentation:
                        colorbar=True, colorbar_label=None,
                        title=None,
                        xlim=None, ylim=None,
-                       inputCRS=None, outputCRS=None):
+                       inputCRS=None, outputCRS=ITM):
         """
         Plot absolute population count as a choropleth map.
 
@@ -638,7 +638,7 @@ class presentation:
                              figsize=(16, 10), ncols=3,
                              cmap="YlOrRd", alpha=0.8,
                              edgecolor="0.5", linewidth=0.2,
-                             inputCRS=None, outputCRS=None):
+                             inputCRS=None, outputCRS=ITM):
         """
         Plot multiple population types as a grid of subplots.
 
