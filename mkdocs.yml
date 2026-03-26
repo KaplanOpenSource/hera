@@ -116,6 +116,18 @@ nav:
               - Wind Profile: toolkits/simulations/windprofile.md
               - Hermes Workflows: toolkits/simulations/workflows.md
           - Risk Assessment: toolkits/risk_assessment.md
+      - Utilities:
+          - Overview: user_guide/utilities/index.md
+          - Units (pint): user_guide/utilities/units.md
+          - JSON Utilities: user_guide/utilities/json.md
+          - Angle Conversions: user_guide/utilities/angles.md
+          - Logging: user_guide/utilities/logging.md
+          - Slurm Batch Jobs: user_guide/utilities/slurm.md
+          - 2D Statistics: user_guide/utilities/statistics.md
+          - DataFrame Comparison: user_guide/utilities/dataframes.md
+          - Data Filtering: user_guide/utilities/filtering.md
+          - Sensitivity Analysis: user_guide/utilities/sensitivity.md
+          - Contour to GIS: user_guide/utilities/contours.md
       - Tutorials: tutorials/index.md
       - Examples:
           - Repository Examples: examples/repository_examples.md
