@@ -555,7 +555,6 @@ class ToolkitHome(abstractToolkit):
     GIS_VECTOR_TOPOGRAPHY = "GIS_Vector_Topography"
     GIS_RASTER_TOPOGRAPHY = "GIS_Raster_Topography"
     GIS_DEMOGRAPHY = "GIS_Demography"
-    GIS_SHAPES = "GIS_Shapes"
     RISKASSESSMENT = "RiskAssessment"
     LSM = "LSM"
 
