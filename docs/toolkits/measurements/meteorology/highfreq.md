@@ -63,33 +63,82 @@ df = sonic.compute()
 
 ---
 
-## Parsing raw data
+## Loading raw data
 
-The toolkit provides two parsers for converting raw sensor files to Parquet:
+The toolkit provides two ways to ingest raw sensor files (Campbell binary TOB1 or TOA5 ASCII). Both automatically detect the file format, normalise column names to lowercase, set a proper `DatetimeIndex`, and convert values to float.
 
-### Campbell binary (TOB1)
+### `loadData` — parse, save, and register (recommended)
+
+Parse a raw file, save the normalised output as Parquet, and register it as a versioned data source in the project. This is the recommended workflow — once loaded, the data is available by name everywhere.
 
 ```python
-# Parse a Campbell Scientific binary file
-dask_df = hf.campbelToParquet(
-    binaryFile="/path/to/sonic.dat",
+# Parse + normalise + save as data source
+doc = hf.loadData(
+    name="sonic_10m",
+    path="/raw_data/2024_03_15.dat",
     fromTime="2024-03-15 00:00",
     toTime="2024-03-16 00:00",
-    chunkSize=10000,                # records per batch
+    parser="auto",          # auto-detect, or "campbell" / "toa5"
+    version=(1, 0, 0),
+    overwrite=False,
+)
+
+# Now accessible by name everywhere:
+turb = hf.analysis.singlePointTurbulenceStatistics(
+    sonicData="sonic_10m",
+    samplingWindow="30min",
+    start="2024-03-15 08:00", end="2024-03-15 12:00",
+    height=10, buildingHeight=5, averagedHeight=7,
 )
 ```
 
-### ASCII (TOA5)
+For multi-device files (TOA5 with multiple sonics), device names are appended automatically:
 
 ```python
-# Parse a TOA5 ASCII file or directory of files
-device_dict = hf.asciiToParquet(
-    path="/path/to/ascii_data/",
-    fromTime="2024-03-15 00:00",
-    toTime="2024-03-16 00:00",
-)
-# Returns dict: {"Raw_Sonic_1": DataFrame, "TCT_TRH_1": DataFrame, ...}
+docs = hf.loadData(name="station_A", path="/raw_data/multi_device.dat")
+# Creates: "station_A_Raw_Sonic_1", "station_A_Raw_Sonic_2", etc.
 ```
+
+### `parseData` — parse and normalise without saving
+
+For previewing data or one-off analysis without registering a data source:
+
+```python
+results = hf.parseData(
+    path="/raw_data/2024_03_15.dat",
+    parser="auto",
+)
+# Returns list of (normalised_dataframe, metadata_dict)
+
+df, metadata = results[0]
+print(df.head())
+#                         u     v     w      T
+# Time
+# 2024-03-15 00:00:00  -2.65  3.05  1.96  24.93
+# 2024-03-15 00:00:00  -2.70  3.10  1.90  24.95
+
+print(metadata)
+# {'station': 'CR3000_1', 'instrument': 'CSAT3', 'height': 10, 'deviceType': 'sonic'}
+
+# Pass directly to analysis:
+turb = hf.analysis.singlePointTurbulenceStatistics(sonicData=df, ...)
+```
+
+### Supported formats
+
+| Format | Header marker | Auto-detected | Parser name |
+|--------|--------------|---------------|-------------|
+| Campbell TOB1 binary | `TOB1` in first line | Yes | `"campbell"` |
+| Campbell TOA5 ASCII | `TOA5` or CSV with device metadata | Yes | `"toa5"` |
+
+### Normalised output
+
+Both parsers normalise output to a consistent format:
+
+| Device type | Columns | Index |
+|-------------|---------|-------|
+| Sonic | `u`, `v`, `w`, `T` (float) | `DatetimeIndex` |
+| TRH | `TC_T`, `TRH`, `RH` (float) | `DatetimeIndex` |
 
 ---
 
