@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
 from hera.measurements.GIS.utils import WSG84, ITM
+from hera.utils.unitHandler import ureg
 from hera import toolkit
 from hera.measurements.GIS.vector import toolkit
 from hera.datalayer import datatypes, nonDBMetadataFrame
@@ -424,6 +425,7 @@ class presentation:
         self._datalayer = dataLayer
 
     def plotPopulationDensity(self, data, populationType="total_pop",
+                              density_units=None,
                               ax=None, figsize=(12, 10),
                               cmap="YlOrRd", vmin=None, vmax=None,
                               alpha=1.0, edgecolor="0.5", linewidth=0.3,
@@ -461,8 +463,14 @@ class presentation:
             Width of polygon edges. Default: 0.3.
         colorbar : bool
             Whether to show a colorbar. Default: True.
+        density_units : pint.Unit, optional
+            The area unit for density calculation. The CRS determines the
+            native area unit (e.g., m² for ITM). This parameter sets the
+            denominator unit for the density display. Default: ``ureg.km**2``
+            (people/km²). Examples: ``ureg.km**2``, ``ureg.m**2``,
+            ``ureg.dunam`` (1000 m²), ``ureg.hectare``.
         colorbar_label : str, optional
-            Label for the colorbar. If None, uses ``"Population density [people/km²]"``.
+            Label for the colorbar. If None, auto-generated from ``density_units``.
         title : str, optional
             Plot title.
         xlim : tuple of float, optional
@@ -483,6 +491,9 @@ class presentation:
         matplotlib.axes.Axes
             The axes with the plot.
         """
+        if density_units is None:
+            density_units = ureg.km ** 2
+
         plot_data = data.copy()
 
         if inputCRS is not None:
@@ -491,11 +502,18 @@ class presentation:
         if outputCRS is not None:
             plot_data = plot_data.to_crs(epsg=outputCRS if isinstance(outputCRS, int) else outputCRS)
 
-        # Compute density: population / area in km²
-        area_km2 = plot_data.geometry.area / 1e6
+        # Geometry area is in CRS native units (m² for ITM).
+        # Convert to the requested density_units using pint.
+        area_m2 = plot_data.geometry.area  # in m² (for projected CRS like ITM)
+        conversion_factor = (1.0 * ureg.m ** 2).to(density_units).magnitude
+        area_in_units = area_m2 * conversion_factor
+
         density_col = f"{populationType}_density"
-        plot_data[density_col] = plot_data[populationType] / area_km2
+        plot_data[density_col] = plot_data[populationType] / area_in_units
         plot_data[density_col] = plot_data[density_col].replace([np.inf, -np.inf], 0).fillna(0)
+
+        # Build default colorbar label from units
+        units_str = f"{density_units:~P}"  # pint short format, e.g. "km²"
 
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -522,7 +540,7 @@ class presentation:
             )
             sm._A = []
             cbar = plt.colorbar(sm, ax=ax)
-            cbar.set_label(colorbar_label or "Population density [people/km²]")
+            cbar.set_label(colorbar_label or f"Population density [people/{units_str}]")
 
         if xlim is not None:
             ax.set_xlim(xlim)
@@ -922,6 +940,7 @@ class presentation:
     def plotPopulationOnMap(self, data, tilesToolkit,
                             populationType="total_pop",
                             density=True,
+                            density_units=None,
                             zoomlevel=14,
                             tileServer=None,
                             ax=None, figsize=(14, 12),
@@ -948,8 +967,11 @@ class presentation:
         populationType : str
             Population column to plot. Default: ``"total_pop"``.
         density : bool
-            If True, plot population density (people/km²).
+            If True, plot population density.
             If False, plot absolute counts. Default: True.
+        density_units : pint.Unit, optional
+            Area unit for density (e.g., ``ureg.km**2``, ``ureg.dunam``,
+            ``ureg.hectare``). Default: ``ureg.km**2``.
         zoomlevel : int
             Tile server zoom level (higher = more detail). Default: 14.
         tileServer : str, optional
@@ -1015,11 +1037,17 @@ class presentation:
 
         # Compute density if requested
         if density:
-            area_km2 = plot_data.geometry.area / 1e6
+            if density_units is None:
+                density_units = ureg.km ** 2
+            area_m2 = plot_data.geometry.area
+            conversion_factor = (1.0 * ureg.m ** 2).to(density_units).magnitude
+            area_in_units = area_m2 * conversion_factor
             plot_col = f"{populationType}_density"
-            plot_data[plot_col] = (plot_data[populationType] / area_km2).replace([np.inf, -np.inf], 0).fillna(0)
+            plot_data[plot_col] = (plot_data[populationType] / area_in_units).replace([np.inf, -np.inf], 0).fillna(0)
+            units_str = f"{density_units:~P}"
         else:
             plot_col = populationType
+            units_str = None
 
         # Overlay population choropleth
         plot_data.plot(
@@ -1031,7 +1059,12 @@ class presentation:
         )
 
         if colorbar:
-            label = colorbar_label or ("Population density [people/km²]" if density else "Population count")
+            if colorbar_label:
+                label = colorbar_label
+            elif density and units_str:
+                label = f"Population density [people/{units_str}]"
+            else:
+                label = "Population count"
             sm = plt.cm.ScalarMappable(
                 cmap=cmap,
                 norm=mcolors.Normalize(
