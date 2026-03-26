@@ -14,7 +14,8 @@ TEST_HERA       ?= $(HOME)/hera_unittest_data
 
 .PHONY: help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
         build run stop test test-setup \
-        install-deps install-deps-all install-paraview install-freecad install-openfoam
+        install-deps install-deps-all install-paraview install-freecad install-openfoam \
+        mermaid-pull render-diagrams docs-serve
 
 help:
 	@echo "Hera targets:"
@@ -41,6 +42,11 @@ help:
 	@echo "    make install-freecad     Install FreeCad Python3 bindings"
 	@echo "    make install-openfoam    Install OpenFOAM 10"
 	@echo "    make install-deps-all    Install all of the above"
+	@echo ""
+	@echo "  Documentation:"
+	@echo "    make docs-serve          Start local MkDocs preview server"
+	@echo "    make mermaid-pull        Pull the mermaid-cli Docker image"
+	@echo "    make render-diagrams     Render all Mermaid diagrams to SVG"
 
 # --- MongoDB ---
 
@@ -189,3 +195,19 @@ install-openfoam:
 install-deps-all: install-deps install-paraview install-freecad install-openfoam
 	@echo ""
 	@echo "All third-party dependencies installed."
+
+# --- Documentation ---
+
+mermaid-pull:
+	@echo "Pulling mermaid-cli Docker image..."
+	docker pull minlag/mermaid-cli
+	@echo "Done. Run 'make render-diagrams' to render all Mermaid diagrams."
+
+render-diagrams: mermaid-pull
+	@echo "Rendering Mermaid diagrams to SVG..."
+	python render_diagrams.py
+	@echo "Done. SVGs saved to docs/images/diagrams/"
+
+docs-serve:
+	@echo "Starting MkDocs development server at http://127.0.0.1:8000"
+	./serve_docs.sh
