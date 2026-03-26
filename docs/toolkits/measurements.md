@@ -22,6 +22,17 @@ GIS toolkits manage geographic data — elevation models, building footprints, l
 
 Works with SRTM elevation data (HGT files) to provide terrain information for any location.
 
+**Data source format:**
+
+| Property | Value |
+|----------|-------|
+| File format | SRTM `.hgt` binary files (30m resolution) |
+| File naming | `N{lat}E{lon}.hgt` (e.g., `N33E035.hgt`) |
+| Structure | 1201x1201 pixels, 2 bytes per sample, big-endian signed short |
+| CRS | WGS84 (EPSG:4326) |
+| Data source | Folder path containing `.hgt` files |
+| Config key | `defaultSRTM` |
+
 ```python
 topo = toolkitHome.getToolkit(toolkitHome.GIS_RASTER_TOPOGRAPHY, projectName="MY_PROJECT")
 
@@ -44,6 +55,16 @@ points = topo.convertPointsCRS(points, inputCRS=4326, outputCRS=2039)
 
 Works with vector-based topography — contour lines and survey points.
 
+**Data source format:**
+
+| Property | Value |
+|----------|-------|
+| File format | Shapefile, GeoJSON, or GeoPackage |
+| Geometry type | `LineString` or `MultiLineString` (contour lines) |
+| Required columns | `geometry`, height column (default: `HEIGHT`) |
+| Height column | Elevation value in meters for each contour line |
+| CRS | Any valid CRS (toolkit handles conversion) |
+
 ```python
 vtopo = toolkitHome.getToolkit(toolkitHome.GIS_VECTOR_TOPOGRAPHY, projectName="MY_PROJECT")
 
@@ -59,6 +80,19 @@ vtopo.regionToSTL(shape=my_polygon, dxdy=30, datasource="contours")
 **Toolkit name:** `GIS_Buildings`
 
 Manages building footprint data and generates 3D meshes for CFD simulations.
+
+**Data source format:**
+
+| Property | Value |
+|----------|-------|
+| File format | Shapefile, GeoJSON, or GeoPackage (`dataFormat: "geopandas"`) |
+| Geometry type | `Polygon` (building footprints) |
+| Required columns | `geometry` |
+| Height column | `BLDG_HT` (or as specified in `desc.BuildingHeightColumn`) — building height in meters |
+| Ground height | `HT_LAND` (or as specified in `desc.LandHeightColumns`) — ground elevation |
+| Fallback | If no height column, uses `building:levels × 3` meters |
+| CRS | Any (must be defined; methods handle transformation) |
+| Config key | `defaultBuildingDataSource` |
 
 ```python
 buildings = toolkitHome.getToolkit(toolkitHome.GIS_BUILDINGS, projectName="MY_PROJECT")
@@ -80,6 +114,18 @@ buildings.regionToSTL(
 
 Population data analysis from census shapefiles.
 
+**Data source format:**
+
+| Property | Value |
+|----------|-------|
+| File format | Shapefile, GeoJSON, or GeoPackage (`dataFormat: "geopandas"`) |
+| Geometry type | `Polygon` (census areas / statistical zones) |
+| Required columns | `geometry`, `total_pop` (total population) |
+| Optional columns | `age_0_14` (children), `age_15_19` (youth), `age_20_29` (young adults), `age_30_64` (adults), `age_65_up` (elderly) |
+| CRS | Any (toolkit handles transformation; internally uses ITM EPSG:2039) |
+
+The toolkit maps display names to column names: `"All"` → `total_pop`, `"Children"` → `age_0_14`, etc.
+
 ```python
 demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
 
@@ -95,6 +141,18 @@ area_gdf = demo.createNewArea(polygon=my_area, datasource="census_2020")
 **Toolkit name:** `GIS_LandCover`
 
 Land cover classification and surface roughness estimation for atmospheric modeling.
+
+**Data source format:**
+
+| Property | Value |
+|----------|-------|
+| File format | GeoTIFF (`dataFormat: "geotiff"`) |
+| Structure | Single band (band 1), UINT8 values 0–16 (IGBP classification) |
+| Classes | 0: Water, 1–5: Forests, 6–9: Shrublands/Savannas, 10–12: Grasslands/Crops, 13: Urban, 14: Mosaic, 15: Snow, 16: Barren |
+| CRS | WGS84 (EPSG:4326) |
+| Config key | `defaultLandCover` |
+
+The toolkit maps IGBP land cover classes to aerodynamic roughness lengths (z0) for atmospheric simulations.
 
 ```python
 lc = toolkitHome.getToolkit(toolkitHome.GIS_LANDCOVER, projectName="MY_PROJECT")
@@ -114,6 +172,17 @@ z0 = lc.getRoughness(minx=35.0, miny=32.0, maxx=35.1, maxy=32.1, dxdy=30)
 **Toolkit name:** `GIS_Tiles`
 
 The Tiles toolkit plots raster map images from a tile server (Google Maps, OpenStreetMap, or a custom server). This is useful for creating satellite or street-map backgrounds for your GIS visualizations.
+
+**Data source format:**
+
+| Property | Value |
+|----------|-------|
+| Data type | URL template string (`dataFormat: "string"`) |
+| Format | XYZ tile URL with `{z}`, `{x}`, `{y}` placeholders |
+| Example | `http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}` |
+| Tile format | Standard Web Mercator (XYZ) 256×256 PNG tiles |
+| CRS | WGS84 (EPSG:4326) or ITM (EPSG:2039) for input coordinates |
+| Config key | `defaultTileServer` |
 
 ```python
 from hera import toolkitHome
