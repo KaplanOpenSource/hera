@@ -36,6 +36,14 @@ flowchart TD
     Init --> Config["Creates ~/.pyhera/config.json"]
     Config --> Verify["Verify: python -c\n'from hera import Project'"]
 ```
+-->    Init --> Config["Creates ~/.pyhera/config.json"]
+    Config --> Verify["Verify: python -c\n'from hera import Project'"]
+```
+-->
+-->    Init --> Config["Creates ~/.pyhera/config.json"]
+    Config --> Verify["Verify: python -c\n'from hera import Project'"]
+```
+-->
 -->
 
 ### Steps
@@ -153,6 +161,16 @@ flowchart TD
     Dirs --> MongoInstall --> MongoUsers --> MongoConfig
     MongoConfig --> VerifyImport --> VerifyCLI
 ```
+-->-> EnvVars --> Dirs
+    Dirs --> MongoInstall --> MongoUsers --> MongoConfig
+    MongoConfig --> VerifyImport --> VerifyCLI
+```
+-->
+-->-> EnvVars --> Dirs
+    Dirs --> MongoInstall --> MongoUsers --> MongoConfig
+    MongoConfig --> VerifyImport --> VerifyCLI
+```
+-->
 -->
 
 ### Step 1: System Packages

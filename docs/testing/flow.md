@@ -138,6 +138,18 @@ sequenceDiagram
     Conftest -->> Pytest: Cleanup complete
     end
 ```
+-->ST_HERA_PROJECT
+    MongoDB -->> Conftest: Deletion confirmed
+    Conftest -->> Pytest: Cleanup complete
+    end
+```
+-->
+-->ST_HERA_PROJECT
+    MongoDB -->> Conftest: Deletion confirmed
+    Conftest -->> Pytest: Cleanup complete
+    end
+```
+-->
 -->
 
 ---
@@ -222,6 +234,18 @@ flowchart TD
     HandleFunc --> NextSection
     NextSection --> SectionType
 ```
+-->m --> NextSection
+    HandleCache --> NextSection
+    HandleFunc --> NextSection
+    NextSection --> SectionType
+```
+-->
+-->m --> NextSection
+    HandleCache --> NextSection
+    HandleFunc --> NextSection
+    NextSection --> SectionType
+```
+-->
 -->
 
 !!! info "Overwrite Mode"
@@ -293,6 +317,24 @@ flowchart TD
     HeraPrj --> LfTK
     HeraPrj --> HfTK
 ```
+-->ir
+
+    HeraPrj --> TopoTK
+    HeraPrj --> LcTK
+    HeraPrj --> DemoTK
+    HeraPrj --> LfTK
+    HeraPrj --> HfTK
+```
+-->
+-->ir
+
+    HeraPrj --> TopoTK
+    HeraPrj --> LcTK
+    HeraPrj --> DemoTK
+    HeraPrj --> LfTK
+    HeraPrj --> HfTK
+```
+-->
 -->
 
 ---
@@ -345,6 +387,14 @@ flowchart TD
     NeedCompare -- "No" --> DirectAssert["Direct assertions:\nassert value == expected\nassert shape == (n, m)"]
     DirectAssert --> PassTest3["Test PASSES"]
 ```
+-->ct assertions:\nassert value == expected\nassert shape == (n, m)"]
+    DirectAssert --> PassTest3["Test PASSES"]
+```
+-->
+-->ct assertions:\nassert value == expected\nassert shape == (n, m)"]
+    DirectAssert --> PassTest3["Test PASSES"]
+```
+-->
 -->
 
 !!! note "Dask to Pandas"
@@ -403,6 +453,18 @@ flowchart TD
     CompareStr --> ReturnBool
     CompareNPZ --> ReturnBool
 ```
+-->areNum --> ReturnBool
+    CompareDeep --> ReturnBool
+    CompareStr --> ReturnBool
+    CompareNPZ --> ReturnBool
+```
+-->
+-->areNum --> ReturnBool
+    CompareDeep --> ReturnBool
+    CompareStr --> ReturnBool
+    CompareNPZ --> ReturnBool
+```
+-->
 -->
 
 ### compare_dataframes — Deep Comparison

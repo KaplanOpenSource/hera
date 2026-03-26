@@ -81,6 +81,16 @@ flowchart LR
     Config --> Load["3. Load external\ndata (repositories)"]
     Load --> Work["4. Work with\ntoolkits"]
 ```
+-->utomatically"]
+    Config --> Load["3. Load external\ndata (repositories)"]
+    Load --> Work["4. Work with\ntoolkits"]
+```
+-->
+-->utomatically"]
+    Config --> Load["3. Load external\ndata (repositories)"]
+    Load --> Work["4. Work with\ntoolkits"]
+```
+-->
 -->
 
 **Step 1 — Create a project directory:**

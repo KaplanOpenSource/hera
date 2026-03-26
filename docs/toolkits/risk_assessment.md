@@ -23,15 +23,22 @@ The risk assessment framework models a chain of events:
 ![Diagram](../images/diagrams/toolkits_risk_assessment_0_5542f6e1.svg)
 
 <!-- mermaid source (for editing, paste into mermaid.live):
-![Diagram](../images/diagrams/toolkits_risk_assessment_0_5542f6e1.svg)
-
-<!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 flowchart LR
     Agent["Agent\n(hazardous material)"] --> Effects["Effects\n(injury models)"]
     Effects --> Protection["Protection\n(policies)"]
     Protection --> Casualties["Casualties\n(estimates)"]
 ```
+-->jury models)"]
+    Effects --> Protection["Protection\n(policies)"]
+    Protection --> Casualties["Casualties\n(estimates)"]
+```
+-->
+-->jury models)"]
+    Effects --> Protection["Protection\n(policies)"]
+    Protection --> Casualties["Casualties\n(estimates)"]
+```
+-->
 -->
 -->
 

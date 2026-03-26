@@ -88,6 +88,14 @@ flowchart TD
     CheckConfig -- "Yes" --> UseConfig["Use config value"]
     CheckConfig -- "No" --> UseFallback["Use 'BASELINE'\nhardcoded fallback"]
 ```
+-->g -- "Yes" --> UseConfig["Use config value"]
+    CheckConfig -- "No" --> UseFallback["Use 'BASELINE'\nhardcoded fallback"]
+```
+-->
+-->g -- "Yes" --> UseConfig["Use config value"]
+    CheckConfig -- "No" --> UseFallback["Use 'BASELINE'\nhardcoded fallback"]
+```
+-->
 -->
 
 ---
