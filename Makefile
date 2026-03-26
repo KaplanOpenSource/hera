@@ -12,7 +12,9 @@ SERVER_IMAGE     = hera-server
 
 TEST_HERA       ?= $(HOME)/hera_unittest_data
 
-.PHONY: install install-docs install-rag populate populate-project \
+VENV_DIR ?= $(HOME)/.pyhera/environment
+
+.PHONY: install install-env setup install-docs install-rag populate populate-project \
         help mongo-up mongo-down mongo-status mongo-logs mongo-clean \
         build run stop test test-setup \
         install-deps install-deps-all install-paraview install-freecad install-openfoam \
@@ -40,6 +42,37 @@ populate-project:
 	hera-project project populate --projectName $(PROJECT) --overwrite
 	@echo "Done."
 
+install-env:
+	@echo "Creating Python virtual environment at $(VENV_DIR)..."
+	@mkdir -p $(HOME)/.pyhera
+	python3 -m venv $(VENV_DIR)
+	$(VENV_DIR)/bin/pip install --upgrade pip
+	@echo "Installing requirements (this may take a while)..."
+	$(VENV_DIR)/bin/pip install -r $(CURDIR)/requirements.txt
+	$(VENV_DIR)/bin/pip install -e $(CURDIR)
+	@echo ""
+	@echo "=== Python environment installed at $(VENV_DIR) ==="
+	@echo "  Activate with: make setup"
+	@echo "  Or manually:   source $(VENV_DIR)/bin/activate"
+
+setup:
+	@if [ -n "$$VIRTUAL_ENV" ]; then \
+		echo "Deactivating current environment: $$VIRTUAL_ENV"; \
+		echo "deactivate" ; \
+	fi
+	@if [ ! -f "$(VENV_DIR)/bin/activate" ]; then \
+		echo "ERROR: Hera environment not found at $(VENV_DIR)"; \
+		echo "Run 'make install-env' first to create it."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "To activate the Hera environment, run:"
+	@echo ""
+	@echo "  source $(VENV_DIR)/bin/activate"
+	@echo ""
+	@echo "(make cannot activate a venv in your current shell — use source directly,"
+	@echo " or run: source activate_hera.sh)"
+
 install-docs: docs-build
 	@echo ""
 	@echo "=== Documentation built ==="
@@ -55,6 +88,8 @@ help:
 	@echo "Hera targets:"
 	@echo ""
 	@echo "  Quick start:"
+	@echo "    make install-env         Create Python venv and install all dependencies"
+	@echo "    make setup               Show how to activate the Hera environment"
 	@echo "    make install             Set up MongoDB (Docker)"
 	@echo "    make populate            Load all repositories into all projects"
 	@echo "    make populate-project PROJECT=name  Populate a single project"
