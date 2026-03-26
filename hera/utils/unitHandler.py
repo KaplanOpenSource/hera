@@ -60,10 +60,18 @@ def tounit(x,theunit):
 # tounit = lambda x, theunit: x.asUnit(theunit) if isinstance(x, Unum) else x * theunit
 tounum = tounit
 
-# Initialize the Pint unit registry
+# Initialize the Pint unit registry (preferred over unum)
 ureg = UnitRegistry()
 ureg.define('mmH2O = atm / 10197.162129779')
 ureg.define('dunam = 1000*m**2')
+
+# Pint-based unit constants — prefer these in new code.
+# When unum is installed, celsius/K are overridden below by unum units
+# for backward compatibility with .asNumber(celsius). New code should
+# use ureg.degC and ureg.kelvin directly.
+if not unumSupport:
+    celsius = ureg.degC
+    K = ureg.kelvin
 
 if unumSupport:
     try:
