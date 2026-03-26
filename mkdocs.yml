@@ -158,6 +158,7 @@ nav:
               - Hermes Workflows: developer_guide/simulations/workflows.md
               - ML / Deep Learning: developer_guide/simulations/ml.md
           - Risk Assessment: developer_guide/risk_assessment.md
+      - RAG Search: developer_guide/rag.md
       - Testing:
           - Getting Started: testing/getting_started.md
           - Test Flow: testing/flow.md
