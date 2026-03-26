@@ -3,6 +3,7 @@ import os
 import geopandas
 from ..toolkit import VectorToolkit
 from .analysis import analysis
+from .presentation import presentation
 
 try:
     import FreeCAD
@@ -41,6 +42,7 @@ class BuildingsToolkit(VectorToolkit):
         """
         super().__init__(projectName=projectName, toolkitName="Buildings", filesDirectory=filesDirectory,connectionName=connectionName)
         self._analysis = analysis(dataLayer=self)
+        self._presentation = presentation(dataLayer=self, analysisLayer=self._analysis)
 
     def getBuildingHeightFromRasterTopographyToolkit(self, buildingData, topographyDataSource=None):
         """
