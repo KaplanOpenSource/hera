@@ -369,24 +369,3 @@ class presentation:
 
 
 
-    #
-    # def getImageAndStore(self,regionName, center,zoomlevel):
-    #     """
-    #         Gets an image and stores it in the project.
-    #
-    #     Parameters
-    #     ----------
-    #     regionName : The name of the image.
-    #     center : a tuple with te center is WSG84 coordinates.
-    #     zoomlevel : The zoom level to get
-    #
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
-    #     qry = {abstractLocation.TOOLKIT_LOCATION_REGIONNAME: regionName,
-    #            abstractLocation.toolkitExtension.TOOLKIT_TOOLKITNAME_FIELD: self.toolkitName}
-    #     qry.update(filters)
-    #     docList = self.getCacheDocuments(type=self.doctype, **qry)
-    #

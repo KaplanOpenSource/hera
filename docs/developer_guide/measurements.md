@@ -22,7 +22,6 @@ hera/measurements/
                 analysis.py    # Building analysis layer
             demography.py      # DemographyToolkit — population data
             abstractLocation.py
-        shapes.py              # GIS shapes toolkit
         utils.py               # CRS conversion, coordinate utilities
         CLI.py                 # hera-GIS CLI entry points
     meteorology/
