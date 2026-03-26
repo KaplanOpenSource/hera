@@ -436,8 +436,15 @@ class presentation:
         """
         Plot population density as a choropleth map.
 
-        Computes density as population / area (in km²) for each polygon
+        Computes density as population / area for each polygon
         and plots a colored map.
+
+        Example
+        -------
+        >>> from hera import toolkitHome
+        >>> demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+        >>> census = demo.getDataSourceData("census_2020")
+        >>> demo.presentation.plotPopulationDensity(census, density_units=ureg.km**2)
 
         Parameters
         ----------
@@ -562,6 +569,12 @@ class presentation:
         """
         Plot absolute population count as a choropleth map.
 
+        Example
+        -------
+        >>> demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+        >>> census = demo.getDataSourceData("census_2020")
+        >>> demo.presentation.plotPopulation(census, cmap="Blues")
+
         Parameters
         ----------
         data : geopandas.GeoDataFrame
@@ -660,6 +673,12 @@ class presentation:
         """
         Plot multiple population types as a grid of subplots.
 
+        Example
+        -------
+        >>> demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+        >>> census = demo.getDataSourceData("census_2020")
+        >>> demo.presentation.plotPopulationByType(census, ncols=3)
+
         Parameters
         ----------
         data : geopandas.GeoDataFrame
@@ -743,6 +762,13 @@ class presentation:
         Shows intersected census areas colored by population, optionally
         with the query polygon outlined and surrounding census areas
         as context.
+
+        Example
+        -------
+        >>> demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+        >>> census = demo.getDataSourceData("census_2020")
+        >>> result = demo.analysis.calculatePopulationInPolygon(my_polygon, census)
+        >>> demo.presentation.plotPopulationInPolygon(result, queryPolygon=my_polygon, contextData=census)
 
         Parameters
         ----------
@@ -854,6 +880,13 @@ class presentation:
         """
         Plot a custom area from ``createNewArea`` with population annotation.
 
+        Example
+        -------
+        >>> demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+        >>> census = demo.getDataSourceData("census_2020")
+        >>> area = demo.analysis.createNewArea(my_polygon, census)
+        >>> demo.presentation.plotArea(area.getData(), contextData=census, annotate=True)
+
         Parameters
         ----------
         areaData : geopandas.GeoDataFrame
@@ -956,6 +989,13 @@ class presentation:
 
         Fetches map tiles for the data extent and overlays the population
         choropleth with transparency.
+
+        Example
+        -------
+        >>> demo = toolkitHome.getToolkit(toolkitHome.GIS_DEMOGRAPHY, projectName="MY_PROJECT")
+        >>> tiles = toolkitHome.getToolkit(toolkitHome.GIS_TILES, projectName="MY_PROJECT")
+        >>> census = demo.getDataSourceData("census_2020")
+        >>> demo.presentation.plotPopulationOnMap(census, tiles, density=True, alpha=0.5)
 
         Parameters
         ----------
