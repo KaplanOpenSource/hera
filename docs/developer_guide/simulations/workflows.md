@@ -32,6 +32,64 @@ hermesWorkflowToolkit (hera/simulations/hermesWorkflowToolkit.py)
         └─ imports hermes handlers (handler_build, handler_expand, handler_execute)
 ```
 
+### Toolkit extension pattern
+
+Solver-specific functionality is added to `OFToolkit` via **toolkit extensions** — composition objects that hold a back-reference to the parent toolkit and provide solver-specific methods. This avoids putting all solver logic into a single class.
+
+```python
+# In OFToolkit.__init__:
+self.stochasticLagrangian = StochasticLagrangianSolver_toolkitExtension(self)
+self.buoyantReactingFoam  = buoyantReactingFoam_toolkitExtension(self)
+
+# Usage:
+toolkit.stochasticLagrangian.createDispersionFlowField(...)
+toolkit.buoyantReactingFoam.IC_getHydrostaticPressure(...)
+```
+
+Each extension follows this pattern:
+
+```python
+class absractEulerianSolver_toolkitExtension:
+    toolkit = None          # back-reference to parent OFToolkit
+    analysis = None         # optional analysis sub-layer
+    presentation = None     # optional presentation sub-layer
+
+    def __init__(self, toolkit, solverName, incompressible):
+        self.toolkit = toolkit
+        self.solverName = solverName
+        self.incompressible = incompressible
+```
+
+**Extension hierarchy:**
+
+```
+absractEulerianSolver_toolkitExtension
+    ├─ simpleFoam_toolkitExtension
+    └─ buoyantReactingFoam_toolkitExtension
+
+absractStochasticLagrangianSolver_toolkitExtension
+    └─ StochasticLagrangianSolver_toolkitExtension
+```
+
+Extensions access the parent toolkit's data layer, workflow management, and mesh utilities via `self.toolkit`. This means they can query MongoDB, read fields, and manage workflows without duplicating any infrastructure:
+
+```python
+# Inside an extension method:
+docList = self.toolkit.getWorkflowListDocumentFromDB(flowName)
+cellCenters = self.toolkit.getMesh(caseDirectory)
+self.toolkit.OFObjectHome.readFieldFromCase(...)
+```
+
+**Key extension methods:**
+
+| Extension | Method | Purpose |
+|-----------|--------|---------|
+| `stochasticLagrangian` | `createDispersionFlowField()` | Set up dispersion case from base flow (time mapping, mesh linking) |
+| `stochasticLagrangian` | `createDispersionCaseDirectory()` | Validate DB consistency, manage directory conflicts |
+| `stochasticLagrangian` | `createAndLinkDispersionCaseDirectory()` | Copy system/constant, symlink processor meshes |
+| `stochasticLagrangian` | `writeParticlePositionFile()` | Generate source geometry for particle release |
+| `buoyantReactingFoam` | `IC_getHydrostaticPressure()` | Compute hydrostatic pressure field with boundary handling |
+
 ### Key constants
 
 ```python
