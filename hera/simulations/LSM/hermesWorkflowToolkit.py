@@ -24,6 +24,12 @@ except ImportError:
 
 @unique
 class actionModes(Enum):
+    """Workflow action modes controlling which steps are executed.
+
+    - ``ADD`` — add the workflow document to the database only.
+    - ``ADDBUILD`` — add and build (generate LSM input files).
+    - ``ADDBUILDEXECUTE`` — add, build, and execute the LSM simulation.
+    """
     ADD = auto()
     ADDBUILD = auto()
     ADDBUILDEXECUTE = auto()
