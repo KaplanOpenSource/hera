@@ -200,12 +200,14 @@ class workflowToolkit(abstractToolkit):
             doc or empty list if not found.
         """
         doctype = self.DOCTYPE_WORKFLOW if doctype is None else doctype
-        # try to find it as a name
         mongo_crit = dictToMongoQuery(query)
 
+        # Dynamic dispatch: retrieve from Simulations or Cache collection.
         retrieve_func = getattr(self,f"get{dockind}Documents")
 
         if isinstance(nameOrWorkflowFileOrJSONOrResource, str):
+            # Cascading search for string inputs (same strategy as main toolkit):
+            # 1) workflowName → 2) resource path → 3) groupName → 4) JSON content
             self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a name.")
             docList = retrieve_func(workflowName=nameOrWorkflowFileOrJSONOrResource, type=doctype,**mongo_crit)
             if len(docList) == 0:
@@ -215,6 +217,7 @@ class workflowToolkit(abstractToolkit):
                     self.logger.debug(f"Searching for {nameOrWorkflowFileOrJSONOrResource} as a workflow group.")
                     docList = retrieve_func(groupName=nameOrWorkflowFileOrJSONOrResource,type=doctype,**mongo_crit)
                     if len(docList) == 0:
+                        # Last resort: parse as JSON and query by parameter values.
                         self.logger.debug(f"... not found. Try to query as a json. ")
                         try:
                             jsn = loadJSON(nameOrWorkflowFileOrJSONOrResource)
