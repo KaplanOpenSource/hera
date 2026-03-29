@@ -554,6 +554,9 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
         logger = get_classMethod_logger(self, "xarrayToSetFieldsDict")
         logger.debug(f"------------ Start  : {logger.name} ")
 
+        # Build the list of coordinate axes to iterate over.
+        # For each active axis, store the number of cells (shape - 1, since
+        # we iterate cell boundaries, not cell centers).
         coordList = []
         coordNames = []
         if xColumnName is not None:
@@ -568,6 +571,11 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
 
         ret = []
         arryToOFvector = lambda arry: f"({' '.join(arry)} )"
+
+        # Iterate over all cells using Cartesian product of index ranges.
+        # Each X is a tuple of indices (ix, iy, iz) defining one cell.
+        # For each cell, compute the bounding box (lowerLeft, upperRight)
+        # from the coordinate arrays, then extract field values at that cell.
         for X in product(*coordList):
             lowerLeft = [xarrayData.coords[coordNames[coordIndx]][ind].item() for coordIndx, ind in enumerate(X)]
             upperRight = [xarrayData.coords[coordNames[coordIndx]][ind + 1].item() for coordIndx, ind in enumerate(X)]
@@ -575,14 +583,18 @@ hera-workflows sync --force "$dir"; hera-workflows buildExecute "$dir"
             fielaValueStr = ""
             for OFField, fieldName in kwargs.items():
 
+                # Build the isel accessor dict for this cell (e.g. {"x": 3, "y": 5}).
                 accessDict = dict([(coordname, indx) for (coordname, indx) in zip(coordNames, X)])
                 if time is not None:
+                    # If time is specified, select the nearest timestep first.
                     timeDict = {timeColumn: time}
                     valArray = xarrayData.sel(**timeDict, method='nearest')
-
                 else:
                     valArray = xarrayData
 
+                # Field mapping: kwargs maps OF field names to xarray field names.
+                # If the mapping is a tuple (e.g. U=("u","v",0)), it's a vector/tensor.
+                # Each component can be a field name (string) or a fixed value (float).
                 if isinstance(fieldName, Iterable):
                     valArray = []
                     for mappedField in fieldName:

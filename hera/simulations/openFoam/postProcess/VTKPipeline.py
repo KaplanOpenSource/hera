@@ -181,12 +181,20 @@ class VTKPipeLine:
             """Recursively collect all filter names in the pipeline tree."""
             ret = []
             for filterName, filterObj in filtersList.items():
+                # Build the dot-separated path for this filter.  Root-level filters
+                # use their bare name; nested filters prepend their parent's path
+                # (e.g. "ExtractBlock.CellCenters").
                 currentName = filterName if fatherPath is None else f"{fatherPath}.{filterName}"
+                # Include this filter in the result if we want all filters, or if
+                # writeOnly is requested and this filter is marked for output.
                 if (writeOnly and filterObj.write) or not writeOnly:
                         ret.append(currentName)
+                # Recurse into downstream children so the full tree is traversed
+                # depth-first, producing names in topological order.
                 ret += recurseAllNames(currentName, filterObj.downstream)
             return ret
 
+        # Start the recursion from the top-level filters with no parent path.
         return recurseAllNames(None, self.filters)
 
 
@@ -292,7 +300,9 @@ class registeredVTKPipeLine:
         ret = dict()
         filext = self.getFilterOutputFileExt(regularMesh)
 
-        # 1. Get the potential filters to process
+        # --- Step 1: Determine which filters to process ---
+        # If no specific filter is requested, default to every filter in the
+        # pipeline that has write=True (i.e. the ones intended for output).
         if filterName is None:
             requestedFiltersToProcess = self.vtkpipeline.allFilterNames(writeOnly=True)
         else:
@@ -301,28 +311,40 @@ class registeredVTKPipeLine:
 
         CaseTimeList = self.datalayer.getTimeList(self.casePath)
 
-        # Now execute the pipeline.
+        # --- Step 2: Parse / resolve the time range ---
+        # timeList can be:
+        #   - None        -> use every available timestep from the case
+        #   - a string    -> interpreted as a "start:end" range (either side may
+        #                    be omitted to default to the first/last case time)
+        #   - an explicit list of floats
         if timeList is not None:
             if isinstance(timeList, str):
-                # a bit of parsing.
+                # Parse a colon-separated range string, e.g. "0.5:1.0", ":1.0",
+                # "0.5:", or ":".  Missing bounds default to the first/last
+                # timestep in the case.
                 readerTL = CaseTimeList
                 BandA = [readerTL[0], readerTL[-1]]
 
                 for i, val in enumerate(timeList.split(":")):
                     BandA[i] = BandA[i] if len(val) == 0 else float(val)
 
+                # Select only the case timesteps that fall within the range.
                 tl = pandas.Series(readerTL)
                 timeList = tl[tl.between(*BandA)].values
             else:
                 timeList = timeList
         else:
             timeList = CaseTimeList
-        
+
         if latestTime:
             timeList=[timeList[-1]]
 
         logger.debug(f"Getting timeList {timeList}")
 
+        # --- Step 3: Cache lookup – incremental computation strategy ---
+        # For each requested filter, check if the DB already contains cached
+        # results.  If so, subtract the already-computed timesteps from timeList
+        # so only the *new* timesteps are computed (incremental update).
         filtersToProcess = []
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
@@ -334,17 +356,22 @@ class registeredVTKPipeLine:
                 logger.info("Found existing filter output in cache")
                 # There should only be one filter result cached
                 cached_filter = docList[0]
+                # Reuse the existing output file path from the cache document.
                 filtersOutputFilename[filterName] = cached_filter.resource
                 dbTimeList = cached_filter['desc']['simulation']['timeList']
 
-                # Filtering the timesteps.
+                # Remove timesteps that have already been computed so only the
+                # delta is processed (incremental computation).
                 timeList = [ts for ts in timeList if ts not in dbTimeList]
                 DBDocumentsDict[filterName] = cached_filter
 
             else:
+                # No cache exists yet – generate a new output file path.
                 outputFilePath = self.getFilterOutputFilePath(filterName, filext, generate_new=True)
                 filtersOutputFilename[filterName] = outputFilePath
 
+            # A filter needs (re-)computation if: forced overwrite, first run
+            # (no cache), or there are timesteps not yet in the cache.
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
             if overwrite or len(docList) == 0 or len(timeList) > 0:
@@ -352,7 +379,8 @@ class registeredVTKPipeLine:
                 filtersToProcess.append(filterName)
 
         logger.info(f"Computing filters {filtersToProcess}")
-        # Compute the filters.
+        # --- Step 4: Build the ParaView pipeline and compute ---
+        # Only instantiate the reader and filters if there is actual work to do.
         if len(filtersToProcess) > 0:
             filtersToComputeDict = dict()  #
             logger.info(f"Building the vtk objects from the JSON")
@@ -361,42 +389,55 @@ class registeredVTKPipeLine:
             # Hence it is a list of strings.
             reader = self.pvOFBase.initializeReader(readerName="reader")
 
-            # 2. Initialiaze the reader and the time list.
+            # Optionally restrict the reader to specific field arrays to reduce
+            # memory and I/O.
             if fieldNames is not None:
                 reader.CellArrays = fieldNames
 
+            # Recursively build the full ParaView filter tree from the pipeline
+            # JSON.  This creates the actual VTK proxy objects in the ParaView
+            # server.
             filtersToCompute = self._buildFilterLayer(fatherName=None,
                                                       father=reader,
                                                       structureJson=self.vtkpipeline.toJSON()['filters'])
             logger.info(f"Added all filters to the layer. Computing filters {filtersToCompute}")
 
-            # Build the ourput file name.
+            # Map each filter that needs computation to its output file path.
             for filterName in filtersToProcess:
                 logger.debug(f"\t{filterName} will be saved in {filtersOutputFilename[filterName]}")
                 filtersToComputeDict[filterName] = filtersOutputFilename[filterName]
 
-            # Compute the values and save the parquet/zarr.
+            # Execute the pipeline over the (remaining) timesteps and write the
+            # results to parquet (non-regular) or zarr (regular) files on disk.
             self.pvOFBase.writeCase(filtersDict=filtersToComputeDict,
                                     timeList=timeList,
                                     fieldnames=fieldNames,
                                     tsBlockNum=self.tsBlockNum,
                                     overwrite=overwrite, regularMesh=regularMesh)
 
+            # Clean up all ParaView sources/filters to free server-side memory
+            # after the computation is complete.
             for name, proxy in list(pvsimple.GetSources().items()):
                 logger.debug(f"Deleting source {name}")
                 pvsimple.Delete(proxy)
 
 
 
-        # 4. Update the DB.
+        # --- Step 5: Update the DB with newly computed timesteps ---
+        # For each filter that was (re-)computed, either merge the new timesteps
+        # into the existing cache document or create a brand-new document.
         for filterName in filtersToProcess:
             logger.debug(f"Updating times {timeList} to filter {filterName}")
             if filterName in DBDocumentsDict:
+                # Incremental update: merge the newly computed timesteps with the
+                # previously cached ones and persist the updated document.
                 doc = DBDocumentsDict[filterName]
                 fullTime = sorted(timeList + doc['desc']['simulation']['timeList'])
                 doc.desc['simulation']['timeList'] = fullTime
                 doc.save()
             else:
+                # First computation for this filter – create a new cache record
+                # in the database pointing to the output file on disk.
                 logger.debug("...Adding a new record to the DB")
 
                 recordData = self._buildFilterQuery(filterName=filterName, regularMesh=regularMesh)
@@ -410,6 +451,9 @@ class registeredVTKPipeLine:
 
             logger.debug(f"Reading filter {filterName} data")
 
+        # --- Step 6: Return the data for all requested filters ---
+        # Load and return the cached data (including any freshly computed results)
+        # as a dict keyed by filter name.
         for filterName in requestedFiltersToProcess:
             ret[filterName] = DBDocumentsDict[filterName].getData()
 
@@ -476,29 +520,50 @@ class registeredVTKPipeLine:
         logger = get_classMethod_logger(self, "_buildFilterLayer")
         logger.debug(f"Initialized logger {logger}")
         logger.info(f"building Filter layer {json.dumps(structureJson, indent=4)}")
+        # Accumulates the fully-qualified names (e.g. "ExtractBlock.CellCenters") of
+        # every filter created during this recursive traversal, so the caller knows
+        # which ParaView sources exist and can be looked up via pvsimple.FindSource().
         ret = []
 
 
         if structureJson is not None:
+            # Iterate over each sibling filter at this level of the tree.
             for filterGuiName in structureJson:
+                # params is deliberately a *list* of (key, value) pairs rather than a
+                # dict, because the order in which VTK filter properties are set can
+                # change behaviour (e.g. setting SliceType before SliceType.Origin).
                 paramPairList = structureJson[filterGuiName]['params']  # must be a list to enforce order in setting.
                 filtertype = structureJson[filterGuiName]['filterType']
+                # Build the dot-separated full name: root filters use their own name,
+                # child filters prepend their parent's name (e.g. "parent.child").
                 newFilterName = filterGuiName if fatherName is None else f"{fatherName}.{filterGuiName}"
+                # Instantiate the actual ParaView filter object. `father` is the
+                # upstream pipeline source (reader or another filter) that feeds data
+                # into this filter.
                 filter = getattr(pvsimple, filtertype)(Input=father, guiName=newFilterName)
                 logger.debug(
                     f"Adding filter {filterGuiName} of type {filtertype} to {'Reader' if fatherName is None else fatherName}")
 
+                # Apply each parameter in order.  Parameters may use dot-notation
+                # (e.g. "SliceType.Origin") to reach nested sub-proxy attributes.
                 for param, pvalue in paramPairList:
                     logger.debug(f"...Adding parameters {param} with value {pvalue}")
                     # pvalue = str(pvalue) if isinstance(pvalue, unicode) else pvalue  # python2, will be removed in python3.
+                    # Split the param name on "." to traverse nested proxy attributes.
+                    # For "SliceType.Origin", we first resolve filter.SliceType, then
+                    # set the "Origin" attribute on that sub-proxy.
                     paramnamelist = param.split(".")
                     paramobj = filter
                     for pname in paramnamelist[:-1]:
                         paramobj = getattr(paramobj, pname)
                     setattr(paramobj, paramnamelist[-1], pvalue)
+                # Force the filter to execute so downstream filters see updated data.
                 filter.UpdatePipeline()
                 logger.debug(f"Filter {newFilterName} added to the pipeline. Now adding its downstream filters.")
                 ret.append(newFilterName)
+                # Recurse into the downstream children of this filter, building the
+                # tree depth-first.  The returned names are appended so the final list
+                # is in creation (topological) order.
                 ret += self._buildFilterLayer(newFilterName, filter,
                                               structureJson[filterGuiName].get("downstream", None))
 

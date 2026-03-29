@@ -148,7 +148,10 @@ class absractStochasticLagrangianSolver_toolkitExtension:
 
         dispersionDuration = toTimeFormat(dispersionDuration)
 
-        # 1. Get the case directory of the original flow.
+        # Step 1: Locate the original flow case directory.
+        # First try the DB (by workflow name/group/resource), then fall back
+        # to treating the source as a filesystem path. Validates that the
+        # directory contains system/ and constant/ subdirectories.
         logger.debug(f"tying to find the flow {originalFlow['source']} in the DB")
         docList = self.toolkit.getWorkflowListDocumentFromDB(originalFlow['source'])
 
@@ -182,6 +185,9 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         logger.info(
             f"Found the original flow directory: {originalFlowCaseDir}. Using {workflowGroup} as the workflow group for the disperison flow, and {dispersionFlowFieldName} as its new name")
 
+        # Step 2: Detect parallel vs serial case and discover available timesteps.
+        # Parallel cases have processor0/ directories; time directories are
+        # identified by having names that parse as numbers (e.g. "0", "100", "0.5").
         logger.debug("Getting the time in the original flow. Determine whether the simulation is parallel or not.")
         if os.path.exists(os.path.join(originalFlowCaseDir, "processor0")):
             logger.debug("Found directory 'processor0' assuming parallel")
@@ -208,17 +214,30 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         linkDataSymbolically = originalFlow.get("linkDataSymbolically", True)
         logger.debug(f"Symbolic link to the data? {linkMeshSymbolically}")
 
+        # Step 3: Build the time mapping between original flow and dispersion.
+        # Each entry is (original_time, dispersion_time).
+        #
+        # For STEADY STATE: the flow is frozen at one timestep. The dispersion
+        # simulation sees the same field at t=0 and t=dispersionDuration.
+        # timeList = [(flow_time, 0), (flow_time, dispersionDuration)]
+        #
+        # For DYNAMIC: each flow timestep maps to a shifted dispersion time
+        # (flow_time - first_flow_time). If the dispersion duration exceeds the
+        # available flow data, the last timestep is repeated at the end.
         if dynamicType == self.toolkit.TIME_STEADYSTATE:
             if timeStep is None:
+                # No explicit timestep: use the last available (converged) timestep.
                 logger.debug(f"timeStep is None: use maximal TS {TS[-1]} as the first timestep of the dispersion flow")
                 uts = TS[-1]
             else:
+                # Find the closest available timestep to the requested one.
                 logger.debug(f"timeStep is not None: find the closes TS to {timeStep}.")
                 uts = TS[min(range(len(TS)), key=lambda i: abs(TS[i] - timeStep))]
 
             logger.debug(f"Using Time step {uts} for Steady state")
 
-            # steady state, only 2 time steps
+            # Steady state: freeze the flow — map the single timestep to
+            # dispersion time 0 and dispersionDuration.
             timeList = [(str(toTimeFormat(uts)), str(toTimeFormat(0))),
                         (str(toTimeFormat(uts)), str(toTimeFormat(dispersionDuration)))
                         ]
@@ -233,8 +252,12 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                 uts = TS[min(range(len(TS)), key=lambda i: abs(TS[i] - timeStep))]
 
             logger.debug(f"Using Time step {uts} as first time step for dynamic simulation")
+            # Dynamic: shift times so dispersion starts at t=0.
+            # E.g. flow times [100, 200, 300] with uts=100 → [(100,0), (200,100), (300,200)]
             timeList = [(str(toTimeFormat(x)), str(toTimeFormat(x - uts))) for x in TS if x >= uts]
 
+            # If the flow data ends before the dispersion duration, extend by
+            # repeating the last flow timestep at the dispersion end time.
             if (TS[-1] < dispersionDuration):
                 logger.debug("The dispersion simulation ends after the flow. Appending the last time step. ")
                 timeList.append(
