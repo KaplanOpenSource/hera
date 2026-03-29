@@ -81,6 +81,9 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
             self._InMemoryAvgRef = inMemory
 
         if 'up' not in self._RawData.columns:
+            # Step 1: Compute windowed means (u_bar, v_bar, w_bar, T_bar).
+            # If SamplingWindow is None, compute the global mean (single row).
+            # Otherwise, resample at the sampling window interval.
             avg = self._RawData[['u','v','w','T']]
             if self.SamplingWindow is None:
                 avg = avg.mean()
@@ -88,6 +91,7 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
                     avg = pandas.DataFrame(avg).T
                     avg.index = [self._RawData.index[0]]
                 else:
+                    # For dask: compute the mean eagerly, then wrap back as dask.
                     self._RawData = self._RawData.repartition(npartitions=1)
                     avg = pandas.DataFrame(avg.compute()).T
                     avg.index = self._RawData.head(1).index
@@ -97,30 +101,48 @@ class singlePointTurbulenceStatistics(AbstractCalculator):
 
             avg = avg.rename(columns={'u': 'u_bar', 'v': 'v_bar', 'w': 'w_bar', 'T': 'T_bar'})
 
+            # Step 2: Compute mean wind direction from u_bar and v_bar.
+            # Convention: meteorological direction = (270 - math_angle) % 360
+            # where math_angle = atan2(v, u) in degrees.
             avg['wind_dir_bar'] = numpy.arctan2(avg['v_bar'], avg['u_bar'])
             avg['wind_dir_bar'] = numpy.rad2deg(avg['wind_dir_bar'])
             avg['wind_dir_bar'] = (270 - avg['wind_dir_bar']) % 360
 
             self._TemporaryData = avg
             self._CalculatedParams += [['u_bar',{}], ['v_bar',{}], ['w_bar',{}], ['T_bar',{}], ['wind_dir_bar', {}]]
+
+            # Step 3: Merge windowed means back into raw data so each
+            # high-frequency sample has its corresponding window mean.
             if self.isMissingData:
+                # Missing data path: outer merge preserves all timestamps,
+                # then forward-fill means across gaps, and drop rows that
+                # are entirely NaN (gaps in the raw data itself).
                 self._RawData = self._RawData.merge(avg, how='outer', left_index=True, right_index=True)
                 self._RawData = self._RawData.dropna(how='all')
                 self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar', 'wind_dir_bar']] = self._RawData[['u_bar', 'v_bar', 'w_bar', 'T_bar', 'wind_dir_bar']].ffill()
                 self._RawData = self._RawData.dropna(how='any')
             else:
+                # Complete data path: left merge keeps all raw timestamps,
+                # then forward-fill propagates each window mean to all
+                # samples within that window.
                 self._RawData = self._RawData.merge(avg, how='left', left_index=True, right_index=True)
                 self._RawData = self._RawData.ffill()
 
+            # Step 4: Compute instantaneous wind direction for each sample
+            # (same convention as mean wind direction above).
             self._RawData['wind_dir'] = numpy.arctan2(self._RawData['v'], self._RawData['u'])
             self._RawData['wind_dir'] = numpy.rad2deg(self._RawData['wind_dir'])
             self._RawData['wind_dir'] = (270 - self._RawData['wind_dir']) % 360
 
-
+            # Step 5: Compute fluctuations as deviations from the window mean.
+            # Reynolds decomposition: x' = x - x_bar
             self._RawData['up'] = self._RawData['u'] - self._RawData['u_bar']
             self._RawData['vp'] = self._RawData['v'] - self._RawData['v_bar']
             self._RawData['wp'] = self._RawData['w'] - self._RawData['w_bar']
             self._RawData['Tp'] = self._RawData['T'] - self._RawData['T_bar']
+            # Wind direction fluctuation: wrapped difference that handles
+            # the 0°/360° discontinuity. The double-abs trick ensures the
+            # result is always the shortest angular distance.
             self._RawData['wind_dir_p'] = (180-(180-(self._RawData['wind_dir'] - self._RawData['wind_dir_bar']).abs()).abs()).abs()
 
             self.data = self._RawData
