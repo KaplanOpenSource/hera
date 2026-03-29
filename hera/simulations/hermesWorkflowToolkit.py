@@ -25,6 +25,12 @@ except ImportError:
 
 @unique
 class actionModes(Enum):
+    """Workflow action modes controlling which steps are executed.
+
+    - ``ADD`` — add the workflow document to the database only.
+    - ``ADDBUILD`` — add and build (generate input files).
+    - ``ADDBUILDEXECUTE`` — add, build, and execute the simulation.
+    """
     ADD = auto()
     ADDBUILD = auto()
     ADDBUILDEXECUTE = auto()
@@ -214,6 +220,15 @@ class hermesWorkflowToolkit(abstractToolkit):
         return hermesWFObj(workFlowJSON, name=name, Resource_path=resource)
 
     def updateDocumentWorkflow(self, document, workflow):
+        """Update a simulation document's workflow and parameters in the database.
+
+        Parameters
+        ----------
+        document : MetadataFrame
+            The simulation document to update.
+        workflow : hermes.workflow
+            The workflow object whose JSON and parameters will be stored.
+        """
         document.desc['workflow'] = workflow.json
         document.desc['parameters'] = workflow.parametersJSON
         document.save()
