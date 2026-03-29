@@ -393,17 +393,26 @@ class Blocks(object):
         if self._Buildings.empty:
             return 0
 
+        # Algorithm: iterate all buildings in the block and accumulate
+        # total plan area (Map_A_p) and area-weighted height (sum_area_mltp_h).
+        # lambdaP = total_plan_area / block_area
+        # hc (average height) = sum(area * height) / sum(area)
         Map_A_p = 0
         i = 0
         area_mltp_h = 0
         sum_area_mltp_h = 0
         indexes = self._Buildings['BLDG_HT'].index
-#        numberOfBld = len(indexes)
 
         for i in indexes:
             area = 0
-            # if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building
+
+            # Height fallback: if HT_LAND is 0 (missing ground elevation) but
+            # the building has a recorded height, find the nearest building with
+            # valid HT_LAND and use its ground height. This prevents incorrect
+            # building heights caused by missing terrain data.
             if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
+                # Nearest-neighbour search: compare squared distances between
+                # first vertices of building polygons (fast approximation).
                 farest = 99999999999
                 farheight=0
                 for j in indexes:
@@ -417,15 +426,20 @@ class Blocks(object):
                         if (farest**2.>far):
                             farest = far
                             farheight= self._Buildings['HT_LAND'][j]
-                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
+                # Clamp to 0: negative height means underground — exclude it.
+                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0)
             else:
                 building_height = self._Buildings['BLDG_HT'][i]
 
-
+            # Exclusion rules:
+            # - FTYPE 14 and 16 are non-building features (fences, walls, etc.)
+            # - Buildings with zero height are excluded from the morphology calculation.
             if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14) or (
                     self._Buildings['BLDG_HT'][i] == 0) or (building_height==0):
                 Map_A_p = Map_A_p
             else:
+                # MultiPolygon: sum areas of all sub-polygons (e.g. building
+                # with multiple disconnected wings).
                 if self._Buildings.geometry[i].geom_type == 'MultiPolygon':
                     for poly in self._Buildings.geometry[i].geoms:
                         Map_A_p = Map_A_p + poly.area
@@ -434,13 +448,13 @@ class Blocks(object):
                     Map_A_p = Map_A_p + self._Buildings.geometry[i].area
                     area = self._Buildings.geometry[i].area
 
-
-
+            # Accumulate area-weighted height for hc calculation.
             area_mltp_h = area * building_height
             sum_area_mltp_h = sum_area_mltp_h + area_mltp_h
 
         lambdaP = Map_A_p / self._blockArea
         if (Map_A_p != 0):
+            # hc = area-weighted mean building height within the block.
             self._hc = sum_area_mltp_h / Map_A_p
 
         return lambdaP
@@ -478,22 +492,31 @@ class Blocks(object):
         return A_f
 
     def _LambdaF(self, windDirection=270):
+        """Calculate the frontal area density (lambda_F) for this block.
+
+        Frontal area = projected width of each building perpendicular to the
+        wind direction, multiplied by building height. lambda_F is the sum
+        of all frontal areas divided by the block area.
+
+        Parameters
+        ----------
+        windDirection : float
+            Meteorological wind direction in degrees. Default: 270 (westerly).
+
+        Returns
+        -------
+        float
+            The lambda_F value.
         """
-        # Calculate average lambda F of a block
-        """
-        # bldHeightToReduce = 0
-#        errorBuildings = 0
         if self._Buildings.empty:
             return 0
         Map_A_f = 0
         indexes = self._Buildings['BLDG_HT'].index
-#        numberOfBld = len(indexes)
-
-        # topography.analysis.addHeight(self,'data', 'groundData')
 
         for i in indexes:
 
-            # if there is no land height data, than the building height will be incorrect so we will take the data from the nearby building
+            # Same height fallback as _LambdaP: use nearest building's
+            # HT_LAND when ground elevation is missing (see _LambdaP comments).
             if ((self._Buildings['HT_LAND'][i]==0.0) and (self._Buildings['BLDG_HT'][i]>0.0)):
                 farest = 99999999999
                 farheight=0
@@ -508,35 +531,35 @@ class Blocks(object):
                         if (farest**2.>far):
                             farest = far
                             farheight= self._Buildings['HT_LAND'][j]
-                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0) # don't calculate underground building
+                building_height = max((self._Buildings['BLDG_HT'][i]-farheight),0.0)
             else:
                 building_height = self._Buildings['BLDG_HT'][i]
 
-
+            # Same FTYPE exclusion as _LambdaP.
             if (self._Buildings['FTYPE'][i] == 16) or (self._Buildings['FTYPE'][i] == 14) or (building_height==0):
- #               bldHeightToReduce = bldHeightToReduce + self._Buildings['BLDG_HT'][i]
- #               numberOfBld = numberOfBld - 1
                 pass
             else:
                 bldHeight = self._Buildings['BLDG_HT'][i]
+                # Height sanity check: if BLDG_HT < 2m, try computing from
+                # HI_PNT_Z (highest point elevation) - HT_LAND. If that's
+                # also < 2m, mark the building as 0 height and skip it.
                 if bldHeight < 2:
                     bldHeight = self._Buildings['HI_PNT_Z'][i] - self._Buildings['HT_LAND'][i]
                     if bldHeight < 2:
                         self._Buildings.at[i, 'BLDG_HT'] = 0
-#                        errorBuildings = errorBuildings + 1
                         continue
                     else:
                         self._Buildings.at[i, 'BLDG_HT'] = bldHeight
 
+                # _A_f rotates the footprint by wind direction and measures
+                # the projected width × height = frontal area.
                 if self._Buildings.geometry[i].geom_type == 'MultiPolygon':
                     for poly in self._Buildings.geometry[i].geoms:
                         Map_A_f = Map_A_f + self._A_f(Polygon(poly), bldHeight, windDirection)
                 else:
-
                     Map_A_f = Map_A_f + self._A_f(Polygon(self._Buildings.geometry[i]), bldHeight, windDirection)
 
         lambda_f = Map_A_f / self._blockArea
-        # totalBldHeight = self._blockBuildings['BLDG_HT'].sum() - bldHeightToReduce
         return lambda_f
 
     def getHc(self):
