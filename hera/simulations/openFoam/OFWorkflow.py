@@ -269,17 +269,23 @@ class workflow_Eulerian(abstractWorkflow):
         """
         logger = get_classMethod_logger(self,"set_blockMesh_boundaries")
         logger.info(f"Setting the blockMesh with block that spans from  [{minx},{miny},{minz}] to [{maxx},{maxy},{maxz}]")
+        # Define the 4 XY corner points of the hexahedron base in CCW order
+        # (OpenFOAM blockMesh convention: vertices 0-3 bottom, 4-7 top).
         Xlist = [minx,maxx,maxx,minx]
         Ylist = [miny, miny, maxy, maxy]
         Zlist = [minz, maxz]
 
+        # Build 8 vertices via Cartesian product: for each Z height,
+        # pair with each (X,Y) corner. Result: bottom 4 + top 4 vertices.
         VerticesList = []
         for h,xy in product(Zlist,zip(Xlist,Ylist)):
             VerticesList.append([xy[0],xy[1],h])
 
         blockMesh = self.blockMesh
         blockMesh['vertices'] = VerticesList
+        # Hex vertex indices: 0..7 for a single block (standard OF ordering).
         blockMesh["hex"] = [x for x in range(8)]
+        # Cell counts: ceiling division ensures at least one cell per direction.
         blockMesh["cellCount"] = [int(numpy.ceil((maxx-minx)/dx)),
                                   int(numpy.ceil((maxy - miny) / dy)),
                                   int(numpy.ceil((maxz - minz) / dz))]

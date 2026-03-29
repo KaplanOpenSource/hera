@@ -172,17 +172,29 @@ class absractEulerianSolver_toolkitExtension:
         -------
             OFField
         """
+        # Step 1: Read the existing pressure field from the case directory.
+        # The flow type determines the pressure dimensions (incompressible: m²/s²,
+        # compressible: kg/m/s²).
         pField = self.toolkit.OFObjectHome.getFieldFromCase(fieldName="p", flowType=FLOWTYPE_INCOMPRESSIBLE if self.incompressible else FLOWTYPE_COMPRESSIBLE,caseDirectory=caseDirectory)
+
+        # Step 2: Get the mesh cell centers. Separate internal and boundary cells.
         cellCenters = self.toolkit.getMesh(caseDirectory=caseDirectory)
         CC_boundary = cellCenters.getDataFrame().query("region=='boundaryField'")
         internalFieldCells = cellCenters.getDataFrame().query("region=='internalField'")
-        internalFieldCells = internalFieldCells.assign(p=groundPressure - 9.81 * internalFieldCells.Cz)
 
+        # Step 3: Compute hydrostatic pressure for the internal field.
+        # p = p_ground - ρg·z, where ρg ≈ 9.81 (assuming ρ=1 for incompressible).
+        # Cz is the z-coordinate of each cell center.
+        internalFieldCells = internalFieldCells.assign(p=groundPressure - 9.81 * internalFieldCells.Cz)
         pField.setFieldFromDataFrame(internalFieldCells)
 
+        # Step 4: Handle boundary patches with fixedValue type.
+        # For each processor and each fixedValue boundary patch, compute the
+        # hydrostatic pressure at the boundary face centers and update the field.
+        # Other boundary types (e.g. zeroGradient) are left unchanged.
         patchList = []
         for procName, fieldData in pField.data.items():
-            procNumber = procName[9:]
+            procNumber = procName[9:]  # "processor0" → "0"
             for patchName, patchData in pField.boundaryField(procName).items():
                 if patchData['type'] == "fixedValue":
                     patchCenters = CC_boundary.query(f"processor=={procNumber} and boundary=='{patchName}'")
