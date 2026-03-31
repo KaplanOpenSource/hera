@@ -53,43 +53,28 @@ hera/
 <!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
-    participant Session as Session Setup<br/>(conftest.py)
-    participant Project as Project("PYTEST_HERA_PROJECT")
-    participant MongoDB as MongoDB
-    participant Fixtures as Per-Toolkit Fixtures
-    participant Tests as Test Modules
+    participant Session as conftest.py
+    participant Project as Project
+    participant DB as MongoDB
+    participant Fixtures as Fixtures
+    participant Tests as Tests
 
-    Session->>Session: 1. Read TEST_HERA env var
-    Session->>Session: 2. Open test_repository.json
-    Session->>Project: 3. Create Project
-    Session->>Project: 4. loadAllDatasourcesInRepositoryJSONToProject()
-    
-    loop For each toolkit in JSON
-        Project->>Project: getToolkit(name, projectName)
-        Project->>MongoDB: setConfig(...)
-        Project->>MongoDB: addDataSource(...)
+    Session->>Session: Read TEST_HERA env var
+    Session->>Session: Open test_repository.json
+    Session->>Project: Create Project
+    Session->>Project: loadAllDatasources()
+
+    loop Each toolkit in JSON
+        Project->>DB: setConfig + addDataSource
     end
-    
-    Session->>Fixtures: Create session-scoped fixtures
-    Note over Fixtures: topo_toolkit ← TopographyToolkit<br/>lc_toolkit ← LandCoverToolkit<br/>demo_toolkit ← DemographyToolkit<br/>lf_toolkit ← lowFreqToolKit<br/>hf_toolkit ← HighFreqToolKit
-    
-    Fixtures->>Tests: Provide toolkit instances
-    
-    Tests->>MongoDB: toolkit.getConfig()
-    Tests->>MongoDB: toolkit.getDataSourceData()
-    Tests->>Tests: toolkit.analysis.*()
-    Tests->>Tests: toolkit.presentation.*()
+
+    Session->>Fixtures: Create toolkit fixtures
+    Note over Fixtures: topo, lc, demo,<br/>lf, hf toolkits
+
+    Fixtures->>Tests: Provide instances
+    Tests->>DB: getDataSourceData()
+    Tests->>Tests: analysis + presentation
 ```
--->->>MongoDB: toolkit.getDataSourceData()
-    Tests->>Tests: toolkit.analysis.*()
-    Tests->>Tests: toolkit.presentation.*()
-```
--->
--->->>MongoDB: toolkit.getDataSourceData()
-    Tests->>Tests: toolkit.analysis.*()
-    Tests->>Tests: toolkit.presentation.*()
-```
--->
 -->
 
 ---
