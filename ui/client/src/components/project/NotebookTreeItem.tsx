@@ -4,14 +4,12 @@ import { TreeItem } from '@mui/x-tree-view';
 import { useCallback, useEffect, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { BASEURL } from '../../shared/baseurl';
-import { idNotebookId, idNotebooksGroupId } from '../../shared/idDocId';
+import { ID_NOTEBOOKS_GROUP, idNotebookId } from '../../shared/idDocId';
 
 export const NotebookTreeItem = ({
-  projectName,
   filesDir,
   onNotebookCreated,
 }: {
-  projectName: string,
   filesDir: string,
   onNotebookCreated: (itemId: string) => void,
 }) => {
@@ -42,7 +40,7 @@ export const NotebookTreeItem = ({
 
   return (
     <TreeItem
-      itemId={idNotebooksGroupId(projectName)}
+      itemId={ID_NOTEBOOKS_GROUP}
       label={(
         <Stack direction="row" alignItems="center">
           <Typography marginRight={1}>Notebooks</Typography>
@@ -51,7 +49,6 @@ export const NotebookTreeItem = ({
           </ButtonTooltip>
         </Stack>
       )}
-      slots={{ icon: () => <Description fontSize="small" /> }}
     >
       {notebooks.map(name => (
         <TreeItem

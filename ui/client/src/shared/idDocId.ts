@@ -1,6 +1,6 @@
 const ID_PREFIX_DOC = 'document_'
 const ID_PREFIX_REPO = '__repo_*_'
-const ID_PREFIX_NOTEBOOKS_GROUP = 'notebooks-group_'
+export const ID_NOTEBOOKS_GROUP = 'notebooks-group'
 const ID_PREFIX_NOTEBOOK = 'notebook_'
 export const TEMP_REPO_NAME = '*Temp Repository*';
 
@@ -19,10 +19,6 @@ export const idRepoId = (repoName: string) => {
 export const idFromRepoId = (repoid: string) => {
   return repoid && repoid.startsWith(ID_PREFIX_REPO) ? repoid.replace(ID_PREFIX_REPO, "") : undefined;
 };
-
-export const idNotebooksGroupId = (projectName: string) => {
-  return ID_PREFIX_NOTEBOOKS_GROUP + projectName;
-}
 
 export const idNotebookId = (name: string) => {
   return ID_PREFIX_NOTEBOOK + name;
