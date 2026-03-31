@@ -475,119 +475,223 @@ class OFLSMToolkit(toolkit.abstractToolkit):
     def makeUstar(self, times, fileName="ustar", ground="ground", heightLimits=[1, 2], dField=None, dColumn="D",
                   saveMode=toolkit.TOOLKIT_SAVEMODE_ONLYFILE, resolution=10):
         """
-        makes a file with the shear velocity in each cell.
-        params:
-        times = A list of time directories in which to save the new file
-        fileName = The new file's name
-        ground = The name of the ground patch, default is "ground"
-        resolution = The cell length used in the conversion of the ground dataframe to a regular grid
-        savePandas = Boolian, whether to save the dataframe
-        addToDB = Boolian, whether to add the dataframe to the DB
+        Compute friction velocity (u*) for each cell and write as an OpenFOAM field.
+
+        Algorithm: reads the velocity field U at each timestep, interpolates
+        near-ground wind speed from a height band, then computes u* using
+        the log-law profile: u* = U_near_ground * kappa / ln((z - d) / z0)
+        where kappa=0.4 and z0=0.15.
+
+        Parameters
+        ----------
+        times : list
+            Time directories to process.
+        fileName : str
+            Output field name (default: ``"ustar"``).
+        ground : str
+            Name of the ground boundary patch.
+        heightLimits : list of float
+            [min, max] height band for near-ground velocity extraction.
+        dField : DataFrame, optional
+            Displacement height field. If None, uses zero displacement.
+        dColumn : str
+            Column name for displacement height in dField.
+        saveMode : str
+            Save mode for the topography height computation.
+        resolution : float
+            Grid resolution for regularization (meters).
         """
-
-        documents = self.topography.getCacheDocuments(type="cellData", resolution=resolution, casePath=self.casePath)
-
-        if len(documents) == 0:
-            cellData, groundData = getCellDataAndGroundData(casePath=self.casePath, ground=ground)
-            cellData = self.topography.analysis.addHeight(data=cellData, groundData=groundData, resolution=resolution,
-                                                          file=os.path.join(self.casePath, f"{fileName}.parquet"),
-                                                          casePath=self.casePath,
-                                                          saveMode=saveMode)
-        else:
-            cellData = documents[0].getData(usePandas=True)
+        # Step 1: Load or compute cell height data (z above ground).
+        cellData = self._loadOrComputeCellData(ground, fileName, saveMode, resolution)
 
         for time in times:
             documents = self.getCacheDocuments(type="ustar", casePath=self.casePath, time=time)
 
-            f = open(os.path.join(self.casePath, str(time), "U"), "r")
-            lines = f.readlines()
-            f.close()
-            fboundary = open(os.path.join(self.casePath, str(time), "Hmix"), "r")
-            boundarylines = fboundary.readlines()
-            fboundary.close()
-
-            for i in range(len(lines)):
-                if "internalField" in lines[i]:
-                    cellStart = i + 3
-                    nCells = int(lines[i + 1])
-            for boundaryLine in range(len(boundarylines)):
-                if "boundaryField" in boundarylines[boundaryLine]:
-                    break
+            # Step 2: Read the U velocity field and Hmix boundary template.
+            lines, cellStart, nCells = self._parseOFFieldHeader(
+                os.path.join(self.casePath, str(time), "U")
+            )
+            boundarylines, boundaryLine = self._parseBoundaryStart(
+                os.path.join(self.casePath, str(time), "Hmix")
+            )
 
             if len(documents) == 0:
-                Ufield = pandas.read_csv(os.path.join(self.casePath, str(time), "U"), skiprows=cellStart,
-                                         skipfooter=len(lines) - (cellStart + nCells),
-                                         engine='python',
-                                         header=None,
-                                         delim_whitespace=True, names=['u', 'v', 'w'])
+                # Step 3: Extract velocity magnitude from the U field.
+                data = self._extractVelocityField(cellData, cellStart, nCells, time)
 
-                Ufield['u'] = Ufield['u'].str[1:]
-                Ufield['w'] = Ufield['w'].str[:-1]
-                Ufield = Ufield.astype(float)
-                Ufield["U"] = numpy.sqrt(Ufield['u'] ** 2 + Ufield['v'] ** 2 + Ufield['w'] ** 2)
-                data = cellData.join(Ufield)
-                nx = int((data["x"].max() - data["x"].min()) / resolution)
-                ny = int((data["y"].max() - data["y"].min()) / resolution)
-                xarrayU = coordinateHandler.regularizeTimeSteps(
-                    data=data.loc[data.height < heightLimits[1]].loc[data.height > heightLimits[0]]
-                        .drop_duplicates(["x", "y"]), n=(nx, ny),
-                    fieldList=["U"], coord2="y", addSurface=False, toPandas=False)[0]
-                if dField is None:
-                    xarrayD = xarray.zeros_like(xarrayU).rename({"U": dColumn})
-                else:
-                    xarrayD = coordinateHandler.regularizeTimeSteps(data=dField, n=(nx, ny),
-                                                                    coord1Lim=(data["x"].min(), data["x"].max()),
-                                                                    coord2Lim=(data["y"].min(), data["y"].max()),
-                                                                    fieldList=[dColumn], coord2="y", addSurface=False,
-                                                                    toPandas=False)[0]
-                fillU = xarrayU.U.mean()
-                fillD = xarrayD[dColumn].mean()
-                unearground = []
-                ds = []
-                valuesDict = {}
-                for i in range(len(data)):
-                    x = data.loc[i].x
-                    y = data.loc[i].y
-                    if x not in valuesDict.keys():
-                        valuesDict[x] = {}
-                    if y in valuesDict[x].keys():
-                        unearground.append(valuesDict[x][y]["u"])
-                        ds.append(valuesDict[x][y]["d"])
-                    else:
-                        valuesDict[x][y] = {}
-                        uVal = float(xarrayU.interp(x=x, y=y).fillna(fillU).U)
-                        dVal = float(xarrayD.interp(x=x, y=y).fillna(fillD)[dColumn])
-                        valuesDict[x][y]["u"] = uVal
-                        valuesDict[x][y]["d"] = dVal
-                    if i > 9999 and i % 10000 == 0:
-                        print(i)
-                data["UnearGround"] = unearground
-                data[dColumn] = ds
+                # Step 4: Interpolate near-ground wind speed onto each cell
+                # using a regularized grid at the specified height band.
+                data = self._interpolateNearGroundValues(
+                    data, heightLimits, resolution, dField, dColumn
+                )
+
+                # Step 5: Compute u* from the log-law profile.
+                # u* = U_near_ground * 0.4 / ln((z_mid - d) / 0.15)
+                # Clamp: U_near_ground >= 1.5 m/s, u* >= 0.2 m/s
                 data.loc[data["UnearGround"] < 1.5, "UnearGround"] = 1.5
                 data["ustar"] = data["UnearGround"] * 0.4 / numpy.log(
-                    (0.5 * (heightLimits[1] + heightLimits[0]) - data[dColumn]) / (0.15))
+                    (0.5 * (heightLimits[1] + heightLimits[0]) - data[dColumn]) / 0.15)
                 data.loc[data["ustar"] < 0.2, "ustar"] = 0.2
-                newFileString = ""
                 data = data.reset_index()
-                # if savePandas:
-                #     data.to_parquet(os.path.join(self.casePath, f"{fileName}_{time}.parquet"), compression="gzip")
-                #     if addToDB:
-                #         self.addCacheDocument(resource=os.path.join(self.casePath, f"{fileName}.parquet"), dataFormat="parquet",
-                #                            type="ustar", desc={"casePath": self.casePath, "time": time})
             else:
                 data = documents[0].getData(usePandas=True)
-            for i in range(cellStart):
-                newFileString += lines[i]
-            newFileString = newFileString.replace("vector", "scalar").replace("Vector", "Scalar")
-            for i in range(nCells):
-                newFileString += f"{data['ustar'][i]}\n"
-            newFileString += ")\n;\n\n"
-            for i in range(boundaryLine, len(boundarylines)):
-                newFileString += boundarylines[i]
 
-            with open(os.path.join(self.casePath, str(time), fileName), "w") as newFile:
-                newFile.write(newFileString)
+            # Step 6: Write the u* field in OpenFOAM format.
+            # Copy the header from U, replace vector→scalar, write u* values,
+            # append the boundary section from Hmix.
+            self._writeScalarField(
+                lines, cellStart, nCells, boundarylines, boundaryLine,
+                data["ustar"], os.path.join(self.casePath, str(time), fileName)
+            )
             print("wrote time ", time)
+
+    def _loadOrComputeCellData(self, ground, fileName, saveMode, resolution):
+        """Load cached cell height data, or compute from mesh + topography."""
+        documents = self.topography.getCacheDocuments(
+            type="cellData", resolution=resolution, casePath=self.casePath
+        )
+        if len(documents) == 0:
+            cellData, groundData = getCellDataAndGroundData(
+                casePath=self.casePath, ground=ground
+            )
+            return self.topography.analysis.addHeight(
+                data=cellData, groundData=groundData, resolution=resolution,
+                file=os.path.join(self.casePath, f"{fileName}.parquet"),
+                casePath=self.casePath, saveMode=saveMode
+            )
+        return documents[0].getData(usePandas=True)
+
+    @staticmethod
+    def _parseOFFieldHeader(filepath):
+        """Parse an OpenFOAM field file to find internalField start and cell count.
+
+        Returns
+        -------
+        tuple of (list, int, int)
+            (lines, cellStart, nCells)
+        """
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+        cellStart = nCells = 0
+        for i in range(len(lines)):
+            if "internalField" in lines[i]:
+                cellStart = i + 3
+                nCells = int(lines[i + 1])
+        return lines, cellStart, nCells
+
+    @staticmethod
+    def _parseBoundaryStart(filepath):
+        """Find where boundaryField starts in an OpenFOAM file.
+
+        Returns
+        -------
+        tuple of (list, int)
+            (lines, boundaryStartLine)
+        """
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+        for i in range(len(lines)):
+            if "boundaryField" in lines[i]:
+                return lines, i
+        return lines, len(lines)
+
+    def _extractVelocityField(self, cellData, cellStart, nCells, time):
+        """Read the U field, parse vector values, compute magnitude.
+
+        OpenFOAM vectors are stored as ``(u v w)`` — strip parentheses
+        and compute |U| = sqrt(u² + v² + w²).
+        """
+        Ufield = pandas.read_csv(
+            os.path.join(self.casePath, str(time), "U"),
+            skiprows=cellStart, skipfooter=0,
+            engine='python', header=None,
+            sep=r'\s+', names=['u', 'v', 'w']
+        )
+        # Strip leading '(' from u and trailing ')' from w.
+        Ufield['u'] = Ufield['u'].str[1:]
+        Ufield['w'] = Ufield['w'].str[:-1]
+        Ufield = Ufield.head(nCells).astype(float)
+        Ufield["U"] = numpy.sqrt(Ufield['u'] ** 2 + Ufield['v'] ** 2 + Ufield['w'] ** 2)
+        return cellData.join(Ufield)
+
+    def _interpolateNearGroundValues(self, data, heightLimits, resolution, dField, dColumn):
+        """Interpolate near-ground velocity and displacement height onto each cell.
+
+        Filters cells in the height band, regularizes to a 2D grid, then
+        interpolates back to all cell positions. Uses a lookup dict to
+        avoid redundant interpolation for cells at the same (x, y).
+        """
+        nx = int((data["x"].max() - data["x"].min()) / resolution)
+        ny = int((data["y"].max() - data["y"].min()) / resolution)
+
+        # Regularize near-ground U to a 2D grid for fast interpolation.
+        nearGround = data.loc[
+            (data.height > heightLimits[0]) & (data.height < heightLimits[1])
+        ].drop_duplicates(["x", "y"])
+        xarrayU = coordinateHandler.regularizeTimeSteps(
+            data=nearGround, n=(nx, ny),
+            fieldList=["U"], coord2="y", addSurface=False, toPandas=False
+        )[0]
+
+        # Regularize displacement height (or use zeros).
+        if dField is None:
+            xarrayD = xarray.zeros_like(xarrayU).rename({"U": dColumn})
+        else:
+            xarrayD = coordinateHandler.regularizeTimeSteps(
+                data=dField, n=(nx, ny),
+                coord1Lim=(data["x"].min(), data["x"].max()),
+                coord2Lim=(data["y"].min(), data["y"].max()),
+                fieldList=[dColumn], coord2="y", addSurface=False, toPandas=False
+            )[0]
+
+        # Interpolate: for each cell, look up the nearest-ground U and D values.
+        # Cache by (x, y) to avoid repeated xarray.interp calls (expensive).
+        fillU = float(xarrayU.U.mean())
+        fillD = float(xarrayD[dColumn].mean())
+        unearground = []
+        ds = []
+        valuesDict = {}
+        for i in range(len(data)):
+            x = data.iloc[i].x
+            y = data.iloc[i].y
+            if x not in valuesDict:
+                valuesDict[x] = {}
+            if y in valuesDict[x]:
+                unearground.append(valuesDict[x][y]["u"])
+                ds.append(valuesDict[x][y]["d"])
+            else:
+                valuesDict[x][y] = {
+                    "u": float(xarrayU.interp(x=x, y=y).fillna(fillU).U),
+                    "d": float(xarrayD.interp(x=x, y=y).fillna(fillD)[dColumn]),
+                }
+                unearground.append(valuesDict[x][y]["u"])
+                ds.append(valuesDict[x][y]["d"])
+
+        data["UnearGround"] = unearground
+        data[dColumn] = ds
+        return data
+
+    @staticmethod
+    def _writeScalarField(headerLines, cellStart, nCells, boundaryLines,
+                           boundaryStart, values, outputPath):
+        """Write a scalar OpenFOAM field file from header + values + boundary."""
+        parts = []
+        # Copy header, replacing vector→scalar type declarations.
+        for i in range(cellStart):
+            parts.append(headerLines[i])
+        header = "".join(parts).replace("vector", "scalar").replace("Vector", "Scalar")
+
+        # Write cell values.
+        valueLines = "\n".join(str(values.iloc[i]) for i in range(nCells))
+
+        # Append boundary section from the template file (Hmix).
+        boundarySection = "".join(boundaryLines[boundaryStart:])
+
+        with open(outputPath, "w") as f:
+            f.write(header)
+            f.write(valueLines)
+            f.write("\n)\n;\n\n")
+            f.write(boundarySection)
 
     def createRootCaseMeshLink(self, rootCase):
         """

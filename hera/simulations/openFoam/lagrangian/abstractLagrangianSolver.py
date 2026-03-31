@@ -1513,69 +1513,42 @@ class analysis:
 
         return fulldata.expand_dims(dict(datetime=timeList), axis=-1)
 
-    def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz,extents=None, xfield="x", yfield="y",
-                                       zfield="z",overwrite=False,reReadResults=None, **metadata):
+    def calcConcentrationFieldFullMesh(self, caseDescriptor, dxdydz, extents=None, xfield="x", yfield="y",
+                                       zfield="z", overwrite=False, reReadResults=None, **metadata):
         """
-            Calculates the eulerian concentration field for each timestep in the data.
-            The data is stored as a nc file on the disk.
+        Compute Eulerian concentration on a Cartesian mesh for each timestep.
 
-            The concentrations are embeded in a global mesh (defined in the extents field).
-
-            To be consistent with the computations of the 10min average of the risk assessment,
-            we add padd with 0 all the timesteps up to the running time. This procedure currently
-            assumes that dt is 1.
+        Bins Lagrangian particle positions onto a regular grid, stores results
+        as partitioned netCDF files. Pads with zero-concentration timesteps
+        up to the dispersion duration for moving-window averaging.
 
         Parameters
         ----------
-         caseDescriptor : str, MetadataFrame
-            The descriptor of the case.
-            Can be the name, the resource, the parameter files and ect.
+        caseDescriptor : str or MetadataFrame
+            Case name, path, or DB document.
+        dxdydz : float
+            Grid cell size in meters.
+        extents : dict, optional
+            Domain bounds ``{xmin, xmax, ymin, ymax, zmin, zmax}``.
+            If None, derived from the original flow field mesh.
+        xfield, yfield, zfield : str
+            Column names for coordinates.
+        overwrite : bool
+            Force recomputation even if cache exists.
+        reReadResults : bool, optional
+            Force re-read of Lagrangian results. Defaults to *overwrite*.
+        **metadata
+            Additional metadata for the cache document.
 
-            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
-
-        extents: dict , None
-            The domain in which the concentation will be calculated.
-            has keys: xmin,xmax,ymin,ymax,zmin,zmax of the entire domain.
-
-            If None (default) get the case lims using the method [getOriginalFlowFieldExtentAsDict]
-
-        dxdydz: float
-                    The size of a mesh unit (that will be created for the concentration).
-        xfield: str
-                The column name of the x coordinates.
-
-        yfield: str
-            The column name of the y coordinates.
-
-        zfield: str
-            The column name of the z coordinates.
-
-        overwrite: bool
-            If True, recalcluats the data mesh data.
-
-        reReadResults : bool, None
-            If True - overwrites the results of the simulation.
-            If None - take value from overwrite.
-            If False - Just recompute the full mesh concentrations.
-
-        **metadata: the parameters to add to the document.
-
-        :return:
-            The document of the xarray concentration s
+        Returns
+        -------
+        xarray.Dataset
+            Concentration field with ``C`` variable and ``dt`` attribute.
         """
         logger = get_classMethod_logger(self, "calcConcentrationFieldFullMesh")
-        logger.info(f"Getting Concentration in a cartesian coordiantes")
 
-        if isinstance(caseDescriptor, str):
-            caseDescriptorName = caseDescriptor
-        elif isinstance(caseDescriptor, MetadataFrame):
-            caseDescriptorName = caseDescriptor.desc['workflowName']
-            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
-        else:
-            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
-            logger.error(err)
-            raise ValueError(err)
-
+        # Step 1: Resolve case name and check for existing cache.
+        caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
 
         mdata = dict(extents=extents, dxdydz=dxdydz, caseDescriptorName=caseDescriptorName)
         mdata.update(**metadata)
@@ -1583,96 +1556,129 @@ class analysis:
         docList = self.datalayer.toolkit.getCacheDocuments(type=self.DOCTYPE_CONCENTRATION, **mdata)
 
         if len(docList) == 0 or overwrite:
+            # Step 2: Clean up old cache if overwriting.
             if len(docList) > 0:
-                logger.info("Overwiting the existing data removing the cache from the DB and the disk")
-                xryDoc = docList[0]
+                self._removeConcentrationCache(docList[0])
 
-                logger.info(f"Cache exist, but rewriting. Removing the old data in {xryDoc.resource} (if exists)")
-                files = glob.glob(xryDoc.resource)
-                for f in files:
-                    try:
-                        logger.debug(f"Removing the file: {f}")
-                        os.remove(f)
-                    except OSError as e:
-                        err = f"Error removing the file {f}: {e.strerror}"
-                        logger.error(err)
-
-                logger.info(f"Removing the old DB record, and files in {xryDoc.resource}")
-                docList[0].delete()
-                if os.path.exists(os.path.dirname(xryDoc.resource)):
-                    import shutil
-                    shutil.rmtree(os.path.dirname(xryDoc.resource))
-
-            newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
-            resourcePath = os.path.join(self.datalayer.toolkit.filesDirectory,"cachedLagrangianData", f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc")
-            logger.info(f"Adding to resource {resourcePath}")
-            xryDoc = self.datalayer.toolkit.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
-                                                     resource=resourcePath,
-                                                     type=self.DOCTYPE_CONCENTRATION,
-                                                     desc=mdata)
-
+            # Step 3: Create new cache document with a counter-based path.
+            xryDoc = self._createConcentrationCacheDoc(caseDescriptorName, mdata)
             path_to_data = os.path.dirname(xryDoc.resource)
-            logger.info(f"Writing the cache of the results in {path_to_data}. Making sure directory exists")
             os.makedirs(path_to_data, exist_ok=True)
 
+            # Step 4: Resolve extents from flow field if not provided.
             if extents is None:
-                logger.info("The extents are not supplied, getting it from the original flow field")
                 extents = self.datalayer.getOriginalFlowFieldExtentAsDict(caseDescriptorName)
-                logger.info(f"The extents are: {json.dumps(ConfigurationToJSON(extents),indent=4)}")
+                logger.info(f"Extents from flow field: {json.dumps(ConfigurationToJSON(extents), indent=4)}")
 
+            # Step 5: Load Lagrangian particle data.
             reReadResults = overwrite if reReadResults is None else reReadResults
-            logger.info(f"Getting the lagrangian data for {caseDescriptorName}. Re-read the results? {reReadResults} (If false, use cache)")
             workflow = self.datalayer.toolkit.getHermesWorkflowFromDB(caseDescriptorName)
-            data = self.datalayer.getCaseResults(caseDescriptorName,overwrite=reReadResults,withVelocity=True, withReleaseTimes=True, withMass=True)
+            data = self.datalayer.getCaseResults(
+                caseDescriptorName, overwrite=reReadResults,
+                withVelocity=True, withReleaseTimes=True, withMass=True
+            )
+
+            # Step 6: Process each Dask partition — bin particles onto mesh per timestep.
             timeName = 0
             partitionID = 0
             for partitionID, partition in enumerate(data.partitions):
-                logger.info(f"Processing partition {partitionID}")
-                L = []
+                timeName = self._processConcentrationPartition(
+                    partition, partitionID, path_to_data, extents, dxdydz,
+                    xfield, yfield, zfield
+                )
 
-                for timeName, timeData in partition.compute().reset_index().groupby("datetime"):
-                    logger.debug(f"Processing Time: {timeName}")
-                    xry = self.calcConcentrationTimeStepFullMesh(timeData, extents=extents, dxdydz=dxdydz,
-                                                                 xfield=xfield,
-                                                                 yfield=yfield, zfield=zfield)
-                    L.append(xry)
-
-                if len(L) > 0:
-                    logger.info("Creating the xarray")
-                    pxry = xarray.concat(L, dim="datetime")
-                    outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
-                    logger.info(f"Writing the partition to file {outFile_Final}")
-                    pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "datetime").to_dataset(name="C").to_netcdf(outFile_Final)
-                else:
-                    logger.debug(f"List for partition {partitionID} is empty. ")
-
-            logger.info("Filling in all the empty timesteps to make sure that there are enough timesteps for moving window")
-            partitionID += 1
-            L = []
-            logger.debug(f"Writitng the empty field as partition {partitionID}")
-            for timeName in range(int(timeName+1),workflow.dispersionDuration):
-                    logger.debug(f"Processing Time: {timeName}")
-                    xry = self.calcConcentrationTimeStepFullMesh(timeData=timeName, extents=extents, dxdydz=dxdydz,
-                                                                 xfield=xfield,
-                                                                 yfield=yfield, zfield=zfield)
-                    L.append(xry)
-
-            if len(L) > 0:
-                logger.info("Creating the xarray")
-                pxry = xarray.concat(L, dim="datetime")
-                outFile_Final = os.path.join(path_to_data,f"Concentrations{partitionID:04}.nc")
-                logger.info(f"Writing the partition to file {outFile_Final}")
-                pxry.rename(dict(xI="x",yI="y",zI="z")).transpose("y", "x", "z", "datetime").to_dataset(name="C").to_netcdf(outFile_Final)
-            else:
-                logger.debug(f"List for Residual timesteps is empty. ")
-
+            # Step 7: Pad remaining timesteps with zero concentrations.
+            # This ensures the time series extends to the full dispersion
+            # duration, needed for moving-window risk averaging (assumes dt=1).
+            self._padRemainingTimesteps(
+                timeName, workflow.dispersionDuration, partitionID + 1,
+                path_to_data, extents, dxdydz, xfield, yfield, zfield
+            )
         else:
             xryDoc = docList[0]
 
+        # Step 8: Load the result and attach units metadata.
         ret = xryDoc.getData()
         ret.attrs['field'] = dict(C=1*kg/m**3)
         ret.attrs['dt'] = f"{(ret.datetime[-1]-ret.datetime[-2]).item()}s"
         return ret
+
+    def _removeConcentrationCache(self, cacheDoc):
+        """Remove an existing concentration cache document and its files."""
+        logger = get_classMethod_logger(self, "_removeConcentrationCache")
+        logger.info(f"Removing old cache at {cacheDoc.resource}")
+        for f in glob.glob(cacheDoc.resource):
+            try:
+                os.remove(f)
+            except OSError as e:
+                logger.error(f"Error removing {f}: {e.strerror}")
+        cacheDoc.delete()
+        cache_dir = os.path.dirname(cacheDoc.resource)
+        if os.path.exists(cache_dir):
+            shutil.rmtree(cache_dir)
+
+    def _createConcentrationCacheDoc(self, caseDescriptorName, mdata):
+        """Create a new cache document for concentration data."""
+        newID = self.datalayer.toolkit.addCounter("cartesianMeshCounter")
+        resourcePath = os.path.join(
+            self.datalayer.toolkit.filesDirectory, "cachedLagrangianData",
+            f"{caseDescriptorName}_fullMeshCache_{newID}", "Concentrations*.nc"
+        )
+        return self.datalayer.toolkit.addCacheDocument(
+            dataFormat=datatypes.NETCDF_XARRAY,
+            resource=resourcePath,
+            type=self.DOCTYPE_CONCENTRATION,
+            desc=mdata
+        )
+
+    def _processConcentrationPartition(self, partition, partitionID, outputDir,
+                                        extents, dxdydz, xfield, yfield, zfield):
+        """Process a single Dask partition: bin particles per timestep, write netCDF.
+
+        Returns the last timeName processed (for padding calculation).
+        """
+        logger = get_classMethod_logger(self, "_processConcentrationPartition")
+        logger.info(f"Processing partition {partitionID}")
+        L = []
+        timeName = 0
+
+        for timeName, timeData in partition.compute().reset_index().groupby("datetime"):
+            xry = self.calcConcentrationTimeStepFullMesh(
+                timeData, extents=extents, dxdydz=dxdydz,
+                xfield=xfield, yfield=yfield, zfield=zfield
+            )
+            L.append(xry)
+
+        if len(L) > 0:
+            self._writeConcentrationPartition(L, partitionID, outputDir)
+
+        return timeName
+
+    def _padRemainingTimesteps(self, lastTime, totalDuration, nextPartitionID,
+                                outputDir, extents, dxdydz, xfield, yfield, zfield):
+        """Fill remaining timesteps with zero-concentration fields."""
+        logger = get_classMethod_logger(self, "_padRemainingTimesteps")
+        L = []
+        for t in range(int(lastTime + 1), totalDuration):
+            xry = self.calcConcentrationTimeStepFullMesh(
+                timeData=t, extents=extents, dxdydz=dxdydz,
+                xfield=xfield, yfield=yfield, zfield=zfield
+            )
+            L.append(xry)
+
+        if len(L) > 0:
+            self._writeConcentrationPartition(L, nextPartitionID, outputDir)
+
+    @staticmethod
+    def _writeConcentrationPartition(xarray_list, partitionID, outputDir):
+        """Concatenate timestep xarrays and write to a partitioned netCDF file."""
+        pxry = xarray.concat(xarray_list, dim="datetime")
+        outFile = os.path.join(outputDir, f"Concentrations{partitionID:04}.nc")
+        # Rename grid indices to standard names and transpose to (y, x, z, time)
+        # order expected by downstream consumers.
+        pxry.rename(dict(xI="x", yI="y", zI="z")).transpose(
+            "y", "x", "z", "datetime"
+        ).to_dataset(name="C").to_netcdf(outFile)
 
     def getConcentrationField(self, dataDocument, returnFirst=True, **metadata):
         """
