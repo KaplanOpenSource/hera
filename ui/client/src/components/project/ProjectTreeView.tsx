@@ -129,15 +129,11 @@ export const ProjectTreeView = ({
       <NotebookList
         filesDir={project.configDocument?.data.desc.filesDirectory ?? ''}
         selectedItemId={selectedItemsIds[0]}
-        onNotebookCreated={(itemId) => {
-          setExpandedItems(prev => [...new Set([...prev, ID_NOTEBOOKS_GROUP])]);
-          setSelectedItemIds([itemId]);
-        }}
-        onNotebookDeleted={() => setSelectedItemIds([])}
-        onNotebookRefresh={() => {
-          const current = selectedItemsIds[0];
-          setSelectedItemIds([]);
-          setTimeout(() => setSelectedItemIds([current]), 0);
+        setSelectedItemIds={(ids) => {
+          if (ids.length > 0) {
+            setExpandedItems(prev => [...new Set([...prev, ID_NOTEBOOKS_GROUP])]);
+          }
+          setSelectedItemIds(ids);
         }}
       />
       <RegisteredRepositories showUpdateButton />
