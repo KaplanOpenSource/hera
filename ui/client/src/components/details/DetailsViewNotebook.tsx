@@ -14,6 +14,8 @@ export const DetailsViewNotebook = ({
 
   useEffect(() => {
     let cancelled = false;
+    setJupyterPort(null);
+    setError(null);
 
     (async () => {
       try {
@@ -26,7 +28,7 @@ export const DetailsViewNotebook = ({
         if (cancelled) return;
 
         const host = window.location.hostname || 'localhost';
-        const url = `http://${host}:${data.port}/api/status`;
+        const url = `http://${host}:${data.port}/api/kernelspecs`;
         for (let i = 0; i < 30; i++) {
           try {
             const resp = await fetch(url);
@@ -47,7 +49,7 @@ export const DetailsViewNotebook = ({
     })();
 
     return () => { cancelled = true; };
-  }, [rootDir]);
+  }, [rootDir, notebookName]);
 
   if (error) return <Typography color="error">{error}</Typography>;
   if (!jupyterPort) return <CircularProgress />;
