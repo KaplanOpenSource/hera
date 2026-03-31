@@ -155,56 +155,130 @@ times = of.getTimeList("wind_study_simpleFoam")
 
 ## Post-processing with VTK pipeline
 
-The analysis layer provides a VTK filter pipeline for extracting data from simulation results:
+The analysis layer provides a ParaView-integrated VTK filter pipeline for extracting data from simulation results, with automatic DB caching.
+
+### Creating a pipeline
 
 ```python
-# Create a VTK pipeline
+# 1. Create an empty pipeline
 pipeline = of.analysis.getVTKPipeline()
 
-# Add filters to extract data
-pipeline.addFilter("ground_slice", filterType="Slice",
-    write=True,
-    params={"origin": [500, 250, 2], "normal": [0, 0, 1]}
+# 2. Add filters — params is a LIST OF TUPLES (order matters for ParaView)
+pipeline.addFilter("ground_slice", filterType="Slice", write=True,
+    params=[
+        ("SliceType", "Plane"),
+        ("SliceType.Origin", [500, 250, 2]),   # dot notation for nested properties
+        ("SliceType.Normal", [0, 0, 1]),
+    ]
 )
 
-pipeline.addFilter("centerline", filterType="PlotOverLine",
-    write=True,
-    params={"point1": [0, 250, 10], "point2": [1000, 250, 10]}
+pipeline.addFilter("centerline", filterType="PlotOverLine", write=True,
+    params=[
+        ("Point1", [0, 250, 10]),
+        ("Point2", [1000, 250, 10]),
+        ("SamplingPattern", "Sample Uniformly"),
+        ("Resolution", 100),
+    ]
 )
-
-pipeline.addFilter("cell_data", filterType="CellCenters",
-    write=True
-)
-
-# Register the pipeline with a specific simulation case
-registered = pipeline.registerPipeline(
-    nameOrWorkflowFileOrJSONOrResource="wind_study_simpleFoam",
-    serverName="local",
-    caseType=of.CASETYPE_RECONSTRUCTED
-)
-
-# Execute and get results (with DB caching)
-results = registered.getData(
-    regularMesh=True,      # True: xarray (regular grid), False: pandas (unstructured)
-    filterName="ground_slice",
-    timeList=["100", "200"],
-    fieldNames=["U", "p"]
-)
-
-# Results are cached — subsequent calls load from DB
-cached = registered.getData(filterName="ground_slice", timeList=["100"])
 ```
 
-**Available filter types:**
+### Chaining filters (downstream)
 
-| Filter | What it does | Key parameters |
-|--------|-------------|---------------|
-| `Slice` | Planar cut through domain | `origin`, `normal` |
-| `PlotOverLine` | Sample values along a line | `point1`, `point2`, sample pattern |
-| `CellCenters` | Extract cell center values | — |
-| `ExtractBlock` | Extract specific mesh patches | `patchList`, `internalMesh` |
-| `DescriptiveStatistics` | Summary statistics | `variables` |
-| `IntegrateVariables` | Integrate fields | — |
+Filters can be chained — each filter receives the output of its parent:
+
+```python
+# Add an ExtractBlock filter, then chain CellCenters downstream
+extract = pipeline.addFilter("boundary", filterType="ExtractBlock", write=False)
+extract.setRegionsToExtract(patchList=["inlet", "outlet"], internalMesh=False)
+
+# Chain: boundary → cell_centers (cell_centers receives ExtractBlock output)
+extract.addFilter("boundary_values", filterType="CellCenters", write=True)
+```
+
+In the JSON, this produces a nested `downstream` structure:
+
+```json
+{
+  "filters": {
+    "boundary": {
+      "filterType": "ExtractBlock", "write": false,
+      "params": [["Selectors", ["/Root/boundary/inlet", "/Root/boundary/outlet"]]],
+      "downstream": {
+        "boundary_values": {
+          "filterType": "CellCenters", "write": true,
+          "params": [], "downstream": {}
+        }
+      }
+    }
+  }
+}
+```
+
+### Using typed filter constructors
+
+For convenience, filter subclasses provide typed methods:
+
+```python
+from hera.simulations.openFoam.postProcess.VTKPipeline import vtkFilter_Slice
+
+slice_filter = vtkFilter_Slice(name="ground_slice", write=True)
+slice_filter.setPlaneOrigin([500, 250, 2])
+slice_filter.setPlaneNormal([0, 0, 1])
+pipeline.addFilterFromObj(slice_filter)
+```
+
+### Registering with a simulation case
+
+Bind the pipeline to a specific OpenFOAM case:
+
+```python
+registered = pipeline.registerPipeline(
+    nameOrWorkflowFileOrJSONOrResource="wind_study_simpleFoam",  # DB name or directory
+    caseType=of.CASETYPE_RECONSTRUCTED,   # or of.CASETYPE_DECOMPOSED for parallel
+)
+```
+
+### Executing and retrieving results
+
+```python
+# Execute — computes only missing timesteps (incremental caching)
+results = registered.getData(
+    regularMesh=True,           # True: xarray/zarr, False: pandas/parquet
+    filterName="ground_slice",  # or list, or None for all write=True filters
+    timeList=["100", "200"],    # or None (all), or "100:500" (range)
+    fieldNames=["U", "p"],      # restrict which OF fields are read
+)
+
+# Subsequent calls load from cache — no recomputation
+cached = registered.getData(filterName="ground_slice", timeList=["100"])
+
+# Force recomputation
+fresh = registered.getData(filterName="ground_slice", overwrite=True)
+```
+
+`results` is a dict mapping filter names to data (xarray Dataset or pandas DataFrame).
+
+### Available filter types
+
+| Filter | ParaView type | Typed class | Key parameters |
+|--------|--------------|-------------|---------------|
+| `Slice` | Planar cut | `vtkFilter_Slice` | `SliceType.Origin`, `SliceType.Normal` |
+| `PlotOverLine` | Line sample | `vtkFilter_PlotOverLine` | `Point1`, `Point2`, `SamplingPattern`, `Resolution` |
+| `CellCenters` | Cell values | `vtkFilter_CellCenters` | — |
+| `ExtractBlock` | Patch extraction | `vtkFilter_ExtractBlock` | `Selectors` (XPath: `/Root/boundary/{name}`) |
+| `DescriptiveStatistics` | Statistics | `vtkFilter_DescriptiveStatistics` | `VariablesOfInterest` |
+| `IntegrateVariables` | Field integral | `vtkFilter_IntegrateVariables` | — |
+
+!!! note "Parameter order matters"
+    The `params` list is applied in order. Some ParaView filters require properties to be set in a specific sequence (e.g., `SliceType` must be set before `SliceType.Origin`). Always use a list of tuples, not a dict.
+
+### Caching behaviour
+
+- Results are cached per filter in the project's Cache collection (type `vtk_filter`)
+- Cache key = pipeline JSON + filter name + simulation parameters
+- Incremental: only computes timesteps not already in cache
+- Changing the pipeline definition invalidates the cache (different JSON = different key)
+- `overwrite=True` forces full recomputation
 
 ## Exporting results
 
