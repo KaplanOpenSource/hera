@@ -1,4 +1,4 @@
-import { Add, Refresh } from '@mui/icons-material';
+import { Refresh } from '@mui/icons-material';
 import { Stack, Typography } from '@mui/material';
 import { TreeItem } from '@mui/x-tree-view';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,6 +6,7 @@ import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchPython } from '../../io/fetchPython';
 import { NotebookCommands } from '../../io/NotebookCommands';
 import { ID_NOTEBOOKS_GROUP, idFromNotebookId, idNotebookId } from '../../shared/idDocId';
+import { AddNotebookDialogButton } from './AddNotebookDialogButton';
 import { NotebookListItem } from './NotebookListItem';
 
 export const NotebookList = ({
@@ -26,10 +27,18 @@ export const NotebookList = ({
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const handleCreate = async () => {
-    const { data } = await fetchPython(NotebookCommands.create(filesDir));
+  const nextDefaultName = () => {
+    const ids = notebooks
+      .map(n => n.match(/^notebook_(\d+)$/))
+      .filter(Boolean)
+      .map(m => parseInt(m![1]));
+    return `notebook_${Math.max(0, ...ids) + 1}`;
+  };
+
+  const handleCreate = async (name: string) => {
+    await fetchPython(NotebookCommands.create(filesDir, name));
     await refresh();
-    if (data) setSelectedItemIds([idNotebookId(data.name)]);
+    setSelectedItemIds([idNotebookId(name)]);
   };
 
   const handleDelete = async (name: string) => {
@@ -60,9 +69,10 @@ export const NotebookList = ({
           <ButtonTooltip title="Refresh" onClick={refresh}>
             <Refresh />
           </ButtonTooltip>
-          <ButtonTooltip title="New Notebook" onClick={handleCreate}>
-            <Add />
-          </ButtonTooltip>
+          <AddNotebookDialogButton
+            defaultName={nextDefaultName}
+            onCreate={handleCreate}
+          />
         </Stack>
       )}
     >

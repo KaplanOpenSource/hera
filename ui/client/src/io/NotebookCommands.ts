@@ -13,20 +13,14 @@ else:
 `,
   }),
 
-  create: (rootDir: string): PythonCommand => ({
+  create: (rootDir: string, name: string): PythonCommand => ({
     results: ['name'],
     code: `
 import json
 from pathlib import Path
+name = "${name}"
 notebooks_dir = Path("${rootDir}") / "notebooks"
 notebooks_dir.mkdir(parents=True, exist_ok=True)
-existing = [
-    int(f.stem.split("_")[1])
-    for f in notebooks_dir.iterdir()
-    if f.suffix == ".ipynb" and f.stem.startswith("notebook_") and f.stem.split("_")[1].isdigit()
-]
-next_id = max(existing, default=0) + 1
-name = f"notebook_{next_id}"
 empty_notebook = {
     "nbformat": 4,
     "nbformat_minor": 5,
