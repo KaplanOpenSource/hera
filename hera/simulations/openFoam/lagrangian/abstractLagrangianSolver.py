@@ -386,186 +386,198 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     def createDispersionCaseDirectory(self, hermes_dispersionWorkflow, updateDB=True, exportFromDB=False,
                                       allowDuplicate=False, rewrite=False):
         """
-            Creates a dispersion case directory and linking to the dispersion workflow.
+        Create a dispersion case directory and synchronise with the database.
 
-            This function also updates the database and ensures that the hermes_dispersionWorkflow and the DB record are consistent.
-            It also searches for a different workflow with the same name.
-
-            If the DB and the input are not consistent then update the DB if the
-            updateDB flag is true. Otherwise, update the input from the DB.
-
-            If the directory already exists on the disk, there are inconsistencies and the updateDB flag is True (i.e update db),
-            then we assume that the current direcotry represent the record that was in the DB and it will be
-            and rebuild only if the rewrite flag is true.
-
-            If another dispersion with the same parameters exists in the DB under a different name,
-            then the current workflow will be added only if the allowDuplicate flag is True.
-
-            If the workflow exists in the DB under a different name, then raise a FileExistsError.
+        Ensures consistency between the input workflow, DB records, and disk.
+        Handles name conflicts, parameter mismatches, and directory conflicts.
 
         Parameters
         ----------
-        hermes_dispersionWorkflow : hera.simulations.openFOAM.Workflow_StochasticLagrangianSolver
-            An instance of the workflow to create.
-
+        hermes_dispersionWorkflow : workflow_StochasticLagrangianSolver
+            The workflow instance to create a case for.
         updateDB : bool
-            If true, use the input there is inconsistencies between DB and  the input workflow.
-
-            If the case directory already exists, update DB and relink it only if  --rewrite flag also exists.
-
-        exportFromDB :  bool
-            If true, then use the DB record if there is inconsistencies with the input workflow
-
+            On inconsistency, update DB from the input workflow.
+        exportFromDB : bool
+            On inconsistency, update the input workflow from DB.
         allowDuplicate : bool
-            Add to DB even if the same workflow exists under a different name
-
+            Allow adding even if same workflow exists under a different name.
         rewrite : bool
-            Rebuild the directory if it exists, found inconsistencies
+            Remove and recreate the directory if it exists and is inconsistent.
+
         Returns
         -------
-            The workflow (synchronized with the DB).
-            The disk will also be definitly synchronized only if rewrite flag is true.
+        None
         """
         logger = get_classMethod_logger(self, "createDispersionCaseDirectory")
 
-        if (updateDB and exportFromDB):
-            err = "Cannot use both --updateDB and --exportFromDB"
-            logger.error(err)
-            raise ValueError(err)
-
-        logger.debug(f"----- Start -----")
+        # Validate flags — updateDB and exportFromDB are mutually exclusive.
+        if updateDB and exportFromDB:
+            raise ValueError("Cannot use both updateDB and exportFromDB.")
 
         if hermes_dispersionWorkflow.name is None:
-            logger.error("Must set the name property in the  dispersionWorkflow object")
-            raise ValueError("Must set the name property in the  dispersionWorkflow object")
+            raise ValueError("Must set the name property in the dispersionWorkflow object.")
 
         dispersionDirectoryName = os.path.abspath(
             os.path.join(self.toolkit.filesDirectory, hermes_dispersionWorkflow.name))
 
-        logger.info(
-            f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowFieldName}.")
+        # Step 1: Resolve the dispersion flow field from DB.
+        dispersionFlowFieldName, dispersionFlowFieldDirectory = self._resolveDispersionFlowField(
+            hermes_dispersionWorkflow
+        )
 
-        logger.debug(f"Trying to find the dispersionFlowField in the DB to determine the directory")
-        dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-            hermes_dispersionWorkflow.dispersionFlowFieldName)
-        if len(dispersionFlowFieldDocumentList) == 0:
-            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowFieldName} in DB.")
-            logger.debug(f"Trying again to look for the directory of the dispersion flow in the DB")
-            dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-                os.path.abspath(hermes_dispersionWorkflow.dispersionFlowFieldName))
-            if len(dispersionFlowFieldDocumentList) == 0:
-                err = f"The {hermes_dispersionWorkflow.dispersionFlowFieldName} is not in the DB. Add it before you can continue"
-                logger.critical(err)
-                raise ValueError(err)
+        # Step 2: Check DB consistency — does a workflow with this name or
+        # these parameters already exist? Determine what action to take.
+        hermes_dispersionWorkflow, updateWorkflow, needDBAdd, foundInconsistency = \
+            self._checkDBConsistency(
+                hermes_dispersionWorkflow, updateDB, exportFromDB, allowDuplicate
+            )
 
-        logger.debug(
-            f"Found dispersion flow field in DB under the name {dispersionFlowFieldDocumentList[0].desc['workflowName']}.")
-        if hermes_dispersionWorkflow.dispersionFlowFieldName != dispersionFlowFieldDocumentList[0].desc['workflowName']:
-            logger.debug(
-                f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowFieldName} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
-            hermes_dispersionWorkflow.dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
+        # Step 3: Handle existing directory on disk.
+        self._resolveDirectoryConflict(
+            dispersionDirectoryName, foundInconsistency, rewrite
+        )
 
-        dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
-        dispersionFlowFieldDirectory = dispersionFlowFieldDocumentList[0].resource
-        logger.info(
-            f"Using dispersion flow field {dispersionFlowFieldName} with directory {dispersionFlowFieldDirectory}")
+        # Step 4: Create the dispersion case and link to the flow field.
+        logger.info(f"Creating dispersion case {dispersionDirectoryName}")
+        self.toolkit.stochasticLagrangian.createAndLinkDispersionCaseDirectory(
+            dispersionDirectoryName,
+            dispersionFlowDirectory=dispersionFlowFieldDirectory
+        )
 
+        # Step 5: Add or update DB record.
+        self._syncDispersionToDB(
+            hermes_dispersionWorkflow, dispersionDirectoryName,
+            dispersionFlowFieldName, needDBAdd, updateWorkflow
+        )
+
+    def _resolveDispersionFlowField(self, hermes_dispersionWorkflow):
+        """Look up the dispersion flow field in DB, updating the workflow's reference if needed.
+
+        Returns
+        -------
+        tuple of (str, str)
+            (flowFieldName, flowFieldDirectory)
+        """
+        logger = get_classMethod_logger(self, "_resolveDispersionFlowField")
+        flowFieldRef = hermes_dispersionWorkflow.dispersionFlowFieldName
+
+        # Try the name first, then the absolute path as fallback.
+        docList = self.toolkit.getCaseListDocumentFromDB(flowFieldRef)
+        if len(docList) == 0:
+            docList = self.toolkit.getCaseListDocumentFromDB(os.path.abspath(flowFieldRef))
+            if len(docList) == 0:
+                raise ValueError(
+                    f"Dispersion flow field '{flowFieldRef}' not found in DB. Add it first."
+                )
+
+        # If the workflow used a directory path, update to the canonical DB name.
+        dbName = docList[0].desc['workflowName']
+        if flowFieldRef != dbName:
+            logger.debug(f"Updating flow field reference: {flowFieldRef} → {dbName}")
+            hermes_dispersionWorkflow.dispersionFlowFieldName = dbName
+
+        return dbName, docList[0].resource
+
+    def _checkDBConsistency(self, workflow, updateDB, exportFromDB, allowDuplicate):
+        """Check DB for existing workflows with the same name or parameters.
+
+        Returns
+        -------
+        tuple of (workflow, updateWorkflow, needDBAdd, foundInconsistency)
+        """
+        logger = get_classMethod_logger(self, "_checkDBConsistency")
         updateWorkflow = False
         foundInconsistency = None
         needDBAdd = False
 
-        # 1. Check if the dispersion workflow name is in the DB under a different name.
-        logger.debug("Querying DB to see if the a workflow exists with a similar name")
-        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(hermes_dispersionWorkflow.name)
-        if len(doc_nameQueryList) > 0:
-            logger.debug("Found a workflow with the same name. Check for inconsistency between DB and input")
+        # Check 1: Does a workflow with the same NAME exist in DB?
+        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
 
+        if len(doc_nameQueryList) > 0:
+            # Same name found — compare parameters to detect inconsistency.
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
-            res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, hermes_dispersionWorkflow])
+            res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, workflow])
+
             if len(res.columns) == 1:
-                logger.info(f"The workflow in the DB is identical to the disk.")
-                hermes_dispersionWorkflow = hermes_dispersionWorkflow
+                # Identical — no action needed.
+                logger.info("Workflow in DB is identical to input.")
             else:
-                logger.debug(f"The workflow in the DB is different than the disk: \n\n {res}")
+                # Parameters differ — resolve based on flags.
+                logger.debug(f"DB workflow differs from input:\n{res}")
                 if exportFromDB:
-                    hermes_dispersionWorkflow = doc_similarWorkflow
+                    workflow = doc_similarWorkflow
                 elif updateDB:
-                    logger.debug("Updating the DB with the workflow from disk")
-                    hermes_dispersionWorkflow = hermes_dispersionWorkflow
                     updateWorkflow = True
                     foundInconsistency = res
                 else:
-                    err = f"The workflow in {hermes_dispersionWorkflow} file and in the DB are different. Use the --updateDB to update the DB or --exportFromDB to rewrite the file"
-                    logger.error(err)
-                    raise ValueError(err)
+                    raise ValueError(
+                        f"Workflow '{workflow.name}' exists in DB with different parameters. "
+                        f"Use updateDB=True or exportFromDB=True."
+                    )
         else:
-            logger.debug("Record not found. Querying DB to see if that workflow exists under a different name")
-
-            otherWorkflows = self.toolkit.getHermesWorkflowFromDB(hermes_dispersionWorkflow)
-            logger.debug(f"Found {len(otherWorkflows)} records that match workflow.")
-            if len(otherWorkflows) > 0:
+            # Check 2: Does a workflow with the same PARAMETERS exist under a different name?
+            otherWorkflows = self.toolkit.getHermesWorkflowFromDB(workflow)
+            if otherWorkflows and len(otherWorkflows) > 0:
                 foundNames = [x.desc['workflowName'] for x in otherWorkflows]
-                logger.info(
-                    f"The workflows {','.join(foundNames)} match the workflow that was given as input, but have different names.")
                 if not allowDuplicate:
-                    err = f"Found the input workflow under the names {','.join(foundNames)}. The supplied name is {hermes_dispersionWorkflow.name}. " \
-                          f"Force the addition of a duplicate case by using the --allowDuplicate flag"
-                    logger.error(err)
-                    raise FileExistsError(err)
-                else:
-                    logger.debug("--allowDuplicate was supplied, so allowing duplication addition to DB")
-                    needDBAdd = True
+                    raise FileExistsError(
+                        f"Workflow exists under names {foundNames}. "
+                        f"Use allowDuplicate=True to add anyway."
+                    )
+                needDBAdd = True
 
-        logger.debug(
-            f"Check if dispersion {dispersionDirectoryName} already exists. If it is remove for fresh start only if it needs rewrite and the  --rewrite was supplied")
-        if os.path.isdir(dispersionDirectoryName):
-            logger.debug("Directory already exists")
-            if foundInconsistency is not None:
-                logger.debug(
-                    f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
-                if rewrite:
-                    logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
-                    shutil.rmtree(dispersionDirectoryName)
-                else:
-                    err = f"The dispersion directory {dispersionDirectoryName} already exists, and the input workflow does not match DB: \n{res}\n\n Use --rewrite to force removing and recreating"
-                    logger.error(err)
-                    raise ValueError(err)
+        return workflow, updateWorkflow, needDBAdd, foundInconsistency
 
-        # 3. Create the dispersion case and link to the workflow.
-        logger.info(
-            f"Creating dispersion case {dispersionDirectoryName}  and linking to {dispersionFlowFieldDirectory}")
-        self.toolkit.stochasticLagrangian.createAndLinkDispersionCaseDirectory(dispersionDirectoryName,
-                                                                               dispersionFlowDirectory=dispersionFlowFieldDirectory)
+    def _resolveDirectoryConflict(self, directoryPath, foundInconsistency, rewrite):
+        """Handle existing directory: remove if rewrite=True and inconsistent."""
+        logger = get_classMethod_logger(self, "_resolveDirectoryConflict")
 
-        # 5. Add/update to the DB.
-        logger.debug(
-            "add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
+        if not os.path.isdir(directoryPath):
+            return  # No conflict.
+
+        if foundInconsistency is not None:
+            # Directory exists but is inconsistent with the chosen workflow.
+            if rewrite:
+                logger.info(f"Rewrite flag: removing {directoryPath}")
+                shutil.rmtree(directoryPath)
+            else:
+                raise ValueError(
+                    f"Directory {directoryPath} exists with inconsistent workflow. "
+                    f"Use rewrite=True to recreate."
+                )
+
+    def _syncDispersionToDB(self, workflow, directoryName, flowFieldName,
+                             needDBAdd, updateWorkflow):
+        """Add a new DB document or update an existing one."""
+        logger = get_classMethod_logger(self, "_syncDispersionToDB")
+
         if needDBAdd:
-            groupName = hermes_dispersionWorkflow.name.split("_")[0]
-            groupID = hermes_dispersionWorkflow.name.split("_")[1]
-
-            logger.execute(f"Adding new document with group {groupName} and {groupID}")
-            self.toolkit.addSimulationsDocument(resource=dispersionDirectoryName, \
-                                                dataFormat=datatypes.STRING, \
-                                                type=self.toolkit.DOCTYPE_WORKFLOW, \
-                                                desc=dict( \
-                                                    groupName=groupName, \
-                                                    groupID=groupID, \
-                                                    workflowName=dispersionFlowFieldName, \
-                                                    workflowType=hermes_dispersionWorkflow.workflowType, \
-                                                    workflow=hermes_dispersionWorkflow.json, \
-                                                    parameters=hermes_dispersionWorkflow.parametersJSON \
-                                                    ) \
-                                                )
+            # New workflow — extract group/ID from naming convention.
+            groupName = workflow.name.split("_")[0]
+            groupID = workflow.name.split("_")[1]
+            logger.info(f"Adding new document: group={groupName}, id={groupID}")
+            self.toolkit.addSimulationsDocument(
+                resource=directoryName,
+                dataFormat=datatypes.STRING,
+                type=self.toolkit.DOCTYPE_WORKFLOW,
+                desc=dict(
+                    groupName=groupName,
+                    groupID=groupID,
+                    workflowName=flowFieldName,
+                    workflowType=workflow.workflowType,
+                    workflow=workflow.json,
+                    parameters=workflow.parametersJSON,
+                ),
+            )
         elif updateWorkflow:
-            logger.execute("Updating workflow")
-            doc = doc_nameQueryList[0]
-            doc.desc['workflow'] = hermes_dispersionWorkflow.json
-            doc.desc['parameters'] = hermes_dispersionWorkflow.parametersJSON
-
-            jsonstr = json.dumps(doc.desc, indent=4)
-            logger.debug(f"Saving desc \n{jsonstr}\n to DB")
-            doc.save()
+            # Existing workflow — update parameters in DB.
+            docList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
+            if len(docList) > 0:
+                doc = docList[0]
+                doc.desc['workflow'] = workflow.json
+                doc.desc['parameters'] = workflow.parametersJSON
+                logger.info("Updating workflow in DB")
+                doc.save()
 
     def createAndLinkDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
         """Create a dispersion case directory and link it to the flow field directory."""
@@ -752,7 +764,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
 
     def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
-        """Parse mass and parcel fate information from a solver log file."""
+        """Parse mass and parcel fate information from a solver log file.
+
+        The log file has a repeating structure per timestep:
+        1. "Time = <t>" line marks a new timestep
+        2. Cloud name line marks the start of cloud output
+        3. For each source: release count + mass, then parcel fate (escape/stick)
+        4. "ExecutionTime" marks end of timestep output
+        """
         count = 0
         times = []
         names = []
@@ -771,20 +790,28 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         with open(logFile, "r") as readFile:
             Lines = readFile.readlines()
 
+        # Phase 1: Skip header lines until we find the first solver execution line.
+        # The format is "Exec <solver>" — skip 2 more lines after that.
         for line in Lines:
             count += 1
             if "Exec" in line and solver in line:
                 count += 2
                 break
 
+        # Phase 2: Parse timesteps until "End" marker.
+        # State machine: outer loop finds "Time" lines, inner loop parses
+        # cloud output until "ExecutionTime".
         while "End" not in Lines[count]:
             if "Time" in Lines[count]:
                 time = float(Lines[count].split()[-1])
+                # Scan forward to the cloud name line.
                 while f"{self._datalayer.cloudName}\n" not in Lines[count]:
                     count += 1
                 count += 1
+                # Parse cloud output: each source has release info + parcel fate.
                 while "ExecutionTime" not in Lines[count]:
                     if "Parcel fate" in Lines[count]:
+                        # Parcel fate block: next 2 lines are escape and stick counts.
                         name = Lines[count].split()[-1]
                         count += 1
                         addToLists(time=time, name=name, action="escape", parcel=float(Lines[count].split()[-2][:-1]),
@@ -793,6 +820,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         addToLists(time=time, name=name, action="stick", parcel=float(Lines[count].split()[-2][:-1]),
                                    m=float(Lines[count].split()[-1]))
                     elif ":\n" in Lines[count]:
+                        # Release block: source name, then parcel count, then mass.
                         name = Lines[count].split()[0][:-1]
                         count += 1
                         parcel = float(Lines[count].split()[-1])
@@ -1112,20 +1140,23 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         ret.to_netcdf(fullname)
         return ret
 
-    def getDispersionDocument(self,nameOrDispersionWorkflow):
-        """
-            Return the DB document of the dispersiion
+    def getDispersionDocument(self, nameOrDispersionWorkflow):
+        """Return the DB document for a dispersion simulation.
+
         Parameters
         ----------
-        nameOrDispersionWorkflow: str, workflow_StochasticLagrangianSolver
-                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+        nameOrDispersionWorkflow : str or workflow_StochasticLagrangianSolver
+            The name of the workflow or a workflow instance.
 
         Returns
         -------
-
+        document or None
+            The DB document, or None if not found.
         """
-
-        getWorkflowDocumentFromDB
+        # TODO: This method was incomplete in the original code (bare reference
+        # to getWorkflowDocumentFromDB without calling it). Implemented as a
+        # simple delegation to the toolkit's workflow document lookup.
+        return self.toolkit.getWorkflowDocumentFromDB(nameOrDispersionWorkflow)
 
     def getDispersionFlowDocument(self,nameOrDispersionWorkflow):
         """
