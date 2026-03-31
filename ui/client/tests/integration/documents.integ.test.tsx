@@ -29,7 +29,7 @@ describe('Documents UI integration', () => {
 
   afterAll(() => {
     cleanup();
-    env.cleanup();
+    env?.cleanup();
   }, 15000);
 
   const loadProject = async () => {

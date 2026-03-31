@@ -27,7 +27,7 @@ describe('Add Project UI integration', () => {
 
   afterAll(() => {
     cleanup();
-    env.cleanup();
+    env?.cleanup();
   }, 15000);
 
   it('clicking Add Project creates the project and it appears in the list', async () => {

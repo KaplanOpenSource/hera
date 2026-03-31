@@ -29,7 +29,7 @@ describe('Add Project API integration', () => {
   }, 30000);
 
   afterAll(() => {
-    env.cleanup();
+    env?.cleanup();
   }, 15000);
 
   it('server is healthy', async () => {
