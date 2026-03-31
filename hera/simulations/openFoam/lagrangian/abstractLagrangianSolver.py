@@ -386,186 +386,198 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     def createDispersionCaseDirectory(self, hermes_dispersionWorkflow, updateDB=True, exportFromDB=False,
                                       allowDuplicate=False, rewrite=False):
         """
-            Creates a dispersion case directory and linking to the dispersion workflow.
+        Create a dispersion case directory and synchronise with the database.
 
-            This function also updates the database and ensures that the hermes_dispersionWorkflow and the DB record are consistent.
-            It also searches for a different workflow with the same name.
-
-            If the DB and the input are not consistent then update the DB if the
-            updateDB flag is true. Otherwise, update the input from the DB.
-
-            If the directory already exists on the disk, there are inconsistencies and the updateDB flag is True (i.e update db),
-            then we assume that the current direcotry represent the record that was in the DB and it will be
-            and rebuild only if the rewrite flag is true.
-
-            If another dispersion with the same parameters exists in the DB under a different name,
-            then the current workflow will be added only if the allowDuplicate flag is True.
-
-            If the workflow exists in the DB under a different name, then raise a FileExistsError.
+        Ensures consistency between the input workflow, DB records, and disk.
+        Handles name conflicts, parameter mismatches, and directory conflicts.
 
         Parameters
         ----------
-        hermes_dispersionWorkflow : hera.simulations.openFOAM.Workflow_StochasticLagrangianSolver
-            An instance of the workflow to create.
-
+        hermes_dispersionWorkflow : workflow_StochasticLagrangianSolver
+            The workflow instance to create a case for.
         updateDB : bool
-            If true, use the input there is inconsistencies between DB and  the input workflow.
-
-            If the case directory already exists, update DB and relink it only if  --rewrite flag also exists.
-
-        exportFromDB :  bool
-            If true, then use the DB record if there is inconsistencies with the input workflow
-
+            On inconsistency, update DB from the input workflow.
+        exportFromDB : bool
+            On inconsistency, update the input workflow from DB.
         allowDuplicate : bool
-            Add to DB even if the same workflow exists under a different name
-
+            Allow adding even if same workflow exists under a different name.
         rewrite : bool
-            Rebuild the directory if it exists, found inconsistencies
+            Remove and recreate the directory if it exists and is inconsistent.
+
         Returns
         -------
-            The workflow (synchronized with the DB).
-            The disk will also be definitly synchronized only if rewrite flag is true.
+        None
         """
         logger = get_classMethod_logger(self, "createDispersionCaseDirectory")
 
-        if (updateDB and exportFromDB):
-            err = "Cannot use both --updateDB and --exportFromDB"
-            logger.error(err)
-            raise ValueError(err)
-
-        logger.debug(f"----- Start -----")
+        # Validate flags — updateDB and exportFromDB are mutually exclusive.
+        if updateDB and exportFromDB:
+            raise ValueError("Cannot use both updateDB and exportFromDB.")
 
         if hermes_dispersionWorkflow.name is None:
-            logger.error("Must set the name property in the  dispersionWorkflow object")
-            raise ValueError("Must set the name property in the  dispersionWorkflow object")
+            raise ValueError("Must set the name property in the dispersionWorkflow object.")
 
         dispersionDirectoryName = os.path.abspath(
             os.path.join(self.toolkit.filesDirectory, hermes_dispersionWorkflow.name))
 
-        logger.info(
-            f"The dispersion workflow {hermes_dispersionWorkflow.name} and the dispersionFlowField Name {hermes_dispersionWorkflow.dispersionFlowFieldName}.")
+        # Step 1: Resolve the dispersion flow field from DB.
+        dispersionFlowFieldName, dispersionFlowFieldDirectory = self._resolveDispersionFlowField(
+            hermes_dispersionWorkflow
+        )
 
-        logger.debug(f"Trying to find the dispersionFlowField in the DB to determine the directory")
-        dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-            hermes_dispersionWorkflow.dispersionFlowFieldName)
-        if len(dispersionFlowFieldDocumentList) == 0:
-            logger.error(f"Could not find dispersion workflow {hermes_dispersionWorkflow.dispersionFlowFieldName} in DB.")
-            logger.debug(f"Trying again to look for the directory of the dispersion flow in the DB")
-            dispersionFlowFieldDocumentList = self.toolkit.getCaseListDocumentFromDB(
-                os.path.abspath(hermes_dispersionWorkflow.dispersionFlowFieldName))
-            if len(dispersionFlowFieldDocumentList) == 0:
-                err = f"The {hermes_dispersionWorkflow.dispersionFlowFieldName} is not in the DB. Add it before you can continue"
-                logger.critical(err)
-                raise ValueError(err)
+        # Step 2: Check DB consistency — does a workflow with this name or
+        # these parameters already exist? Determine what action to take.
+        hermes_dispersionWorkflow, updateWorkflow, needDBAdd, foundInconsistency = \
+            self._checkDBConsistency(
+                hermes_dispersionWorkflow, updateDB, exportFromDB, allowDuplicate
+            )
 
-        logger.debug(
-            f"Found dispersion flow field in DB under the name {dispersionFlowFieldDocumentList[0].desc['workflowName']}.")
-        if hermes_dispersionWorkflow.dispersionFlowFieldName != dispersionFlowFieldDocumentList[0].desc['workflowName']:
-            logger.debug(
-                f"The current dispersion name is {hermes_dispersionWorkflow.dispersionFlowFieldName} and probably a directory. Updating to {dispersionFlowFieldDocumentList[0].desc['workflowName']}")
-            hermes_dispersionWorkflow.dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
+        # Step 3: Handle existing directory on disk.
+        self._resolveDirectoryConflict(
+            dispersionDirectoryName, foundInconsistency, rewrite
+        )
 
-        dispersionFlowFieldName = dispersionFlowFieldDocumentList[0].desc['workflowName']
-        dispersionFlowFieldDirectory = dispersionFlowFieldDocumentList[0].resource
-        logger.info(
-            f"Using dispersion flow field {dispersionFlowFieldName} with directory {dispersionFlowFieldDirectory}")
+        # Step 4: Create the dispersion case and link to the flow field.
+        logger.info(f"Creating dispersion case {dispersionDirectoryName}")
+        self.toolkit.stochasticLagrangian.createAndLinkDispersionCaseDirectory(
+            dispersionDirectoryName,
+            dispersionFlowDirectory=dispersionFlowFieldDirectory
+        )
 
+        # Step 5: Add or update DB record.
+        self._syncDispersionToDB(
+            hermes_dispersionWorkflow, dispersionDirectoryName,
+            dispersionFlowFieldName, needDBAdd, updateWorkflow
+        )
+
+    def _resolveDispersionFlowField(self, hermes_dispersionWorkflow):
+        """Look up the dispersion flow field in DB, updating the workflow's reference if needed.
+
+        Returns
+        -------
+        tuple of (str, str)
+            (flowFieldName, flowFieldDirectory)
+        """
+        logger = get_classMethod_logger(self, "_resolveDispersionFlowField")
+        flowFieldRef = hermes_dispersionWorkflow.dispersionFlowFieldName
+
+        # Try the name first, then the absolute path as fallback.
+        docList = self.toolkit.getCaseListDocumentFromDB(flowFieldRef)
+        if len(docList) == 0:
+            docList = self.toolkit.getCaseListDocumentFromDB(os.path.abspath(flowFieldRef))
+            if len(docList) == 0:
+                raise ValueError(
+                    f"Dispersion flow field '{flowFieldRef}' not found in DB. Add it first."
+                )
+
+        # If the workflow used a directory path, update to the canonical DB name.
+        dbName = docList[0].desc['workflowName']
+        if flowFieldRef != dbName:
+            logger.debug(f"Updating flow field reference: {flowFieldRef} → {dbName}")
+            hermes_dispersionWorkflow.dispersionFlowFieldName = dbName
+
+        return dbName, docList[0].resource
+
+    def _checkDBConsistency(self, workflow, updateDB, exportFromDB, allowDuplicate):
+        """Check DB for existing workflows with the same name or parameters.
+
+        Returns
+        -------
+        tuple of (workflow, updateWorkflow, needDBAdd, foundInconsistency)
+        """
+        logger = get_classMethod_logger(self, "_checkDBConsistency")
         updateWorkflow = False
         foundInconsistency = None
         needDBAdd = False
 
-        # 1. Check if the dispersion workflow name is in the DB under a different name.
-        logger.debug("Querying DB to see if the a workflow exists with a similar name")
-        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(hermes_dispersionWorkflow.name)
-        if len(doc_nameQueryList) > 0:
-            logger.debug("Found a workflow with the same name. Check for inconsistency between DB and input")
+        # Check 1: Does a workflow with the same NAME exist in DB?
+        doc_nameQueryList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
 
+        if len(doc_nameQueryList) > 0:
+            # Same name found — compare parameters to detect inconsistency.
             doc_similarWorkflow = self.toolkit.getHemresWorkflowFromDocument(doc_nameQueryList[0])
-            res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, hermes_dispersionWorkflow])
+            res = self.toolkit.compareWorkflowsObj([doc_similarWorkflow, workflow])
+
             if len(res.columns) == 1:
-                logger.info(f"The workflow in the DB is identical to the disk.")
-                hermes_dispersionWorkflow = hermes_dispersionWorkflow
+                # Identical — no action needed.
+                logger.info("Workflow in DB is identical to input.")
             else:
-                logger.debug(f"The workflow in the DB is different than the disk: \n\n {res}")
+                # Parameters differ — resolve based on flags.
+                logger.debug(f"DB workflow differs from input:\n{res}")
                 if exportFromDB:
-                    hermes_dispersionWorkflow = doc_similarWorkflow
+                    workflow = doc_similarWorkflow
                 elif updateDB:
-                    logger.debug("Updating the DB with the workflow from disk")
-                    hermes_dispersionWorkflow = hermes_dispersionWorkflow
                     updateWorkflow = True
                     foundInconsistency = res
                 else:
-                    err = f"The workflow in {hermes_dispersionWorkflow} file and in the DB are different. Use the --updateDB to update the DB or --exportFromDB to rewrite the file"
-                    logger.error(err)
-                    raise ValueError(err)
+                    raise ValueError(
+                        f"Workflow '{workflow.name}' exists in DB with different parameters. "
+                        f"Use updateDB=True or exportFromDB=True."
+                    )
         else:
-            logger.debug("Record not found. Querying DB to see if that workflow exists under a different name")
-
-            otherWorkflows = self.toolkit.getHermesWorkflowFromDB(hermes_dispersionWorkflow)
-            logger.debug(f"Found {len(otherWorkflows)} records that match workflow.")
-            if len(otherWorkflows) > 0:
+            # Check 2: Does a workflow with the same PARAMETERS exist under a different name?
+            otherWorkflows = self.toolkit.getHermesWorkflowFromDB(workflow)
+            if otherWorkflows and len(otherWorkflows) > 0:
                 foundNames = [x.desc['workflowName'] for x in otherWorkflows]
-                logger.info(
-                    f"The workflows {','.join(foundNames)} match the workflow that was given as input, but have different names.")
                 if not allowDuplicate:
-                    err = f"Found the input workflow under the names {','.join(foundNames)}. The supplied name is {hermes_dispersionWorkflow.name}. " \
-                          f"Force the addition of a duplicate case by using the --allowDuplicate flag"
-                    logger.error(err)
-                    raise FileExistsError(err)
-                else:
-                    logger.debug("--allowDuplicate was supplied, so allowing duplication addition to DB")
-                    needDBAdd = True
+                    raise FileExistsError(
+                        f"Workflow exists under names {foundNames}. "
+                        f"Use allowDuplicate=True to add anyway."
+                    )
+                needDBAdd = True
 
-        logger.debug(
-            f"Check if dispersion {dispersionDirectoryName} already exists. If it is remove for fresh start only if it needs rewrite and the  --rewrite was supplied")
-        if os.path.isdir(dispersionDirectoryName):
-            logger.debug("Directory already exists")
-            if foundInconsistency is not None:
-                logger.debug(
-                    f"The directory {dispersionDirectoryName} exists and differ than DB. Rewriting is needed as disk version was selected with --updateDB flag")
-                if rewrite:
-                    logger.info(f"rewrite flag exists: removing the directory {dispersionDirectoryName}")
-                    shutil.rmtree(dispersionDirectoryName)
-                else:
-                    err = f"The dispersion directory {dispersionDirectoryName} already exists, and the input workflow does not match DB: \n{res}\n\n Use --rewrite to force removing and recreating"
-                    logger.error(err)
-                    raise ValueError(err)
+        return workflow, updateWorkflow, needDBAdd, foundInconsistency
 
-        # 3. Create the dispersion case and link to the workflow.
-        logger.info(
-            f"Creating dispersion case {dispersionDirectoryName}  and linking to {dispersionFlowFieldDirectory}")
-        self.toolkit.stochasticLagrangian.createAndLinkDispersionCaseDirectory(dispersionDirectoryName,
-                                                                               dispersionFlowDirectory=dispersionFlowFieldDirectory)
+    def _resolveDirectoryConflict(self, directoryPath, foundInconsistency, rewrite):
+        """Handle existing directory: remove if rewrite=True and inconsistent."""
+        logger = get_classMethod_logger(self, "_resolveDirectoryConflict")
 
-        # 5. Add/update to the DB.
-        logger.debug(
-            "add to DB if not exist. If exists, check what needs to be updated (dispersionFlowField or the entire code)")
+        if not os.path.isdir(directoryPath):
+            return  # No conflict.
+
+        if foundInconsistency is not None:
+            # Directory exists but is inconsistent with the chosen workflow.
+            if rewrite:
+                logger.info(f"Rewrite flag: removing {directoryPath}")
+                shutil.rmtree(directoryPath)
+            else:
+                raise ValueError(
+                    f"Directory {directoryPath} exists with inconsistent workflow. "
+                    f"Use rewrite=True to recreate."
+                )
+
+    def _syncDispersionToDB(self, workflow, directoryName, flowFieldName,
+                             needDBAdd, updateWorkflow):
+        """Add a new DB document or update an existing one."""
+        logger = get_classMethod_logger(self, "_syncDispersionToDB")
+
         if needDBAdd:
-            groupName = hermes_dispersionWorkflow.name.split("_")[0]
-            groupID = hermes_dispersionWorkflow.name.split("_")[1]
-
-            logger.execute(f"Adding new document with group {groupName} and {groupID}")
-            self.toolkit.addSimulationsDocument(resource=dispersionDirectoryName, \
-                                                dataFormat=datatypes.STRING, \
-                                                type=self.toolkit.DOCTYPE_WORKFLOW, \
-                                                desc=dict( \
-                                                    groupName=groupName, \
-                                                    groupID=groupID, \
-                                                    workflowName=dispersionFlowFieldName, \
-                                                    workflowType=hermes_dispersionWorkflow.workflowType, \
-                                                    workflow=hermes_dispersionWorkflow.json, \
-                                                    parameters=hermes_dispersionWorkflow.parametersJSON \
-                                                    ) \
-                                                )
+            # New workflow — extract group/ID from naming convention.
+            groupName = workflow.name.split("_")[0]
+            groupID = workflow.name.split("_")[1]
+            logger.info(f"Adding new document: group={groupName}, id={groupID}")
+            self.toolkit.addSimulationsDocument(
+                resource=directoryName,
+                dataFormat=datatypes.STRING,
+                type=self.toolkit.DOCTYPE_WORKFLOW,
+                desc=dict(
+                    groupName=groupName,
+                    groupID=groupID,
+                    workflowName=flowFieldName,
+                    workflowType=workflow.workflowType,
+                    workflow=workflow.json,
+                    parameters=workflow.parametersJSON,
+                ),
+            )
         elif updateWorkflow:
-            logger.execute("Updating workflow")
-            doc = doc_nameQueryList[0]
-            doc.desc['workflow'] = hermes_dispersionWorkflow.json
-            doc.desc['parameters'] = hermes_dispersionWorkflow.parametersJSON
-
-            jsonstr = json.dumps(doc.desc, indent=4)
-            logger.debug(f"Saving desc \n{jsonstr}\n to DB")
-            doc.save()
+            # Existing workflow — update parameters in DB.
+            docList = self.toolkit.getCaseListDocumentFromDB(workflow.name)
+            if len(docList) > 0:
+                doc = docList[0]
+                doc.desc['workflow'] = workflow.json
+                doc.desc['parameters'] = workflow.parametersJSON
+                logger.info("Updating workflow in DB")
+                doc.save()
 
     def createAndLinkDispersionCaseDirectory(self, dispersionDirectory, dispersionFlowDirectory):
         """Create a dispersion case directory and link it to the flow field directory."""
@@ -752,7 +764,14 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         return pandas.DataFrame({"x": xs, "y": ys, "z": zs})
 
     def getMassFromLog(self, logFile, solver="StochasticLagrangianSolver"):
-        """Parse mass and parcel fate information from a solver log file."""
+        """Parse mass and parcel fate information from a solver log file.
+
+        The log file has a repeating structure per timestep:
+        1. "Time = <t>" line marks a new timestep
+        2. Cloud name line marks the start of cloud output
+        3. For each source: release count + mass, then parcel fate (escape/stick)
+        4. "ExecutionTime" marks end of timestep output
+        """
         count = 0
         times = []
         names = []
@@ -771,20 +790,28 @@ class absractStochasticLagrangianSolver_toolkitExtension:
         with open(logFile, "r") as readFile:
             Lines = readFile.readlines()
 
+        # Phase 1: Skip header lines until we find the first solver execution line.
+        # The format is "Exec <solver>" — skip 2 more lines after that.
         for line in Lines:
             count += 1
             if "Exec" in line and solver in line:
                 count += 2
                 break
 
+        # Phase 2: Parse timesteps until "End" marker.
+        # State machine: outer loop finds "Time" lines, inner loop parses
+        # cloud output until "ExecutionTime".
         while "End" not in Lines[count]:
             if "Time" in Lines[count]:
                 time = float(Lines[count].split()[-1])
+                # Scan forward to the cloud name line.
                 while f"{self._datalayer.cloudName}\n" not in Lines[count]:
                     count += 1
                 count += 1
+                # Parse cloud output: each source has release info + parcel fate.
                 while "ExecutionTime" not in Lines[count]:
                     if "Parcel fate" in Lines[count]:
+                        # Parcel fate block: next 2 lines are escape and stick counts.
                         name = Lines[count].split()[-1]
                         count += 1
                         addToLists(time=time, name=name, action="escape", parcel=float(Lines[count].split()[-2][:-1]),
@@ -793,6 +820,7 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                         addToLists(time=time, name=name, action="stick", parcel=float(Lines[count].split()[-2][:-1]),
                                    m=float(Lines[count].split()[-1]))
                     elif ":\n" in Lines[count]:
+                        # Release block: source name, then parcel count, then mass.
                         name = Lines[count].split()[0][:-1]
                         count += 1
                         parcel = float(Lines[count].split()[-1])
@@ -837,205 +865,298 @@ class absractStochasticLagrangianSolver_toolkitExtension:
     def getCaseResults(self, caseDescriptor, timeList=None, withVelocity=True, withReleaseTimes=False, withMass=True,
                        cloudName="kinematicCloud", forceSingleProcessor=False, cache=True, overwrite=False):
         """
-            Reads cloud data from the disk.
+        Read Lagrangian cloud data from disk, with caching support.
 
-            Checks if parallel data exists and reads it (unless forceSingleProcessor is True).
+        Checks for cached results first; if not cached (or overwrite=True),
+        reads particle data from the OpenFOAM case (parallel or serial),
+        optionally caches to parquet.
 
         Parameters
         ----------
-        caseDescriptor : str, MetadataFrame
-            The descriptor of the case.
-            Can be the name, the resource, the parameter files and ect.
-
-            if MetadataFrame (a DB document), then use the desc['workflowName'] to look for the cache.
-
-        times : list
-            If none, read all time.
+        caseDescriptor : str or MetadataFrame
+            Case name, directory path, or DB document.
+        timeList : list, optional
+            Specific timesteps to read. If None, reads all.
         withVelocity : bool
-            read the velocity
+            Include velocity fields.
         withReleaseTimes : bool
-            reads the age of the particles.
-
-        withMass  :true
-            Reads the mass of the particles.
+            Include particle age.
+        withMass : bool
+            Include particle mass.
         cloudName : str
-            The cloud name
-
-        cache: bool [default True]
-            If true, update the cache, else just compute and do not
-            store in the DB.
-
-        overwrite: bool [default False]
-            If false, check if cache exists and return it if it does, else compute.
-            If true,  compute and update the cache (if exists) or write a new cache.
-
+            OpenFOAM cloud name (default: ``"kinematicCloud"``).
         forceSingleProcessor : bool
-            Force the procedure to read the case from the  single processor run.
-            That is, read the timestep directories in the case directory and not from the ProcessorX directory
-            (where the parallel simulation saves its data).
+            Force serial read even if parallel directories exist.
+        cache : bool
+            Save results to DB cache.
+        overwrite : bool
+            Force recomputation even if cache exists.
 
         Returns
         -------
-            dask.dataFrame.
+        dask.dataframe.DataFrame
         """
         logger = get_classMethod_logger(self, "getCaseResults")
-        logger.info(f"Getting stochastic results. Overwrite {overwrite}")
 
-        if isinstance(caseDescriptor, str):
-            caseDescriptorName = caseDescriptor
-        elif isinstance(caseDescriptor, MetadataFrame):
-            caseDescriptorName = caseDescriptor.desc['workflowName']
-            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
-        else:
-            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
-            logger.error(err)
-            raise ValueError(err)
+        # Step 1: Resolve the case descriptor to a name string.
+        caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
 
-        logger.info(f"Checking to see if the data {caseDescriptorName} is cached in the DB")
-        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_LAGRANGIAN_CACHE,dockind=self.toolkit.DOCKIND_CACHE)
-        if len(cachedDocumentList) == 0:
-            logger.info(f"Data for {caseDescriptor} is not cached")
-            cacheDoc = None
-        elif len(cachedDocumentList) > 1:
-            err = f"There is more than one data item for  for {caseDescriptor} cached!. The name of the workflow is not unique. Please remove one."
-            logger.error(err)
-            raise ValueError(err)
-        else:
-            cacheDoc = cachedDocumentList[0]
+        # Step 2: Check cache — return early if cached and not overwriting.
+        cacheDoc, cachedData = self._checkCache(
+            caseDescriptorName, self.DOCTYPE_LAGRANGIAN_CACHE, overwrite
+        )
+        if cachedData is not None:
+            return cachedData
 
-        reCalculate = True
-        if cacheDoc is not None:
-            logger.info(f"Found {caseDescriptor} in the database. ")
-            if overwrite:
-                logger.info("overwrite is True, recalculate it, delting the files first. ")
-                if os.path.isdir(cacheDoc.resource):
-                    logger.info(f"Removing the file {cacheDoc.resource} as directoy")
-                    import shutil
-                    shutil.rmtree(cacheDoc.resource)
-                elif os.path.isfile(cacheDoc.resource):
-                    logger.info(f"Removing the file {cacheDoc.resource} as a file")
-                    os.remove(cacheDoc.resource)
-                else:
-                    logger.info("File does not exist, continue")
-            else:
-                logger.info("Returning the cached data")
-                try:
-                    ret = cacheDoc.getData()
-                    reCalculate = False
-                except FileNotFoundError:
-                    logger.error(
-                        "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
-                    for doc in cachedDocumentList:
-                        logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
-                        doc.delete()
-                    ret = None
+        # Step 3: Locate the case directory (DB or filesystem).
+        finalCasePath, workflowName = self._locateCaseDirectory(caseDescriptorName, caseDescriptor)
 
-        if reCalculate:
-            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
-            logger.debug(f"Initializing dask client")
-            daskClient = Client()
+        # Step 4: Build the record loader for Lagrangian particle data.
+        loader = lambda timeName: readLagrangianRecord(
+            timeName, casePath=finalCasePath,
+            withVelocity=withVelocity, withReleaseTimes=withReleaseTimes,
+            cloudName=cloudName, withMass=withMass
+        )
 
-            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
-            if len(docList) == 0:
-                logger.info("not found, trying as a directory")
-                finalCasePath = os.path.abspath(caseDescriptor)
-                workflowName = caseDescriptor
-                if not os.path.isdir(os.path.abspath(caseDescriptor)):
-                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
-                    logger.error(err)
-                    raise FileNotFoundError(err)
-                else:
-                    logger.info(f"Found as a directory")
-            else:
-                logger.info(f"Found, Loading data from {docList[0].resource}")
+        # Step 5: Discover timesteps and load data via Dask.
+        daskClient = Client()
+        ret = self._loadCaseDataViaDask(
+            finalCasePath, loader, timeList, forceSingleProcessor, daskClient
+        )
 
-                finalCasePath = docList[0].resource
-                workflowName  = docList[0].desc['workflowName']
+        # Step 6: Cache results if requested.
+        if cache:
+            ret = self._saveToCacheParquet(
+                ret, cacheDoc, caseDescriptor, workflowName,
+                cloudName, self.DOCTYPE_LAGRANGIAN_CACHE, datatypes.PARQUET
+            )
 
-            loader = lambda timeName: readLagrangianRecord(timeName,
-                                                           casePath=finalCasePath,
-                                                           withVelocity=withVelocity,
-                                                           withReleaseTimes=withReleaseTimes,
-                                                           cloudName=cloudName,
-                                                           withMass=withMass)
-
-            logger.info("Checking if the case is single processor or multiprocessor")
-            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
-                logger.info("Process as parallel case")
-                processorList = [os.path.basename(proc) for proc in
-                                 glob.glob(os.path.join(finalCasePath, "processor*"))]
-
-                if timeList is None:
-                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                            x.isdigit() and
-                            (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                      key=lambda x: int(x))
-
-                logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
-
-                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
-                              product(processorList, timeList)]
-
-
-
-                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
-
-
-            else:
-                logger.info("Process as singleProcessor case")
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-                logger.debug(f"Loading single processor data with time list {timeList}")
-
-                loaderList = [timeName for timeName in timeList]
-
-                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
-
-            if cache:
-                logger.info(f"Updating the results in the cache. ")
-                if cacheDoc is not None:
-                    logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
-                    fullname = cacheDoc.resource
-                else:
-                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
-                    logger.debug(f"Writing data to {targetDir}")
-                    os.makedirs(targetDir, exist_ok=True)
-                    fullname = os.path.join(targetDir, f"{cloudName}.parquet")
-                    desc = dict(workflowName=caseDescriptor)
-                    desc['cloudName'] = cloudName
-
-                    logger.debug(f"...saving data in file {fullname}")
-                    self.toolkit.addCacheDocument(dataFormat=datatypes.PARQUET,
-                                                  type=self.DOCTYPE_LAGRANGIAN_CACHE,
-                                                  resource=fullname,
-                                                  desc=desc)
-
-                logger.info(f"Writing data to parquet {fullname}... This may take a while")
-                ret.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
-                ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
-            else:
-                logger.info(f"No caching, return the data as is. ")
-
-            daskClient.close()
-
-
+        daskClient.close()
         return ret
 
-    def getDispersionDocument(self,nameOrDispersionWorkflow):
-        """
-            Return the DB document of the dispersiion
-        Parameters
-        ----------
-        nameOrDispersionWorkflow: str, workflow_StochasticLagrangianSolver
-                The name of the workflow or an instance of the hermes workflow of the StochasticLagrangianSolver).
+    # ------------------------------------------------------------------
+    # Shared helpers for getCaseResults / getCaseConcentrationsEulerian
+    # ------------------------------------------------------------------
+
+    def _resolveCaseDescriptorName(self, caseDescriptor):
+        """Extract a string name from a case descriptor (str or MetadataFrame)."""
+        if isinstance(caseDescriptor, str):
+            return caseDescriptor
+        elif isinstance(caseDescriptor, MetadataFrame):
+            return caseDescriptor.desc['workflowName']
+        else:
+            raise ValueError("caseDescriptor must be a string or MetadataFrame.")
+
+    def _checkCache(self, caseDescriptorName, doctype, overwrite):
+        """Check if cached results exist in the DB.
 
         Returns
         -------
-
+        tuple of (cacheDoc or None, cachedData or None)
+            If cache hit and not overwriting, returns (doc, data).
+            If cache miss or overwriting, returns (doc_or_None, None).
         """
+        logger = get_classMethod_logger(self, "_checkCache")
+        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(
+            caseDescriptorName, doctype=doctype, dockind=self.toolkit.DOCKIND_CACHE
+        )
 
-        getWorkflowDocumentFromDB
+        if len(cachedDocumentList) == 0:
+            return None, None
+
+        if len(cachedDocumentList) > 1:
+            raise ValueError(
+                f"Multiple cache entries for {caseDescriptorName}. Remove duplicates."
+            )
+
+        cacheDoc = cachedDocumentList[0]
+
+        if overwrite:
+            # Delete the cached file on disk so it will be recomputed.
+            logger.info("Overwrite requested — removing cached file.")
+            if os.path.isdir(cacheDoc.resource):
+                shutil.rmtree(cacheDoc.resource)
+            elif os.path.isfile(cacheDoc.resource):
+                os.remove(cacheDoc.resource)
+            return cacheDoc, None
+
+        # Try to load from cache.
+        try:
+            data = cacheDoc.getData()
+            logger.info("Returning cached data.")
+            return cacheDoc, data
+        except FileNotFoundError:
+            # Cache document exists but file is missing — clean up.
+            logger.error("Cached file not found. Removing stale cache document.")
+            for doc in cachedDocumentList:
+                doc.delete()
+            return None, None
+
+    def _locateCaseDirectory(self, caseDescriptorName, caseDescriptor):
+        """Find the OpenFOAM case directory from DB or filesystem.
+
+        Returns
+        -------
+        tuple of (str, str)
+            (casePath, workflowName)
+        """
+        logger = get_classMethod_logger(self, "_locateCaseDirectory")
+        docList = self.toolkit.getWorkflowDocumentFromDB(
+            caseDescriptorName,
+            doctype=self.toolkit.DOCTYPE_WORKFLOW,
+            dockind=self.toolkit.DOCKIND_SIMULATIONS
+        )
+
+        if len(docList) == 0:
+            # Not in DB — try as a filesystem path.
+            casePath = os.path.abspath(str(caseDescriptor))
+            if not os.path.isdir(casePath):
+                raise FileNotFoundError(
+                    f"{casePath} is not a directory and not in the DB."
+                )
+            logger.info(f"Found as directory: {casePath}")
+            return casePath, str(caseDescriptor)
+
+        logger.info(f"Found in DB: {docList[0].resource}")
+        return docList[0].resource, docList[0].desc['workflowName']
+
+    def _discoverTimesteps(self, casePath, processorDir=None):
+        """Discover numeric time directories, filtering out system dirs.
+
+        Parameters
+        ----------
+        casePath : str
+            Base case directory.
+        processorDir : str, optional
+            Processor subdirectory (e.g. "processor0"). If None, scan casePath directly.
+
+        Returns
+        -------
+        list of str
+            Sorted time directory names.
+        """
+        scanDir = os.path.join(casePath, processorDir) if processorDir else casePath
+        excluded = {"constant", "system", "rootCase", "VTK"}
+        return sorted(
+            [x for x in os.listdir(scanDir)
+             if (os.path.isdir(os.path.join(scanDir, x))
+                 and x.isdigit()
+                 and not x.startswith("processor")
+                 and x not in excluded)],
+            key=lambda x: int(x)
+        )
+
+    def _loadCaseDataViaDask(self, casePath, loader, timeList, forceSingleProcessor, daskClient):
+        """Load OpenFOAM case data using Dask distributed map.
+
+        Detects parallel vs serial case, discovers timesteps if needed,
+        builds the loader argument list, and returns a Dask DataFrame.
+
+        Parameters
+        ----------
+        casePath : str
+            Path to the OpenFOAM case.
+        loader : callable
+            Function that reads a single timestep (takes timeName string).
+        timeList : list or None
+            Specific timesteps. If None, discover all.
+        forceSingleProcessor : bool
+            Force serial read.
+        daskClient : dask.distributed.Client
+            Active Dask client.
+
+        Returns
+        -------
+        dask.dataframe.DataFrame
+        """
+        logger = get_classMethod_logger(self, "_loadCaseDataViaDask")
+
+        isParallel = (os.path.exists(os.path.join(casePath, "processor0"))
+                      and not forceSingleProcessor)
+
+        if isParallel:
+            logger.info("Processing as parallel case")
+            processorList = [os.path.basename(p)
+                             for p in glob.glob(os.path.join(casePath, "processor*"))]
+            if timeList is None:
+                timeList = self._discoverTimesteps(casePath, processorList[0])
+            # Cartesian product: every (processor, timestep) combination.
+            loaderList = [os.path.join(proc, t)
+                          for proc, t in product(processorList, timeList)]
+        else:
+            logger.info("Processing as single-processor case")
+            if timeList is None:
+                timeList = self._discoverTimesteps(casePath)
+            loaderList = list(timeList)
+
+        logger.debug(f"Loading {len(loaderList)} items")
+        return dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
+
+    def _saveToCacheParquet(self, data, cacheDoc, caseDescriptor,
+                             workflowName, cloudName, doctype, dataFormat):
+        """Save Dask DataFrame to parquet cache and register in DB."""
+        logger = get_classMethod_logger(self, "_saveToCacheParquet")
+
+        if cacheDoc is not None:
+            fullname = cacheDoc.resource
+        else:
+            targetDir = os.path.join(
+                self.toolkit.filesDirectory, "cachedLagrangianData", workflowName
+            )
+            os.makedirs(targetDir, exist_ok=True)
+            fullname = os.path.join(targetDir, f"{cloudName}.parquet")
+            self.toolkit.addCacheDocument(
+                dataFormat=dataFormat, type=doctype,
+                resource=fullname,
+                desc={"workflowName": caseDescriptor, "cloudName": cloudName}
+            )
+
+        logger.info(f"Writing to parquet: {fullname}")
+        data.set_index("datetime").repartition(partition_size="100MB").to_parquet(fullname)
+        return dask.dataframe.read_parquet(fullname, engine='pyarrow')
+
+    def _saveToCacheNetCDF(self, data, cacheDoc, caseDescriptor,
+                            workflowName, cloudName, doctype):
+        """Save Dask DataFrame as xarray netCDF cache and register in DB."""
+        logger = get_classMethod_logger(self, "_saveToCacheNetCDF")
+
+        if cacheDoc is not None:
+            fullname = cacheDoc.resource
+        else:
+            targetDir = os.path.join(
+                self.toolkit.filesDirectory, "cachedLagrangianData", workflowName
+            )
+            os.makedirs(targetDir, exist_ok=True)
+            fullname = os.path.join(targetDir, f"{cloudName}ConcentrationEulerian.nc")
+            self.toolkit.addCacheDocument(
+                dataFormat=datatypes.NETCDF_XARRAY, type=doctype,
+                resource=fullname,
+                desc={"workflowName": caseDescriptor, "cloudName": cloudName}
+            )
+
+        logger.info(f"Writing to netCDF: {fullname}")
+        # Group by grid cell, sum concentrations from all processors, convert to xarray.
+        ret = data.groupby(["datetime", "x", "y", "z"]).sum().compute().to_xarray().fillna(0)
+        ret.to_netcdf(fullname)
+        return ret
+
+    def getDispersionDocument(self, nameOrDispersionWorkflow):
+        """Return the DB document for a dispersion simulation.
+
+        Parameters
+        ----------
+        nameOrDispersionWorkflow : str or workflow_StochasticLagrangianSolver
+            The name of the workflow or a workflow instance.
+
+        Returns
+        -------
+        document or None
+            The DB document, or None if not found.
+        """
+        # TODO: This method was incomplete in the original code (bare reference
+        # to getWorkflowDocumentFromDB without calling it). Implemented as a
+        # simple delegation to the toolkit's workflow document lookup.
+        return self.toolkit.getWorkflowDocumentFromDB(nameOrDispersionWorkflow)
 
     def getDispersionFlowDocument(self,nameOrDispersionWorkflow):
         """
@@ -1146,163 +1267,66 @@ class absractStochasticLagrangianSolver_toolkitExtension:
                                       cache=True,
                                       forceSingleProcessor=False):
         """
-            Reads the output of the cloud function concentrationField.
-            The output is the CSV file :
+        Read Eulerian concentration fields from disk, with caching support.
 
-            x,y,z,C
-
-            where dx,dy and dz are given in the concentration file.
+        Reads the CSV output of the concentrationField cloud function.
+        Uses the same cache/load/compute pattern as ``getCaseResults``
+        but stores results as netCDF (xarray) instead of parquet.
 
         Parameters
         ----------
-        caseDescriptor : string
-            The name of the case/ the directory.
-
-        timeList : list
-            The time slices to read. If None read all.
-
-        overwrite: bool
-            If True, reread and overwrite the cache.
+        caseDescriptor : str or MetadataFrame
+            Case name, directory path, or DB document.
+        timeList : list, optional
+            Specific timesteps. If None, reads all.
+        overwrite : bool
+            Force recomputation.
+        cloudName : str
+            OpenFOAM cloud name.
+        cache : bool
+            Save results to DB cache.
+        forceSingleProcessor : bool
+            Force serial read.
 
         Returns
         -------
-            xarray with the concentrations.
+        xarray.Dataset
+            Concentration field indexed by (datetime, x, y, z).
         """
         logger = get_classMethod_logger(self, "getCaseConcentrationsEulerian")
-        logger.info(f"Getting stochastic results. Overwrite {overwrite}")
 
-        if isinstance(caseDescriptor, str):
-            caseDescriptorName = caseDescriptor
+        # Step 1: Resolve case descriptor.
+        caseDescriptorName = self._resolveCaseDescriptorName(caseDescriptor)
 
-        elif isinstance(caseDescriptor, MetadataFrame):
-            caseDescriptorName = caseDescriptor.desc['workflowName']
-            logger.info(f"caseDescriptor is a case document, Case descriptor name is {caseDescriptorName}. Checking if the cache exists for it")
-        else:
-            err = f"The caseDescriptor parameter can be either string or and OpenFoam Document class. Aborting"
-            logger.error(err)
-            raise ValueError(err)
+        # Step 2: Check cache.
+        cacheDoc, cachedData = self._checkCache(
+            caseDescriptorName, self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE, overwrite
+        )
+        if cachedData is not None:
+            return cachedData
 
-        logger.info(f"Checking to see if the data {caseDescriptorName} is cached in the DB")
-        cachedDocumentList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE,dockind=self.toolkit.DOCKIND_CACHE)
-        if len(cachedDocumentList) == 0:
-            logger.info(f"Data for {caseDescriptor} is not cached")
-            cacheDoc = None
-        elif len(cachedDocumentList) > 1:
-            err = f"There is more than one data item for  for {caseDescriptor} cached!. The name of the workflow is not unique. Please remove one."
-            logger.error(err)
-            raise ValueError(err)
-        else:
-            cacheDoc = cachedDocumentList[0]
+        # Step 3: Locate case directory.
+        finalCasePath, workflowName = self._locateCaseDirectory(caseDescriptorName, caseDescriptor)
 
-        reCalculate = True
-        if cacheDoc is not None:
-            logger.info(f"Found {caseDescriptor} in the database. ")
-            if overwrite:
-                logger.info("overwrite is True, recalculate it, delting the files first. ")
-                if os.path.isdir(cacheDoc.resource):
-                    logger.info(f"Removing the file {cacheDoc.resource} as directoy")
-                    import shutil
-                    shutil.rmtree(cacheDoc.resource)
-                elif os.path.isfile(cacheDoc.resource):
-                    logger.info(f"Removing the file {cacheDoc.resource} as a file")
-                    os.remove(cacheDoc.resource)
-                else:
-                    logger.info("File does not exist, continue")
-            else:
-                logger.info("Returning the cached data")
-                try:
-                    ret = cacheDoc.getData()
-                    reCalculate = False
-                except FileNotFoundError:
-                    logger.error(
-                        "The parquet is not found, or Invalid. Removing the cache document. Run again the procedure to regenerate the cahce")
-                    for doc in cachedDocumentList:
-                        logger.error(f"Removing {json.dumps(doc.desc, indent=4)}")
-                        doc.delete()
-                    ret = None
+        # Step 4: Build Eulerian concentration loader.
+        loader = lambda timeName: readEulerianConcentration(
+            timeName, casePath=finalCasePath, cloudName=cloudName
+        )
 
-        if reCalculate:
-            logger.info(f"Calculating the data. Trying to find the metadata of the case {caseDescriptor}")
-            docList = self.toolkit.getWorkflowDocumentFromDB(caseDescriptorName, doctype=self.toolkit.DOCTYPE_WORKFLOW,dockind=self.toolkit.DOCKIND_SIMULATIONS)
-            if len(docList) == 0:
-                logger.info("not found, trying as a directory")
-                finalCasePath = os.path.abspath(caseDescriptor)
-                workflowName = caseDescriptor
-                if not os.path.isdir(os.path.abspath(caseDescriptor)):
-                    err = f"{finalCasePath} is not a directory, and does not exists in the DB. aborting"
-                    logger.error(err)
-                    raise FileNotFoundError(err)
-                else:
-                    logger.info(f"Found as a directory")
-            else:
-                logger.info(f"Found, Loading data from {docList[0].resource}")
-                finalCasePath = docList[0].resource
-                workflowName  = docList[0].desc['workflowName']
+        # Step 5: Load data via Dask.
+        daskClient = Client()
+        ret = self._loadCaseDataViaDask(
+            finalCasePath, loader, timeList, forceSingleProcessor, daskClient
+        )
 
-            loader = lambda timeName: readEulerianConcentration(timeName,
-                                                                casePath=finalCasePath,
-                                                                cloudName=cloudName)
+        # Step 6: Cache as netCDF (group by grid cell, sum concentrations).
+        if cache:
+            ret = self._saveToCacheNetCDF(
+                ret, cacheDoc, caseDescriptor, workflowName,
+                cloudName, self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE
+            )
 
-            logger.info("Checking if the case is single processor or multiprocessor")
-            daskClient = Client()
-            if os.path.exists(os.path.join(finalCasePath, "processor0")) and not forceSingleProcessor:
-                logger.info("Process as parallel case")
-                processorList = [os.path.basename(proc) for proc in
-                                 glob.glob(os.path.join(finalCasePath, "processor*"))]
-
-                if timeList is None:
-                    timeList = sorted([x for x in os.listdir(os.path.join(finalCasePath, processorList[0])) if (
-                            os.path.isdir(os.path.join(finalCasePath, processorList[0], x)) and
-                            x.isdigit() and
-                            (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                      key=lambda x: int(x))
-
-                logger.debug(f"Loading parallel data with time list {timeList} and processsor list {processorList}")
-
-                loaderList = [(os.path.join(processorName, timeName)) for processorName, timeName in
-                              product(processorList, timeList)]
-
-                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
-
-
-            else:
-                logger.info("Process as singleProcessor case")
-                timeList = sorted([x for x in os.listdir(finalCasePath) if (os.path.isdir(os.path.join(finalCasePath, x)) and x.isdigit() and (not x.startswith("processor") and x not in ["constant", "system", "rootCase", 'VTK']))],
-                                  key=lambda x: int(x))
-                logger.debug(f"Loading single processor data with time list {timeList}")
-
-                loaderList = [timeName for timeName in timeList]
-
-                ret = dask_dataframe.from_delayed(daskClient.map(loader, loaderList))
-
-            if cache:
-                logger.info(f"Updating the results in the cache. ")
-                if cacheDoc is not None:
-                    logger.info(f"Overwriting data in {cachedDocumentList[0].resource}")
-                    fullname = cacheDoc.resource
-                else:
-                    targetDir = os.path.join(self.toolkit.filesDirectory, "cachedLagrangianData",f"{workflowName}")
-                    logger.debug(f"Writing data to {targetDir}")
-                    os.makedirs(targetDir, exist_ok=True)
-                    fullname = os.path.join(targetDir, f"{cloudName}ConcentrationEulerian.nc")
-                    desc = dict(workflowName=caseDescriptor)
-                    desc['cloudName'] = cloudName
-
-                    logger.debug(f"...saving data in file {fullname}")
-                    self.toolkit.addCacheDocument(dataFormat=datatypes.NETCDF_XARRAY,
-                                                  type=self.DOCTYPE_CONCENTRATIONEULERIAN_CACHE,
-                                                  resource=fullname,
-                                                  desc=desc)
-
-                logger.info(f"Writing data to parquet {fullname}... This may take a while")
-
-                ret = ret.groupby(["datetime","x","y","z"]).sum().compute().to_xarray().fillna(0)
-                ret.to_netcdf(fullname)
-                #ret = dask.dataframe.read_parquet(fullname,engine='pyarrow')
-            else:
-                logger.info(f"No caching, return the data as is. ")
-            daskClient.close()
-
+        daskClient.close()
         return ret
 
 
