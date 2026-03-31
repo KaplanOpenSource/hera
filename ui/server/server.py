@@ -64,43 +64,6 @@ def jupyter_ensure(payload: JupyterStartPayload) -> dict:
     return {"port": jupyter.port, "root_dir": jupyter.root_dir}
 
 
-class NotebookPayload(BaseModel):
-    root_dir: str
-
-
-@app.get("/notebooks")
-def list_notebooks(root_dir: str) -> dict:
-    notebooks_dir = Path(root_dir) / "notebooks"
-    if not notebooks_dir.exists():
-        return {"notebooks": []}
-    files = sorted(
-        f.name for f in notebooks_dir.iterdir()
-        if f.suffix == ".ipynb" and f.is_file()
-    )
-    return {"notebooks": files}
-
-
-@app.post("/notebooks/create")
-def create_notebook(payload: NotebookPayload) -> dict:
-    import json as _json
-    notebooks_dir = Path(payload.root_dir) / "notebooks"
-    notebooks_dir.mkdir(parents=True, exist_ok=True)
-    existing = [
-        int(f.stem.split("_")[1])
-        for f in notebooks_dir.iterdir()
-        if f.suffix == ".ipynb" and f.stem.startswith("notebook_") and f.stem.split("_")[1].isdigit()
-    ]
-    next_id = max(existing, default=0) + 1
-    name = f"notebook_{next_id}.ipynb"
-    empty_notebook = {
-        "nbformat": 4,
-        "nbformat_minor": 5,
-        "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
-        "cells": [],
-    }
-    (notebooks_dir / name).write_text(_json.dumps(empty_notebook, indent=2))
-    return {"name": name}
-
 
 @app.get("/cors")
 def cors_info() -> dict:

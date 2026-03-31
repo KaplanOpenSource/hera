@@ -13,7 +13,7 @@ import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RegisteredRepositories } from '../repo/RegisteredRepositories';
-import { NotebookTreeItem } from './NotebookTreeItem';
+import { NotebookList } from './NotebookList';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -126,11 +126,18 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
-      <NotebookTreeItem
+      <NotebookList
         filesDir={project.configDocument?.data.desc.filesDirectory ?? ''}
+        selectedItemId={selectedItemsIds[0]}
         onNotebookCreated={(itemId) => {
           setExpandedItems(prev => [...new Set([...prev, ID_NOTEBOOKS_GROUP])]);
           setSelectedItemIds([itemId]);
+        }}
+        onNotebookDeleted={() => setSelectedItemIds([])}
+        onNotebookRefresh={() => {
+          const current = selectedItemsIds[0];
+          setSelectedItemIds([]);
+          setTimeout(() => setSelectedItemIds([current]), 0);
         }}
       />
       <RegisteredRepositories showUpdateButton />
