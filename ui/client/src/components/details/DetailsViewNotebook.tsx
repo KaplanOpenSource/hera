@@ -11,10 +11,15 @@ export const DetailsViewNotebook = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${BASEURL}/jupyter`)
-      .then(r => r.json())
-      .then(data => setJupyterPort(data.port))
-      .catch(() => setError('Could not reach server'));
+    (async () => {
+      try {
+        const r = await fetch(`${BASEURL}/jupyter`);
+        const data = await r.json();
+        setJupyterPort(data.port);
+      } catch {
+        setError('Could not reach server');
+      }
+    })();
   }, []);
 
   if (error) return <Typography color="error">{error}</Typography>;
