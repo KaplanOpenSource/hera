@@ -381,131 +381,136 @@ class paraviewOpenFOAM:
 
     def writeCase(self, filtersDict, regularMesh, timeList=None, fieldnames=None, tsBlockNum=50, overwrite=False, latestTimestamp=False):
         """
-                Writes the requested fileters as parquet files.
+        Write VTK filter results to parquet (unstructured) or zarr (regular) files.
 
-                if overwrite=False then  find the time that is saved. Assume that all the filters have the same timelist.
+        Processes timesteps in blocks to control memory, writes temporary files,
+        then repartitions and merges into the final output. Supports append mode
+        (merging with existing data) and overwrite mode.
+
         Parameters
         ----------
-        filtersDict : dict : filterName -> output file name
-                List of VTK filters to write as parquets and the corresponding file name. 
-
-        timeList : None, list or float.
-                * None :  Use all time series. of the solver
-                * List : get the listed timesteps.
-                * float : Get only timesteps larger than this number
-        fieldnames : list
-                List of the fields to write in the filters (i.e the variables).
-
-        FileBaseName : str
-                The basic name of the file. Used to distinguish several filters with the same name.
+        filtersDict : dict
+            Mapping of filter name → output file path.
+        regularMesh : bool
+            If True, write zarr (xarray). If False, write parquet (dask DataFrame).
+        timeList : list or None
+            Timesteps to process. None = all available.
+        fieldnames : list, optional
+            VTK field names to extract.
         tsBlockNum : int
-                number of block
-
+            Number of timesteps to accumulate before writing a temporary block.
         overwrite : bool
-
-
-        append : bool
-                The
-
-        Returns
-        -------
-
+            If True, remove existing output files before writing.
+        latestTimestamp : bool
+            If True, only process the latest timestep.
         """
-        logger = get_classMethod_logger(self,"writeNonRegularCase")
-        logger.info(f"Starting writing to parquet filters {','.join(filtersDict.keys())}")
-
+        logger = get_classMethod_logger(self, "writeNonRegularCase")
         slice_filext = "zarr" if regularMesh else "parquet"
+        append = not overwrite
 
-        maxTime = -1  # take all
+        # Step 1: Clean old output files if overwriting.
         if overwrite:
-            logger.info(f"Removing the old results")
-            for filterName,outputPath in filtersDict.items():
-                logger.debug(f"The data for {filterName} : {outputPath}")
-                if os.path.isfile(outputPath):
-                    logger.debug(f"\tParquet file {outputPath} is a file. Removing it")
-                    os.remove(outputPath)
-                elif os.path.isdir(outputPath):
-                    logger.debug(f"\tParquet file {outputPath} is a directory. Removing the tree")
-                    shutil.rmtree(outputPath)
+            self._removeOldOutputs(filtersDict)
 
-        logger.info(f"Making sure that the output directories exist")
-        for filterName, outputFile in filtersDict.items():
-            outputPath = os.path.dirname(outputFile)
-            logger.debug(f"{filterName} for directory {outputPath}")
-            if not os.path.isdir(outputPath):
-                logger.debug(f"\t Does not exist. Creating {outputPath}")
-                os.makedirs(outputPath)
+        # Step 2: Ensure output directories exist.
+        self._ensureOutputDirs(filtersDict)
 
-
+        # Step 3: Resolve the timestep list.
         readTimesList = self.reader.TimestepValues if timeList is None else timeList
-        logger.info(f"Getting timelist {readTimesList}")
-        if latestTimestamp and len(readTimesList)!=0:
+        if latestTimestamp and len(readTimesList) != 0:
             readTimesList = [readTimesList[-1]]
 
+        # Step 4: Process timesteps in blocks of tsBlockNum.
+        # Each block is written to a temporary file to limit memory usage.
         blockID = 0
         tempList = []
-
-        append = False if overwrite else True
-        for filtersData in tqdm.tqdm(self.readTimeSteps(datasourcenamedict=filtersDict,
-                                              timelist=readTimesList,
-                                              fieldnames=fieldnames,
-                                              regularMesh=regularMesh)):
+        for filtersData in tqdm.tqdm(self.readTimeSteps(
+                datasourcenamedict=filtersDict, timelist=readTimesList,
+                fieldnames=fieldnames, regularMesh=regularMesh)):
             tempList.append(filtersData)
-            logger.debug(f"Current dataFrames in memory  {len(tempList)}")
             if len(tempList) == tsBlockNum:
-                self.writeList(tempList,blockID,filtersDict,regularMesh,slice_filext)
-                tempList=[]
+                self.writeList(tempList, blockID, filtersDict, regularMesh, slice_filext)
+                tempList = []
                 blockID += 1
-
+        # Write any remaining timesteps.
         if len(tempList) > 0:
-            self.writeList(tempList,blockID,filtersDict,regularMesh,slice_filext)
+            self.writeList(tempList, blockID, filtersDict, regularMesh, slice_filext)
 
-        logger.info("Repartitioning to 100MB per partition")
-        for filterName,outputFile in filtersDict.items():
-            logger.debug(f"Working on {filterName}")
+        # Step 5: Merge temporary block files into final output.
+        # Repartitions to ~100MB chunks and optionally appends to existing data.
+        for filterName, outputFile in filtersDict.items():
+            self._mergeTemporaryBlocks(
+                filterName, outputFile, regularMesh, slice_filext, append
+            )
 
-            outputFilterName = filterName
-            outputPath = os.path.dirname(outputFile)
-            outputFileList = [x for x in glob.glob(os.path.join(outputPath, f"tmp_{outputFilterName.replace('.','-')}_*.{slice_filext}"))]
+    def _removeOldOutputs(self, filtersDict):
+        """Remove existing output files/dirs before overwriting."""
+        logger = get_classMethod_logger(self, "_removeOldOutputs")
+        for filterName, outputPath in filtersDict.items():
+            if os.path.isfile(outputPath):
+                os.remove(outputPath)
+            elif os.path.isdir(outputPath):
+                shutil.rmtree(outputPath)
 
-            logger.debug(f"Saving all data to {outputFile}: {outputFileList}")
-            with (ProgressBar()):
-                if regularMesh:
-                        # input_data is the directory path here
-                        lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto', engine="zarr")
-                        if append and os.path.exists(outputFile):
-                            old_data = xarray.open_mfdataset(outputFile, chunks='auto', engine="zarr")
-                            lazy_ds = xarray.concat([lazy_ds,old_data],dim="time").sortby("time")
+    @staticmethod
+    def _ensureOutputDirs(filtersDict):
+        """Create output directories if they don't exist."""
+        for filterName, outputFile in filtersDict.items():
+            outputDir = os.path.dirname(outputFile)
+            if outputDir and not os.path.isdir(outputDir):
+                os.makedirs(outputDir)
 
-                        try:
-                            lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
-                        except NotImplementedError:
-                            # somethimes this works and sometimes the other. not clear yet when...
-                            lazy_ds.chunk("auto").to_zarr(f"{outputFile}.final", mode='w')
+    def _mergeTemporaryBlocks(self, filterName, outputFile, regularMesh, fileExt, append):
+        """Merge temporary block files into final output, repartition, and clean up.
 
-                else:
-                    newDataList = [dd.read_parquet(fileName) for fileName in outputFileList]
-                    if append and os.path.exists(outputFile):
-                        newDataList.append(dd.read_parquet(outputFile))
-                    allData = dd.concat(newDataList).repartition(partition_size="100MB")\
-                        .reset_index()\
-                        .set_index("time")\
-                        .to_parquet(f"{outputFile}.final")
+        For regular meshes: uses xarray + zarr with optional time-concatenation.
+        For unstructured meshes: uses dask + parquet with repartitioning.
+        Writes to a .final temp file then atomically renames.
+        """
+        logger = get_classMethod_logger(self, "_mergeTemporaryBlocks")
+        outputPath = os.path.dirname(outputFile)
+        # Find all temporary block files for this filter.
+        tmpPattern = f"tmp_{filterName.replace('.', '-')}_*.{fileExt}"
+        outputFileList = glob.glob(os.path.join(outputPath, tmpPattern))
 
-            if os.path.exists(outputFile):
-                if os.path.isfile(outputFile):
-                    os.remove(outputFile)
-                else:
-                    shutil.rmtree(outputFile)
+        logger.info(f"Merging {len(outputFileList)} blocks → {outputFile}")
+        with ProgressBar():
+            if regularMesh:
+                # Zarr path: open all blocks as a multi-file dataset, optionally
+                # append existing data, write to .final then rename.
+                lazy_ds = xarray.open_mfdataset(outputFileList, chunks='auto', engine="zarr")
+                if append and os.path.exists(outputFile):
+                    old_data = xarray.open_mfdataset(outputFile, chunks='auto', engine="zarr")
+                    lazy_ds = xarray.concat([lazy_ds, old_data], dim="time").sortby("time")
+                try:
+                    lazy_ds.to_zarr(f"{outputFile}.final", mode='w')
+                except NotImplementedError:
+                    # Workaround: some xarray versions need explicit rechunking.
+                    lazy_ds.chunk("auto").to_zarr(f"{outputFile}.final", mode='w')
+            else:
+                # Parquet path: concat all blocks, optionally append existing,
+                # repartition to 100MB, index by time, write to .final.
+                newDataList = [dd.read_parquet(f) for f in outputFileList]
+                if append and os.path.exists(outputFile):
+                    newDataList.append(dd.read_parquet(outputFile))
+                dd.concat(newDataList).repartition(partition_size="100MB") \
+                    .reset_index().set_index("time") \
+                    .to_parquet(f"{outputFile}.final")
 
-            os.rename(f"{outputFile}.final",outputFile)
+        # Atomic replace: remove old → rename .final → output.
+        if os.path.exists(outputFile):
+            if os.path.isfile(outputFile):
+                os.remove(outputFile)
+            else:
+                shutil.rmtree(outputFile)
+        os.rename(f"{outputFile}.final", outputFile)
 
-            logger.debug(f"Removing the old tmp files. ")
-            for fileTodelete in outputFileList:
-                if os.path.isfile(fileTodelete):
-                    os.remove(fileTodelete)
-                else:
-                    shutil.rmtree(fileTodelete)
+        # Clean up temporary block files.
+        for tmpFile in outputFileList:
+            if os.path.isfile(tmpFile):
+                os.remove(tmpFile)
+            else:
+                shutil.rmtree(tmpFile)
 
     def writeList(self,theList,blockID,filtersDict,regularMesh,fileExt):
         """Write a list of time step data blocks to temporary files."""
