@@ -1,14 +1,27 @@
-import { Box } from '@mui/material';
-
-const JUPYTER_PORT = 8888;
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { BASEURL } from '../../shared/baseurl';
 
 export const DetailsViewNotebook = ({
   name,
 }: {
   name: string,
 }) => {
+  const [jupyterPort, setJupyterPort] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASEURL}/jupyter`)
+      .then(r => r.json())
+      .then(data => setJupyterPort(data.port))
+      .catch(() => setError('Could not reach server'));
+  }, []);
+
+  if (error) return <Typography color="error">{error}</Typography>;
+  if (!jupyterPort) return <CircularProgress />;
+
   const host = window.location.hostname || 'localhost';
-  const src = `http://${host}:${JUPYTER_PORT}/notebooks/${encodeURIComponent(name)}.ipynb`;
+  const src = `http://${host}:${jupyterPort}/lab`;
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>

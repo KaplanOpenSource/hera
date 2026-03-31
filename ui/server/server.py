@@ -1,7 +1,9 @@
 import argparse
+import asyncio
 import mimetypes
 import os
 import sys
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -19,6 +21,7 @@ parser = argparse.ArgumentParser(description="Hera UI API server")
 cors_handler.add_argument(parser)
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
 parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
+parser.add_argument('--jupyter-port', type=int, default=8888, help='Port for Jupyter server (0 to disable)')
 args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")
@@ -38,9 +41,45 @@ app.add_middleware(
 # Mock data endpoints removed per simplified API
 
 
+JUPYTER_PORT = args.jupyter_port
+
+
+def _start_jupyter(port: int):
+    try:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        from jupyter_server.serverapp import ServerApp
+        ServerApp.init_signal = lambda self: None  # signals only work in main thread
+        jupyter_app = ServerApp.instance()
+        jupyter_app.initialize([
+            f'--port={port}',
+            '--no-browser',
+            '--allow-root',
+            '--ServerApp.token=',
+            '--ServerApp.password=',
+            '--ServerApp.disable_check_xsrf=True',
+            '--ServerApp.allow_origin=*',
+            '--ServerApp.tornado_settings={"headers": {"Content-Security-Policy": "frame-ancestors *"}}',
+        ])
+        jupyter_app.start()
+    except ImportError:
+        print("WARNING: jupyterlab is not installed — notebook server disabled. Install with: pip install jupyterlab")
+    except Exception as e:
+        print(f"ERROR: Jupyter server failed to start: {e}")
+
+
+if JUPYTER_PORT:
+    threading.Thread(target=_start_jupyter, args=(JUPYTER_PORT,), daemon=True).start()
+    print(f"Jupyter server starting on port {JUPYTER_PORT}")
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/jupyter")
+def jupyter_info() -> dict:
+    return {"port": JUPYTER_PORT}
 
 
 @app.get("/cors")
