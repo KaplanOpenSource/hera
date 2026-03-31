@@ -4,8 +4,10 @@ import { BASEURL } from '../../shared/baseurl';
 
 export const DetailsViewNotebook = ({
   rootDir,
+  notebookName,
 }: {
   rootDir: string,
+  notebookName: string,
 }) => {
   const [jupyterPort, setJupyterPort] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export const DetailsViewNotebook = ({
   if (!jupyterPort) return <CircularProgress />;
 
   const host = window.location.hostname || 'localhost';
-  const src = `http://${host}:${jupyterPort}/lab`;
+  const src = `http://${host}:${jupyterPort}/lab/tree/notebooks/${notebookName}`;
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>

@@ -36,6 +36,7 @@ export const DetailsViewPanel = ({
     return (
       <DetailsViewNotebook
         rootDir={filesDir}
+        notebookName={notebookName}
       />
     )
   }

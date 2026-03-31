@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ButtonTooltip } from '../../elements/ButtonTooltip';
 import { fetchProjectDetails } from '../../io/FetchProjects';
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idDocId, idFromDocId } from '../../shared/idDocId';
+import { idDocId, idFromDocId, idNotebooksGroupId } from '../../shared/idDocId';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { SplitTree } from '../../utils/splitTree';
 import { AddDocumentButton } from './AddDocumentButton';
@@ -126,7 +126,14 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
-      <NotebookTreeItem projectName={project.name} />
+      <NotebookTreeItem
+        projectName={project.name}
+        filesDir={project.configDocument?.data.desc.filesDirectory ?? ''}
+        onNotebookCreated={(itemId) => {
+          setExpandedItems(prev => [...new Set([...prev, idNotebooksGroupId(project.name)])]);
+          setSelectedItemIds([itemId]);
+        }}
+      />
       <RegisteredRepositories showUpdateButton />
       <RepoTreeWhole
       />
