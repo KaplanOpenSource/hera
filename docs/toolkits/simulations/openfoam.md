@@ -2,13 +2,12 @@
 
 **Toolkit name:** `OpenFOAM` | **Constant:** `toolkitHome.SIMULATIONS_OPENFOAM`
 
-The OpenFOAM toolkit manages the full CFD simulation lifecycle: creating cases, configuring meshes and boundary conditions, running solvers, and extracting results via VTK post-processing pipelines.
-
-## Getting started
+The OpenFOAM toolkit manages the full CFD simulation lifecycle: creating cases, configuring meshes and boundary conditions, running solvers, extracting results via VTK post-processing pipelines, and computing Lagrangian dispersion concentrations.
 
 ```python
 from hera import toolkitHome
 
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
 of = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="MY_PROJECT")
 ```
 
@@ -19,139 +18,317 @@ The toolkit provides access to:
 | `of.OFObjectHome` | Field catalog — create empty fields with correct dimensions |
 | `of.analysis` | VTK post-processing pipeline |
 | `of.presentation` | Export to CSV, VTK, parquet formats |
-| `of.stochasticLagrangian` | Lagrangian particle dispersion solver |
-| `of.buoyantReactingFoam` | Compressible reactive flow solver |
+| `of.stochasticLagrangian` | Lagrangian particle dispersion solver extension |
+| `of.buoyantReactingFoam` | Compressible reactive flow solver extension |
+
+For implementation details, see the [Developer Guide](../../developer_guide/simulations/openfoam.md). For workflow management, see [Hermes Workflows](workflows.md).
+
+---
 
 ## Creating an empty case
 
+An OpenFOAM case is a directory containing `0/` (initial conditions), `constant/` (mesh and physical properties), and `system/` (solver settings). The toolkit creates this structure and populates the field files with correct dimensions.
+
 ```python
-# Create a new OpenFOAM case with specified fields
+# Create a case with velocity, pressure, and turbulence fields
 of.createEmptyCase(
     caseDirectory="/data/simulations/wind_study",
     fieldList=["U", "p", "k", "epsilon"],
-    flowType=of.FLOWTYPE_INCOMPRESSIBLE
-)
-
-# Write an empty field file (with correct dimensions for the flow type)
-of.writeEmptyField(
-    fieldName="U",
     flowType=of.FLOWTYPE_INCOMPRESSIBLE,
-    caseDirectory="/data/simulations/wind_study",
-    timeOrLocation="0"
 )
+# Creates:
+#   wind_study/
+#   ├── 0/
+#   │   ├── U        (vector, dimensions [0 1 -1 0 0 0 0])
+#   │   ├── p        (scalar, dimensions [0 2 -2 0 0 0 0] for incompressible)
+#   │   ├── k        (scalar, turbulent kinetic energy)
+#   │   └── epsilon   (scalar, dissipation rate)
+#   ├── constant/
+#   └── system/
 ```
 
-**Flow types:**
+**Flow types** control which dimensions are used for pressure and other fields:
 
-| Constant | Use case |
-|----------|---------|
-| `of.FLOWTYPE_INCOMPRESSIBLE` | simpleFoam, wind simulations |
-| `of.FLOWTYPE_COMPRESSIBLE` | buoyantReactingFoam, thermal flows |
-| `of.FLOWTYPE_DISPERSION` | Lagrangian particle tracking |
+| Constant | Pressure dimensions | Use case |
+|----------|-------------------|---------|
+| `of.FLOWTYPE_INCOMPRESSIBLE` | m²/s² (kinematic) | simpleFoam, wind simulations |
+| `of.FLOWTYPE_COMPRESSIBLE` | kg/(m·s²) (dynamic) | buoyantReactingFoam, thermal flows |
+| `of.FLOWTYPE_DISPERSION` | — | Lagrangian particle tracking |
+
+---
 
 ## Working with fields (OFObjectHome)
 
-The field catalog knows the correct dimensions for standard OpenFOAM fields across flow types:
+The field catalog knows the correct dimensions for standard OpenFOAM fields. You can create, read, modify, and write fields programmatically.
+
+### Creating a field from scratch
 
 ```python
-# Get an empty velocity field for an incompressible case
+# Get an empty velocity field with correct dimensions
 U_field = of.OFObjectHome.getEmptyField(
     fieldName="U",
     flowType=of.FLOWTYPE_INCOMPRESSIBLE,
-    noOfProc=4  # number of processors for parallel cases
+    noOfProc=4,   # number of processors (for parallel decomposed cases)
 )
 
-# Set a uniform internal field value
-U_field.setInternalUniformFieldValue([5, 0, 0])
+# Set the initial value for all cells
+U_field.setInternalUniformFieldValue([5, 0, 0])  # 5 m/s in x direction
 
-# Add boundary conditions
+# Set boundary conditions
 U_field.addBoundaryField("inlet", type="fixedValue", value="uniform (5 0 0)")
 U_field.addBoundaryField("outlet", type="zeroGradient")
-U_field.addBoundaryField("walls", type="noSlip")
+U_field.addBoundaryField("ground", type="noSlip")
+U_field.addBoundaryField("top", type="slip")
 
-# Write to the case directory
+# Write to the case directory at time 0
 U_field.writeToCase("/data/simulations/wind_study", timeOrLocation="0")
+```
 
-# Read a field from an existing case
-U_existing = of.OFObjectHome.readFieldFromCase(
+### Creating a field pre-loaded with boundaries from an existing case
+
+If you have an existing case and want to create a new field that matches its boundary structure:
+
+```python
+# Creates a field with the same patches as the case, plus a custom internal value
+ustar_field = of.OFObjectHome.getEmptyFieldFromCase(
+    fieldName="ustar",
+    flowType=of.FLOWTYPE_INCOMPRESSIBLE,
+    internalValue=0.3,      # uniform initial value
+    caseDirectory="/data/simulations/wind_study",
+)
+ustar_field.writeToCase("/data/simulations/wind_study", timeOrLocation="100")
+```
+
+### Reading fields from a completed simulation
+
+```python
+# Read velocity at a specific timestep
+U_result = of.OFObjectHome.readFieldFromCase(
     fieldName="U",
     flowType=of.FLOWTYPE_INCOMPRESSIBLE,
     caseDirectory="/data/simulations/wind_study",
-    timeStep="100"
+    timeStep="100",
 )
 
-# Convert to pandas DataFrame for analysis
+# Access data
+internal_field = U_result.getDataFrame()
+print(internal_field.head())
+#     Ux    Uy    Uz    region      processor  index
+# 0   4.92  0.12  0.01  internalField  0       0
+# 1   5.01  0.08  0.02  internalField  0       1
+```
+
+### Reading fields across multiple timesteps as a DataFrame
+
+```python
+# Read velocity at multiple timesteps — useful for time-series analysis
 df = of.OFObjectHome.readFieldAsDataFrame(
     fieldName="U",
     caseDirectory="/data/simulations/wind_study",
-    times=["100", "200", "300"]
+    times=["100", "200", "300"],
+    readParallel=True,   # reads from processor* directories
+)
+# Returns DataFrame with columns: Ux, Uy, Uz, processor, time, index
+```
+
+### Available predefined fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `U` | vector | Velocity |
+| `p`, `p_rgh` | scalar | Pressure (kinematic or with gravity) |
+| `k` | scalar | Turbulent kinetic energy |
+| `epsilon`, `omega` | scalar | Dissipation rate / specific dissipation |
+| `nut`, `alphat` | scalar | Turbulent viscosity / thermal diffusivity |
+| `T`, `Tbackground` | scalar | Temperature |
+| `cellCenters` | vector | Cell center coordinates (computed by postProcess) |
+| `Hmix`, `ustar` | scalar | Mixing height / friction velocity (for dispersion) |
+| `distanceFromWalls` | scalar | Wall distance field |
+
+You can register custom fields:
+
+```python
+of.OFObjectHome.addFieldDefinitions(
+    fieldName="myScalar",
+    dimensions={"default": [0, 0, 0, 0, 0, 0, 0]},
+    fieldType="scalar",
 )
 ```
 
-**Predefined fields:** U, p, p_rgh, epsilon, omega, alphat, nut, k, T, Tbackground, cellCenters, Hmix, ustar, distanceFromWalls
+---
 
 ## Configuring mesh with workflows
 
-Use workflows to set up the mesh and solver configuration:
+Workflows define the complete mesh and solver setup as a JSON-based DAG. Use workflow methods to configure the mesh programmatically.
+
+### Block mesh from coordinates
 
 ```python
-# Configure block mesh boundaries from coordinates
-of.simpleFoam.blockMesh_setBoundFromBounds(
-    eulerianWF=workflow,
-    minx=0, maxx=1000,
-    miny=0, maxy=500,
-    minz=0, maxz=200,
-    dx=10, dy=10, dz=5
-)
+# Get a workflow for simpleFoam
+wf = of.getHermesWorkflowFromDB("wind_study_simpleFoam")
 
-# Or from an OBJ geometry file
-of.simpleFoam.blockMesh_setBoundFromFile(
-    eulerianWF=workflow,
-    fileName="/data/terrain.obj",
-    dx=10, dy=10, dz=5
+# Configure a rectangular block mesh
+of.buoyantReactingFoam.blockMesh_setBoundFromBounds(
+    eulerianWF=wf,
+    minx=0, maxx=1000,    # domain extent in x (meters)
+    miny=0, maxy=500,     # domain extent in y
+    minz=0, maxz=200,     # domain extent in z (height)
+    dx=10, dy=10, dz=5,   # cell spacing
 )
+# This creates a mesh of 100×50×40 = 200,000 cells
+```
 
-# Adjust domain height
-of.simpleFoam.blockMesh_setDomainHeight(
-    eulerianWF=workflow,
-    Z=300, dz=5
+### Block mesh from geometry file
+
+```python
+# Configure mesh from a terrain OBJ file (the mesh follows the terrain surface)
+of.buoyantReactingFoam.blockMesh_setBoundFromFile(
+    eulerianWF=wf,
+    fileName="/data/terrain/haifa_terrain.obj",
+    dx=10, dy=10, dz=5,
 )
 ```
+
+### Adjusting domain height
+
+```python
+# Change the domain height after initial mesh setup
+of.buoyantReactingFoam.blockMesh_setDomainHeight(
+    eulerianWF=wf,
+    Z=300,    # new domain height
+    dz=5,     # vertical cell spacing
+)
+```
+
+### Hydrostatic pressure initialisation
+
+For compressible or buoyant flows, initialise pressure with a hydrostatic profile:
+
+```python
+# Compute p = p_ground - ρg·z for all cells
+# Also handles fixedValue boundary patches
+p_field = of.buoyantReactingFoam.IC_getHydrostaticPressure(
+    caseDirectory="/data/simulations/thermal_study",
+    fieldName="p",
+    groundPressure=101000,   # Pa
+)
+p_field.writeToCase("/data/simulations/thermal_study", timeOrLocation="0")
+```
+
+---
 
 ## Running simulations
 
 ### Via workflow (recommended)
 
-```python
-# Run a full simulation defined by a workflow JSON
-of.runOFSimulation("wind_study_simpleFoam")
+A workflow encapsulates the entire simulation: mesh generation, initial/boundary conditions, solver execution.
 
-# The workflow handles: mesh generation, IC/BC setup, solver execution
+```python
+# Run a complete simulation from a workflow stored in the DB
+of.runOFSimulation("wind_study_simpleFoam")
+# This:
+#   1. Retrieves the workflow JSON from MongoDB
+#   2. Builds a Luigi task DAG (mesh → IC/BC → solver → postProcess)
+#   3. Writes the generated Python module
+#   4. Executes via: python3 -m luigi --module wind_study finalnode_xx_0 --local-scheduler
+#   5. Cleans up the generated module
+```
+
+### Adding a workflow to the database
+
+```python
+# Load a workflow JSON and add it to a named group
+doc = of.addWorkflowToGroup(
+    workflowJSON="/path/to/workflow.json",
+    groupName="wind_study",
+)
+# Generates name: wind_study_0001 (auto-incremented)
+print(f"Workflow stored as: {doc.desc['workflowName']}")
+```
+
+### Listing and comparing workflows
+
+```python
+# List all workflow groups in the project
+of.listGroups()
+
+# List workflows in a specific group
+of.listWorkflows("wind_study", listNodes=True, listParameters=True)
+
+# Compare parameters across workflows in a group
+diff_table = of.compareWorkflowInGroup("wind_study")
+print(diff_table)
+# Shows a DataFrame with rows = parameters that differ, columns = workflow names
 ```
 
 ### Batch runs with Slurm
 
 ```python
-# Generate Slurm scripts for parameter sweep
+# Generate Slurm submission scripts for a parameter sweep
 of.prepareSlurmWorkflowExecution(
     workflowName="simpleFoam_sweep",
-    variations={"windSpeed": [3, 5, 8, 12]},
-    jobName="wind_sweep"
+    variations={"windSpeed": [3, 5, 8, 12]},   # creates 4 cases
+    jobName="wind_sweep",
+)
+# Generates one Slurm .sh script per variation
+```
+
+---
+
+## Reading mesh and simulation data
+
+### Mesh cell centers
+
+```python
+# Read mesh cell centers (internally runs foamJob postProcess -func writeCellCentres)
+mesh = of.getMesh(
+    caseDirectory="/data/simulations/wind_study",
+    readParallel=True,   # reads decomposed case if processor* dirs exist
+    time=0,
+)
+# Returns DataFrame with columns: x, y, z (and processorNumber, index for parallel)
+print(mesh.getDataFrame().head())
+```
+
+### Mesh bounding box
+
+```python
+extent = of.getMeshExtent(caseDirectory="/data/simulations/wind_study")
+print(extent)
+# {'x': (0.0, 1000.0), 'y': (0.0, 500.0), 'z': (0.0, 200.0)}
+```
+
+### Available timesteps
+
+```python
+times = of.getTimeList("wind_study_simpleFoam")
+# ['0', '100', '200', '300', '400', '500']
+```
+
+### Setting initial conditions from xarray data
+
+Import external data (e.g. from meteorological models) into OpenFOAM:
+
+```python
+import xarray as xr
+
+# Load external data (e.g. from a weather model)
+weather = xr.open_dataset("/data/weather/forecast.nc")
+
+# Convert to OpenFOAM setFields format
+# Maps xarray variables to OpenFOAM fields:
+#   U = (u_component, v_component, 0)  — vector field
+#   T = temperature                     — scalar field
+setfields_str = of.xarrayToSetFieldsDictDomain(
+    xarrayData=weather,
+    xColumnName="x", yColumnName="y", zColumnName="z",
+    time="2024-03-15T12:00",
+    U=("u10", "v10", 0),   # tuple = vector (3 components)
+    T="temperature",         # string = scalar
 )
 ```
 
-## Reading mesh data
-
-```python
-# Get cell centers (runs foamJob postProcess internally)
-mesh = of.getMesh(caseDirectory="/data/simulations/wind_study")
-
-# Get mesh bounding box
-extent = of.getMeshExtent(caseDirectory="/data/simulations/wind_study")
-
-# Get list of computed time steps
-times = of.getTimeList("wind_study_simpleFoam")
-```
+---
 
 ## Post-processing with VTK pipeline
 
@@ -193,25 +370,6 @@ extract.setRegionsToExtract(patchList=["inlet", "outlet"], internalMesh=False)
 
 # Chain: boundary → cell_centers (cell_centers receives ExtractBlock output)
 extract.addFilter("boundary_values", filterType="CellCenters", write=True)
-```
-
-In the JSON, this produces a nested `downstream` structure:
-
-```json
-{
-  "filters": {
-    "boundary": {
-      "filterType": "ExtractBlock", "write": false,
-      "params": [["Selectors", ["/Root/boundary/inlet", "/Root/boundary/outlet"]]],
-      "downstream": {
-        "boundary_values": {
-          "filterType": "CellCenters", "write": true,
-          "params": [], "downstream": {}
-        }
-      }
-    }
-  }
-}
 ```
 
 ### Using typed filter constructors
@@ -280,57 +438,197 @@ fresh = registered.getData(filterName="ground_slice", overwrite=True)
 - Changing the pipeline definition invalidates the cache (different JSON = different key)
 - `overwrite=True` forces full recomputation
 
+---
+
 ## Exporting results
 
-```python
-# Export as ParaView-compatible CSV (one file per time step)
-of.presentation.to_paraview_CSV(
-    data=results,
-    outputdirectory="/data/output",
-    filename="wind_study"
-)
+### ParaView CSV (one file per timestep)
 
-# Export particle data as VTK (unstructured)
+```python
+of.presentation.to_paraview_CSV(
+    data=results["ground_slice"],
+    outputdirectory="/data/output/csv",
+    filename="wind_study",
+)
+# Creates: wind_study_100.csv, wind_study_200.csv, ...
+```
+
+### Unstructured VTK (for particle data)
+
+```python
 of.presentation.toUnstructuredVTK(
     data=particle_data,
-    outputdirectory="/data/output",
-    filename="particles"
-)
-
-# Export regular grid as structured VTK
-of.presentation.toStructuredVTK(
-    data=grid_data,
-    outputdirectory="/data/output",
-    filename="concentration"
+    outputdirectory="/data/output/vtk",
+    filename="particles",
 )
 ```
 
-## Lagrangian dispersion (stochastic solver)
-
-For particle dispersion simulations coupled with an existing flow field:
+### Structured VTK (for regular grid data)
 
 ```python
-# Create a dispersion flow field linked to an existing flow
-of.stochasticLagrangian.createDispersionFlowField(
+of.presentation.toStructuredVTK(
+    data=concentration_grid,
+    outputdirectory="/data/output/vtk",
+    filename="concentration",
+)
+```
+
+### Loading Lagrangian data for export
+
+```python
+# Load parallel Lagrangian particle data as a Dask DataFrame
+particles = of.presentation.loadLagrangianDataParallel(
+    caseDirectory="/data/simulations/dispersion_001",
+    cloudName="kinematicCloud",
+)
+# Then export:
+of.presentation.toUnstructuredVTK(data=particles, ...)
+```
+
+---
+
+## Lagrangian dispersion (stochastic solver)
+
+The stochastic Lagrangian extension manages particle dispersion simulations coupled with an existing flow field.
+
+### Setting up a dispersion flow field
+
+Before running a dispersion simulation, you need to create a dispersion flow field — a copy of the original flow with additional fields (ustar, Hmix) and time mapping:
+
+```python
+# flowData describes the base flow and dispersion configuration
+flow_data = {
+    "originalFlow": {
+        "source": "wind_study_simpleFoam",   # name in DB, or directory path
+        "time": {
+            "temporalType": "steadyState",    # or "dynamic"
+            "timestep": 500,                  # which flow timestep to use
+        },
+        "linkMeshSymbolically": True,         # symlink mesh (saves disk space)
+        "linkDataSymbolically": True,
+    },
+    "dispersionFields": {
+        "ustar": 0.3,    # friction velocity (uniform initial value)
+        "Hmix": 500,      # mixing height
+    },
+}
+
+# Create the dispersion flow field
+result = of.stochasticLagrangian.createDispersionFlowField(
     flowName="dispersion_001",
     flowData=flow_data,
     OriginalFlowField="wind_study_simpleFoam",
-    dispersionDuration=3600,
-    flowType=of.FLOWTYPE_DISPERSION
+    dispersionDuration=3600,   # seconds
+)
+# This:
+#   1. Finds the original flow (DB or filesystem)
+#   2. Detects parallel structure and available timesteps
+#   3. Maps flow timesteps to dispersion time (steady-state: freeze; dynamic: shift)
+#   4. Copies/links constant, system, and time directories
+#   5. Writes ustar and Hmix fields at each dispersion timestep
+#   6. Registers in the database
+```
+
+### Defining particle sources
+
+```python
+# Point source (single release point)
+of.stochasticLagrangian.writeParticlePositionFile(
+    x=500, y=250, z=10,
+    nParticles=10000,
+    dispersionName="dispersion_001",
+    type="Point",
 )
 
-# Define particle sources
+# Cylinder source (e.g. smokestack plume)
 of.stochasticLagrangian.makeSource_Cylinder(
     x=500, y=250, z=10,
     nParticles=10000,
     radius=5, height=20,
-    dispersionName="dispersion_001",
-    fileName="sources.txt"
 )
 
-# Also available: makeSource_Point, makeSource_Circle,
-# makeSource_Sphere, makeSource_Rectangle, makeSource_Cube
+# Other source shapes:
+# makeSource_Circle(x, y, z, nParticles, radius)
+# makeSource_Sphere(x, y, z, nParticles, radius)
+# makeSource_Rectangle(x, y, z, nParticles, lengthX, lengthY, rotateAngle)
+# makeSource_Cube(x, y, z, nParticles, lengthX, lengthY, lengthZ, rotateAngle)
 ```
+
+### Reading dispersion results
+
+```python
+# Read Lagrangian particle data (with caching)
+particles = of.stochasticLagrangian.getCaseResults(
+    caseDescriptor="dispersion_001",
+    withVelocity=True,
+    withReleaseTimes=True,
+    withMass=True,
+    cloudName="kinematicCloud",
+    cache=True,           # save to parquet cache
+)
+# Returns Dask DataFrame with columns: x, y, z, Ux, Uy, Uz, mass, age, datetime
+
+# Read Eulerian concentration fields
+concentrations = of.stochasticLagrangian.getCaseConcentrationsEulerian(
+    caseDescriptor="dispersion_001",
+    cloudName="kinematicCloud",
+)
+# Returns xarray Dataset indexed by (datetime, x, y, z)
+```
+
+### Computing concentration on a regular mesh
+
+```python
+# Compute concentration field on a Cartesian grid
+conc = of.stochasticLagrangian.analysis.calcConcentrationFieldFullMesh(
+    caseDescriptor="dispersion_001",
+    dxdydz=10,        # grid cell size in meters
+    extents=None,      # None = auto from flow field mesh extent
+)
+# Returns xarray Dataset with variable C (concentration in kg/m³)
+
+# Or compute point-wise from particle positions
+conc_pw = of.stochasticLagrangian.analysis.calcConcentrationPointWise(
+    data=particles,
+    dxdydz=10,
+)
+```
+
+### Parsing solver log files
+
+```python
+# Extract mass and parcel fate information from a dispersion solver log
+mass_df = of.stochasticLagrangian.getMassFromLog(
+    logFile="/data/simulations/dispersion_001/log.StochasticLagrangianSolver",
+)
+# Returns DataFrame with columns: time, name, action (release/escape/stick), mass, parcels
+```
+
+---
+
+## Templates
+
+Save and reuse case configurations:
+
+```python
+# Save a case directory as a reusable template
+of.saveTemplate(
+    templateName="simpleFoam_base",
+    caseDirectory="/data/simulations/wind_study",
+)
+
+# List available templates
+of.listHermesSolverTemplates(solverName="simpleFoam")
+
+# Load a template into a new directory
+of.loadTemplate(
+    templateName="simpleFoam_base",
+    toDirectory="/data/simulations",
+    caseName="wind_study_v2",
+)
+```
+
+---
 
 ## CLI commands
 
@@ -348,12 +646,85 @@ hera-openFoam simpleFoam templates load myTemplate \
 
 # List workflow groups
 hera-openFoam simpleFoam workflows list groups --projectName MY_PROJECT
+
+# List workflows in a group
+hera-openFoam simpleFoam workflows list workflows wind_study --projectName MY_PROJECT
+
+# Compare workflows in a group
+hera-openFoam simpleFoam workflows compare wind_study --projectName MY_PROJECT
 ```
+
+---
+
+## Complete example: wind simulation end-to-end
+
+```python
+from hera import toolkitHome
+
+# Tip: if you created the project with `hera-project project create`, you can omit projectName
+of = toolkitHome.getToolkit(toolkitHome.SIMULATIONS_OPENFOAM, projectName="WindStudy")
+
+# === 1. Create case ===
+case_dir = "/data/simulations/haifa_wind"
+of.createEmptyCase(
+    caseDirectory=case_dir,
+    fieldList=["U", "p", "k", "epsilon"],
+    flowType=of.FLOWTYPE_INCOMPRESSIBLE,
+)
+
+# === 2. Configure mesh via workflow ===
+wf = of.getHermesWorkflowFromDB("haifa_wind_simpleFoam")
+of.buoyantReactingFoam.blockMesh_setBoundFromBounds(
+    eulerianWF=wf, minx=0, maxx=2000, miny=0, maxy=1000,
+    minz=0, maxz=300, dx=20, dy=20, dz=10,
+)
+
+# === 3. Set initial conditions ===
+U = of.OFObjectHome.getEmptyFieldFromCase(
+    fieldName="U", flowType=of.FLOWTYPE_INCOMPRESSIBLE,
+    internalValue=[5, 0, 0], caseDirectory=case_dir,
+)
+U.addBoundaryField("inlet", type="fixedValue", value="uniform (5 0 0)")
+U.addBoundaryField("outlet", type="zeroGradient")
+U.addBoundaryField("ground", type="noSlip")
+U.writeToCase(case_dir, timeOrLocation="0")
+
+# === 4. Run the simulation ===
+of.runOFSimulation("haifa_wind_simpleFoam")
+
+# === 5. Post-process: extract a ground-level slice ===
+pipeline = of.analysis.getVTKPipeline()
+pipeline.addFilter("ground", filterType="Slice", write=True, params=[
+    ("SliceType", "Plane"),
+    ("SliceType.Origin", [1000, 500, 2]),
+    ("SliceType.Normal", [0, 0, 1]),
+])
+
+registered = pipeline.registerPipeline("haifa_wind_simpleFoam")
+results = registered.getData(
+    regularMesh=True, filterName="ground",
+    fieldNames=["U", "p"],
+)
+
+# === 6. Inspect results ===
+ground_data = results["ground"]
+print(ground_data)
+# xarray Dataset with U (vector), p (scalar) on a regular grid
+
+# === 7. Export to CSV for external tools ===
+of.presentation.to_paraview_CSV(
+    data=ground_data,
+    outputdirectory="/data/output",
+    filename="haifa_wind_ground",
+)
+```
+
+---
 
 ## Further reading
 
-- **[Simulations API Reference](../../developer_guide/api/simulations.md)** — auto-generated API docs for all OpenFOAM classes
-- **[Simulations Implementation](../../developer_guide/simulations.md)** — developer guide with architecture, solver hierarchy, VTK pipeline internals
+- **[Hermes Workflows](workflows.md)** — workflow lifecycle, naming conventions, Luigi integration
+- **[Developer Guide > OpenFOAM](../../developer_guide/simulations/openfoam.md)** — architecture, solver hierarchy, VTK pipeline internals, refactored method documentation
+- **[Developer Guide > Hermes](../../developer_guide/simulations/workflows.md)** — Hermes workflow toolkit internals
+- **[API Reference](../../developer_guide/api/simulations.md)** — auto-generated API docs
 - **[CLI Reference](../../cli/reference.md#hera-openfoam)** — full CLI command reference
-
-For the full API, see the [API Reference](../../developer_guide/api/simulations.md).
