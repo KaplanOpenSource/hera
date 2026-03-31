@@ -53,7 +53,7 @@ export const DetailsViewNotebook = ({
   if (!jupyterPort) return <CircularProgress />;
 
   const host = window.location.hostname || 'localhost';
-  const src = `http://${host}:${jupyterPort}/lab/tree/notebooks/${notebookName}`;
+  const src = `http://${host}:${jupyterPort}/doc/tree/notebooks/${notebookName}`;
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>

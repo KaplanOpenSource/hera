@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import urllib.request
+from pathlib import Path
 
 DEFAULT_JUPYTER_PORT = 8888
 
@@ -42,9 +44,28 @@ class JupyterServerThread:
         self._thread.join(timeout=5)
         print("Jupyter server stopped")
 
+    @staticmethod
+    def _disable_announcements():
+        import sys
+        settings_dir = Path(sys.prefix) / 'share' / 'jupyter' / 'lab' / 'settings'
+        settings_dir.mkdir(parents=True, exist_ok=True)
+        overrides_path = settings_dir / 'overrides.json'
+        overrides = {}
+        if overrides_path.exists():
+            try:
+                overrides = json.loads(overrides_path.read_text())
+            except Exception:
+                pass
+        overrides['@jupyterlab/apputils-extension:notification'] = {
+            'fetchNews': 'false',
+            'checkForUpdates': False,
+        }
+        overrides_path.write_text(json.dumps(overrides, indent=2))
+
     def _run(self):
         try:
             asyncio.set_event_loop(asyncio.new_event_loop())
+            self._disable_announcements()
             from jupyter_server.serverapp import ServerApp
             ServerApp.clear_instance()
             ServerApp.init_signal = lambda self: None  # signals only work in main thread
