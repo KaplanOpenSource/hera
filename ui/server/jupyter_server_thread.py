@@ -46,21 +46,24 @@ class JupyterServerThread:
 
     @staticmethod
     def _disable_announcements():
-        import sys
-        settings_dir = Path(sys.prefix) / 'share' / 'jupyter' / 'lab' / 'settings'
-        settings_dir.mkdir(parents=True, exist_ok=True)
-        overrides_path = settings_dir / 'overrides.json'
-        overrides = {}
-        if overrides_path.exists():
-            try:
-                overrides = json.loads(overrides_path.read_text())
-            except Exception:
-                pass
-        overrides['@jupyterlab/apputils-extension:notification'] = {
-            'fetchNews': 'false',
-            'checkForUpdates': False,
-        }
-        overrides_path.write_text(json.dumps(overrides, indent=2))
+        try:
+            import sys
+            settings_dir = Path(sys.prefix) / 'share' / 'jupyter' / 'lab' / 'settings'
+            settings_dir.mkdir(parents=True, exist_ok=True)
+            overrides_path = settings_dir / 'overrides.json'
+            overrides = {}
+            if overrides_path.exists():
+                try:
+                    overrides = json.loads(overrides_path.read_text())
+                except Exception:
+                    pass
+            overrides['@jupyterlab/apputils-extension:notification'] = {
+                'fetchNews': 'false',
+                'checkForUpdates': False,
+            }
+            overrides_path.write_text(json.dumps(overrides, indent=2))
+        except OSError:
+            print("WARNING: Could not write Jupyter overrides (permission denied) — news popup may appear")
 
     def _run(self):
         try:
