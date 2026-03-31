@@ -1,10 +1,8 @@
 import argparse
 import mimetypes
-import os
-import sys
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -40,17 +38,19 @@ app.add_middleware(
 # Mock data endpoints removed per simplified API
 
 
-jupyter = JupyterServerThread(args.jupyter_port) if args.jupyter_port else None
-
-
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/jupyter")
-def jupyter_info() -> dict:
-    return {"port": JupyterServerThread.port()}
+class JupyterStartPayload(BaseModel):
+    root_dir: str
+
+
+@app.post("/jupyter/ensure")
+def jupyter_ensure(payload: JupyterStartPayload) -> dict:
+    JupyterServerThread.start(payload.root_dir, args.jupyter_port)
+    return {"port": JupyterServerThread.port(), "root_dir": JupyterServerThread.root_dir()}
 
 
 @app.get("/cors")

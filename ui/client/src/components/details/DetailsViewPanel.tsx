@@ -32,9 +32,10 @@ export const DetailsViewPanel = ({
 
   const notebookName = idFromNotebookId(showItemId);
   if (notebookName) {
+    const filesDir = project?.configDocument?.data.desc.filesDirectory ?? '';
     return (
       <DetailsViewNotebook
-        name={notebookName}
+        rootDir={filesDir}
       />
     )
   }
