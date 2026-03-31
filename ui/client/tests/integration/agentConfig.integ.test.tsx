@@ -29,7 +29,7 @@ describe('Agent config UI integration', () => {
 
   afterAll(() => {
     cleanup();
-    env.cleanup();
+    env?.cleanup();
   }, 15000);
 
   // Render the full app, wait for project to load, click the agent doc in the tree

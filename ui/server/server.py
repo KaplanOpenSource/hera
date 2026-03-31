@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 import argparse
 import mimetypes
-import os
-import sys
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from cors_handler import CorsHandler
+from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from mock_data import MOCK_PROJECTS
 
 cors_handler = CorsHandler()
@@ -19,6 +20,7 @@ parser = argparse.ArgumentParser(description="Hera UI API server")
 cors_handler.add_argument(parser)
 parser.add_argument('--debug', action='store_true', help='Enable debugpy remote debugging on port 5678')
 parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
+parser.add_argument('--jupyter-port', type=int, default=8888, help='Port for Jupyter server (0 to disable)')
 args = parser.parse_args()
 
 app = FastAPI(title="Hera UI API")
@@ -41,6 +43,26 @@ app.add_middleware(
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok"}
+
+
+jupyter: JupyterServerThread | None = None
+
+
+class JupyterStartPayload(BaseModel):
+    root_dir: str
+
+
+@app.post("/jupyter/ensure")
+def jupyter_ensure(payload: JupyterStartPayload) -> dict:
+    global jupyter
+    jupyter_port = args.jupyter_port or DEFAULT_JUPYTER_PORT
+    if jupyter and jupyter.is_running():
+        if jupyter.root_dir == payload.root_dir:
+            return {"port": jupyter.port, "root_dir": jupyter.root_dir}
+        jupyter.stop()
+    jupyter = JupyterServerThread(payload.root_dir, jupyter_port)
+    return {"port": jupyter.port, "root_dir": jupyter.root_dir}
+
 
 
 @app.get("/cors")

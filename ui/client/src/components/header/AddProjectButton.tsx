@@ -26,8 +26,12 @@ export const AddProjectButton = ({ }) => {
   const navigate = useNavigate();
   const inputRef = useRef();
 
+  const trimmedName = name.trim();
+
   const doAddProject = async () => {
-    let dirStr = `os.path.join(os.getcwd(), 'projects', '${name}')`;
+    if (!trimmedName) return;
+
+    let dirStr = `os.path.join(os.getcwd(), 'projects', '${trimmedName}')`;
     if (filesDirectory !== '') {
       dirStr = `'${filesDirectory}'`;
     }
@@ -42,20 +46,20 @@ from hera.utils.data.CLI import project_create
 from hera.datalayer.project import Project
 
 project_create(SimpleNamespace(
-  projectName='${name}',
+  projectName='${trimmedName}',
   directory=${dirStr},
   loadRepositories=${loadRepositories ? 'True' : 'False'},
   overwrite=False))
 
 # Creates a config document in MongoDB so the project appears in getProjectList()
-Project(projectName='${name}', filesDirectory=${dirStr})
+Project(projectName='${trimmedName}', filesDirectory=${dirStr})
 `,
     })
     if (problem) {
       return;
     }
 
-    navigate('/' + encodeURIComponent(name));
+    navigate('/' + encodeURIComponent(trimmedName));
     setOpen(false);
   }
 
@@ -74,7 +78,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
     <Dialog
       open={open}
       onClose={() => setOpen(false)}
-      onKeyDown={e => { if (e.code === 'Enter') doAddProject() }}
+      onKeyDown={e => { if (e.code === 'Enter' && trimmedName) doAddProject() }}
     >
       <DialogTitle>New Project</DialogTitle>
       <DialogContent>
@@ -115,7 +119,7 @@ Project(projectName='${name}', filesDirectory=${dirStr})
         <Button onClick={() => setOpen(false)}>
           Cancel
         </Button>
-        <Button onClick={() => doAddProject()}>
+        <Button onClick={() => doAddProject()} disabled={!trimmedName}>
           Add Project
         </Button>
       </DialogActions>

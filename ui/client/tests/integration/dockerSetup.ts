@@ -39,7 +39,8 @@ export const startDockerEnv = async ({
 }): Promise<DockerEnv> => {
   assertDockerImagesExist();
 
-  const docker = (cmd: string) => execSync(`docker ${cmd}`, { encoding: 'utf-8' }).trim();
+  const docker = (cmd: string) =>
+    execSync(`docker ${cmd}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 
   const cleanupDocker = () => {
     for (const name of [serverContainer, mongoContainer]) {
@@ -76,12 +77,17 @@ export const startDockerEnv = async ({
 
   // Wait for MongoDB to be ready
   const mongoStart = Date.now();
+  let mongoReady = false;
   while (Date.now() - mongoStart < 15000) {
     try {
       const out = docker(`exec ${mongoContainer} mongosh --eval "db.runCommand({ping:1})" --quiet`);
-      if (out.includes('ok')) break;
+      if (out.includes('ok')) { mongoReady = true; break; }
     } catch { /* not ready */ }
     await new Promise(r => setTimeout(r, 300));
+  }
+  if (!mongoReady) {
+    cleanupDocker();
+    throw new Error(`MongoDB container "${mongoContainer}" did not become ready within 15 s`);
   }
 
   docker([
@@ -91,19 +97,29 @@ export const startDockerEnv = async ({
     `-v ${PROJECT_ROOT}:/app`,
     `-v ${pyheraDir}:/root/.pyhera`,
     `hera-server`,
-    `python ui/server/server.py --cors`,
+    `python ui/server/server.py --cors all -y`,
   ].join(' '));
 
   const serverUrl = `http://localhost:${serverPort}`;
 
   // Wait for server to be ready
   const start = Date.now();
+  let serverReady = false;
   while (Date.now() - start < 20000) {
     try {
       const r = await fetch(`${serverUrl}/healthz`);
-      if (r.ok) break;
+      if (r.ok) { serverReady = true; break; }
     } catch { /* not ready yet */ }
     await new Promise(r => setTimeout(r, 300));
+  }
+  if (!serverReady) {
+    let logs = '';
+    try { logs = docker(`logs --tail 30 ${serverContainer} 2>&1`); } catch { /* ignore */ }
+    cleanupDocker();
+    throw new Error(
+      `Server container "${serverContainer}" did not become ready within 20 s.\n`
+      + (logs ? `Last 30 lines of container logs:\n${logs}` : 'Could not retrieve container logs.'),
+    );
   }
 
   return {

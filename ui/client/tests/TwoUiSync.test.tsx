@@ -199,6 +199,7 @@ describe('Two UI sync', () => {
           <div data-testid="tree-panel">
             <ProjectTreeView
               project={project}
+              selectedItemsIds={selectedItemId ? [selectedItemId] : []}
               setSelectedItemIds={(ids) => setSelectedItemId(ids[0] || '')}
             />
           </div>
@@ -236,17 +237,16 @@ describe('Two UI sync', () => {
       useProjectStore.getState().setCurrentProject({ ...projectData });
     });
 
-    // Click the refresh button
-    const refreshButton = within(treePanel).getByLabelText('Reload documents');
+    // Click the refresh button (the actual <button> inside the labelled wrapper)
+    const refreshWrapper = within(treePanel).getByLabelText('Reload documents');
+    const refreshButton = within(refreshWrapper).getByRole('button');
     await act(async () => {
       fireEvent.click(refreshButton);
     });
 
     // After refresh, the details panel should show the new value
     await waitFor(() => {
-      setTimeout(() => {
-        expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
-      }, 100);
+      expect(within(detailsPanel).getByDisplayValue('new-value')).toBeDefined();
     });
   });
 });

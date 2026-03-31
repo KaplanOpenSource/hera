@@ -1,6 +1,7 @@
 import { ProjectObj } from '../../objects/ProjectObj';
-import { idFromDocId, idFromRepoId } from '../../shared/idDocId';
+import { idFromDocId, idFromNotebookId, idFromRepoId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
+import { DetailsViewNotebook } from './DetailsViewNotebook';
 import { DetailsViewRepo } from './DetailsViewRepo';
 
 export const DetailsViewPanel = ({
@@ -25,6 +26,17 @@ export const DetailsViewPanel = ({
     return (
       <DetailsViewRepo
         repoPath={repoid}
+      />
+    )
+  }
+
+  const notebookName = idFromNotebookId(showItemId);
+  if (notebookName) {
+    const filesDir = project?.configDocument?.data.desc.filesDirectory ?? '';
+    return (
+      <DetailsViewNotebook
+        rootDir={filesDir}
+        notebookName={notebookName}
       />
     )
   }

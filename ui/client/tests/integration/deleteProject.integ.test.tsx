@@ -29,7 +29,7 @@ describe('Delete Project UI integration', () => {
 
   afterAll(() => {
     cleanup();
-    env.cleanup();
+    env?.cleanup();
   }, 15000);
 
   it('both projects appear in the list', async () => {

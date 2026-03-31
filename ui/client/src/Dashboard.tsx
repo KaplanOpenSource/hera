@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
+import { idFromNotebookId } from './shared/idDocId';
 import { PageTitle } from './components/header/PageTitle';
 import { ProjectChooser } from './components/header/ProjectChooser';
 import { ProjectTreeView } from './components/project/ProjectTreeView';
@@ -112,7 +113,11 @@ export const Dashboard = () => {
               />
 
               <Panel defaultSize={50} minSize={20}>
-                <Paper sx={{ p: 2, height: '100%', overflow: 'hidden' }}>
+                <Paper sx={{
+                  p: idFromNotebookId(selectedItemsIds[0]) ? 0 : 2,
+                  height: '100%',
+                  overflow: 'hidden',
+                }}>
                   <DetailsViewPanel
                     project={project}
                     showItemId={selectedItemsIds[0]}
