@@ -277,187 +277,236 @@ class registeredVTKPipeLine:
                     else:
                         shutil.rmtree(outputFile)
 
-    def getData(self, regularMesh, filterName=None, timeList=None, latestTime=False, fieldNames=None,overwrite=False):
+    def getData(self, regularMesh, filterName=None, timeList=None, latestTime=False, fieldNames=None, overwrite=False):
         """
-            Returns the data of the vtkpipeline as a dict.
-            The stuctucture is similar to that of a vtkpipline.
+        Return pipeline filter results as a dict keyed by filter name.
+
+        Orchestrates: time resolution, cache lookup, ParaView execution, and
+        DB persistence.  Each logical step is delegated to a private helper.
+
         Parameters
         ----------
-        filterName : str, list of str, None
-            The name of the filter to get, a list of filters or get all the filters that write=True in the pipeline.
-        timeList : None, list
-            The list of timestep
-        nonRegularCase
-        sourceOrName  : str
-            A name of a filter that is already in the pipeline that will be used as a base for the pipeline.
-            If NOne, then initialize a reader.
+        regularMesh : bool
+            If True, output as zarr (xarray); otherwise parquet (pandas).
+        filterName : str, list of str, or None
+            Filter(s) to retrieve.  None means all write-enabled filters.
+        timeList : None, str, or list
+            Timesteps to process.  None = all; str = "start:end" range; list = explicit.
+        latestTime : bool
+            If True, restrict to only the last available timestep.
+        fieldNames : list or None
+            Optional field-name whitelist to limit reader I/O.
+        overwrite : bool
+            If True, recompute even when cached results exist.
+        """
+        logger = get_classMethod_logger(self, "getData")
+        filext = self.getFilterOutputFileExt(regularMesh)
+
+        # Step 1: Determine which filters to process.
+        requestedFilters = self._resolveRequestedFilters(filterName)
+        logger.info(f"The requested filters are : {requestedFilters}")
+
+        # Step 2: Resolve the list of timesteps to compute.
+        caseTimeList = self.datalayer.getTimeList(self.casePath)
+        timeList = self._parseTimeList(timeList, caseTimeList)
+        if latestTime:
+            timeList = [timeList[-1]]
+        logger.debug(f"Getting timeList {timeList}")
+
+        # Step 3: Check cache — remove already-computed timesteps per filter.
+        timeList, filtersToProcess, filtersOutputFilename, DBDocumentsDict = \
+            self._filterCachedTimesteps(requestedFilters, timeList, regularMesh, filext, overwrite)
+        logger.info(f"Computing filters {filtersToProcess}")
+
+        # Step 4: Build ParaView pipeline and execute for uncached timesteps.
+        if len(filtersToProcess) > 0:
+            filtersToComputeDict = self._buildAndExecuteParaViewPipeline(
+                filtersToProcess, filtersOutputFilename, timeList,
+                fieldNames, overwrite, regularMesh)
+
+        # Step 5: Persist newly computed timesteps into the DB cache.
+        self._updateCacheDB(
+            filtersToProcess, timeList, DBDocumentsDict,
+            filtersOutputFilename if len(filtersToProcess) > 0 else {},
+            regularMesh)
+
+        # Step 6: Load and return cached data for every requested filter.
+        ret = {}
+        for fName in requestedFilters:
+            ret[fName] = DBDocumentsDict[fName].getData()
+        return ret
+
+    # ------------------------------------------------------------------
+    # Private helpers — each encapsulates one logical step of getData
+    # ------------------------------------------------------------------
+
+    def _resolveRequestedFilters(self, filterName):
+        """Return the list of filter names to process.
+
+        If *filterName* is None, return every filter in the pipeline that has
+        ``write=True``.  Otherwise, coerce *filterName* (str or list) into a
+        list.
+        """
+        if filterName is None:
+            return self.vtkpipeline.allFilterNames(writeOnly=True)
+        return list(numpy.atleast_1d(filterName))
+
+    def _parseTimeList(self, timeList, caseTimeList):
+        """Normalise the caller-supplied *timeList* into a concrete list.
+
+        Handles three forms:
+        - ``None``  — use every timestep available in the case.
+        - ``str``   — a colon-separated ``"start:end"`` range where either
+          bound may be omitted (defaults to first/last case time).
+        - ``list``  — returned as-is.
+        """
+        if timeList is None:
+            # No restriction — use the full case time range.
+            return caseTimeList
+
+        if isinstance(timeList, str):
+            # Parse "start:end" range; missing sides default to case bounds.
+            bounds = [caseTimeList[0], caseTimeList[-1]]
+            for i, val in enumerate(timeList.split(":")):
+                bounds[i] = bounds[i] if len(val) == 0 else float(val)
+            tl = pandas.Series(caseTimeList)
+            return tl[tl.between(*bounds)].values
+
+        # Explicit list — pass through unchanged.
+        return timeList
+
+    def _filterCachedTimesteps(self, requestedFilters, timeList, regularMesh, filext, overwrite):
+        """Check the DB cache and strip already-computed timesteps.
+
+        For each requested filter, look up an existing cache document.  If one
+        exists, remove its timesteps from *timeList* so only the delta needs
+        to be computed (incremental strategy).
 
         Returns
         -------
-
+        timeList : list
+            Timesteps still requiring computation after cache subtraction.
+        filtersToProcess : list[str]
+            Subset of *requestedFilters* that actually need (re-)computation.
+        filtersOutputFilename : dict[str, str]
+            Mapping from filter name to its output file path on disk.
+        DBDocumentsDict : dict
+            Mapping from filter name to its existing cache document (if any).
         """
-        logger = get_classMethod_logger(self, "getData")
-        ret = dict()
-        filext = self.getFilterOutputFileExt(regularMesh)
-
-        # --- Step 1: Determine which filters to process ---
-        # If no specific filter is requested, default to every filter in the
-        # pipeline that has write=True (i.e. the ones intended for output).
-        if filterName is None:
-            requestedFiltersToProcess = self.vtkpipeline.allFilterNames(writeOnly=True)
-        else:
-            requestedFiltersToProcess = list(numpy.atleast_1d(filterName))
-        logger.info(f"The requested filters are : {requestedFiltersToProcess}")
-
-        CaseTimeList = self.datalayer.getTimeList(self.casePath)
-
-        # --- Step 2: Parse / resolve the time range ---
-        # timeList can be:
-        #   - None        -> use every available timestep from the case
-        #   - a string    -> interpreted as a "start:end" range (either side may
-        #                    be omitted to default to the first/last case time)
-        #   - an explicit list of floats
-        if timeList is not None:
-            if isinstance(timeList, str):
-                # Parse a colon-separated range string, e.g. "0.5:1.0", ":1.0",
-                # "0.5:", or ":".  Missing bounds default to the first/last
-                # timestep in the case.
-                readerTL = CaseTimeList
-                BandA = [readerTL[0], readerTL[-1]]
-
-                for i, val in enumerate(timeList.split(":")):
-                    BandA[i] = BandA[i] if len(val) == 0 else float(val)
-
-                # Select only the case timesteps that fall within the range.
-                tl = pandas.Series(readerTL)
-                timeList = tl[tl.between(*BandA)].values
-            else:
-                timeList = timeList
-        else:
-            timeList = CaseTimeList
-
-        if latestTime:
-            timeList=[timeList[-1]]
-
-        logger.debug(f"Getting timeList {timeList}")
-
-        # --- Step 3: Cache lookup – incremental computation strategy ---
-        # For each requested filter, check if the DB already contains cached
-        # results.  If so, subtract the already-computed timesteps from timeList
-        # so only the *new* timesteps are computed (incremental update).
+        logger = get_classMethod_logger(self, "_filterCachedTimesteps")
         filtersToProcess = []
         filtersOutputFilename = dict()
         DBDocumentsDict = dict()
-        for filterName in requestedFiltersToProcess:
-            qry = self._buildFilterQuery(filterName=filterName,regularMesh=regularMesh)
+
+        for fName in requestedFilters:
+            qry = self._buildFilterQuery(filterName=fName, regularMesh=regularMesh)
             docList = self.datalayer.getCacheDocuments(type=TYPE_VTK_FILTER, **dictToMongoQuery(qry))
-            # attempt to extract cached filter results
+
             if len(docList) > 0:
+                # Cache hit — reuse output path and subtract known timesteps.
                 logger.info("Found existing filter output in cache")
-                # There should only be one filter result cached
                 cached_filter = docList[0]
-                # Reuse the existing output file path from the cache document.
-                filtersOutputFilename[filterName] = cached_filter.resource
+                filtersOutputFilename[fName] = cached_filter.resource
                 dbTimeList = cached_filter['desc']['simulation']['timeList']
-
-                # Remove timesteps that have already been computed so only the
-                # delta is processed (incremental computation).
                 timeList = [ts for ts in timeList if ts not in dbTimeList]
-                DBDocumentsDict[filterName] = cached_filter
-
+                DBDocumentsDict[fName] = cached_filter
             else:
-                # No cache exists yet – generate a new output file path.
-                outputFilePath = self.getFilterOutputFilePath(filterName, filext, generate_new=True)
-                filtersOutputFilename[filterName] = outputFilePath
+                # Cache miss — generate a fresh output file path.
+                outputFilePath = self.getFilterOutputFilePath(fName, filext, generate_new=True)
+                filtersOutputFilename[fName] = outputFilePath
 
-            # A filter needs (re-)computation if: forced overwrite, first run
-            # (no cache), or there are timesteps not yet in the cache.
+            # A filter needs computation if: forced overwrite, no cache, or
+            # there are timesteps not yet in the cache.
             logger.debug(
                 "Compute the filter if you need to overwrite the results, it is not in the DB, or there are times not in the DB")
             if overwrite or len(docList) == 0 or len(timeList) > 0:
-                logger.debug(f"{filterName} added to process because overwrite=True or filter not in DB")
-                filtersToProcess.append(filterName)
+                logger.debug(f"{fName} added to process because overwrite=True or filter not in DB")
+                filtersToProcess.append(fName)
 
-        logger.info(f"Computing filters {filtersToProcess}")
-        # --- Step 4: Build the ParaView pipeline and compute ---
-        # Only instantiate the reader and filters if there is actual work to do.
-        if len(filtersToProcess) > 0:
-            filtersToComputeDict = dict()  #
-            logger.info(f"Building the vtk objects from the JSON")
-            # Remember that the buildFilterlayer adds the real objects to the pipeline,
-            # and just return the guinames that can be used to retrieve the object with findSource.
-            # Hence it is a list of strings.
-            reader = self.pvOFBase.initializeReader(readerName="reader")
+        return timeList, filtersToProcess, filtersOutputFilename, DBDocumentsDict
 
-            # Optionally restrict the reader to specific field arrays to reduce
-            # memory and I/O.
-            if fieldNames is not None:
-                reader.CellArrays = fieldNames
+    def _buildAndExecuteParaViewPipeline(self, filtersToProcess, filtersOutputFilename,
+                                          timeList, fieldNames, overwrite, regularMesh):
+        """Instantiate the ParaView filter tree and run it over *timeList*.
 
-            # Recursively build the full ParaView filter tree from the pipeline
-            # JSON.  This creates the actual VTK proxy objects in the ParaView
-            # server.
-            filtersToCompute = self._buildFilterLayer(fatherName=None,
-                                                      father=reader,
-                                                      structureJson=self.vtkpipeline.toJSON()['filters'])
-            logger.info(f"Added all filters to the layer. Computing filters {filtersToCompute}")
+        Steps:
+        1. Create the OpenFOAM reader.
+        2. Optionally restrict the reader to *fieldNames*.
+        3. Build the full filter tree from the pipeline JSON.
+        4. Execute and write results to disk (parquet or zarr).
+        5. Clean up ParaView proxies to free server-side memory.
 
-            # Map each filter that needs computation to its output file path.
-            for filterName in filtersToProcess:
-                logger.debug(f"\t{filterName} will be saved in {filtersOutputFilename[filterName]}")
-                filtersToComputeDict[filterName] = filtersOutputFilename[filterName]
+        Returns the dict mapping filter names to their output file paths.
+        """
+        logger = get_classMethod_logger(self, "_buildAndExecuteParaViewPipeline")
+        filtersToComputeDict = dict()
 
-            # Execute the pipeline over the (remaining) timesteps and write the
-            # results to parquet (non-regular) or zarr (regular) files on disk.
-            self.pvOFBase.writeCase(filtersDict=filtersToComputeDict,
-                                    timeList=timeList,
-                                    fieldnames=fieldNames,
-                                    tsBlockNum=self.tsBlockNum,
-                                    overwrite=overwrite, regularMesh=regularMesh)
+        logger.info(f"Building the vtk objects from the JSON")
+        # The reader is the root of the ParaView pipeline graph.
+        reader = self.pvOFBase.initializeReader(readerName="reader")
 
-            # Clean up all ParaView sources/filters to free server-side memory
-            # after the computation is complete.
-            for name, proxy in list(pvsimple.GetSources().items()):
-                logger.debug(f"Deleting source {name}")
-                pvsimple.Delete(proxy)
+        # Restrict to specific field arrays to reduce memory and I/O.
+        if fieldNames is not None:
+            reader.CellArrays = fieldNames
 
+        # Recursively create ParaView filter proxies from the pipeline JSON.
+        filtersToCompute = self._buildFilterLayer(
+            fatherName=None, father=reader,
+            structureJson=self.vtkpipeline.toJSON()['filters'])
+        logger.info(f"Added all filters to the layer. Computing filters {filtersToCompute}")
 
+        # Map each filter that needs computation to its output file path.
+        for fName in filtersToProcess:
+            logger.debug(f"\t{fName} will be saved in {filtersOutputFilename[fName]}")
+            filtersToComputeDict[fName] = filtersOutputFilename[fName]
 
-        # --- Step 5: Update the DB with newly computed timesteps ---
-        # For each filter that was (re-)computed, either merge the new timesteps
-        # into the existing cache document or create a brand-new document.
-        for filterName in filtersToProcess:
-            logger.debug(f"Updating times {timeList} to filter {filterName}")
-            if filterName in DBDocumentsDict:
-                # Incremental update: merge the newly computed timesteps with the
-                # previously cached ones and persist the updated document.
-                doc = DBDocumentsDict[filterName]
+        # Execute the pipeline over the remaining timesteps and write output.
+        self.pvOFBase.writeCase(filtersDict=filtersToComputeDict,
+                                timeList=timeList,
+                                fieldnames=fieldNames,
+                                tsBlockNum=self.tsBlockNum,
+                                overwrite=overwrite, regularMesh=regularMesh)
+
+        # Clean up all ParaView sources/filters to free server-side memory.
+        for name, proxy in list(pvsimple.GetSources().items()):
+            logger.debug(f"Deleting source {name}")
+            pvsimple.Delete(proxy)
+
+        return filtersToComputeDict
+
+    def _updateCacheDB(self, filtersToProcess, timeList, DBDocumentsDict,
+                        filtersToComputeDict, regularMesh):
+        """Merge newly computed timesteps into the DB cache.
+
+        For filters that already have a cache document, append the new
+        timesteps and save.  For first-time filters, create a brand-new
+        cache document pointing to the output file on disk.
+        """
+        logger = get_classMethod_logger(self, "_updateCacheDB")
+
+        for fName in filtersToProcess:
+            logger.debug(f"Updating times {timeList} to filter {fName}")
+
+            if fName in DBDocumentsDict:
+                # Incremental update: merge new timesteps with existing ones.
+                doc = DBDocumentsDict[fName]
                 fullTime = sorted(timeList + doc['desc']['simulation']['timeList'])
                 doc.desc['simulation']['timeList'] = fullTime
                 doc.save()
             else:
-                # First computation for this filter – create a new cache record
-                # in the database pointing to the output file on disk.
+                # First computation — create a new cache record in the DB.
                 logger.debug("...Adding a new record to the DB")
-
-                recordData = self._buildFilterQuery(filterName=filterName, regularMesh=regularMesh)
+                recordData = self._buildFilterQuery(filterName=fName, regularMesh=regularMesh)
                 recordData['simulation']['timeList'] = timeList
                 dataFormat = self.datalayer.datatypes.ZARR_XARRAY if regularMesh else self.datalayer.datatypes.PARQUET
-                doc = self.datalayer.addCacheDocument(dataFormat=dataFormat,
-                                                            resource=os.path.abspath(filtersToComputeDict[filterName]),
-                                                            type=TYPE_VTK_FILTER,
-                                                            desc=recordData)
-                DBDocumentsDict[filterName] = doc
+                doc = self.datalayer.addCacheDocument(
+                    dataFormat=dataFormat,
+                    resource=os.path.abspath(filtersToComputeDict[fName]),
+                    type=TYPE_VTK_FILTER,
+                    desc=recordData)
+                DBDocumentsDict[fName] = doc
 
-            logger.debug(f"Reading filter {filterName} data")
-
-        # --- Step 6: Return the data for all requested filters ---
-        # Load and return the cached data (including any freshly computed results)
-        # as a dict keyed by filter name.
-        for filterName in requestedFiltersToProcess:
-            ret[filterName] = DBDocumentsDict[filterName].getData()
-
-        return ret
+            logger.debug(f"Reading filter {fName} data")
 
     def getFilterOutputFileExt(self, regularMesh):
         """Return the file extension based on mesh regularity."""
