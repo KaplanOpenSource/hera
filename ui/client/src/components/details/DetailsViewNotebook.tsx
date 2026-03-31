@@ -28,7 +28,7 @@ export const DetailsViewNotebook = ({
         if (cancelled) return;
 
         const host = window.location.hostname || 'localhost';
-        const url = `http://${host}:${data.port}/api/kernelspecs`;
+        const url = `http://${host}:${data.port}/api/contents/notebooks/${notebookName}.ipynb?content=0`;
         for (let i = 0; i < 30; i++) {
           try {
             const resp = await fetch(url);
