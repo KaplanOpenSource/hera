@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import mimetypes
 from pathlib import Path
@@ -10,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from cors_handler import CorsHandler
-from jupyter_server_thread import JupyterServerThread
+from jupyter_server_thread import JupyterServerThread, DEFAULT_JUPYTER_PORT
 from mock_data import MOCK_PROJECTS
 
 cors_handler = CorsHandler()
@@ -43,14 +45,23 @@ def healthz() -> dict:
     return {"status": "ok"}
 
 
+jupyter: JupyterServerThread | None = None
+
+
 class JupyterStartPayload(BaseModel):
     root_dir: str
 
 
 @app.post("/jupyter/ensure")
 def jupyter_ensure(payload: JupyterStartPayload) -> dict:
-    JupyterServerThread.start(payload.root_dir, args.jupyter_port)
-    return {"port": JupyterServerThread.port(), "root_dir": JupyterServerThread.root_dir()}
+    global jupyter
+    jupyter_port = args.jupyter_port or DEFAULT_JUPYTER_PORT
+    if jupyter and jupyter.is_running():
+        if jupyter.root_dir == payload.root_dir:
+            return {"port": jupyter.port, "root_dir": jupyter.root_dir}
+        jupyter.stop()
+    jupyter = JupyterServerThread(payload.root_dir, jupyter_port)
+    return {"port": jupyter.port, "root_dir": jupyter.root_dir}
 
 
 @app.get("/cors")
