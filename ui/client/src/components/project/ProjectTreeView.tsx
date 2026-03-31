@@ -13,6 +13,7 @@ import { AddDocumentButton } from './AddDocumentButton';
 import { DocumentSplitGroup } from './DocumentSplitGroup';
 import { ProjectViewSettingsButton } from './ProjectViewSettingsButton';
 import { RegisteredRepositories } from '../repo/RegisteredRepositories';
+import { NotebookTreeItem } from './NotebookTreeItem';
 import { RepoTreeWhole } from './RepoTreeWhole';
 import { useViewSettingsStore } from '../../stores/useViewSettingsStore';
 
@@ -125,6 +126,7 @@ export const ProjectTreeView = ({
           onDocumentDeleted={() => setSelectedItemIds([])}
         />
       </TreeItem>
+      <NotebookTreeItem projectName={project.name} />
       <RegisteredRepositories showUpdateButton />
       <RepoTreeWhole
       />
