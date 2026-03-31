@@ -21,6 +21,19 @@ export const DetailsViewNotebook = ({
           body: JSON.stringify({ root_dir: rootDir }),
         });
         const data = await r.json();
+        if (cancelled) return;
+
+        const host = window.location.hostname || 'localhost';
+        const url = `http://${host}:${data.port}/api/status`;
+        for (let i = 0; i < 30; i++) {
+          try {
+            const resp = await fetch(url);
+            if (resp.ok) break;
+          } catch { /* not ready yet */ }
+          if (cancelled) return;
+          await new Promise(res => setTimeout(res, 500));
+        }
+
         if (!cancelled) {
           setJupyterPort(data.port);
         }
