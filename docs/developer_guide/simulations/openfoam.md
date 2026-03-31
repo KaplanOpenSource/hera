@@ -122,16 +122,69 @@ Solver extensions are composed into `OFToolkit` as attributes. They handle solve
 | `StochasticLagrangianSolver_toolkitExtension` | Concrete implementation with default fields (ustar, distanceFromWalls) |
 | `OFLSMToolkit` | OpenFOAM + LSM coupling — particle data loading, concentration calculation |
 
-**Abstract Lagrangian solver key methods:**
+### Dispersion flow field pipeline (`createDispersionFlowField`)
+
+The most complex operation in the Lagrangian toolkit — creates a dispersion case directory from an existing flow simulation. The method is decomposed into a readable orchestrator calling private helpers:
+
+| Step | Helper | Purpose |
+|------|--------|---------|
+| 1 | `_locateOriginalFlowCase()` | Find flow in DB or filesystem |
+| 2 | `_detectParallelAndTimesteps()` | Detect parallel case + discover time directories |
+| 3 | `_buildTimeMapping()` | Build (original→dispersion) time mapping for steady-state or dynamic flows |
+| 4 | `_checkAndRegisterDispersionInDB()` | Query DB for existing record, handle overwrite |
+| 5 | `_prepareDispersionDirectory()` | Copy/link constant/system/0 + per-timestep data + write dispersion fields |
+| 6 | `_finalizeDispersionInDB()` | Register or update DB document |
+
+**Time mapping logic:**
+
+- **Steady-state**: freezes the flow at one timestep — maps to `t=0` and `t=dispersionDuration`
+- **Dynamic**: shifts each flow timestep so dispersion starts at `t=0`. If the flow ends before the dispersion duration, the last timestep is repeated.
+
+### Case results and caching
+
+`getCaseResults` and `getCaseConcentrationsEulerian` share the same cache/load/compute pattern via 7 shared helpers:
+
+| Helper | Purpose |
+|--------|---------|
+| `_resolveCaseDescriptorName()` | Extract name from str or MetadataFrame |
+| `_checkCache()` | Lookup cache, handle overwrite, clean stale entries |
+| `_locateCaseDirectory()` | DB or filesystem case path resolution |
+| `_discoverTimesteps()` | Find numeric time dirs, filter system dirs |
+| `_loadCaseDataViaDask()` | Parallel/serial detection + Dask distributed map |
+| `_saveToCacheParquet()` | Parquet save + DB registration (Lagrangian) |
+| `_saveToCacheNetCDF()` | xarray groupby+sum + netCDF save (Eulerian concentrations) |
+
+### Dispersion case directory (`createDispersionCaseDirectory`)
+
+Validates DB consistency, handles name/parameter conflicts, and creates the case directory:
+
+| Helper | Purpose |
+|--------|---------|
+| `_resolveDispersionFlowField()` | DB lookup for flow field, name canonicalization |
+| `_checkDBConsistency()` | Detect name conflicts + parameter duplicates |
+| `_resolveDirectoryConflict()` | Handle existing directory with rewrite flag |
+| `_syncDispersionToDB()` | Add new or update existing DB record |
+
+### Concentration field computation (`calcConcentrationFieldFullMesh`)
+
+Bins Lagrangian particles onto a Cartesian mesh, stores as partitioned netCDF:
+
+| Helper | Purpose |
+|--------|---------|
+| `_removeConcentrationCache()` | Clean old cache files + DB record |
+| `_createConcentrationCacheDoc()` | Counter-based path + DB registration |
+| `_processConcentrationPartition()` | Per-Dask-partition timestep binning |
+| `_padRemainingTimesteps()` | Zero-fill to full dispersion duration |
+| `_writeConcentrationPartition()` | Concat + rename axes + write netCDF |
+
+### Source generation
 
 | Method | Description |
 |--------|-------------|
-| `createDispersionFlowField(flowName, flowData, ...)` | Create flow field for dispersion (links to original flow, maps time steps, writes ustar/Hmix) |
-| `createDispersionCaseDirectory(hermes_dispersionWorkflow, ...)` | Set up dispersion case with processor links and DB sync |
 | `makeSource_Point/Circle/Sphere/Cylinder/Rectangle/Cube(...)` | Generate particle source geometries |
 | `writeParticlePositionFile(x, y, z, nParticles, ...)` | Write particle initial positions |
 
-**OFLSMToolkit (`lagrangian/LSM/toolkit.py`):**
+### OFLSMToolkit (`lagrangian/LSM/toolkit.py`)
 
 Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM coupling:
 
@@ -147,10 +200,21 @@ Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM
 |--------|-------------|
 | `loadData(times, saveMode, withVelocity, ...)` | Extract particle positions/velocities/masses as dask DataFrame |
 | `makeDistanceFromGround(times, ground, ...)` | Compute ground distance field |
-| `makeUstar(times, ...)` | Compute friction velocity field |
+| `makeUstar(times, ...)` | Compute friction velocity field (decomposed into 6 helpers) |
 | `to_paraview_CSV(data, ...)` | Export particles as timestep CSV |
 | `toUnstructuredVTK(data, ...)` | Export as VTU particle files |
 | `toStructuredVTK(data, ...)` | Export as structured VTK grid |
+
+**makeUstar helper decomposition:**
+
+| Helper | Purpose |
+|--------|---------|
+| `_loadOrComputeCellData()` | Cached cell height data lookup/computation |
+| `_parseOFFieldHeader()` | Find internalField start + cell count |
+| `_parseBoundaryStart()` | Find boundaryField line number |
+| `_extractVelocityField()` | Parse OF vector, compute magnitude |
+| `_interpolateNearGroundValues()` | Regularize to 2D grid, interpolate with (x,y) cache |
+| `_writeScalarField()` | Assemble header + values + boundary → write file |
 
 **Analysis inner class** on OFLSMToolkit:
 
@@ -159,6 +223,7 @@ Inherits from `abstractToolkit` (not from OFToolkit) and provides OpenFOAM + LSM
 | `calcConcentrationPointWise(data, dxdydz, ...)` | Cell-binned concentration from particle data |
 | `calcDocumentConcentrationPointWise(dataDocument, ...)` | Same with DB caching |
 | `calcConcentrationTimeStepFullMesh(...)` | Full domain regular grid concentration |
+| `calcConcentrationFieldFullMesh(...)` | Full pipeline: load particles → bin → pad → write netCDF (decomposed into helpers) |
 
 ## Preprocessing objects (`preprocessOFObjects/`)
 
@@ -221,6 +286,31 @@ VTKPipeLine.registerPipeline(case)
 ```
 
 **Filter tree:** Filters form a tree — each filter can have downstream children. The pipeline traverses the tree depth-first, executing each filter and optionally writing results to disk.
+
+**`getData` decomposition** (was 181 lines, CC 15):
+
+| Step | Helper | Purpose |
+|------|--------|---------|
+| 1 | `_resolveRequestedFilters()` | Coerce None/str/list → concrete filter name list |
+| 2 | `_parseTimeList()` | Handle None (all times), `"start:end"` range, or explicit list |
+| 3 | `_filterCachedTimesteps()` | Subtract already-cached timesteps for incremental computation |
+| 4 | `_buildAndExecuteParaViewPipeline()` | Create reader → build filter tree → execute → write results |
+| 5 | `_updateCacheDB()` | Merge new timesteps into existing DB records |
+
+**`writeCase` decomposition** (was 127 lines, CC 20):
+
+| Step | Helper | Purpose |
+|------|--------|---------|
+| 1 | `_removeOldOutputs()` | Clean existing files before overwrite |
+| 2 | `_ensureOutputDirs()` | Create output directories |
+| 3 | `_resolveTimeList()` | Determine timesteps from reader or caller |
+| 4 | `_writeTimeStepBlocks()` | Stream timesteps in fixed-size blocks to temp files |
+| 5 | `_collectTmpFiles()` | Glob temp block files per filter |
+| 6 | `_mergeToFinalOutput()` | Dispatch to `_mergeZarr` or `_mergeParquet` |
+| 7 | `_atomicReplace()` | `.final` staging → rename |
+| 8 | `_cleanupTmpFiles()` | Remove temp blocks after merge |
+
+The merge step supports both regular meshes (xarray → zarr with time-concatenation) and unstructured meshes (dask → parquet with repartitioning to ~100 MB chunks). The atomic `.final` → rename pattern ensures no partial writes are visible.
 
 ## Template system
 
