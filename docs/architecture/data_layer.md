@@ -333,70 +333,34 @@ A **repository JSON** is the standard way to declare and load data into a Hera p
 <!-- mermaid source (for editing, paste into mermaid.live):
 ```mermaid
 sequenceDiagram
-    participant User as User / CLI
+    participant User
     participant DT as dataToolkit
-    participant TKHome as ToolkitHome
-    participant Toolkit as Concrete Toolkit
+    participant TK as Toolkit
     participant DB as MongoDB
 
-    User->>DT: loadAllDatasourcesIn<br/>RepositoryJSONToProject(<br/>projectName, repoJSON,<br/>basedir, overwrite,<br/>auto_register_missing)
+    User->>DT: loadAllDatasources(project, JSON)
 
-    note over DT: Parse JSON and iterate<br/>over each toolkit entry
+    loop each toolkit in JSON
+        DT->>DT: getToolkit(name)
 
-    loop For each toolkit in JSON
-        DT->>TKHome: getToolkit(toolkitName,<br/>projectName)
-
-        alt Toolkit found in registry
-            TKHome-->>DT: Return toolkit instance
-        else Toolkit not found
-            note over DT: If auto_register_missing:<br/>search JSON for classpath<br/>hints and auto-register
-            DT->>TKHome: auto_register_and_get(<br/>toolkitName, projectName,<br/>repositoryJSON)
-            TKHome-->>DT: Return newly registered<br/>toolkit instance
-        end
-
-        note over DT: Process each section<br/>type for this toolkit
-
-        loop For each section in toolkit dict
-            alt Config section
-                DT->>Toolkit: setConfig(**configDict)
-                Toolkit->>DB: Upsert config document
-            else DataSource section
-                note over DT: Resolve relative paths<br/>using basedir if<br/>isRelativePath is True
-                DT->>Toolkit: addDataSource(name,<br/>resource, dataFormat,<br/>version)
-                Toolkit->>DB: Insert ToolkitDataSource<br/>document
-            else Measurements section
-                DT->>Toolkit: addMeasurementsDocument(<br/>resource, dataFormat,<br/>type, desc)
-                Toolkit->>DB: Insert Measurements doc
-            else Simulations section
-                DT->>Toolkit: addSimulationsDocument(<br/>resource, dataFormat,<br/>type, desc)
-                Toolkit->>DB: Insert Simulations doc
-            else Cache section
-                DT->>Toolkit: addCacheDocument(<br/>resource, dataFormat,<br/>type, desc)
-                Toolkit->>DB: Insert Cache doc
-            else Function section
-                DT->>Toolkit: Call named function<br/>with parameters
+        loop each section
+            alt Config
+                DT->>TK: setConfig(...)
+            else DataSource
+                DT->>TK: addDataSource(name, resource)
+            else Measurements
+                DT->>TK: addMeasurementsDocument(...)
+            else Simulations
+                DT->>TK: addSimulationsDocument(...)
+            else Cache
+                DT->>TK: addCacheDocument(...)
             end
+            TK->>DB: save document
         end
     end
 
-    DT-->>User: Loading complete
+    DT-->>User: done
 ```
--->DT->>Toolkit: Call named function<br/>with parameters
-            end
-        end
-    end
-
-    DT-->>User: Loading complete
-```
--->
--->DT->>Toolkit: Call named function<br/>with parameters
-            end
-        end
-    end
-
-    DT-->>User: Loading complete
-```
--->
 -->
 
 ### Path Resolution
@@ -496,35 +460,23 @@ The full call chain when a toolkit registers a new data source — from the tool
 ```mermaid
 sequenceDiagram
     participant User
-    participant Toolkit as abstractToolkit
-    participant Project as Project
-    participant Collection as Measurements_Collection
-    participant MongoDB as MongoDB
+    participant Toolkit
+    participant DB as MongoDB
 
-    User->>Toolkit: addDataSource(name, resource, dataFormat, version, **metadata)
-    Note over Toolkit: Attach toolkit name,<br/>datasource name,<br/>version to desc
+    User->>Toolkit: addDataSource(name, resource, version)
+    Note over Toolkit: attach toolkit name + version
 
-    Toolkit->>Toolkit: getDataSourceDocument(name, version)
-    Toolkit->>Project: getMeasurementsDocuments(type="ToolkitDataSource", ...)
-    Project->>Collection: getDocuments(projectName, **filters)
-    Collection->>MongoDB: query
-    MongoDB-->>Collection: results
-    Collection-->>Toolkit: existing doc or empty
+    Toolkit->>DB: query existing DataSource
+    DB-->>Toolkit: doc or empty
 
-    alt Data source exists AND overwrite=True
-        Toolkit->>Toolkit: deleteDataSource(name, version)
-        Toolkit->>MongoDB: doc.delete()
-    else Data source exists AND overwrite=False
+    alt exists AND overwrite
+        Toolkit->>DB: delete old doc
+    else exists AND no overwrite
         Toolkit-->>User: raise ValueError
     end
 
-    Toolkit->>Project: addMeasurementsDocument(type="ToolkitDataSource", resource, dataFormat, desc)
-    Note over Toolkit: abstractToolkit override<br/>injects toolkit name<br/>into desc
-    Project->>Collection: addDocument(projectName, resource, dataFormat, type, desc)
-    Collection->>MongoDB: MetadataCol(...).save()
-    MongoDB-->>Collection: saved document
-    Collection-->>Project: document
-    Project-->>Toolkit: document
+    Toolkit->>DB: addMeasurementsDocument(ToolkitDataSource)
+    DB-->>Toolkit: saved document
     Toolkit-->>User: document
 ```
 -->
@@ -539,28 +491,20 @@ The call chain for adding documents to each collection (Measurements, Simulation
 ```mermaid
 sequenceDiagram
     participant User
-    participant Project as Project
-    participant Collection as AbstractCollection<br/>(Measurements / Simulations / Cache)
-    participant MongoEngine as MongoEngine Document
-    participant MongoDB as MongoDB
+    participant Project
+    participant Collection
+    participant DB as MongoDB
 
-    User->>Project: addMeasurementsDocument(resource, dataFormat, type, desc)
-    Note over Project: Or addSimulationsDocument<br/>or addCacheDocument
+    User->>Project: add[Type]Document(resource, type, desc)
 
-    alt Called via abstractToolkit
-        Note over Project: abstractToolkit override<br/>adds toolkit name to desc<br/>before calling super()
+    alt via abstractToolkit
+        Note over Project: injects toolkit name
     end
 
-    Project->>Collection: addDocument(projectName, resource, dataFormat, type, desc)
-    Note over Collection: Measurements_Collection uses _cls="Metadata.Measurements"<br/>Simulations_Collection uses _cls="Metadata.Simulations"<br/>Cache_Collection uses _cls="Metadata.Cache"
-
-    Collection->>MongoEngine: MetadataCol(projectName, resource, dataFormat, type, desc)
-    MongoEngine->>MongoEngine: validate fields
-    MongoEngine->>MongoDB: save()
-    MongoDB-->>MongoEngine: ObjectId
-    MongoEngine-->>Collection: saved document
-    Collection-->>Project: document
-    Project-->>User: document
+    Project->>Collection: addDocument(project, resource, type, desc)
+    Collection->>DB: MetadataCol(...).save()
+    DB-->>Collection: document
+    Collection-->>User: document
 ```
 -->
 
@@ -574,60 +518,38 @@ The complete flow for ingesting raw sensor data — from parsing through to data
 ```mermaid
 sequenceDiagram
     participant User
-    participant HF as HighFreqToolKit
-    participant Parser as Parser<br/>(Campbell / TOA5)
-    participant Normalise as normalise_sonic_df<br/>normalise_trh_df
-    participant Disk as File System
-    participant Toolkit as abstractToolkit
-    participant MongoDB as MongoDB
+    participant HF as HighFreq
+    participant Parser
+    participant Disk
+    participant DB as MongoDB
 
-    User->>HF: loadData(name, path, outputDirectory, append, overwrite, metadata)
+    User->>HF: loadData(name, path, ...)
 
     rect rgb(240, 248, 255)
-    Note over HF,Normalise: Phase 1: Parse and normalise
-    HF->>HF: _detect_parser(path)
-    HF->>Parser: parse(path, fromTime, toTime)
-    Parser-->>HF: raw DataFrame or dict
-    HF->>Normalise: normalise(raw_df)
-    Note over Normalise: Lowercase columns<br/>DatetimeIndex<br/>Float dtypes
-    Normalise-->>HF: (normalised_df, parser_metadata)
+    Note over HF,Parser: Phase 1: Parse + normalise
+    HF->>Parser: parse(path)
+    Parser-->>HF: raw DataFrame
+    HF->>HF: normalise (lowercase, DatetimeIndex)
     end
 
     rect rgb(255, 248, 240)
-    Note over HF,MongoDB: Phase 2: Check existing
-    HF->>Toolkit: getDataSourceDocument(name, version)
-    Toolkit->>MongoDB: query ToolkitDataSource
-    MongoDB-->>Toolkit: existing_doc or None
+    Note over HF,DB: Phase 2: Check existing
+    HF->>DB: getDataSourceDocument(name)
+    DB-->>HF: doc or None
     end
 
-    alt Data source exists AND append=True
-        rect rgb(240, 255, 240)
-        Note over HF,Disk: Phase 3a: Append
-        HF->>Disk: read existing parquet (from doc.resource)
-        Disk-->>HF: existing_df
-        HF->>HF: concat + deduplicate by timestamp
+    alt append
+        HF->>Disk: read existing + concat
         HF->>Disk: write combined parquet
-        end
-    else Data source exists AND overwrite=True
-        rect rgb(255, 255, 240)
-        Note over HF,Disk: Phase 3b: Overwrite
-        HF->>Disk: write new parquet (reuse path)
-        HF->>Toolkit: addDataSource(overwrite=True)
-        Toolkit->>MongoDB: delete old + insert new
-        end
-    else Data source does NOT exist
-        rect rgb(248, 240, 255)
-        Note over HF,MongoDB: Phase 3c: Create new
-        HF->>Toolkit: getCounterAndAdd("highfreq_{name}")
-        Toolkit-->>HF: file_id (e.g. 0)
-        Note over HF: filename = {name}_{file_id}.parquet
+    else overwrite
         HF->>Disk: write new parquet
-        HF->>Toolkit: addDataSource(name, resource, "parquet", version, **metadata)
-        Toolkit->>MongoDB: insert ToolkitDataSource document
-        end
+        HF->>DB: addDataSource(overwrite)
+    else new
+        HF->>HF: counter → filename
+        HF->>Disk: write parquet
+        HF->>DB: addDataSource(name, resource)
     end
 
-    MongoDB-->>HF: document
     HF-->>User: document
 ```
 -->
