@@ -104,16 +104,44 @@ classDiagram
 
 `experimentSetupWithData` uses multiple inheritance — it extends both `argosDataObjects.ExperimentZipFile` (for experiment metadata from Argos zip files) and `abstractToolkit` (for Hera data layer access). Trial and Entity classes similarly extend their Argos counterparts while adding the `_experimentData` reference for data retrieval.
 
+### ArgosWEB as the authoring tool
+
+[ArgosWEB](https://github.com/KaplanOpenSource/argos) is the web UI where experiments are authored. It produces the ZIP file that Hera consumes. The data flow is:
+
+```
+ArgosWEB (browser)  →  Export ZIP  →  hera-experiment create  →  Hera Project (MongoDB)
+                    ↘                                         ↗
+                     GraphQL API  →  webExperimentFactory  →
+```
+
+ArgosWEB stores the experiment as a JSON document internally and exports it as `data.json` inside a ZIP archive. The JSON schema has evolved through 3 versions (see [JSON version migration](#json-version-migration) below) — all are normalised on load.
+
 ### Experiment factory pattern
 
 Argos experiments can be loaded from two sources:
 
-| Factory | Source | Location |
-|---------|--------|----------|
-| `fileExperimentFactory` | Local ZIP file or JSON | `pyargos/argos/experimentSetup/dataObjectsFactory.py` |
-| `webExperimentFactory` | ArgosWEB server via GraphQL | `pyargos/argos/experimentSetup/dataObjectsFactory.py` |
+| Factory | Source | When to use |
+|---------|--------|-------------|
+| `fileExperimentFactory` | Local ZIP file or directory | Standard path: user exports ZIP from ArgosWEB, runs `hera-experiment create` |
+| `webExperimentFactory` | ArgosWEB server via GraphQL | Automation: skip the export step, query the experiment directly from the server |
 
 Both return the same `Experiment` interface. In Hera, `experimentSetupWithData.__init__` uses `fileExperimentFactory` internally when loading from the experiment directory.
+
+**GraphQL access:**
+
+```python
+from argos.experimentSetup import webExperimentFactory
+
+factory = webExperimentFactory(
+    url="http://argos-server/graphql",
+    token="auth-token",
+)
+experiment = factory.getExperiment("MyExperiment")
+# Returns the same Experiment object as fileExperimentFactory
+# with trialSet, entityType, entitiesTable, etc.
+```
+
+The GraphQL factory queries ArgosWEB's API endpoint, receives the JSON structure, and constructs the same object hierarchy. This enables CI/CD pipelines and automated workflows that don't require manual ZIP export.
 
 ### JSON version migration
 
