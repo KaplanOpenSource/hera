@@ -84,11 +84,71 @@ Each experiment has a **data engine** that handles the actual data retrieval —
 
 ---
 
+---
+
+## ArgosWEB — experiment authoring
+
+[ArgosWEB](https://github.com/KaplanOpenSource/argos) is the web-based experiment management UI where experiments are designed before any code is written or data is collected. It is the **entry point** of the experiment pipeline.
+
+### What you do in ArgosWEB
+
+1. **Create an experiment** — give it a name, dates, and description
+2. **Define entity types** — create device categories (e.g. "Sonic", "TRH", "Gateway") and define their attribute schema (which properties each device has, with types like String, Number, Boolean, Date)
+3. **Create entity instances** — add individual devices (e.g. "sonic01", "sonic02") with their specific attribute values (station name, height, serial number)
+4. **Set up trial sets and trials** — define experimental configurations with `TrialStart`/`TrialEnd` dates and per-trial properties
+5. **Place devices on maps** — upload site images and position devices with lat/lon coordinates
+6. **Configure containment** — nest devices (e.g. TRH sensor is "contained in" a sonic anemometer station — the TRH inherits the sonic's location)
+7. **Export as ZIP** — download the experiment definition as a ZIP file containing `data.json` + map images
+
+### How ArgosWEB connects to Hera
+
+```
+ArgosWEB (browser)
+    │
+    ▼ Export ZIP
+experiment.zip
+    │  └── data.json (trial sets, entity types, trials, entities, maps)
+    │  └── images/ (site maps)
+    │
+    ▼ hera-experiment create
+Hera experiment directory
+    │  ├── code/           (experiment class)
+    │  ├── data/           (parquet files — filled during data collection)
+    │  ├── runtimeExperimentData/
+    │  │   └── experiment.zip
+    │  └── repository.json (for loading into Hera projects)
+    │
+    ▼ hera-project repository add + project create
+Hera Project (MongoDB)
+    │
+    ▼ toolkitHome.getToolkit(EXPERIMENT)
+Python analysis
+```
+
+### Alternative: live GraphQL access
+
+Instead of exporting a ZIP, you can access ArgosWEB experiments directly via its GraphQL API:
+
+```python
+from argos.experimentSetup import webExperimentFactory
+
+factory = webExperimentFactory(
+    url="http://argos-server/graphql",
+    token="your-auth-token",
+)
+experiment = factory.getExperiment("MyExperiment")
+# Same API as file-based experiments — trial sets, entities, etc.
+```
+
+This is useful for automation or when you want to avoid the export step.
+
+---
+
 ## Experiment lifecycle
 
 ### 1. Define in ArgosWEB
 
-Create the experiment in the Argos web UI:
+Create the experiment in the Argos web UI (see [ArgosWEB section above](#argosweb--experiment-authoring)):
 - Define entity types and their attribute schemas
 - Create entity instances (devices/sensors)
 - Create trial sets and trials with `TrialStart`/`TrialEnd` dates
