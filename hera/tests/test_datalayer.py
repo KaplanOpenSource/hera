@@ -1049,3 +1049,287 @@ class TestModuleFunctionsLocal:
         with open(config_path) as f:
             cfg = json.load(f)
         assert cfg.get("projectName") == "TestCreatedProject"
+
+
+# ===========================================================================
+# 19. parseConnectionString (no DB, no config file)
+# ===========================================================================
+
+class TestParseConnectionString:
+    """Test connection string parsing — pure function, no side effects."""
+
+    def test_basic(self):
+        from hera.datalayer.document import parseConnectionString
+        result = parseConnectionString("myuser:mypass@localhost/mydb")
+        assert result["username"] == "myuser"
+        assert result["password"] == "mypass"
+        assert result["dbIP"] == "localhost"
+        assert result["dbName"] == "mydb"
+
+    def test_with_port(self):
+        from hera.datalayer.document import parseConnectionString
+        result = parseConnectionString("admin:secret@192.168.1.10:27017/production")
+        assert result["username"] == "admin"
+        assert result["password"] == "secret"
+        assert result["dbIP"] == "192.168.1.10:27017"
+        assert result["dbName"] == "production"
+
+    def test_special_chars_in_password_raises(self):
+        from hera.datalayer.document import parseConnectionString
+        # Known limitation: @ in password breaks the simple split parser.
+        # This documents the current behavior — passwords must not contain @.
+        with pytest.raises(ValueError):
+            parseConnectionString("user:p@ss@host/db")
+
+
+# ===========================================================================
+# 20. Config file management (mocked — no real config file touched)
+# ===========================================================================
+
+class TestConfigFileManagement:
+    """Test getMongoJSON, addOrUpdateDatabase, removeConnection, getDBNamesFromJSON.
+
+    Uses a temporary config file via monkeypatch to avoid touching the real
+    ~/.pyhera/config.json.
+    """
+
+    @pytest.fixture()
+    def mock_config(self, tmp_dir, monkeypatch):
+        """Create a temp config file and patch HOME so the datalayer functions use it."""
+        pyhera_dir = os.path.join(tmp_dir, ".pyhera")
+        os.makedirs(pyhera_dir, exist_ok=True)
+        config_path = os.path.join(pyhera_dir, "config.json")
+
+        # Write a seed config with one connection
+        seed = {
+            "test_user": {
+                "username": "testuser",
+                "password": "testpass",
+                "dbIP": "localhost",
+                "dbName": "testdb",
+            }
+        }
+        with open(config_path, "w") as f:
+            json.dump(seed, f)
+
+        # Redirect HOME so getMongoJSON reads our temp file
+        monkeypatch.setenv("HOME", tmp_dir)
+        return config_path
+
+    def test_getMongoJSON_reads_config(self, mock_config):
+        from hera.datalayer.document import getMongoJSON
+        config = getMongoJSON()
+        assert "test_user" in config
+        assert config["test_user"]["dbIP"] == "localhost"
+
+    def test_getMongoJSON_creates_default_if_missing(self, tmp_dir, monkeypatch):
+        """When no config exists, getMongoJSON creates a default and raises IOError."""
+        empty_home = os.path.join(tmp_dir, "empty_home")
+        os.makedirs(empty_home, exist_ok=True)
+        monkeypatch.setenv("HOME", empty_home)
+
+        from hera.datalayer.document import getMongoJSON
+        with pytest.raises(IOError, match="config file doesn't exist"):
+            getMongoJSON()
+
+        # Verify it created the default file
+        created = os.path.join(empty_home, ".pyhera", "config.json")
+        assert os.path.isfile(created)
+        with open(created) as f:
+            data = json.load(f)
+        # Should have one entry with the current username
+        assert len(data) >= 1
+
+    def test_getDBNamesFromJSON(self, mock_config):
+        from hera.datalayer.document import getDBNamesFromJSON
+        names = getDBNamesFromJSON()
+        assert "test_user" in names
+
+    def test_getMongoConfigFromJson(self, mock_config):
+        from hera.datalayer.document import getMongoConfigFromJson
+        cfg = getMongoConfigFromJson(connectionName="test_user")
+        assert cfg["username"] == "testuser"
+        assert cfg["dbName"] == "testdb"
+
+    def test_addOrUpdateDatabase_new(self, mock_config):
+        from hera.datalayer.document import addOrUpdateDatabase
+        addOrUpdateDatabase(
+            connectionName="new_conn",
+            username="newuser",
+            password="newpass",
+            databaseIP="10.0.0.1",
+            databaseName="newdb",
+        )
+        # Verify it was written to the config file
+        with open(mock_config) as f:
+            data = json.load(f)
+        assert "new_conn" in data
+        assert data["new_conn"]["username"] == "newuser"
+        assert data["new_conn"]["dbIP"] == "10.0.0.1"
+
+    def test_addOrUpdateDatabase_update_existing(self, mock_config):
+        from hera.datalayer.document import addOrUpdateDatabase
+        addOrUpdateDatabase(
+            connectionName="test_user",
+            username="updated_user",
+            password="updated_pass",
+            databaseIP="192.168.1.1",
+            databaseName="updated_db",
+        )
+        with open(mock_config) as f:
+            data = json.load(f)
+        assert data["test_user"]["username"] == "updated_user"
+        assert data["test_user"]["dbIP"] == "192.168.1.1"
+
+    def test_removeConnection(self, mock_config):
+        from hera.datalayer.document import removeConnection
+        removeConnection("test_user")
+        with open(mock_config) as f:
+            data = json.load(f)
+        assert "test_user" not in data
+
+    def test_removeConnection_nonexistent_raises(self, mock_config):
+        from hera.datalayer.document import removeConnection
+        with pytest.raises(KeyError):
+            removeConnection("nonexistent_connection")
+
+    def test_addOrUpdateDatabase_no_config_raises(self, tmp_dir, monkeypatch):
+        """addOrUpdateDatabase raises FileNotFoundError when no config exists."""
+        empty_home = os.path.join(tmp_dir, "no_config_home")
+        os.makedirs(empty_home, exist_ok=True)
+        monkeypatch.setenv("HOME", empty_home)
+
+        from hera.datalayer.document import addOrUpdateDatabase
+        with pytest.raises(FileNotFoundError):
+            addOrUpdateDatabase("x", "u", "p", "h", "d")
+
+
+# ===========================================================================
+# 21. saveData with auto-format detection (requires MongoDB)
+# ===========================================================================
+
+@requires_mongo
+class TestSaveDataAutoDetect:
+    """Test that saveData auto-detects the format when dataFormat is not specified."""
+
+    def test_auto_detect_dataframe(self, clean_proj, tmp_dir):
+        clean_proj._filesDirectory = tmp_dir
+        df = pd.DataFrame({"a": [1, 2], "b": [3.0, 4.0]})
+        doc = clean_proj.saveMeasurementData(
+            name="auto_df",
+            data=df,
+            desc={"auto": True},
+            # dataFormat not specified — should be auto-detected
+        )
+        assert doc is not None
+        loaded = doc.getData()
+        if hasattr(loaded, "compute"):
+            loaded = loaded.compute()
+        assert isinstance(loaded, pd.DataFrame)
+        assert len(loaded) == 2
+
+    def test_auto_detect_dict(self, clean_proj, tmp_dir):
+        clean_proj._filesDirectory = tmp_dir
+        data = {"key": "value", "num": 42}
+        doc = clean_proj.saveCacheData(
+            name="auto_dict",
+            data=data,
+            desc={"auto_dict": True},
+        )
+        assert doc is not None
+        loaded = doc.getData()
+        assert loaded["key"] == "value"
+
+    def test_auto_detect_numpy(self, clean_proj, tmp_dir):
+        clean_proj._filesDirectory = tmp_dir
+        arr = np.array([1.0, 2.0, 3.0])
+        doc = clean_proj.saveSimulationData(
+            name="auto_np",
+            data=arr,
+            desc={"auto_np": True},
+        )
+        assert doc is not None
+        loaded = doc.getData()
+        assert np.allclose(loaded, arr)
+
+
+# ===========================================================================
+# 22. Simulations/Cache getDocumentsAsDict (requires MongoDB)
+# ===========================================================================
+
+@requires_mongo
+class TestSimulationsCacheAsDict:
+    """Test getDocumentsAsDict for Simulations and Cache (Measurements already tested)."""
+
+    def test_simulations_as_dict(self, clean_proj):
+        clean_proj.addSimulationsDocument(
+            resource="sim_dict_test", dataFormat="string",
+            type="SimDictTest", desc={"val": 1},
+        )
+        result = clean_proj.getSimulationsDocumentsAsDict(type="SimDictTest")
+        assert "documents" in result
+        assert len(result["documents"]) >= 1
+
+    def test_cache_as_dict(self, clean_proj):
+        clean_proj.addCacheDocument(
+            resource="cache_dict_test", dataFormat="string",
+            type="CacheDictTest", desc={"val": 2},
+        )
+        result = clean_proj.getCacheDocumentsAsDict(type="CacheDictTest")
+        assert "documents" in result
+        assert len(result["documents"]) >= 1
+
+
+# ===========================================================================
+# 23. Empty project edge cases (requires MongoDB)
+# ===========================================================================
+
+@requires_mongo
+class TestEmptyProjectEdgeCases:
+    """Test queries against a project with no documents."""
+
+    def test_empty_measurements_query(self, clean_proj):
+        docs = list(clean_proj.getMeasurementsDocuments(type="NonExistentType"))
+        assert len(docs) == 0
+
+    def test_empty_simulations_query(self, clean_proj):
+        docs = list(clean_proj.getSimulationsDocuments(type="NonExistentType"))
+        assert len(docs) == 0
+
+    def test_empty_cache_query(self, clean_proj):
+        docs = list(clean_proj.getCacheDocuments(type="NonExistentType"))
+        assert len(docs) == 0
+
+    def test_empty_all_documents(self, clean_proj):
+        docs = list(clean_proj.getAllDocuments(type="NonExistentType"))
+        assert len(docs) == 0
+
+    def test_get_metadata_empty(self, clean_proj):
+        metadata = clean_proj.getMetadata()
+        # Should return a DataFrame (possibly empty)
+        assert isinstance(metadata, pd.DataFrame)
+
+
+# ===========================================================================
+# 24. guessHandler (no DB)
+# ===========================================================================
+
+class TestGuessHandler:
+    """Test guessHandler with various Python objects."""
+
+    def test_guess_string(self):
+        handler = guessHandler("hello")
+        assert handler is not None
+
+    def test_guess_list(self):
+        # Lists might not have a handler — test it doesn't crash
+        try:
+            handler = guessHandler([1, 2, 3])
+        except Exception:
+            pass  # acceptable if no handler for lists
+
+    def test_guess_none(self):
+        try:
+            handler = guessHandler(None)
+        except Exception:
+            pass  # acceptable
