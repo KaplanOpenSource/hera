@@ -450,8 +450,10 @@ class Project:
         """
         counterName = self._normalizeCounterName(counterName)
         cnfg_doc = self._getConfigDocument()
-        self.defineCounter(counterName,0)
-        cnfg_doc.update_one(**{f"set__desc__counter__{counterName}":defaultValue})
+        self._enforce_counter_field(cnfg_doc)
+        # defineCounter only creates if not exists; then we force-set the value.
+        self.defineCounter(counterName, 0)
+        cnfg_doc.update_one(**{f"set__desc__counters__{counterName}": defaultValue})
 
     def _normalizeCounterName(self, counterName):
         """Normalize a counter name by replacing dots with underscores."""
@@ -981,19 +983,19 @@ class Project:
         """
         Save data as a measurement document. See ``saveData`` for parameter details.
         """
-        self.saveData(name=name, data=data, desc=desc, kind="Measurement", type=type, dataFormat=dataFormat, **kwargs)
+        return self.saveData(name=name, data=data, desc=desc, kind="Measurements", type=type, dataFormat=dataFormat, **kwargs)
 
     def saveCacheData(self, name, data, desc, type=None, dataFormat=None, **kwargs):
         """
         Save data as a cache document. See ``saveData`` for parameter details.
         """
-        self.saveData(name=name, data=data, desc=desc, kind="Cache", type=type, dataFormat=dataFormat, **kwargs)
+        return self.saveData(name=name, data=data, desc=desc, kind="Cache", type=type, dataFormat=dataFormat, **kwargs)
 
     def saveSimulationData(self, name, data, desc, type=None, dataFormat=None, **kwargs):
         """
         Save data as a simulation document. See ``saveData`` for parameter details.
         """
-        self.saveData(name=name, data=data, desc=desc, kind="Simulation", type=type, dataFormat=dataFormat, **kwargs)
+        return self.saveData(name=name, data=data, desc=desc, kind="Simulations", type=type, dataFormat=dataFormat, **kwargs)
 
     def _get_full_func_name(self,func):
         """Returns the full qualified path: module.[class.]function_name"""
