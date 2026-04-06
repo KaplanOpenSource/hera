@@ -39,30 +39,55 @@ export const AddDocumentButton = ({
   const [name, setName] = useState('');
   const [resource, setResource] = useState('');
   const [asAgent, setAsAgent] = useState(false);
+  const [asNotebook, setAsNotebook] = useState(false);
   const [cls, setCls] = useState<MetadataCls>(METADATA_CLASSES[0]);
   const [chosenToolkit, setChosenToolkit] = useState<string | undefined>(toolkit?.toolkit);
   const { currProjectName, setCurrentProject } = useProjectStore();
   const inputRef = useRef();
   const closeRef = useRef<() => void>();
 
+  const filesDir = useProjectStore.getState().getProject()?.configDocument?.data.desc.filesDirectory ?? '';
+
   const doAddDoc = async () => {
     const desc: DocumentDesc = { datasourceName: name };
     if (chosenToolkit) {
       desc.toolkit = chosenToolkit;
     }
-    const addcmd = asAgent
+    const addcmd = asNotebook
       ? `
+import json
+from pathlib import Path
+notebooks_dir = Path("${filesDir}") / "notebooks"
+notebooks_dir.mkdir(parents=True, exist_ok=True)
+notebook_path = notebooks_dir / f"${name}.ipynb"
+empty_notebook = {
+    "nbformat": 4,
+    "nbformat_minor": 5,
+    "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}},
+    "cells": [],
+}
+notebook_path.write_text(json.dumps(empty_notebook, indent=2))
+Cache_Collection().addDocument(
+    projectName="${currProjectName}",
+    resource=str(notebook_path),
+    dataFormat="JSON_dict",
+    type="notebook",
+    desc=${JSON.stringify(desc)},
+)
+`
+      : asAgent
+        ? `
 All.addDocument('${currProjectName}', resource={"effects": {}}, desc=${JSON.stringify(desc)},
     dataFormat=datatypes.JSON_DICT,
     type='ToolkitDataSource')
       `
-      : `
+        : `
 ${cls.collection}().addDocument('${currProjectName}', resource='${resource}', desc=${JSON.stringify(desc)})
     `;
     const { problem, data } = await fetchPython({
       results: ['project'],
       code: `
-from hera.datalayer import All, datatypes, ${cls.collection}
+from hera.datalayer import All, datatypes, Cache_Collection
 ${addcmd}
 docs = All.getDocumentsAsDict('${currProjectName}', with_id=True)
 project = {"name": '${currProjectName}', "documents": docs['documents']}
@@ -88,6 +113,7 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
         setName('');
         setResource('');
         setAsAgent(false);
+        setAsNotebook(false);
         setTimeout(() => (inputRef.current as any)?.focus(), 0)
       }}
       dialogProps={{
@@ -118,45 +144,58 @@ project = {"name": '${currProjectName}', "documents": docs['documents']}
               value={name}
               setValue={v => setName(v)}
             />
-            <TextProperty
-              margin="dense"
-              label="Resource"
-              fullWidth
-              value={resource}
-              setValue={v => setResource(v)}
-              disabled={asAgent}
-            />
-            <Stack
-              direction={'column'}
-              spacing={1}
-              justifyItems={'flex-start'}
-              alignItems={'flex-start'}
-            >
+            {!asNotebook && (
+              <TextProperty
+                margin="dense"
+                label="Resource"
+                fullWidth
+                value={resource}
+                setValue={v => setResource(v)}
+                disabled={asAgent}
+              />
+            )}
+            <Stack direction="column" spacing={-1}>
               <BooleanProperty
-                label="Agent"
-                value={asAgent}
-                setValue={v => setAsAgent(v)}
+                label="Notebook"
+                value={asNotebook}
+                setValue={v => { setAsNotebook(v); if (v) setAsAgent(false); }}
               />
-              <SelectProperty
-                label="Class"
-                value={cls.name}
-                setValue={(v) => setCls(METADATA_CLASSES.find(c => c.name === v)!)}
-                menuItems={METADATA_CLASSES.map(c => ({ name: c.name }))}
-              />
-              <Autocomplete
-                size="small"
-                disableClearable
-                style={{ minWidth: '200px' }}
-                options={[NO_TOOLKIT, ...toolkits.map(t => t.toolkit)]}
-                value={chosenToolkit || NO_TOOLKIT}
-                onChange={(_e, v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
-                renderInput={(params) => <TextField {...params} label="Toolkit" />}
-                slotProps={{
-                  popper: { placement: 'bottom-start', modifiers: [{ name: 'flip', enabled: false }] },
-                  listbox: { style: { maxHeight: '250px' } },
-                }}
-              />
+              {!asNotebook && (
+                <BooleanProperty
+                  label="Agent"
+                  value={asAgent}
+                  setValue={v => setAsAgent(v)}
+                />
+              )}
             </Stack>
+            {!asNotebook && (
+              <Stack
+                direction={'column'}
+                spacing={2}
+                justifyItems={'flex-start'}
+                alignItems={'flex-start'}
+              >
+                <SelectProperty
+                  label="Class"
+                  value={cls.name}
+                  setValue={(v) => setCls(METADATA_CLASSES.find(c => c.name === v)!)}
+                  menuItems={METADATA_CLASSES.map(c => ({ name: c.name }))}
+                />
+                <Autocomplete
+                  size="small"
+                  disableClearable
+                  style={{ minWidth: '200px' }}
+                  options={[NO_TOOLKIT, ...toolkits.map(t => t.toolkit)]}
+                  value={chosenToolkit || NO_TOOLKIT}
+                  onChange={(_e, v) => setChosenToolkit(v === NO_TOOLKIT ? undefined : v)}
+                  renderInput={(params) => <TextField {...params} label="Toolkit" />}
+                  slotProps={{
+                    popper: { placement: 'bottom-start', modifiers: [{ name: 'flip', enabled: false }] },
+                    listbox: { style: { maxHeight: '250px' } },
+                  }}
+                />
+              </Stack>
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={close}>
