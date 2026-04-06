@@ -17,6 +17,20 @@ class JupyterServerThread:
         self._thread.start()
         print(f"Jupyter server starting on port {port}, root_dir={root_dir}")
 
+    def wait_until_ready(self, timeout: float = 30) -> bool:
+        import time
+        url = f"http://localhost:{self._port}/api/status"
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                resp = urllib.request.urlopen(url, timeout=2)
+                if resp.status == 200:
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.5)
+        return False
+
     @property
     def port(self) -> int:
         return self._port

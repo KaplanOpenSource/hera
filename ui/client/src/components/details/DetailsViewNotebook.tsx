@@ -27,17 +27,6 @@ export const DetailsViewNotebook = ({
         const data = await r.json();
         if (cancelled) return;
 
-        const host = window.location.hostname || 'localhost';
-        const url = `http://${host}:${data.port}/api/contents/notebooks/${notebookName}.ipynb?content=0`;
-        for (let i = 0; i < 30; i++) {
-          try {
-            const resp = await fetch(url);
-            if (resp.ok) break;
-          } catch { /* not ready yet */ }
-          if (cancelled) return;
-          await new Promise(res => setTimeout(res, 500));
-        }
-
         if (!cancelled) {
           setJupyterPort(data.port);
         }
@@ -52,7 +41,11 @@ export const DetailsViewNotebook = ({
   }, [rootDir, notebookName]);
 
   if (error) return <Typography color="error">{error}</Typography>;
-  if (!jupyterPort) return <CircularProgress />;
+  if (!jupyterPort) return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <CircularProgress />
+    </Box>
+  );
 
   const host = window.location.hostname || 'localhost';
   const src = `http://${host}:${jupyterPort}/doc/tree/notebooks/${notebookName}.ipynb`;
