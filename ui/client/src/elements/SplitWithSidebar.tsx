@@ -1,6 +1,5 @@
-import { Box } from '@mui/material';
-import { ReactNode } from 'react';
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
+import { ReactNode, useEffect } from 'react';
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from 'react-resizable-panels';
 
 export const SplitWithSidebar = ({
   sidebar,
@@ -11,26 +10,39 @@ export const SplitWithSidebar = ({
   collapsed: boolean,
   children: ReactNode,
 }) => {
-  return collapsed
-    ? <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
-    : (
-      <PanelGroup orientation="horizontal">
-        <Panel defaultSize={50} minSize={20}>
-          {sidebar}
-        </Panel>
+  const sidebarRef = usePanelRef();
 
-        <PanelResizeHandle
-          style={{
-            width: 4,
-            cursor: 'col-resize',
-            backgroundColor: '#e0e0e0',
-            outline: 'none',
-          }}
-        />
+  useEffect(() => {
+    if (collapsed) {
+      sidebarRef.current?.collapse();
+    } else {
+      sidebarRef.current?.expand();
+    }
+  }, [collapsed]);
 
-        <Panel defaultSize={50} minSize={20}>
-          {children}
-        </Panel>
-      </PanelGroup>
-    );
+  return (
+    <PanelGroup orientation="horizontal">
+      <Panel
+        panelRef={sidebarRef}
+        defaultSize={50}
+        minSize={20}
+        collapsible
+      >
+        {sidebar}
+      </Panel>
+
+      <PanelResizeHandle
+        style={{
+          width: collapsed ? 0 : 4,
+          cursor: 'col-resize',
+          backgroundColor: '#e0e0e0',
+          outline: 'none',
+        }}
+      />
+
+      <Panel defaultSize={50} minSize={20}>
+        {children}
+      </Panel>
+    </PanelGroup>
+  );
 };
