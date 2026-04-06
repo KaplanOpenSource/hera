@@ -17,6 +17,20 @@ class JupyterServerThread:
         self._thread.start()
         print(f"Jupyter server starting on port {port}, root_dir={root_dir}")
 
+    def wait_until_ready(self, timeout: float = 30) -> bool:
+        import time
+        url = f"http://localhost:{self._port}/api/status"
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                resp = urllib.request.urlopen(url, timeout=2)
+                if resp.status == 200:
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.5)
+        return False
+
     @property
     def port(self) -> int:
         return self._port
@@ -45,6 +59,20 @@ class JupyterServerThread:
         print("Jupyter server stopped")
 
     @staticmethod
+    def _enable_ai_magics():
+        try:
+            config_dir = Path.home() / '.ipython' / 'profile_default'
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path = config_dir / 'ipython_config.py'
+            line = "c.InteractiveShellApp.extensions = ['jupyter_ai_magics']"
+            if config_path.exists() and line in config_path.read_text():
+                return
+            with open(config_path, 'a') as f:
+                f.write(f"\n{line}\n")
+        except OSError:
+            print("WARNING: Could not write IPython config — %%ai magic requires manual %load_ext")
+
+    @staticmethod
     def _disable_announcements():
         try:
             import sys
@@ -69,6 +97,7 @@ class JupyterServerThread:
         try:
             asyncio.set_event_loop(asyncio.new_event_loop())
             self._disable_announcements()
+            self._enable_ai_magics()
             from jupyter_server.serverapp import ServerApp
             ServerApp.clear_instance()
             ServerApp.init_signal = lambda self: None  # signals only work in main thread

@@ -114,8 +114,8 @@ export const ProjectTreeView = ({
         <Tooltip title='Files directory where the project is located'>
           <Stack direction={'row'} spacing={1} alignItems={'center'} justifyContent={'start'} sx={{ marginLeft: 5, width: 'fit-content' }}>
             <Folder />
-            <Typography>
-              {project.configDocument?.data.desc.filesDirectory}
+            <Typography color={project.configDocument?.data.desc.filesDirectory ? 'text.primary' : 'text.secondary'}>
+              {project.configDocument?.data.desc.filesDirectory || 'No directory'}
             </Typography>
           </Stack>
         </Tooltip>

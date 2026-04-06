@@ -1,16 +1,17 @@
-import { AppBar, Box, Paper, Stack, Toolbar, Typography, createTheme, ThemeProvider } from '@mui/material';
+import { Fullscreen, FullscreenExit } from '@mui/icons-material';
+import { AppBar, Box, createTheme, IconButton, Paper, Stack, ThemeProvider, Toolbar, Tooltip, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DetailsViewPanel } from './components/details/DetailsViewPanel';
-import { idFromNotebookId } from './shared/idDocId';
 import { PageTitle } from './components/header/PageTitle';
 import { ProjectChooser } from './components/header/ProjectChooser';
+import { StatusIndicators } from './components/header/StatusIndicators';
 import { ProjectTreeView } from './components/project/ProjectTreeView';
+import { SplitWithSidebar } from './elements/SplitWithSidebar';
 import { FetchProjects } from './io/FetchProjects';
+import { idFromNotebookId } from './shared/idDocId';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
-import { StatusIndicators } from './components/header/StatusIndicators';
 
 const headerTheme = createTheme({
   palette: {
@@ -38,6 +39,7 @@ export const Dashboard = () => {
   const [selectedItemsIds, setSelectedItemIds] = useState<string[]>(
     docId ? [`document_${docId}`] : []
   );
+  const [treeCollapsed, setTreeCollapsed] = useState(false);
 
   const project = getProject();
 
@@ -73,9 +75,18 @@ export const Dashboard = () => {
       <ThemeProvider theme={headerTheme}>
         <AppBar position="static">
           <Toolbar>
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center">
               <PageTitle />
               <ProjectChooser />
+              <Tooltip title={treeCollapsed ? 'Show sidebar' : 'Hide sidebar'}>
+                <IconButton
+                  color="inherit"
+                  onClick={() => setTreeCollapsed(c => !c)}
+                  size="small"
+                >
+                  {treeCollapsed ? <FullscreenExit /> : <Fullscreen />}
+                </IconButton>
+              </Tooltip>
               <StatusIndicators />
             </Stack>
           </Toolbar>
@@ -87,13 +98,14 @@ export const Dashboard = () => {
           flex: 1,
           display: 'flex',
           gap: 1,
-          minHeight: 0, // important for scroll behavior
+          minHeight: 0,
         }}
       >
         {project
           ? (
-            <PanelGroup orientation="horizontal">
-              <Panel defaultSize={50} minSize={20}>
+            <SplitWithSidebar
+              collapsed={treeCollapsed}
+              sidebar={
                 <Paper sx={{ p: 2, height: '100%', overflow: 'auto' }}>
                   <ProjectTreeView
                     project={project}
@@ -101,32 +113,20 @@ export const Dashboard = () => {
                     setSelectedItemIds={handleSetSelectedItemIds}
                   />
                 </Paper>
-              </Panel>
-
-              <PanelResizeHandle
-                style={{
-                  width: 4,
-                  cursor: 'col-resize',
-                  backgroundColor: '#e0e0e0',
-                  outline: 'none',
-                }}
-              />
-
-              <Panel defaultSize={50} minSize={20}>
-                <Paper sx={{
-                  p: idFromNotebookId(selectedItemsIds[0]) ? 0 : 2,
-                  height: '100%',
-                  overflow: 'hidden',
-                }}>
-                  <DetailsViewPanel
-                    project={project}
-                    showItemId={selectedItemsIds[0]}
-                  />
-                </Paper>
-              </Panel>
-            </PanelGroup>
+              }
+            >
+              <Paper sx={{
+                p: idFromNotebookId(selectedItemsIds[0]) ? 0 : 2,
+                height: '100%',
+                overflow: 'hidden',
+              }}>
+                <DetailsViewPanel
+                  project={project}
+                  showItemId={selectedItemsIds[0]}
+                />
+              </Paper>
+            </SplitWithSidebar>
           )
-
           : (
             <Paper sx={{ p: 2, height: '100%', overflow: 'auto', flex: 1, minWidth: 0 }}>
               <Typography>
