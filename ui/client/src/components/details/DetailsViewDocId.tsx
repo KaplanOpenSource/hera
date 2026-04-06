@@ -1,3 +1,4 @@
+import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { fetchDocument, updateDocument } from '../../io/FetchDocument';
 import { DocumentObj, ProjectObj } from '../../objects/ProjectObj';
@@ -45,10 +46,12 @@ export const DetailsViewDocId = ({
             />
           )
           : (
-            <DetailsViewDocument
-              doc={docObj}
-              setDoc={(newDoc) => changeDocument(newDoc.data)}
-            />
+            <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+              <DetailsViewDocument
+                doc={docObj}
+                setDoc={(newDoc) => changeDocument(newDoc.data)}
+              />
+            </Box>
           )
         : null}
     </>

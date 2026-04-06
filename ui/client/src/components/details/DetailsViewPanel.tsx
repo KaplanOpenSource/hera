@@ -1,3 +1,4 @@
+import { Box } from '@mui/material';
 import { ProjectObj } from '../../objects/ProjectObj';
 import { idFromDocId, idFromNotebookId, idFromRepoId } from '../../shared/idDocId';
 import { DetailsViewDocId } from './DetailsViewDocId';
@@ -24,9 +25,11 @@ export const DetailsViewPanel = ({
   const repoid = idFromRepoId(showItemId);
   if (repoid) {
     return (
-      <DetailsViewRepo
-        repoPath={repoid}
-      />
+      <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+        <DetailsViewRepo
+          repoPath={repoid}
+        />
+      </Box>
     )
   }
 

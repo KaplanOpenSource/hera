@@ -9,7 +9,6 @@ import { StatusIndicators } from './components/header/StatusIndicators';
 import { ProjectTreeView } from './components/project/ProjectTreeView';
 import { SplitWithSidebar } from './elements/SplitWithSidebar';
 import { FetchProjects } from './io/FetchProjects';
-import { idFromNotebookId } from './shared/idDocId';
 import { useProjectStore } from './stores/useProjectStore';
 import { ServerConstantReader } from './stores/useServerConstants';
 
@@ -116,7 +115,6 @@ export const Dashboard = () => {
               }
             >
               <Paper sx={{
-                p: idFromNotebookId(selectedItemsIds[0]) ? 0 : 2,
                 height: '100%',
                 overflow: 'hidden',
               }}>
