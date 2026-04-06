@@ -379,6 +379,10 @@ uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 datamodel-code-generator>=0.25.0
 
+# Jupyter AI
+jupyter_ai==2.31.7
+langchain-ollama==0.3.10
+
 # Special installation required (may need manual install)
 paraview
 hermes
